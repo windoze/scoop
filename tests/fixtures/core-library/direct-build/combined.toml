@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test"
+name = "direct-combined"
+version = "1.0.0"
+kind = "library"
+[dependencies]
+"test:helper" = "1.0.0"

@@ -10,8 +10,7 @@ use std::collections::HashSet;
 use super::scoop_abi::canonical_storage_scan;
 use super::*;
 
-mod dataflow;
-use dataflow::*;
+use crate::dataflow::*;
 
 pub(super) fn validate_call_root_plans(module: &Module) -> Result<(), CodegenError> {
     for function in &module.functions {
@@ -53,7 +52,7 @@ fn validate_function(module: &Module, function: &Function) -> Result<(), Codegen
             if arena_index(*successor) >= block_count {
                 return Err(CodegenError(format!(
                     "call root-plan validation in @{} reached invalid block {}",
-                    function.symbol,
+                    function.symbol(),
                     successor.into_raw()
                 )));
             }
@@ -104,6 +103,23 @@ fn validate_function(module: &Module, function: &Function) -> Result<(), Codegen
                     site.live.as_slice(),
                     &live,
                 )?,
+                Instruction::BoxValue {
+                    payload,
+                    live: actual,
+                    ..
+                } => {
+                    let mut expected = live.clone();
+                    if let Some(source) = payload.source() {
+                        expected.insert(LiveValue::Local(source));
+                    }
+                    validate_statepoint_roots(
+                        module,
+                        function,
+                        &site_owner(function, block_id, instruction_index, "box value"),
+                        actual.as_slice(),
+                        &expected,
+                    )?;
+                }
                 Instruction::Call { site } => {
                     validate_call_plan(module, function, block_id, instruction_index, site, &live)?
                 }
@@ -145,14 +161,15 @@ fn validate_invoke_shape(
         if index + 1 != block.instructions.len() {
             return Err(CodegenError(format!(
                 "invoke @{}: must be the last instruction of block {}",
-                function.symbol, block.name
+                function.symbol(),
+                block.name
             )));
         }
         for successor in [site.normal(), site.unwind()] {
             if arena_index(successor) >= block_count {
                 return Err(CodegenError(format!(
                     "call root-plan validation in @{} reached invalid block {}",
-                    function.symbol,
+                    function.symbol(),
                     successor.into_raw()
                 )));
             }
@@ -162,7 +179,8 @@ fn validate_invoke_shape(
             _ => {
                 return Err(CodegenError(format!(
                     "invoke block @{}:{}: terminator must be `br` to the invoke's normal target",
-                    function.symbol, block.name
+                    function.symbol(),
+                    block.name
                 )));
             }
         }
@@ -400,7 +418,7 @@ fn live_value_type<'a>(
             .ok_or_else(|| {
                 CodegenError(format!(
                     "{owner} references invalid root parameter {index} in @{}",
-                    function.symbol
+                    function.symbol()
                 ))
             }),
         LiveValue::Local(id) => {
@@ -408,17 +426,17 @@ fn live_value_type<'a>(
             if index >= function.locals.len() {
                 return Err(CodegenError(format!(
                     "{owner} references invalid root local {index} in @{}",
-                    function.symbol
+                    function.symbol()
                 )));
             }
-            Ok(&function.locals[id].ty)
+            Ok(function.locals[id].ty())
         }
         LiveValue::Temp(id) => {
             let index = arena_index(id);
             if index >= function.temps.len() {
                 return Err(CodegenError(format!(
                     "{owner} references invalid root temporary t{index} in @{}",
-                    function.symbol
+                    function.symbol()
                 )));
             }
             Ok(&function.temps[id].ty)
@@ -481,7 +499,7 @@ fn site_owner(
 ) -> String {
     format!(
         "{protocol} root plan in @{} block{} instruction {instruction}",
-        function.symbol,
+        function.symbol(),
         block.into_raw()
     )
 }
@@ -495,6 +513,9 @@ fn flattened_offsets(scan: &RefScan) -> Vec<u64> {
                 for part in parts {
                     collect(part, offsets);
                 }
+            }
+            RefScan::Array { .. } => {
+                unreachable!("root value scans cannot contain variable object scans")
             }
         }
     }

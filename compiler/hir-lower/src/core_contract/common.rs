@@ -9,9 +9,10 @@ impl Lowerer {
         if let Some(&(function, _provider)) = self.intrinsic_functions.get(&kind) {
             return Some(function);
         }
-        self.current_file = 0;
+        let core_diagnostic_file = self.core_diagnostic_file();
+        self.current_file = core_diagnostic_file;
         self.error(
-            files[0].span,
+            files[core_diagnostic_file].span,
             format!(
                 "scoop.core must define exactly one `{}` intrinsic",
                 kind.name()
@@ -44,7 +45,10 @@ impl Lowerer {
             return false;
         };
         let application = &self.interface_applications[application];
-        application.template == interface
+        application.template
+            == self
+                .nominal_identity(crate::Owner::Interface(interface))
+                .declaration_id()
             && matches!(application.arguments.as_slice(), [arg] if self.is_type_param(*arg, index))
     }
 
@@ -58,12 +62,16 @@ impl Lowerer {
             if !visited.insert(id) {
                 return false;
             }
-            current = self.classes[id].base_class.as_ref().map(|base| {
-                let Type::Class(application) = self.types[*base] else {
-                    unreachable!("resolved class bases are class applications")
-                };
-                self.class_applications[application].template
-            });
+            current =
+                self.classes[id]
+                    .base_class
+                    .as_ref()
+                    .and_then(|base| match self.types[*base] {
+                        Type::Class(application) => {
+                            self.source_class_id(self.class_applications[application].template)
+                        }
+                        _ => unreachable!("resolved class bases have class types"),
+                    });
         }
         false
     }

@@ -1,0 +1,236 @@
+Module
+  class Shape vtable=1 itables=0
+  class Circle vtable=1 itables=0
+  class Base vtable=1 itables=0
+  class Impl vtable=1 itables=0
+  interface ToString
+  interface Hash
+  fun Shape.kind @fn0(this: Shape) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun Shape.label @fn1(this: Shape) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Shape
+          Local this
+  fun Circle.kind @fn2(this: Circle) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun Base.id @fn3(this: Base) -> Int
+    bb0 entry
+      trap "call to abstract method `Base.id`"
+  fun Impl.id @fn4(this: Impl) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Impl
+          Local this
+  fun main @fn5() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.r: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Circle
+        ClassAlloc Circle
+      call @fn9 direct
+        Type Circle
+        Local $new.1
+        Type Int
+        Local $parameter.r
+      val c: Circle
+        Type Circle
+        Local $new.1
+      val $receiver: Circle
+        Type Circle
+        Local c
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Circle
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Circle
+        Type Circle
+        Local c
+      call $dependency.argument.0: String = @fn1 direct
+        Type Shape
+        Retype Shape
+          Type Circle
+          Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Circle
+          Local c
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val s: Shape
+        Type Shape
+        Retype Shape
+          Type Circle
+          Local c
+      val $receiver: Shape
+        Type Shape
+        Local s
+      call $dependency.argument.0: Int = @fn0 virtual[0]
+        Type Shape
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.v: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Impl
+        ClassAlloc Impl
+      call @fn11 direct
+        Type Impl
+        Local $new.2
+        Type Int
+        Local $parameter.v
+      val i: Impl
+        Type Impl
+        Local $new.2
+      val $receiver: Impl
+        Type Impl
+        Local i
+      call $dependency.argument.0: Int = @fn4 direct
+        Type Impl
+        Local $receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn6(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn7(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Shape.$c0 @fn8(this: Shape, name: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Shape
+        Local this
+        Type String
+        Local name
+      return
+  fun init.Circle.$c1 @fn9(this: Circle, r: Int) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $parameter.name: String
+        Type String
+        Local $argument.0
+      call @fn8 direct
+        Type Shape
+        Retype Shape
+          Type Circle
+          Local this
+        Type String
+        Local $parameter.name
+      field_set 1
+        Type Circle
+        Local this
+        Type Int
+        Local r
+      return
+  fun init.Base.$c2 @fn10(this: Base) -> Unit
+    bb0 entry
+      return
+  fun init.Impl.$c3 @fn11(this: Impl, v: Int) -> Unit
+    bb0 entry
+      call @fn10 direct
+        Type Base
+        Retype Base
+          Type Impl
+          Local this
+      field_set 0
+        Type Impl
+        Local this
+        Type Int
+        Local v
+      return
+  instance mi0 function=@fn6 <- println
+  instance mi1 function=@fn7 <- println
+  str @str0 "\n"
+  str @str1 "\n"
+  str @str2 "circle"
+  output executable @fn5

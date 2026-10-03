@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  fun shifted(value: Int): Int
+    =
+      MethodCall shl
+        Var value
+        Argument distance=
+          IntLiteral 2L

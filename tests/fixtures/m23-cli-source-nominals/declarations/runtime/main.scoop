@@ -1,0 +1,20 @@
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyNominal(base().inherited() == 1)
+    verifyNominal(abstractValue(7).value() == 7)
+    verifyNominal(abstractValue("abstract").value() == "abstract")
+    verifyNominal(finalValue(11) == 11)
+    verifyNominal(finalValue("final") == "final")
+    verifyNominal(Pair("second", 13) == Pair("second", 13))
+    val empty: Choice<Int> = Choice.Empty
+    verifyNominal(empty == Choice.Empty)
+    verifyNominal(Choice.Positional(17) == Choice.Positional(17))
+    verifyNominal(Choice.Named(value = "named") == Choice.Named(value = "named"))
+    verifyNominal(Choice.Constructed(19) == Choice.Constructed(19))
+    verifyNominal(Singleton.mark() == 1)
+    verifyNominal(Singleton.read() == 7)
+    verifyNominal(defaultNumber(Defaults()) == 1)
+    verifyNominal(defaultNumber(internalDefault()) == 3)
+}

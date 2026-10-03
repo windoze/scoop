@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  private var sharedValue: Int = <expr>
+  private fun loadValue(): Int
+    =
+      IntLiteral 4
+  public struct Packet
+    field field: Int
+  public object Store
+  public open class Base()
+    protected fun inherited
+  public class Child() : Base(<0 args>)
+    public fun inherited
+  public class Samples()
+    private fun callable
+    private fun global
+    public fun constructor
+    public fun singleton
+    public fun field
+    public fun tuple
+    public fun literal

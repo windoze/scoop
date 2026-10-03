@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  fun sourceDefault(seed: Int, value: Int = <expr>): Int
+    =
+      Var value
+  fun main()
+    if
+      Binary Ne
+        Call sourceDefault
+          IntLiteral 7
+        IntLiteral 7
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call sourceDefault
+          IntLiteral 11
+        IntLiteral 11
+      throw
+        Call IllegalStateException

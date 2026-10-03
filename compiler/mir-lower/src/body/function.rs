@@ -1,22 +1,93 @@
 use super::*;
 
 mod adapters;
+mod dynamic_adapters;
 
 impl BodyLowerer<'_> {
-    pub(crate) fn allocate_fragment_locals(&mut self, body: &hir::Body) {
-        for (hir_id, local) in body.locals.iter() {
-            let ty = self.lower_type(local.ty);
-            let mir_id = self.locals.alloc(mir::Local {
-                name: local.name.clone(),
-                ty,
-                mutable: local.mutable,
-            });
-            self.local_map.insert(hir_id, mir_id);
-        }
+    pub(crate) fn allocate_function_locals(
+        &mut self,
+        function: hir::FunctionId,
+        locals: &Arena<hir::Local>,
+    ) {
+        let identities = locals
+            .iter()
+            .map(|(local, _)| {
+                self.module
+                    .local_value_identities
+                    .function_local(function, local)
+                    .clone()
+            })
+            .collect();
+        self.allocate_source_locals(locals, identities);
     }
 
-    pub(crate) fn allocate_argument_locals(&mut self, body: &hir::ConstructorArguments) {
-        for (hir_id, local) in body.locals.iter() {
+    pub(crate) fn allocate_class_locals(
+        &mut self,
+        constructor: hir::ClassConstructorId,
+        body: &hir::Body,
+    ) {
+        let identities = body
+            .locals
+            .iter()
+            .map(|(local, _)| {
+                self.module
+                    .local_value_identities
+                    .class_local(constructor, local)
+                    .clone()
+            })
+            .collect();
+        self.allocate_source_locals(&body.locals, identities);
+    }
+
+    pub(crate) fn allocate_struct_argument_locals(
+        &mut self,
+        constructor: hir::StructConstructorId,
+        body: &hir::ConstructorArguments,
+    ) {
+        let identities = body
+            .locals
+            .iter()
+            .map(|(local, _)| {
+                self.module
+                    .local_value_identities
+                    .struct_argument_local(constructor, local)
+                    .expect("secondary constructor argument locals have persistent identities")
+                    .clone()
+            })
+            .collect();
+        self.allocate_source_locals(&body.locals, identities);
+    }
+
+    pub(crate) fn allocate_struct_body_locals(
+        &mut self,
+        constructor: hir::StructConstructorId,
+        body: &hir::Body,
+    ) {
+        let identities = body
+            .locals
+            .iter()
+            .map(|(local, _)| {
+                self.module
+                    .local_value_identities
+                    .struct_body_local(constructor, local)
+                    .expect("secondary constructor body locals have persistent identities")
+                    .clone()
+            })
+            .collect();
+        self.allocate_source_locals(&body.locals, identities);
+    }
+
+    fn allocate_source_locals(
+        &mut self,
+        locals: &Arena<hir::Local>,
+        identities: Vec<hir::LocalValueIdentityRecord>,
+    ) {
+        assert_eq!(
+            locals.len(),
+            identities.len(),
+            "the LocalConcrete local-value relation is total"
+        );
+        for ((hir_id, local), identity) in locals.iter().zip(identities) {
             let ty = self.lower_type(local.ty);
             let mir_id = self.locals.alloc(mir::Local {
                 name: local.name.clone(),
@@ -24,15 +95,21 @@ impl BodyLowerer<'_> {
                 mutable: local.mutable,
             });
             self.local_map.insert(hir_id, mir_id);
+            self.local_values
+                .record(self.current_function, mir_id, &identity);
         }
     }
 
     pub(crate) fn lower_function(
         mut self,
+        function_id: hir::FunctionId,
         function: &hir::Function,
-        body: &hir::Body,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
-        self.allocate_fragment_locals(body);
+        let locals = function
+            .kind
+            .locals()
+            .expect("source implementations and abstract slots have local environments");
+        self.allocate_function_locals(function_id, locals);
         let params = function
             .params
             .iter()
@@ -49,32 +126,21 @@ impl BodyLowerer<'_> {
                 .map(|param| self.local_map[&param.local]);
         }
         let return_ty = self.lower_type(function.return_ty);
-        let statements = if is_abstract_bodiless(function) {
-            // An abstract method (hir-lower materializes it bodiless):
-            // every override replaces its vtable slot and the class
-            // cannot be instantiated, so the slot is never reached;
-            // the emitted function traps like a pure-virtual stub.
-            let message =
-                self.trap_message(format!("call to abstract method `{}`", fn_name(function)));
-            vec![smir::Statement {
-                kind: smir::StatementKind::Expr(smir::Expr::new(
-                    mir::Type::Unit,
-                    smir::ExprKind::Call(smir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee: mir::Callee::Runtime(mir::RuntimeFn::Trap),
-                        },
-                        args: vec![smir::Expr::new(
-                            mir::Type::String,
-                            smir::ExprKind::StringConst(message),
-                        )],
-                        return_ty: mir::Type::Unit,
-                    }),
-                )),
+        let statements = match &function.kind {
+            hir::FunctionKind::Abstract { .. } => vec![smir::Statement {
+                kind: smir::StatementKind::Trap {
+                    message: format!("call to abstract method `{}`", fn_name(function)),
+                },
                 span: function.span,
-            }]
-        } else {
-            self.lower_statements(&body.statements)
+            }],
+            hir::FunctionKind::User(body) => self.lower_statements(&body.statements),
+            hir::FunctionKind::InitializationEnsure
+            | hir::FunctionKind::Intrinsic(_)
+            | hir::FunctionKind::Extern(_) => {
+                unreachable!(
+                    "generated coordinators, intrinsics and native functions have no source implementation"
+                )
+            }
         };
         assert!(
             self.active_loops.is_empty(),
@@ -94,19 +160,34 @@ impl BodyLowerer<'_> {
 
     pub(crate) fn coroutine_eh_mode(&self) -> Option<smir::CoroutineEhMode> {
         self.contains_suspend_call.then(|| smir::CoroutineEhMode {
-            throwable: mir::Type::Class(
-                self.class_map[&self.module.exception_core.throwable.class()],
-            ),
+            throwable: crate::coroutine_registry::throwable_type(self.module, self.class_map),
         })
     }
 
     pub(crate) fn lower_type(&mut self, ty: hir::TypeId) -> mir::Type {
-        Types {
+        let lowered = Types {
             module: self.module,
             struct_map: self.struct_map,
             class_map: self.class_map,
         }
-        .lower(ty, self.enums, self.structs, self.interfaces, self.shell)
+        .lower(
+            ty,
+            self.source_exact_types,
+            self.enums,
+            self.structs,
+            self.interfaces,
+            self.shell,
+        );
+        let source = self
+            .source_exact_types
+            .get(&lowered)
+            .expect("every lowered HIR type has a persistent MIR relation");
+        assert_eq!(
+            source.identity_record().id(),
+            self.module.exact_type_identities[ty].id(),
+            "type lowering preserves the exact HIR identity"
+        );
+        lowered
     }
 
     pub(crate) fn lower_function_type_id(
@@ -128,11 +209,19 @@ impl BodyLowerer<'_> {
         mutable: bool,
     ) -> mir::LocalId {
         self.hidden_count += 1;
-        self.locals.alloc(mir::Local {
+        let local = self.locals.alloc(mir::Local {
             name: format!("${prefix}.{}", self.hidden_count),
             ty,
             mutable,
-        })
+        });
+        self.local_values.record_generated_local(
+            self.current_function,
+            local,
+            self.current_materialization,
+            hir::StructuralDefinitionSiteRole::SyntheticValue,
+            hir::SyntheticLocalRole::Temporary,
+        );
+        local
     }
 
     /// Emit the queued prelude statements (the trap tests of `!!`)

@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.generics.identity
+  ImportExact Local primitive
+  class Result(val value: Int)
+  public fun check(): Int
+    val result
+      Call identity
+        Call Result
+          Binary Add
+            Call primitive
+            IntLiteral 2
+    val other
+      Call identity
+        Call Result
+          IntLiteral 0
+    return
+      Binary Add
+        FieldAccess value
+          Var result
+        FieldAccess value
+          Var other

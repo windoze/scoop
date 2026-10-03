@@ -93,7 +93,7 @@ fn direct_method_name<'a>(module: &'a hir::Module, expr: &hir::Expr) -> &'a str 
     let hir::ExprKind::MethodCall { callee, .. } = &expr.kind else {
         panic!("expected a method call, found {expr:?}");
     };
-    let hir::MethodCallee::Callable(callable) = callee else {
+    let hir::MethodCallee::Callable(hir::CallableTarget::Local(callable)) = callee else {
         panic!("expected an ordinary callable method");
     };
     let function = match callable {
@@ -111,9 +111,12 @@ fn direct_method_name<'a>(module: &'a hir::Module, expr: &hir::Expr) -> &'a str 
 
 fn direct_callable_name<'a>(module: &'a hir::Module, expr: &hir::Expr) -> &'a str {
     let callee = match &expr.kind {
-        hir::ExprKind::Call { callee, .. } => *callee,
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } => *callee,
         hir::ExprKind::MethodCall { callee, .. } => {
-            let hir::MethodCallee::Callable(callee) = callee else {
+            let hir::MethodCallee::Callable(hir::CallableTarget::Local(callee)) = callee else {
                 panic!("expected an ordinary callable method");
             };
             *callee
@@ -1370,7 +1373,7 @@ fn class_binding_plan_keeps_one_complete_lambda_parameter() {
     .expect("a lambda class pattern must share the irrefutable planner");
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
     let signature = &module.function_types[lambda.function_type];
-    let invoke = &module.functions[lambda.function];
+    let invoke = &module.functions[lambda.definition.source_function()];
     assert_eq!(
         signature.parameter_types,
         vec![invoke.params[1].ty],
@@ -1625,8 +1628,9 @@ fn class_binding_plan_checks_suspend_components_in_the_lambda_context() {
     ]))
     .expect("a suspend lambda may invoke a suspend component");
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
-    assert!(module.functions[lambda.function].is_suspend);
-    let hir::FunctionKind::User(body) = &module.functions[lambda.function].kind else {
+    assert!(module.functions[lambda.definition.source_function()].is_suspend);
+    let hir::FunctionKind::User(body) = &module.functions[lambda.definition.source_function()].kind
+    else {
         panic!("lambda invoke body")
     };
     assert!(body.statements.iter().any(|statement| matches!(
@@ -2272,7 +2276,11 @@ fn class_destructuring_uses_a_typed_extension_component_action() {
                 return None;
             };
             let local = binding_local(pattern)?;
-            let hir::ExprKind::Call { callee, .. } = &init.kind else {
+            let hir::ExprKind::Call {
+                callee: hir::CallableTarget::Local(callee),
+                ..
+            } = &init.kind
+            else {
                 return None;
             };
             let function = module.callable_function(*callee);
@@ -2351,10 +2359,14 @@ fn assert_adapted_extension_component(
     let [(receiver, receiver_init)] = receivers.as_slice() else {
         panic!("one extension component must materialize exactly one receiver")
     };
-    let hir::ExprKind::Local(receiver_source) = receiver_init.kind else {
+    let hir::ExprKind::ReferenceUpcast(source_expression) = &receiver_init.kind else {
+        panic!("the component receiver retains its reference adaptation")
+    };
+    let hir::ExprKind::Local(receiver_source) = source_expression.kind else {
         panic!("the adapted extension receiver must read the class subject")
     };
     assert_eq!(receiver_source, *subject);
+    assert_eq!(source_expression.ty, body.locals[*subject].ty);
     assert_eq!(hir::type_name(module, receiver_init.ty), receiver_type);
     assert_eq!(body.locals[*receiver].ty, receiver_init.ty);
     assert!(!body.locals[*receiver].mutable);
@@ -2376,7 +2388,12 @@ fn assert_adapted_extension_component(
     let [(component, call)] = components.as_slice() else {
         panic!("one written position must have exactly one component result")
     };
-    let hir::ExprKind::Call { callee, args } = &call.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        args,
+        ..
+    } = &call.kind
+    else {
         panic!("an extension component must remain a direct typed call")
     };
     let [argument] = args.as_slice() else {

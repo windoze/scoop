@@ -1,0 +1,145 @@
+Module
+  global0 $singleton$9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49: Tools imported provider=e429b7993b201ed951fc2cbd33a5e0b8f530943b78e1a45bfb328774c95b3116 storage=833aa6a09ee66f44a5e67c2358df7947ee31151d1ae5dffe1904b4edf6c20261
+  global1 $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec: Companion imported provider=e429b7993b201ed951fc2cbd33a5e0b8f530943b78e1a45bfb328774c95b3116 storage=6b18b233a02dee66ac76643165cbaa33e6cb0d010b447e73a2031e7aac5c6f4f
+  struct CompanionLeaf (number: Int)
+  class Companion vtable=0 itables=0
+  class Tools vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn5 id=112531c2c45f01241d4c087f1f8828e629bb6666e1fa37796e72688fd3ee13b2
+  generated_exact_type get0 location=closure0 nominal_id=691d65855935c7c463ee08d48a7d5e785efbf2d67e268561945051090605b23f exact_id=42c9058f4c6542c73144b4925dd64b6859ba2a6009775dce83dce2f05f51a5cd
+  generated_exact_type get1 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn5 id=112531c2c45f01241d4c087f1f8828e629bb6666e1fa37796e72688fd3ee13b2
+  fun readInt @fn0(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun result @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn2(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      call external4 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
+      call external4 direct
+      call $dependency.argument.0: Int = external0 direct
+        Type Companion
+        GlobalRead $singleton$f0fd57fc8ae6b86256eb33ea213d2de7030d6202ec49e181e60592a2d28fbeec
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = external1 direct
+        Type Companion
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call leaf: CompanionLeaf = external2 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $callable.receiver: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      call external3 direct
+      val $dependency.receiver: Tools
+        Type Tools
+        GlobalRead $singleton$9efd2a4d04abf0bea401f1027890d8eefbb81fe48ca79d8b3f94a4bf04422f49
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn3 direct
+        Type Tools
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $callable.receiver
+        Type Int
+        Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $result.0
+        Type Int
+        FieldAccess 0
+          Type CompanionLeaf
+          Local leaf
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $result.0
+  fun keep @fn3(this: Tools, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $reference.0 @fn4($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn5($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- keep
+  output library

@@ -1,0 +1,10 @@
+
+@Extern(lib = "m23_runtime_images", name = "m23_trace")
+private fun trace(value: Long)
+
+private fun fail(): Int {
+    @Unsafe { trace(11) }
+    throw IllegalStateException()
+}
+val first: Int = fail()
+fun main() { @Unsafe { trace(99) } }

@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public class Derived() : RebuiltParent(<0 args>)
+    public fun read
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall read
+          Call Derived

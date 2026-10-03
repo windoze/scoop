@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  struct Empty
+    @Extern(lib = "m23_scoopabi", name = "m23_managed_echo", abi = "scoop")
+  fun echo(text: String): String
+    @Extern(lib = "m23_scoopabi", name = "m23_empty", abi = "scoop")
+  fun empty(value: Empty): Empty
+    @NoGC
+    @Extern(lib = "m23_scoopabi", name = "m23_zst_value", abi = "scoop")
+  fun value(empty: Empty, number: Int): Int
+  fun main()
+    val caller
+      Binary Add
+        StringLiteral "caller-"
+        StringLiteral "alive"
+    Call println
+      Call echo
+        Binary Add
+          StringLiteral "managed-"
+          StringLiteral "alive"
+    Call println
+      Call value
+        Call empty
+          Call Empty
+        IntLiteral 41
+    Call println
+      Var caller

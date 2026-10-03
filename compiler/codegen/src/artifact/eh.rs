@@ -75,6 +75,21 @@ impl ExpectedEh {
         self.functions.get(symbol)
     }
 
+    pub(crate) fn without_body_metadata(&self) -> Self {
+        Self::default()
+    }
+
+    pub(crate) fn for_function(&self, symbol: &str) -> Self {
+        Self {
+            functions: self
+                .functions
+                .get(symbol)
+                .cloned()
+                .map(|function| BTreeMap::from([(symbol.to_string(), function)]))
+                .unwrap_or_default(),
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn action_count(&self, symbol: &str, action: EhActionKind) -> usize {
         self.function(symbol)
@@ -93,10 +108,10 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
     let mut symbols = BTreeSet::new();
     let mut managed_safepoints = BTreeSet::new();
     for function in &module.functions {
-        if !symbols.insert(function.symbol.as_str()) {
+        if !symbols.insert(function.symbol()) {
             return Err(CodegenError(format!(
                 "duplicate LIR function symbol `{}` in EH manifest",
-                function.symbol
+                function.symbol()
             )));
         }
         let mut expectation = ExpectedEhFunction::default();
@@ -112,7 +127,9 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
                     _ => {
                         return Err(CodegenError(format!(
                             "invoke @{} block `{}` unwinds to `{}`, which does not begin with an EH pad",
-                            function.symbol, block.name, unwind.name
+                            function.symbol(),
+                            block.name,
+                            unwind.name
                         )));
                     }
                 };
@@ -129,12 +146,25 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
                 if pad_count != 1 {
                     return Err(CodegenError(format!(
                         "invoke @{} block `{}` unwind destination `{}` contains {pad_count} EH pads",
-                        function.symbol, block.name, unwind.name
+                        function.symbol(),
+                        block.name,
+                        unwind.name
                     )));
                 }
                 let safepoint = match site {
                     scoop_lir::InvokeSite::Managed(site) => {
-                        let id = site.safepoint.get();
+                        let id = function
+                            .safepoints
+                            .get(site.safepoint)
+                            .ok_or_else(|| {
+                                CodegenError(format!(
+                                    "managed invoke in `{}` references missing safepoint site {}",
+                                    function.symbol(),
+                                    site.safepoint.into_u32()
+                                ))
+                            })?
+                            .runtime_id()
+                            .get();
                         if !managed_safepoints.insert(id) {
                             return Err(CodegenError(format!(
                                 "duplicate managed invoke SafepointId {id} in EH manifest"
@@ -152,7 +182,7 @@ pub(crate) fn expectations(module: &Module) -> Result<ExpectedEh, CodegenError> 
             }
         }
         if !expectation.invokes.is_empty() {
-            functions.insert(function.symbol.clone(), expectation);
+            functions.insert(function.symbol().to_string(), expectation);
         }
     }
     Ok(ExpectedEh { functions })

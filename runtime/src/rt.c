@@ -4,11 +4,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "scoop_rt.h"
 #include "eh_internal.h"
 #include "gc/gc_internal.h"
 #include "managed_entries.h"
+#include "scoop_rt.h"
 #include "thread.h"
+#include "value_shape.h"
 
 /* TypeDescriptor for String, emitted by generated code (runtime spec
  * 2.2). Referenced by scoop_rt_string_concat when allocating. */
@@ -17,9 +18,7 @@ extern const ScoopTypeDescriptor scoop_td_String;
 /* scoop_rt_alloc lives in gc.c (M9): it allocates from the GC heap and
  * may trigger a collection. */
 
-void scoop_rt_write(const ScoopString *s) {
-    fwrite(s->data, 1, s->len, stdout);
-}
+void scoop_rt_write(const ScoopString *s) { fwrite(s->data, 1, s->len, stdout); }
 
 void scoop_rt_println(const ScoopString *s) {
     scoop_rt_write(s);
@@ -30,7 +29,8 @@ void scoop_rt_println(const ScoopString *s) {
 const ScoopString *scoop_rt_long_to_string(int64_t v) {
     char buf[24]; // -2^63 needs 20 chars + NUL
     int len = snprintf(buf, sizeof(buf), "%lld", (long long)v);
-    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
+    ScoopString *result = scoop_rt_alloc(
+        &scoop_td_String, scoop_shape_allocation_size(&scoop_td_String, (uint64_t)len));
     result->len = (uint64_t)len;
     memcpy(result->data, buf, (size_t)len);
     return result;
@@ -39,7 +39,8 @@ const ScoopString *scoop_rt_long_to_string(int64_t v) {
 const ScoopString *scoop_rt_ulong_to_string(uint64_t v) {
     char buf[24]; // 2^64 - 1 needs 20 chars + NUL
     int len = snprintf(buf, sizeof(buf), "%llu", (unsigned long long)v);
-    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + (size_t)len);
+    ScoopString *result = scoop_rt_alloc(
+        &scoop_td_String, scoop_shape_allocation_size(&scoop_td_String, (uint64_t)len));
     result->len = (uint64_t)len;
     memcpy(result->data, buf, (size_t)len);
     return result;
@@ -52,15 +53,14 @@ const ScoopString *scoop_rt_bool_to_string(bool v) {
     static const char FALSE_STR[] = "false";
     const char *text = v ? TRUE_STR : FALSE_STR;
     size_t len = v ? sizeof(TRUE_STR) - 1 : sizeof(FALSE_STR) - 1;
-    ScoopString *result = scoop_rt_alloc(&scoop_td_String, sizeof(ScoopString) + len);
+    ScoopString *result = scoop_rt_alloc(
+        &scoop_td_String, scoop_shape_allocation_size(&scoop_td_String, (uint64_t)len));
     result->len = (uint64_t)len;
     memcpy(result->data, text, len);
     return result;
 }
 
-bool scoop_rt_bool_equals(bool left, bool right) {
-    return left == right;
-}
+bool scoop_rt_bool_equals(bool left, bool right) { return left == right; }
 
 static uint64_t scoop_rt_mix_word(uint64_t value) {
     value ^= value >> 30;
@@ -75,13 +75,9 @@ int64_t scoop_rt_long_hash(int64_t v) {
     return (int64_t)scoop_rt_mix_word((uint64_t)v);
 }
 
-int64_t scoop_rt_ulong_hash(uint64_t v) {
-    return (int64_t)scoop_rt_mix_word(v);
-}
+int64_t scoop_rt_ulong_hash(uint64_t v) { return (int64_t)scoop_rt_mix_word(v); }
 
-int64_t scoop_rt_bool_hash(bool v) {
-    return v ? 1 : 0;
-}
+int64_t scoop_rt_bool_hash(bool v) { return v ? 1 : 0; }
 
 int64_t scoop_rt_string_hash(const ScoopString *s) {
     uint64_t hash = UINT64_C(1469598103934665603);
@@ -92,21 +88,22 @@ int64_t scoop_rt_string_hash(const ScoopString *s) {
     return (int64_t)hash;
 }
 
-const ScoopString *scoop_rt_string_concat_impl(
-    const ScoopString *a, const ScoopString *b, uintptr_t return_pc,
-    uintptr_t stack_pointer, uintptr_t frame_pointer) {
+const ScoopString *scoop_rt_string_concat_impl(const ScoopString *a,
+                                               const ScoopString *b,
+                                               uintptr_t return_pc,
+                                               uintptr_t stack_pointer,
+                                               uintptr_t frame_pointer) {
     ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
-                                     frame_pointer);
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
     const ScoopString *rooted_a = a;
     const ScoopString *rooted_b = b;
     void **root_slots[] = {(void **)&rooted_a, (void **)&rooted_b};
     ScoopNativeRootFrame roots;
     scoop_rt_push_native_roots(&roots, root_slots, 2);
-    ScoopString *result =
-        scoop_gc_alloc_internal(&scoop_td_String,
-                                sizeof(ScoopString) + rooted_a->len + rooted_b->len);
-    result->len = rooted_a->len + rooted_b->len;
+    uint64_t count = scoop_shape_add(rooted_a->len, rooted_b->len);
+    size_t size = scoop_shape_allocation_size(&scoop_td_String, count);
+    ScoopString *result = scoop_gc_alloc_internal(&scoop_td_String, size);
+    result->len = count;
     memcpy(result->data, rooted_a->data, rooted_a->len);
     memcpy(result->data + rooted_a->len, rooted_b->data, rooted_b->len);
     scoop_rt_pop_native_roots(&roots);
@@ -130,17 +127,11 @@ int64_t scoop_rt_string_compare(const ScoopString *a, const ScoopString *b) {
     return (a->len > b->len) - (a->len < b->len);
 }
 
-void scoop_rt_print_long(int64_t value) {
-    printf("%" PRId64, value);
-}
+void scoop_rt_print_long(int64_t value) { printf("%" PRId64, value); }
 
-void scoop_rt_println_long(int64_t value) {
-    printf("%" PRId64 "\n", value);
-}
+void scoop_rt_println_long(int64_t value) { printf("%" PRId64 "\n", value); }
 
-void scoop_rt_print_boolean(bool value) {
-    fputs(value ? "true" : "false", stdout);
-}
+void scoop_rt_print_boolean(bool value) { fputs(value ? "true" : "false", stdout); }
 
 void scoop_rt_println_boolean(bool value) {
     scoop_rt_print_boolean(value);
@@ -152,75 +143,63 @@ _Noreturn void scoop_rt_trap(const char *message) {
     abort();
 }
 
-const void *scoop_rt_array_clone_impl(const void *obj,
-                                      const ScoopTypeDescriptor *target_td,
-                                      uint64_t elem_size,
-                                      uint64_t data_offset,
-                                      uintptr_t return_pc,
-                                      uintptr_t stack_pointer,
-                                      uintptr_t frame_pointer) {
-    ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
-                                     frame_pointer);
-    const ScoopArray *src = obj;
-    void **root_slots[] = {(void **)&src};
-    ScoopNativeRootFrame roots;
-    scoop_rt_push_native_roots(&roots, root_slots, 1);
-    size_t bytes = (size_t)data_offset + (size_t)(src->size * elem_size);
-    /* The target nominal array application is fixed by MIR/LIR. Preserve the
-     * fresh GC header and copy only size/padding/elements. */
-    void *copy = scoop_gc_alloc_internal(target_td, bytes);
-    memcpy((char *)copy + sizeof(ScoopObjectHeader),
-           (const char *)src + sizeof(ScoopObjectHeader),
-           bytes - sizeof(ScoopObjectHeader));
-    scoop_rt_pop_native_roots(&roots);
-    scoop_thread_pop_managed_anchor(&anchor);
-    return copy;
-}
-
-void *scoop_rt_box_impl(const ScoopTypeDescriptor *td, const void *payload,
-                        uint64_t payload_size, const uint64_t *payload_scan,
-                        uintptr_t return_pc, uintptr_t stack_pointer,
-                        uintptr_t frame_pointer) {
-    ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
-                                     frame_pointer);
-    ScoopNativeRegionRootEntry payload_entry;
-    ScoopNativeRegionRootFrame payload_roots;
-    if (payload_scan != NULL) {
-        payload_entry = (ScoopNativeRegionRootEntry){
-            .base = (void *)payload,
-            .scan = payload_scan,
-        };
-        scoop_rt_push_native_region_roots(&payload_roots, &payload_entry, 1);
+static bool type_is_subtype(const ScoopTypeDescriptor *source,
+                            const ScoopTypeDescriptor *target) {
+    if (target == NULL || source == target) {
+        return true;
     }
-    void *obj = scoop_gc_alloc_internal(
-        td, sizeof(ScoopObjectHeader) + (size_t)payload_size);
-    memcpy((char *)obj + sizeof(ScoopObjectHeader), payload, (size_t)payload_size);
-    if (payload_scan != NULL) {
-        scoop_rt_pop_native_region_roots(&payload_roots);
+    if (source == NULL) {
+        return false;
     }
-    scoop_thread_pop_managed_anchor(&anchor);
-    return obj;
-}
-
-bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td) {
-    const ScoopTypeDescriptor *obj_td = ((const ScoopObjectHeader *)obj)->td;
-    for (const ScoopTypeDescriptor *cur = obj_td; cur != NULL; cur = cur->parent) {
-        if (cur == td) {
+    if (target->relation_kind == 1 || target->relation_kind == 2) {
+        while (source != NULL && source->relation_kind != 1 &&
+               source->relation_kind != 2) {
+            source = source->parent;
+        }
+        if (source == NULL || source->relation_kind != target->relation_kind ||
+            source->related_type_count != target->related_type_count) {
+            return false;
+        }
+        for (uint32_t i = 0; i < source->related_type_count; i++) {
+            if (!type_is_subtype(target->related_types[i], source->related_types[i])) {
+                return false;
+            }
+        }
+        return type_is_subtype(source->function_result, target->function_result);
+    }
+    for (const ScoopTypeDescriptor *cur = source; cur != NULL; cur = cur->parent) {
+        if (cur == target) {
             return true;
         }
     }
-    for (uint64_t i = 0; i < obj_td->itable_count; i++) {
-        if (obj_td->itables[i].interface == td) {
+    for (uint64_t i = 0; i < source->itable_count; i++) {
+        if (source->itables[i].interface == target) {
             return true;
+        }
+    }
+    if (source->relation_kind == 3) {
+        for (uint32_t i = 0; i < source->related_type_count; i++) {
+            if (type_is_subtype(source->related_types[i], target)) {
+                return true;
+            }
         }
     }
     return false;
 }
 
+bool scoop_rt_is_instance(const void *obj, const ScoopTypeDescriptor *td) {
+    const ScoopTypeDescriptor *source = ((const ScoopObjectHeader *)obj)->td;
+    scoop_image_require_type(source);
+    if (td != NULL) {
+        scoop_image_require_type(td);
+    }
+    return type_is_subtype(source, td);
+}
+
 const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
                                           const ScoopTypeDescriptor *iface_td) {
+    scoop_image_require_type(obj_td);
+    scoop_image_require_type(iface_td);
     for (uint64_t i = 0; i < obj_td->itable_count; i++) {
         if (obj_td->itables[i].interface == iface_td) {
             return obj_td->itables[i].slots;
@@ -228,23 +207,4 @@ const void *const *scoop_rt_itable_lookup(const ScoopTypeDescriptor *obj_td,
     }
     fprintf(stderr, "scoop_rt_itable_lookup: no itable entry for the interface\n");
     abort();
-}
-
-int main(void) {
-    scoop_thread_runtime_init();
-    scoop_callback_runtime_init();
-    scoop_rt_gc_init();
-    /* The direct C gateway frame is the exclusive upper bound of the managed
-     * segment. Runtime sources are built with frame pointers enabled, so the
-     * generated frame chain reaches this exact address independently of C
-     * local-variable placement. */
-    scoop_thread_attach_main(__builtin_frame_address(0));
-    scoop_rt_initialize_image();
-    scoop_main();
-    scoop_callback_prepare_shutdown();
-    scoop_eh_prepare_shutdown();
-    scoop_thread_prepare_shutdown();
-    scoop_thread_detach_main();
-    scoop_thread_runtime_finish_shutdown();
-    return 0;
 }

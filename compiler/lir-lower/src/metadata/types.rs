@@ -179,11 +179,12 @@ pub(crate) fn lower_structs(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
-) -> lir::StructDefs {
-    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
+) -> StorageResult<lir::StructDefs> {
+    let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
     let mut structs = lir::StructDefs::default();
-    for (_, definition) in module.structs.iter() {
-        let (_, size, align) = struct_shape(context, module, &enum_shape, definition);
+    for (id, definition) in module.structs.iter() {
+        let exact_type = exact_type_record(module, &definition.physical_type(id)).id();
+        let (_, size, align) = struct_shape(context, module, &enum_shape, definition)?;
         match &definition.representation {
             mir::StructRepresentation::Declared {
                 c_layout,
@@ -192,6 +193,7 @@ pub(crate) fn lower_structs(
             } => {
                 if let Some(contract) = c_layout {
                     let _ = structs.alloc_c(
+                        exact_type,
                         definition.name.clone(),
                         size,
                         align,
@@ -201,6 +203,7 @@ pub(crate) fn lower_structs(
                     );
                 } else {
                     structs.alloc_scoop(
+                        exact_type,
                         definition.name.clone(),
                         size,
                         align,
@@ -211,6 +214,7 @@ pub(crate) fn lower_structs(
             }
             mir::StructRepresentation::Intrinsic(representation) => {
                 structs.alloc_intrinsic(
+                    exact_type,
                     definition.name.clone(),
                     size,
                     align,
@@ -230,7 +234,7 @@ pub(crate) fn lower_structs(
         else {
             continue;
         };
-        let (field_layouts, _, _) = struct_shape(context, module, &enum_shape, definition);
+        let (field_layouts, _, _) = struct_shape(context, module, &enum_shape, definition)?;
         if c_layout.is_some() {
             let reference = structs
                 .c_ref(struct_def_id(mir_id))
@@ -241,6 +245,7 @@ pub(crate) fn lower_structs(
                     .iter()
                     .zip(field_layouts)
                     .map(|(field, layout)| lir::CStructField {
+                        identity: field.identity,
                         ty: c_ffi_type(module, &structs, enums, &field.ty),
                         layout,
                     })
@@ -260,7 +265,7 @@ pub(crate) fn lower_structs(
             );
         }
     }
-    structs
+    Ok(structs)
 }
 
 pub(crate) fn compiler_data_pointee(pointee: &mir::Type) -> lir::LirDataPointee {

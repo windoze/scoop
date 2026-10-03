@@ -1,0 +1,8 @@
+public struct SharedCallableToken() {
+    @NoGC public fun keep(value: SharedCallableToken): SharedCallableToken = value
+    private fun privateHelper(value: SharedCallableToken): SharedCallableToken = value
+}
+
+public fun sharedCallablePass(value: SharedCallableToken): SharedCallableToken = value
+
+private fun sharedCallableHidden(value: SharedCallableToken): SharedCallableToken = value

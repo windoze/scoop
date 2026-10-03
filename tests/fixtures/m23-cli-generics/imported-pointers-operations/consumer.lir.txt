@@ -1,0 +1,136 @@
+Module
+  fun @scoop$1$cb$e27e91f77258c175834816053f1e41b1ce63c92cf6dbc35f5b9a8c0c77a3ba0c() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$b1e8cf6baa87c82a17004224a118fcfd33125ff9f1e315f6ce916d008e792035(i32) -> i32
+    local %0 number: i32
+    local %1 pointer: ptr<raw>
+    local %2 $dependency.receiver: ptr<raw>
+    local %3 $dependency.receiver: ptr<raw>
+    local %4 changed: ptr<raw>
+    local %5 $dependency.receiver: ptr<raw>
+    local %6 inferred: ptr<raw>
+    local %7 $dependency.argument.0: ptr<raw>
+    local %8 $dependency.parameter.pointer: ptr<raw>
+    local %9 $dependency.receiver: ptr<raw>
+    local %10 $equality.lhs: i64
+    local %11 $dependency.receiver: i64
+    local %12 $dependency.argument.0: i64
+    local %13 $dependency.parameter.other: i64
+    local %14 $dependency.receiver: ptr<raw>
+    local %15 $dependency.argument.0: i64
+    local %16 $dependency.argument.1: i32
+    local %17 $dependency.parameter.offset: i64
+    local %18 $dependency.parameter.value: i32
+    local %19 $dependency.receiver: ptr<raw>
+    local %20 $dependency.argument.0: i64
+    local %21 $dependency.parameter.offset: i64
+    local %22 forward: ptr<raw>
+    local %23 $dependency.receiver: ptr<raw>
+    local %24 $dependency.argument.0: i64
+    local %25 $dependency.parameter.offset: i64
+    local %26 backward: ptr<raw>
+    local %27 $dependency.receiver: ptr<raw>
+    local %28 $dependency.receiver: ptr<raw>
+    local %29 $equality.lhs: i64
+    local %30 $dependency.receiver: i64
+    local %31 $dependency.argument.0: i64
+    local %32 $dependency.parameter.other: i64
+    local %33 $dependency.receiver: ptr<raw>
+    local %34 $dependency.argument.0: i64
+    local %35 $dependency.parameter.offset: i64
+    local %36 $dependency.receiver: i32
+    local %37 $dependency.argument.0: i32
+    local %38 $dependency.parameter.other: i32
+    local %39 $dependency.receiver: i32
+    local %40 $dependency.argument.0: i32
+    local %41 $dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    t0 = local_address local0 : ptr
+    store t0 -> local1
+    store local1 -> local2
+    store local2 -> local3
+    store local3 -> local4
+    store local1 -> local5
+    store local5 -> local6
+    store local1 -> local7
+    store local7 -> local8
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<raw>) -> i64 local-fn2(local8)
+    store t1 -> local10
+    store local6 -> local9
+    store local10 -> local11
+    t2 = ptr_to_ulong local9 : i64
+    store t2 -> local12
+    store local12 -> local13
+    t3 = integer_compare_Equal<ULong> local11, local13 : i1
+    t4 = Not t3 : i1
+    cbr t4 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret integer<Int>(0x00000002)
+  block if.merge.2
+    store local4 -> local14
+    store integer<Long>(0x0000000000000000) -> local15
+    store integer<Int>(0x0000002a) -> local16
+    store local15 -> local17
+    store local16 -> local18
+    t5 = ptr_offset local14 element-offset=local17 element-size=4 subtract=false : ptr
+    raw_store t5 local18 align 4
+    t6 = aggregate () : {}
+    store local4 -> local19
+    store integer<Long>(0x0000000000000000) -> local20
+    store local20 -> local21
+    t7 = ptr_offset local19 element-offset=local21 element-size=4 subtract=false : ptr
+    store t7 -> local22
+    store local22 -> local23
+    store integer<Long>(0x0000000000000000) -> local24
+    store local24 -> local25
+    t8 = ptr_offset local23 element-offset=local25 element-size=4 subtract=true : ptr
+    store t8 -> local26
+    store local26 -> local27
+    t9 = ptr_to_ulong local27 : i64
+    store t9 -> local29
+    store local1 -> local28
+    store local29 -> local30
+    t10 = ptr_to_ulong local28 : i64
+    store t10 -> local31
+    store local31 -> local32
+    t11 = integer_compare_Equal<ULong> local30, local32 : i1
+    t12 = Not t11 : i1
+    cbr t12 then @if.then.3 else @if.merge.4
+  block if.then.3
+    ret integer<Int>(0x00000001)
+  block if.merge.4
+    store local26 -> local33
+    store integer<Long>(0x0000000000000000) -> local34
+    store local34 -> local35
+    t13 = ptr_offset local33 element-offset=local35 element-size=4 subtract=false : ptr
+    t14 = raw_load t13 align 4 : i32
+    store t14 -> local36
+    store local0 -> local37
+    store local37 -> local38
+    t15 = integer_Add<Int> local36, local38 : i32
+    store t15 -> local39
+    store integer<Int>(0x0000002a) -> local40
+    store local40 -> local41
+    t16 = integer_Subtract<Int> local39, local41 : i32
+    ret t16
+  fun @scoop$1$cb$97927ecf9019ccd73ffaf39e9a614b989ac014a1e3aa08c7f1c254d064c64a02(ptr<raw>) -> i64
+    local %0 $dependency.local.1: ptr<raw>
+    local %1 $dependency.local.2: ptr<raw>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store local0 -> local1
+    t0 = ptr_to_ulong local1 : i64
+    ret t0
+  output library

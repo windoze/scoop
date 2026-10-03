@@ -1,0 +1,53 @@
+schema = 1
+name = "cli-input-default-no-parent-search"
+inputs = []
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "input", "negative"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+human_options = ["--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"write" = {"path" = "${work}/parent/Cone.toml", "data" = "schema = 1\n\n[cone]\ngroup = \"dev.cli\"\nname = \"path-library\"\nversion = \"0.1.0\"\nkind = \"library\"\n"}},
+  {"mkdir" = {"path" = "${work}/parent/child"}},
+  {"write" = {"path" = "${work}/previous.slib", "data" = "previous output\n"}},
+]
+
+[[steps]]
+name = "public"
+argv = ["${scoop}", "build", "-o", "${work}/previous.slib", {"each" = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+cwd = "${work}/parent/child"
+checks = [
+  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+]
+
+[[steps]]
+name = "producer"
+argv = ["${scoopc}", "build", "${work}/parent/child/Cone.toml", "--sysroot", "${sysroot}", "--target", "${target}", "--out-slib", "${work}/producer.slib"]
+exit = 1
+stdout = ""
+stderr = "error: invalid current Cone operand ${work}/parent/child/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+cwd = "${work}/parent/child"
+checks = [
+  {"file" = "${work}/producer.slib", "exists" = false},
+]
+
+[[steps]]
+name = "human"
+argv = ["${scoop}", "build", "-o", "${work}/previous.slib", {"each" = "${human_options}"}]
+exit = 1
+stdout = ""
+stderr = "${work}/parent/child/Cone.toml: error[SCOOP_CLI_CONFIG]: invalid current Cone operand ${work}/parent/child/Cone.toml: cannot inspect: No such file or directory (os error 2)\n"
+cwd = "${work}/parent/child"
+checks = [
+  {"file" = "${work}/previous.slib", "equals" = "previous output\n"},
+]

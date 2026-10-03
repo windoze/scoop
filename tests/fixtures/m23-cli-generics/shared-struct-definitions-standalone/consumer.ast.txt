@@ -1,0 +1,144 @@
+SourceFile
+  QualifiedPackage consumer.structdefinitions
+  ImportStar Local upstream.structdefinitions.*
+  private var order: Int = <expr>
+  private fun mark<T>(step: Int, value: T): T
+    assign order
+      Binary Add
+        Binary Mul
+          Var order
+          IntLiteral 10
+        Var step
+    return
+      Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    assign order
+      IntLiteral 0
+    val base: Cell<T>
+      Call make
+        Var seed
+    val changed
+      CopyUpdate
+        base
+          Call mark
+            IntLiteral 1
+            Var base
+        field next
+          Call mark
+            IntLiteral 2
+            Call Some
+              Call Link
+                Var base
+        field value
+          Call mark
+            IntLiteral 3
+            Var seed
+    if
+      Binary Ne
+        Var order
+        IntLiteral 123
+      return
+        IntLiteral 1
+    if
+      Call hasNext
+        Var base
+      return
+        IntLiteral 2
+    if
+      Unary Not
+        Call hasNext
+          Var changed
+      return
+        IntLiteral 6
+    val tail: T
+      WhenExpression
+        FieldAccess next
+          Var changed
+        arm Some(link)
+          FieldAccess value
+            FieldAccess cell
+              Var link
+        arm None
+          Var seed
+    if
+      Binary Ne
+        Call read
+          Var tail
+        IntLiteral 42
+      return
+        IntLiteral 3
+    val reset
+      Call withoutNext
+        Call replace
+          Var changed
+          Var seed
+    if
+      Call hasNext
+        Var reset
+      return
+        IntLiteral 4
+    val receiver: Readable<T>
+      Var reset
+    val native
+      CopyUpdate
+        base
+          Call NativePair
+            IntLiteral 0
+            IntLiteral 0
+        field right
+          IntLiteral 22
+        field left
+          IntLiteral 20
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess left
+            Var native
+          IntLiteral 20
+        Binary Ne
+          FieldAccess right
+            Var native
+          IntLiteral 22
+      return
+        IntLiteral 5
+    return
+      MethodCall apply
+        Var receiver
+        Var read
+  public fun result(): Int
+    if
+      Binary Ne
+        FieldAccess value
+          Call replace
+            Call make
+              IntLiteral 1
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 0 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 1 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 2 suspend=false
+          param item: _
+          Var item

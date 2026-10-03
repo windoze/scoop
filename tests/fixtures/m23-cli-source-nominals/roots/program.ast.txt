@@ -1,0 +1,43 @@
+SourceFile
+  RootPackage
+  fun verifyNominal(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val base
+      Call host
+    val marker
+      MethodCall marker
+        Var base
+    Call verifyNominal
+      Is LeftRole false
+        Var marker
+    Call verifyNominal
+      Is RightRole false
+        Var marker
+    Call verifyNominal
+      Binary Eq
+        MethodCall number
+          Var base
+        IntLiteral 17
+    Call verifyNominal
+      Binary Eq
+        MethodCall number
+          Call derived
+        IntLiteral 17
+    val other
+      MethodCall marker
+        Call derived
+    Call verifyNominal
+      Is LeftRole false
+        Var other
+    Call verifyNominal
+      Is RightRole false
+        Var other
+    Call verifyNominal
+      Binary RefNe
+        Var marker
+        Var other

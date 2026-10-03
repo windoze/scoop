@@ -1,0 +1,19 @@
+package consumer.paths
+
+import facade.paths.Point
+import facade.paths.IntBox
+import facade.paths.Outer
+
+public typealias QualifiedPoint = facade.paths.Point
+public typealias QualifiedBox = facade.paths.IntBox
+public typealias QualifiedNested = facade.paths.Outer.Nested
+
+public fun <T> exercise(value: T): Int {
+    val point: facade.paths.Point = Point(40)
+    val box: facade.paths.IntBox = IntBox(2)
+    val nested: facade.paths.Outer.Nested = Outer.Nested(point.number + box.value)
+    return nested.number
+}
+
+private class Later()
+public fun check(): Int = exercise<Later>(Later())

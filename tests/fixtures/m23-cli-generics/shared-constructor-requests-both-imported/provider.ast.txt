@@ -1,0 +1,31 @@
+SourceFile
+  QualifiedPackage upstream.constructorrequests
+  public open class Base<T, U>(val value: T)
+  public open class Shell<T, U>(), Base<T, U>
+    public val output: T = <expr>
+      IfExpression
+        BoolLiteral true
+        val saved
+          FieldAccess value
+            This
+        fun read(): T
+          return
+            Var saved
+        val reference: () -> T
+          CallableReference 0 read
+        val anonymous: () -> T
+          AnonymousFunction 0 suspend=false return=T
+            return
+              Call reference
+        val copy: () -> T
+          Lambda 0 suspend=false
+            parameters omitted
+            Call anonymous
+        Call copy
+        else
+        FieldAccess value
+          This
+    constructor(value: T) : super(<1 args>)
+    constructor(value: T, flag: Boolean) : super(<1 args>)
+  public struct Carrier<T, U>
+    field value: T

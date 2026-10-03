@@ -1,0 +1,17 @@
+Module
+  global @scoop$1$ss$7066db7cdfb3327feb4d7c10913539baaac0b4856803a1fcabe234c10ee5fd0d : i32 scan=none
+  fun @scoop$1$cb$7a3df164feaba9755622f4f04a99834ab1d7288d69b229c1c7ae75250f79bc82() -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call no-gc-void-target0 sig=void0 (i32) local-fn2(integer<Int>(0x00000000))
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$9929296f3b916b261b585484200a785eea18939265c02250d67782a63b605ebe() -> i32 <no-gc>
+  block entry
+    t0 = global_load global0 : i32
+    ret t0
+  fun @scoop$1$cb$55534a847abb4f79933d2729331a4d0446bc1167dc187d20c45a76bb6e542e1b(i32) -> void <no-gc>
+  block entry
+    global_store global0, param0
+    ret
+  output library

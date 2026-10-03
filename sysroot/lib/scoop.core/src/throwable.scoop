@@ -17,3 +17,7 @@ public class IndexOutOfBoundsException public constructor() : Exception(Some("ar
 public class IllegalArgumentException public constructor(message: String? = Some("illegal argument")) : Exception(message)
 
 public class IllegalStateException public constructor(message: String? = Some("illegal state")) : Exception(message)
+
+internal fun __scoopThrowInitializationCycle(message: String) {
+    throw IllegalStateException(Some(message))
+}

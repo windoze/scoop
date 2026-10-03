@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage startup.recovery
+  private fun initialize(): Long
+    =
+      TryExpression
+        FieldAccess value
+          Var Saved
+        catch error: IllegalStateException
+          IntLiteral 42L
+  private object Saved
+    val value: Long =
+      Call initialize
+  public fun recovered(): Long
+    =
+      FieldAccess value
+        Var Saved

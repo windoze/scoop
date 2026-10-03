@@ -1,0 +1,48 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val samples
+      Call defaultSamples
+    Call verifyDefault
+      Binary Eq
+        MethodCall method<Int, String>
+          Var samples
+          Call Box<String>
+            StringLiteral "owner"
+          IntLiteral 7
+        TupleLiteral
+          StringLiteral "owner"
+          IntLiteral 7
+    Call verifyDefault
+      Binary Eq
+        MethodCall echo<String>
+          Var samples
+          Call Box<String>
+            StringLiteral "owner"
+          StringLiteral "seed"
+        StringLiteral "seed"
+    Call verifyDefault
+      Binary Eq
+        FieldAccess seed
+          MethodCall constructed<Int>
+            Var samples
+            IntLiteral 11
+        IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        FieldAccess seed
+          MethodCall constructed<String>
+            Var samples
+            StringLiteral "constructed"
+        StringLiteral "constructed"
+    Call verifyDefault
+      Binary Eq
+        MethodCall nested
+          Var samples
+        IntLiteral 3

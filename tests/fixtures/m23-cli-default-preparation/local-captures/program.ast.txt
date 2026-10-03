@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  public fun localCall(seed: String, value: String = <expr>): String
+    =
+      Var value
+  public fun localCallGeneric<T>(seed: T, value: T = <expr>): T
+    =
+      Var value
+  public class LocalCallHost()
+    internal fun callback
+  fun main()
+    Call localCall
+      StringLiteral "value"
+    Call localCallGeneric
+      StringLiteral "generic"

@@ -1,0 +1,22 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class Completion : Continuation<Long> {
+    public var result: Long = 0L
+    public var finished: Boolean = false
+    public override fun resume(value: Long) { result = value; finished = true }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+class Task(val source: Await) : SuspendTask<Long> {
+    public override suspend fun run(): Long = source.waitFor(5)
+}
+
+fun main() {
+    val contract = user()
+    verifyDispatch(contract.combine(second = 13L, first = 1) == 13L)
+    verifyDispatch((contract joined 7) == 7 && (5 in contract))
+    @Unsafe { verifyDispatch(contract.raw(17L) == 17L) }
+    verifyDispatch(base().inspect(19L) == (19L, 1) && child().inspect(23L) == (23L, 1))
+    val completion = Completion()
+    startCoroutine(Task(awaited()), completion)
+    verifyDispatch(completion.finished && completion.result == 29L)
+}

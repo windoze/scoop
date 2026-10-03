@@ -1,0 +1,10 @@
+import dependency.api.runtimeValue
+import dependency.api.computedValue
+
+public fun unusedDefault(value: Int = runtimeValue): Int = value
+public fun <T> genericOnly(value: T): Int = runtimeValue
+public val callback: () -> Int = { runtimeValue }
+public val anonymousCallback: () -> Int = fun(): Int { return runtimeValue }
+public val accessorCallback: () -> Int
+    get() = { runtimeValue }
+public val computedRead: Int = computedValue

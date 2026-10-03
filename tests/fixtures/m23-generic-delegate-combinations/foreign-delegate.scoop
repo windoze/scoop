@@ -1,0 +1,17 @@
+package consumer.delegates
+
+import templates.delegateCombinations.*
+
+private var <T> Receiver<T>.foreign: Int by Starter<T>()
+
+public fun <T> exercise(value: T): Int {
+    Trace.order = 0
+    Receiver<T>(value).foreign = 42
+    if (Trace.order != 45) { return 1 }
+    Payload(0)
+    val first = Receiver<T>(value).foreign
+    if (Trace.order != 456 || first != 42) { return 2 }
+    return Receiver<T>(value).foreign
+}
+
+public fun result(): Int = exercise<Int>(1)

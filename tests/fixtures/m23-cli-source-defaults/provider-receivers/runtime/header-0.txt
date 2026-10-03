@@ -1,0 +1,2 @@
+public open class ProviderBase {
+    public fun check(seed: Int): Int = pick(seed)

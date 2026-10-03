@@ -1,0 +1,25 @@
+Module
+  global @scoop$1$ss$f447eed917e2d26906c99dca9eda9ec2cfe4e569ae2580e4b2965eb8d9328ecd : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$17acc5e59aad62d1ee56f2840efe9421a467e99c127d2a98448b4925bc6d154f() -> void <no-gc>
+  block entry
+    ret
+  fun @scoop$1$cb$3838e0667b35e8f64c3fd52ccba1fea63c4a8d7b70c9be0fb6dfa5f5cd1e2164() -> void <no-gc>
+  block entry
+    call no-gc-void-target0 sig=void0 () local-fn0()
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$96457d9b1f5299202f05e71af1a4b5079ee42dbabcbdd6b919d90fbcc83064d7() -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    invoke no-gc-void-target0 sig=void0 () local-fn0() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global0, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  output executable @scoop$1$cb$17acc5e59aad62d1ee56f2840efe9421a467e99c127d2a98448b4925bc6d154f

@@ -1,0 +1,356 @@
+Module
+  global0 $singleton$52f9743433487d419359588f75133e10ec5ffcc0da6bac81e36bd772808851cf: ReaderDefaults imported provider=8319641fa62985fa3a4ae99a66c751b8ad0dfe0b1ef13367917bc68b200f9dcf storage=a3aea7b5d8879e68648652d8f1e7a250a03f1d6973cf9a6f2c7fe5526217b72e
+  struct ReaderBox<String> (value: String)
+  struct ReaderBox<Int> (value: Int)
+  class ReaderDefaults vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=1
+    bridge function_type1 -> @fn7 id=7904eb57c4796a5eef5fce8a19c2193450ab5aa338f045b1743375fc3c51a143
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=1
+    bridge function_type1 -> @fn8 id=c4a8ee207152a3a48af061ca4500785afe97ce8779aee4357fbc42bfc583193d
+  generated_exact_type get0 location=closure0 nominal_id=5b1699aedfc5a98be55719cf6ff5fae19b5edb3354af9bf426bfa442fe875da9 exact_id=307c94064103f5b195942798d51c37c73e840a41cfb7e8ae5a0a6578ae1b9d7b
+  generated_exact_type get1 location=closure1 nominal_id=d5127f9e2922cd1907c0f8980060cc5f8ef7b2419143418efa4d20a48bcd6b3f exact_id=4f352f1913e3b40d8048e1f43d20d191d94a2f998c6824462e7e3e7a094d9700
+  generated_exact_type get2 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn7 id=7904eb57c4796a5eef5fce8a19c2193450ab5aa338f045b1743375fc3c51a143
+  generated_callable gc1 function=@fn8 id=c4a8ee207152a3a48af061ca4500785afe97ce8779aee4357fbc42bfc583193d
+  fun check @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      val $default.local.1: String
+        Type String
+        Local $dependency.parameter.value
+      val $default.local.2: String
+        Type String
+        Local $default.local.1
+      call $dependency.parameter.box: ReaderBox<String> = @fn5 direct
+        Type String
+        Local $default.local.2
+      val $dependency.parameter.field: String
+        Type String
+        FieldAccess 0
+          Type ReaderBox<String>
+          Local $dependency.parameter.box
+      call $default.local.3: Int = external0 direct
+      val $default.local.4: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $default.local.5: Int
+        Type Int
+        Local $default.local.4
+      val $default.local.6: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.3
+          Type Int
+          Local $default.local.5
+      call $default.local.7: Int = external1 direct
+      val $default.local.8: Int
+        Type Int
+        Local $default.local.7
+      val $default.local.9: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.6
+          Type Int
+          Local $default.local.8
+      call external4 direct
+      call $default.local.10: Int = external2 direct
+        Type ReaderDefaults
+        GlobalRead $singleton$52f9743433487d419359588f75133e10ec5ffcc0da6bac81e36bd772808851cf
+      val $default.local.11: Int
+        Type Int
+        Local $default.local.10
+      val $dependency.parameter.amount: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.9
+          Type Int
+          Local $default.local.11
+      val $dependency.parameter.closure: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local $dependency.parameter.value
+      call $dependency.receiver: String = @fn2 direct
+        Type String
+        Local $dependency.parameter.value
+        Type ReaderBox<String>
+        Local $dependency.parameter.box
+        Type String
+        Local $dependency.parameter.field
+        Type Int
+        Local $dependency.parameter.amount
+        Type () -> String
+        Local $dependency.parameter.closure
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $default.local.1: Int
+        Type Int
+        Local $dependency.parameter.value
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      call $dependency.parameter.box: ReaderBox<Int> = @fn6 direct
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.field: Int
+        Type Int
+        FieldAccess 0
+          Type ReaderBox<Int>
+          Local $dependency.parameter.box
+      call $default.local.3: Int = external0 direct
+      val $default.local.4: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $default.local.5: Int
+        Type Int
+        Local $default.local.4
+      val $default.local.6: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.3
+          Type Int
+          Local $default.local.5
+      call $default.local.7: Int = external1 direct
+      val $default.local.8: Int
+        Type Int
+        Local $default.local.7
+      val $default.local.9: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.6
+          Type Int
+          Local $default.local.8
+      call external4 direct
+      call $default.local.10: Int = external2 direct
+        Type ReaderDefaults
+        GlobalRead $singleton$52f9743433487d419359588f75133e10ec5ffcc0da6bac81e36bd772808851cf
+      val $default.local.11: Int
+        Type Int
+        Local $default.local.10
+      val $dependency.parameter.amount: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $default.local.9
+          Type Int
+          Local $default.local.11
+      val $dependency.parameter.closure: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.value
+      call $dependency.receiver: Int = @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type ReaderBox<Int>
+        Local $dependency.parameter.box
+        Type Int
+        Local $dependency.parameter.field
+        Type Int
+        Local $dependency.parameter.amount
+        Type () -> Int
+        Local $dependency.parameter.closure
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      call $dependency.receiver: Int = external0 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb7
+    bb6 if.else.6
+      call external4 direct
+      call $dependency.receiver: Int = external2 direct
+        Type ReaderDefaults
+        GlobalRead $singleton$52f9743433487d419359588f75133e10ec5ffcc0da6bac81e36bd772808851cf
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb7
+    bb7 if.merge.7
+      branch bb8 bb9
+        Type Boolean
+        Local $shortCircuit.0
+    bb8 if.then.8
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb10
+    bb9 if.else.9
+      call $dependency.receiver: Int = external1 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb10
+    bb10 if.merge.10
+      branch bb11 bb12
+        Type Boolean
+        Local $shortCircuit.1
+    bb11 if.then.11
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb12 if.merge.12
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun $lambda @fn1($argument.0: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $argument.0
+  fun readerCompose @fn2(value: String, box: ReaderBox<String>, field: String, amount: Int, closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        Local field
+  fun $lambda @fn3($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $argument.0
+  fun readerCompose @fn4(value: Int, box: ReaderBox<Int>, field: Int, amount: Int, closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local field
+  fun ctor.ReaderBox.$c0 @fn5(value: String) -> ReaderBox<String> <no-gc>
+    bb0 entry
+      return
+        Type ReaderBox<String>
+        StructInit ReaderBox<String>
+          Type String
+          Local value
+  fun ctor.ReaderBox.$c0 @fn6(value: Int) -> ReaderBox<Int> <no-gc>
+    bb0 entry
+      return
+        Type ReaderBox<Int>
+        StructInit ReaderBox<Int>
+          Type Int
+          Local value
+  fun function_bridge.$Closure$lambda0.() -> Any @fn7($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn8($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- $lambda
+  instance mi1 function=@fn2 <- readerCompose
+  instance mi2 function=@fn3 <- $lambda
+  instance mi3 function=@fn4 <- readerCompose
+  str @str0 "payload"
+  str @str1 "payload"
+  output library

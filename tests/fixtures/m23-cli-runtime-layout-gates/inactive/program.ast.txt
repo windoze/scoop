@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        Call supplied
+          StringLiteral "unused"
+        IntLiteral 7
+    Call verifyType
+      Binary Eq
+        Call withDefault
+          IntLiteral 11
+        IntLiteral 11
+    Call verifyType
+      Binary Eq
+        Call dormant<Int>
+          IntLiteral 13
+        IntLiteral 13
+    Call verifyType
+      Binary Eq
+        Cast String optional=false
+          Call upcast
+            StringLiteral "text"
+        StringLiteral "text"

@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m8-exceptions/errors/catch-non-throwable.scoop:4:17: error: catch parameter type Int is not a subtype of Throwable

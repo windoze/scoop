@@ -1,0 +1,22 @@
+public struct SharedObjectToken()
+public interface SharedObjectReadable {
+    public fun number(): Int
+}
+public object SharedObjectService: SharedObjectReadable {
+    public val token: SharedObjectToken = SharedObjectToken()
+    public override fun number(): Int = 7
+}
+public class SharedObjectOwner {
+    public companion object {
+        public val token: SharedObjectToken = SharedObjectService.token
+        public fun number(): Int = SharedObjectService.number()
+    }
+}
+internal object SharedObjectSupport {
+    public val token: SharedObjectToken = SharedObjectToken()
+}
+public class SharedObjectEnvelope {
+    private val service: SharedObjectSupport = SharedObjectSupport
+}
+public val sharedObjectEager: Int = SharedObjectOwner.number()
+public fun sharedObjectRead(value: SharedObjectReadable): Int = value.number()

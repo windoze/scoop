@@ -1,0 +1,25 @@
+package upstream.nominalConditions
+
+@NoGC public struct Scalar<T>(val value: T)
+@NoGC public struct Phantom<T>()
+@NoGC public enum Choice<T> { Empty, Item(T) }
+public struct Managed(val text: String)
+
+@CLayout public struct Pointer<T: value>(val value: Ptr<T>)
+public class Cursor<T: value> public constructor(public val value: Ptr<T>)
+public interface PointerView<T: value> {
+    public val value: Ptr<T>
+}
+
+public struct Wrapped<T>(val scalar: Scalar<T>)
+public class Carrier<T> public constructor(public val scalar: Scalar<T>)
+public fun <T> hidden(value: T): Int {
+    val scalar = Scalar(value)
+    return 42
+}
+
+public fun <T> hiddenChoice(value: T): Int {
+    val choice: Choice<T> = Item(value)
+    return 42
+}
+public fun <T> pack(value: T, scalar: Scalar<T> = Scalar(value)): Scalar<T> = scalar

@@ -1,0 +1,31 @@
+SourceFile
+  QualifiedPackage consumer.paths
+  ImportExact Local facade.paths.Point
+  ImportExact Local facade.paths.IntBox
+  ImportExact Local facade.paths.Outer
+  public typealias QualifiedPoint = facade.paths.Point
+  public typealias QualifiedBox = facade.paths.IntBox
+  public typealias QualifiedNested = facade.paths.Outer.Nested
+  public fun exercise<T>(value: T): Int
+    val point: facade.paths.Point
+      Call Point
+        IntLiteral 40
+    val box: facade.paths.IntBox
+      Call IntBox
+        IntLiteral 2
+    val nested: facade.paths.Outer.Nested
+      MethodCall Nested
+        Var Outer
+        Binary Add
+          FieldAccess number
+            Var point
+          FieldAccess value
+            Var box
+    return
+      FieldAccess number
+        Var nested
+  private class Later()
+  public fun check(): Int
+    =
+      Call exercise<Later>
+        Call Later

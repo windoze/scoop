@@ -1,0 +1,126 @@
+SourceFile
+  RootPackage
+  struct GenericBox<T>
+    field value: T
+  fun identity<T>(value: T): T
+    =
+      Var value
+  fun T.copyValue<T>(): T
+    =
+      This
+  fun makeLambda<T>(value: T): () -> T
+    =
+      Lambda 0 suspend=false
+        parameters omitted
+        Var value
+  fun makeAnonymous<T>(value: T): () -> T
+    =
+      AnonymousFunction 0 suspend=false return=T
+        return
+          Var value
+  fun makeLocalReference<T>(value: T): () -> T
+    fun read(): T
+      Var value
+    return
+      CallableReference 0 read
+  fun makeNamedReference<T>(seed: T): (T) -> T
+    val reference: (T) -> T
+      CallableReference 1 identity
+    return
+      Var reference
+  fun makeExtensionReference<T>(value: T): () -> T
+    =
+      CallableReference 2 copyValue
+        Var value
+  fun makeNested<T>(value: T): () -> () -> T
+    =
+      AnonymousFunction 1 suspend=false return=() -> T
+        return
+          Lambda 1 suspend=false
+            parameters omitted
+            Var value
+  fun makeBoxReader<T>(value: T): () -> T
+    val box
+      Call GenericBox
+        Var value
+    return
+      Lambda 2 suspend=false
+        parameters omitted
+        FieldAccess value
+          Var box
+  fun main()
+    val intLambda
+      Call makeLambda
+        IntLiteral 42
+    val stringLambda
+      Call makeLambda
+        StringLiteral "lambda"
+    val intAnonymous
+      Call makeAnonymous
+        IntLiteral 43
+    val stringAnonymous
+      Call makeAnonymous
+        StringLiteral "anonymous"
+    val intLocal
+      Call makeLocalReference
+        IntLiteral 44
+    val stringLocal
+      Call makeLocalReference
+        StringLiteral "local"
+    val intIdentity: (Int) -> Int
+      Call makeNamedReference
+        IntLiteral 0
+    val stringIdentity: (String) -> String
+      Call makeNamedReference
+        StringLiteral ""
+    val intExtension
+      Call makeExtensionReference
+        IntLiteral 45
+    val stringExtension
+      Call makeExtensionReference
+        StringLiteral "extension"
+    val intNested
+      Call makeNested
+        IntLiteral 46
+    val stringNested
+      Call makeNested
+        StringLiteral "nested"
+    val intBox
+      Call makeBoxReader
+        IntLiteral 47
+    val stringBox
+      Call makeBoxReader
+        StringLiteral "box"
+    Call gcCollect
+    Call println
+      Call intLambda
+    Call println
+      Call stringLambda
+    Call println
+      Call intAnonymous
+    Call println
+      Call stringAnonymous
+    Call println
+      Call intLocal
+    Call println
+      Call stringLocal
+    Call println
+      Call intIdentity
+        IntLiteral 48
+    Call println
+      Call stringIdentity
+        StringLiteral "identity"
+    Call println
+      Call intExtension
+    Call println
+      Call stringExtension
+    Call println
+      Invoke
+        Call intNested
+    Call println
+      Invoke
+        Call stringNested
+    Call println
+      Call intBox
+    Call println
+      Call stringBox

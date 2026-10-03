@@ -1,0 +1,5 @@
+SourceFile
+  QualifiedPackage helper
+  public fun helperAnswer(): Int
+    =
+      IntLiteral 40

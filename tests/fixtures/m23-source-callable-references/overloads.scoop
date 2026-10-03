@@ -1,0 +1,10 @@
+package consumer.references
+
+import templates.references.*
+
+public fun <T> exercise(value: T): Int {
+    val selected: ((T, Int)) -> Int = ::select
+    return selected((value, 0))
+}
+
+public fun result(): Int = exercise<Int>(0)

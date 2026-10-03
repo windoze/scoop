@@ -24,9 +24,9 @@ pub(crate) fn callable_layer_name(lowerer: &Lowerer, views: &[CallableView]) -> 
         CallableSource::Local { .. } => "lexical local candidate",
         CallableSource::Method(_) => "member candidate",
         CallableSource::Free(function) => {
-            let call_site_is_core = lowerer.current_file < lowerer.user_file_index;
-            let candidate_is_core = lowerer.function_files[&function] < lowerer.user_file_index;
-            if call_site_is_core == candidate_is_core {
+            if lowerer
+                .sources_are_on_same_side(lowerer.current_file, lowerer.function_files[&function])
+            {
                 "current-unit top-level candidate"
             } else {
                 "implicit-import candidate"
@@ -40,10 +40,13 @@ pub(crate) fn callable_source_signature(
     name: &str,
     view: &CallableView,
 ) -> String {
-    let mut all_parameters = view.owner_parameters.clone();
-    all_parameters.extend(view.callable_parameters.iter().cloned());
-    let callable_parameters =
-        render_type_parameters(lowerer, &view.callable_parameters, &all_parameters);
+    let mut all_parameters = view.signature.owner_parameters.clone();
+    all_parameters.extend(view.signature.callable_parameters.iter().cloned());
+    let callable_parameters = render_type_parameters(
+        lowerer,
+        &view.signature.callable_parameters,
+        &all_parameters,
+    );
     let declared_name = match view.target {
         CallableSource::Method(_) => {
             let function_name = &lowerer.functions[view.function()].name;
@@ -51,7 +54,7 @@ pub(crate) fn callable_source_signature(
                 .rsplit_once('.')
                 .unwrap_or((function_name.as_str(), name));
             let owner_parameters =
-                render_type_parameters(lowerer, &view.owner_parameters, &all_parameters);
+                render_type_parameters(lowerer, &view.signature.owner_parameters, &all_parameters);
             format!("{owner}{owner_parameters}.{name}{callable_parameters}")
         }
         CallableSource::Free(_) if let ReceiverShape::Extension(receiver) = view.receiver => {
@@ -65,6 +68,7 @@ pub(crate) fn callable_source_signature(
         }
     };
     let parameters = view
+        .signature
         .value_parameters
         .iter()
         .map(|parameter| {
@@ -76,7 +80,7 @@ pub(crate) fn callable_source_signature(
         })
         .collect::<Vec<_>>()
         .join(", ");
-    let return_type = lowerer.type_name_with_params(view.return_type, &all_parameters);
+    let return_type = lowerer.type_name_with_params(view.signature.return_type, &all_parameters);
     let suspend = if view.effects.is_suspend {
         "suspend "
     } else {
@@ -177,7 +181,7 @@ pub(crate) fn render_callable_constraint_failure(
                 .unwrap_or_else(|| render_type_term(lowerer, view, *left));
             format!(
                 "argument for `{}` has type {found}, which {} {}",
-                view.value_parameters[parameter_index].name,
+                view.signature.value_parameters[parameter_index].name,
                 relation_failure_phrase(*relation),
                 render_type_term(lowerer, view, *right),
             )
@@ -229,15 +233,15 @@ fn relation_failure_phrase(relation: super::constraints::RelationKind) -> &'stat
 fn render_type_term(lowerer: &Lowerer, view: &CallableView, term: TypeTerm) -> String {
     match term {
         TypeTerm::Type(ty) | TypeTerm::Rigid(ty) => {
-            let mut parameters = view.owner_parameters.clone();
-            parameters.extend(view.callable_parameters.iter().cloned());
+            let mut parameters = view.signature.owner_parameters.clone();
+            parameters.extend(view.signature.callable_parameters.iter().cloned());
             lowerer.type_name_with_params(ty, &parameters)
         }
         TypeTerm::Variable(variable) => inference_parameter(view, variable).name.clone(),
     }
 }
 
-pub(super) fn render_type_parameters(
+pub(crate) fn render_type_parameters(
     lowerer: &Lowerer,
     parameters: &[hir::TypeParamDecl],
     all_parameters: &[hir::TypeParamDecl],
@@ -253,34 +257,15 @@ pub(super) fn render_type_parameters(
                 hir::TypeParamBounds::Value { .. } => " : value".to_string(),
                 hir::TypeParamBounds::Ref { .. } => " : ref".to_string(),
                 hir::TypeParamBounds::Nominal(bounds) => {
-                    let mut rendered = Vec::new();
-                    if let Some(bound) = &bounds.class {
-                        rendered.push((
-                            bound.span.start,
-                            lowerer.type_name_with_params(
-                                lowerer.class_applications[bound.application].canonical_type,
-                                all_parameters,
-                            ),
-                        ));
-                    }
-                    rendered.extend(bounds.interfaces.iter().map(|bound| {
-                        (
-                            bound.span.start,
-                            lowerer.type_name_with_params(
-                                lowerer.interface_applications[bound.application].canonical_type,
-                                all_parameters,
-                            ),
-                        )
-                    }));
-                    rendered.sort_by_key(|(start, _)| *start);
-                    format!(
-                        " : {}",
-                        rendered
-                            .into_iter()
-                            .map(|(_, value)| value)
-                            .collect::<Vec<_>>()
-                            .join(" & ")
-                    )
+                    let rendered = bounds
+                        .in_source_order()
+                        .into_iter()
+                        .map(|bound| {
+                            let ty = bound.ty();
+                            lowerer.type_name_with_params(ty, all_parameters)
+                        })
+                        .collect::<Vec<_>>();
+                    format!(" : {}", rendered.join(" & "))
                 }
             };
             format!("{}{bound}", parameter.name)
@@ -292,7 +277,9 @@ pub(super) fn render_type_parameters(
 
 fn inference_parameter(view: &CallableView, variable: InferenceVariableId) -> &hir::TypeParamDecl {
     match variable {
-        InferenceVariableId::Owner(_) => &view.owner_parameters[variable.group_index()],
-        InferenceVariableId::Callable(_) => &view.callable_parameters[variable.group_index()],
+        InferenceVariableId::Owner(_) => &view.signature.owner_parameters[variable.group_index()],
+        InferenceVariableId::Callable(_) => {
+            &view.signature.callable_parameters[variable.group_index()]
+        }
     }
 }

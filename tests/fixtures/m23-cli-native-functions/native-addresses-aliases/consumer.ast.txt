@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage consumer.nativeAddresses
+  ImportExact PublicReexport dependency.nativeAddresses.echo as exposed
+  ImportExact Local dependency.nativeAddresses.echo as renamed
+    @Extern(lib = "m23_native_calls", name = "m23_call_scalar")
+  private fun nativeScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
+  public fun callScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
+    @Unsafe block
+      return
+        Call nativeScalar
+          Var callback
+          Var value
+  public fun exercise<T>(value: T): Long
+    val callback: FunPtr<(Long) -> Long>
+      CallableReference 0 renamed
+    @Unsafe block
+      return
+        Call callScalar
+          Var callback
+          IntLiteral 42
+  public fun result(): Long
+    =
+      Call exercise<Int>
+        IntLiteral 0

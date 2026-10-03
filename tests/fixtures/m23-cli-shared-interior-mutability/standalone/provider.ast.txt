@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+    @InteriorMutable
+  public struct Cell
+    field value: Int
+  public struct Plain
+    field value: Int

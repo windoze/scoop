@@ -1,0 +1,15 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    val box
+      Call Box<Int>
+        IntLiteral 42
+    return
+      MethodCall read
+        Var box
+  public fun make<T>(value: T): T
+    =
+      MethodCall read
+        Call Box<T>
+          Var value

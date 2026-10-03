@@ -124,8 +124,12 @@ fn call_values(
         .collect()
 }
 
-pub(in crate::tests) fn test_safepoint(raw: u64) -> scoop_lir::SafepointId {
-    scoop_lir::SafepointId::new(raw).expect("test safepoint ids are non-zero")
+pub(in crate::tests) fn test_safepoint(raw: u64) -> scoop_lir::SafepointSiteRef {
+    let index = raw
+        .checked_sub(1)
+        .and_then(|index| u32::try_from(index).ok())
+        .expect("test safepoint references use one-based u32 fixtures");
+    scoop_lir::SafepointSiteRef::from_u32(index)
 }
 
 pub(in crate::tests) fn statepoint_value(

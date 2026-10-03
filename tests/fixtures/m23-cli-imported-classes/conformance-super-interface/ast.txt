@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.FirstChoice
+  public interface LocalDefault : FirstChoice
+    fun choose
+  public struct LocalChoice : LocalDefault
+  public fun primary(): Counter
+    val choice: LocalDefault
+      Call LocalChoice
+    return
+      Call Counter
+        MethodCall choose
+          Var choice

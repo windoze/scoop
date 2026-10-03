@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-nested/errors/private-nested.scoop:5:19: error: type `Vault.Secret` is not accessible from this source location

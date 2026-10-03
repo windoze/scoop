@@ -113,6 +113,7 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     assert_eq!(published_root.value, object.singleton_value);
     assert_eq!(published_root.ty, object_type.canonical_type);
     assert_eq!(unit.schedule, hir::InitializationSchedule::LazyAccess);
+    assert_eq!(unit.display_name, "object:Registry");
     assert!(matches!(
         unit.kind,
         hir::InitializationUnitKind::LazySingleton {
@@ -139,7 +140,7 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     ));
     assert!(matches!(
         function_result(user_function(module, "readRegistry")).kind,
-        hir::ExprKind::SingletonValue(value) if value == object.singleton_value
+        hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(value)) if value == object.singleton_value
     ));
     assert!(matches!(
         function_result(user_function(module, "readVersion")).kind,
@@ -160,18 +161,17 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
     else {
         panic!("choose parameter must retain its exported default")
     };
-    let template = &module.export_default_exprs[module.export_default_sources[source].expression];
+    let template =
+        &module.export_default_exprs[module.export_default_sources[source].declared().unwrap().0];
     assert_eq!(template.references.singleton_values.len(), 1);
     assert_eq!(
         template.references.singleton_values[0].target,
-        object.singleton_value
+        hir::SingletonValueTarget::Local(object.singleton_value)
     );
-    assert!(
-        template.references.singleton_values[0]
-            .witness
-            .target_domain
-            .is_universal()
-    );
+    assert!(template.references.types.iter().any(|reference| {
+        reference.target == hir::ExportDefaultTypeTarget::Type(object_type.canonical_type)
+            && reference.target_domain.is_universal()
+    }));
 
     assert!(module.public_surface.objects.contains(&object_id));
     assert!(
@@ -210,6 +210,7 @@ fn object_identity_chain_publish_and_default_access_are_typed() {
         .expect("concrete Registry object");
     let local_singleton = local.singleton_values[local_object.singleton_value];
     let local_unit = &local.initialization_units[local_singleton.initialization];
+    assert_eq!(local_unit.display_name, "object:Registry");
     assert!(matches!(
         local_unit.kind,
         hir::concrete::InitializationUnitKind::LazySingleton {

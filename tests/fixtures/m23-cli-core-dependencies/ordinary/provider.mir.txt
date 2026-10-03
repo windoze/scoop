@@ -1,0 +1,256 @@
+Module
+  global0 $singleton$CallLog: CallLog managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:CallLog singleton lazy global0 initializer=@fn2 ensure=@fn3 failure=1 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<CallLog>
+    Completed(value: CallLog)
+    Suspended()
+  enum CoroutineSlot<CallLog>
+    Empty()
+    Value(value: CallLog)
+  class CallLog vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<CallLog>
+  interface SuspendTask<CallLog>
+  interface SuspendRegistration<CallLog>
+  generated_exact_type get0 location=enum1 nominal_id=98a88aacafd6b1ee552c86d0517c9abb7fd29d5bd2bb566118766056a3e36135 exact_id=42a3872a12a94d604900fae629dbbc4f2cb3f2b7d4a59cbbe315d25a819bd399
+  generated_exact_type get1 location=enum2 nominal_id=907b71c45aa6b333977804101491b839fb8233267507c8601528ae66273a964f exact_id=91ac1976381e139249d963cc1cb44cca8142721e3fbda92587fb0db0d574073d
+  generated_callable gc0 function=@fn11 id=e8b501d34919d32b91e7b38086de592ba8afff76a9170bc4c665e5f471b9bf35
+  fun CallLog.$get$count @fn0(this: CallLog) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type CallLog
+          Local this
+  fun CallLog.$set$count @fn1(this: CallLog, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type CallLog
+        Local this
+        Type Int
+        Local value
+      return
+  fun $init$body$0 @fn2() -> Unit
+    bb0 entry
+      assign $new.1
+        Type CallLog
+        ClassAlloc CallLog
+      call @fn10 direct
+        Type CallLog
+        Local $new.1
+      global_assign $singleton$CallLog
+        Type CallLog
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn3() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:CallLog
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn2 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:CallLog
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:CallLog
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:CallLog
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:CallLog
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun run @fn4() -> Unit
+    bb0 entry
+      call @fn3 direct
+      val $place.0: CallLog
+        Type CallLog
+        GlobalRead $singleton$CallLog
+      call $old.1: Int = @fn0 direct
+        Type CallLog
+        Local $place.0
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type CallLog
+        Local $place.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+  fun invocationCount @fn5() -> Int
+    bb0 entry
+      call @fn3 direct
+      call $call.1: Int = @fn0 direct
+        Type CallLog
+        GlobalRead $singleton$CallLog
+      return
+        Type Int
+        Local $call.1
+  fun Continuation.resume @fn6(this: Continuation<CallLog>, value: CallLog) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<CallLog>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<CallLog>, $completion: Continuation<CallLog>) -> CoroutineStep<CallLog>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<CallLog>, continuation: Continuation<CallLog>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.CallLog.$c0 @fn10(this: CallLog) -> Unit
+    bb0 entry
+      field_set 0
+        Type CallLog
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+  fun startCoroutine<CallLog> @fn11(task: SuspendTask<CallLog>, completion: Continuation<CallLog>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn6 interface Continuation<CallLog>[0]
+        Type Continuation<CallLog>
+        Local completion
+        Type CallLog
+        EnumField v0 f0
+          Type CoroutineStep<CallLog>
+          Local $step
+      return
+    bb2 failed
+      call @fn7 interface Continuation<CallLog>[1]
+        Type Continuation<CallLog>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<CallLog> = @fn8 interface SuspendTask<CallLog>[0]
+        Type SuspendTask<CallLog>
+        Local task
+        Type Continuation<CallLog>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<CallLog>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<CallLog> result=CallLog
+  coroutine_slot cl0 CoroutineSlot<CallLog> value=CallLog
+  coroutine_start ct0 result=CallLog function=fn11
+  coroutine_fn cf0 @fn8 source_return=CallLog step=cs0 immediate
+  instance mi0 function=@fn6 <- Continuation.resume
+  instance mi1 function=@fn7 <- Continuation.resumeWithException
+  instance mi2 function=@fn8 <- SuspendTask.run
+  instance mi3 function=@fn9 <- SuspendRegistration.register
+  output library

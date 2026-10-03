@@ -1,0 +1,1 @@
+fun bad(value: Int): Long = value.compareTo(rhs = 3)

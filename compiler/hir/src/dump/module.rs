@@ -1,9 +1,33 @@
 use super::body::{dump_statements, generic_method_owner_arguments};
 use super::*;
 
+mod functions;
+mod properties;
+use properties::dump_property;
+
 /// Indented text dump for golden tests (`scoopc build --emit=hir`).
-pub fn dump(module: &Module) -> String {
+pub fn dump(output: &ExportHirOutput) -> String {
+    dump_with(output.module(), |module, out| match output.output_kind() {
+        ConeOutputKind::Library => out.push_str("  output library\n"),
+        ConeOutputKind::Executable { local_entry } => out.push_str(&format!(
+            "  output executable {}\n",
+            module.functions[local_entry.local_function().function()].name
+        )),
+    })
+}
+
+/// Dump a raw Export HIR module for tests which intentionally inspect an
+/// intermediate graph before output-kind selection.
+pub fn dump_module(module: &Module) -> String {
+    dump_with(module, |_, _| {})
+}
+
+fn dump_with(module: &Module, write_entry: impl FnOnce(&Module, &mut String)) -> String {
     let mut out = String::from("Module\n");
+    let defined_core = match &module.core_protocols {
+        CoreProtocols::Defined(protocols) => Some(protocols),
+        CoreProtocols::Imported(_) => None,
+    };
     let object_backings = module
         .objects
         .iter()
@@ -17,13 +41,14 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     for (id, decl) in module.structs.iter() {
-        if id == module.ffi_core.ptr
-            || id == module.ffi_core.fun_ptr
-            || id == module.ffi_core.pinned_ptr
-            || id == module.ffi_core.gc_handle
-            || id == module.foreign_callback_core.callback
-            || id == module.source_location_core.location
-        {
+        if defined_core.is_some_and(|core| {
+            id == core.ffi.ptr
+                || id == core.ffi.fun_ptr
+                || id == core.ffi.pinned_ptr
+                || id == core.ffi.gc_handle
+                || id == core.foreign_callbacks.callback
+                || id == core.source_location.location
+        }) {
             continue;
         }
         if matches!(decl.representation, StructRepresentation::Intrinsic(_)) {
@@ -55,9 +80,10 @@ pub fn dump(module: &Module) -> String {
         }
     }
     for (id, decl) in module.enums.iter() {
-        if id == module.foreign_callback_core.modes.enumeration()
-            || id == module.foreign_callback_core.states.enumeration()
-        {
+        if defined_core.is_some_and(|core| {
+            id == core.foreign_callbacks.modes.enumeration()
+                || id == core.foreign_callbacks.states.enumeration()
+        }) {
             continue;
         }
         let type_params = if decl.type_params.is_empty() {
@@ -132,7 +158,7 @@ pub fn dump(module: &Module) -> String {
                 "    field{} property{}: {}\n",
                 field.into_raw(),
                 physical.property.into_raw(),
-                type_name(module, physical.ty)
+                type_name(module, module.class_field_definition(field).ty)
             ));
         }
         for &property in &decl.properties {
@@ -185,7 +211,7 @@ pub fn dump(module: &Module) -> String {
                 "    field{} property{}: {}\n",
                 field.into_raw(),
                 physical.property.into_raw(),
-                type_name(module, physical.ty)
+                type_name(module, module.class_field_definition(field).ty)
             ));
         }
         for &property in &backing.properties {
@@ -205,10 +231,7 @@ pub fn dump(module: &Module) -> String {
                 " : {}",
                 decl.parents
                     .iter()
-                    .map(|parent| type_name(
-                        module,
-                        module.interface_applications[*parent].canonical_type
-                    ))
+                    .map(|parent| type_name(module, *parent))
                     .collect::<Vec<_>>()
                     .join(", ")
             )
@@ -318,135 +341,40 @@ pub fn dump(module: &Module) -> String {
         ));
     }
     for &id in &module.top_level {
-        if [
-            module.ffi_core.address_of,
-            module.ffi_core.size_of,
-            module.ffi_core.align_of,
-            module.ffi_core.gc_pin_raw,
-            module.ffi_core.gc_unpin_raw,
-            module.ffi_core.gc_get_handle_raw,
-            module.ffi_core.gc_release_handle_raw,
-            module.foreign_callback_core.register,
-            module.foreign_callback_core.retain,
-            module.foreign_callback_core.release,
-            module.foreign_callback_core.query_state,
-            module.foreign_callback_core.failure,
-            module.source_location_core.current,
-        ]
-        .contains(&id)
-        {
+        if defined_core.is_some_and(|core| {
+            [
+                core.ffi.address_of,
+                core.ffi.size_of,
+                core.ffi.align_of,
+                core.ffi.gc_pin_raw,
+                core.ffi.gc_unpin_raw,
+                core.ffi.gc_get_handle_raw,
+                core.ffi.gc_release_handle_raw,
+                core.foreign_callbacks.register,
+                core.foreign_callbacks.retain,
+                core.foreign_callbacks.release,
+                core.foreign_callbacks.query_state,
+                core.foreign_callbacks.failure,
+                core.source_location.current,
+            ]
+            .contains(&id)
+        }) {
             continue;
         }
-        let function = &module.functions[id];
-        let function_type_params: Vec<_> = function.type_params().into_iter().cloned().collect();
-        let type_params = if function_type_params.is_empty() {
-            String::new()
-        } else {
-            dump_type_params(module, &function_type_params)
-        };
-        let params: Vec<String> = match function.kind {
-            FunctionKind::Extern(id) => module.extern_functions[id]
-                .params
-                .iter()
-                .enumerate()
-                .map(|(index, &ty)| format!("arg{}: {}", index + 1, type_name(module, ty)))
-                .collect(),
-            _ => function
-                .params
-                .iter()
-                .map(|p| format!("{}: {}", p.name, type_name(module, p.ty)))
-                .collect(),
-        };
-        let signature = format!(
-            "{}{}({}): {}",
-            function.name,
-            type_params,
-            params.join(", "),
-            type_name(module, function.return_ty)
-        );
-        let suspend = if function.is_suspend { "suspend " } else { "" };
-        let operator = if function.modifiers.operator.is_some()
-            || function.modifiers.property_delegate_operator.is_some()
-        {
-            "operator "
-        } else {
-            ""
-        };
-        let attributes = dump_function_attributes(function.attributes);
-        let no_gc_requirements = match &function.genericity {
-            FunctionGenericity::Plain => &[][..],
-            FunctionGenericity::Generic { definition, .. } => {
-                &module.generic_functions[*definition].no_gc_type_params
-            }
-            FunctionGenericity::OwnerParameterizedMethod {
-                no_gc_type_params, ..
-            } => no_gc_type_params,
-            FunctionGenericity::GenericMethod { definition, .. } => {
-                &module.generic_methods[*definition].no_gc_type_params
-            }
-        };
-        let no_gc_condition = if no_gc_requirements.is_empty() {
-            String::new()
-        } else {
-            let parameters = no_gc_requirements
-                .iter()
-                .map(|parameter| function.type_param(*parameter).name.as_str())
-                .collect::<Vec<_>>()
-                .join(", ");
-            format!(" <requires-gc-free {parameters}>")
-        };
-        match &function.kind {
-            FunctionKind::Intrinsic(intrinsic) => {
-                out.push_str(&format!(
-                    "  {operator}{suspend}fun {signature}{attributes}{no_gc_condition} <intrinsic {}>\n",
-                    intrinsic.kind.name(),
-                ));
-            }
-            FunctionKind::User(body) => {
-                out.push_str(&format!(
-                    "  {operator}{suspend}fun {signature}{attributes}{no_gc_condition}\n"
-                ));
-                dump_statements(module, &body.locals, &body.statements, 2, &mut out);
-            }
-            FunctionKind::DerivedEquality => {
-                out.push_str(&format!(
-                    "  {operator}{suspend}fun {signature}{attributes}{no_gc_condition} <derived equality>\n"
-                ));
-            }
-            FunctionKind::Extern(id) => {
-                let extern_ = &module.extern_functions[*id];
-                let abi = match extern_.abi {
-                    ExternAbi::C => "c",
-                    ExternAbi::Scoop => "scoop",
-                };
-                let library = if extern_.library.is_empty() {
-                    String::new()
-                } else {
-                    format!(" lib={}", extern_.library)
-                };
-                out.push_str(&format!(
-                    "  fun {signature}{attributes}{no_gc_condition} <extern{} abi={abi} symbol={}{}>\n",
-                    id.into_raw(),
-                    extern_.native_symbol,
-                    library
-                ));
-            }
-        }
+        functions::dump_function(module, &module.functions[id], &mut out);
     }
-    out.push_str(&format!(
-        "  entry {}\n",
-        module.functions[module.entry].name
-    ));
+    write_entry(module, &mut out);
     for (_, instantiation) in module.instantiations.iter() {
         let function = module.generic_functions[instantiation.generic].function;
-        if [
-            module.ffi_core.gc_pin_raw,
-            module.ffi_core.gc_unpin_raw,
-            module.ffi_core.gc_get_handle_raw,
-            module.ffi_core.gc_release_handle_raw,
-        ]
-        .contains(&function)
-        {
+        if defined_core.is_some_and(|core| {
+            [
+                core.ffi.gc_pin_raw,
+                core.ffi.gc_unpin_raw,
+                core.ffi.gc_get_handle_raw,
+                core.ffi.gc_release_handle_raw,
+            ]
+            .contains(&function)
+        }) {
             continue;
         }
         let args: Vec<String> = instantiation
@@ -481,149 +409,6 @@ pub fn dump(module: &Module) -> String {
     out
 }
 
-fn dump_property(module: &Module, id: PropertyId, indent: usize, out: &mut String) {
-    let property = &module.properties[id];
-    let modifier = match property.modifier {
-        MethodModifier::Final => "",
-        MethodModifier::Open => "open ",
-        MethodModifier::Abstract => "abstract ",
-    };
-    let override_ = if property.is_override {
-        "override "
-    } else {
-        ""
-    };
-    let mutability = if property.capability.setter().is_some() {
-        "var"
-    } else {
-        "val"
-    };
-    let getter = property.capability.getter();
-    let getter = format!(
-        "getter{}={}",
-        getter.into_raw(),
-        dump_accessor_implementation(module, module.property_getters[getter].implementation)
-    );
-    let setter = property
-        .capability
-        .setter()
-        .map_or_else(String::new, |setter| {
-            format!(
-                " setter{}={}",
-                setter.into_raw(),
-                dump_accessor_implementation(
-                    module,
-                    module.property_setters[setter].implementation
-                )
-            )
-        });
-    let representation = match &property.representation {
-        PropertyRepresentation::Stored(stored) => match stored.backing {
-            PropertyBacking::TopLevelGlobal {
-                storage,
-                initialization,
-            } => {
-                let initialization = match initialization {
-                    TopLevelInitialization::Image => "image".to_string(),
-                    TopLevelInitialization::Runtime(unit) => {
-                        format!("init{}", unit.into_raw())
-                    }
-                };
-                format!("stored global{} {initialization}", storage.into_raw())
-            }
-            PropertyBacking::ClassField { field, initializer } => format!(
-                "stored field{} init={}",
-                field.into_raw(),
-                match initializer {
-                    ClassPropertyInitializer::PrimaryParameter(parameter) => {
-                        format!("parameter{}", parameter.into_raw())
-                    }
-                    ClassPropertyInitializer::Expression => "expression".to_string(),
-                    ClassPropertyInitializer::SyntheticNone => "synthetic-none".to_string(),
-                }
-            ),
-            PropertyBacking::StructField { owner, index } => {
-                format!("stored struct{}-field{index}", owner.into_raw())
-            }
-        },
-        PropertyRepresentation::AccessorOnly => "accessor-only".to_string(),
-        PropertyRepresentation::Delegated { storage } => {
-            let delegate = &module.delegate_storages[*storage];
-            let location = match delegate.location {
-                DelegateStorageLocation::ClassField(field) => {
-                    format!("class-field{}", field.into_raw())
-                }
-                DelegateStorageLocation::ManagedGlobal(global) => {
-                    format!("managed-global{}", global.into_raw())
-                }
-            };
-            format!(
-                "delegated storage{} type={} location={location}",
-                storage.into_raw(),
-                type_name(module, delegate.ty)
-            )
-        }
-        PropertyRepresentation::Const { value } => format!("const {value:?}"),
-        PropertyRepresentation::NativeStorage { storage } => {
-            format!("native-storage global{}", storage.into_raw())
-        }
-    };
-    let overrides = if property.overrides.is_empty() {
-        String::new()
-    } else {
-        format!(
-            " overrides=[{}]",
-            property
-                .overrides
-                .iter()
-                .map(|property| property.into_raw().to_string())
-                .collect::<Vec<_>>()
-                .join(",")
-        )
-    };
-    let (type_params, receiver, property_ty) = match property.owner {
-        PropertyOwner::Extension(extension) => {
-            let extension = &module.extension_properties[extension];
-            let params = if extension.type_params.is_empty() {
-                String::new()
-            } else {
-                format!("{} ", dump_type_params(module, &extension.type_params))
-            };
-            (
-                params,
-                format!(
-                    "{}.",
-                    type_name_with_params(module, extension.receiver_ty, &extension.type_params)
-                ),
-                type_name_with_params(module, property.ty, &extension.type_params),
-            )
-        }
-        _ => (String::new(), String::new(), type_name(module, property.ty)),
-    };
-    out.push_str(&format!(
-        "{}property{} {modifier}{override_}{mutability} {type_params}{receiver}{}: {property_ty} {getter}{setter} <{representation}>{overrides}\n",
-        "  ".repeat(indent),
-        id.into_raw(),
-        property.name,
-    ));
-}
-
-fn dump_accessor_implementation(
-    module: &Module,
-    implementation: PropertyAccessorImplementation,
-) -> String {
-    match implementation {
-        PropertyAccessorImplementation::Storage => "storage".to_string(),
-        PropertyAccessorImplementation::Constant => "constant".to_string(),
-        PropertyAccessorImplementation::Body(function) => {
-            format!("body({})", module.functions[function].name)
-        }
-        PropertyAccessorImplementation::AbstractSlot(function) => {
-            format!("abstract({})", module.functions[function].name)
-        }
-    }
-}
-
 fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
     let params = params
         .iter()
@@ -633,48 +418,15 @@ fn dump_type_params(module: &Module, params: &[TypeParamDecl]) -> String {
                 TypeParamBounds::Value { .. } => " : value".to_string(),
                 TypeParamBounds::Ref { .. } => " : ref".to_string(),
                 TypeParamBounds::Nominal(bounds) => {
-                    let mut rendered = Vec::new();
-                    if let Some(bound) = &bounds.class {
-                        let application = &module.class_applications[bound.application];
-                        let name = &module.classes[application.template].name;
-                        let value = if application.arguments.is_empty() {
-                            name.clone()
-                        } else {
-                            let arguments = application
-                                .arguments
-                                .iter()
-                                .map(|ty| type_name_with_params(module, *ty, params))
-                                .collect::<Vec<_>>()
-                                .join(", ");
-                            format!("{name}<{arguments}>")
-                        };
-                        rendered.push((bound.span.start, value));
-                    }
-                    rendered.extend(bounds.interfaces.iter().map(|bound| {
-                        let application = &module.interface_applications[bound.application];
-                        let name = &module.interfaces[application.template].name;
-                        let value = if application.arguments.is_empty() {
-                            name.clone()
-                        } else {
-                            let arguments = application
-                                .arguments
-                                .iter()
-                                .map(|ty| type_name_with_params(module, *ty, params))
-                                .collect::<Vec<_>>()
-                                .join(", ");
-                            format!("{name}<{arguments}>")
-                        };
-                        (bound.span.start, value)
-                    }));
-                    rendered.sort_by_key(|(start, _)| *start);
-                    format!(
-                        " : {}",
-                        rendered
-                            .into_iter()
-                            .map(|(_, value)| value)
-                            .collect::<Vec<_>>()
-                            .join(" & ")
-                    )
+                    let rendered = bounds
+                        .in_source_order()
+                        .into_iter()
+                        .map(|bound| {
+                            let ty = bound.ty();
+                            type_name_with_params(module, ty, params)
+                        })
+                        .collect::<Vec<_>>();
+                    format!(" : {}", rendered.join(" & "))
                 }
             };
             format!("{}{bounds}", param.name)

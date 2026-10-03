@@ -1,0 +1,10 @@
+Module
+  struct Cell (count: Int, text: String)
+  fun read @fn0(value: Cell) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local value
+  output library

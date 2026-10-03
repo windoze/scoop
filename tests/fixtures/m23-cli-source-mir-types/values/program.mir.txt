@@ -1,0 +1,378 @@
+Module
+  struct Empty ()
+  struct EmptyPair (first: Empty, second: Empty)
+  struct Pair (number: Int, empty: Empty)
+  struct Packet (number: Int) <c-layout aligned=natural packed=natural>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum State
+    Off()
+    On(_0: Int)
+    Stamp(_0: Empty)
+    Data(_0: Int, _1: Empty)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<State> vtable=0 itables=0
+  generated_exact_type get0 location=class4 nominal_id=2a0da409ab61ca4770885c1f06e83a60bca309a2e35efc6710ddc422988fe30d exact_id=e4dae63a1c9a199f449b2284f889b206399c003eb9aafd42eb3ac30ac3a8d8b4
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call empty: Empty = external1 direct
+      val $dependency.argument.0: Empty
+        Type Empty
+        Local empty
+      val $dependency.argument.1: Empty
+        Type Empty
+        Local empty
+      val $dependency.parameter.first: Empty
+        Type Empty
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Empty
+        Type Empty
+        Local $dependency.argument.1
+      call $equality.lhs: EmptyPair = external2 direct
+        Type Empty
+        Local $dependency.parameter.first
+        Type Empty
+        Local $dependency.parameter.second
+      call $dependency.argument.0: Empty = external1 direct
+      call $dependency.argument.1: Empty = external1 direct
+      val $dependency.parameter.first: Empty
+        Type Empty
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Empty
+        Type Empty
+        Local $dependency.argument.1
+      call $call.1: EmptyPair = external2 direct
+        Type Empty
+        Local $dependency.parameter.first
+        Type Empty
+        Local $dependency.parameter.second
+      call $argument.0: Boolean = external8 direct
+        Type EmptyPair
+        Local $equality.lhs
+        Type EmptyPair
+        Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.argument.1: Empty
+        Type Empty
+        Local empty
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.empty: Empty
+        Type Empty
+        Local $dependency.argument.1
+      call $call.2: Pair = external3 direct
+        Type Int
+        Local $dependency.parameter.number
+        Type Empty
+        Local $dependency.parameter.empty
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Pair
+          Local $call.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.3: Packet = external4 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Packet
+          Local $call.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $argument.0: Boolean = external6 direct
+        Type State
+        VariantConstruct State v0
+        Type State
+        VariantConstruct State v0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $equality.lhs: State
+        Type State
+        VariantConstruct State v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external6 direct
+        Type State
+        Local $equality.lhs
+        Type State
+        VariantConstruct State v1
+          Type Int
+          Local $dependency.parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Empty
+        Type Empty
+        Local empty
+      val $dependency.parameter._1: Empty
+        Type Empty
+        Local $dependency.argument.0
+      val $equality.lhs: State
+        Type State
+        VariantConstruct State v2
+          Type Empty
+          Local $dependency.parameter._1
+      call $dependency.argument.0: Empty = external1 direct
+      val $dependency.parameter._1: Empty
+        Type Empty
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external6 direct
+        Type State
+        Local $equality.lhs
+        Type State
+        VariantConstruct State v2
+          Type Empty
+          Local $dependency.parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=29 bits=0x0000001d
+      val $dependency.argument.1: Empty
+        Type Empty
+        Local empty
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter._2: Empty
+        Type Empty
+        Local $dependency.argument.1
+      val state: State
+        Type State
+        VariantConstruct State v3
+          Type Int
+          Local $dependency.parameter._1
+          Type Empty
+          Local $dependency.parameter._2
+      val $when.1: State
+        Type State
+        Local state
+      val $pattern.subject.2: State
+        Type State
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest State v3
+          Type State
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val number: Int
+        Type Int
+        VariantPayloadProject State v3 f0
+          Type State
+          Local $pattern.subject.2
+      val token: Empty
+        Type Empty
+        VariantPayloadProject State v3 f1
+          Type State
+          Local $pattern.subject.2
+      val $dependency.receiver: Int
+        Type Int
+        Local number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=29 bits=0x0000001d
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb2 pattern.else.2
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 pattern.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $result.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val erased: Any
+        Type Any
+        Box
+          Type State
+          Local state
+      val $cast.3: Any
+        Type Any
+        Local erased
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance State
+            Type Any
+            Local $cast.3
+    bb4 logic.rhs.4
+      call $call.5: Boolean = external7 direct
+        Type Empty
+        Local token
+        Type Empty
+        Local empty
+      assign $logic.4
+        Type Boolean
+        Local $call.5
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      assign $result.0
+        Type Boolean
+        Local $logic.4
+      goto bb3
+    bb7 if.then.7
+      assign $new.6
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external5 direct
+        Type ClassCastException
+        Local $new.6
+      throw
+        Type ClassCastException
+        Local $new.6
+    bb8 if.merge.8
+      val $ub.4: State
+        Type State
+        Unbox
+          Type Any
+          Local $cast.3
+      call $argument.0: Boolean = external6 direct
+        Type State
+        Local $ub.4
+        Type State
+        Local state
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

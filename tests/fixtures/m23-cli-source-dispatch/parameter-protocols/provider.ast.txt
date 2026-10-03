@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public open class Protocols(seed: Int = <expr>)
+    protected fun required
+    protected fun identity
+    protected fun empty
+    protected var state: Int = <expr>
+      Var seed
+    private fun ignored
+    public fun publicOnly
+  public struct Packet
+    field count: Int = <expr>

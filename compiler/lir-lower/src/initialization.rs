@@ -13,6 +13,11 @@ pub(super) fn lower_initialization_units(
                     storage: local_global(globals, storage),
                 }
             }
+            mir::InitializationUnitKind::GenericDelegatedExtension { storage } => {
+                lir::InitializationUnitKind::GenericDelegatedExtension {
+                    storage: local_global(globals, storage),
+                }
+            }
             mir::InitializationUnitKind::LazySingleton { published_root, .. } => {
                 lir::InitializationUnitKind::LazySingleton {
                     published_root: local_global(
@@ -24,7 +29,8 @@ pub(super) fn lower_initialization_units(
         };
         let failure = module.initialization_failure_roots[source.failure_root].global;
         let id = units.alloc(lir::InitializationUnit {
-            stable_key: source.stable_key.clone(),
+            identity: source.identity.clone(),
+            display_name: source.display_name.clone(),
             schedule: match source.schedule {
                 mir::InitializationSchedule::EagerStartup => {
                     lir::InitializationSchedule::EagerStartup

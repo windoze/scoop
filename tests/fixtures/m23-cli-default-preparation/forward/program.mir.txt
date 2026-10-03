@@ -1,0 +1,528 @@
+Module
+  struct PrepValue (value: Int)
+  enum PrepChoice
+    Item(value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  class PrepBase vtable=1 itables=0
+  class PrepChild vtable=1 itables=0
+  class PrepGenericChild vtable=1 itables=0
+  class PrepGeneric<Int> vtable=1 itables=0
+  class PrepSecondary vtable=0 itables=0
+  class ArrayIterator<Int> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Iterable<Int>
+  interface Iterator<Int>
+  fun PrepBase.choose @fn0(this: PrepBase, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun PrepChild.choose @fn1(this: PrepChild, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun PrepGeneric.choose @fn2(this: PrepGeneric<Int>, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun PrepGenericChild.choose @fn3(this: PrepGenericChild, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun prepForward @fn4(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun prepVariant @fn5(value: PrepChoice) -> PrepChoice
+    bb0 entry
+      return
+        Type PrepChoice
+        Local value
+  fun prepExplicit @fn6(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun prepPositions @fn7(first: Int, second: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local second
+  fun prepInherited @fn8(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun prepGeneric @fn9(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun prepSecondary @fn10(value: PrepSecondary) -> PrepSecondary
+    bb0 entry
+      return
+        Type PrepSecondary
+        Local value
+  fun prepVararg @fn11(values: Array<Int>) -> Array<Int>
+    bb0 entry
+      return
+        Type Array<Int>
+        Local values
+  fun prepVarargUse @fn12(values: Array<Int>) -> Array<Int>
+    bb0 entry
+      return
+        Type Array<Int>
+        Local values
+  fun prepLater @fn13(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun prepLexical @fn14(seed: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local seed
+      call $parameter.first: Int = @fn17 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      val $parameter.second: Int
+        Type Int
+        Local seed
+      call $call.1: Int = @fn17 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      return
+        Type Int
+        Local $call.1
+  fun main @fn15() -> Unit
+    bb0 entry
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $parameter.value: Int = @fn13 direct
+        Type Int
+        Local $parameter.value
+      call $call.1: PrepValue = @fn26 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        FieldAccess 0
+          Type PrepValue
+          Local $call.1
+      call $call.2: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $parameter.value: Int = @fn13 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.value: PrepChoice
+        Type PrepChoice
+        VariantConstruct PrepChoice v0
+          Type Int
+          Local $parameter.value
+      call $call.3: PrepChoice = @fn5 direct
+        Type PrepChoice
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $parameter.value: Int = @fn6 direct
+        Type Int
+        Local $parameter.value
+      call $call.4: Int = @fn6 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $parameter.second: Int = @fn13 direct
+        Type Int
+        Local $parameter.value
+      call $parameter.first: Int = @fn7 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $parameter.second: Int = @fn13 direct
+        Type Int
+        Local $parameter.value
+      call $call.5: Int = @fn7 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      assign $new.6
+        Type PrepChild
+        ClassAlloc PrepChild
+      call @fn20 direct
+        Type PrepChild
+        Local $new.6
+      val $receiver: PrepChild
+        Type PrepChild
+        Local $new.6
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $parameter.value: Int = @fn13 direct
+        Type Int
+        Local $parameter.value
+      call $parameter.value: Int = @fn1 direct
+        Type PrepChild
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      call $call.7: Int = @fn8 direct
+        Type Int
+        Local $parameter.value
+      assign $new.8
+        Type PrepGenericChild
+        ClassAlloc PrepGenericChild
+      call @fn21 direct
+        Type PrepGenericChild
+        Local $new.8
+      val $receiver: PrepGenericChild
+        Type PrepGenericChild
+        Local $new.8
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.seed
+      call $parameter.value: Int = @fn3 direct
+        Type PrepGenericChild
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      call $call.9: Int = @fn9 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.marker: String
+        Type String
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $parameter.value: Int = @fn13 direct
+        Type Int
+        Local $parameter.value
+      assign $new.10
+        Type PrepSecondary
+        ClassAlloc PrepSecondary
+      call @fn23 direct
+        Type PrepSecondary
+        Local $new.10
+        Type String
+        Local $parameter.marker
+        Type Int
+        Local $parameter.value
+      val $parameter.value: PrepSecondary
+        Type PrepSecondary
+        Local $new.10
+      call $call.11: PrepSecondary = @fn10 direct
+        Type PrepSecondary
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $call.12: Int = @fn13 direct
+        Type Int
+        Local $parameter.value
+      val $parameter.values: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+          Type Int
+          Local $call.12
+      call $parameter.values: Array<Int> = @fn11 direct
+        Type Array<Int>
+        Local $parameter.values
+      call $call.13: Array<Int> = @fn12 direct
+        Type Array<Int>
+        Local $parameter.values
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      call $call.14: Int = @fn14 direct
+        Type Int
+        Local $parameter.seed
+      return
+  fun iterator @fn16(this: Array<Int>) -> Iterator<Int>
+    bb0 entry
+      val $dependency.local.1: Array<Int>
+        Type Array<Int>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<Int>
+        ClassAlloc ArrayIterator<Int>
+      call @fn24 direct
+        Type ArrayIterator<Int>
+        Local $new.1
+        Type Array<Int>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<Int>
+        Retype Iterator<Int>
+          Type ArrayIterator<Int>
+          Local $new.1
+  fun $local.0.local @fn17(first: Int, second: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local second
+  fun next @fn18(this: ArrayIterator<Int>) -> Option<Int>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          FieldAccess 0
+            Type ArrayIterator<Int>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: Array<Int>
+        Type Array<Int>
+        FieldAccess 0
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external0 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: Int
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ArrayIterator<Int>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.local.12
+  fun init.PrepBase.$c0 @fn19(this: PrepBase) -> Unit
+    bb0 entry
+      return
+  fun init.PrepChild.$c1 @fn20(this: PrepChild) -> Unit
+    bb0 entry
+      call @fn19 direct
+        Type PrepBase
+        Retype PrepBase
+          Type PrepChild
+          Local this
+      return
+  fun init.PrepGenericChild.$c3 @fn21(this: PrepGenericChild) -> Unit
+    bb0 entry
+      call @fn25 direct
+        Type PrepGeneric<Int>
+        Retype PrepGeneric<Int>
+          Type PrepGenericChild
+          Local this
+      return
+  fun init.PrepSecondary.$c4 @fn22(this: PrepSecondary, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type PrepSecondary
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.PrepSecondary.$c5 @fn23(this: PrepSecondary, marker: String, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn22 direct
+        Type PrepSecondary
+        Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.ArrayIterator.$c0 @fn24(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<Int>
+        Local this
+        Type Array<Int>
+        Local source
+      field_set 1
+        Type ArrayIterator<Int>
+        Local this
+        Type Long
+        Local index
+      return
+  fun init.PrepGeneric.$c2 @fn25(this: PrepGeneric<Int>) -> Unit
+    bb0 entry
+      return
+  fun ctor.PrepValue.$c0 @fn26(value: Int) -> PrepValue <no-gc>
+    bb0 entry
+      return
+        Type PrepValue
+        StructInit PrepValue
+          Type Int
+          Local value
+  instance mi0 function=@fn2 <- PrepGeneric.choose
+  instance mi1 function=@fn16 <- iterator
+  instance mi2 function=@fn18 <- next
+  str @str0 "secondary"
+  output executable @fn15

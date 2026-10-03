@@ -12,40 +12,21 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include "scoop_runtime_metadata_v1.h"
 
-/* Runtime spec 2.2 (full M6 form). Field order is the ABI contract with
- * codegen: it emits one global per LIR meta TypeDescriptor in exactly
- * this layout. */
-typedef struct ScoopTypeDescriptor ScoopTypeDescriptor;
-
-/* itable entry: keyed by the interface's TypeDescriptor pointer
- * (runtime spec 2.2, impl spec 2.9). */
-typedef struct ScoopItableEntry {
-    const ScoopTypeDescriptor *interface;
-    const void *const *slots; /* function pointer array */
-} ScoopItableEntry;
-
-/* GC scan-descriptor contract (M9 v1; runtime spec 2.2 "引用字段位图/
- * 描述"的具体形态).
+/* GC scan-program contract (runtime spec 2.2).
  *
  * The GC finds an object's outgoing references purely through
- * `ref_offsets`; `type_id` is not interpreted by the GC. `size` /
- * `align` are not used by the GC either (small objects never straddle
- * lines, large objects own a whole block — see runtime/src/gc.c), so
- * array TDs keep their element-level `size` (scoop_rt_array_clone).
+ * `object_scan`; `type_id` is not interpreted by the GC.
  *
- * `ref_offsets` points to a sequence of u64 words whose first word
+ * `object_scan` points to a sequence of u64 words whose first word
  * selects the kind:
  *
  * - NULL: the object has no outgoing references (String, plain objects
  *   without reference fields, arrays of non-reference elements).
- * - SCOOP_REFS_ARRAY: array object. Word 1 is the element stride and
- *   word 2 is a pointer (stored as u64) to the recursive scan program
- *   for one element. The count is at object offset 16; scanned managed
- *   element types have alignment at most 8 and therefore start at
- *   offset 24. Over-aligned C-layout elements are GC-free and carry a
- *   NULL descriptor. A no-reference element scan makes the whole array
- *   descriptor NULL.
+ * - SCOOP_REFS_ARRAY: array object. Words 1..3 are the count offset,
+ *   first-element offset, and nonzero element stride. Word 4 is a pointer
+ *   (stored as u64) to the nonempty recursive scan program for one element.
  * - SCOOP_REFS_SEQUENCE: composition of independent scans over the same
  *   base. Word 1 is child count N and words 2 .. 2+N are pointers to
  *   recursive child programs.
@@ -62,22 +43,11 @@ typedef struct ScoopItableEntry {
 #define SCOOP_REFS_ARRAY UINT64_MAX
 #define SCOOP_REFS_SEQUENCE (UINT64_MAX - 1)
 
-struct ScoopTypeDescriptor {
-    uint64_t type_id;
-    uint64_t size;
-    uint64_t align;
-    const uint64_t *ref_offsets; /* scan descriptor (see above) or null */
-    const ScoopTypeDescriptor *parent;
-    const void *const *vtable; /* function pointer array or null */
-    const ScoopItableEntry *itables; /* entry array or null */
-    uint64_t itable_count;
-    const char *name; /* stable NUL-terminated UTF-8 diagnostic name */
-};
-
 /* Runtime spec 2.1: 16 bytes. `gc_word` belongs to the GC and currently
  * carries the pin bit; mark, exact size and forwarding state live in the
  * arena-external side table. The remaining bits are reserved (hash cache
- * etc.). Mutator code must not touch it. All payloads start at offset 16. */
+ * etc.). Mutator code must not touch it. TypeDescriptor shape determines each
+ * aligned payload offset. */
 typedef struct ScoopObjectHeader {
     const ScoopTypeDescriptor *td;
     uint64_t gc_word;

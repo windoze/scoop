@@ -2,7 +2,8 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Global {
-    /// Link/storage name. Source lookup is owned by the logical property.
+    /// Human-readable storage name used only for diagnostics and dumps.
+    /// Persistent linking identity is carried by the typed storage owner.
     pub name: String,
     pub property: PropertyId,
     pub ty: TypeId,
@@ -46,7 +47,7 @@ pub enum HirConstantImage {
     String(String),
     NullPointer(HirPointerNullKind),
     EnumUnit {
-        variant: AppliedEnumVariantRef,
+        variant: EnumVariantApplication,
     },
     Struct {
         application: StructApplicationId,

@@ -1,0 +1,70 @@
+SourceFile
+  RootPackage
+    @CLayout(aligned = 8, packed = 1)
+  struct Packed
+    field flag: Boolean
+    field value: Int
+    @CLayout(aligned = 16, packed = 2)
+  struct Outer
+    field tag: Boolean
+    field packed: Packed
+    field tail: Int
+    @CLayout
+  struct CBox<T>
+    field value: T
+  fun main()
+    var packed
+      Call Packed
+        BoolLiteral true
+        IntLiteral 7
+    Call println
+      FieldAccess flag
+        Var packed
+    Call println
+      FieldAccess value
+        Var packed
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var packed
+      MethodCall store
+        Var pointer
+        Call Packed
+          BoolLiteral false
+          IntLiteral 9
+      val loaded
+        MethodCall load
+          Var pointer
+      Call println
+        FieldAccess flag
+          Var loaded
+      Call println
+        FieldAccess value
+          Var loaded
+    val values
+      ArrayLiteral
+        Call Outer
+          BoolLiteral true
+          Var packed
+          IntLiteral 11
+        Call Outer
+          BoolLiteral false
+          Call Packed
+            BoolLiteral true
+            IntLiteral 13
+          IntLiteral 15
+    Call println
+      FieldAccess value
+        FieldAccess packed
+          Index
+            Var values
+            IntLiteral 0
+    Call println
+      FieldAccess tail
+        Index
+          Var values
+          IntLiteral 1
+    Call println
+      FieldAccess value
+        Call CBox
+          IntLiteral 17

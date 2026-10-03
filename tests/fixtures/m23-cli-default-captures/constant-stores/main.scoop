@@ -1,0 +1,70 @@
+class Item(public val value: Int)
+
+fun copied(): Int {
+    val first = true
+    val second = first
+    return if (second) { Item(1).value } else { Item(2).value }
+}
+
+fun overwritten(): Int {
+    var flag = true
+    flag = false
+    return if (flag) { Item(3).value } else { Item(4).value }
+}
+
+fun changed(input: Boolean): Int {
+    var flag = true
+    val original = flag
+    flag = input
+    val item = if (flag) { Item(5) } else { Item(6) }
+    return if (original) { item.value } else { 0 }
+}
+
+fun escaped(): Int {
+    var flag = true
+    @Unsafe { addressOf(flag).store(false) }
+    return if (flag) { Item(7).value } else { Item(8).value }
+}
+
+@Unsafe
+fun writeFlag(pointer: Ptr<Boolean>, value: Boolean) { pointer.store(value) }
+
+fun escapedCall(input: Boolean): Int {
+    var flag = true
+    @Unsafe { writeFlag(addressOf(flag), input) }
+    return if (flag) { Item(13).value } else { Item(14).value }
+}
+
+fun copiedAddress(): Int {
+    var flag = true
+    @Unsafe {
+        val pointer = addressOf(flag)
+        val copy = pointer
+        copy.store(false)
+        return if (pointer.load()) { Item(15).value } else { Item(16).value }
+    }
+}
+
+fun negated(): Int {
+    val flag = false
+    return if (!flag) { Item(9).value } else { Item(10).value }
+}
+
+fun compared(): Int {
+    val left = true
+    val right = false
+    return if (left != right) { Item(11).value } else { Item(12).value }
+}
+
+fun main() {
+    if (copied() != 1) { throw IllegalStateException() }
+    if (overwritten() != 4) { throw IllegalStateException() }
+    if (changed(true) != 5) { throw IllegalStateException() }
+    if (changed(false) != 6) { throw IllegalStateException() }
+    if (escaped() != 8) { throw IllegalStateException() }
+    if (escapedCall(true) != 13) { throw IllegalStateException() }
+    if (escapedCall(false) != 14) { throw IllegalStateException() }
+    if (copiedAddress() != 16) { throw IllegalStateException() }
+    if (negated() != 9) { throw IllegalStateException() }
+    if (compared() != 11) { throw IllegalStateException() }
+}

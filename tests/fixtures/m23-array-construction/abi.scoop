@@ -1,0 +1,39 @@
+package consumer.arrayconstruction
+
+import dependency.arrayconstruction.*
+import dependency.arrayconstruction.exercise as providerExercise
+
+private class Reference(public val number: Int)
+private struct Large(val first: Reference, val second: Reference, val third: Reference)
+private enum Payload<T> { Data(val value: T), Empty }
+
+private fun readLarge(value: Large): Int = value.first.number + value.second.number + value.third.number
+private fun readPayload(value: Payload<Large>): Int = when (value) {
+    Data(inner) -> readLarge(inner)
+    Empty -> 0
+}
+private fun readUnit(value: Unit): Int = 42
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val large = Large(Reference(10), Reference(12), Reference(20))
+    if (exercise<Large>(large, ::readLarge) != 42) { return 1 }
+    if (exercise<Payload<Large>>(Payload.Data(large), ::readPayload) != 42) { return 2 }
+    if (exercise<Unit>(Unit, ::readUnit) != 42) { return 3 }
+    val source: MutableArray<Large> = [large]
+    val copied = Array(source)
+    val original: Array<Large> = Array(source)
+    source[0L] = Large(Reference(1), Reference(2), Reference(3))
+    if (readLarge(copied[0L]) != 42 || readLarge(original[0L]) != 42) { return 4 }
+    if (readLarge(source[0L]) != 6 || copied === original) { return 5 }
+    val units: MutableArray<Unit> = [Unit, Unit]
+    val emptyPayload = Array(units)
+    val another = Array(units)
+    if (emptyPayload.size != 2L || emptyPayload === another) { return 6 }
+    val nested: Array<Array<Large>> = [copied, original]
+    val mutableNested = MutableArray(nested)
+    val copyNested = Array(mutableNested)
+    val allocation = Reference(0)
+    return readLarge(copyNested[1L][0L]) + allocation.number
+}

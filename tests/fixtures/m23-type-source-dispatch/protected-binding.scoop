@@ -1,0 +1,11 @@
+public interface Constraint {}
+public class Container {
+    public class Vault {
+        protected fun read(value: Long): Long = value
+        protected fun <T: Constraint> preserve(value: T): T = value
+        protected var state: Int = 1
+    }
+}
+public class Another {
+    protected fun read(value: Long): Long = value
+}

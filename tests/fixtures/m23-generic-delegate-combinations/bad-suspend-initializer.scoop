@@ -1,0 +1,5 @@
+import templates.delegateCombinations.Receiver
+import templates.delegateCombinations.ZeroSlot
+
+suspend fun <T> make(): ZeroSlot<T> = ZeroSlot<T>()
+val <T> Receiver<T>.wrong: Int by make<T>()

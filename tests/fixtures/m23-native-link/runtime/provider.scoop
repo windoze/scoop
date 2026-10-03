@@ -1,0 +1,12 @@
+package nativelink.gcruntime
+
+public fun <T> preserve(marker: T, text: String): String {
+    @Unsafe {
+        val handle = getGcHandle(text)
+        gcCollect()
+        val restored = releaseGcHandle(handle)
+        val pinned = pin(restored)
+        gcCollect()
+        return unpin(pinned)
+    }
+}

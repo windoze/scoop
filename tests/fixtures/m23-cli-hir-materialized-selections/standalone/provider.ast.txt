@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public struct Pair
+    field first: Int
+    field second: Int
+  public fun keep(value: Int): Int
+    =
+      Var value
+  public fun finish()

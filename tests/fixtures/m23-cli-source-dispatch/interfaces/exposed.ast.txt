@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  public fun user(): User
+    =
+      Call User
+  public fun derived(): Derived
+    =
+      Call Derived
+SourceFile
+  RootPackage
+  public interface Root
+    fun zeta
+    fun helper
+    public open val value: Int <computed>
+      get()
+        IntLiteral 2
+  public interface Left : Root
+    fun left
+  public interface Right : Root
+    fun right
+  public interface Diamond : Left, Right
+    fun zeta
+    fun own
+    public open override val value: Int <computed>
+      get()
+        IntLiteral 8
+  public interface AbstractAgain : Diamond
+    fun zeta
+  public interface Mutable : Diamond
+    public open var change: Int <computed>
+      get()
+        IntLiteral 7
+      set(value)
+  public open class User(), Mutable
+  public class Derived() : User(<0 args>)
+  public object Singleton
+  public struct Value : Diamond
+  public enum Choice : Diamond
+    One

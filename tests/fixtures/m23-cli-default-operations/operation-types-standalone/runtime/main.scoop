@@ -1,0 +1,29 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val values = defaultValues()
+    verifyDefault(values.unit(Unit) == Unit)
+    verifyDefault(values.boolean(true))
+    val byte: Int8 = -7
+    val short: Int16 = -11
+    val int: Int = -13
+    val long: Long = -17L
+    val ubyte: UInt8 = 251u
+    val ushort: UInt16 = 65521u
+    val uint: UInt = 4294967291u
+    val ulong: ULong = 18446744073709551557uL
+    verifyDefault(values.byte(byte) == byte)
+    verifyDefault(values.short(short) == short)
+    verifyDefault(values.int(int) == int)
+    verifyDefault(values.long(long) == long)
+    verifyDefault(values.ubyte(ubyte) == ubyte)
+    verifyDefault(values.ushort(ushort) == ushort)
+    verifyDefault(values.uint(uint) == uint)
+    verifyDefault(values.ulong(ulong) == ulong)
+    verifyDefault(values.string("string") == "string")
+    val error = IllegalStateException()
+    verifyDefault(values.throwable(error) === error)
+    verifyDefault(values.state(ForeignCallbackState.Registered) == ForeignCallbackState.Registered)
+    verifyDefault(values.state(ForeignCallbackState.Completed) == ForeignCallbackState.Completed)
+}

@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.run
+  private fun run(value: Boolean): Boolean
+    =
+      Var value
+  public fun rejected(): Boolean
+    =
+      Call run
+        BoolLiteral true

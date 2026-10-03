@@ -1,0 +1,54 @@
+SourceFile
+  QualifiedPackage consumer.equality
+  ImportStar Local templates.equality.*
+  public fun exercise<T>(value: T): Int
+    val left
+      Call Manual<T>
+        Var value
+        IntLiteral 42
+    if
+      Binary Or
+        Binary Ne
+          Var left
+          Call Manual<T>
+            Var value
+            IntLiteral 42
+        Binary Eq
+          Var left
+          Call Manual<T>
+            Var value
+            IntLiteral 1
+      return
+        IntLiteral 1
+    val derived
+      Call Different<T>
+        IntLiteral 42
+    if
+      Binary Or
+        Binary Ne
+          Var derived
+          Call Different<T>
+            IntLiteral 42
+        Binary Eq
+          Var derived
+          Call Different<T>
+            IntLiteral 1
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Unary Not
+          Binary Eq
+            Var derived
+            IntLiteral 42
+        Binary Eq
+          Var derived
+          IntLiteral 1
+      return
+        IntLiteral 3
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

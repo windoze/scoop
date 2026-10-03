@@ -1,0 +1,214 @@
+Module
+  struct LocalDefaults ()
+  struct Token ()
+  struct WideValue (first: Long, second: Long, third: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LocalDefaults>
+    Completed(value: LocalDefaults)
+    Suspended()
+  enum CoroutineSlot<LocalDefaults>
+    Empty()
+    Value(value: LocalDefaults)
+  class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<LocalDefaults> vtable=0 itables=1
+  interface CompoundParameters
+  interface Continuation<LocalDefaults>
+  interface SuspendTask<LocalDefaults>
+  interface SuspendRegistration<LocalDefaults>
+  generated_exact_type get0 location=class4 nominal_id=1ef4d85ac539d1e3c2cd594734a1628ca665f59b3370f45413afd0a924100295 exact_id=87b14cb23d102bf923271756d5f58a916c13debab8fc5253d713095f5788846e
+  generated_exact_type get1 location=enum1 nominal_id=db2bc04d6d4cdc73c544344141e893b2b1721ad1f0137d87e3bf556e6c5337ae exact_id=acad115e4bb52bb467e825b1e71c375752f79e209ea2009ce60c2ecbbbaa1ee4
+  generated_exact_type get2 location=enum2 nominal_id=502784d2178558daef167f18f3a034a85d7d841e666999fa63c8d5bcf9dc342e exact_id=bc2607dd069ed927dd4f52f7ffde20b35c580dc36ba79822eebf09c0b93ab795
+  generated_callable gc0 function=@fn9 id=3bf250f4bde06052852cbad841029e9f79c9252affe5ab34ae6386eaef57bc5b
+  generated_callable gc1 function=@fn8 id=a103140ade22661c6bcae02e1c535626b869130caa99b234be4e5c0eda06d549
+  fun LocalDefaults.answer @fn0(this: LocalDefaults, marker: Token, input: Counter, extra: Long) -> WideValue
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        Local extra
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      call $call.1: WideValue = external3 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+      return
+        Type WideValue
+        Local $call.1
+  fun LocalDefaults.equals @fn1(this: LocalDefaults, other: LocalDefaults) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun primary @fn2() -> Counter
+    bb0 entry
+      call $receiver: LocalDefaults = @fn7 direct
+      call $parameter.marker: Token = external0 direct
+      val $default.local.2: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $default.local.3: Long
+        Type Long
+        Local $default.local.2
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $default.local.3
+      val $parameter.input: Counter
+        Type Counter
+        Local $new.1
+      val $default.local.3: Counter
+        Type Counter
+        Local $parameter.input
+      call $default.local.4: Long = external2 direct
+        Type Counter
+        Local $default.local.3
+      val $default.local.5: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $default.local.6: Long
+        Type Long
+        Local $default.local.5
+      val $parameter.extra: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $default.local.4
+          Type Long
+          Local $default.local.6
+      call $call.2: WideValue = @fn0 direct
+        Type LocalDefaults
+        Local $receiver
+        Type Token
+        Local $parameter.marker
+        Type Counter
+        Local $parameter.input
+        Type Long
+        Local $parameter.extra
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type WideValue
+          Local $call.2
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+  fun Continuation.resume @fn3(this: Continuation<LocalDefaults>, value: LocalDefaults) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<LocalDefaults>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<LocalDefaults>, $completion: Continuation<LocalDefaults>) -> CoroutineStep<LocalDefaults>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<LocalDefaults>, continuation: Continuation<LocalDefaults>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.LocalDefaults.$c0 @fn7() -> LocalDefaults <no-gc>
+    bb0 entry
+      return
+        Type LocalDefaults
+        StructInit LocalDefaults
+  fun startCoroutine<LocalDefaults> @fn8(task: SuspendTask<LocalDefaults>, completion: Continuation<LocalDefaults>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<LocalDefaults>[0]
+        Type Continuation<LocalDefaults>
+        Local completion
+        Type LocalDefaults
+        EnumField v0 f0
+          Type CoroutineStep<LocalDefaults>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<LocalDefaults>[1]
+        Type Continuation<LocalDefaults>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalDefaults> = @fn5 interface SuspendTask<LocalDefaults>[0]
+        Type SuspendTask<LocalDefaults>
+        Local task
+        Type Continuation<LocalDefaults>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalDefaults>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<LocalDefaults> CompoundParameters.answer(Token, Counter, Long) @fn9(this: CompoundParameters, marker: Token, input: Counter, extra: Long) -> WideValue
+    bb0 entry
+      call $call.1: WideValue = @fn0 direct
+        Type LocalDefaults
+        Unbox
+          Type CompoundParameters
+          Local this
+        Type Token
+        Local marker
+        Type Counter
+        Local input
+        Type Long
+        Local extra
+      return
+        Type WideValue
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalDefaults> result=LocalDefaults
+  coroutine_slot cl0 CoroutineSlot<LocalDefaults> value=LocalDefaults
+  coroutine_start ct0 result=LocalDefaults function=fn8
+  coroutine_fn cf0 @fn5 source_return=LocalDefaults step=cs0 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  output library

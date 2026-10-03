@@ -1,0 +1,12 @@
+public fun localCall(seed: String, value: String = if (true) {
+    fun copy(value: String): String { return value }
+    copy(seed)
+} else { seed }): String = value
+public fun <T> localCallGeneric(seed: T, value: T = if (true) {
+    fun copy(value: T): T { return value }
+    copy(seed)
+} else { seed }): T = value
+fun main() {
+    localCall("value")
+    localCallGeneric("generic")
+}

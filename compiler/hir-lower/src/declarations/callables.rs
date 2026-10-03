@@ -47,6 +47,9 @@ impl Lowerer {
         };
         let kind = match checked.intrinsic {
             Some(intrinsic) => FunctionKind::Intrinsic(intrinsic),
+            None if modifier == hir::MethodModifier::Abstract => FunctionKind::Abstract {
+                locals: Arena::new(),
+            },
             None => FunctionKind::User(hir::Body {
                 locals: Arena::new(),
                 statements: Vec::new(),
@@ -55,7 +58,7 @@ impl Lowerer {
         let name = format!("{}.{}", owner.describe_name(self), decl.name.text);
         let slot_access = if decl.is_override {
             crate::visibility::MemberSlotAccess::Override
-        } else if modifier != hir::MethodModifier::Final || matches!(owner, Owner::Interface(_)) {
+        } else if modifier != hir::MethodModifier::Final {
             crate::visibility::MemberSlotAccess::Declared
         } else {
             crate::visibility::MemberSlotAccess::None
@@ -69,23 +72,31 @@ impl Lowerer {
             slot_access,
         );
         let id = self.functions.alloc(Function {
-            name,
+            signature: hir::CallableSignature {
+                name,
+                is_suspend: decl.is_suspend,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: checked.attributes,
+                span: decl.span,
+            },
+
             access,
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: decl.is_suspend,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.unit,
-            attributes: checked.attributes,
             kind,
             method: Some(hir::Method {
                 owner: host_ty,
                 modifier,
                 dispatch: hir::MethodDispatch::Direct,
             }),
-            span: decl.span,
         });
+        self.source_function_declarations.insert(
+            id,
+            crate::SourceFunctionDeclaration {
+                name: decl.name.text.clone(),
+            },
+        );
         if let Some(intrinsic) = checked.intrinsic {
             self.register_intrinsic_function(id, intrinsic, decl.span);
         }
@@ -163,55 +174,70 @@ impl Lowerer {
         };
         let access = self.top_level_access(decl.visibility, decl.name.span, "function", file_index);
         let id = self.functions.alloc(Function {
-            name: decl.name.text.clone(),
+            signature: hir::CallableSignature {
+                name: decl.name.text.clone(),
+                is_suspend: decl.is_suspend,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: checked.attributes,
+                span: decl.span,
+            },
+
             access,
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: decl.is_suspend,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.unit,
-            attributes: checked.attributes,
             kind,
             method: None,
-            span: decl.span,
         });
+        self.source_function_declarations.insert(
+            id,
+            crate::SourceFunctionDeclaration {
+                name: decl.name.text.clone(),
+            },
+        );
         if let Some(intrinsic) = checked.intrinsic {
             self.register_intrinsic_function(id, intrinsic, decl.span);
         }
         self.top_level.push(id);
-        let namespace = if decl.receiver_ty.is_some() {
-            &mut self.extensions_by_name
-        } else {
-            &mut self.functions_by_name
-        };
-        namespace
-            .entry(decl.name.text.clone())
-            .or_default()
-            .push(id);
+        self.top_level_namespaces.register_function(
+            file_index,
+            decl.name.text.clone(),
+            id,
+            decl.receiver_ty.is_some(),
+        );
         self.function_files.insert(id, file_index);
         pending.push((id, decl, file_index));
     }
 
     /// Reject declarations that differ only in return type after signatures
     /// have been fully resolved.
-    pub(crate) fn check_duplicate_signatures(
+    pub(crate) fn validate_and_freeze_duplicate_signatures(
         &mut self,
         pending_functions: &[(FunctionId, &ast::FunctionDecl, usize)],
         pending_methods: &[(FunctionId, &ast::FunctionDecl, usize, Owner)],
     ) {
-        for (index, &(id, decl, file_index)) in pending_functions.iter().enumerate() {
-            let duplicate = pending_functions[..index]
+        let mut rejected = std::collections::HashSet::new();
+        let mut ordered_functions = pending_functions.to_vec();
+        ordered_functions.sort_by_key(|(id, _, _)| self.callable_declaration_order(*id));
+        for (index, &(id, decl, file_index)) in ordered_functions.iter().enumerate() {
+            let duplicates = ordered_functions[..index]
                 .iter()
-                .any(|&(other, _, other_file)| {
-                    self.functions[other].name == decl.name.text
+                .filter_map(|&(other, _, other_file)| {
+                    (self
+                        .top_level_namespaces
+                        .sources_share_namespace(file_index, other_file)
+                        && self.functions[other].name == decl.name.text
                         && self.same_parameter_signature(id, other)
                         && (self.functions[id].access.declared != hir::DeclaredVisibility::Private
                             || self.functions[other].access.declared
                                 != hir::DeclaredVisibility::Private
-                            || file_index == other_file)
-                });
-            if duplicate {
+                            || file_index == other_file))
+                        .then_some(other)
+                })
+                .collect::<Vec<_>>();
+            if !duplicates.is_empty() {
+                rejected.insert(id);
+                rejected.extend(duplicates);
                 self.current_file = file_index;
                 self.error(
                     decl.name.span,
@@ -222,15 +248,21 @@ impl Lowerer {
                 );
             }
         }
-        for (index, &(id, decl, file_index, owner)) in pending_methods.iter().enumerate() {
-            let duplicate = pending_methods[..index]
+        let mut ordered_methods = pending_methods.to_vec();
+        ordered_methods.sort_by_key(|(id, _, _, _)| self.callable_declaration_order(*id));
+        for (index, &(id, decl, file_index, owner)) in ordered_methods.iter().enumerate() {
+            let duplicates = ordered_methods[..index]
                 .iter()
-                .any(|&(other, _, _, other_owner)| {
-                    other_owner == owner
+                .filter_map(|&(other, _, _, other_owner)| {
+                    (other_owner == owner
                         && self.functions[other].name == self.functions[id].name
-                        && self.same_parameter_signature(id, other)
-                });
-            if duplicate {
+                        && self.same_parameter_signature(id, other))
+                    .then_some(other)
+                })
+                .collect::<Vec<_>>();
+            if !duplicates.is_empty() {
+                rejected.insert(id);
+                rejected.extend(duplicates);
                 let host = owner.describe(self);
                 self.current_file = file_index;
                 self.error(
@@ -242,6 +274,19 @@ impl Lowerer {
                 );
             }
         }
+        self.declaration_surface.freeze(rejected);
+    }
+
+    /// Persistent source identity, followed by source span, defines declaration
+    /// order independently from dense container positions and display paths.
+    fn callable_declaration_order(
+        &self,
+        function: FunctionId,
+    ) -> (scoop_identity::SourceIdentity, u32, u32, u32) {
+        let file = self.function_files[&function];
+        let source = self.visibility_file(file);
+        let span = self.functions[function].span;
+        (source, span.start, span.end, function.into_raw().into_u32())
     }
 
     /// Compare parameter signatures under the exact alpha-renaming relation

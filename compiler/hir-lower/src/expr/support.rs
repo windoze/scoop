@@ -279,7 +279,8 @@ impl Lowerer {
                 Some(())
             }
             ExprKind::MethodCall { callee, .. } => {
-                let hir::MethodCallee::Callable(callable) = *callee else {
+                let hir::MethodCallee::Callable(hir::CallableTarget::Local(callable)) = *callee
+                else {
                     return None;
                 };
                 let function = self.callable_function_id(callable);
@@ -295,7 +296,12 @@ impl Lowerer {
         function: hir::FunctionId,
         receiver_kind: hir::IntegerKind,
     ) -> bool {
-        if self.function_files.get(&function).copied() >= Some(self.user_file_index) {
+        if self
+            .function_files
+            .get(&function)
+            .copied()
+            .is_none_or(|file| !self.source_is_core(file))
+        {
             return false;
         }
         let Some(&(owner, _)) = self

@@ -1,0 +1,10 @@
+public struct SharedAliasValue(val count: Int, val text: String)
+public typealias SharedAlias = SharedAliasValue
+public typealias SharedAliasAgain = SharedAlias
+public interface SharedAliasApi {
+    public fun read(): SharedAlias
+}
+public class SharedAliasHolder public constructor(public val value: SharedAliasAgain): SharedAliasApi {
+    public override fun read(): SharedAlias = value
+}
+public fun aliasUse(value: SharedAliasApi): SharedAliasAgain = value.read()

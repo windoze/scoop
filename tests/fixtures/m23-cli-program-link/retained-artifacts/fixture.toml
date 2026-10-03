@@ -1,0 +1,128 @@
+schema = 1
+name = "program-link-retained-artifacts"
+inputs = ["cone", "../../m23-program-link/read-println.scoop", "explicit.toml"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["program-link", "stage-golden", "retained-artifacts", "concurrency", "moving-gc"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/orchestrated"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/read-println.scoop", "to" = "${work}/sources/orchestrated/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/orchestrated", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-build", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump-build", "--dump-scope", "sources"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", "snapshot" = "build.ast.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/hir.txt", "snapshot" = "build.hir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/mir.txt", "snapshot" = "build.mir.txt"}, {"file" = "${work}/dump-build/${build.result.root.identity}/lir.txt", "snapshot" = "build.lir.txt"}]
+
+[[steps]]
+name = "explicit_core"
+files = [{"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/sources/core.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}]
+checks = []
+
+[[steps]]
+name = "explicit_manifest"
+files = [{"copy" = {"from" = "${fixture}/explicit.toml", "to" = "${work}/sources/orchestrated/Cone.toml"}}]
+checks = []
+
+[[steps]]
+name = "prime"
+argv = ["${scoop}", "build", "${work}/sources/orchestrated", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--runtime-objects", "${build.result.runtime_index}", "--cache-dir", "${work}/build/cache", "--target-dir", "${work}/retained-target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"actual" = "${prime.result.observations.child_invocations}", "equals" = ["${prime.result.root.identity}"]}]
+
+[[steps]]
+name = "save_and_evict"
+files = [{"copy" = {"from" = "${prime.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${work}/sources/core.slib", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/build/cache"}}]
+checks = []
+
+[[steps]]
+name = "runtime_pipe"
+argv = ["/usr/bin/mkfifo", "${build.result.runtime_index}.fifo"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "retained"
+argv = ["${scoop}", "build", "${work}/sources/orchestrated", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--runtime-objects", "${build.result.runtime_index}.fifo", "--cache-dir", "${work}/build/cache", "--target-dir", "${work}/retained-target", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+background = true
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "published_artifact"
+await_file = "${prime.result.root.path}"
+
+[[steps]]
+name = "remove_original_inputs"
+files = [{"remove" = {"path" = "${work}/sources"}}, {"remove" = {"path" = "${work}/build/cache"}}]
+
+[[steps]]
+name = "supply_runtime"
+argv = ["/bin/cp", "${build.result.runtime_index}", "${build.result.runtime_index}.fifo"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "retained_complete"
+wait = "retained"
+checks = [{"actual" = "${retained.result.link_plan_fingerprint}", "equals" = "${prime.result.link_plan_fingerprint}"}, {"file" = "${retained.result.root.path}", "exists" = false}, {"actual" = "${retained.result.observations.child_invocations}", "equals" = ["${retained.result.root.identity}"]}]
+
+[[steps]]
+name = "remove_pipe"
+files = [{"remove" = {"path" = "${build.result.runtime_index}.fifo"}}]
+
+[[steps]]
+name = "disk_link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${disk_link.result.link_plan_fingerprint}", "equals" = "${retained.result.link_plan_fingerprint}"}, {"actual" = "${disk_link.result.link_plan}", "snapshot" = "link.plan"}]
+
+[[steps]]
+name = "memory"
+argv = ["${retained.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "memory_moving"
+argv = ["${retained.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "disk"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "disk_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

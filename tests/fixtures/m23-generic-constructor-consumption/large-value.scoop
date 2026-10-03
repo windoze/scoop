@@ -1,0 +1,14 @@
+package consumer.constructors
+
+import templates.constructors.*
+
+private struct Triple(val first: Int, val second: Int, val third: Int)
+
+public fun result(): Int {
+    val box = Box<Triple>(Triple(10, 12, 15), 3)
+    val empty = Box<Unit>(())
+    val payload = box.echoed
+    return payload.first + payload.second + payload.third + box.count + empty.count - 2
+}
+
+public fun <T> make(value: T): Box<T> = Box<T>(value)

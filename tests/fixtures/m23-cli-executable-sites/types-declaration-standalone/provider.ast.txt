@@ -1,0 +1,8 @@
+SourceFile
+  QualifiedPackage typeSites
+  public fun label(): String
+    =
+      StringLiteral "remote"
+  public fun withDefault(value: String = <expr>): String
+    =
+      Var value

@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public fun readerSeed(): Int
+    =
+      IntLiteral 7
+  public fun readerValue(value: Int = <expr>): Int
+    =
+      Var value

@@ -1,0 +1,8 @@
+import dependency.api.relayAny
+
+public fun check(): Long {
+    val number: Long = 42
+    val boxed = relayAny((number, "tuple"))
+    val (value, text) = boxed as (Long, String)
+    return value
+}

@@ -1,0 +1,2 @@
+public fun userCoreAbiUnit(value: Unit): Unit = value
+public fun userCoreAbiMixed(token: Unit, number: Int, text: String): String = text

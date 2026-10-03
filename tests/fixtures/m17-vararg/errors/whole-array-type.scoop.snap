@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-vararg/errors/whole-array-type.scoop:4:23: error: no applicable candidate for `collect` in current-unit top-level candidate layer:
-  - fun collect(values: Array<Int>): Long — argument for `values` (expected Array<Int>): array literal element must be of type Int, found String

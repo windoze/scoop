@@ -15,7 +15,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "landingpad @{} must produce (exception_record, ptr<raw>)",
-                        function.symbol
+                        function.symbol()
                     )));
                 }
                 // Catch-all landing pad (M8, runtime spec 5). Keep the
@@ -28,7 +28,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .ok_or_else(|| {
                             CodegenError(format!(
                                 "landingpad @{symbol}: function has no personality function",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?;
                 let exception_ty = context
@@ -45,7 +45,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "landingpad @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 let exception_ptr = builder
@@ -53,7 +53,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "landingpad @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.temps.insert(*record, landing_pad);
@@ -66,7 +66,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "cleanup pad @{} must produce (exception_record, ptr<raw>)",
-                        function.symbol
+                        function.symbol()
                     )));
                 }
                 // Cleanup-only landing pad for leaving an active catch
@@ -80,7 +80,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         .ok_or_else(|| {
                             CodegenError(format!(
                                 "cleanup pad @{symbol}: function has no personality function",
-                                symbol = function.symbol
+                                symbol = function.symbol()
                             ))
                         })?;
                 let exception_ty = basic_ty(
@@ -102,7 +102,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "cleanup pad @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 let exception_ptr = builder
@@ -110,7 +110,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "cleanup pad @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?;
                 self.temps.insert(*record, landing_pad);
@@ -123,13 +123,13 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 {
                     return Err(CodegenError(format!(
                         "begin_catch @{} requires ptr<raw> -> ptr<managed>, got {} -> {}",
-                        function.symbol,
+                        function.symbol(),
                         raw_ty.dump(),
                         function.temps[*out].ty.dump()
                     )));
                 }
                 let begin_catch = self.gc_leaf_fn(
-                    "scoop_rt_begin_catch",
+                    scoop_lir::RuntimeAbiSymbolV1::BeginCatch.logical_symbol(),
                     managed_ptr_ty(context, self.managed_address_space)
                         .fn_type(&[ptr_ty(context).into()], false),
                 );
@@ -139,7 +139,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .map_err(|e| {
                         CodegenError(format!(
                             "begin_catch @{symbol}: {e}",
-                            symbol = function.symbol
+                            symbol = function.symbol()
                         ))
                     })?
                     .try_as_basic_value()
@@ -151,19 +151,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             Instruction::EndCatch => {
                 let end_catch = self.gc_leaf_fn(
-                    "scoop_rt_end_catch",
+                    scoop_lir::RuntimeAbiSymbolV1::EndCatch.logical_symbol(),
                     context.void_type().fn_type(&[], false),
                 );
                 builder
                     .build_call(end_catch, &[], "")
-                    .map_err(|e| CodegenError(format!("end_catch @{}: {e}", function.symbol)))?;
+                    .map_err(|e| CodegenError(format!("end_catch @{}: {e}", function.symbol())))?;
             }
             Instruction::Throw { exception } => {
                 let exception_ty = function.value_ty(self.globals_arena, *exception);
                 if exception_ty != scoop_lir::MANAGED_PTR {
                     return Err(CodegenError(format!(
                         "throw @{} requires ptr<managed>, got {}",
-                        function.symbol,
+                        function.symbol(),
                         exception_ty.dump()
                     )));
                 }
@@ -171,7 +171,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 // The block's Unreachable terminator emits the LLVM
                 // `unreachable` after the call, like the trap path.
                 let throw = self.gc_leaf_fn(
-                    "scoop_rt_throw",
+                    scoop_lir::RuntimeAbiSymbolV1::LirCall(scoop_lir::RuntimeFunction::NoGc(
+                        scoop_lir::NoGcRuntimeFunction::Throw,
+                    ))
+                    .logical_symbol(),
                     context.void_type().fn_type(
                         &[managed_ptr_ty(context, self.managed_address_space).into()],
                         false,
@@ -184,7 +187,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 builder
                     .build_call(throw, &[self.value(*exception)?.into()], "")
                     .map_err(|e| {
-                        CodegenError(format!("throw @{symbol}: {e}", symbol = function.symbol))
+                        CodegenError(format!("throw @{symbol}: {e}", symbol = function.symbol()))
                     })?;
             }
             _ => unreachable!("instruction dispatcher routes only exception instructions"),

@@ -118,7 +118,9 @@ fn ordinary_top_level_properties_own_managed_storage_and_backing_accessors() {
     let optional = module
         .globals
         .iter()
-        .find_map(|(_, global)| (global.name == "optional").then_some(global))
+        .find_map(|(_, global)| {
+            (module.properties[global.property].name == "optional").then_some(global)
+        })
         .expect("optional global");
     assert!(matches!(
         optional.storage,
@@ -131,7 +133,9 @@ fn ordinary_top_level_properties_own_managed_storage_and_backing_accessors() {
     let label = module
         .globals
         .iter()
-        .find_map(|(_, global)| (global.name == "label").then_some(global))
+        .find_map(|(_, global)| {
+            (module.properties[global.property].name == "label").then_some(global)
+        })
         .expect("label global");
     assert!(matches!(
         &label.storage,
@@ -289,7 +293,7 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
             .globals
             .iter()
             .find_map(|(_, global)| {
-                (global.name == name).then(|| match &global.storage {
+                (module.properties[global.property].name == name).then(|| match &global.storage {
                     hir::GlobalStorage::Managed {
                         state:
                             hir::HirStaticInitialState::EncodedStaticValue {
@@ -325,7 +329,9 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
     let equal = module
         .globals
         .iter()
-        .find_map(|(_, global)| (global.name == "equal").then_some(global))
+        .find_map(|(_, global)| {
+            (module.properties[global.property].name == "equal").then_some(global)
+        })
         .expect("missing global equal");
     assert!(matches!(
         equal.storage,
@@ -338,7 +344,9 @@ fn typed_integer_intrinsics_are_encoded_in_static_storage() {
     let joint_wide = module
         .globals
         .iter()
-        .find_map(|(_, global)| (global.name == "jointWide").then_some(global))
+        .find_map(|(_, global)| {
+            (module.properties[global.property].name == "jointWide").then_some(global)
+        })
         .expect("missing global jointWide");
     assert!(matches!(
         joint_wide.storage,
@@ -388,7 +396,9 @@ fn static_integer_div_rem_zero_uses_runtime_initialization() {
         let global = module
             .globals
             .iter()
-            .find_map(|(_, global)| (global.name == name).then_some(global))
+            .find_map(|(_, global)| {
+                (module.properties[global.property].name == name).then_some(global)
+            })
             .unwrap_or_else(|| panic!("missing global {name}"));
         assert!(matches!(
             global.storage,
@@ -494,14 +504,16 @@ fn static_integer_conversions_encode_width_and_signedness_boundaries() {
             .globals
             .iter()
             .find_map(|(_, global)| {
-                (global.name == case.name).then(|| match global.storage {
-                    hir::GlobalStorage::Managed {
-                        state:
-                            hir::HirStaticInitialState::EncodedStaticValue {
-                                payload: hir::HirConstantImage::Integer(value),
-                            },
-                    } => value,
-                    _ => panic!("{} must have encoded integer storage", case.name),
+                (module.properties[global.property].name == case.name).then(|| {
+                    match global.storage {
+                        hir::GlobalStorage::Managed {
+                            state:
+                                hir::HirStaticInitialState::EncodedStaticValue {
+                                    payload: hir::HirConstantImage::Integer(value),
+                                },
+                        } => value,
+                        _ => panic!("{} must have encoded integer storage", case.name),
+                    }
                 })
             })
             .unwrap_or_else(|| panic!("missing global {}", case.name));
@@ -598,7 +610,9 @@ fn failed_static_integer_probe_does_not_poison_extension_fallback() {
     let runtime = module
         .globals
         .iter()
-        .find_map(|(_, global)| (global.name == "runtime").then_some(global))
+        .find_map(|(_, global)| {
+            (module.properties[global.property].name == "runtime").then_some(global)
+        })
         .expect("missing runtime global");
     assert!(matches!(
         runtime.storage,
@@ -640,7 +654,7 @@ fn non_static_top_level_initializer_is_kept_out_of_image_storage() {
         panic!("runtime top-level property must own eager-top-level initialization")
     };
     assert_eq!(unit.schedule, hir::InitializationSchedule::EagerStartup);
-    assert_eq!(unit.stable_key, "top-level:value");
+    assert_eq!(unit.display_name, "top-level:value");
     assert!(unit.dependencies.is_empty());
     assert!(matches!(
         module.globals[storage].storage,
@@ -717,12 +731,12 @@ fn direct_top_level_reads_form_typed_dependencies() {
     let (alpha_id, alpha) = module
         .initialization_units
         .iter()
-        .find(|(_, unit)| unit.stable_key == "top-level:alpha")
+        .find(|(_, unit)| unit.display_name == "top-level:alpha")
         .expect("alpha unit");
     let (zed_id, zed) = module
         .initialization_units
         .iter()
-        .find(|(_, unit)| unit.stable_key == "top-level:zed")
+        .find(|(_, unit)| unit.display_name == "top-level:zed")
         .expect("zed unit");
     assert_eq!(
         alpha
@@ -757,5 +771,33 @@ fn direct_top_level_dependency_cycle_is_a_stable_hir_error() {
     assert!(errors.iter().any(|diagnostic| {
         diagnostic.message
             == "initialization cycle: top-level:left -> top-level:right -> top-level:left"
+    }));
+}
+
+#[test]
+fn private_top_level_dependency_cycle_uses_a_source_display_name() {
+    let private = |name, expression| {
+        let mut property = top_level_property(
+            name,
+            false,
+            ty_named("Int"),
+            initializer(expression, ast::AccessorSyntax::default()),
+        );
+        property.visibility = ast::VisibilitySyntax::Explicit {
+            visibility: ast::DeclaredVisibility::Private,
+            span: sp(),
+        };
+        Decl::Global(property)
+    };
+    let source = file(vec![
+        private("left", var("right")),
+        private("right", var("left")),
+        fun("main", Vec::new()),
+    ]);
+
+    let errors = lower_user(source).expect_err("a private dependency cycle must be rejected");
+    assert!(errors.iter().any(|diagnostic| {
+        diagnostic.message
+            == "initialization cycle: top-level-private:<user>:left -> top-level-private:<user>:right -> top-level-private:<user>:left"
     }));
 }

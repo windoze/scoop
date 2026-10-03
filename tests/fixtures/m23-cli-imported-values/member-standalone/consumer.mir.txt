@@ -1,0 +1,249 @@
+Module
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long)
+  struct Nested (value: Wide, marker: Token)
+  fun keepToken @fn0(value: Token) -> Token <no-gc>
+    bb0 entry
+      val $dependency.receiver: Token
+        Type Token
+        Local value
+      val $dependency.argument.0: Token
+        Type Token
+        Local value
+      val $dependency.parameter.other: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.1: Token = external0 direct
+        Type Token
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.other
+      return
+        Type Token
+        Local $call.1
+  fun keepWide @fn1(value: Wide) -> Wide <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.other: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $call.1: Wide = external1 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Wide
+        Local $dependency.parameter.other
+      return
+        Type Wide
+        Local $call.1
+  fun total @fn2(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.delta: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.1: Long = external2 direct
+        Type Wide
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.delta
+      return
+        Type Long
+        Local $call.1
+  fun fieldSum @fn3(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Wide
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Wide
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun computedTotal @fn4(value: Wide) -> Long <no-gc>
+    bb0 entry
+      call $dependency.receiver: Long = external3 direct
+        Type Wide
+        Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun first @fn5(value: Wide) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local value
+  fun marker @fn6(value: Nested) -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        FieldAccess 1
+          Type Nested
+          Local value
+  fun nestedFirst @fn7(value: Nested) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Wide
+          FieldAccess 0
+            Type Nested
+            Local value
+  fun fromField @fn8(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      val $dependency.parameter.selected: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local $dependency.parameter.value
+      call $call.1: Long = external4 direct
+        Type Wide
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.selected
+      return
+        Type Long
+        Local $call.1
+  fun fromMember @fn9(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      val $default.local.1: Wide
+        Type Wide
+        Local $dependency.parameter.value
+      val $default.local.2: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $default.local.3: Long
+        Type Long
+        Local $default.local.2
+      call $dependency.parameter.selected: Long = external2 direct
+        Type Wide
+        Local $default.local.1
+        Type Long
+        Local $default.local.3
+      call $call.1: Long = external5 direct
+        Type Wide
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.selected
+      return
+        Type Long
+        Local $call.1
+  fun fromProperty @fn10(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.parameter.value: Wide
+        Type Wide
+        Local $dependency.argument.0
+      call $dependency.parameter.selected: Long = external3 direct
+        Type Wide
+        Local $dependency.parameter.value
+      call $call.1: Long = external6 direct
+        Type Wide
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.selected
+      return
+        Type Long
+        Local $call.1
+  fun fromMarker @fn11(value: Nested) -> Token <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Nested
+        Type Nested
+        Local value
+      val $dependency.parameter.value: Nested
+        Type Nested
+        Local $dependency.argument.0
+      val $dependency.parameter.marker: Token
+        Type Token
+        FieldAccess 1
+          Type Nested
+          Local $dependency.parameter.value
+      call $call.1: Token = external7 direct
+        Type Nested
+        Local $dependency.parameter.value
+        Type Token
+        Local $dependency.parameter.marker
+      return
+        Type Token
+        Local $call.1
+  fun republished @fn12(value: Wide, selected: Long) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        Local selected
+  output library

@@ -16,10 +16,13 @@ impl Harness {
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            self_application,
-            type_params,
-            gc_free_pointee_requirements: Vec::new(),
-            parents: Vec::new(),
+            definition: hir::InterfaceDefinition {
+                self_application,
+                type_params,
+                parents: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
+            },
             methods: Vec::new(),
             private_methods: Vec::new(),
             properties: Vec::new(),
@@ -49,30 +52,28 @@ impl Harness {
             params.push(param(&source.name, source.ty, local));
         }
         let function = self.functions.alloc(hir::Function {
-            name: format!("{}.{}", declaration.name, method.name),
+            signature: hir::CallableSignature {
+                name: format!("{}.{}", declaration.name, method.name),
+                is_suspend: method.is_suspend,
+                modifiers: hir::CallableModifiers::default(),
+                params,
+                return_ty: method.return_ty,
+                attributes: method.attributes,
+                span: method.span,
+            },
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: method.is_suspend,
-            modifiers: hir::CallableModifiers::default(),
-            params,
-            return_ty: method.return_ty,
-            attributes: method.attributes,
-            kind: hir::FunctionKind::User(hir::Body {
-                locals,
-                statements: Vec::new(),
-            }),
+            kind: hir::FunctionKind::Abstract { locals },
             method: Some(hir::Method {
                 owner,
                 modifier: hir::MethodModifier::Abstract,
                 dispatch: hir::MethodDispatch::Direct,
             }),
-            span: method.span,
         });
         if !declaration.type_params.is_empty() {
             self.functions[function].genericity =
                 hir::FunctionGenericity::OwnerParameterizedMethod {
-                    owner_parameters: declaration.type_params,
+                    owner_parameters: declaration.definition.type_params,
                     no_gc_type_params: Vec::new(),
                     gc_free_pointee_requirements: Vec::new(),
                 };

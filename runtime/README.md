@@ -3,6 +3,11 @@
 The C runtime implements M15's exact moving Immix collector and M25's
 runtime-owned exception ABI:
 
+- `src/boxing.c` and `src/arrays.c` execute descriptor-checked boxing,
+  unboxing and array cloning, including zero-sized payloads;
+- `src/value_shape.c` and `src/value_scan.c` check managed shape arithmetic,
+  scan translation and storage bounds, with an iterative traversal that reuses
+  shared subgraphs and detects cycles without expansion or byte quotas;
 - `src/gc/heap.c` owns arena-external block/object metadata;
 - `src/gc/allocation.c` owns mutator TLAB and large-object allocation;
 - `src/gc/evacuation.c` owns forwarding, to-space allocation and current-object
@@ -40,3 +45,11 @@ explicit `libunwind`.
 `SCOOP_GC_STRESS_MOVE=1` enables the M15 runtime-only relocation test mode:
 every mutator-visible allocation first performs a full moving collection,
 old copies are poisoned, and empty source blocks are permanently protected.
+
+Static TypeDescriptor layouts and scan graphs are checked by the compiler or
+artifact reader. Normal runtime operations retain dynamic bounds, count,
+exact-type and GC-root checks without repeating full static graph validation.
+Build with `-DSCOOP_VERIFY_METADATA=1` to enable that additional validation at
+runtime operation boundaries. `scoop_shape_validate` is also available to
+explicit metadata checks and tests. Boxing roots use the descriptor's inline
+scan pointer directly, including before the managed-entry handshake.

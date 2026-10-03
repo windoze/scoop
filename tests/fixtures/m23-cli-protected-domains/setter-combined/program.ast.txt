@@ -1,0 +1,47 @@
+SourceFile
+  RootPackage
+  fun verifyDomain(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call DomainCases
+    Call verifyDomain
+      Binary Eq
+        MethodCall updateInherited
+          Var value
+          IntLiteral 10
+        IntLiteral 10
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspect
+          Var value
+        IntLiteral 72
+    Call verifyDomain
+      Binary Eq
+        FieldAccess visible
+          Var value
+        IntLiteral 12
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspect
+          Call integerOwner
+        IntLiteral 16
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspect
+          Call stringOwner
+        IntLiteral 16
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspect
+          Var Registry
+        IntLiteral 28
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspect
+          Call fileHolder
+        IntLiteral 19

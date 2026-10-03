@@ -1,0 +1,13 @@
+package consumer.inference
+
+import dependency.inference.*
+import dependency.inference.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val selected = route({ value -> value }, [], 42)
+    val explicit = route<Int>({ value -> value }, [], 42)
+    val named = route(seed = 42, values = [], action = { value -> value })
+    return if (selected == 43 && explicit == 42 && named == 43) { 42 } else { 1 }
+}

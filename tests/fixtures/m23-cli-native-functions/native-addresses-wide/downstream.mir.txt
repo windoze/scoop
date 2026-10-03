@@ -1,0 +1,89 @@
+Module
+  callback cb0 external1 -> external3 function_type0 id=2678848192e0453b6dba2cddb7911ae7422316090900f61ef9b6941275993305
+  struct Wide (first: Long, second: Long, third: Long) <c-layout aligned=natural packed=natural>
+  class Later vtable=0 itables=0
+  fun check @fn0() -> Long
+    bb0 entry
+      call $argument.0: Long = external0 direct
+      val $parameter.number: Long
+        Type Long
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn2 direct
+        Type Later
+        Local $new.1
+        Type Long
+        Local $parameter.number
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call $call.2: Long = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      assign $result.0
+        Type Long
+        Local $call.2
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Long
+        Local $result.0
+  fun exercise @fn1(value: Later) -> Long
+    bb0 entry
+      val $dependency.local.1: FunPtr<(Wide) -> Wide>
+        Type FunPtr<(Wide) -> Wide>
+        FunctionAddress cb0
+      val $dependency.local.2: FunPtr<(Wide) -> Wide>
+        Type FunPtr<(Wide) -> Wide>
+        Local $dependency.local.1
+      val $dependency.local.3: FunPtr<(Wide) -> Wide>
+        Type FunPtr<(Wide) -> Wide>
+        Local $dependency.local.2
+      call $call.1: Long = external2 direct
+        Type FunPtr<(Wide) -> Wide>
+        Local $dependency.local.3
+      return
+        Type Long
+        Local $call.1
+  fun init.Later.$c0 @fn2(this: Later, number: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Long
+        Local number
+      return
+  instance mi0 function=@fn1 <- exercise
+  output library

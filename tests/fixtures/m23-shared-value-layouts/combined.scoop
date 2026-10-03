@@ -1,0 +1,36 @@
+package consumer.valuelayouts
+import upstream.valuelayouts.*
+
+private struct Local<T>(val payload: T)
+
+private struct Mixed(val value: Local<Wrapper<Phantom<Mixed>>>)
+
+private enum Nested {
+    End,
+    Next(Local<Reference<Nested>>)
+}
+
+private fun consume(value: Mixed): Int = 42
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val mixed = Mixed(Local(Wrapper(Phantom<Mixed>())))
+    if (consume(mixed) != 42) { return 1 }
+    val tail: Nested = Nested.End
+    val nested = Nested.Next(Local(Reference(Link(tail))))
+    val ended: Boolean = when (nested) {
+        Next(local) -> when (local.payload.link.value) {
+            End -> true
+            Next(next) -> false
+        }
+        End -> false
+    }
+    if (!ended) { return 2 }
+    val receiver: Readable<T> = Local(Wrapper(seed)).payload
+    return read(receiver.get())
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

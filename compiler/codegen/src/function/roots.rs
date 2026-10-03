@@ -21,7 +21,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let alloca = builder.build_alloca(ty, name).map_err(|e| {
             CodegenError(format!(
                 "alloca {name} @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })?;
         builder.position_at_end(current);
@@ -40,7 +40,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 .get(index as usize)
                 .map(scoop_lir::AbiArgument::logical_storage_type)
                 .ok_or_else(|| CodegenError(format!("statepoint param {index} is out of range"))),
-            scoop_lir::CallerRootSource::Local(id) => Ok(&self.function.locals[id].ty),
+            scoop_lir::CallerRootSource::Local(id) => Ok(self.function.locals[id].ty()),
             scoop_lir::CallerRootSource::Temp(id) => Ok(&self.function.temps[id].ty),
         }
     }
@@ -53,18 +53,18 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         if validation::contains_machine_scalar(self.structs, self.enums, source_ty) {
             return Err(CodegenError(format!(
                 "root source in @{} cannot contain an internal machine scalar",
-                self.function.symbol
+                self.function.symbol()
             )));
         }
         match source {
             scoop_lir::CallerRootSource::Local(id) => Ok(RootStorage {
-                pointer: self.allocas[arena_index(id)],
+                pointer: self.local_pointer(id)?,
                 ty: basic_ty(
                     self.context,
                     self.structs,
                     self.enums,
                     self.managed_address_space,
-                    &self.function.locals[id].ty,
+                    self.function.locals[id].ty(),
                 )?,
             }),
             scoop_lir::CallerRootSource::Param(_) | scoop_lir::CallerRootSource::Temp(_) => self
@@ -108,7 +108,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 &item.ty,
             )?;
             let storage = match item.source {
-                scoop_lir::CallerRootSource::Local(id) => self.allocas[arena_index(id)],
+                scoop_lir::CallerRootSource::Local(id) => self.local_pointer(id)?,
                 scoop_lir::CallerRootSource::Param(_) | scoop_lir::CallerRootSource::Temp(_) => {
                     let canonical = self.root_storage.get(&item.source).ok_or_else(|| {
                         CodegenError(format!(
@@ -377,19 +377,17 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let context = self.context;
         let ptr = ptr_ty(context);
         let i64_type = context.i64_type();
-        let index = self.compiler_invoke_index;
         self.compiler_invoke_index += 1;
         let mut entries = Vec::with_capacity(roots.len());
-        for (root_index, exceptional) in roots.iter().enumerate() {
+        for exceptional in roots {
             let root = &exceptional.root;
             let storage = self.root_source_storage(root.source)?;
-            let descriptor = emit_ref_scan(
-                context,
-                self.llvm,
-                &format!("{}.invoke.{index}.root.{root_index}", self.function.symbol),
-                root.scan.as_ref_scan(),
-            )
-            .expect("exceptional roots always carry a non-empty scan");
+            let descriptor = self
+                .runtime_scans
+                .emit(root.scan.as_ref_scan())?
+                .ok_or_else(|| {
+                    CodegenError("exceptional root has an empty runtime scan".to_string())
+                })?;
             entries.push((storage.pointer, descriptor));
         }
 
@@ -442,7 +440,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_store(frame, frame_type.const_zero())
             .map_err(|error| CodegenError(format!("zero compiler-root frame: {error}")))?;
         let push = self.gc_leaf_fn(
-            "scoop_rt_push_compiler_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PushCompilerRoots.logical_symbol(),
             context
                 .void_type()
                 .fn_type(&[ptr.into(), ptr.into(), i64_type.into()], false),
@@ -528,7 +526,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         frame: CompilerRootFrame<'ctx>,
     ) -> Result<(), CodegenError> {
         let pop = self.gc_leaf_fn(
-            "scoop_rt_pop_compiler_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PopCompilerRoots.logical_symbol(),
             self.context
                 .void_type()
                 .fn_type(&[ptr_ty(self.context).into()], false),
@@ -551,7 +549,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         self.validate_compiler_root_sources(sources.iter().copied())?;
         let reloaded = self.reload_published_roots(sources)?;
         let pop = self.gc_leaf_fn(
-            "scoop_rt_pop_top_compiler_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PopTopCompilerRoots.logical_symbol(),
             self.context.void_type().fn_type(&[], false),
         );
         self.builder

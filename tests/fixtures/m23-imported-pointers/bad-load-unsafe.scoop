@@ -1,0 +1,1 @@
+public fun bad(pointer: Ptr<Int>): Int = pointer.load()

@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  private enum HiddenStorage
+    Empty
+    Value(Int8)
+  public struct StoragePair
+    field flag: Boolean
+    field text: String
+  public class StorageOwner(val pair: StoragePair)
+    private var hidden: Int = <expr>
+      IntLiteral 7
+  public object StorageSingleton
+    public val text: String = <expr>
+      StringLiteral "singleton"
+  public val storageReady: Boolean = <expr>
+  public fun storageValue(): Any
+    =
+      FieldAccess Empty
+        Var HiddenStorage

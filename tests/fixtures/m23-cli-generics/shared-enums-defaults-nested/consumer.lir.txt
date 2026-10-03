@@ -1,0 +1,397 @@
+Module
+  enum Choice tagged size=16 align=8 variants=()@8+0 (i32)@8+4 (i32, i32)@8+8 (i32, i32)@8+8
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Carrier tagged size=40 align=8 variants=()@8+0 (enum0, enum1)@8+32
+  fun @scoop$1$cb$356ae1826b20c707cb0ad3da82a9d343bc92e9d5959c1f389713ae7410276ca6() -> i32
+    local %0 $argument.0: i32
+    local %1 $argument.1: ptr<managed>
+    local %2 $parameter.seed: i32
+    local %3 $parameter.read: ptr<managed>
+    local %4 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x0000002a) -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
+    t1 = function_address @scoop$1$cb$16a5bc1723bb742e8bbada4751dd23bf12aa1755f8473c37fe3ae9fe4513603b : ptr
+    heap_store t0 +16 t1
+    store t0 -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target1 sp<managed-call:1> live=[local3:ptr<managed>@0] t2 = sig=direct1 (i32, ptr<managed>) -> i32 local-fn2(local2, local3)
+    store t2 -> local4
+    ret local4
+  fun @scoop$1$cb$16a5bc1723bb742e8bbada4751dd23bf12aa1755f8473c37fe3ae9fe4513603b(ptr<managed>, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$19b9758465bdbd68ab3d267bea7d690193d78983b7b74fc5a94db3c661cfa12f(i32, ptr<managed>) -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.payload: i32
+    local %2 $dependency.parameter.amount: i32
+    local %3 choice: enum0
+    local %4 $dependency.argument.0: i32
+    local %5 $dependency.parameter._1: i32
+    local %6 $argument.0: enum0
+    local %7 $argument.1: enum1
+    local %8 $parameter._1: enum0
+    local %9 $parameter._2: enum1
+    local %10 value: enum2
+    local %11 $argument.0: enum2
+    local %12 $argument.1: i32
+    local %13 $parameter.value: enum2
+    local %14 $parameter.fallback: i32
+    local %15 choice: enum0
+    local %16 payload: i32
+    local %17 $dependency.argument.0: enum0
+    local %18 $dependency.argument.1: i32
+    local %19 $dependency.parameter.value: enum0
+    local %20 $dependency.parameter.fallback: i32
+    local %21 $default.local.2: i32
+    local %22 $default.local.3: i32
+    local %23 $default.local.4: i32
+    local %24 $default.local.5: i32
+    local %25 $dependency.parameter.selected: i32
+    local %26 choice: enum0
+    local %27 $dependency.argument.0: enum0
+    local %28 $dependency.argument.1: i32
+    local %29 $dependency.parameter.value: enum0
+    local %30 $dependency.parameter.fallback: i32
+    local %31 $default.local.2: i32
+    local %32 $default.local.3: i32
+    local %33 $default.local.4: i32
+    local %34 $default.local.5: i32
+    local %35 $dependency.parameter.selected: i32
+    local %36 $result.0: i32
+    local %37 $parameter.result: i32
+    local %38 $callable.receiver: ptr<managed>
+    local %39 $dependency.receiver: i32
+    local %40 $dependency.argument.0: i32
+    local %41 $dependency.parameter.other: i32
+    local %42 payload: i32
+    local %43 amount: i32
+    local %44 extra: i32
+    local %45 $dependency.receiver: i32
+    local %46 $dependency.argument.0: i32
+    local %47 $dependency.parameter.other: i32
+    local %48 $dependency.receiver: i32
+    local %49 $dependency.argument.0: i32
+    local %50 $dependency.parameter.other: i32
+    local %51 $result.1: i32
+    local %52 $when.1: enum2
+    local %53 $pattern.subject.2: enum2
+    local %54 $pattern.subject.3: enum2
+    local %55 $pattern.4: enum1
+    local %56 $when.5: enum0
+    local %57 $pattern.subject.6: enum0
+    local %58 $pattern.subject.7: enum0
+    local %59 $pattern.subject.8: enum0
+    local %60 $pattern.subject.9: enum0
+    local %61 $pattern.subject.10: enum2
+    local %62 $pattern.11: enum1
+    local %63 $when.12: enum0
+    local %64 $pattern.subject.13: enum0
+    local %65 $pattern.subject.14: enum0
+    local %66 $pattern.subject.15: enum0
+    local %67 $pattern.subject.16: enum0
+    local %68 $when.17: enum2
+    local %69 $pattern.subject.18: enum2
+    local %70 $pattern.subject.19: enum2
+    local %71 $pattern.20: enum0
+    local %72 $pattern.21: enum1
+    local %73 $pattern.subject.22: enum2
+    local %74 $pattern.subject.23: enum2
+    local %75 $call.1: i32
+    local %76 $call.2: i32
+    local %77 $call.3: i32
+    local %78 $call.4: i32
+    local %79 $sc.1: enum2
+    local %80 $sc.2: enum0
+    local %81 $sc.3: enum0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
+    store param0 -> local0
+    store local0 -> local1
+    store integer<Int>(0x00000002) -> local2
+    t0 = enum_wrap e0 v3 (local1, local2) : enum0
+    store t0 -> local3
+    store local3 -> local6
+    store param0 -> local4
+    store local4 -> local5
+    t1 = enum_wrap e1 v0 (local5) : enum1
+    store t1 -> local7
+    store local6 -> local8
+    store local7 -> local9
+    t2 = enum_wrap e2 v1 (local8, local9) : enum2
+    store t2 -> local10
+    store param1 -> local38
+    store local10 -> local11
+    store param0 -> local12
+    store local11 -> local13
+    store local12 -> local14
+    store local13 -> local52
+    store local52 -> local53
+    t3 = variant_test e2 v0 local53 : i1
+    cbr t3 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store local14 -> local36
+    br @pattern.merge.3
+  block pattern.else.2
+    store local52 -> local54
+    t4 = variant_test e2 v1 local54 : i1
+    cbr t4 then @pattern.pass.4 else @pattern.else.6
+  block pattern.merge.3
+    store local36 -> local37
+    store local13 -> local79
+    call managed-direct-target0 sp<managed-call:2> live=[param1:ptr<managed>@0, local38:ptr<managed>@0] t5 = sig=direct0 (indirect<enum2 size=40 align=8 scan=none>, i32, i32) -> i32 local-fn4(indirect local79, local14, local37)
+    store t5 -> local77
+    call managed-direct-target1 sp<managed-call:3> live=[param1:ptr<managed>@0, local38:ptr<managed>@0] t6 = sig=direct1 (ptr<managed>, i32) -> i32 dispatch[Closure:2] local38(local38, local77)
+    store t6 -> local39
+    store integer<Int>(0x0000002a) -> local40
+    store local40 -> local41
+    t7 = integer_compare_Equal<Int> local39, local41 : i1
+    t8 = Not t7 : i1
+    cbr t8 then @if.then.36 else @if.merge.37
+  block pattern.pass.4
+    t9 = variant_payload_project e2 v1 f1 local54 : enum1
+    store t9 -> local55
+    t10 = variant_test e1 v0 local55 : i1
+    cbr t10 then @pattern.pass.5 else @pattern.else.6
+  block pattern.pass.5
+    t11 = variant_payload_project e2 v1 f0 local54 : enum0
+    store t11 -> local15
+    t12 = variant_payload_project e1 v0 f0 local55 : i32
+    store t12 -> local16
+    store local15 -> local17
+    store local16 -> local18
+    store local17 -> local19
+    store local18 -> local20
+    store local19 -> local56
+    store local56 -> local57
+    t13 = variant_test e0 v0 local57 : i1
+    cbr t13 then @pattern.pass.8 else @pattern.else.9
+  block pattern.else.6
+    store local52 -> local61
+    t14 = variant_test e2 v1 local61 : i1
+    cbr t14 then @pattern.pass.20 else @pattern.else.22
+  block pattern.merge.7
+    br @pattern.merge.3
+  block pattern.pass.8
+    store local20 -> local24
+    br @pattern.merge.10
+  block pattern.else.9
+    store local56 -> local58
+    t15 = variant_test e0 v1 local58 : i1
+    cbr t15 then @pattern.pass.11 else @pattern.else.12
+  block pattern.merge.10
+    store local24 -> local25
+    store local19 -> local80
+    call managed-direct-target2 sp<managed-call:1> live=[param1:ptr<managed>@0, local38:ptr<managed>@0] t16 = sig=direct2 (indirect<enum0 size=16 align=8 scan=none>, i32, i32) -> i32 local-fn3(indirect local80, local20, local25)
+    store t16 -> local75
+    store local75 -> local36
+    br @pattern.merge.7
+  block pattern.pass.11
+    t17 = variant_payload_project e0 v1 f0 local58 : i32
+    store t17 -> local21
+    store local21 -> local24
+    br @pattern.merge.13
+  block pattern.else.12
+    store local56 -> local59
+    t18 = variant_test e0 v2 local59 : i1
+    cbr t18 then @pattern.pass.14 else @pattern.else.15
+  block pattern.merge.13
+    br @pattern.merge.10
+  block pattern.pass.14
+    t19 = variant_payload_project e0 v2 f0 local59 : i32
+    store t19 -> local22
+    store local22 -> local24
+    br @pattern.merge.16
+  block pattern.else.15
+    store local56 -> local60
+    t20 = variant_test e0 v3 local60 : i1
+    cbr t20 then @pattern.pass.17 else @pattern.else.18
+  block pattern.merge.16
+    br @pattern.merge.13
+  block pattern.pass.17
+    t21 = variant_payload_project e0 v3 f0 local60 : i32
+    store t21 -> local23
+    store local23 -> local24
+    br @pattern.merge.19
+  block pattern.else.18
+    unreachable
+  block pattern.merge.19
+    br @pattern.merge.16
+  block pattern.pass.20
+    t22 = variant_payload_project e2 v1 f1 local61 : enum1
+    store t22 -> local62
+    t23 = variant_test e1 v1 local62 : i1
+    cbr t23 then @pattern.pass.21 else @pattern.else.22
+  block pattern.pass.21
+    t24 = variant_payload_project e2 v1 f0 local61 : enum0
+    store t24 -> local26
+    store local26 -> local27
+    store local14 -> local28
+    store local27 -> local29
+    store local28 -> local30
+    store local29 -> local63
+    store local63 -> local64
+    t25 = variant_test e0 v0 local64 : i1
+    cbr t25 then @pattern.pass.24 else @pattern.else.25
+  block pattern.else.22
+    unreachable
+  block pattern.merge.23
+    br @pattern.merge.7
+  block pattern.pass.24
+    store local30 -> local34
+    br @pattern.merge.26
+  block pattern.else.25
+    store local63 -> local65
+    t26 = variant_test e0 v1 local65 : i1
+    cbr t26 then @pattern.pass.27 else @pattern.else.28
+  block pattern.merge.26
+    store local34 -> local35
+    store local29 -> local81
+    call managed-direct-target3 sp<managed-call:0> live=[param1:ptr<managed>@0, local38:ptr<managed>@0] t27 = sig=direct3 (indirect<enum0 size=16 align=8 scan=none>, i32, i32) -> i32 local-fn3(indirect local81, local30, local35)
+    store t27 -> local76
+    store local76 -> local36
+    br @pattern.merge.23
+  block pattern.pass.27
+    t28 = variant_payload_project e0 v1 f0 local65 : i32
+    store t28 -> local31
+    store local31 -> local34
+    br @pattern.merge.29
+  block pattern.else.28
+    store local63 -> local66
+    t29 = variant_test e0 v2 local66 : i1
+    cbr t29 then @pattern.pass.30 else @pattern.else.31
+  block pattern.merge.29
+    br @pattern.merge.26
+  block pattern.pass.30
+    t30 = variant_payload_project e0 v2 f0 local66 : i32
+    store t30 -> local32
+    store local32 -> local34
+    br @pattern.merge.32
+  block pattern.else.31
+    store local63 -> local67
+    t31 = variant_test e0 v3 local67 : i1
+    cbr t31 then @pattern.pass.33 else @pattern.else.34
+  block pattern.merge.32
+    br @pattern.merge.29
+  block pattern.pass.33
+    t32 = variant_payload_project e0 v3 f0 local67 : i32
+    store t32 -> local33
+    store local33 -> local34
+    br @pattern.merge.35
+  block pattern.else.34
+    unreachable
+  block pattern.merge.35
+    br @pattern.merge.32
+  block if.then.36
+    ret integer<Int>(0x00000001)
+  block if.merge.37
+    store local10 -> local68
+    store local68 -> local69
+    t33 = variant_test e2 v0 local69 : i1
+    cbr t33 then @pattern.pass.38 else @pattern.else.39
+  block pattern.pass.38
+    store integer<Int>(0x00000002) -> local51
+    br @pattern.merge.40
+  block pattern.else.39
+    store local68 -> local70
+    t34 = variant_test e2 v1 local70 : i1
+    cbr t34 then @pattern.pass.41 else @pattern.else.44
+  block pattern.merge.40
+    ret local51
+  block pattern.pass.41
+    t35 = variant_payload_project e2 v1 f0 local70 : enum0
+    store t35 -> local71
+    t36 = variant_test e0 v3 local71 : i1
+    cbr t36 then @pattern.pass.42 else @pattern.else.44
+  block pattern.pass.42
+    t37 = variant_payload_project e2 v1 f1 local70 : enum1
+    store t37 -> local72
+    t38 = variant_test e1 v0 local72 : i1
+    cbr t38 then @pattern.pass.43 else @pattern.else.44
+  block pattern.pass.43
+    t39 = variant_payload_project e0 v3 f0 local71 : i32
+    store t39 -> local42
+    t40 = variant_payload_project e0 v3 f1 local71 : i32
+    store t40 -> local43
+    t41 = variant_payload_project e1 v0 f0 local72 : i32
+    store t41 -> local44
+    store local43 -> local45
+    store integer<Int>(0x00000002) -> local46
+    store local46 -> local47
+    t42 = integer_compare_Equal<Int> local45, local47 : i1
+    cbr t42 then @if.then.46 else @if.else.47
+  block pattern.else.44
+    store local68 -> local74
+    t43 = variant_test e2 v1 local74 : i1
+    cbr t43 then @pattern.pass.54 else @pattern.else.55
+  block pattern.merge.45
+    br @pattern.merge.40
+  block if.then.46
+    call managed-direct-target4 sp<managed-call:4> live=[param1:ptr<managed>@0] t44 = sig=direct4 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local44)
+    store t44 -> local48
+    store integer<Int>(0x0000002a) -> local49
+    store local49 -> local50
+    t45 = integer_compare_Equal<Int> local48, local50 : i1
+    t46 = Not t45 : i1
+    cbr t46 then @if.then.49 else @if.merge.50
+  block if.else.47
+    store local68 -> local73
+    t47 = variant_test e2 v1 local73 : i1
+    cbr t47 then @pattern.pass.51 else @pattern.else.52
+  block if.merge.48
+    br @pattern.merge.45
+  block if.then.49
+    ret integer<Int>(0x00000003)
+  block if.merge.50
+    call managed-direct-target5 sp<managed-call:5> live=[param1:ptr<managed>@0] t48 = sig=direct5 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param1(param1, local42)
+    store t48 -> local78
+    store local78 -> local51
+    br @if.merge.48
+  block pattern.pass.51
+    store integer<Int>(0x00000004) -> local51
+    br @pattern.merge.53
+  block pattern.else.52
+    unreachable
+  block pattern.merge.53
+    br @if.merge.48
+  block pattern.pass.54
+    store integer<Int>(0x00000004) -> local51
+    br @pattern.merge.56
+  block pattern.else.55
+    unreachable
+  block pattern.merge.56
+    br @pattern.merge.45
+  fun @scoop$1$cb$0d1db1bb34e4b9ab68e2ca48b42299d15c63d35eed44be70d7ae029e3a2f2265(indirect<enum0 size=16 align=8 scan=none>, i32, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param2
+  fun @scoop$1$cb$606fee9e499ada5f2af6a7475e350f0c86a8b322aae5886b3ea355565f9115a8(indirect<enum2 size=40 align=8 scan=none>, i32, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param2
+  fun @scoop$1$cb$d076aa474a45f7abfa77cc71ea879cc5148c53dbb005d2e1250816ccc93955f6(ptr<managed>, ptr<managed>) -> ptr<managed>
+    local %0 $call.1: i32
+    local %1 $box.1: i32
+    local %2 $box.2: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
+    unbox_value external-td0, param1 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] param0(param0, local1)
+    store t0 -> local0
+    store local0 -> local2
+    t1 = box_value external-td0, local2 scan=none sp<managed-call:1> live=[]
+    ret t1
+  td td0 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$23935e22ada5206ddbde55e993e7c8ab4bb4428a0f9a361c61c6565ee1902d69 type-id=15845947979171618166 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td0)->external-td0
+  td td1 g(r=00000001;i=550fc334475a3b619baa3272af5276c0a5e64484e4e35f1ff157378f6e8c8207) @scoop$1$td$35098ae73560b2be3764708544ed3b140c3abf20a51f7b2e79c785997d2bbb86 type-id=11676905133283428396 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[local-fn5] itables=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$99105b2fcc5c078d010bbcc6eb646fc28da5b9a4b54d1154614fd6786521a572 type-id=2541775214623186241 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td3 a(n(c=dev.example%3Ageneric-member-defaults-nested%3A0.1.0;p=consumer.enums;o=-;k=E;x=Carrier);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$a15b1e63eacd40923cd7914fc94b9535df24f4a7dadb71d3d73c84145f8a6d6c type-id=7545509730017579928 shape=BoxedValue minimum-size=56 align=8 parent=none vtable=[] itables=[]
+  td td4 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=upstream.enums;o=-;k=E;x=Choice);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$eff8386182b2106c1a6d278214e1f37e721f56f106b2b329ba51f7a9ffa8fdec type-id=13155625441435353378 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Choice size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Carrier size=40 align=8 enum-scan=none
+  layout $Closure$lambda0 value size=8 align=8 refs=[0]
+  layout $Closure$lambda0 size=24 align=8 refs=[]
+  output library

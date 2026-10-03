@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  public fun reference(value: Int): Reference
+    =
+      Call Reference
+        Var value
+  public fun referenceValue(value: Reference): Int
+    =
+      FieldAccess value
+        Var value
+  public fun owner<T>(value: T): Owner<T>
+    =
+      Call Owner
+        Var value
+  public fun ownedValue<T>(value: Owner<T>): T
+    =
+      FieldAccess value
+        Var value
+SourceFile
+  RootPackage
+  public class Reference(val value: Int)
+  public class Owner<T>(val value: T)
+  public struct Pair<T>
+    field first: T
+    field second: T
+  public enum Maybe<T>
+    Empty
+    Full(T)
+  public struct Combined
+    field reference: Owner<Reference>
+    field values: Maybe<Pair<Reference>>
+    field array: Array<Pair<Reference>>

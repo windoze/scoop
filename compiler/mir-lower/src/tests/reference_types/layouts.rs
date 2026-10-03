@@ -7,7 +7,11 @@ fn no_gc_effect_is_preserved_in_mir() {
     h.functions[main].attributes.gc_effect = hir::GcEffect::NoGc;
     let module = lower(&h.finish(main));
     assert_eq!(
-        module.functions[module.entry].gc_effect,
+        module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .gc_effect,
         mir::GcEffect::NoGc
     );
     assert!(mir::dump(&module).contains("-> Unit <no-gc>"));
@@ -40,10 +44,7 @@ fn class_fields_are_base_prefix_then_own() {
                 expr(
                     hir::ExprKind::FieldAccess {
                         receiver: Box::new(local_ref(d, derived_ty)),
-                        field: hir::FieldRef::ClassField {
-                            application: derived_application,
-                            field: b_field,
-                        },
+                        field: h.class_field_ref(derived_application, b_field),
                     },
                     string,
                 ),
@@ -72,7 +73,11 @@ fn class_fields_are_base_prefix_then_own() {
 
     // The field access keeps its 0-based index into the flattened
     // layout.
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mir::StatementKind::ValDecl { init, .. } = &entry_statements(body)[0].kind else {
         panic!("expected a val declaration")
     };
@@ -104,7 +109,7 @@ fn vtable_layout_copies_the_base_prefix_and_replaces_overrides() {
     let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
 
-    let vtable_symbols = |def: &mir::ClassDef| {
+    let vtable_names = |def: &mir::ClassDef| {
         def.vtable
             .iter()
             .map(|slot| slot_fn(&module, slot))
@@ -113,14 +118,14 @@ fn vtable_layout_copies_the_base_prefix_and_replaces_overrides() {
     // Ordinary member functions are the whole vtable; Any does not
     // reserve compiler-owned slots.
     assert_eq!(
-        vtable_symbols(&module.classes[class_index(0)]),
-        ["scoop.Base.m1", "scoop.Base.m2"]
+        vtable_names(&module.classes[class_index(0)]),
+        ["Base.m1", "Base.m2"]
     );
     // The base prefix is preserved; the override replaces slot 1
     // in place; the new method appends at slot 2.
     assert_eq!(
-        vtable_symbols(&module.classes[class_index(1)]),
-        ["scoop.Base.m1", "scoop.Derived.m2", "scoop.Derived.m3"]
+        vtable_names(&module.classes[class_index(1)]),
+        ["Base.m1", "Derived.m2", "Derived.m3"]
     );
 }
 
@@ -157,7 +162,7 @@ fn itables_follow_the_interface_method_order() {
         .iter()
         .map(|slot| slot_fn(&module, slot))
         .collect();
-    assert_eq!(slots, ["scoop.C.a", "scoop.C.b"]);
+    assert_eq!(slots, ["C.a", "C.b"]);
 
     let derived_def = &module.classes[class_index(1)];
     assert_eq!(derived_def.itables.len(), 1);
@@ -169,5 +174,5 @@ fn itables_follow_the_interface_method_order() {
         .collect();
     // The override dispatches to the derived implementation; the
     // inherited method keeps the base's.
-    assert_eq!(slots, ["scoop.C.a", "scoop.D.b"]);
+    assert_eq!(slots, ["C.a", "D.b"]);
 }

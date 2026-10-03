@@ -1,0 +1,14 @@
+Module
+  fun @scoop$1$cb$17c9eff6b797e38d71723076325e33cb1237cf52d3afa1bde140dbc65a9f3864(i32) -> ptr<managed>
+    local %0 $box.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = box_value external-td0, local0 scan=none sp<managed-call:0> live=[]
+    ret t0
+  fun @scoop$1$cb$ee8d4d5e07edf9a2e2ff2f47e5486525c54088177a1d562820579bb6e23aa25e(ptr<managed>) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td0)
+    ret t0
+  output library

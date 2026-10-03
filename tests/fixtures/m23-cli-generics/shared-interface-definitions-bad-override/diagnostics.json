@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property `second` must have the exact inherited type Int, found String",
+    "notes": [],
+    "origin": {
+      "cone": "66bd4eb41debf2fea21ca0c8b1e54ebd49636812339c6be56fec0f11f7df68b9",
+      "end": 197,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 139
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`$get$second` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "66bd4eb41debf2fea21ca0c8b1e54ebd49636812339c6be56fec0f11f7df68b9",
+      "end": 165,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 159
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Wrong` does not implement interface method `View<Unit, Int>.$get$second`",
+    "notes": [],
+    "origin": {
+      "cone": "66bd4eb41debf2fea21ca0c8b1e54ebd49636812339c6be56fec0f11f7df68b9",
+      "end": 199,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 39
+    },
+    "severity": "error"
+  }
+]

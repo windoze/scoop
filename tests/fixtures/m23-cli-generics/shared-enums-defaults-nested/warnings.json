@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_COMPILER_WARNING",
+    "message": "`choice` is a catch-all binding because `Choice<T>` has no variant named `choice`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
+    "notes": [],
+    "origin": {
+      "cone": "7674a5471da3124d5962bac60825b64a9dc3019b2954a1ef113f84ad1da5e4c3",
+      "end": 231,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 225
+    },
+    "severity": "warning"
+  },
+  {
+    "code": "SCOOPC_COMPILER_WARNING",
+    "message": "`choice` is a catch-all binding because `Choice<T>` has no variant named `choice`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
+    "notes": [],
+    "origin": {
+      "cone": "7674a5471da3124d5962bac60825b64a9dc3019b2954a1ef113f84ad1da5e4c3",
+      "end": 296,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 290
+    },
+    "severity": "warning"
+  }
+]

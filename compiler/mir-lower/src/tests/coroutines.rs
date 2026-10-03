@@ -34,12 +34,16 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
         .next()
         .expect("one transformed suspend function");
     let function = &module.functions[coroutine.function];
-    assert_eq!(function.symbol, "scoop.leaf$suspend");
+    assert_eq!(function.name, "leaf");
     assert_eq!(function.params.len(), 1);
     let mir::Type::Interface(continuation) = function.params[0].ty else {
         panic!("hidden completion must be a concrete Continuation<Int>")
     };
-    assert_eq!(module.interfaces[continuation].name, "Continuation$I32");
+    assert_eq!(module.interfaces[continuation].name, "Continuation");
+    assert_eq!(
+        module.interfaces[continuation].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
 
     let step = &module.meta.coroutine_steps[coroutine.step];
     assert_eq!(
@@ -68,6 +72,20 @@ fn suspend_leaf_uses_typed_hidden_abi_and_completed_step() {
         step.suspended().definition(&module.enums).unwrap().name,
         "Suspended"
     );
+    let identity = step.identity();
+    assert!(matches!(
+        identity.generated_type_record().key(),
+        scoop_identity::GeneratedNominalKey::CoroutineStep { result }
+            if *result == identity.result_record().id()
+    ));
+    assert_eq!(
+        identity.completed_payload_record().key().variant(),
+        identity.completed_variant_record().id()
+    );
+    assert!(matches!(
+        identity.root(),
+        mir::ExactOwnerRoot::SourceNominal(_)
+    ));
     assert!(
         step.suspended()
             .definition(&module.enums)
@@ -98,7 +116,7 @@ fn generic_unit_return_in_suspend_function_completes_unit() {
     let unit = h.unit;
     let leaf = identity_fn(&mut h, "genericLeaf");
     h.functions[leaf].is_suspend = true;
-    h.instantiate(leaf, vec![unit]);
+    h.use_identity_instances(leaf, &[unit]);
     let main = empty_main(&mut h);
 
     let module = lower(&h.finish_coroutines(main));
@@ -195,13 +213,69 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     let mir::CoroutineLowering::StateMachine {
         frame,
         driver,
+        driver_identity,
         resume_points,
     } = &caller.lowering
     else {
         panic!("a suspend call requires a state machine")
     };
     assert_eq!(resume_points.len(), 1);
+    assert_eq!(driver_identity.source(), caller.source);
+    assert!(matches!(
+        driver_identity.callable_record().key(),
+        scoop_identity::GeneratedCallableKey::CoroutineDriver { source_callable }
+            if *source_callable == caller.source
+    ));
+    let generated = module
+        .meta
+        .generated_callables
+        .get(*driver)
+        .expect("the coroutine driver has one generated callable location");
+    assert_eq!(
+        generated.identity_record(),
+        driver_identity.callable_record()
+    );
+    let source_signature = module
+        .meta
+        .source_callable_materializations
+        .get(caller.function)
+        .expect("the coroutine source retains its callable signature")
+        .signature_record();
+    assert_eq!(
+        driver_identity.signature_record().signature(),
+        source_signature.signature()
+    );
+    assert_eq!(&caller.logical_signature, source_signature.signature());
+    assert!(matches!(
+        driver_identity.signature_record().subject(),
+        mir::CallableSignatureSubject::Strong(scoop_identity::CallableOwner::Generated(id))
+            if id == driver_identity.callable_record().id()
+    ));
+    let exact = |ty: &mir::Type| {
+        module
+            .meta
+            .source_exact_types
+            .get(ty)
+            .expect("coroutine protocol types retain their source exact identities")
+            .identity_record()
+            .id()
+    };
     let frame = &module.meta.coroutine_frames[*frame];
+    assert_eq!(frame.identity().source(), caller.source);
+    let frame_exact = module
+        .meta
+        .generated_exact_types
+        .get(mir::GeneratedExactTypeLocation::Class(frame.class()))
+        .expect("the coroutine frame has one generated exact type");
+    assert_eq!(
+        frame_exact.exact_record().key(),
+        &scoop_identity::ExactTypeKey::Nominal(frame.identity().generated_type_record().id())
+    );
+    assert!(matches!(
+        frame.identity().generated_type_record().key(),
+        scoop_identity::GeneratedNominalKey::CoroutineFrame { source_callable }
+            if *source_callable == caller.source
+    ));
     let fields = module.classes[frame.class()].declared_fields();
     assert_eq!(fields[0].name, "state");
     assert_eq!(
@@ -209,6 +283,29 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState)
     );
     assert_eq!(fields[1].name, "completion");
+    for (index, saved) in frame.identity().saved_fields().iter().enumerate() {
+        assert_eq!(
+            fields[index + 2].name,
+            format!(
+                "local${}",
+                module.functions[*driver]
+                    .body
+                    .locals
+                    .iter()
+                    .find_map(|(local_id, local)| {
+                        module
+                            .meta
+                            .local_values
+                            .get(*driver, local_id)
+                            .filter(|identity| {
+                                identity.identity_record().id() == saved.value_record().id()
+                            })
+                            .map(|_| local.name.as_str())
+                    })
+                    .expect("saved field has one persistent local")
+            )
+        );
+    }
     assert_eq!(
         fields
             .iter()
@@ -252,6 +349,20 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         int_slot.empty().definition(&module.enums).unwrap().name,
         "Empty"
     );
+    let identity = int_slot.identity();
+    assert!(matches!(
+        identity.generated_type_record().key(),
+        scoop_identity::GeneratedNominalKey::CoroutineSlot { value }
+            if *value == identity.value_record().id()
+    ));
+    assert_eq!(
+        identity.value_payload_record().key().variant(),
+        identity.value_variant_record().id()
+    );
+    assert!(matches!(
+        identity.root(),
+        mir::ExactOwnerRoot::SourceNominal(_)
+    ));
     let throwable = module
         .classes
         .iter()
@@ -285,7 +396,59 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
         &mir::Type::Integer(mir::IntegerKind::SIGNED_32)
     );
     assert_eq!(point.site().get(), 1);
+    let identity = point.identity();
+    assert_eq!(identity.source(), caller.source);
+    assert_eq!(identity.suspension_site().segments().len(), 1);
+    assert_eq!(
+        identity.suspension_site().segments()[0].site_role(),
+        scoop_identity::StructuralDefinitionSiteRole::CoroutineTransform
+    );
+    assert_eq!(identity.suspension_site().segments()[0].ordinal(), 0);
+    assert!(matches!(
+        identity.storage(),
+        mir::ContinuationAdapterStorageIdentity::Direct
+    ));
+    assert!(matches!(
+        identity.generated_type_record().key(),
+        scoop_identity::GeneratedNominalKey::ContinuationAdapterEnvironment {
+            source_callable,
+            suspension_site,
+        } if *source_callable == caller.source
+            && suspension_site == identity.suspension_site()
+    ));
+    assert!(matches!(
+        identity.success().callable_record().key(),
+        scoop_identity::GeneratedCallableKey::CoroutineAdapter {
+            role: scoop_identity::CoroutineAdapterRole::Success,
+            ..
+        }
+    ));
+    assert!(matches!(
+        identity.failure().callable_record().key(),
+        scoop_identity::GeneratedCallableKey::CoroutineAdapter {
+            role: scoop_identity::CoroutineAdapterRole::Failure,
+            ..
+        }
+    ));
+    let continuation = module.classes[point.adapter()].interfaces[0];
+    let success_signature = identity.success().signature_record().signature();
+    assert_eq!(
+        success_signature.receiver(),
+        scoop_identity::OptionalExactOwner::Present(exact(&mir::Type::Interface(continuation)))
+    );
+    assert_eq!(success_signature.parameters(), &[exact(point.result())]);
+    assert_eq!(success_signature.result(), exact(&mir::Type::Unit));
+    let failure_signature = identity.failure().signature_record().signature();
+    assert_eq!(failure_signature.receiver(), success_signature.receiver());
+    assert_eq!(
+        failure_signature.parameters(),
+        &[exact(
+            &module.functions[point.resume_with_exception()].params[1].ty
+        )]
+    );
+    assert_eq!(failure_signature.result(), success_signature.result());
     assert_eq!(module.classes[point.adapter()].interfaces.len(), 1);
+    assert_eq!(module.classes[point.adapter()].declared_fields().len(), 2);
     assert_eq!(
         module.classes[point.adapter()].declared_fields()[1].ty,
         mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState)
@@ -314,6 +477,11 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
             );
         }
     }
+
+    let foundation = assert_mir_foundation_projection(&module);
+    assert!(foundation.fields >= 1);
+    assert!(foundation.enum_variants >= 2);
+    assert!(foundation.enum_variant_fields >= 1);
 
     let dump = mir::dump(&module);
     assert!(dump.contains("atomic_store_release kind=coroutine-frame-state"));
@@ -409,13 +577,16 @@ fn coroutine_transform_preserves_a_suspending_loop_header_poll_target() {
 fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinct() {
     let mut h = Harness::new();
     let main = empty_main(&mut h);
-    let mut source = h.finish_coroutines(main);
+    let executable = h.finish_coroutines(main);
+    let entry = executable.entry();
+    let mut source = executable.into_module();
+    let preserved_functions = source.functions.len();
     let result = module_integer_type(&source, hir::IntegerKind::SIGNED_32);
-    let suspend_registration = source.coroutine_core.suspend_registration;
+    let core = defined_export_core(&source).coroutines;
+    let suspend_registration = core.suspend_registration;
     let registration_ty =
         module_interface_application(&mut source, suspend_registration, vec![result]);
-    let Some(suspend_generic) =
-        source.functions[source.coroutine_core.suspend_coroutine].generic_definition()
+    let Some(suspend_generic) = source.functions[core.suspend_coroutine].generic_definition()
     else {
         panic!("suspendCoroutine is generic")
     };
@@ -427,15 +598,17 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     let registration = locals.alloc(local("registration", registration_ty));
     let value = locals.alloc(local("value", result));
     let caller = source.functions.alloc(hir::Function {
-        name: "suspendIntrinsicCaller".to_string(),
+        signature: hir::CallableSignature {
+            name: "suspendIntrinsicCaller".to_string(),
+            is_suspend: true,
+            modifiers: hir::CallableModifiers::default(),
+            params: vec![param("registration", registration_ty, registration)],
+            return_ty: result,
+            attributes: hir::FunctionAttributes::default(),
+            span: SPAN,
+        },
         access: hir::DeclarationAccess::public(),
-        override_access: Vec::new(),
         genericity: hir::FunctionGenericity::Plain,
-        is_suspend: true,
-        modifiers: hir::CallableModifiers::default(),
-        params: vec![param("registration", registration_ty, registration)],
-        return_ty: result,
-        attributes: hir::FunctionAttributes::default(),
         kind: hir::FunctionKind::User(hir::Body {
             locals,
             statements: vec![
@@ -453,10 +626,11 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
             ],
         }),
         method: None,
-        span: SPAN,
     });
     source.top_level.push(caller);
+    extend_function_identities(&mut source, preserved_functions);
 
+    let source = executable_output(source, entry);
     let module = lower(&source);
     let (_, coroutine) = module
         .meta
@@ -477,6 +651,16 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     assert_eq!(resume_points.len(), 1);
     let point = &module.meta.coroutine_resume_points[resume_points[0]];
     assert_eq!(point.site().get(), 1);
+    assert_eq!(point.identity().source(), coroutine.source);
+    assert_eq!(
+        point.identity().suspension_site().segments()[0].ordinal(),
+        0
+    );
+    assert!(matches!(
+        point.identity().storage(),
+        mir::ContinuationAdapterStorageIdentity::Latched { .. }
+    ));
+    assert_eq!(module.classes[point.adapter()].declared_fields().len(), 4);
     assert_eq!(
         module.classes[point.adapter()].declared_fields()[1].ty,
         mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineAdapterState)
@@ -527,17 +711,20 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             statements: Vec::new(),
         },
     );
-    let mut hir_module = h.finish_coroutines(main);
+    let executable = h.finish_coroutines(main);
+    let entry = executable.entry();
+    let mut hir_module = executable.into_module();
+    let preserved_functions = hir_module.functions.len();
     let result = module_integer_type(&hir_module, hir::IntegerKind::SIGNED_32);
-    let suspend_task = hir_module.coroutine_core.suspend_task;
-    let continuation = hir_module.coroutine_core.continuation;
+    let core = defined_export_core(&hir_module).coroutines;
+    let suspend_task = core.suspend_task;
+    let continuation = core.continuation;
     let task_ty = module_interface_application(&mut hir_module, suspend_task, vec![result]);
     let completion_ty = module_interface_application(&mut hir_module, continuation, vec![result]);
     let mut locals = Arena::new();
     let task = locals.alloc(local("task", task_ty));
     let completion = locals.alloc(local("completion", completion_ty));
-    let Some(start_generic) =
-        hir_module.functions[hir_module.coroutine_core.start_coroutine].generic_definition()
+    let Some(start_generic) = hir_module.functions[core.start_coroutine].generic_definition()
     else {
         panic!("startCoroutine is generic")
     };
@@ -548,23 +735,27 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             type_args: vec![result],
         });
     let launcher = hir_module.functions.alloc(hir::Function {
-        name: "launcher".to_string(),
+        signature: hir::CallableSignature {
+            name: "launcher".to_string(),
+            is_suspend: false,
+            modifiers: hir::CallableModifiers::default(),
+            params: vec![
+                param("task", task_ty, task),
+                param("completion", completion_ty, completion),
+            ],
+            return_ty: hir_module.unit,
+            attributes: hir::FunctionAttributes::default(),
+            span: SPAN,
+        },
         access: hir::DeclarationAccess::public(),
-        override_access: Vec::new(),
         genericity: hir::FunctionGenericity::Plain,
-        is_suspend: false,
-        modifiers: hir::CallableModifiers::default(),
-        params: vec![
-            param("task", task_ty, task),
-            param("completion", completion_ty, completion),
-        ],
-        return_ty: hir_module.unit,
-        attributes: hir::FunctionAttributes::default(),
         kind: hir::FunctionKind::User(hir::Body {
             locals,
             statements: vec![expr_stmt(expr(
                 hir::ExprKind::Call {
-                    callee: hir::Callable::Generic(start),
+                    binding: None,
+                    receiver: scoop_hir::SourceCallReceiver::NoReceiver,
+                    callee: (hir::Callable::Generic(start)).into(),
                     args: vec![
                         local_ref(task, task_ty),
                         local_ref(completion, completion_ty),
@@ -574,10 +765,11 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
             ))],
         }),
         method: None,
-        span: SPAN,
     });
     hir_module.top_level.push(launcher);
+    extend_function_identities(&mut hir_module, preserved_functions);
 
+    let hir_module = executable_output(hir_module, entry);
     let module = lower(&hir_module);
     let launcher = module
         .functions
@@ -587,10 +779,42 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     let launcher_entry = &launcher.body.blocks[launcher.body.entry];
     let (start, destination) = statement_call(&launcher_entry.statements[0]);
     assert!(destination.is_none(), "startCoroutine returns Unit");
-    let mir::Callee::User(helper) = start.target.callee else {
+    let mir::Callee::User(helper_id) = start.target.callee else {
         panic!("startCoroutine lowers to its concrete guarded helper")
     };
-    let helper = &module.functions[helper];
+    let start_metadata = module
+        .meta
+        .coroutine_starts
+        .iter()
+        .find(|start| start.function() == helper_id)
+        .expect("startCoroutine helper retains its persistent identity");
+    assert!(matches!(
+        start_metadata.identity().callable_record().key(),
+        scoop_identity::GeneratedCallableKey::CoroutineStart { result }
+            if *result == start_metadata.identity().result_record().id()
+    ));
+    assert!(matches!(
+        start_metadata.identity().root(),
+        mir::ExactOwnerRoot::SourceNominal(_)
+    ));
+    let helper = &module.functions[helper_id];
+    let signature = start_metadata.identity().signature_record().signature();
+    let exact = |ty: &mir::Type| {
+        module
+            .meta
+            .source_exact_types
+            .get(ty)
+            .expect("coroutine protocol types retain their source exact identities")
+            .identity_record()
+            .id()
+    };
+    assert_eq!(signature.effect(), scoop_identity::Effect::Ordinary);
+    assert!(!signature.receiver().is_present());
+    assert_eq!(
+        signature.parameters(),
+        &[exact(&helper.params[0].ty), exact(&helper.params[1].ty)]
+    );
+    assert_eq!(signature.result(), exact(&mir::Type::Unit));
     let entry = &helper.body.blocks[helper.body.entry];
     let (run, step_local) = statement_call(&entry.statements[0]);
     let mir::CallKind::Interface {
@@ -600,7 +824,11 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     else {
         panic!("startCoroutine must invoke SuspendTask<T>.run through interface dispatch")
     };
-    assert_eq!(module.interfaces[task_interface].name, "SuspendTask$I32");
+    assert_eq!(module.interfaces[task_interface].name, "SuspendTask");
+    assert_eq!(
+        module.interfaces[task_interface].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
     assert_eq!(run.args.len(), 2, "run receives task and hidden completion");
     let step_local = step_local.expect("run returns a CoroutineStep<T>");
     let mir::Terminator::Branch {
@@ -635,7 +863,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
     };
     assert_eq!(
         module.interfaces[continuation_interface].name,
-        "Continuation$I32"
+        "Continuation"
     );
     assert!(matches!(resume.args.as_slice(), [completion, field]
             if matches!(completion.kind, mir::ExprKind::Local(_))

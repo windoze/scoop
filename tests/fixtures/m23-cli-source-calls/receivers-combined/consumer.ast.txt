@@ -1,0 +1,18 @@
+SourceFile
+  QualifiedPackage receiver.consumer
+  ImportExact Local receiver.provider.withDefault
+  ImportExact Local receiver.provider.score
+  private var Any.localScore: Int <computed>
+  public fun combined(): Int
+    val first
+      Call withDefault
+    assign .score
+      StringLiteral "write"
+      Var first
+    assign .localScore
+      StringLiteral "local-write"
+      FieldAccess localScore
+        StringLiteral "local-read"
+    return
+      FieldAccess score
+        StringLiteral "read"

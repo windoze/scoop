@@ -1,0 +1,61 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val pair
+      Call Pair
+        Call Leaf
+        Call Leaf
+    Call verifyType
+      Binary Eq
+        Var pair
+        Call Pair
+          Call Leaf
+          Call Leaf
+    Call verifyType
+      Call sameChoice
+        MethodCall Full
+          Var Choice
+          Var pair
+        MethodCall Full
+          Var Choice
+          Var pair
+    Call verifyType
+      Unary Not
+        Call sameChoice
+          FieldAccess Empty
+            Var Choice
+          MethodCall Full
+            Var Choice
+            Var pair
+    Call verifyType
+      Unary Not
+        Call sameManual
+          Call UsesManual
+            Call Manual
+          Call UsesManual
+            Call Manual
+    Call verifyType
+      Call sameOverloaded
+        Call Overloaded
+        Call Overloaded
+    Call verifyType
+      Binary Eq
+        Call Overloaded
+        Call Leaf
+    val value
+      Call notComparable
+    val erased: Any
+      Var value
+    Call verifyType
+      Binary RefEq
+        FieldAccess value
+          Cast NotComparable optional=false
+            Var erased
+        FieldAccess value
+          Var value

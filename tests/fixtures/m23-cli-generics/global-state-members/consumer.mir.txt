@@ -1,0 +1,257 @@
+Module
+  class Probe<Int> vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      call external0 direct
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Probe<Int>
+        ClassAlloc Probe<Int>
+      call @fn4 direct
+        Type Probe<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val probe: Probe<Int>
+        Type Probe<Int>
+        Local $new.1
+      call $dependency.receiver: Int = external1 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Probe<Int>
+        Type Probe<Int>
+        Local probe
+      call $dependency.receiver: Int = @fn2 direct
+        Type Probe<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      call $dependency.receiver: Int = external1 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun take @fn2(this: Probe<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        FieldAccess 0
+          Type Probe<Int>
+          Local this
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      call $call.1: Int = @fn3 direct
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        Local $call.1
+  fun advance @fn3(value: Int) -> Int
+    bb0 entry
+      call $dependency.local.1: Int = external2 direct
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      call external3 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      call $dependency.local.5: Int = external4 direct
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.7: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.7
+      call external5 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.6
+          Type Int
+          Local $dependency.local.8
+      call $dependency.local.9: Boolean = external6 direct
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.9
+    bb1 if.then.1
+      val $dependency.local.13: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.local.10: Int = external4 direct
+      call $dependency.local.11: Int = external2 direct
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      val $dependency.local.13: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.10
+            Type Int
+            Local $dependency.local.12
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.13
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=-1 bits=0xffffffff
+    bb5 if.merge.5
+      call $call.1: Int = external2 direct
+      return
+        Type Int
+        Local $call.1
+  fun init.Probe.$c0 @fn4(this: Probe<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Probe<Int>
+        Local this
+        Type Int
+        Local value
+      call $dependency.constructor.local.0: Int = external2 direct
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.2: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local $dependency.constructor.local.2
+      call external3 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.1
+          Type Int
+          Local $dependency.constructor.local.3
+      call $dependency.constructor.local.4: Int = external4 direct
+      val $dependency.constructor.local.5: Int
+        Type Int
+        Local $dependency.constructor.local.4
+      val $dependency.constructor.local.6: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.7: Int
+        Type Int
+        Local $dependency.constructor.local.6
+      call external5 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.5
+          Type Int
+          Local $dependency.constructor.local.7
+      return
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- take
+  instance mi2 function=@fn3 <- advance
+  output library

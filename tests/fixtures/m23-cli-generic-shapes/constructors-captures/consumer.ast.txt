@@ -1,0 +1,23 @@
+SourceFile
+  QualifiedPackage consumer.constructors
+  ImportStar Local templates.constructors.*
+  private class Payload(val value: Int)
+  public fun result(): Int
+    val box
+      Call Captured<Payload>
+        Call Payload
+          IntLiteral 42
+    val first
+      Call Payload
+        IntLiteral 1
+    val second
+      Call Payload
+        IntLiteral 2
+    return
+      FieldAccess value
+        FieldAccess output
+          Var box
+  public fun make<T>(value: T): Box<T>
+    =
+      Call Box<T>
+        Var value

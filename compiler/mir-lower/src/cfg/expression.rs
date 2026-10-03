@@ -41,7 +41,12 @@ impl<'a> CfgLowerer<'a> {
                     .map(|arg| self.lower_expr(arg, span))
                     .collect::<Vec<_>>();
                 let receiver_ty = mir::Type::Class(*class_id);
-                let receiver = self.new_hidden("new", receiver_ty.clone());
+                let receiver = self.new_hidden(
+                    "new",
+                    StructuralDefinitionSiteRole::SyntheticValue,
+                    SyntheticLocalRole::Temporary,
+                    receiver_ty.clone(),
+                );
                 self.push(
                     mir::StatementKind::Assign {
                         local: receiver,
@@ -61,7 +66,7 @@ impl<'a> CfgLowerer<'a> {
                 self.emit_lowered_call(
                     mir::CallTarget {
                         kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(*initializer),
+                        callee: *initializer,
                     },
                     args,
                     mir::Type::Unit,
@@ -74,7 +79,12 @@ impl<'a> CfgLowerer<'a> {
                 class: *class,
                 captures: captures
                     .iter()
-                    .map(|capture| self.lower_expr(capture, span))
+                    .map(|capture| {
+                        mir::ClosureCaptureInit::new(
+                            capture.field,
+                            self.lower_expr(&capture.value, span),
+                        )
+                    })
                     .collect(),
             },
             smir::ExprKind::ClosureCapture {
@@ -373,7 +383,12 @@ impl<'a> CfgLowerer<'a> {
             else_block,
         });
 
-        let result = self.new_hidden("logic", mir::Type::Boolean);
+        let result = self.new_hidden(
+            "logic",
+            StructuralDefinitionSiteRole::SyntheticValue,
+            SyntheticLocalRole::Temporary,
+            mir::Type::Boolean,
+        );
         self.enter(short_block);
         self.push(
             mir::StatementKind::Assign {
@@ -437,31 +452,55 @@ impl<'a> CfgLowerer<'a> {
                 destination.is_none(),
                 "Unit calls do not have MIR destinations"
             );
-            self.push(
-                mir::StatementKind::Call(mir::CallEffect::Unit(normalized)),
-                span,
-            );
+            self.push_call(mir::CallEffect::Unit(normalized), span);
             mir::Expr::new(mir::Type::Unit, mir::ExprKind::UnitLiteral)
         } else {
-            let destination =
-                destination.unwrap_or_else(|| self.new_hidden("call", return_ty.clone()));
-            self.push(
-                mir::StatementKind::Call(mir::CallEffect::Value {
+            let destination = destination.unwrap_or_else(|| {
+                self.new_hidden(
+                    "call",
+                    StructuralDefinitionSiteRole::SyntheticValue,
+                    SyntheticLocalRole::Temporary,
+                    return_ty.clone(),
+                )
+            });
+            self.push_call(
+                mir::CallEffect::Value {
                     destination,
                     call: normalized,
-                }),
+                },
                 span,
             );
             mir::Expr::new(return_ty, mir::ExprKind::Local(destination))
         }
     }
 
-    pub(super) fn new_hidden(&mut self, prefix: &str, ty: mir::Type) -> mir::LocalId {
+    fn push_call(&mut self, effect: mir::CallEffect, span: Span) {
+        self.ensure_unwind_context();
+        self.call_sites.push(CallSite {
+            block: self.current,
+            statement: self.blocks[self.current].statements.len(),
+        });
+        self.push(mir::StatementKind::Call(effect), span);
+    }
+
+    pub(super) fn new_hidden(
+        &mut self,
+        prefix: &str,
+        site_role: StructuralDefinitionSiteRole,
+        role: SyntheticLocalRole,
+        ty: mir::Type,
+    ) -> mir::LocalId {
         self.hidden_count += 1;
-        self.locals.alloc(mir::Local {
+        let local = self.locals.alloc(mir::Local {
             name: format!("${prefix}.{}", self.hidden_count),
             ty,
             mutable: false,
-        })
+        });
+        self.generated_values.push(GeneratedLocalValue {
+            local,
+            site_role,
+            role,
+        });
+        local
     }
 }

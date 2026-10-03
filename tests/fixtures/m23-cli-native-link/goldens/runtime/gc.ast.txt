@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  fun main()
+    val text
+      Binary Add
+        StringLiteral "runtime-"
+        StringLiteral "alive"
+    Call gcCollect
+    Call println
+      Var text
+    Call println
+      Binary Gt
+        Call gcStats
+        IntLiteral 0uL

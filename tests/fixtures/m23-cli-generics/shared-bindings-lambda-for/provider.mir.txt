@@ -1,0 +1,20 @@
+Module
+  global0 order: Int managed initial=encoded(Int:0x0)
+  fun reset @fn0() -> Unit
+    bb0 entry
+      call @fn2 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+  fun $get$order @fn1() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead order
+  fun $set$order @fn2(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign order
+        Type Int
+        Local value
+      return
+  output library

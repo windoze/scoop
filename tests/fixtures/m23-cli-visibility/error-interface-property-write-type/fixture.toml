@@ -1,0 +1,42 @@
+schema = 1
+name = "visibility-error-interface-property-write-type"
+inputs = ["program", "../../m21-visibility/errors/interface-property-write-type.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["visibility", "negative"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/program", "to" = "${work}/sources/program"}},
+  {"copy" = {"from" = "${fixture}/../../m21-visibility/errors/interface-property-write-type.scoop", "to" = "${work}/sources/program/src/user.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--cone-path", "${work}/artifacts", "--message-format", "json", "--target-dir", "${work}/target-program", "-o", "${work}/built-program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/built-program", "exists" = false},
+]

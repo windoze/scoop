@@ -21,24 +21,36 @@ impl Lowerer {
                 }
                 None => (Vec::new(), HashMap::new()),
             };
-            for &fn_id in &decl.methods {
-                let function = &module.functions[fn_id];
-                let Some(method) = function.method else {
-                    continue;
-                };
-                let family = match method.dispatch {
-                    hir::MethodDispatch::Virtual(family)
-                    | hir::MethodDispatch::FinalOverride(family) => family,
-                    hir::MethodDispatch::Direct | hir::MethodDispatch::Interface { .. } => {
-                        continue;
+            for method in &decl.methods {
+                let (family, target) = match *method {
+                    hir::ClassMethod::Local(function) => {
+                        let Some(method) = module.functions[function].receiver.method() else {
+                            continue;
+                        };
+                        let family = match method.dispatch {
+                            hir::MethodDispatch::Virtual(family)
+                            | hir::MethodDispatch::FinalOverride(family) => family,
+                            hir::MethodDispatch::Direct | hir::MethodDispatch::Interface { .. } => {
+                                continue;
+                            }
+                        };
+                        (
+                            family,
+                            mir::TableSlot::Function(self.function_map[&function]),
+                        )
                     }
+                    hir::ClassMethod::Imported { family, callable } => (
+                        family,
+                        mir::TableSlot::External(
+                            self.imported_dependency_callable_map[&callable].callable,
+                        ),
+                    ),
                 };
-                let mir_fn = self.function_map[&fn_id];
                 match slots.get(&family) {
-                    Some(&slot) => vtable[slot as usize] = mir::TableSlot::Function(mir_fn),
+                    Some(&slot) => vtable[slot as usize] = target,
                     None => {
                         slots.insert(family, vtable.len() as u32);
-                        vtable.push(mir::TableSlot::Function(mir_fn));
+                        vtable.push(target);
                     }
                 }
             }
@@ -53,14 +65,19 @@ impl Lowerer {
                         .collect::<Vec<_>>();
                     for method in &implementation.methods {
                         let target = match method.target {
-                            hir::InterfaceImplementationTarget::Method(function) => function,
-                            hir::InterfaceImplementationTarget::Abstract { declaration } => {
-                                declaration
-                            }
+                            hir::InterfaceImplementationTarget::Method(function)
+                            | hir::InterfaceImplementationTarget::Abstract {
+                                declaration: function,
+                            } => mir::TableSlot::Function(self.function_map[&function]),
+                            hir::InterfaceImplementationTarget::Imported(callable)
+                            | hir::InterfaceImplementationTarget::ImportedAbstract {
+                                declaration: callable,
+                            } => mir::TableSlot::External(
+                                self.imported_dependency_callable_map[&callable].callable,
+                            ),
                         };
                         let slot = method.slot.into_raw() as usize;
-                        let previous = slots[slot]
-                            .replace(mir::TableSlot::Function(self.function_map[&target]));
+                        let previous = slots[slot].replace(target);
                         assert!(
                             previous.is_none(),
                             "concrete HIR emits each itable slot once"

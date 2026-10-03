@@ -9,42 +9,6 @@ impl Lowerer {
             .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
     }
 
-    /// Signature equality for override / implementation matching:
-    /// name, parameter types and return type all equal (overloads
-    /// only match exactly, M7).
-    pub(super) fn same_signature(&self, candidate: FunctionId, name: &str, sig: &FnSig) -> bool {
-        self.same_signature_shape(candidate, name, sig)
-            && self.functions[candidate].is_suspend == sig.is_suspend
-            && self.functions[candidate].modifiers == sig.modifiers
-            && self.functions[candidate].attributes == sig.attributes
-    }
-
-    pub(super) fn same_signature_shape(
-        &self,
-        candidate: FunctionId,
-        name: &str,
-        sig: &FnSig,
-    ) -> bool {
-        let function = &self.functions[candidate];
-        if function.name.rsplit('.').next() != Some(name) {
-            return false;
-        }
-        let Some(candidate_sig) = self.signatures.get(&candidate) else {
-            return false;
-        };
-        let candidate_own_count =
-            candidate_sig.type_params.len() - candidate_sig.owner_type_param_count;
-        let expected_own_count = sig.type_params.len() - sig.owner_type_param_count;
-        candidate_own_count == expected_own_count
-            && candidate_sig.params.len() == sig.params.len()
-            && candidate_sig
-                .params
-                .iter()
-                .zip(&sig.params)
-                .all(|(a, b)| self.types_equal(a.ty, b.ty))
-            && self.types_equal(candidate_sig.return_ty, sig.return_ty)
-    }
-
     pub(in crate::class) fn instantiated_signature(
         &mut self,
         method: FunctionId,

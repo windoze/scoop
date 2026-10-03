@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`this` is only allowed inside member functions",
+    "notes": [],
+    "origin": {
+      "cone": "84b120dde8a9ef75c5b6b9593239079d94dd98f7cfd42386e80c51059e7782cf",
+      "end": 86,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 82
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Unit` has no applicable property delegate operator `getValue`",
+    "notes": [],
+    "origin": {
+      "cone": "84b120dde8a9ef75c5b6b9593239079d94dd98f7cfd42386e80c51059e7782cf",
+      "end": 86,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 48
+    },
+    "severity": "error"
+  }
+]

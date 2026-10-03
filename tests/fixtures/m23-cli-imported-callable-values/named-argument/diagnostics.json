@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function values do not accept named arguments",
+    "notes": [],
+    "origin": {
+      "cone": "d48f82c67a9f2651651bfd2905f884377fcb3c6f734f1aed1db3146b049b1bdc",
+      "end": 59,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 49
+    },
+    "severity": "error"
+  }
+]

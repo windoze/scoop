@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  public interface Marker
+    fun mark
+  public open class Base(val inherited: Int)
+  public class Child(val own: String, val number: Int) : Base(<1 args>), Marker
+  public struct Label : Marker
+    field text: String
+  public enum Choice
+    None
+    Some(Label)
+  public object Singleton
+    public val text: String = <expr>
+      StringLiteral "value"
+    public val number: Int = <expr>
+      IntLiteral 3

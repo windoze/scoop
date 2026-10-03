@@ -1,0 +1,54 @@
+SourceFile
+  RootPackage
+  private struct Empty
+  private enum Choice
+    First
+    Second
+  private fun structDefault(left: Empty, right: Empty, value: Boolean = <expr>): Boolean
+    =
+      Var value
+  private fun enumDefault(left: Choice, right: Choice, value: Boolean = <expr>): Boolean
+    =
+      Var value
+  private class Holder(val same: Boolean = <expr>)
+  private fun use(): Boolean
+    val holder
+      Call Holder
+    Call enumDefault
+      FieldAccess First
+        Var Choice
+      FieldAccess Second
+        Var Choice
+    return
+      Call structDefault
+        Call Empty
+        Call Empty
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Call use
+    Call verifyDefault
+      FieldAccess same
+        Call Holder
+    Call verifyDefault
+      Call structDefault
+        Call Empty
+        Call Empty
+    Call verifyDefault
+      Unary Not
+        Call structDefault
+          Call Empty
+          Call Empty
+          BoolLiteral false
+    Call verifyDefault
+      Unary Not
+        Call enumDefault
+          FieldAccess First
+            Var Choice
+          FieldAccess Second
+            Var Choice

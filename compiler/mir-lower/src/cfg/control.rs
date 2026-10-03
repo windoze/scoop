@@ -60,9 +60,10 @@ impl<'a> CfgLowerer<'a> {
 
     pub(super) fn push(&mut self, kind: mir::StatementKind, span: Span) {
         self.ensure_unwind_context();
-        self.blocks[self.current]
-            .statements
-            .push(mir::Statement { kind, span });
+        self.blocks[self.current].statements.push(mir::Statement {
+            kind,
+            span: crate::source_span(span),
+        });
     }
 
     pub(super) fn lower_statements(&mut self, statements: &'a [smir::Statement]) {
@@ -79,15 +80,14 @@ impl<'a> CfgLowerer<'a> {
         let span = statement.span;
         match &statement.kind {
             smir::StatementKind::Unreachable => self.seal(mir::Terminator::Unreachable),
+            smir::StatementKind::Trap { message } => self.seal(mir::Terminator::Trap {
+                message: message.clone(),
+            }),
             smir::StatementKind::Expr(expr) => {
-                if let Some(message) = trap_message(expr) {
-                    self.seal(mir::Terminator::Trap { message });
-                } else {
-                    let is_call = matches!(expr.kind, smir::ExprKind::Call(_));
-                    let expr = self.lower_expr(expr, span);
-                    if !is_call && !matches!(expr.kind, mir::ExprKind::UnitLiteral) {
-                        self.push(mir::StatementKind::Expr(expr), span);
-                    }
+                let is_call = matches!(expr.kind, smir::ExprKind::Call(_));
+                let expr = self.lower_expr(expr, span);
+                if !is_call && !matches!(expr.kind, mir::ExprKind::UnitLiteral) {
+                    self.push(mir::StatementKind::Expr(expr), span);
                 }
             }
             smir::StatementKind::ValDecl { local, init } => {

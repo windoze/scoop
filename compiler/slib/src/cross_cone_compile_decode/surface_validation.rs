@@ -1,0 +1,282 @@
+//! Per-artifact HIR semantic-surface type-state transitions.
+
+use scoop_hir::{CoreBootstrapInterfaceSectionV1, CrossConeHirInterfaceSectionV1};
+use scoop_identity::{ConeCoordinate, ConeIdentity, ValidatedIdentityGraph};
+use scoop_lir::{
+    ConeLirFoundation, DecodedConeProductionSectionV1, DecodedCrossConeLirBridgeSectionV1,
+};
+use scoop_mir::{DecodedCoreBootstrapBridgeSectionV1, DecodedCrossConeMirBridgeSectionV1};
+use scoop_wire::WirePath;
+
+use super::HirProductionValidatedCrossConeHirFrontSections;
+use crate::{
+    ValidatedGraphArtifact, cross_cone_hir_authority::ValidatedNominalProviderView,
+    hir_interface_validation::HirInterfaceValidationInput,
+    strong_compile_decode::CanonicalFoundationSet,
+};
+
+mod const_value;
+mod definition_source;
+mod errors;
+mod lir_bridge;
+mod mir_bridge;
+mod source_interface;
+
+pub use const_value::*;
+pub use definition_source::*;
+pub use errors::*;
+pub use lir_bridge::*;
+pub use mir_bridge::*;
+pub use source_interface::*;
+
+/// Storage shared by the declaration-surface proof states. Each public
+/// wrapper below is a distinct, consuming type-state gate over this carrier.
+struct ValidatedSurfaceFront<'input> {
+    graph: ValidatedGraphArtifact<'input>,
+    identities: ValidatedIdentityGraph,
+    foundations: CanonicalFoundationSet,
+    hir_core_production: CoreBootstrapInterfaceSectionV1,
+    hir_interface: CrossConeHirInterfaceSectionV1,
+    mir_core_production: DecodedCoreBootstrapBridgeSectionV1,
+    mir_cross_cone_bridge: DecodedCrossConeMirBridgeSectionV1,
+    lir_strong_production: DecodedConeProductionSectionV1,
+    lir_cross_cone_bridge: DecodedCrossConeLirBridgeSectionV1,
+}
+
+impl ValidatedSurfaceFront<'_> {
+    fn hir_validation_parts(&mut self) -> HirInterfaceValidationInput<'_> {
+        HirInterfaceValidationInput {
+            current: self.graph.identity(),
+            identities: &self.identities,
+            foundation: &self.foundations.hir,
+            core: &self.hir_core_production,
+            interface: &self.hir_interface,
+        }
+    }
+}
+
+/// One provider whose exact section-internal HIR relationships match the
+/// legacy direct surface. Cross-provider declaration authority is pending.
+pub struct InternallyClosedCrossConeHirFrontSections<'input>(ValidatedSurfaceFront<'input>);
+
+/// One provider whose public nominal table has canonical typed ownership.
+pub struct NominalValidatedCrossConeHirFrontSections<'input>(ValidatedSurfaceFront<'input>);
+
+/// One provider whose public nominal and property tables are canonical.
+pub struct PropertyValidatedCrossConeHirFrontSections<'input>(ValidatedSurfaceFront<'input>);
+
+/// One provider whose public nominal, property, and callable tables are
+/// canonical.
+pub struct CallableValidatedCrossConeHirFrontSections<'input>(ValidatedSurfaceFront<'input>);
+
+/// One provider whose public nominal, property, callable, and type-alias
+/// tables have canonical typed authority.
+pub struct TypeAliasValidatedCrossConeHirFrontSections<'input>(ValidatedSurfaceFront<'input>);
+
+macro_rules! impl_surface_front_accessors {
+    ($state:ident) => {
+        impl $state<'_> {
+            pub const fn coordinate(&self) -> &ConeCoordinate {
+                self.0.graph.coordinate()
+            }
+
+            pub const fn identity(&self) -> ConeIdentity {
+                self.0.graph.identity()
+            }
+
+            pub fn hir_foundation(&self) -> &scoop_hir::CanonicalHirFoundation {
+                &self.0.foundations.hir
+            }
+
+            pub fn mir_foundation(&self) -> &scoop_mir::CanonicalMirFoundation {
+                &self.0.foundations.mir
+            }
+
+            pub const fn lir_foundation(&self) -> &ConeLirFoundation {
+                &self.0.foundations.lir
+            }
+
+            pub fn identity_count(&self) -> usize {
+                self.0.identities.identity_count()
+            }
+
+            pub fn declared_identity_count(&self) -> usize {
+                self.0.identities.declared_identity_count()
+            }
+
+            pub const fn hir_core_production(&self) -> &CoreBootstrapInterfaceSectionV1 {
+                &self.0.hir_core_production
+            }
+
+            pub const fn hir_interface(&self) -> &CrossConeHirInterfaceSectionV1 {
+                &self.0.hir_interface
+            }
+
+            pub const fn mir_core_production_wire(&self) -> &DecodedCoreBootstrapBridgeSectionV1 {
+                &self.0.mir_core_production
+            }
+
+            pub const fn mir_cross_cone_bridge_wire(&self) -> &DecodedCrossConeMirBridgeSectionV1 {
+                &self.0.mir_cross_cone_bridge
+            }
+
+            pub const fn lir_strong_production_wire(&self) -> &DecodedConeProductionSectionV1 {
+                &self.0.lir_strong_production
+            }
+
+            pub const fn lir_cross_cone_bridge_wire(&self) -> &DecodedCrossConeLirBridgeSectionV1 {
+                &self.0.lir_cross_cone_bridge
+            }
+        }
+    };
+}
+
+impl_surface_front_accessors!(InternallyClosedCrossConeHirFrontSections);
+impl_surface_front_accessors!(DefinitionSourceValidatedCrossConeHirFrontSections);
+impl_surface_front_accessors!(NominalValidatedCrossConeHirFrontSections);
+impl_surface_front_accessors!(PropertyValidatedCrossConeHirFrontSections);
+impl_surface_front_accessors!(CallableValidatedCrossConeHirFrontSections);
+impl_surface_front_accessors!(TypeAliasValidatedCrossConeHirFrontSections);
+impl_surface_front_accessors!(SourceInterfaceValidatedCrossConeHirFrontSections);
+impl_surface_front_accessors!(ConstValidatedCrossConeHirFrontSections);
+
+impl ConstValidatedCrossConeHirFrontSections<'_> {
+    pub(crate) fn hir_reference_validation_parts(&mut self) -> HirInterfaceValidationInput<'_> {
+        self.0.hir_validation_parts()
+    }
+
+    pub(crate) fn hir_semantic_parts(
+        &mut self,
+    ) -> (&ValidatedIdentityGraph, &CrossConeHirInterfaceSectionV1) {
+        let ValidatedSurfaceFront {
+            identities,
+            hir_interface,
+            ..
+        } = &mut self.0;
+        (identities, hir_interface)
+    }
+}
+
+macro_rules! impl_nominal_provider_view {
+    ($state:ident) => {
+        impl $state<'_> {
+            pub(crate) fn nominal_provider_view(&self) -> ValidatedNominalProviderView<'_> {
+                ValidatedNominalProviderView {
+                    identity: self.0.graph.identity(),
+                    identities: &self.0.identities,
+                    foundation: &self.0.foundations.hir,
+                    core: &self.0.hir_core_production,
+                    interface: &self.0.hir_interface,
+                }
+            }
+        }
+    };
+}
+
+impl_nominal_provider_view!(NominalValidatedCrossConeHirFrontSections);
+impl_nominal_provider_view!(PropertyValidatedCrossConeHirFrontSections);
+impl_nominal_provider_view!(CallableValidatedCrossConeHirFrontSections);
+impl_nominal_provider_view!(TypeAliasValidatedCrossConeHirFrontSections);
+impl_nominal_provider_view!(SourceInterfaceValidatedCrossConeHirFrontSections);
+impl_nominal_provider_view!(ConstValidatedCrossConeHirFrontSections);
+
+impl<'input> HirProductionValidatedCrossConeHirFrontSections<'input> {
+    /// Closes every relationship reconstructible from this HIR section and
+    /// its independently validated direct-public surface.
+    pub(crate) fn validate_internal_hir_closures(
+        self,
+    ) -> Result<InternallyClosedCrossConeHirFrontSections<'input>, CrossConeHirInternalClosureError>
+    {
+        let Self {
+            graph,
+            identities,
+            foundations,
+            hir_core_production,
+            hir_interface,
+            mir_core_production,
+            mir_cross_cone_bridge,
+            lir_strong_production,
+            lir_cross_cone_bridge,
+        } = self;
+        hir_interface
+            .validate_internal_closures(
+                hir_core_production.direct_public_surface(),
+                &WirePath::root(),
+            )
+            .map_err(CrossConeHirInternalClosureError::Interface)?;
+        Ok(InternallyClosedCrossConeHirFrontSections(
+            ValidatedSurfaceFront {
+                graph,
+                identities,
+                foundations,
+                hir_core_production,
+                hir_interface,
+                mir_core_production,
+                mir_cross_cone_bridge,
+                lir_strong_production,
+                lir_cross_cone_bridge,
+            },
+        ))
+    }
+}
+
+impl<'input> DefinitionSourceValidatedCrossConeHirFrontSections<'input> {
+    /// Validates the nominal declaration surface using canonical keys and
+    /// only the provider's already validated transitive dependencies.
+    pub(crate) fn validate_nominal_surface<'dependency>(
+        self,
+        dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
+    ) -> Result<NominalValidatedCrossConeHirFrontSections<'input>, CrossConeHirNominalSurfaceError>
+    {
+        let mut front = self.0;
+        let input = front.hir_validation_parts();
+        input.nominals(dependencies)?;
+        Ok(NominalValidatedCrossConeHirFrontSections(front))
+    }
+}
+
+impl<'input> NominalValidatedCrossConeHirFrontSections<'input> {
+    /// Validates each property identity, signature scope, and accessor key.
+    pub(crate) fn validate_property_surface<'dependency>(
+        self,
+        dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
+    ) -> Result<PropertyValidatedCrossConeHirFrontSections<'input>, CrossConeHirPropertySurfaceError>
+    {
+        let mut front = self.0;
+        let input = front.hir_validation_parts();
+        input.properties(dependencies)?;
+        Ok(PropertyValidatedCrossConeHirFrontSections(front))
+    }
+}
+
+impl<'input> PropertyValidatedCrossConeHirFrontSections<'input> {
+    /// Validates each callable identity shape against its kind-specific key
+    /// and the already property-validated adjacent record.
+    pub(crate) fn validate_callable_surface<'dependency>(
+        self,
+        dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
+    ) -> Result<CallableValidatedCrossConeHirFrontSections<'input>, CrossConeHirCallableSurfaceError>
+    {
+        let mut front = self.0;
+        let input = front.hir_validation_parts();
+        input.callables(dependencies)?;
+        Ok(CallableValidatedCrossConeHirFrontSections(front))
+    }
+}
+
+impl<'input> CallableValidatedCrossConeHirFrontSections<'input> {
+    /// Validates each public non-generic type alias against its declaration,
+    /// direct-public proof, foundation origin, and target shape.
+    pub(crate) fn validate_type_alias_surface<'dependency>(
+        self,
+        dependencies: Vec<ValidatedNominalProviderView<'dependency>>,
+    ) -> Result<
+        TypeAliasValidatedCrossConeHirFrontSections<'input>,
+        CrossConeHirTypeAliasSurfaceError,
+    > {
+        let mut front = self.0;
+        let input = front.hir_validation_parts();
+        input.type_aliases(dependencies)?;
+        Ok(TypeAliasValidatedCrossConeHirFrontSections(front))
+    }
+}

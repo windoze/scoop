@@ -1,0 +1,131 @@
+SourceFile
+  QualifiedPackage templates.adapters
+  public class Box<T>(val value: T)
+  public class Payload(val value: Int)
+  public class Failure(val payload: Payload) : Throwable(<0 args>)
+  public interface Readable
+    fun read
+  public struct ValueReader : Readable
+    field value: Int
+    public fun read
+  public interface Tagged
+    fun tag
+  public interface DetailedReadable : Readable, Tagged
+  public class DetailedValue(val value: Int), DetailedReadable
+    public fun read
+    public fun tag
+  public fun erasedReadable(value: Int): Any
+    val source: (Any) -> DetailedReadable
+      Lambda 0 suspend=false
+        param ignored: Any
+        Call DetailedValue
+          Var value
+    return
+      Var source
+  public open class Parent(val value: Int)
+  public class Child(value: Int) : Parent(<1 args>)
+  public fun boxedResult<T>(value: T): () -> Any
+    =
+      Lambda 1 suspend=false
+        parameters omitted
+        Var value
+  public fun valueResult(value: Int): () -> Readable
+    =
+      Lambda 2 suspend=false
+        parameters omitted
+        Call ValueReader
+          Var value
+  public fun referenceResult(value: Int): () -> Parent
+    =
+      Lambda 3 suspend=false
+        parameters omitted
+        Call Child
+          Var value
+  public fun externalErased(): Any
+    val source: (Any) -> Int
+      Lambda 4 suspend=false
+        param ignored: Any
+        IntLiteral 42
+    return
+      Var source
+  public fun nestedResult(value: Int): () -> (Int) -> Any
+    val source: (Any) -> Int
+      Lambda 5 suspend=false
+        param ignored: Any
+        Var value
+    return
+      Lambda 6 suspend=false
+        parameters omitted
+        Var source
+  public fun pointerSource<T>(seed: T, read: (T) -> Int, pointer: Ptr<Int>): (Any) -> Ptr<Int>
+    =
+      Lambda 7 suspend=false
+        param value: Any
+        val captured
+          Call Box
+            Var seed
+        @Unsafe block
+          MethodCall store
+            Var pointer
+            Call read
+              FieldAccess value
+                Var captured
+        Var pointer
+  public fun staticPointer<T>(seed: T, read: (T) -> Int, pointer: Ptr<Int>): (Ptr<Int>) -> Any
+    =
+      Call pointerSource
+        Var seed
+        Var read
+        Var pointer
+  public fun dynamicPointer<T>(seed: T, read: (T) -> Int, pointer: Ptr<Int>): Any
+    =
+      Call pointerSource
+        Var seed
+        Var read
+        Var pointer
+  public fun nestedPointer<T>(seed: T, read: (T) -> Int, pointer: Ptr<Int>): ((Any) -> Ptr<Int>) -> (Ptr<Int>) -> Any
+    val exact: ((Ptr<Int>) -> Any) -> (Any) -> Ptr<Int>
+      Lambda 8 suspend=false
+        param ignored: (Ptr<Int>) -> Any
+        Call pointerSource
+          Var seed
+          Var read
+          Var pointer
+    return
+      Var exact
+    @NoGC
+  public fun nativeIdentity(value: Long): Long
+    =
+      Var value
+  public fun nativeSource<T>(seed: T, read: (T) -> Int, pointer: FunPtr<(Long) -> Long>): (Any) -> FunPtr<(Long) -> Long>
+    =
+      Lambda 9 suspend=false
+        param ignored: Any
+        val payload
+          Call Payload
+            Call read
+              Var seed
+        if
+          Binary Ne
+            FieldAccess value
+              Var payload
+            IntLiteral 42
+          throw
+            Call IllegalStateException
+        Var pointer
+  public fun failing<T>(error: Throwable): (T) -> Any
+    val exact: (Any) -> Int
+      Lambda 10 suspend=false
+        param ignored: Any
+        throw
+          Var error
+    return
+      Var exact
+  public object Trace
+    public var initializations: Int = <expr>
+      IntLiteral 0
+  public class Receiver<T>(val value: T)
+  public class Slot<T>(val action: (T) -> Any)
+    public operator fun getValue
+  public val <T>Receiver<T>.staticAdapt: Int by <expr>
+  public val <T>Receiver<T>.dynamicAdapt: Int by <expr>

@@ -7,7 +7,7 @@ void generated_entry_header_probe(void) {
     ScoopThreadTransition transition = {0};
     ScoopAllocationContext allocation = {0};
     ScoopInitializationCell initialization_cell = {0};
-    ScoopInitializationUnitDescriptor initialization_unit = {0};
+    ScoopInitializationUnitDescriptorV1 initialization_unit = {0};
 
     (void)entry;
     (void)caller;
@@ -16,19 +16,16 @@ void generated_entry_header_probe(void) {
     (void)allocation;
     (void)initialization_cell;
     (void)initialization_unit;
-    (void)scoop_image_managed_globals;
-    (void)scoop_image_managed_global_count;
-    (void)scoop_image_immortal_objects;
-    (void)scoop_image_immortal_object_count;
-    (void)scoop_image_initialization_units;
-    (void)scoop_image_initialization_unit_count;
     (void)scoop_rt_allocation_context;
     (void)scoop_runtime_finish_tlab_alloc;
     (void)scoop_runtime_alloc_slow;
     (void)scoop_rt_safepoint;
     (void)scoop_rt_string_concat;
     (void)scoop_rt_array_clone;
-    (void)scoop_rt_box;
+    (void)scoop_rt_box_zst;
+    (void)scoop_rt_box_value;
+    (void)scoop_rt_unbox_zst;
+    (void)scoop_rt_unbox_value;
     (void)scoop_rt_gc_collect;
     (void)scoop_rt_materialize_exception;
     (void)scoop_rt_throw;
@@ -50,9 +47,7 @@ void generated_entry_header_probe(void) {
     (void)scoop_rt_enter_native_borrowed;
     (void)scoop_rt_leave_native_borrowed;
     (void)scoop_gc_card_table;
-    (void)scoop_rt_gc_init;
     (void)scoop_rt_gc_add_root;
     (void)scoop_rt_gc_add_root_object;
     (void)scoop_rt_gc_remove_root_object;
-    (void)scoop_main;
 }

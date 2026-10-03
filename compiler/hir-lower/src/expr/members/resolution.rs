@@ -1,42 +1,24 @@
 use super::*;
 
 impl Lowerer {
-    #[allow(clippy::too_many_arguments)]
-    pub(in crate::expr) fn finish_super_method_call(
+    pub(in crate::expr) fn finish_resolved_super_method_call(
         &mut self,
-        candidates: Vec<crate::CallableCandidate>,
+        resolved: crate::overload::ResolvedCallee,
         name: &str,
-        receiver: hir::Expr,
-        call: CallSite<'_>,
-        sink: &mut Vec<hir::Statement>,
-        expected: Option<TypeId>,
+        span: Span,
     ) -> Option<hir::Expr> {
-        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
-        let resolved = self.resolve_member_overload(
-            name,
-            &candidates,
-            receiver,
-            crate::overload::OverloadCall {
-                explicit_type_args: &explicit_type_args,
-                arg_exprs: call.args,
-                span: call.span,
-                expected_result: expected,
-                argument_protocol: crate::overload::CallArgumentProtocol::Ordinary,
-            },
-            sink,
-        )?;
         let function = resolved.function();
         let method = self.functions[function]
             .method
             .expect("a direct-base member candidate is a method");
         if method.modifier == hir::MethodModifier::Abstract {
             self.error(
-                call.span,
+                span,
                 format!("abstract base method `{name}` cannot be called with `super`"),
             );
             return None;
         }
-        self.check_call_effects(hir::Callable::Function(function), call.span);
+        self.check_call_effects(hir::Callable::Function(function), span);
         let receiver = resolved
             .receiver
             .clone()
@@ -50,67 +32,35 @@ impl Lowerer {
                 args: resolved.args,
             },
             ty: resolved.return_ty,
-            span: call.span,
-            origin: self.expression_origin(call.span),
+            span,
+            origin: self.expression_origin(span),
         })
     }
 
-    /// The unified path of a method call (explicit receiver or bare
-    /// `m(...)`): `resolve_overload` picks the winner among the
-    /// receiver type's methods and the call becomes a resolved
-    /// `MethodCall`.
-    #[allow(clippy::too_many_arguments)]
-    pub(in crate::expr) fn finish_overloaded_method_call(
+    pub(in crate::expr) fn finish_resolved_method_call(
         &mut self,
-        candidates: Vec<crate::CallableCandidate>,
-        name: &str,
-        receiver: hir::Expr,
-        call: CallSite<'_>,
-        sink: &mut Vec<hir::Statement>,
-        expected: Option<TypeId>,
-        operator_set: bool,
+        resolved: crate::overload::ResolvedCallee,
+        span: Span,
     ) -> Option<hir::Expr> {
-        let explicit_type_args = self.resolve_call_type_args(call.type_args)?;
-        let resolved = self.resolve_member_overload(
-            name,
-            &candidates,
-            receiver,
-            crate::overload::OverloadCall {
-                explicit_type_args: &explicit_type_args,
-                arg_exprs: call.args,
-                span: call.span,
-                expected_result: expected,
-                argument_protocol: if operator_set {
-                    crate::overload::CallArgumentProtocol::OperatorSet
-                } else {
-                    crate::overload::CallArgumentProtocol::Ordinary
-                },
-            },
-            sink,
-        )?;
         let ty = resolved.return_ty;
         let receiver = resolved
             .receiver
             .clone()
             .expect("an instance call returns its materialized receiver");
         let function = resolved.function();
-        self.check_call_effects(hir::Callable::Function(function), call.span);
+        self.check_call_effects(hir::Callable::Function(function), span);
         if let Some(expr) = self.normalize_primitive_method_call(
             function,
             receiver.clone(),
             &resolved.args,
             ty,
-            call.span,
+            span,
         ) {
             return Some(expr);
         }
-        if let Some(expr) = self.normalize_array_method_call(
-            function,
-            receiver.clone(),
-            &resolved.args,
-            ty,
-            call.span,
-        ) {
+        if let Some(expr) =
+            self.normalize_array_method_call(function, receiver.clone(), &resolved.args, ty, span)
+        {
             return Some(expr);
         }
         if let Some(expr) = self.normalize_pointer_method_call(
@@ -118,10 +68,19 @@ impl Lowerer {
             receiver.clone(),
             resolved.args.clone(),
             ty,
-            call.span,
+            span,
         ) {
             return Some(expr);
         }
+        let receiver = if resolved.source == crate::CallableCandidateSource::Direct
+            && let Some(method) = self.functions[function].method
+            && matches!(self.types[method.owner], Type::Interface(_))
+        {
+            let owner = self.instantiate_ty(method.owner, &resolved.type_args);
+            self.adapt_to(receiver, owner)
+        } else {
+            receiver
+        };
         let callee = self.materialize_resolved_callee(&resolved);
         let method_callee =
             self.materialize_method_callee(resolved.source, callee, &resolved.type_args);
@@ -132,8 +91,8 @@ impl Lowerer {
                 args: resolved.args,
             },
             ty,
-            span: call.span,
-            origin: self.expression_origin(call.span),
+            span,
+            origin: self.expression_origin(span),
         })
     }
 
@@ -142,45 +101,22 @@ impl Lowerer {
     /// `lower_method_call`: a bare receiver name that would resolve
     /// to `this.name` is a property access, not an enum path).
     pub(crate) fn host_has_property(&self, name: &str) -> bool {
-        match self.current_this_ty().map(|ty| self.types[ty].clone()) {
-            Some(Type::Class(application)) => {
-                let receiver_ty = self.current_this_ty().expect("member receiver type");
-                let mut class = self.class_applications[application].template;
-                let mut seen = Vec::new();
-                loop {
-                    if seen.contains(&class) {
-                        break false;
-                    }
-                    seen.push(class);
-                    if let Some(&property) = self.classes[class]
-                        .properties
-                        .iter()
-                        .find(|property| self.properties[**property].name == name)
-                        && self.access_domain_allows(
-                            &self.properties[property].access.lookup.0,
-                            Some(receiver_ty),
-                        )
-                    {
-                        break true;
-                    }
-                    let Some(base) = self.direct_base_class(class) else {
-                        break false;
-                    };
-                    class = base;
-                }
-            }
-            Some(Type::Struct(application)) => self.structs
-                [self.struct_applications[application].template]
-                .properties
-                .iter()
-                .any(|property| self.properties[*property].name == name),
-            Some(Type::Enum(application)) => self.enums
-                [self.enum_applications[application].template]
-                .properties
-                .iter()
-                .any(|property| self.properties[*property].name == name),
-            _ => false,
+        let Some(receiver_ty) = self.current_this_ty() else {
+            return false;
+        };
+        let mut state = self.clone();
+        if state
+            .find_accessible_nominal_property(receiver_ty, name)
+            .is_some()
+        {
+            return true;
         }
+        state
+            .imported_member_candidates(
+                receiver_ty,
+                hir::ImportedMemberLookup::PropertyGetter(name),
+            )
+            .is_ok_and(|candidates| !candidates.is_empty())
     }
 
     pub(crate) fn materialize_method_callee(
@@ -191,7 +127,7 @@ impl Lowerer {
     ) -> hir::MethodCallee {
         let (receiver_parameter, bound_source, function) = match source {
             crate::CallableCandidateSource::Direct => {
-                return hir::MethodCallee::Callable(callable);
+                return hir::MethodCallee::Callable(callable.into());
             }
             crate::CallableCandidateSource::ClassBound {
                 receiver_parameter,
@@ -199,7 +135,10 @@ impl Lowerer {
                 member,
             } => (
                 receiver_parameter,
-                hir::BoundCallableSource::Class { bound, callable },
+                hir::BoundCallableSource::Class {
+                    bound,
+                    callable: callable.into(),
+                },
                 member,
             ),
             crate::CallableCandidateSource::InterfaceBound {
@@ -208,7 +147,11 @@ impl Lowerer {
                 member,
             } => (
                 receiver_parameter,
-                hir::BoundCallableSource::Interface { bound, member },
+                hir::BoundCallableSource::Interface {
+                    bound,
+                    member: hir::InterfaceMethodReference::Local(member),
+                    declared: callable.into(),
+                },
                 self.interface_method_entities[member].function,
             ),
         };
@@ -225,18 +168,21 @@ impl Lowerer {
             unreachable!("interned function signatures have function type identity")
         };
         let value = hir::BoundCallableRef {
-            receiver_parameter,
+            receiver_type: self.intern_type(Type::Param(receiver_parameter)),
             source: bound_source,
             instantiated_signature,
         };
+        hir::MethodCallee::Bound(self.record_bound_callable(value))
+    }
+
+    pub(crate) fn record_bound_callable(
+        &mut self,
+        value: hir::BoundCallableRef,
+    ) -> hir::BoundCallableRefId {
         let existing = self
             .bound_callable_refs
             .iter()
             .find_map(|(id, existing)| (existing == &value).then_some(id));
-        let id = match existing {
-            Some(id) => id,
-            None => self.bound_callable_refs.alloc(value),
-        };
-        hir::MethodCallee::Bound(id)
+        existing.unwrap_or_else(|| self.bound_callable_refs.alloc(value))
     }
 }

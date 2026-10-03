@@ -6,20 +6,19 @@ impl Lowerer {
         name: &str,
         files: &[ast::SourceFile],
     ) -> Option<EnumId> {
-        let candidate = self.enums_by_name.get(name).copied();
-        if let Some(id) = candidate
-            && self
-                .enum_files
-                .get(&id)
-                .copied()
-                .unwrap_or(self.user_file_index)
-                < self.user_file_index
-        {
+        let candidate = self
+            .core_nominal_target(name)
+            .and_then(|target| match target {
+                crate::NominalTarget::Enum(id) => Some(id),
+                _ => None,
+            });
+        if let Some(id) = candidate {
             return Some(id);
         }
-        self.current_file = 0;
+        let core_diagnostic_file = self.core_diagnostic_file();
+        self.current_file = core_diagnostic_file;
         self.error(
-            files[0].span,
+            files[core_diagnostic_file].span,
             format!("scoop.core must define exactly one `{name}` enum"),
         );
         None
@@ -217,6 +216,8 @@ impl Lowerer {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
                 FunctionKind::User(_) => "pointer".to_string(),
+                FunctionKind::Abstract { .. } => "abstract declaration".to_string(),
+                FunctionKind::InitializationEnsure => "initialization coordinator".to_string(),
                 FunctionKind::DerivedEquality => "derived equality".to_string(),
                 FunctionKind::Extern(_) => "extern".to_string(),
             };
@@ -267,6 +268,8 @@ impl Lowerer {
             let intrinsic = match &function.kind {
                 FunctionKind::Intrinsic(intrinsic) => intrinsic.kind.name(),
                 FunctionKind::User(_) => "pointer".to_string(),
+                FunctionKind::Abstract { .. } => "abstract declaration".to_string(),
+                FunctionKind::InitializationEnsure => "initialization coordinator".to_string(),
                 FunctionKind::DerivedEquality => "derived equality".to_string(),
                 FunctionKind::Extern(_) => "extern".to_string(),
             };

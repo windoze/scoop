@@ -83,7 +83,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         .map_err(|e| {
             CodegenError(format!(
                 "gep {name} @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })
     }
@@ -101,7 +101,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let error = |e: inkwell::builder::BuilderError| {
             CodegenError(format!(
                 "card mark @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         };
         // The card table is a runtime POINTER VARIABLE (`extern
@@ -109,9 +109,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         // runtime with the arena base so `base + (addr >> 9)` lands
         // inside the backing table for every heap address (see
         // runtime/include/scoop_rt.h): load the pointer, then GEP.
-        let card_table_global = self.llvm.get_global(CARD_TABLE_SYMBOL).unwrap_or_else(|| {
+        let card_table_symbol = scoop_lir::RuntimeAbiSymbolV1::CardTable.logical_symbol();
+        let card_table_global = self.llvm.get_global(card_table_symbol).unwrap_or_else(|| {
             self.llvm
-                .add_global(ptr_ty(context), None, CARD_TABLE_SYMBOL)
+                .add_global(ptr_ty(context), None, card_table_symbol)
         });
         let card_table = builder
             .build_load(
@@ -170,23 +171,24 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         {
             return Err(CodegenError(format!(
                 "managed poll @{} has a non-safepoint target",
-                self.function.symbol
+                self.function.symbol()
             )));
         }
-        let live = self.materialize_statepoint_live(&site.live, site.safepoint)?;
-        let safepoint = self.runtime_fn(
+        let safepoint = self.safepoint_id(site.safepoint);
+        let live = self.materialize_statepoint_live(&site.live, safepoint)?;
+        let poll = self.runtime_fn(
             scoop_lir::RuntimeFunction::Managed(scoop_lir::ManagedRuntimeFunction::Safepoint)
                 .symbol(),
             self.context.void_type().fn_type(&[], false),
         );
-        let call = self.builder.build_call(safepoint, &[], "").map_err(|e| {
+        let call = self.builder.build_call(poll, &[], "").map_err(|e| {
             CodegenError(format!(
                 "safepoint poll @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })?;
-        self.apply_safepoint_id(call, site.safepoint);
-        self.restore_statepoint_live(live, site.safepoint)?;
+        self.apply_safepoint_id(call, safepoint);
+        self.restore_statepoint_live(live, safepoint)?;
         Ok(())
     }
 
@@ -212,7 +214,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         .map_err(|e| {
             CodegenError(format!(
                 "tag gep @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })
     }
@@ -238,7 +240,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         .map_err(|e| {
             CodegenError(format!(
                 "enum field gep @{symbol}: {e}",
-                symbol = self.function.symbol
+                symbol = self.function.symbol()
             ))
         })
     }

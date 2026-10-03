@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `HiddenComponent<Int>` has no method `component1`",
+    "notes": [],
+    "origin": {
+      "cone": "79f9e285d2d8fde1f00002872940eecc7b3cb12258d8a8e6c48351700d772f28",
+      "end": 81,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 76
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "79f9e285d2d8fde1f00002872940eecc7b3cb12258d8a8e6c48351700d772f28",
+      "end": 127,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 122
+    },
+    "severity": "error"
+  }
+]

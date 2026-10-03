@@ -1,0 +1,11 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = container()
+    verifyType(value.value == 2 && value.observe() == 3)
+    verifyType(value.echo(17) == 17 && value.echo("text") == "text")
+    verifyType(value.deferred() is DeferredGeneric<Int>)
+    val visible = value.visible<String>()
+    verifyType(visible === visible)
+    verifyType(Container.Cache.read() == 8)
+}

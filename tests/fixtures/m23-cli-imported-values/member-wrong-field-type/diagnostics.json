@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `wrong` must be of type Token, found Long",
+    "notes": [],
+    "origin": {
+      "cone": "c1877965d8b1ca04037e4da4a264d3cc72968df00971195be003b74b7381c2c7",
+      "end": 138,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 127
+    },
+    "severity": "error"
+  }
+]

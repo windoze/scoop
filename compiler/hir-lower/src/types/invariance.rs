@@ -1,19 +1,5 @@
 use super::*;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum NominalTemplate {
-    Struct(hir::StructId),
-    Class(hir::ClassId),
-    Enum(hir::EnumId),
-    Interface(hir::InterfaceId),
-}
-
-#[derive(Debug, Clone)]
-struct NominalApplication {
-    ty: TypeId,
-    template: NominalTemplate,
-    arguments: Vec<TypeId>,
-}
+use crate::Owner;
 
 impl Lowerer {
     /// Add the source-level explanation for the otherwise easy-to-misread
@@ -66,135 +52,25 @@ impl Lowerer {
         None
     }
 
-    fn nominal_application(&self, ty: TypeId) -> Option<NominalApplication> {
-        let (template, arguments) = match self.types[ty] {
-            Type::Struct(application) => {
-                let application = &self.struct_applications[application];
-                (
-                    NominalTemplate::Struct(application.template),
-                    application.arguments.clone(),
-                )
-            }
-            Type::Class(application) => {
-                let application = &self.class_applications[application];
-                (
-                    NominalTemplate::Class(application.template),
-                    application.arguments.clone(),
-                )
-            }
-            Type::Enum(application) => {
-                let application = &self.enum_applications[application];
-                (
-                    NominalTemplate::Enum(application.template),
-                    application.arguments.clone(),
-                )
-            }
-            Type::Interface(application) => {
-                let application = &self.interface_applications[application];
-                (
-                    NominalTemplate::Interface(application.template),
-                    application.arguments.clone(),
-                )
-            }
-            _ => return None,
-        };
-        Some(NominalApplication {
-            ty,
-            template,
-            arguments,
-        })
-    }
-
-    fn nominal_template_name(&self, template: NominalTemplate) -> &str {
-        match template {
-            NominalTemplate::Struct(id) => &self.structs[id].name,
-            NominalTemplate::Class(id) => &self.classes[id].name,
-            NominalTemplate::Enum(id) => &self.enums[id].name,
-            NominalTemplate::Interface(id) => &self.interfaces[id].name,
+    fn nominal_parameter_name(&self, template: hir::SourceNominalId, index: usize) -> &str {
+        if let Some(owner) = self.nominal_owners.get(&template) {
+            let parameters = match *owner {
+                Owner::Struct(id) => &self.structs[id].type_params,
+                Owner::Class(id) => &self.classes[id].type_params,
+                Owner::Enum(id) => &self.enums[id].type_params,
+                Owner::Interface(id) => &self.interfaces[id].type_params,
+                Owner::Object(_) => unreachable!("objects cannot have type arguments"),
+            };
+            return &parameters[index].name;
         }
-    }
-
-    fn nominal_parameter_name(&self, template: NominalTemplate, index: usize) -> &str {
-        match template {
-            NominalTemplate::Struct(id) => &self.structs[id].type_params[index].name,
-            NominalTemplate::Class(id) => &self.classes[id].type_params[index].name,
-            NominalTemplate::Enum(id) => &self.enums[id].type_params[index].name,
-            NominalTemplate::Interface(id) => &self.interfaces[id].type_params[index].name,
-        }
-    }
-
-    fn direct_nominal_supertypes(&mut self, ty: TypeId) -> Vec<TypeId> {
-        match self.types[ty].clone() {
-            Type::Class(application) => {
-                let application = self.class_applications[application].clone();
-                let declaration = self.classes[application.template].clone();
-                let mut result = declaration
-                    .base_class
-                    .map(|base| self.instantiate_ty(base, &application.arguments))
-                    .into_iter()
-                    .collect::<Vec<_>>();
-                result.extend(
-                    declaration
-                        .interfaces
-                        .into_iter()
-                        .map(|interface| self.instantiate_ty(interface, &application.arguments)),
-                );
-                result
-            }
-            Type::Struct(application) => {
-                let application = self.struct_applications[application].clone();
-                let interfaces = self.structs[application.template].interfaces.clone();
-                interfaces
-                    .into_iter()
-                    .map(|interface| self.instantiate_ty(interface, &application.arguments))
-                    .collect()
-            }
-            Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                let interfaces = self.enums[application.template].interfaces.clone();
-                interfaces
-                    .into_iter()
-                    .map(|interface| self.instantiate_ty(interface, &application.arguments))
-                    .collect()
-            }
-            Type::Interface(application) => {
-                let application = self.interface_applications[application].clone();
-                let parents = self.interfaces[application.template].parents.clone();
-                parents
-                    .into_iter()
-                    .map(|parent| {
-                        let parent = self.interface_applications[parent].canonical_type;
-                        self.instantiate_ty(parent, &application.arguments)
-                    })
-                    .collect()
-            }
-            Type::Param(parameter) => self
-                .type_params_in_scope
-                .iter()
-                .find(|candidate| candidate.id == parameter)
-                .map(hir::TypeParamDecl::nominal_bounds_in_source_order)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|bound| match bound {
-                    hir::NominalBoundRef::Class(bound) => {
-                        self.class_applications[bound.application].canonical_type
-                    }
-                    hir::NominalBoundRef::Interface(bound) => {
-                        self.interface_applications[bound.application].canonical_type
-                    }
-                })
-                .collect(),
-            Type::Integer(kind) => {
-                self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind))
-            }
-            Type::Boolean => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
-            Type::String => self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
-            Type::Unit
-            | Type::Any
-            | Type::Tuple(_)
-            | Type::Function(_)
-            | Type::Ptr(_)
-            | Type::FunPtr(_) => Vec::new(),
-        }
+        self.dependencies
+            .as_ref()
+            .and_then(|dependencies| dependencies.nominal_declaration(template))
+            .expect("a resolved nominal retains its original declaration")
+            .interface
+            .type_parameters()
+            .binders()[index]
+            .name()
+            .as_str()
     }
 }

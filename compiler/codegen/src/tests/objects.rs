@@ -4,7 +4,7 @@ use super::*;
 /// user-method vtables with no compiler-owned `Any` slots, one itable) and
 /// indirect calls through a table pointer (vtable / itable dispatch shape,
 /// impl spec 2.9).
-fn classes_module() -> Module {
+pub(super) fn classes_module() -> Module {
     // `fn describe(this: ptr) -> ptr` shared shape: returns `this`.
     let describe = |symbol: &str| {
         let mut blocks = Arena::default();
@@ -16,8 +16,9 @@ fn classes_module() -> Module {
             },
         });
         Function {
+            callable_body: callable_body(symbol),
+            safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: symbol.to_string(),
             signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
@@ -83,8 +84,9 @@ fn classes_module() -> Module {
         },
     });
     let main = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop_main".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], MANAGED_PTR),
         call_targets,
         locals: Arena::default(),
@@ -95,49 +97,79 @@ fn classes_module() -> Module {
 
     let mut meta = string_metadata();
     let describable = meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Describable".to_string(),
-        symbol: "scoop_td_Describable".to_string(),
-        runtime_type_id: 2,
-        size: 0,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::None),
+        relations: Default::default(),
+        diagnostic_name: "Describable".to_string(),
+        identity: type_descriptor_identity("Describable"),
+        instance_layout: layout_identity(
+            "Describable",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
+        instance_shape: TypeInstanceShapeV1::abstract_ref(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
-        vtable: vec![],
+        vtable: vtable("Describable", vec![]),
         itables: vec![],
     });
     let shape = meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Shape".to_string(),
-        symbol: "scoop_td_Shape".to_string(),
-        runtime_type_id: 3,
-        size: 24,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
+        relations: Default::default(),
+        diagnostic_name: "Shape".to_string(),
+        identity: type_descriptor_identity("Shape"),
+        instance_layout: layout_identity(
+            "Shape",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
+        instance_shape: TypeInstanceShapeV1::fixed_object(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            24,
+            8,
+            RefScan::References(vec![16]),
+        )
+        .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
-        vtable: vec![DispatchEntry {
-            callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
-        }],
+        vtable: vtable(
+            "Shape",
+            vec![DispatchEntry {
+                callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
+            }],
+        ),
         itables: vec![],
     });
     meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Point".to_string(),
-        symbol: "scoop_td_Point".to_string(),
-        runtime_type_id: 4,
-        size: 32,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::References(vec![16])),
+        relations: Default::default(),
+        diagnostic_name: "Point".to_string(),
+        identity: type_descriptor_identity("Point"),
+        instance_layout: layout_identity(
+            "Point",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
+        instance_shape: TypeInstanceShapeV1::fixed_object(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            32,
+            8,
+            RefScan::References(vec![16]),
+        )
+        .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: Some(TypeDescriptorRef::Local(shape)),
-        vtable: vec![DispatchEntry {
-            callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(1)),
-        }],
-        itables: vec![ItableRecord {
-            interface: TypeDescriptorRef::Local(describable),
-            slots: vec![DispatchEntry {
+        vtable: vtable(
+            "Point",
+            vec![DispatchEntry {
                 callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(1)),
             }],
-        }],
+        ),
+        itables: vec![itable(
+            "Point",
+            "Describable",
+            TypeDescriptorRef::Local(describable),
+            vec![DispatchEntry {
+                callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(1)),
+            }],
+        )],
     });
 
-    Module {
+    let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -149,9 +181,14 @@ fn classes_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe("Shape.describe"), describe("Point.describe"), main],
-        entry_symbol: "scoop_main".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(2),
+        },
         meta,
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    append_executable_entry(&mut module, "classes-executable-entry");
+    module
 }
 
 #[test]
@@ -159,9 +196,7 @@ fn emits_m6_type_descriptors_and_call_indirect() {
     let module = classes_module();
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m6_test_{}.o", std::process::id()));
-    // `emit_object` verifies the LLVM module before writing, so a
-    // successful return means `module.verify()` passed.
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -171,22 +206,34 @@ fn emits_m6_type_descriptors_and_call_indirect() {
 
 /// An M6 heap-access module with a typed TypeDescriptor operand,
 /// HeapStore field writes, HeapLoad reads (header, i64
-/// field, ptr field, TD vtable pointer), and a `scoop_rt_box` call
-/// with a by-value aggregate payload.
+/// field, ptr field, TD vtable pointer), and a descriptor-refined box operation
+/// with a typed aggregate payload local.
 pub(super) fn heap_module() -> Module {
     let globals = Arena::default();
     let mut meta = string_metadata();
     let point_descriptor = meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Point".to_string(),
-        symbol: "scoop_td_Point".to_string(),
-        runtime_type_id: 2,
-        size: 32,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::References(vec![24])),
+        relations: Default::default(),
+        diagnostic_name: "Point".to_string(),
+        identity: type_descriptor_identity("Point"),
+        instance_layout: layout_identity(
+            "Point",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
+        instance_shape: TypeInstanceShapeV1::fixed_object(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            32,
+            8,
+            RefScan::References(vec![24]),
+        )
+        .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
-        vtable: vec![DispatchEntry {
-            callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
-        }],
+        vtable: vtable(
+            "Point",
+            vec![DispatchEntry {
+                callable: CallableRef::Local(scoop_lir::LocalFunctionId::from_u32(0)),
+            }],
+        ),
         itables: vec![],
     });
     let point_descriptor = TypeDescriptorRef::Local(point_descriptor);
@@ -202,8 +249,9 @@ pub(super) fn heap_module() -> Module {
         },
     });
     let describe = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "Point.describe".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -214,7 +262,7 @@ pub(super) fn heap_module() -> Module {
 
     // fun @scoop_main() -> void (M9 16-byte header, fields at byte
     // offsets 16 and 24):
-    //   t0 = scoop_rt_alloc(@scoop_td_Point, 32)  (typed TD operand)
+    //   t0 = scoop_rt_alloc(@TypeDescriptor(Point), 32)  (typed TD operand)
     //   heap_store t0 +16, 42     (i64 field)
     //   heap_store t0 +24, t0     (ptr field)
     //   t1 = heap_load t0 +0 : ptr   (object header: the TD)
@@ -222,8 +270,8 @@ pub(super) fn heap_module() -> Module {
     //   t3 = heap_load t0 +24 : ptr  (field 2)
     //   t4 = heap_load t1 +40 : ptr  (TD field 5: the vtable pointer)
     //   t5 = aggregate (t2) : {i64}
-    //   t6 = scoop_rt_box(@scoop_td_Point, t5, 8, none)  (by-value payload)
-    //   t7 = scoop_rt_is_instance(t6, @scoop_td_Point) : i1
+    //   t6 = box_value(@TypeDescriptor(BoxedPayload), payload)
+    //   t7 = scoop_rt_is_instance(t6, @TypeDescriptor(Point)) : i1
     //   call_indirect t4[0](t3); println_int t2; println_boolean t7
     let mut temps = Arena::default();
     let t0 = temps.alloc(Temp { ty: MANAGED_PTR });
@@ -236,12 +284,11 @@ pub(super) fn heap_module() -> Module {
     });
     let t6 = temps.alloc(Temp { ty: MANAGED_PTR });
     let t7 = temps.alloc(Temp { ty: LirType::I1 });
-    let t8 = temps.alloc(Temp { ty: RAW_PTR });
     let mut locals = Arena::default();
-    let payload = locals.alloc(Local {
-        name: "box_payload".to_string(),
-        ty: LirType::Aggregate(vec![LirType::I64]),
-    });
+    let payload = locals.alloc(test_local(
+        "box_payload",
+        LirType::Aggregate(vec![LirType::I64]),
+    ));
     let byte_size_ty = LirType::MachineScalar(MachineScalarKind::ByteSize);
     let mut call_targets = CallTargets::default();
     let alloc_site = direct_site(
@@ -258,31 +305,25 @@ pub(super) fn heap_module() -> Module {
             Value::MachineScalar(MachineScalarValue::ByteSize(32)),
         ],
     );
-    let payload_scan = call_targets.root_scans.alloc(RefScan::None);
-    let mut box_site = direct_site(
-        &mut call_targets,
-        TestCallProtocol::Managed {
-            safepoint: 2,
-            destination: managed_runtime(scoop_lir::ManagedRuntimeFunction::Box),
-        },
-        vec![METADATA_PTR, RAW_PTR, byte_size_ty, METADATA_PTR],
-        (MANAGED_PTR, RefScan::References(vec![0])),
-        t6,
-        vec![
-            Value::TypeDescriptor(point_descriptor),
-            Value::Temp(t8),
-            Value::MachineScalar(MachineScalarValue::ByteSize(8)),
-            Value::RootScan(payload_scan),
-        ],
+    let boxed = super::boxing::descriptor(
+        &mut meta,
+        "BoxedPayload",
+        LirType::Aggregate(vec![LirType::I64]),
+        scoop_lir::ValueStorageLayoutV1::inline(8, 8, RefScan::None).unwrap(),
     );
-    set_managed_live(
-        &mut box_site,
-        statepoint_live(vec![statepoint_value(
+    let scoop_lir::BoxedValueDescriptor::NonZero(boxed) = boxed else {
+        unreachable!()
+    };
+    let box_instruction = Instruction::BoxValue {
+        out: t6,
+        payload: scoop_lir::BoxPayload::NonZero(boxed.bind_place(&locals, payload).unwrap()),
+        safepoint: test_safepoint(2),
+        live: statepoint_live(vec![statepoint_value(
             scoop_lir::CallerRootSource::Temp(t3),
             MANAGED_PTR,
             &[0],
         )]),
-    );
+    };
     let is_instance_site = direct_site(
         &mut call_targets,
         TestCallProtocol::NoGc {
@@ -354,11 +395,7 @@ pub(super) fn heap_module() -> Module {
                 local: payload,
                 value: Value::Temp(t5),
             },
-            Instruction::LocalAddress {
-                out: t8,
-                local: payload,
-            },
-            Instruction::Call { site: box_site },
+            box_instruction,
             Instruction::Call {
                 site: is_instance_site,
             },
@@ -369,8 +406,9 @@ pub(super) fn heap_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let main = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop_main".to_string(),
         signature: plain_scoop_signature(vec![], LirType::Void),
         call_targets,
         locals,
@@ -379,7 +417,8 @@ pub(super) fn heap_module() -> Module {
         entry,
     };
 
-    Module {
+    let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals,
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -391,35 +430,42 @@ pub(super) fn heap_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![describe, main],
-        entry_symbol: "scoop_main".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(1),
+        },
         meta,
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 fn keep_heap_object_live_for_appended_access(function: &mut Function, object: TempId) {
     let mut object_defined = false;
     for instruction in &mut function.blocks[function.entry].instructions {
-        let Instruction::Call { site } = instruction else {
-            continue;
-        };
-        if site.result() == scoop_lir::TypedCallResult::Direct(object) {
+        if let Instruction::Call { site } = instruction
+            && site.result() == scoop_lir::TypedCallResult::Direct(object)
+        {
             object_defined = true;
             continue;
         }
-        let CallSite::Managed(site) = site else {
-            continue;
-        };
         if !object_defined {
             continue;
         }
+        let roots = match instruction {
+            Instruction::Call {
+                site: CallSite::Managed(site),
+            } => &mut site.live,
+            Instruction::BoxValue { live, .. } => live,
+            _ => continue,
+        };
 
         let mut live = vec![statepoint_value(
             scoop_lir::CallerRootSource::Temp(object),
             MANAGED_PTR,
             &[0],
         )];
-        live.extend_from_slice(site.live.as_slice());
-        site.live = statepoint_live(live);
+        live.extend_from_slice(roots.as_slice());
+        *roots = statepoint_live(live);
     }
     assert!(
         object_defined,
@@ -444,7 +490,7 @@ fn emits_m6_heap_access_and_typed_descriptors() {
         "generated code must not route every allocation through the compatibility entry:\n{ir}"
     );
     assert!(
-        ir.contains("and i64 %tlab_cursor_int, -128")
+        ir.contains("and i64 %tlab_aligned_cursor, -128")
             && ir.contains("add i64 %tlab_line_base, 128"),
         "the inline allocator must use runtime's 128-byte Immix line boundary:\n{ir}"
     );
@@ -452,9 +498,7 @@ fn emits_m6_heap_access_and_typed_descriptors() {
         "scoop_codegen_m6_heap_test_{}.o",
         std::process::id()
     ));
-    // `emit_object` verifies the LLVM module before writing, so a
-    // successful return means `module.verify()` passed.
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();

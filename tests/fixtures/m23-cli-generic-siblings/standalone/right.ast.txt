@@ -1,0 +1,12 @@
+SourceFile
+  QualifiedPackage sibling.right
+  ImportExact Local dependency.odr.Payload
+  ImportExact Local dependency.odr.identity
+  public fun right(value: Payload): Payload
+    =
+      Call identity
+        Var value
+  public fun rightNumber(value: Int): Int
+    =
+      Call identity
+        Var value

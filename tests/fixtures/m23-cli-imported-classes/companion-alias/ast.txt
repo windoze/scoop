@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.CompanionHost as FactoryHost
+  public typealias Alias = FactoryHost
+  private fun identity(value: Alias.Companion): Alias.Factory
+    =
+      Var value
+  public fun primary(): Counter
+    val first
+      Call identity
+        FieldAccess Factory
+          Var Alias
+    val second
+      FieldAccess Companion
+        Var Alias
+    return
+      IfExpression
+        Binary RefEq
+          Var first
+          Var second
+        FieldAccess value
+          Var first
+        else
+        Call Counter
+          IntLiteral 0

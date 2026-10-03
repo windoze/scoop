@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  enum Signal
+    Ready
+    Failed
+  fun consume(value: Signal): Int
+    =
+      IntLiteral 2
+  fun describe(value: Signal): Int
+    =
+      WhenExpression
+        Var value
+        arm Ready
+          IntLiteral 1
+        arm Raedy
+          Call consume
+            Var Raedy
+  fun main()
+    Call println
+      Call describe
+        FieldAccess Ready
+          Var Signal
+    Call println
+      Call describe
+        FieldAccess Failed
+          Var Signal

@@ -1,0 +1,9 @@
+public open class Protocols public constructor(seed: Int = 1) {
+    protected fun required(first: Int, second: Long = 2L): Long = second
+    protected fun <T> identity(value: T): T = value
+    protected fun empty() {}
+    protected var state: Int = seed
+    private fun ignored(value: Int = 3): Int = value
+    public fun publicOnly(value: Int = 4): Int = value
+}
+public struct Packet(val count: Int = 1) {}

@@ -1,0 +1,27 @@
+SourceFile
+  QualifiedPackage dependency.api
+  public fun seedValue(): Int
+    =
+      IntLiteral 7
+  public var runtimeValue: Int = <expr>
+  public val otherValue: Int = <expr>
+  public val imageValue: Int = <expr>
+  public var imageMutable: Int = <expr>
+  public val computedValue: Int <computed>
+  public fun String.receiverAnswer(): Int
+    =
+      IntLiteral 7
+  public fun receiverDefault(value: Int = <expr>): Int
+    =
+      Var value
+  public var String.receiverScore: Int <computed>
+  public fun relayAny(value: Any): Any
+    =
+      Var value
+  public fun Any.acceptAny(): Any
+    =
+      This
+  public fun anyDefault(value: Any = <expr>): Any
+    =
+      Var value
+  public var Any.anyValue: Any <computed>

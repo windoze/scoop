@@ -1,0 +1,44 @@
+SourceFile
+  QualifiedPackage consumer.ranges
+  private fun direct(): Int
+    var total
+      IntLiteral 0
+    for index
+      Binary RangeUntil
+        IntLiteral 0
+        IntLiteral 7
+      assign total
+        Binary Add
+          Var total
+          Var index
+    return
+      Var total
+  public fun result(): Int
+    =
+      Binary Add
+        Call direct
+        Call direct
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    var visits
+      IntLiteral 0
+    for index
+      Binary RangeTo
+        IntLiteral 1
+        IntLiteral 3
+      assign visits
+        Binary Add
+          Var visits
+          IntLiteral 1
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            Var visits
+            IntLiteral 3
+          Binary Eq
+            Call result
+            IntLiteral 42
+        Call read
+          Var value
+        else
+        IntLiteral 0

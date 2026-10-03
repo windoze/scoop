@@ -1,0 +1,306 @@
+Module
+  global0 $singleton$ce9b7da675625a5189cc9686a7e982171d829b9a57e4c9bb45bf0a4294e8ac42: PreludeStore imported provider=5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d storage=d52e59051cf5e1c41690f109f71b827ddc3eae047014b96bef72f6cb2c1a7e9c
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class PreludeStore vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=1
+    bridge function_type1 -> @fn3 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  generated_exact_type get0 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_callable gc0 function=@fn3 id=6c2dd5d2bc8de2046549d7586f5bd8a60b4093f956917d15a78fd1dc8ade338b
+  fun check @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call external7 direct
+      val first: PreludeStore
+        Type PreludeStore
+        GlobalRead $singleton$ce9b7da675625a5189cc9686a7e982171d829b9a57e4c9bb45bf0a4294e8ac42
+      call external7 direct
+      val second: PreludeStore
+        Type PreludeStore
+        GlobalRead $singleton$ce9b7da675625a5189cc9686a7e982171d829b9a57e4c9bb45bf0a4294e8ac42
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type PreludeStore
+          Local first
+          Type PreludeStore
+          Local second
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: PreludeStore
+        Type PreludeStore
+        Local first
+      call $dependency.receiver: Int = external1 direct
+        Type PreludeStore
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      call external7 direct
+      call $dependency.receiver: Int = external2 direct
+        Type PreludeStore
+        GlobalRead $singleton$ce9b7da675625a5189cc9686a7e982171d829b9a57e4c9bb45bf0a4294e8ac42
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external7 direct
+      val $property_receiver.1: PreludeStore
+        Type PreludeStore
+        GlobalRead $singleton$ce9b7da675625a5189cc9686a7e982171d829b9a57e4c9bb45bf0a4294e8ac42
+      call external3 direct
+        Type PreludeStore
+        Local $property_receiver.1
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $dependency.receiver: Int = external2 direct
+        Type PreludeStore
+        Local second
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb4 if.then.4
+      call $dependency.receiver: String = external4 direct
+        Type PreludeStore
+        Local second
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.2: Boolean = external5 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $place.3: PreludeStore
+        Type PreludeStore
+        Local first
+      call external6 direct
+        Type PreludeStore
+        Local $place.3
+        Type String
+        StringConst @str2
+      call external7 direct
+      call $dependency.receiver: String = external4 direct
+        Type PreludeStore
+        GlobalRead $singleton$ce9b7da675625a5189cc9686a7e982171d829b9a57e4c9bb45bf0a4294e8ac42
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external5 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val capture: () -> PreludeStore
+        Type () -> PreludeStore
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type PreludeStore
+            Local first
+      call $call.1: PreludeStore = <closure:function_type0> closure[function_type0]
+        Type () -> PreludeStore
+        Local capture
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type PreludeStore
+          Local $call.1
+          Type PreludeStore
+          Local second
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val PreludeStore: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.receiver: Int
+        Type Int
+        Local PreludeStore
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      call $dependency.receiver: Int = external2 direct
+        Type PreludeStore
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $lambda.0 @fn2($closure: () -> PreludeStore) -> PreludeStore
+    bb0 entry
+      return
+        Type PreludeStore
+        ClosureCapture cc0 0
+          Type () -> PreludeStore
+          Local $closure
+  fun function_bridge.$Closure$lambda0.() -> Any @fn3($source: () -> PreludeStore) -> Any
+    bb0 entry
+      call $call.1: PreludeStore = <closure:function_type0> closure[function_type0]
+        Type () -> PreludeStore
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type PreludeStore
+          Local $call.1
+  str @str0 "illegal state"
+  str @str1 "initial"
+  str @str2 "changed"
+  str @str3 "changed"
+  output executable @fn1

@@ -1,0 +1,43 @@
+SourceFile
+  RootPackage
+  fun main()
+    try
+      val a
+        ArrayLiteral
+          IntLiteral 1
+          IntLiteral 2
+      Call println
+        Index
+          Var a
+          IntLiteral 9
+    catch e: IndexOutOfBoundsException
+      Call println
+        StringLiteral "index"
+    try
+      val x: Int?
+        Var None
+      Call println
+        NullAssert
+          Var x
+    catch e: UnwrapException
+      Call println
+        StringLiteral "unwrap"
+    try
+      val a: Any
+        IntLiteral 1
+      val s
+        Cast String optional=false
+          Var a
+      Call println
+        Var s
+    catch e: ClassCastException
+      Call println
+        StringLiteral "cast"
+    try
+      Call println
+        Binary Div
+          IntLiteral 1
+          IntLiteral 0
+    catch e: ArithmeticException
+      Call println
+        StringLiteral "div"

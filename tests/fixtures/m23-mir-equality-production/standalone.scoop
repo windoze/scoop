@@ -1,0 +1,7 @@
+public struct Token() {}
+public fun same(left: Token, right: Token): Boolean = left == right
+
+private struct Hidden() {}
+public fun hiddenUse(): Boolean = Hidden() == Hidden()
+
+public struct Unrequested() {}

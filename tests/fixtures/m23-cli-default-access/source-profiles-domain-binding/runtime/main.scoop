@@ -1,0 +1,15 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun unitValue() {}
+
+fun main() {
+    val samples = defaultSamples()
+    verifyDefault(samples.checkPrivate() == 7)
+    verifyDefault(samples.constructor() == Packet(2))
+    verifyDefault(samples.singleton() === Store)
+    verifyDefault(samples.field(Packet(11)) == 11)
+    val unit = unitValue()
+    verifyDefault(samples.tuple((unit, 7)) == unit)
+    verifyDefault(samples.literal() == 1)
+    verifyDefault(defaultChild().inherited() == 1)
+}

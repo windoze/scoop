@@ -1,15 +1,16 @@
 #include <stdatomic.h>
 #include <stdint.h>
 
-#include "scoop_rt.h"
 #include "../thread.h"
 #include "gc_internal.h"
+#include "scoop_rt.h"
 
 void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
                                 uint64_t count) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode =
-        atomic_load_explicit(&thread->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    if (mode == SCOOP_THREAD_MANAGED)
+        scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
         scoop_gc_roots_fatal(
             "native roots may only change in managed or native-borrowed mode");
@@ -36,8 +37,9 @@ void scoop_rt_push_native_roots(ScoopNativeRootFrame *frame, void ***slots,
 
 void scoop_rt_pop_native_roots(ScoopNativeRootFrame *frame) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode =
-        atomic_load_explicit(&thread->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    if (mode == SCOOP_THREAD_MANAGED)
+        scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
         scoop_gc_roots_fatal(
             "native roots may only change in managed or native-borrowed mode");
@@ -55,8 +57,9 @@ void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
                                        ScoopNativeRegionRootEntry *entries,
                                        uint64_t count) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode =
-        atomic_load_explicit(&thread->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    if (mode == SCOOP_THREAD_MANAGED)
+        scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
         scoop_gc_roots_fatal(
             "native region roots may only change in managed or native-borrowed mode");
@@ -83,8 +86,9 @@ void scoop_rt_push_native_region_roots(ScoopNativeRegionRootFrame *frame,
 
 void scoop_rt_pop_native_region_roots(ScoopNativeRegionRootFrame *frame) {
     ScoopThreadState *thread = scoop_thread_current_required();
-    ScoopThreadMode mode =
-        atomic_load_explicit(&thread->mode, memory_order_acquire);
+    ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
+    if (mode == SCOOP_THREAD_MANAGED)
+        scoop_thread_require_managed();
     if (mode != SCOOP_THREAD_MANAGED && mode != SCOOP_THREAD_NATIVE_BORROWED) {
         scoop_gc_roots_fatal(
             "native region roots may only change in managed or native-borrowed mode");

@@ -1,0 +1,55 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary And
+        Binary Eq
+          FieldAccess number
+            Var First
+          IntLiteral 1
+        Binary Eq
+          FieldAccess number
+            Var Second
+          IntLiteral 1
+    Call verifyType
+      Binary And
+        Binary Eq
+          FieldAccess word
+            Var Host
+          StringLiteral "nested"
+        Binary Eq
+          FieldAccess word
+            FieldAccess Companion
+              Var Host
+          StringLiteral "nested"
+    Call verifyType
+      Binary And
+        Binary Eq
+          Call hidden
+          IntLiteral 2
+        Binary Eq
+          Var top
+          IntLiteral 4
+    Call verifyType
+      Binary And
+        Binary RefEq
+          Var First
+          Var First
+        Binary RefEq
+          Var Second
+          Var Second
+    val captured
+      Lambda 0 suspend=false
+        parameters omitted
+        FieldAccess word
+          Var Host
+    Call verifyType
+      Binary Eq
+        Call captured
+        StringLiteral "nested"

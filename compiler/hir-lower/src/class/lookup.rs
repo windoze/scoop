@@ -1,5 +1,7 @@
 use super::*;
 
+mod interface_members;
+
 impl Lowerer {
     /// All visible methods named `name` on a receiver type (M7 overload
     /// candidates). A class contributes its own methods followed by
@@ -16,8 +18,22 @@ impl Lowerer {
         name: &str,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, ty, |this, candidate| {
+        self.visible_method_candidates(declared, Some(ty), |this, candidate| {
             this.functions[candidate.function].name.rsplit('.').next() == Some(name)
+        })
+    }
+
+    pub(crate) fn super_methods_by_name(
+        &mut self,
+        ty: TypeId,
+        name: &str,
+    ) -> Vec<crate::CallableCandidate> {
+        let declared = self.method_candidates(ty);
+        self.visible_method_candidates(declared, None, |this, candidate| {
+            !matches!(
+                this.function_owner.get(&candidate.function),
+                Some(Owner::Interface(_))
+            ) && this.functions[candidate.function].name.rsplit('.').next() == Some(name)
         })
     }
 
@@ -30,7 +46,7 @@ impl Lowerer {
         operator: hir::OperatorKind,
     ) -> Vec<crate::CallableCandidate> {
         let declared = self.method_candidates(ty);
-        self.visible_method_candidates(declared, ty, |this, candidate| {
+        self.visible_method_candidates(declared, Some(ty), |this, candidate| {
             this.signatures[&candidate.function].modifiers.operator == Some(operator)
         })
     }
@@ -52,10 +68,16 @@ impl Lowerer {
             .find(|candidate| {
                 self.functions[candidate.function].name.rsplit('.').next() == Some(name)
                     && !self.function_is_accessible(candidate.function, Some(receiver_ty))
-            })?;
+            });
+        let Some(candidate) = candidate else {
+            return self.inaccessible_imported_method_message(receiver_ty, name);
+        };
         let function = &self.functions[candidate.function];
         if function.access.declared == hir::DeclaredVisibility::Protected
-            && let Some(Owner::Class(current)) = self.current_owner
+            && let Some(base) = function
+                .method
+                .and_then(|method| self.receiver_class(method.owner))
+            && let Some(current) = self.protected_access_class(base)
             && self.receiver_class(receiver_ty).is_some()
         {
             return Some(format!(
@@ -96,13 +118,12 @@ impl Lowerer {
             Type::Struct(application) => {
                 let application_value = self.struct_applications[application].clone();
                 declared.extend(
-                    self.structs[application_value.template]
-                        .methods
-                        .iter()
-                        .copied()
+                    self.source_struct_id(application_value.template)
+                        .into_iter()
+                        .flat_map(|id| self.structs[id].methods.iter().copied())
                         .map(|function| {
                             (
-                                crate::CallableCandidate::inheritance_method(
+                                crate::CallableCandidate::method(
                                     function,
                                     hir::MethodOwnerApplication::Struct(application),
                                 ),
@@ -117,7 +138,7 @@ impl Lowerer {
                     let application = self.struct_application_id(owner, vec![pointee]);
                     declared.extend(self.structs[owner].methods.iter().copied().map(|function| {
                         (
-                            crate::CallableCandidate::inheritance_method(
+                            crate::CallableCandidate::method(
                                 function,
                                 hir::MethodOwnerApplication::Struct(application),
                             ),
@@ -131,13 +152,12 @@ impl Lowerer {
             Type::Enum(application) => {
                 let application_value = self.enum_applications[application].clone();
                 declared.extend(
-                    self.enums[application_value.template]
-                        .methods
-                        .iter()
-                        .copied()
+                    self.source_enum_id(application_value.template)
+                        .into_iter()
+                        .flat_map(|id| self.enums[id].methods.iter().copied())
                         .map(|function| {
                             (
-                                crate::CallableCandidate::inheritance_method(
+                                crate::CallableCandidate::method(
                                     function,
                                     hir::MethodOwnerApplication::Enum(application),
                                 ),
@@ -160,31 +180,33 @@ impl Lowerer {
                     .into_iter()
                     .enumerate()
                 {
-                    match bound {
-                        hir::NominalBoundRef::Class(bound) => {
+                    match self.types[bound.ty()] {
+                        Type::Class(application) => {
                             self.collect_class_method_candidates(
-                                bound.application,
+                                application,
                                 root,
-                                Some((receiver_parameter, bound.application)),
+                                Some((receiver_parameter, application)),
                                 &mut declared,
                             );
                         }
-                        hir::NominalBoundRef::Interface(bound) => {
+                        Type::Interface(application) => {
                             self.collect_interface_method_candidates(
-                                bound.application,
+                                application,
                                 0,
                                 root,
-                                Some((receiver_parameter, bound.application)),
+                                Some((receiver_parameter, application)),
                                 &mut Vec::new(),
                                 &mut declared,
                             );
                         }
+                        _ => unreachable!("nominal bounds retain a class or interface type"),
                     }
                 }
             }
             _ => {}
         }
 
+        self.collect_selected_interface_members(ty, &mut declared);
         declared
     }
 
@@ -198,7 +220,9 @@ impl Lowerer {
         let mut depth = 0;
         loop {
             let application_value = self.class_applications[application].clone();
-            let class = application_value.template;
+            let Some(class) = self.source_class_id(application_value.template) else {
+                break;
+            };
             let owner_application = self
                 .object_by_backing_class
                 .get(&class)
@@ -221,7 +245,6 @@ impl Lowerer {
                         function,
                         owner: crate::CallableCandidateOwner::Method(owner_application),
                         source,
-                        access: crate::CallableCandidateAccess::Inheritance,
                     },
                     depth,
                     root,
@@ -231,7 +254,7 @@ impl Lowerer {
                 for interface in self.classes[class].interfaces.clone() {
                     let interface = self.instantiate_ty(interface, &application_value.arguments);
                     let Type::Interface(interface) = self.types[interface] else {
-                        unreachable!("class conformances are interface applications")
+                        continue;
                     };
                     self.collect_interface_method_candidates(
                         interface,
@@ -247,8 +270,9 @@ impl Lowerer {
                 break;
             };
             let base = self.instantiate_ty(base, &application_value.arguments);
-            let Type::Class(base_application) = self.types[base] else {
-                unreachable!("resolved class bases are class applications")
+            let base_application = match self.types[base] {
+                Type::Class(application) => application,
+                _ => unreachable!("resolved class bases have class types"),
             };
             application = base_application;
             depth += 1;
@@ -258,12 +282,12 @@ impl Lowerer {
     fn visible_method_candidates(
         &mut self,
         declared: Vec<(crate::CallableCandidate, usize, usize)>,
-        receiver_ty: TypeId,
+        receiver_ty: Option<TypeId>,
         mut matches: impl FnMut(&Self, &crate::CallableCandidate) -> bool,
     ) -> Vec<crate::CallableCandidate> {
         let mut visible = Vec::new();
-        for (mut candidate, depth, root) in declared {
-            if !self.function_is_accessible(candidate.function, Some(receiver_ty))
+        for (candidate, depth, root) in declared {
+            if !self.function_is_accessible(candidate.function, receiver_ty)
                 || !matches(self, &candidate)
             {
                 continue;
@@ -279,9 +303,6 @@ impl Lowerer {
                 }
             }
             if !duplicate {
-                candidate.access = crate::CallableCandidateAccess::Lookup(
-                    self.function_lookup_witness(candidate.function),
-                );
                 visible.push((candidate, depth, root));
             }
         }
@@ -313,13 +334,12 @@ impl Lowerer {
                 hir::MethodOwnerApplication::Class(self.classes[owner].self_application),
             ),
         };
-        out.extend(methods.iter().copied().map(|function| {
-            (
-                crate::CallableCandidate::inheritance_method(function, owner),
-                0,
-                0,
-            )
-        }));
+        out.extend(
+            methods
+                .iter()
+                .copied()
+                .map(|function| (crate::CallableCandidate::method(function, owner), 0, 0)),
+        );
     }
 
     fn collect_interface_method_candidates(
@@ -336,12 +356,13 @@ impl Lowerer {
         }
         seen.push(application);
         let application_value = self.interface_applications[application].clone();
-        if depth == 0
-            && bound.is_none()
-            && self.current_owner == Some(Owner::Interface(application_value.template))
+        let Some(source_id) = self.source_interface_id(application_value.template) else {
+            return;
+        };
+        if depth == 0 && bound.is_none() && self.current_owner == Some(Owner::Interface(source_id))
         {
             out.extend(
-                self.interfaces[application_value.template]
+                self.interfaces[source_id]
                     .private_methods
                     .iter()
                     .copied()
@@ -353,7 +374,6 @@ impl Lowerer {
                                     hir::MethodOwnerApplication::Interface(application),
                                 ),
                                 source: crate::CallableCandidateSource::Direct,
-                                access: crate::CallableCandidateAccess::Inheritance,
                             },
                             depth,
                             root,
@@ -361,7 +381,7 @@ impl Lowerer {
                     }),
             );
         }
-        for &member in &self.interfaces[application_value.template].methods {
+        for &member in &self.interfaces[source_id].methods {
             let function = self.interface_method_entities[member].function;
             let source = match bound {
                 Some((receiver_parameter, bound)) => {
@@ -380,66 +400,16 @@ impl Lowerer {
                         hir::MethodOwnerApplication::Interface(application),
                     ),
                     source,
-                    access: crate::CallableCandidateAccess::Inheritance,
                 },
                 depth,
                 root,
             ));
         }
-        for parent in self.interfaces[application_value.template].parents.clone() {
-            let parent = self.interface_applications[parent].canonical_type;
+        for parent in self.interfaces[source_id].parents.clone() {
             let parent = self.instantiate_ty(parent, &application_value.arguments);
-            let Type::Interface(parent) = self.types[parent] else {
-                unreachable!("interface parent substitutions stay interface applications")
-            };
-            self.collect_interface_method_candidates(parent, depth + 1, root, bound, seen, out);
-        }
-    }
-
-    pub(super) fn interface_member_instances(
-        &mut self,
-        application: hir::InterfaceApplicationId,
-    ) -> Vec<(hir::InterfaceMethodId, FunctionId, Vec<TypeId>)> {
-        let mut result = Vec::new();
-        self.collect_interface_member_instances(application, &mut Vec::new(), &mut result);
-        let suppressed = result
-            .iter()
-            .flat_map(|(member, _, _)| {
-                self.interface_method_entities[*member]
-                    .overrides
-                    .iter()
-                    .copied()
-            })
-            .collect::<Vec<_>>();
-        result.retain(|(member, _, _)| !suppressed.contains(member));
-        result
-    }
-
-    fn collect_interface_member_instances(
-        &mut self,
-        application: hir::InterfaceApplicationId,
-        seen: &mut Vec<hir::InterfaceApplicationId>,
-        out: &mut Vec<(hir::InterfaceMethodId, FunctionId, Vec<TypeId>)>,
-    ) {
-        if seen.contains(&application) {
-            return;
-        }
-        seen.push(application);
-        let application_value = self.interface_applications[application].clone();
-        for &member in &self.interfaces[application_value.template].methods {
-            out.push((
-                member,
-                self.interface_method_entities[member].function,
-                application_value.arguments.clone(),
-            ));
-        }
-        for parent in self.interfaces[application_value.template].parents.clone() {
-            let parent = self.interface_applications[parent].canonical_type;
-            let parent = self.instantiate_ty(parent, &application_value.arguments);
-            let Type::Interface(parent) = self.types[parent] else {
-                unreachable!("interface parent substitutions stay interface applications")
-            };
-            self.collect_interface_member_instances(parent, seen, out);
+            if let Type::Interface(parent) = self.types[parent] {
+                self.collect_interface_method_candidates(parent, depth + 1, root, bound, seen, out);
+            }
         }
     }
 

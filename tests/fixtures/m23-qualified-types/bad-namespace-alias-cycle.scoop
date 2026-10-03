@@ -1,0 +1,4 @@
+package consumer.paths
+
+public typealias First = Second.Nested
+public typealias Second = First

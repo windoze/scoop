@@ -10,6 +10,7 @@ pub(super) fn generated_class(
     let class = lowerer.classes.alloc(mir::ClassDef {
         modifier: mir::ClassModifier::Final,
         name: name.clone(),
+        type_arguments: Vec::new(),
         representation: mir::ClassRepresentation::Declared {
             fields,
             base_class: None,
@@ -21,6 +22,7 @@ pub(super) fn generated_class(
     let shell = lowerer.shell.classes.alloc(mir::ClassDef {
         modifier: mir::ClassModifier::Final,
         name,
+        type_arguments: Vec::new(),
         representation: mir::ClassRepresentation::Declared {
             fields: Vec::new(),
             base_class: None,
@@ -29,7 +31,7 @@ pub(super) fn generated_class(
         vtable: Vec::new(),
         itables: Vec::new(),
     });
-    assert_eq!(class, shell, "the mangling shell mirrors class ids");
+    assert_eq!(class, shell, "the type context mirrors class ids");
     class
 }
 
@@ -142,46 +144,6 @@ pub(super) fn dispatch_block(
             else_block: otherwise,
         },
         unwind: None,
-    })
-}
-
-pub(super) fn protocol_error_block(
-    lowerer: &Lowerer,
-    module: &hir::Module,
-    locals: &mut Arena<mir::Local>,
-    blocks: &mut Arena<mir::BasicBlock>,
-    unwind: Option<mir::BlockId>,
-) -> mir::BlockId {
-    let class = module.exception_core.illegal_state_exception.class();
-    let constructor = module.exception_core.illegal_state_exception.callable();
-    let mir_class = lowerer.class_map[&class];
-    let exception = locals.alloc(local("$protocol_error", mir::Type::Class(mir_class)));
-    blocks.alloc(mir::BasicBlock {
-        name: "coroutine.protocol_error".to_string(),
-        statements: vec![
-            statement(mir::StatementKind::ValDecl {
-                local: exception,
-                init: mir::Expr::new(
-                    mir::Type::Class(mir_class),
-                    mir::ExprKind::ClassAlloc {
-                        class_id: mir_class,
-                    },
-                ),
-            }),
-            statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(lowerer.ctors[&constructor]),
-                },
-                args: vec![mir::Expr::local(exception, mir::Type::Class(mir_class))],
-                pending: mir::CoroutinePendingContext::Root,
-            }))),
-        ],
-        terminator: mir::Terminator::Throw {
-            exception: mir::Expr::local(exception, mir::Type::Class(mir_class)),
-            unwind,
-        },
-        unwind,
     })
 }
 
@@ -401,7 +363,7 @@ pub(super) fn atomic_field_compare_exchange(
 pub(super) fn statement(kind: mir::StatementKind) -> mir::Statement {
     mir::Statement {
         kind,
-        span: Span { start: 0, end: 0 },
+        span: mir::SourceSpan::new(0, 0).expect("synthetic span is ordered"),
     }
 }
 
@@ -420,12 +382,28 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
         mir::Callee::Extern(extern_id) => {
             return lowerer.extern_functions[extern_id].return_type.clone();
         }
+        mir::Callee::External(external) => {
+            let target = lowerer
+                .imported_dependency_callable_map
+                .values()
+                .find(|target| target.callable == external)
+                .expect("a suspend external call retains its physical signature");
+            return lowerer
+                .coroutines
+                .steps
+                .iter()
+                .find_map(|(_, step)| {
+                    (step.identity().result_record().id() == target.semantic_signature.result())
+                        .then_some(mir::Type::Enum(step.enum_id(), Vec::new()))
+                })
+                .expect("the suspend result has its provider-defined CoroutineStep");
+        }
         mir::Callee::Closure(function_type) | mir::Callee::FunctionBridge(function_type) => {
             let signature = &lowerer.shell.function_types[function_type];
             return if signature.is_suspend {
                 lowerer
                     .coroutines
-                    .step_type_for(&signature.return_type)
+                    .step_type_for(&lowerer.source_exact_types, &signature.return_type)
                     .expect("every suspend function result has a CoroutineStep type")
             } else {
                 signature.return_type.clone()
@@ -436,11 +414,4 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
         }
     };
     lowerer.functions[function].return_ty.clone()
-}
-
-pub(super) fn sanitize(symbol: &str) -> String {
-    symbol
-        .chars()
-        .map(|ch| if ch.is_ascii_alphanumeric() { ch } else { '_' })
-        .collect()
 }

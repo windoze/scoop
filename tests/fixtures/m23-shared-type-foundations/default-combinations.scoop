@@ -1,0 +1,28 @@
+package dependency.defaultCombinations
+
+public fun identity(value: Int): Int = value
+@Global public var global: Int = 3
+public struct Record(val value: Int)
+public object Singleton {
+    public fun read(): Int = 4
+}
+public open class Defaults protected constructor(value: Int = identity(1)) {
+    protected fun literal(value: Int = 2): Int = value
+    protected open fun count(value: Int = identity(3)): Int = value
+    protected fun invoke(value: Int = count()): Int = value
+    protected fun fields(record: Record = Record(5), value: Int = record.value): Int = value
+    protected fun globals(value: Int = global): Int = value
+    protected fun singleton(value: Int = Singleton.read()): Int = value
+    protected class Box<T> private constructor(private val stored: T, count: Int = identity(6)) {
+        public constructor(value: T): this(value, 7) {}
+        private fun hidden(value: Int = identity(8)): Int = value
+        public class Static public constructor(value: Int = identity(9))
+    }
+    protected enum Choice<T> {
+        Empty,
+        Value(val item: T, val count: Int = identity(10))
+    }
+}
+public class Derived : Defaults() {
+    protected override fun count(value: Int): Int = value
+}

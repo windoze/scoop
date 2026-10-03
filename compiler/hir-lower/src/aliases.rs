@@ -1,12 +1,12 @@
 //! Resolver-only transparent alias graph and Export HIR declarations.
 
-use std::collections::HashSet;
-
 use la_arena::Idx;
 use scoop_ast as ast;
 use scoop_hir as hir;
 
 use crate::{Lowerer, NominalTarget, Type};
+
+mod publication;
 
 pub(crate) type SourceTypeAliasId = Idx<SourceTypeAlias>;
 
@@ -14,8 +14,8 @@ pub(crate) type SourceTypeAliasId = Idx<SourceTypeAlias>;
 pub(crate) struct SourceTypeAlias {
     name: String,
     target: ast::TypeRef,
-    access: hir::DeclarationAccess,
-    origin: hir::DefinitionOrigin,
+    pub(crate) access: hir::DeclarationAccess,
+    pub(crate) origin: hir::DefinitionOrigin,
     file: usize,
     resolution: TypeAliasResolution,
 }
@@ -24,14 +24,40 @@ pub(crate) struct SourceTypeAlias {
 enum TypeAliasResolution {
     Unresolved,
     Resolving,
-    Resolved(hir::TypeId),
+    Resolved(ResolvedTypeAliasTarget),
+    Published {
+        target: hir::TypeId,
+        declaration: hir::ExportTypeAliasId,
+    },
     Failed,
 }
 
+#[derive(Debug, Clone, Copy)]
+struct ResolvedTypeAliasTarget {
+    expanded: hir::TypeId,
+    source: ResolvedTypeAliasSource,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ResolvedTypeAliasSource {
+    Expanded,
+    Alias(SourceTypeAliasId),
+    ImportedAlias(scoop_identity::PersistentTypeAliasId),
+}
+
 impl Lowerer {
+    pub(crate) fn source_type_alias_is_accessible(&self, id: SourceTypeAliasId) -> bool {
+        self.access_domain_allows(&self.source_type_aliases[id].access.lookup.0)
+    }
+
     pub(crate) fn declare_type_alias(&mut self, declaration: &ast::TypeAliasDecl, file: usize) {
         let name = declaration.name.text.clone();
-        if let Some(kind) = self.type_namespace_conflict(None, &name) {
+        if let Some(kind) = self.type_namespace_conflict(
+            None,
+            &name,
+            file,
+            crate::namespace::is_file_private(declaration.visibility),
+        ) {
             let message = if kind == "a typealias" {
                 format!("duplicate typealias `{name}`")
             } else {
@@ -55,11 +81,19 @@ impl Lowerer {
             file,
             resolution: TypeAliasResolution::Unresolved,
         });
-        self.source_type_aliases_by_name.insert(name, id);
+        self.top_level_namespaces.register_type(
+            file,
+            name,
+            crate::namespace::TopLevelTypeTarget::Alias(id),
+            self.source_type_aliases[id].access.declared == hir::DeclaredVisibility::Private,
+        );
     }
 
     pub(crate) fn source_type_alias_named(&self, name: &str) -> Option<SourceTypeAliasId> {
-        self.source_type_aliases_by_name.get(name).copied()
+        match self.top_level_type_target_for_reference(name)? {
+            crate::namespace::TopLevelTypeTarget::Alias(alias) => Some(alias),
+            crate::namespace::TopLevelTypeTarget::Nominal(_) => None,
+        }
     }
 
     pub(crate) fn resolve_type_alias_reference(
@@ -67,7 +101,24 @@ impl Lowerer {
         name: &ast::Ident,
         supplied_type_arguments: bool,
     ) -> Option<hir::TypeId> {
-        let id = self.source_type_alias_named(&name.text)?;
+        match self.resolve_type_lookup(name).ok()?? {
+            crate::imports::lookup::TypeLookupTarget::Current(
+                crate::namespace::TopLevelTypeTarget::Alias(id),
+            ) => self.resolve_type_alias_id_reference(id, name, supplied_type_arguments),
+            crate::imports::lookup::TypeLookupTarget::Dependency(binding) => self
+                .resolve_imported_dependency_type_target(&binding, name, supplied_type_arguments),
+            crate::imports::lookup::TypeLookupTarget::Current(
+                crate::namespace::TopLevelTypeTarget::Nominal(_),
+            ) => None,
+        }
+    }
+
+    pub(crate) fn resolve_type_alias_id_reference(
+        &mut self,
+        id: SourceTypeAliasId,
+        name: &ast::Ident,
+        supplied_type_arguments: bool,
+    ) -> Option<hir::TypeId> {
         if supplied_type_arguments {
             self.error(
                 name.span,
@@ -76,7 +127,7 @@ impl Lowerer {
             return None;
         }
         let access = self.source_type_aliases[id].access.lookup.0.clone();
-        if !self.access_domain_allows(&access, None) {
+        if !self.access_domain_allows(&access) {
             self.error(
                 name.span,
                 format!(
@@ -95,7 +146,10 @@ impl Lowerer {
         reference_span: ast::Span,
     ) -> Option<hir::TypeId> {
         match self.source_type_aliases[id].resolution {
-            TypeAliasResolution::Resolved(target) => return Some(target),
+            TypeAliasResolution::Resolved(ResolvedTypeAliasTarget {
+                expanded: target, ..
+            })
+            | TypeAliasResolution::Published { target, .. } => return Some(target),
             TypeAliasResolution::Failed => return None,
             TypeAliasResolution::Resolving => {
                 let cycle_start = self
@@ -127,6 +181,7 @@ impl Lowerer {
         let previous_params = std::mem::take(&mut self.type_params_in_scope);
         self.current_file = alias.file;
         self.current_owner = None;
+        let source = self.resolve_type_alias_source(&alias.target);
         let target = self.resolve_type_ref(&alias.target);
         self.current_file = previous_file;
         self.current_owner = previous_owner;
@@ -139,13 +194,78 @@ impl Lowerer {
         debug_assert_eq!(popped, id);
         match target {
             Some(target) => {
-                self.source_type_aliases[id].resolution = TypeAliasResolution::Resolved(target);
+                self.source_type_aliases[id].resolution =
+                    TypeAliasResolution::Resolved(ResolvedTypeAliasTarget {
+                        expanded: target,
+                        source,
+                    });
                 Some(target)
             }
             None => {
                 self.source_type_aliases[id].resolution = TypeAliasResolution::Failed;
                 None
             }
+        }
+    }
+
+    /// Classifies only the source target's outermost type reference. Nested
+    /// alias uses remain represented by the fully expanded HIR `TypeId`.
+    fn resolve_type_alias_source(&self, target: &ast::TypeRef) -> ResolvedTypeAliasSource {
+        let alias = match &target.kind {
+            ast::TypeRefKind::Named(name) => match self.lookup_type(&name.text) {
+                crate::imports::lookup::LookupResult::Unique(candidate) => {
+                    Self::classify_type_alias_source_target(candidate.target)
+                }
+                crate::imports::lookup::LookupResult::Missing
+                | crate::imports::lookup::LookupResult::Ambiguous { .. }
+                | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
+            },
+            ast::TypeRefKind::Qualified { path, arguments } if arguments.is_empty() => {
+                if let Some(package) = self.qualified_package_prefix(path)
+                    && package.consumed() + 1 == path.len()
+                {
+                    let binding = &path[package.consumed()];
+                    match self.lookup_package_type(&package, &binding.text) {
+                        crate::imports::lookup::LookupResult::Unique(candidate) => {
+                            Self::classify_type_alias_source_target(candidate.target)
+                        }
+                        crate::imports::lookup::LookupResult::Missing
+                        | crate::imports::lookup::LookupResult::Ambiguous { .. }
+                        | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
+                    }
+                } else {
+                    None
+                }
+            }
+            ast::TypeRefKind::Generic(_, _)
+            | ast::TypeRefKind::Qualified { .. }
+            | ast::TypeRefKind::Tuple(_)
+            | ast::TypeRefKind::Unit
+            | ast::TypeRefKind::Function(_)
+            | ast::TypeRefKind::Nullable(_) => None,
+        };
+        alias.unwrap_or(ResolvedTypeAliasSource::Expanded)
+    }
+
+    fn classify_type_alias_source_target(
+        target: crate::imports::lookup::TypeLookupTarget,
+    ) -> Option<ResolvedTypeAliasSource> {
+        match target {
+            crate::imports::lookup::TypeLookupTarget::Current(
+                crate::namespace::TopLevelTypeTarget::Alias(alias),
+            ) => Some(ResolvedTypeAliasSource::Alias(alias)),
+            crate::imports::lookup::TypeLookupTarget::Dependency(binding) => {
+                match binding.target() {
+                    hir::ImportedTarget::TypeAlias(alias) => {
+                        Some(ResolvedTypeAliasSource::ImportedAlias(alias.persistent()))
+                    }
+                    hir::ImportedTarget::Type(_) | hir::ImportedTarget::GenericType(_) => None,
+                    _ => unreachable!("type lookup returns only dependency type targets"),
+                }
+            }
+            crate::imports::lookup::TypeLookupTarget::Current(
+                crate::namespace::TopLevelTypeTarget::Nominal(_),
+            ) => None,
         }
     }
 
@@ -160,141 +280,27 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn validate_type_alias_targets(&mut self) {
-        let previous_file = self.current_file;
-        let aliases = self
-            .source_type_aliases
-            .iter()
-            .map(|(id, alias)| (id, alias.clone()))
-            .collect::<Vec<_>>();
-        for (id, alias) in aliases {
-            let TypeAliasResolution::Resolved(target) = self.source_type_aliases[id].resolution
-            else {
-                continue;
-            };
-            self.current_file = alias.file;
-            let mut visited = HashSet::new();
-            self.validate_type_alias_target_tree(
-                target,
-                alias.target.span,
-                &format!("target of typealias `{}`", alias.name),
-                &mut visited,
-            );
-            let mut access = alias.access;
-            access.signature = self.signature_exposure_witnesses(
-                &access,
-                &[target],
-                alias.origin.span,
-                &format!("typealias `{}`", alias.name),
-            );
-            self.type_aliases.alloc(hir::TypeAliasDecl {
-                name: alias.name,
-                access,
-                target,
-                origin: alias.origin,
-            });
-        }
-        self.current_file = previous_file;
-    }
-
-    fn validate_type_alias_target_tree(
-        &mut self,
-        ty: hir::TypeId,
-        span: ast::Span,
-        description: &str,
-        visited: &mut HashSet<hir::TypeId>,
-    ) {
-        if !visited.insert(ty) {
-            return;
-        }
-        match self.types[ty].clone() {
-            Type::Struct(application) => {
-                let application = self.struct_applications[application].clone();
-                let parameters = self.structs[application.template].type_params.clone();
-                self.check_type_argument_kinds(
-                    &parameters,
-                    &application.arguments,
-                    span,
-                    description,
-                );
-                for argument in application.arguments {
-                    self.validate_type_alias_target_tree(argument, span, description, visited);
-                }
-            }
-            Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                let parameters = self.enums[application.template].type_params.clone();
-                self.check_type_argument_kinds(
-                    &parameters,
-                    &application.arguments,
-                    span,
-                    description,
-                );
-                for argument in application.arguments {
-                    self.validate_type_alias_target_tree(argument, span, description, visited);
-                }
-            }
-            Type::Class(application) => {
-                let application = self.class_applications[application].clone();
-                let parameters = self.classes[application.template].type_params.clone();
-                self.check_type_argument_kinds(
-                    &parameters,
-                    &application.arguments,
-                    span,
-                    description,
-                );
-                for argument in application.arguments {
-                    self.validate_type_alias_target_tree(argument, span, description, visited);
-                }
-            }
-            Type::Interface(application) => {
-                let application = self.interface_applications[application].clone();
-                let parameters = self.interfaces[application.template].type_params.clone();
-                self.check_type_argument_kinds(
-                    &parameters,
-                    &application.arguments,
-                    span,
-                    description,
-                );
-                for argument in application.arguments {
-                    self.validate_type_alias_target_tree(argument, span, description, visited);
-                }
-            }
-            Type::Tuple(elements) => {
-                for element in elements {
-                    self.validate_type_alias_target_tree(element, span, description, visited);
-                }
-            }
-            Type::Function(function) | Type::FunPtr(function) => {
-                let function = self.function_types[function].clone();
-                for parameter in function.parameter_types {
-                    self.validate_type_alias_target_tree(parameter, span, description, visited);
-                }
-                self.validate_type_alias_target_tree(
-                    function.return_type,
-                    span,
-                    description,
-                    visited,
-                );
-            }
-            Type::Ptr(pointee) => {
-                self.validate_type_alias_target_tree(pointee, span, description, visited);
-            }
-            Type::Unit
-            | Type::Integer(_)
-            | Type::Boolean
-            | Type::String
-            | Type::Any
-            | Type::Param(_) => {}
-        }
-    }
-
-    pub(crate) fn type_alias_target(&self, name: &str) -> Option<hir::TypeId> {
-        let id = self.source_type_alias_named(name)?;
+    pub(crate) fn resolved_type_alias_target(&self, id: SourceTypeAliasId) -> Option<hir::TypeId> {
         match self.source_type_aliases[id].resolution {
-            TypeAliasResolution::Resolved(target) => Some(target),
+            TypeAliasResolution::Resolved(ResolvedTypeAliasTarget {
+                expanded: target, ..
+            })
+            | TypeAliasResolution::Published { target, .. } => Some(target),
             TypeAliasResolution::Unresolved
             | TypeAliasResolution::Resolving
+            | TypeAliasResolution::Failed => None,
+        }
+    }
+
+    pub(crate) fn published_type_alias(
+        &self,
+        id: SourceTypeAliasId,
+    ) -> Option<hir::ExportTypeAliasId> {
+        match self.source_type_aliases[id].resolution {
+            TypeAliasResolution::Published { declaration, .. } => Some(declaration),
+            TypeAliasResolution::Unresolved
+            | TypeAliasResolution::Resolving
+            | TypeAliasResolution::Resolved(_)
             | TypeAliasResolution::Failed => None,
         }
     }
@@ -314,14 +320,14 @@ impl Lowerer {
                     crate::IntrinsicTypeOwner::Class(owner) => NominalTarget::Class(owner),
                 })
             }
-            Type::Struct(application) => Some(NominalTarget::Struct(
-                self.struct_applications[application].template,
-            )),
-            Type::Enum(application) => Some(NominalTarget::Enum(
-                self.enum_applications[application].template,
-            )),
+            Type::Struct(application) => self
+                .source_struct_id(self.struct_applications[application].template)
+                .map(NominalTarget::Struct),
+            Type::Enum(application) => self
+                .source_enum_id(self.enum_applications[application].template)
+                .map(NominalTarget::Enum),
             Type::Class(application) => {
-                let class = self.class_applications[application].template;
+                let class = self.source_class_id(self.class_applications[application].template)?;
                 Some(
                     self.object_by_backing_class
                         .get(&class)
@@ -329,44 +335,12 @@ impl Lowerer {
                         .map_or(NominalTarget::Class(class), NominalTarget::Object),
                 )
             }
-            Type::Interface(application) => Some(NominalTarget::Interface(
-                self.interface_applications[application].template,
-            )),
+            Type::Interface(application) => self
+                .source_interface_id(self.interface_applications[application].template)
+                .map(NominalTarget::Interface),
             Type::Ptr(_) => self.ffi_ptr.map(NominalTarget::Struct),
             Type::FunPtr(_) => self.ffi_fun_ptr.map(NominalTarget::Struct),
             Type::Unit | Type::Any | Type::Tuple(_) | Type::Function(_) | Type::Param(_) => None,
         }
-    }
-
-    pub(crate) fn type_alias_nominal_target(&self, name: &str) -> Option<NominalTarget> {
-        self.nominal_target_for_type(self.type_alias_target(name)?)
-    }
-
-    /// Resolve an alias used as a nominal qualifier while retaining focused
-    /// access and target-kind diagnostics for non-expression evaluators.
-    pub(crate) fn resolve_type_alias_nominal_qualifier(
-        &mut self,
-        name: &ast::Ident,
-    ) -> Result<Option<(hir::TypeId, NominalTarget)>, ()> {
-        if self.source_type_alias_named(&name.text).is_none() {
-            return Ok(None);
-        }
-        let Some(target) = self.resolve_type_alias_reference(name, false) else {
-            return Err(());
-        };
-        let Some(nominal) = self.nominal_target_for_type(target) else {
-            self.error(
-                name.span,
-                format!("typealias `{}` does not name a type qualifier", name.text),
-            );
-            return Err(());
-        };
-        Ok(Some((target, nominal)))
-    }
-
-    pub(crate) fn type_alias_is_accessible(&self, name: &str) -> bool {
-        self.source_type_alias_named(name).is_some_and(|id| {
-            self.access_domain_allows(&self.source_type_aliases[id].access.lookup.0, None)
-        })
     }
 }

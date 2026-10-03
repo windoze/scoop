@@ -1,0 +1,54 @@
+Module
+  class Counter vtable=0 itables=0
+  interface ChildReader : ParentReader
+  interface ParentReader
+  fun retainChild @fn0(value: ChildReader) -> ChildReader
+    bb0 entry
+      return
+        Type ChildReader
+        Local value
+  fun primary @fn1() -> Counter
+    bb0 entry
+      call $argument.0: ChildReader = external0 direct
+      val $parameter.value: ChildReader
+        Type ChildReader
+        Local $argument.0
+      call $call.1: ChildReader = @fn0 direct
+        Type ChildReader
+        Local $parameter.value
+      val $dependency.receiver: ParentReader
+        Type ParentReader
+        Retype ParentReader
+          Type ChildReader
+          Local $call.1
+      call $dependency.receiver: Long = external1 interface ParentReader[0]
+        Type ParentReader
+        Local $dependency.receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

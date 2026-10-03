@@ -1,0 +1,16 @@
+public fun <T> defaultIdentity(seed: T, value: T = seed): T = value
+public class DefaultContainer {
+    protected class Generic<T>(public val seed: T) {
+        public fun choose(value: T = this.seed): T = value
+        public fun copy(value: T = defaultIdentity(this.seed)): T = value
+    }
+    protected enum Choice<T> { Empty, Item(val seed: T, val value: T = seed) }
+    protected class Nested {
+        private fun hidden(value: Int = 5): Int = value
+        public fun <T> choose(seed: T, value: T = seed): T = value
+    }
+    protected fun local(seed: Int, value: () -> Int = if (true) {
+        fun copy(): Int { return seed }
+        ::copy
+    } else { val fallback: () -> Int = { seed }; fallback }): () -> Int = value
+}

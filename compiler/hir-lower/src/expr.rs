@@ -50,7 +50,6 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{ExprKind, Type, TypeId};
 
-use crate::patterns::PatternCtx;
 use crate::scope::Scopes;
 use crate::stmt::statements_control_outcomes;
 use crate::types::ArrayKind;
@@ -65,6 +64,19 @@ mod callables;
 mod callbacks;
 mod generic_calls;
 mod generic_inference;
+mod imported_callables;
+mod imported_constants;
+mod imported_namespaces;
+pub(crate) mod imported_origins;
+mod imported_properties;
+mod imported_singletons;
+mod iteration;
+mod named_calls;
+pub(crate) use imported_properties::{
+    ImportedDependencyExtensionPropertyProbe, ImportedExtensionPropertyTarget,
+    ResolvedImportedMemberProperty,
+};
+pub(crate) use named_calls::imported_dependency::ImportedDependencyCallProbe;
 
 mod aggregates;
 mod analysis;
@@ -102,11 +114,24 @@ pub(crate) struct NominalArgumentInput<'a> {
 
 #[derive(Clone)]
 pub(crate) struct QualifiedInterfaceProperty {
-    pub(crate) property: hir::PropertyId,
-    pub(crate) owner: hir::InterfaceApplicationId,
+    pub(crate) target: QualifiedInterfacePropertyTarget,
     pub(crate) receiver: hir::Expr,
     pub(crate) ty: TypeId,
 }
+
+#[derive(Clone)]
+pub(crate) enum QualifiedInterfacePropertyTarget {
+    Local {
+        property: hir::PropertyId,
+        owner: hir::InterfaceApplicationId,
+    },
+    Imported {
+        property: Box<ResolvedImportedMemberProperty>,
+        name: ast::Ident,
+    },
+}
+
+pub(crate) use scoop_hir::MemberCallKind;
 
 #[derive(Clone, Copy)]
 pub(crate) struct CallSite<'a> {
@@ -153,12 +178,12 @@ struct ReferenceResolutionContext<'a> {
 }
 
 struct ResolvedReference {
-    callable: hir::Callable,
-    source: crate::CallableCandidateSource,
+    target: hir::CallableReferenceTarget,
     type_args: Vec<TypeId>,
     ty: TypeId,
 }
 
+#[derive(Clone)]
 struct SuccessfulExprLayer {
     state: Box<Lowerer>,
     expression: hir::Expr,
@@ -194,7 +219,14 @@ impl Lowerer {
 
     pub(crate) fn commit_layer_diagnostics(&mut self, failed: Lowerer) {
         let baseline = self.diagnostics.len();
-        debug_assert!(failed.diagnostics.len() > baseline);
+        debug_assert!(
+            failed.diagnostics.len() > baseline
+                || self
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.severity == ast::DiagnosticSeverity::Error),
+            "a failed expression must retain an existing or newly reported error"
+        );
         self.diagnostics
             .extend(failed.diagnostics.into_iter().skip(baseline));
     }
@@ -210,7 +242,10 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let lowered = match expr {
             ast::Expr::StringLiteral { value, span } => Some(hir::Expr {
-                kind: ExprKind::StringLiteral(value.clone()),
+                kind: ExprKind::StringLiteral {
+                    value: value.clone(),
+                    owner: hir::StringConstantOwner::CurrentDefinition,
+                },
                 ty: self.string,
                 span: *span,
                 origin: self.expression_origin(*span),

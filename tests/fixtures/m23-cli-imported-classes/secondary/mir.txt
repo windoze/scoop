@@ -1,0 +1,26 @@
+Module
+  struct Token ()
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call $dependency.argument.0: Token = external0 direct
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Token
+        Local $dependency.parameter.marker
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  output library

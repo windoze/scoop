@@ -1,0 +1,29 @@
+SourceFile
+  QualifiedPackage startup.cycle
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  private var attempts: Int = <expr>
+  private fun left(): Long
+    compound-assign Add
+      IntLiteral 1
+    @Unsafe block
+      Call trace
+        IntLiteral 1L
+    return
+      FieldAccess value
+        Var Right
+  private object Left
+    val value: Long =
+      Call left
+  private object Right
+    val value: Long =
+      FieldAccess value
+        Var Left
+  public fun readCycle(): Long
+    =
+      FieldAccess value
+        Var Left
+  public fun count(): Int
+    =
+      Var attempts
+  public class Box(val value: Long)

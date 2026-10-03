@@ -1,0 +1,18 @@
+package consumer.adapters
+
+import templates.adapters.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    var storage: Int = 0
+    @Unsafe {
+        val pointer = addressOf(storage)
+        val source = pointerSource(seed, read, pointer)
+        val outer = nestedPointer(seed, read, pointer)
+        val erased: Any = outer
+        val checked = erased as ((Any) -> Ptr<Int>) -> ((Ptr<Int>) -> Any)
+        val action = checked(source)
+        return (action(pointer) as Ptr<Int>).load()
+    }
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })

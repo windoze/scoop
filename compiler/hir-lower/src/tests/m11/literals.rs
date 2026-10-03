@@ -25,14 +25,14 @@ fn expected_lambda_builds_a_typed_invoke_function_and_callable_call() {
     assert_eq!(module.lambdas.len(), 1);
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
     assert!(lambda.captures.is_empty());
-    let invoke = &module.functions[lambda.function];
+    let invoke = &module.functions[lambda.definition.source_function()];
     assert_eq!(
         invoke.params.len(),
         2,
         "closure receiver plus source parameter"
     );
     assert_eq!(invoke.params[0].name, "$closure");
-    let main = &module.functions[module.entry];
+    let main = &module.functions[module.entry()];
     let hir::FunctionKind::User(body) = &main.kind else {
         panic!("main body");
     };
@@ -63,7 +63,7 @@ fn unit_returning_lambda_discards_its_tail_value_explicitly() {
     .expect("a Unit-returning lambda discards a non-Unit tail value");
 
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
-    let invoke = &module.functions[lambda.function];
+    let invoke = &module.functions[lambda.definition.source_function()];
     assert_eq!(invoke.return_ty, module.unit);
     let hir::FunctionKind::User(body) = &invoke.kind else {
         panic!("lambda body");
@@ -109,12 +109,33 @@ fn nested_lambdas_reserve_distinct_body_names_before_lowering() {
     let names: std::collections::HashSet<_> = module
         .lambdas
         .iter()
-        .map(|(_, lambda)| module.functions[lambda.function].name.as_str())
+        .map(|(_, lambda)| {
+            module.functions[lambda.definition.source_function()]
+                .name
+                .as_str()
+        })
         .collect();
     assert_eq!(module.lambdas.len(), 2);
     assert_eq!(names.len(), 2);
     assert!(names.contains("$lambda.0"));
     assert!(names.contains("$lambda.1"));
+    assert!(module.lambdas.iter().all(|(_, lambda)| {
+        lambda.definition.source().unwrap().1
+            == hir::LexicalDefinitionRoot::Function(module.entry())
+    }));
+    let paths = module
+        .lambdas
+        .iter()
+        .map(|(_, lambda)| definition_path(&lambda.definition_path))
+        .collect::<Vec<_>>();
+    assert!(paths.contains(&vec![(
+        scoop_identity::StructuralDefinitionSiteRole::Lambda,
+        0,
+    )]));
+    assert!(paths.contains(&vec![
+        (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
+        (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
+    ]));
 }
 
 #[test]
@@ -145,12 +166,33 @@ fn nested_anonymous_functions_reserve_distinct_body_names_before_lowering() {
     let names: std::collections::HashSet<_> = module
         .anonymous_functions
         .iter()
-        .map(|(_, function)| module.functions[function.function].name.as_str())
+        .map(|(_, function)| {
+            module.functions[function.definition.source_function()]
+                .name
+                .as_str()
+        })
         .collect();
     assert_eq!(module.anonymous_functions.len(), 2);
     assert_eq!(names.len(), 2);
     assert!(names.contains("$anonymous.0"));
     assert!(names.contains("$anonymous.1"));
+    assert!(module.anonymous_functions.iter().all(|(_, function)| {
+        function.definition.source().unwrap().1
+            == hir::LexicalDefinitionRoot::Function(module.entry())
+    }));
+    let paths = module
+        .anonymous_functions
+        .iter()
+        .map(|(_, function)| definition_path(&function.definition_path))
+        .collect::<Vec<_>>();
+    assert!(paths.contains(&vec![(
+        scoop_identity::StructuralDefinitionSiteRole::Lambda,
+        0,
+    )]));
+    assert!(paths.contains(&vec![
+        (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
+        (scoop_identity::StructuralDefinitionSiteRole::Lambda, 0),
+    ]));
 }
 
 #[test]
@@ -174,7 +216,7 @@ fn suspend_lambda_owns_a_suspend_body_and_is_callable_only_in_suspend_context() 
 
     let (_, lambda) = module.lambdas.iter().next().expect("suspend lambda");
     assert!(module.function_types[lambda.function_type].is_suspend);
-    assert!(module.functions[lambda.function].is_suspend);
+    assert!(module.functions[lambda.definition.source_function()].is_suspend);
     let run = module
         .functions
         .iter()

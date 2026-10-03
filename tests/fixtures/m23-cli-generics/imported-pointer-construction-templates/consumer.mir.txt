@@ -1,0 +1,248 @@
+Module
+  struct Pair (first: Int, second: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Pair>
+    Completed(value: Pair)
+    Suspended()
+  enum CoroutineSlot<Pair>
+    Empty()
+    Value(value: Pair)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Pair> vtable=0 itables=0
+  interface Continuation<Pair>
+  interface SuspendTask<Pair>
+  interface SuspendRegistration<Pair>
+  generated_exact_type get0 location=class3 nominal_id=45118b950e2b947c2a172a06d2e4bd412d258b54f6a57c6928bf503c1cd0c021 exact_id=2d6d28a99685d7f79d8222db59c7829533b9096e01aaaf54e2713042ced34ea6
+  generated_exact_type get1 location=enum1 nominal_id=5cb1e2cd1cbd158a6e81a2c8a0d7545767d3fb80a1d93163f7ff0f0a9ae465a7 exact_id=935b67cf6bbfcb57ade2b691f86e94338c6876bb4c9c4e5243f176fffedc5ef9
+  generated_exact_type get2 location=enum2 nominal_id=ac58306cf31e80a72b04e2ab7fbf595a64a7f862412b2dd621c76716dbff3066 exact_id=f61dd78b29db11b0cd2e2773ccf6d3788bf903f2ee56577febb927d134bafb15
+  generated_callable gc0 function=@fn12 id=3e1a8c14dccb6fb0149621f17819a49dc72563c6d874b9e0baa61ff349e39b36
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Pair = @fn11 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      val $parameter.value: Pair
+        Type Pair
+        Local $argument.0
+      call pair: Pair = @fn2 direct
+        Type Pair
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Pair
+          Local pair
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 1
+          Type Pair
+          Local pair
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun roundTrip @fn2(value: Pair) -> Pair
+    bb0 entry
+      val $dependency.receiver: Ptr<Pair>
+        Type Ptr<Pair>
+        AddressOf value : Ptr<Pair>
+      val $dependency.argument.0: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Pair>
+          Local $dependency.receiver
+      val $dependency.parameter.raw: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call raw: ULong = @fn4 direct
+        Type ULong
+        Local $dependency.parameter.raw
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local raw
+      val $dependency.parameter.raw: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $dependency.receiver: Ptr<Pair> = @fn5 direct
+        Type ULong
+        Local $dependency.parameter.raw
+      return
+        Type Pair
+        PtrLoad Pair
+          Type Ptr<Pair>
+          Local $dependency.receiver
+  fun copy @fn3(value: Int) -> Int
+    bb0 entry
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf value : Ptr<Int>
+      val $dependency.local.1: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: ULong
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      call $dependency.local.5: Ptr<Int> = @fn6 direct
+        Type ULong
+        Local $dependency.local.4
+      return
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.local.5
+  fun reencode @fn4(raw: ULong) -> ULong
+    bb0 entry
+      val $dependency.local.1: Ptr<Pair>
+        Type Ptr<Pair>
+        PtrFromNonZeroULong Pair
+          Type ULong
+          Local raw
+      return
+        Type ULong
+        PtrToULong
+          Type Ptr<Pair>
+          Local $dependency.local.1
+  fun reconstruct @fn5(raw: ULong) -> Ptr<Pair>
+    bb0 entry
+      return
+        Type Ptr<Pair>
+        PtrFromNonZeroULong Pair
+          Type ULong
+          Local raw
+  fun reconstruct @fn6(raw: ULong) -> Ptr<Int>
+    bb0 entry
+      return
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local raw
+  fun Continuation.resume @fn7(this: Continuation<Pair>, value: Pair) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Pair>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Pair.$c0 @fn11(first: Int, second: Int) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Int
+          Local first
+          Type Int
+          Local second
+  fun startCoroutine<Pair> @fn12(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Pair>[0]
+        Type Continuation<Pair>
+        Local completion
+        Type Pair
+        EnumField v0 f0
+          Type CoroutineStep<Pair>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Pair>[1]
+        Type Continuation<Pair>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Pair> = @fn9 interface SuspendTask<Pair>[0]
+        Type SuspendTask<Pair>
+        Local task
+        Type Continuation<Pair>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Pair>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Pair> result=Pair
+  coroutine_slot cl0 CoroutineSlot<Pair> value=Pair
+  coroutine_start ct0 result=Pair function=fn12
+  coroutine_fn cf0 @fn9 source_return=Pair step=cs0 immediate
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- roundTrip
+  instance mi2 function=@fn3 <- copy
+  instance mi3 function=@fn4 <- reencode
+  instance mi4 function=@fn5 <- reconstruct
+  instance mi5 function=@fn6 <- reconstruct
+  instance mi6 function=@fn7 <- Continuation.resume
+  instance mi7 function=@fn8 <- Continuation.resumeWithException
+  instance mi8 function=@fn9 <- SuspendTask.run
+  instance mi9 function=@fn10 <- SuspendRegistration.register
+  output library

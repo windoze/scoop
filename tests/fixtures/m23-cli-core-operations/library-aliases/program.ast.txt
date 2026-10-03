@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  typealias LocalCoreNumber = UserCoreNumber
+  fun passthrough(value: LocalCoreNumber): UserCoreNumber
+    =
+      Var value
+  fun main()
+    val initial: UserCoreNumber
+      Call UserCoreNumber
+    val combined: UserCorePair
+      TupleLiteral
+        Var initial
+        BoolLiteral true
+    val renamed: LocalCoreNumber
+      Call passthrough
+        Var initial

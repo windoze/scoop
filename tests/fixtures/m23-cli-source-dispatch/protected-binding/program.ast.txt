@@ -1,0 +1,35 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      MethodCall observe
+        Call vault
+        IntLiteral 17L
+        Var Argument
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            FieldAccess _1
+              Var value
+            IntLiteral 17L
+          Binary RefEq
+            FieldAccess _2
+              Var value
+            Var Argument
+        Binary Eq
+          FieldAccess _3
+            Var value
+          IntLiteral 3
+    Call verifyDispatch
+      Binary Eq
+        MethodCall observe
+          Call another
+          IntLiteral 19L
+        IntLiteral 19L

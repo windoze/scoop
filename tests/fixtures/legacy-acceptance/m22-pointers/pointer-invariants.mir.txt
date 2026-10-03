@@ -1,0 +1,351 @@
+Module
+  extern ef0 malloc @malloc(ULong) -> Ptr<Unit> <abi=c no-gc>
+  extern ef1 free @free(Ptr<Unit>) -> Unit <abi=c no-gc>
+  enum Option<Ptr<Int>>
+    Some(_0: Ptr<Int>)
+    None()
+  interface ToString
+  interface Hash
+  fun malloc @fn0(arg0: ULong) -> Ptr<Unit>
+    bb0 entry
+      call $call.1: Ptr<Unit> = extern0 @malloc direct
+        Type ULong
+        Local arg0
+      return
+        Type Ptr<Unit>
+        Local $call.1
+  fun free @fn1(arg0: Ptr<Unit>) -> Unit
+    bb0 entry
+      call extern1 @free direct
+        Type Ptr<Unit>
+        Local arg0
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: ULong
+        Type ULong
+        SizeOf Int
+      val $parameter.size: ULong
+        Type ULong
+        Local $argument.0
+      call allocation: Ptr<Unit> = extern0 @malloc direct
+        Type ULong
+        Local $parameter.size
+      val $dependency.receiver: Ptr<Unit>
+        Type Ptr<Unit>
+        Local allocation
+      val $argument.0: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.receiver
+      val $parameter.raw: ULong
+        Type ULong
+        Local $argument.0
+      call raw: ULong = @fn3 direct
+        Type ULong
+        Local $parameter.raw
+      val pointer: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local raw
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.receiver: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: ULong
+        Type ULong
+        Local raw
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.parameter._1: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.argument.0
+      val present: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        VariantConstruct Option<Ptr<Int>> v0
+          Type Ptr<Int>
+          Local $dependency.parameter._1
+      val absent: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        VariantConstruct Option<Ptr<Int>> v1
+      val $when.1: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local present
+      val $pattern.subject.2: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val value: Ptr<Int>
+        Type Ptr<Int>
+        VariantPayloadProject Option<Ptr<Int>> v0 f0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.2
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v1
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $when.4: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local absent
+      val $pattern.subject.5: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.4
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.5
+    bb4 pattern.pass.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 pattern.pass.7
+      val value: Ptr<Int>
+        Type Ptr<Int>
+        VariantPayloadProject Option<Ptr<Int>> v0 f0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.5
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.6: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.4
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v1
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.6
+    bb9 pattern.merge.9
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $argument.0: Ptr<Unit>
+        Type Ptr<Unit>
+        PtrCast Unit
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $parameter.pointer: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $argument.0
+      call extern1 @free direct
+        Type Ptr<Unit>
+        Local $parameter.pointer
+      return
+    bb10 pattern.pass.10
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb12
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      goto bb9
+  fun forwardRaw @fn3(raw: ULong) -> ULong
+    bb0 entry
+      val $argument.0: ULong
+        Type ULong
+        Local raw
+      val $parameter.raw: ULong
+        Type ULong
+        Local $argument.0
+      call $dependency.receiver: Ptr<Int> = @fn6 direct
+        Type ULong
+        Local $parameter.raw
+      return
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+  fun println @fn4(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn5(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun reconstruct @fn6(raw: ULong) -> Ptr<Int>
+    bb0 entry
+      return
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          Local raw
+  instance mi0 function=@fn3 <- forwardRaw
+  instance mi1 function=@fn4 <- println
+  instance mi2 function=@fn5 <- println
+  instance mi3 function=@fn6 <- reconstruct
+  str @str0 "\n"
+  str @str1 "\n"
+  output executable @fn2

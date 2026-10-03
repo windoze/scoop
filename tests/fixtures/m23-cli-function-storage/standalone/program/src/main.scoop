@@ -1,0 +1,8 @@
+import functionstorage.callback
+
+fun main() {
+    val local = callback
+    if (local() != 42) {
+        throw IllegalStateException()
+    }
+}

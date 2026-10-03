@@ -1,0 +1,135 @@
+SourceFile
+  QualifiedPackage consumer.selection
+  ImportStar Local dependency.selection.*
+  private fun localChoose(value: Any): Int
+    =
+      IntLiteral 1
+  private fun localChoose(value: Int): Int
+    =
+      Var value
+  private fun localPrefer<T>(value: T): Int
+    =
+      IntLiteral 1
+  private fun localPrefer(value: Any): Int
+    =
+      IntLiteral 42
+  private fun localFewer(value: Int, extra: Int = <expr>): Int
+    =
+      IntLiteral 1
+  private fun localFewer(value: Int): Int
+    =
+      Var value
+  private fun localRest(vararg values: Int): Int
+    =
+      IntLiteral 1
+  private fun localRest(value: Int): Int
+    =
+      Var value
+  private class LocalChoice(val number: Int)
+  private fun LocalChoice(value: Any): Int
+    =
+      IntLiteral 1
+  private class LocalHolder<T>(val value: T)
+  private fun LocalHolder(value: Any): Int
+    =
+      IntLiteral 42
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    return
+      IfExpression
+        Binary Eq
+          Call localChoose
+            Call read
+              Var seed
+          IntLiteral 42
+        Call choose
+          Call read
+            Var seed
+        else
+        IntLiteral 1
+  public fun result(): Int
+    if
+      Binary Or
+        Binary Ne
+          Call localChoose
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          Call choose
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Call localPrefer
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          Call prefer
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          Call localFewer
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          Call fewer
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Or
+        Binary Ne
+          Call localRest
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          Call rest
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 5
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess number
+            Call LocalChoice
+              IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          FieldAccess number
+            Call Choice
+              IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 6
+    if
+      Binary Or
+        Binary Ne
+          Call LocalHolder
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          Call Holder
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 7
+    if
+      Binary Ne
+        FieldAccess value
+          Call LocalHolder<Int>
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 8
+    return
+      FieldAccess value
+        Call Holder<Int>
+          IntLiteral 42

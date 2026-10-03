@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `read` has non-GC-free return type Current",
+    "notes": [],
+    "origin": {
+      "cone": "f17caa65a17f2160c7e331ef873929b5a43492f14658d81f3ecb14ac7a3ae1c5",
+      "end": 119,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 76
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Current is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "f17caa65a17f2160c7e331ef873929b5a43492f14658d81f3ecb14ac7a3ae1c5",
+      "end": 119,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 112
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "singleton access may initialize, allocate, and throw in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "f17caa65a17f2160c7e331ef873929b5a43492f14658d81f3ecb14ac7a3ae1c5",
+      "end": 119,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 112
+    },
+    "severity": "error"
+  }
+]

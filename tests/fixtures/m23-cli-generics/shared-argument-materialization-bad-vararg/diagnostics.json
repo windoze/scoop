@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "array literal element must be of type Int, found String",
+    "notes": [],
+    "origin": {
+      "cone": "8b1ab6f9d68f6fd0be3ea39e21b74213c04f29b034c7998cc1279e25151d5cbf",
+      "end": 150,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 145
+    },
+    "severity": "error"
+  }
+]

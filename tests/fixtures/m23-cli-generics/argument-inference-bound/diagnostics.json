@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `valueSeed`: type argument `Reference` for `T` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "17aa412b48237e4ef70d33e306a4f01da2ae53e32755dd72706d31a010809521",
+      "end": 153,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 125
+    },
+    "severity": "error"
+  }
+]

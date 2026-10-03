@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  private struct Atom
+    internal operator fun equals
+  private struct Pair
+    field first: Atom
+    field second: Atom
+  private enum Choice
+    Present <ctor>
+      value: Pair
+    Empty
+  private fun nested(left: Pair, right: Pair, value: Boolean = <expr>): Boolean
+    =
+      Var value
+  private fun enumNested(left: Choice, right: Choice, value: Boolean = <expr>): Boolean
+    =
+      Var value
+  private fun closure(left: Pair, right: Pair, value: () -> Boolean = <expr>): () -> Boolean
+    =
+      Var value
+  private fun use(): Boolean
+    val pair
+      Call Pair
+        Call Atom
+        Call Atom
+    Call nested
+      Var pair
+      Var pair
+    Invoke
+      Call closure
+        Var pair
+        Var pair
+    return
+      Call enumNested
+        MethodCall Present
+          Var Choice
+          Var pair
+        FieldAccess Empty
+          Var Choice

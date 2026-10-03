@@ -7,7 +7,7 @@ mod intrinsic_types;
 mod module;
 mod testing;
 
-pub(crate) use module::{core_file, make_core_public};
+pub(crate) use module::{complete_core_file, core_file, make_core_public};
 pub(crate) use testing::*;
 
 use capabilities::capability_interfaces;

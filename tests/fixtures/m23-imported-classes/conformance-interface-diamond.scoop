@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.ChildReader
+
+public interface LocalLeft: ChildReader {}
+public interface LocalRight: ChildReader {}
+public interface LocalReader: LocalLeft, LocalRight {
+    public override fun child(): Long = 19
+}
+public struct LocalValue(): LocalReader
+public fun localReader(): LocalReader = LocalValue()
+public fun primary(): Counter = Counter(localReader().child() + 2)

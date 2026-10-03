@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/callable-wrong-arity.scoop:3:5: error: function value takes exactly 1 argument(s), but 0 were supplied

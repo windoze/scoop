@@ -1,25 +1,25 @@
 use crate::Lowerer;
+use scoop_hir as hir;
 
 use super::{PointeeRequirementCallSite, RequirementContext};
 
 impl Lowerer {
     pub(super) fn pointee_requirement_call_sites(&mut self) -> Vec<PointeeRequirementCallSite> {
         let mut out = Vec::new();
-        for site in self.generic_call_sites() {
+        for (caller, function) in self.functions.iter() {
+            let hir::FunctionKind::User(body) = &function.kind else {
+                continue;
+            };
             let file = self
                 .function_files
-                .get(&site.caller)
+                .get(&caller)
                 .copied()
-                .unwrap_or(self.user_file_index);
+                .unwrap_or_else(|| self.primary_output_file());
             push_pointee_call_sites(
                 &mut out,
-                RequirementContext::Function(site.caller),
+                RequirementContext::Function(caller),
                 file,
-                [super::super::no_gc_generics::GenericCall {
-                    callee: site.callee,
-                    arguments: site.arguments,
-                    span: site.span,
-                }],
+                self.generic_calls_in_body(body),
             );
         }
 
@@ -69,12 +69,16 @@ impl Lowerer {
                 }
                 crate::defaults::DefaultExprTemplateRef::Export(source) => {
                     let source = self.export_default_sources[source].clone();
-                    let body = self.export_default_exprs[source.expression].clone();
+                    let Some((expression, type_arguments)) = source.declared() else {
+                        // Imported parameter-free bodies have no local generic applications.
+                        continue;
+                    };
+                    let body = self.export_default_exprs[expression].clone();
                     let bindings = body
                         .type_parameters
                         .iter()
                         .copied()
-                        .zip(source.type_arguments)
+                        .zip(type_arguments.iter().copied())
                         .collect();
                     (body, bindings)
                 }
@@ -100,12 +104,23 @@ fn push_pointee_call_sites(
     file: usize,
     calls: impl IntoIterator<Item = super::super::no_gc_generics::GenericCall>,
 ) {
-    out.extend(calls.into_iter().map(|call| PointeeRequirementCallSite {
-        context,
-        callee: call.callee,
-        arguments: call.arguments,
-        file,
-        span: call.span,
+    // Constructor pointee requirements belong to their nominal applications;
+    // the nominal occurrence pass already validates and propagates that edge.
+    out.extend(calls.into_iter().filter_map(|call| {
+        let callee = match call.callee {
+            callee @ (super::super::no_gc_generics::GenericCallable::Function(_)
+            | super::super::no_gc_generics::GenericCallable::Imported(_)
+            | super::super::no_gc_generics::GenericCallable::ImportedConstructor(_)) => callee,
+            super::super::no_gc_generics::GenericCallable::ClassConstructor(_)
+            | super::super::no_gc_generics::GenericCallable::StructConstructor(_) => return None,
+        };
+        Some(PointeeRequirementCallSite {
+            context,
+            callee,
+            arguments: call.arguments,
+            file,
+            span: call.span,
+        })
     }));
 }
 

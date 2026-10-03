@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::valueOnly` in dependency top-level candidate layer:\n  - fun valueOnly<T : value>(value: T): T — type argument `Plain` for `T` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "f98f879b70e89816401e3c4975d17e009a5d5dab3c138eccec6434819075f451",
+      "end": 109,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  }
+]

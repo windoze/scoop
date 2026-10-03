@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  public fun factory(): Factory
+    =
+      MethodCall create
+        FieldAccess Companion
+          Var Factory
+SourceFile
+  RootPackage
+  public open class Factory()
+    public companion object
+      public fun create
+  public class Produced() : Factory(<0 args>)
+  public object Singleton

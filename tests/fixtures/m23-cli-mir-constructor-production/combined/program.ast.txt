@@ -1,0 +1,59 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val token
+      Call Token
+    Call verifyType
+      Binary Eq
+        Call Pair
+        Call Pair
+          Var token
+          Var token
+    val base
+      Call Base
+    val child
+      Call Child
+    Call verifyType
+      Binary And
+        Binary Eq
+          Call tokenOf
+            Var base
+          Var token
+        Binary Eq
+          Call tokenOf
+            Var child
+          Var token
+    Call verifyType
+      Binary And
+        Binary Eq
+          Call tokenOf
+            Call Child
+              Var token
+          Var token
+        Binary Eq
+          Call tokenOf
+            Var Singleton
+          Var token
+    Call verifyType
+      Binary Eq
+        Call tokenOf
+          FieldAccess item
+            Call Managed
+        Var token
+    val privateValue
+      MethodCall make
+        Var Private
+    Call verifyType
+      Binary And
+        Binary RefEq
+          Var privateValue
+          Var privateValue
+        Binary RefEq
+          Var Singleton
+          Var Singleton

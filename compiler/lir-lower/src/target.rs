@@ -100,12 +100,6 @@ impl LoweringContext {
         .0[0]
     }
 
-    pub(crate) fn object_payload_offset(self, payload_align: u64) -> u64 {
-        self.object_header_layout()
-            .size
-            .next_multiple_of(payload_align)
-    }
-
     /// Runtime String fixed prefix `{ object-header, i64 length }`.
     pub(crate) fn string_layout(self) -> PhysicalLayout {
         self.aggregate_layout([
@@ -138,21 +132,33 @@ impl LoweringContext {
             .expect("the qualified closure invoke slot fits the LIR slot domain")
     }
 
-    /// Runtime `ScoopTypeDescriptor::vtable` offset. Its prefix is three I64
-    /// scalar fields followed by `ref_offsets`, `parent`, and `vtable`
-    /// metadata pointers.
+    /// Current runtime metadata descriptor prefix: type id, complete instance
+    /// shape, object scan, parent, and vtable (88 bytes on the 64-bit runtime).
     pub(crate) fn type_descriptor_vtable_offset(self) -> u64 {
+        let i32_layout = self.scalar_layout(lir::BackendScalarKind::I32);
         let i64_layout = self.scalar_layout(lir::BackendScalarKind::I64);
         let metadata_pointer = self.pointer_layout(lir::PointerKind::Metadata);
+        let instance_shape = self
+            .aggregate_layout([
+                i32_layout,
+                i32_layout,
+                i64_layout,
+                i64_layout,
+                i64_layout,
+                i64_layout,
+                i64_layout,
+                i64_layout,
+                metadata_pointer,
+            ])
+            .1;
         self.aggregate_layout([
             i64_layout,
-            i64_layout,
-            i64_layout,
+            instance_shape,
             metadata_pointer,
             metadata_pointer,
             metadata_pointer,
         ])
-        .0[5]
+        .0[4]
     }
 
     /// LLVM landing-pad record `{ raw-ptr exception, i32 selector }`.

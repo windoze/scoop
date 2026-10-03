@@ -18,16 +18,34 @@ fn enum_module_with(
     tagged_value_field: LirType,
 ) -> Module {
     let mut globals = Arena::default();
+    let trap_callable_body = callable_body_at(file!(), line!());
     let trap_message = globals.alloc(Global {
-        symbol: "scoop.trap.0".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
-        init: GlobalInit::CString("unwrap on None".to_string()),
+        init: GlobalInit::CString {
+            identity: scoop_lir::CallableCStringIdentity::new(
+                scoop_identity::ConeIdentity::SINGLE_FILE,
+                &trap_callable_body,
+                scoop_identity::StructuralDefinitionPath::from_first(
+                    scoop_identity::StructuralPathSegment::new(
+                        scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                        0,
+                    ),
+                    [],
+                ),
+            )
+            .unwrap(),
+            value: "unwrap on None".to_string(),
+        },
     });
     let mut enums = scoop_lir::EnumDefs::default();
     // Dot/Circle share the pure-value slot at 8; Rect owns a
     // ref-bearing slot at 16, with its String at offset 24.
     let shape = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Shape",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Shape".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![
@@ -72,6 +90,10 @@ fn enum_module_with(
     });
     // enum Option<String> { None, Some(String) } — niche pointer.
     let option = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Option<String>",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Option<String>".to_string(),
         repr: EnumRepr::Niche {
             kind: niche_kind,
@@ -92,10 +114,12 @@ fn enum_module_with(
     // instructions on the tagged representation, including a local
     // of enum type (alloca + store + load).
     let mut tagged_locals = Arena::default();
-    let s2 = tagged_locals.alloc(Local {
-        name: "s2".to_string(),
-        ty: shape_ty.clone(),
-    });
+    let s2 = tagged_locals.alloc(test_local_with_types(
+        &scoop_lir::StructDefs::default(),
+        &enums,
+        "s2",
+        shape_ty.clone(),
+    ));
     let mut tagged_temps = Arena::default();
     let t0 = tagged_temps.alloc(Temp {
         ty: shape_ty.clone(),
@@ -183,8 +207,9 @@ fn enum_module_with(
         },
     });
     let tagged = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.tagged".to_string(),
         signature: scoop_signature(
             &scoop_lir::StructDefs::default(),
             &enums,
@@ -201,10 +226,12 @@ fn enum_module_with(
     // fun @scoop.niche(o: Option<String>) -> i64: all three enum
     // instructions on the niche representation (null ↔ variant 0).
     let mut niche_locals = Arena::default();
-    let o2 = niche_locals.alloc(Local {
-        name: "o2".to_string(),
-        ty: option_ty.clone(),
-    });
+    let o2 = niche_locals.alloc(test_local_with_types(
+        &scoop_lir::StructDefs::default(),
+        &enums,
+        "o2",
+        option_ty.clone(),
+    ));
     let mut niche_temps = Arena::default();
     let n0 = niche_temps.alloc(Temp {
         ty: enum_tag_ty.clone(),
@@ -270,8 +297,9 @@ fn enum_module_with(
         },
     });
     let niche = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.niche".to_string(),
         signature: scoop_signature(
             &scoop_lir::StructDefs::default(),
             &enums,
@@ -303,8 +331,9 @@ fn enum_module_with(
         terminator: Terminator::Unreachable,
     });
     let trap_on_none = Function {
+        callable_body: trap_callable_body,
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.trap_on_none".to_string(),
         signature: plain_scoop_signature(vec![], LirType::Void),
         call_targets: trap_targets,
         locals: Arena::default(),
@@ -333,8 +362,9 @@ fn enum_module_with(
         },
     });
     let produce = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.produce_shape".to_string(),
         signature: scoop_signature(
             &scoop_lir::StructDefs::default(),
             &enums,
@@ -348,10 +378,12 @@ fn enum_module_with(
         entry: produce_entry,
     };
     let mut consume_locals = Arena::default();
-    let received = consume_locals.alloc(Local {
-        name: "received".to_string(),
-        ty: shape_ty.clone(),
-    });
+    let received = consume_locals.alloc(test_local_with_types(
+        &scoop_lir::StructDefs::default(),
+        &enums,
+        "received",
+        shape_ty.clone(),
+    ));
     let mut consume_temps = Arena::default();
     let tag = consume_temps.alloc(Temp {
         ty: enum_tag_ty.clone(),
@@ -384,8 +416,9 @@ fn enum_module_with(
         },
     });
     let consume = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.consume_shape".to_string(),
         signature: plain_scoop_signature(vec![], enum_tag_ty.clone()),
         call_targets: consume_targets,
         locals: consume_locals,
@@ -394,10 +427,12 @@ fn enum_module_with(
         entry: consume_entry,
     };
     let mut indirect_locals = Arena::default();
-    let indirect_received = indirect_locals.alloc(Local {
-        name: "indirect_received".to_string(),
-        ty: shape_ty.clone(),
-    });
+    let indirect_received = indirect_locals.alloc(test_local_with_types(
+        &scoop_lir::StructDefs::default(),
+        &enums,
+        "indirect_received",
+        shape_ty.clone(),
+    ));
     let mut indirect_temps = Arena::default();
     let indirect_tag = indirect_temps.alloc(Temp {
         ty: enum_tag_ty.clone(),
@@ -433,8 +468,9 @@ fn enum_module_with(
         },
     });
     let consume_indirect = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.consume_shape_indirect".to_string(),
         signature: plain_scoop_signature(vec![METADATA_PTR], enum_tag_ty),
         call_targets: indirect_targets,
         locals: indirect_locals,
@@ -443,7 +479,8 @@ fn enum_module_with(
         entry: indirect_entry,
     };
 
-    Module {
+    let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals,
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -462,9 +499,14 @@ fn enum_module_with(
             consume,
             consume_indirect,
         ],
-        entry_symbol: "scoop.tagged".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    append_executable_entry(&mut module, "enum-executable-entry");
+    module
 }
 
 #[test]
@@ -485,9 +527,7 @@ fn emits_m4_enums() {
     );
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m4_test_{}.o", std::process::id()));
-    // `emit_object` verifies the LLVM module before writing, so a
-    // successful return means `module.verify()` passed.
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
@@ -554,6 +594,10 @@ fn enum_wrap_validator_rejects_wrong_result_arity_and_invalid_ref() {
 
     let mut foreign = scoop_lir::EnumDefs::default();
     let foreign_id = foreign.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Foreign",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Foreign".to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..4)
@@ -626,7 +670,12 @@ fn tagged_enum_metadata_rejects_recursive_machine_scalar_payload() {
         RefScan::References(vec![0]),
         LirType::Aggregate(vec![LirType::MachineScalar(MachineScalarKind::EnumTag)]),
     );
+    let executable_entry = module.functions.pop().expect("test executable entry");
     module.functions.clear();
+    module.functions.push(executable_entry);
+    module.output = scoop_lir::LirOutput::Executable {
+        entry: managed_function_ref(0),
+    };
 
     let error = enum_codegen_error(&module);
     assert!(
@@ -674,24 +723,28 @@ fn exact_raw_and_code_niches_emit_through_all_enum_operations() {
             _ => panic!("niche fixture must project its payload"),
         };
         assert_eq!(function.temps[field].ty, LirType::Ptr(kind.pointer_kind()));
+        let identity =
+            static_storage_identity(&format!("qualified{}Niche", kind.pointer_kind().dump()));
+        let symbol = identity.symbol().to_string();
         module.globals.alloc(Global {
-            symbol: format!("qualified_{}_niche", kind.pointer_kind().dump()),
             address_kind: PointerKind::Raw,
             scan: RefScan::None,
             init: GlobalInit::Storage {
+                identity,
+                layout: layout_identity(
+                    "qualifiedNiche",
+                    scoop_identity::RepresentationRole::ManagedValue,
+                )
+                .into(),
                 ty: LirType::Enum(option),
                 initial_state: LirStaticInitialState::EncodedStaticValue {
                     payload: LirConstantImage::EnumUnit { variant: none },
                 },
-                thread_local: false,
             },
         });
 
         let ir = ir_of(&module);
-        assert!(
-            ir.contains(&format!("@qualified_{}_niche", kind.pointer_kind().dump())),
-            "{ir}"
-        );
+        assert!(ir.contains(&format!("@\"{symbol}\"")), "{ir}");
     }
 }
 
@@ -774,15 +827,19 @@ fn niche_enum_null_constant_cannot_bypass_pointer_provenance() {
     );
     let option = module.enums.iter().nth(1).expect("niche enum").0;
     module.globals.alloc(Global {
-        symbol: "crossed_niche_null".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
+            identity: static_storage_identity("crossedNicheNull"),
+            layout: layout_identity(
+                "crossedNicheNull",
+                scoop_identity::RepresentationRole::ManagedValue,
+            )
+            .into(),
             ty: LirType::Enum(option),
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Code),
             },
-            thread_local: false,
         },
     });
 

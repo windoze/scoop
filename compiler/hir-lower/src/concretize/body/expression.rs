@@ -7,15 +7,67 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
         locals: &[concrete::LocalId],
     ) -> concrete::Expr {
+        let previous = self.type_use_site;
+        self.type_use_site = self
+            .instantiation_site
+            .or_else(|| {
+                self.current_source_site(self.concrete_expression_origin(source.origin).evaluation)
+            })
+            .or(previous);
+        let expression = self.lower_expr_at_site(source, substitution, locals);
+        if let concrete::ExprKind::Call {
+            callee: concrete::CallableTarget::Imported(callee),
+            ..
+        } = expression.kind
+            && self.imported_dependency_callables[callee].effect()
+                == scoop_identity::Effect::Suspend
+        {
+            self.coroutine_results.insert(expression.ty);
+        }
+        if let Some(ty) = expression.shared_representation_type(&self.types) {
+            self.shared_types.insert(ty);
+        }
+        self.type_use_site = previous;
+        expression
+    }
+
+    fn concrete_expression_origin(
+        &self,
+        source: export::ExpressionOrigin,
+    ) -> export::ConcreteExpressionOrigin {
+        let mut origin = source.concrete();
+        if let Some(context) = self.evaluation_context {
+            origin.evaluation.context = context;
+        }
+        origin
+    }
+
+    fn lower_expr_at_site(
+        &mut self,
+        source: &export::Expr,
+        substitution: &[concrete::TypeId],
+        locals: &[concrete::LocalId],
+    ) -> concrete::Expr {
         let ty = self.lower_type(source.ty, substitution);
-        if let Some(location) = self.lower_current_source_location(source, substitution, locals, ty)
+        let origin = self.concrete_expression_origin(source.origin);
+        if let Some(location) = self.lower_current_source_location(source, substitution, ty, origin)
         {
             return location;
         }
         let kind = match &source.kind {
-            export::ExprKind::StringLiteral(value) => {
-                concrete::ExprKind::StringLiteral(value.clone())
-            }
+            export::ExprKind::StringLiteral { value, owner } => concrete::ExprKind::StringLiteral {
+                value: value.clone(),
+                owner: match *owner {
+                    export::StringConstantOwner::CurrentDefinition => {
+                        export::StringConstantOwner::CurrentDefinition
+                    }
+                    export::StringConstantOwner::Property(property) => {
+                        export::StringConstantOwner::Property(
+                            self.source.property_identities[property].property_owner(),
+                        )
+                    }
+                },
+            },
             export::ExprKind::IntegerLiteral(value) => concrete::ExprKind::IntegerLiteral(*value),
             export::ExprKind::BoolLiteral(value) => concrete::ExprKind::BoolLiteral(*value),
             export::ExprKind::UnitLiteral => concrete::ExprKind::UnitLiteral,
@@ -57,12 +109,13 @@ impl Concretizer<'_> {
                         .collect(),
                 }
             }
+            export::ExprKind::ConstructorReceiver => concrete::ExprKind::ConstructorReceiver,
             export::ExprKind::ConstructorParam(parameter) => concrete::ExprKind::ConstructorParam(
                 concrete::ConstructorParamId::from_raw(parameter.into_raw()),
             ),
             export::ExprKind::VariantConstruct { variant, args } => {
                 concrete::ExprKind::VariantConstruct {
-                    variant: self.lower_applied_enum_variant_ref(*variant, substitution),
+                    variant: self.lower_enum_variant(*variant, substitution),
                     args: args
                         .iter()
                         .map(|argument| self.lower_expr(argument, substitution, locals))
@@ -71,12 +124,12 @@ impl Concretizer<'_> {
             }
             export::ExprKind::VariantTest { operand, variant } => concrete::ExprKind::VariantTest {
                 operand: Box::new(self.lower_expr(operand, substitution, locals)),
-                variant: self.lower_applied_enum_variant_ref(*variant, substitution),
+                variant: self.lower_enum_variant(*variant, substitution),
             },
             export::ExprKind::VariantPayloadProject { operand, field } => {
                 concrete::ExprKind::VariantPayloadProject {
                     operand: Box::new(self.lower_expr(operand, substitution, locals)),
-                    field: self.lower_applied_enum_variant_field_ref(*field, substitution),
+                    field: self.lower_enum_variant_field(*field, substitution),
                 }
             }
             export::ExprKind::Local(local) => {
@@ -85,20 +138,33 @@ impl Concretizer<'_> {
             export::ExprKind::GlobalRead(global) => {
                 concrete::ExprKind::GlobalRead(self.global_map[global])
             }
-            export::ExprKind::SingletonValue(value) => concrete::ExprKind::SingletonValue(
-                concrete::SingletonValueId::from_raw(value.into_raw()),
-            ),
+            export::ExprKind::GenericDelegateStorageRead(reference) => {
+                let specialization = self.request_generic_delegate(reference, substitution);
+                concrete::ExprKind::GlobalRead(
+                    self.generic_delegate_specializations[specialization].storage,
+                )
+            }
+            export::ExprKind::SingletonValue(value) => {
+                concrete::ExprKind::SingletonValue(match *value {
+                    export::SingletonValueTarget::Local(value) => {
+                        concrete::SingletonValueTarget::Local(self.lower_singleton_value(value))
+                    }
+                    export::SingletonValueTarget::Dependency(value) => {
+                        concrete::SingletonValueTarget::Dependency(value)
+                    }
+                })
+            }
             export::ExprKind::Capture(binding) => {
                 concrete::ExprKind::Capture(concrete::BindingId::from_raw(binding.into_raw()))
             }
             export::ExprKind::Lambda(id) => {
-                concrete::ExprKind::Lambda(self.ensure_lambda(*id, substitution, locals))
+                concrete::ExprKind::Lambda(self.lower_lambda(*id, substitution, locals))
             }
             export::ExprKind::AnonymousFunction(id) => concrete::ExprKind::AnonymousFunction(
-                self.ensure_anonymous(*id, substitution, locals),
+                self.lower_anonymous(*id, substitution, locals),
             ),
             export::ExprKind::CallableReference(id) => concrete::ExprKind::CallableReference(
-                self.ensure_reference(*id, substitution, locals),
+                self.lower_reference(*id, substitution, locals),
             ),
             export::ExprKind::FunctionCoercion {
                 source,
@@ -148,18 +214,21 @@ impl Concretizer<'_> {
                 offset: Box::new(self.lower_expr(offset, substitution, locals)),
                 subtract: *subtract,
             },
-            export::ExprKind::AddressOf(place) => {
-                concrete::ExprKind::AddressOf(self.lower_place(*place, locals))
-            }
+            export::ExprKind::AddressOf(place) => concrete::ExprKind::AddressOf(self.lower_place(
+                place,
+                locals,
+                substitution,
+                source.span,
+            )),
             export::ExprKind::SizeOf(size) => {
                 concrete::ExprKind::SizeOf(self.lower_type(*size, substitution))
             }
             export::ExprKind::AlignOf(align) => {
                 concrete::ExprKind::AlignOf(self.lower_type(*align, substitution))
             }
-            export::ExprKind::FunctionAddress(function) => {
-                concrete::ExprKind::FunctionAddress(self.request_function(*function, Vec::new()))
-            }
+            export::ExprKind::FunctionAddress(function) => concrete::ExprKind::FunctionAddress(
+                self.lower_callable_target(*function, substitution),
+            ),
             export::ExprKind::ForeignCallbackRegister {
                 registration,
                 closure,
@@ -177,23 +246,26 @@ impl Concretizer<'_> {
             export::ExprKind::ForeignCallbackOperation {
                 operation,
                 callback,
-            } => concrete::ExprKind::ForeignCallbackOperation {
-                operation: match operation {
-                    export::ForeignCallbackOperation::Retain => {
-                        concrete::ForeignCallbackOperation::Retain
-                    }
-                    export::ForeignCallbackOperation::Release => {
-                        concrete::ForeignCallbackOperation::Release
-                    }
-                    export::ForeignCallbackOperation::State => {
-                        concrete::ForeignCallbackOperation::State
-                    }
-                    export::ForeignCallbackOperation::Failure => {
-                        concrete::ForeignCallbackOperation::Failure
-                    }
-                },
-                callback: Box::new(self.lower_expr(callback, substitution, locals)),
-            },
+            } => {
+                self.lower_imported_callback_support();
+                concrete::ExprKind::ForeignCallbackOperation {
+                    operation: match operation {
+                        export::ForeignCallbackOperation::Retain => {
+                            concrete::ForeignCallbackOperation::Retain
+                        }
+                        export::ForeignCallbackOperation::Release => {
+                            concrete::ForeignCallbackOperation::Release
+                        }
+                        export::ForeignCallbackOperation::State => {
+                            concrete::ForeignCallbackOperation::State
+                        }
+                        export::ForeignCallbackOperation::Failure => {
+                            concrete::ForeignCallbackOperation::Failure
+                        }
+                    },
+                    callback: Box::new(self.lower_expr(callback, substitution, locals)),
+                }
+            }
             export::ExprKind::FieldAccess { receiver, field } => {
                 let receiver = self.lower_expr(receiver, substitution, locals);
                 let field = self.lower_field_ref(*field, substitution);
@@ -202,146 +274,90 @@ impl Concretizer<'_> {
                     field,
                 }
             }
-            export::ExprKind::InitializingClassFieldAccess { application, field } => {
-                let receiver_ty = self.lower_type(
-                    self.source.class_applications[*application].canonical_type,
-                    substitution,
-                );
+            export::ExprKind::InitializingClassFieldAccess { field } => {
+                let (receiver_ty, field) =
+                    self.lower_initializing_class_field(*field, substitution);
                 concrete::ExprKind::FieldAccess {
                     receiver: Box::new(concrete::Expr {
                         kind: concrete::ExprKind::ConstructorReceiver,
                         ty: receiver_ty,
                         span: source.span,
-                        origin: source.origin.concrete(),
+                        origin,
                     }),
-                    field: self.lower_field_ref(
-                        export::FieldRef::ClassField {
-                            application: *application,
-                            field: *field,
-                        },
-                        substitution,
-                    ),
+                    field,
                 }
             }
-            export::ExprKind::InitializingStructFieldAccess { application, index } => {
-                let receiver_ty = self.lower_type(
-                    self.source.struct_applications[*application].canonical_type,
+            export::ExprKind::InitializingStructFieldAccess { owner, field } => {
+                let receiver_ty = self.lower_type(*owner, substitution);
+                let field = self.lower_field_ref(
+                    export::FieldRef::StructField {
+                        owner: *owner,
+                        field: *field,
+                    },
                     substitution,
                 );
-                let structure = self.lower_struct_application(*application, substitution);
-                let field = concrete::StructFieldRef::checked(&self.structs, structure, *index)
-                    .expect("an initializing struct field remains in range");
                 concrete::ExprKind::FieldAccess {
                     receiver: Box::new(concrete::Expr {
                         kind: concrete::ExprKind::ConstructorReceiver,
                         ty: receiver_ty,
                         span: source.span,
-                        origin: source.origin.concrete(),
+                        origin,
                     }),
-                    field: concrete::FieldRef::StructField(field),
+                    field,
                 }
             }
             export::ExprKind::MethodCall {
                 receiver,
                 callee,
                 args,
-            } => {
-                let source_function = self.source.callable_function(*callee);
-                assert!(
-                    !matches!(
-                        &self.source.functions[source_function].kind,
-                        export::FunctionKind::Intrinsic(export::IntrinsicFunction {
-                            kind: export::IntrinsicFunctionKind::Integer(_),
-                            ..
-                        })
-                    ),
-                    "integer intrinsic MethodCall must be normalized before LocalConcrete HIR"
-                );
-                let mut receiver = self.lower_expr(receiver, substitution, locals);
-                let callee = match callee {
-                    export::MethodCallee::Callable(callable) => {
-                        self.lower_callable(*callable, substitution)
-                    }
-                    export::MethodCallee::Bound(bound) => {
-                        let (callee, interface) =
-                            self.resolve_bound_callee(*bound, receiver.ty, substitution);
-                        if let Some(interface) = interface {
-                            receiver = self.adapt_receiver_to_interface(receiver, interface);
-                        }
-                        callee
-                    }
-                    export::MethodCallee::DerivedEquality(application) => {
-                        self.lower_derived_equality_application(*application, substitution)
-                    }
-                };
-                concrete::ExprKind::MethodCall {
-                    receiver: Box::new(receiver),
-                    callee,
-                    args: args
-                        .iter()
-                        .map(|argument| self.lower_expr(argument, substitution, locals))
-                        .collect(),
-                }
-            }
+            } => self.lower_method_call(receiver, *callee, args, false, substitution, locals),
             export::ExprKind::DirectSuperMethodCall {
                 receiver,
                 callee,
                 args,
-            } => {
-                let receiver = self.lower_expr(receiver, substitution, locals);
-                let callee = match callee {
-                    export::MethodCallee::Callable(callable) => {
-                        self.lower_callable(*callable, substitution)
-                    }
-                    export::MethodCallee::Bound(_) => {
-                        unreachable!("super resolution never produces a bound interface target")
-                    }
-                    export::MethodCallee::DerivedEquality(_) => {
-                        unreachable!("super resolution only produces declared class methods")
-                    }
-                };
-                concrete::ExprKind::DirectSuperMethodCall {
-                    receiver: Box::new(receiver),
-                    callee,
-                    args: args
-                        .iter()
-                        .map(|argument| self.lower_expr(argument, substitution, locals))
-                        .collect(),
-                }
-            }
+            } => self.lower_method_call(receiver, *callee, args, true, substitution, locals),
             export::ExprKind::Box(value) => {
                 let value = self.lower_expr(value, substitution, locals);
-                if matches!(
-                    self.types[value.ty].kind,
-                    concrete::TypeKind::Unit
-                        | concrete::TypeKind::Integer(_)
-                        | concrete::TypeKind::Boolean
-                        | concrete::TypeKind::Struct(_)
-                        | concrete::TypeKind::Enum(_)
-                        | concrete::TypeKind::Tuple(_)
-                        | concrete::TypeKind::Ptr(_)
-                        | concrete::TypeKind::FunPtr(_)
-                ) {
+                self.ensure_box_source(value.ty);
+                if self.is_value_representation(value.ty) {
                     concrete::ExprKind::Box(Box::new(value))
                 } else {
                     // A source type parameter with interface-only bounds is
                     // conservatively represented as Box in Export HIR. Its
                     // concrete argument may instead be a reference; in that
                     // case the adaptation is a zero-cost retype.
-                    value.kind
+                    concrete::ExprKind::ReferenceUpcast(Box::new(value))
                 }
             }
             export::ExprKind::Unbox(value) => {
-                concrete::ExprKind::Unbox(Box::new(self.lower_expr(value, substitution, locals)))
+                let value = self.lower_expr(value, substitution, locals);
+                if self.is_value_representation(ty) {
+                    concrete::ExprKind::Unbox(Box::new(value))
+                } else {
+                    concrete::ExprKind::ReferenceUpcast(Box::new(value))
+                }
             }
+            export::ExprKind::ReferenceUpcast(value) => concrete::ExprKind::ReferenceUpcast(
+                Box::new(self.lower_expr(value, substitution, locals)),
+            ),
             export::ExprKind::IsInstance { operand, check_ty } => concrete::ExprKind::IsInstance {
                 operand: Box::new(self.lower_expr(operand, substitution, locals)),
                 check_ty: self.lower_type(*check_ty, substitution),
             },
-            export::ExprKind::Cast { operand, optional } => concrete::ExprKind::Cast {
-                operand: Box::new(self.lower_expr(operand, substitution, locals)),
-                optional: *optional,
-            },
+            export::ExprKind::Cast {
+                operand,
+                check_ty,
+                optional,
+            } => {
+                if !optional {
+                    self.lower_cast_exception_type();
+                }
+                concrete::ExprKind::Cast {
+                    operand: Box::new(self.lower_expr(operand, substitution, locals)),
+                    check_ty: self.lower_type(*check_ty, substitution),
+                    optional: *optional,
+                }
+            }
             export::ExprKind::ArrayLiteral(elements) => concrete::ExprKind::ArrayLiteral(
                 elements
                     .iter()
@@ -349,6 +365,10 @@ impl Concretizer<'_> {
                     .collect(),
             ),
             export::ExprKind::ArrayAssembly(assembly) => {
+                let result = self.lower_type(assembly.result_type, substitution);
+                let concrete::TypeKind::Class(result_type) = self.types[result].kind else {
+                    unreachable!("an array assembly retains its exact class type")
+                };
                 concrete::ExprKind::ArrayAssembly(concrete::ArrayAssembly {
                     element_type: self.lower_type(assembly.element_type, substitution),
                     parts: assembly
@@ -371,67 +391,56 @@ impl Concretizer<'_> {
                             }
                         })
                         .collect(),
-                    result_type: self.lower_class_application(assembly.result_type, substitution),
+                    result_type,
                 })
             }
             export::ExprKind::Index {
                 access,
                 receiver,
                 index,
-            } => concrete::ExprKind::Index {
-                access: *access,
-                receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
-                index: Box::new(self.lower_expr(index, substitution, locals)),
-            },
+            } => {
+                self.lower_array_bounds_exception_type();
+                concrete::ExprKind::Index {
+                    access: *access,
+                    receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
+                    index: Box::new(self.lower_expr(index, substitution, locals)),
+                }
+            }
             export::ExprKind::ArraySet {
                 access,
                 receiver,
                 index,
                 value,
-            } => concrete::ExprKind::ArraySet {
-                access: *access,
-                receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
-                index: Box::new(self.lower_expr(index, substitution, locals)),
-                value: Box::new(self.lower_expr(value, substitution, locals)),
-            },
+            } => {
+                self.lower_array_bounds_exception_type();
+                concrete::ExprKind::ArraySet {
+                    access: *access,
+                    receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
+                    index: Box::new(self.lower_expr(index, substitution, locals)),
+                    value: Box::new(self.lower_expr(value, substitution, locals)),
+                }
+            }
             export::ExprKind::ArrayLen(array) => {
                 concrete::ExprKind::ArrayLen(Box::new(self.lower_expr(array, substitution, locals)))
             }
             export::ExprKind::ArrayClone(array) => concrete::ExprKind::ArrayClone(Box::new(
                 self.lower_expr(array, substitution, locals),
             )),
-            export::ExprKind::Call { callee, args } => concrete::ExprKind::Call {
-                callee: self.lower_callable(*callee, substitution),
+            export::ExprKind::Call {
+                callee,
+                binding,
+                args,
+                receiver,
+            } => concrete::ExprKind::Call {
+                binding: binding.clone(),
+                receiver: receiver.map(|ty| self.lower_type(ty, substitution)),
+                callee: self.lower_callable_target(*callee, substitution),
                 args: args
                     .iter()
                     .map(|argument| self.lower_expr(argument, substitution, locals))
                     .collect(),
             },
-            export::ExprKind::LocalFunctionCall {
-                local_function,
-                callee,
-                captures,
-                args,
-            } => {
-                let (callee, function_arguments) =
-                    self.lower_callable_with_arguments(*callee, substitution);
-                concrete::ExprKind::LocalFunctionCall {
-                    local_function: self.ensure_local_function(
-                        *local_function,
-                        &function_arguments,
-                        locals,
-                    ),
-                    callee,
-                    captures: captures
-                        .iter()
-                        .map(|capture| self.lower_expr(capture, substitution, locals))
-                        .collect(),
-                    args: args
-                        .iter()
-                        .map(|argument| self.lower_expr(argument, substitution, locals))
-                        .collect(),
-                }
-            }
+
             export::ExprKind::CallableCall {
                 callee,
                 function_type,
@@ -461,30 +470,10 @@ impl Concretizer<'_> {
                 operation,
                 arguments,
             } => {
-                let operation = match *operation {
-                    export::IntegerOperation::NoGc {
-                        kind,
-                        operation,
-                        target,
-                    } => concrete::IntegerOperation::NoGc {
-                        kind,
-                        operation,
-                        target: concrete::NoGcCallableRef::map_from_export(target, |source| {
-                            self.lower_integer_callable(kind, source)
-                        }),
-                    },
-                    export::IntegerOperation::Managed {
-                        kind,
-                        operation,
-                        target,
-                    } => concrete::IntegerOperation::Managed {
-                        kind,
-                        operation,
-                        target: concrete::ManagedCallableRef::map_from_export(target, |source| {
-                            self.lower_integer_callable(kind, source)
-                        }),
-                    },
-                };
+                let operation = *operation;
+                if matches!(operation, concrete::IntegerOperation::Managed { .. }) {
+                    self.lower_arithmetic_exception_type();
+                }
                 let arguments =
                     match arguments {
                         export::HirIntegerOperationArguments::Unary(operand) => {
@@ -508,14 +497,7 @@ impl Concretizer<'_> {
                 conversion,
                 operand,
             } => concrete::ExprKind::IntegerConversion {
-                conversion: concrete::IntegerConversion {
-                    source: conversion.source,
-                    target_kind: conversion.target_kind,
-                    target: concrete::NoGcCallableRef::map_from_export(
-                        conversion.target,
-                        |source| self.lower_integer_callable(conversion.source, source),
-                    ),
-                },
+                conversion: *conversion,
                 operand: Box::new(self.lower_expr(operand, substitution, locals)),
             },
             export::ExprKind::Binary { op, lhs, rhs } => concrete::ExprKind::Binary {
@@ -537,121 +519,21 @@ impl Concretizer<'_> {
             export::ExprKind::Unwrap {
                 operand,
                 trap_on_none,
-            } => concrete::ExprKind::Unwrap {
-                operand: Box::new(self.lower_expr(operand, substitution, locals)),
-                trap_on_none: *trap_on_none,
-            },
+            } => {
+                if *trap_on_none {
+                    self.lower_unwrap_exception_type();
+                }
+                concrete::ExprKind::Unwrap {
+                    operand: Box::new(self.lower_expr(operand, substitution, locals)),
+                    trap_on_none: *trap_on_none,
+                }
+            }
         };
         concrete::Expr {
             kind,
             ty,
             span: source.span,
-            origin: source.origin.concrete(),
-        }
-    }
-
-    pub(super) fn lower_integer_callable(
-        &mut self,
-        kind: export::IntegerKind,
-        function: export::FunctionId,
-    ) -> concrete::FunctionId {
-        let owner = self.source.intrinsic_type_core.integers.owner(kind);
-        let application = self.source.structs[owner].self_application;
-        let owner = self.lower_struct_application(application, &[]);
-        self.request_method(
-            function,
-            concrete::MethodOwner::Struct(owner),
-            MethodRequest::Plain,
-        )
-    }
-
-    fn lower_current_source_location(
-        &mut self,
-        source: &export::Expr,
-        substitution: &[concrete::TypeId],
-        _locals: &[concrete::LocalId],
-        ty: concrete::TypeId,
-    ) -> Option<concrete::Expr> {
-        let export::ExprKind::Call { callee, args } = &source.kind else {
-            return None;
-        };
-        if !args.is_empty()
-            || self.source.callable_function(*callee) != self.source.source_location_core.current
-        {
-            return None;
-        }
-
-        let origin = source.origin.concrete();
-        let evaluation = origin.evaluation;
-        let file = &self.source.source_files[evaluation.file as usize];
-        assert_eq!(
-            file.provider, evaluation.provider,
-            "evaluation origin provider must match its source file"
-        );
-        let (line, column) = source_line_column(&file.source, evaluation.span.start);
-        let file_name = file.name.clone();
-        let context = &self.source.source_contexts[evaluation.context];
-        let function_name = context.function_name.clone();
-        let type_name = context.type_name.clone();
-        let location_application =
-            self.source.structs[self.source.source_location_core.location].self_application;
-        let location = self.lower_struct_application(location_application, substitution);
-        let string_type = self.lower_type(self.source.string, substitution);
-        let long_type = self.lower_integer_type(export::IntegerKind::SIGNED_64, substitution);
-        assert_eq!(
-            self.struct_type[&location], ty,
-            "current_source_location return type must be SourceLocation"
-        );
-        let literal = |kind, ty| concrete::Expr {
-            kind,
-            ty,
-            span: source.span,
             origin,
-        };
-        Some(concrete::Expr {
-            kind: concrete::ExprKind::StructInit {
-                struct_id: location,
-                args: vec![
-                    literal(concrete::ExprKind::StringLiteral(file_name), string_type),
-                    literal(
-                        concrete::ExprKind::IntegerLiteral(export::HirIntegerConstant::Signed64(
-                            line as u64,
-                        )),
-                        long_type,
-                    ),
-                    literal(
-                        concrete::ExprKind::IntegerLiteral(export::HirIntegerConstant::Signed64(
-                            column as u64,
-                        )),
-                        long_type,
-                    ),
-                    literal(
-                        concrete::ExprKind::StringLiteral(function_name),
-                        string_type,
-                    ),
-                    literal(concrete::ExprKind::StringLiteral(type_name), string_type),
-                ],
-            },
-            ty,
-            span: source.span,
-            origin,
-        })
-    }
-}
-
-fn source_line_column(source: &str, offset: u32) -> (i64, i64) {
-    let mut line = 1_i64;
-    let mut column = 1_i64;
-    for (index, character) in source.char_indices() {
-        if index as u32 >= offset {
-            break;
-        }
-        if character == '\n' {
-            line += 1;
-            column = 1;
-        } else {
-            column += 1;
         }
     }
-    (line, column)
 }

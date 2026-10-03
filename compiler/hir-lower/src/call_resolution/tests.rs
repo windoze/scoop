@@ -6,7 +6,7 @@ use super::constraints::{
     Constraint, ConstraintFailureKind, ConstraintOrigin, InferenceSession, InferenceVariableId,
     TypeTerm,
 };
-use crate::{Lowerer, Type};
+use crate::Type;
 
 fn parameter(identity: u32, slot: u32) -> hir::TypeParamDecl {
     hir::TypeParamDecl {
@@ -17,79 +17,8 @@ fn parameter(identity: u32, slot: u32) -> hir::TypeParamDecl {
     }
 }
 
-fn add_interface(
-    lowerer: &mut Lowerer,
-    name: &str,
-    parents: Vec<hir::InterfaceApplicationId>,
-) -> hir::TypeId {
-    let interface = hir::InterfaceId::from_raw(
-        u32::try_from(lowerer.interfaces.len())
-            .expect("test interface count fits u32")
-            .into(),
-    );
-    let application = lowerer.interface_application_id(interface, Vec::new());
-    let allocated = lowerer.interfaces.alloc(hir::InterfaceDecl {
-        owner: None,
-        name: name.to_string(),
-        access: hir::NominalAccess::public(),
-        self_application: application,
-        type_params: Vec::new(),
-        gc_free_pointee_requirements: Vec::new(),
-        parents,
-        methods: Vec::new(),
-        private_methods: Vec::new(),
-        properties: Vec::new(),
-        span: Span::new(0, 0),
-    });
-    assert_eq!(allocated, interface);
-    lowerer.interface_applications[application].canonical_type
-}
-
-fn interface_application(lowerer: &Lowerer, ty: hir::TypeId) -> hir::InterfaceApplicationId {
-    let Type::Interface(application) = lowerer.types[ty] else {
-        panic!("test type is an interface application")
-    };
-    application
-}
-
-fn add_generic_struct(
-    lowerer: &mut Lowerer,
-    name: &str,
-    parameter: hir::TypeParamDecl,
-) -> hir::StructId {
-    let structure = hir::StructId::from_raw(
-        u32::try_from(lowerer.structs.len())
-            .expect("test struct count fits u32")
-            .into(),
-    );
-    let self_application = hir::StructApplicationId::from_raw(
-        u32::try_from(lowerer.struct_applications.len())
-            .expect("test struct application count fits u32")
-            .into(),
-    );
-    let parameter_ty = lowerer.intern_type(Type::Param(parameter.id));
-    let allocated = lowerer.structs.alloc(hir::StructDecl {
-        owner: None,
-        name: name.to_string(),
-        access: hir::NominalAccess::public(),
-        self_application,
-        type_params: vec![parameter],
-        gc_free_pointee_requirements: Vec::new(),
-        attributes: hir::StructAttributes::default(),
-        representation: hir::StructRepresentation::Declared(Vec::new()),
-        constructors: Vec::new(),
-        interfaces: Vec::new(),
-        interface_implementations: Vec::new(),
-        methods: Vec::new(),
-        properties: Vec::new(),
-        derived_equality: None,
-        span: Span::new(0, 0),
-    });
-    assert_eq!(allocated, structure);
-    let actual_application = lowerer.struct_application_id(structure, vec![parameter_ty]);
-    assert_eq!(actual_application, self_application);
-    structure
-}
+mod nominals;
+use nominals::{add_generic_struct, add_interface};
 
 #[test]
 fn inference_variables_are_fresh_and_keep_owner_callable_groups_distinct() {
@@ -120,7 +49,7 @@ fn inference_variables_are_fresh_and_keep_owner_callable_groups_distinct() {
 
 #[test]
 fn exact_variable_relations_reach_a_fixed_point() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let owner = parameter(20, 0);
     let callable = parameter(21, 1);
     let mut session = InferenceSession::new();
@@ -164,7 +93,7 @@ fn exact_variable_relations_reach_a_fixed_point() {
 
 #[test]
 fn subtype_bounds_choose_the_unique_expressible_minimum() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(30, 0);
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
@@ -187,13 +116,10 @@ fn subtype_bounds_choose_the_unique_expressible_minimum() {
 
 #[test]
 fn incomparable_minimal_upper_bounds_are_not_collapsed_to_any() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let left_parent = add_interface(&mut lowerer, "Left", Vec::new());
     let right_parent = add_interface(&mut lowerer, "Right", Vec::new());
-    let parents = vec![
-        interface_application(&lowerer, left_parent),
-        interface_application(&lowerer, right_parent),
-    ];
+    let parents = vec![left_parent, right_parent];
     let first_child = add_interface(&mut lowerer, "FirstChild", parents.clone());
     let second_child = add_interface(&mut lowerer, "SecondChild", parents);
     let callable = parameter(40, 0);
@@ -224,7 +150,7 @@ fn incomparable_minimal_upper_bounds_are_not_collapsed_to_any() {
 
 #[test]
 fn function_variance_generates_bidirectional_bounds() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(50, 0);
     let parameter_ty = lowerer.intern_type(Type::Param(callable.id));
     let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
@@ -249,7 +175,7 @@ fn function_variance_generates_bidirectional_bounds() {
 
 #[test]
 fn duplicate_lower_bounds_are_complete_constraints() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(51, 0);
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
@@ -269,7 +195,7 @@ fn duplicate_lower_bounds_are_complete_constraints() {
 
 #[test]
 fn an_upper_only_constraint_chooses_its_unique_greatest_solution() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(55, 0);
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
@@ -293,11 +219,16 @@ fn an_upper_only_constraint_chooses_its_unique_greatest_solution() {
 
 #[test]
 fn rigid_outer_parameters_survive_nested_application_inference() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(52, 0);
     let outer = parameter(53, 0);
     lowerer.type_params_in_scope = vec![outer.clone()];
-    let structure = add_generic_struct(&mut lowerer, "Box", callable.clone());
+    let structure = add_generic_struct(
+        &mut lowerer,
+        "Box",
+        callable.clone(),
+        hir::StructRepresentation::Declared(Vec::new()),
+    );
     let expected = lowerer.structs[structure].self_application;
     let expected = lowerer.struct_applications[expected].canonical_type;
     let outer_ty = lowerer.intern_type(Type::Param(outer.id));
@@ -318,7 +249,7 @@ fn rigid_outer_parameters_survive_nested_application_inference() {
 
 #[test]
 fn lower_bound_solution_is_not_widened_to_satisfy_a_kind() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(54, 0);
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
@@ -347,7 +278,7 @@ fn lower_bound_solution_is_not_widened_to_satisfy_a_kind() {
 
 #[test]
 fn exact_solution_still_has_to_satisfy_kind_bounds() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(60, 0);
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
@@ -369,7 +300,7 @@ fn exact_solution_still_has_to_satisfy_kind_bounds() {
 
 #[test]
 fn exact_solution_still_has_to_satisfy_interface_bounds() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let required = add_interface(&mut lowerer, "Required", Vec::new());
     let callable = parameter(61, 0);
     let mut session = InferenceSession::new();
@@ -395,9 +326,14 @@ fn exact_solution_still_has_to_satisfy_interface_bounds() {
 
 #[test]
 fn concrete_application_materializes_every_argument() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(62, 0);
-    let structure = add_generic_struct(&mut lowerer, "Box", callable.clone());
+    let structure = add_generic_struct(
+        &mut lowerer,
+        "Box",
+        callable.clone(),
+        hir::StructRepresentation::Declared(Vec::new()),
+    );
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
@@ -409,28 +345,38 @@ fn concrete_application_materializes_every_argument() {
         ConstraintOrigin::Receiver,
     );
     session.push(
-        Constraint::ConcreteApplication(super::constraints::NominalApplication::Struct(
-            structure,
-            vec![variable.into()],
-        )),
+        Constraint::ConcreteApplication(super::constraints::NominalApplication {
+            template: lowerer
+                .nominal_identity(crate::Owner::Struct(structure))
+                .declaration_id(),
+            arguments: vec![variable.into()],
+        }),
         ConstraintOrigin::Specificity,
     );
 
     lowerer
         .solve_constraints(&session)
         .expect("the complete Box<Int> application materializes");
-    assert!(lowerer.struct_application_by_key.contains_key(&(
-        structure,
-        vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
-    )));
+    assert!(
+        lowerer.struct_application_by_key.contains_key(&(
+            lowerer
+                .nominal_identity(crate::Owner::Struct(structure))
+                .declaration_id(),
+            vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
+        ))
+    );
 }
 
 #[test]
 fn pointer_concrete_application_uses_the_typed_pointer_representation() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(63, 0);
-    let pointer = add_generic_struct(&mut lowerer, "Ptr", callable.clone());
-    lowerer.ffi_ptr = Some(pointer);
+    let pointer = add_generic_struct(
+        &mut lowerer,
+        "Ptr",
+        callable.clone(),
+        hir::StructRepresentation::Intrinsic(hir::IntrinsicTypeKind::Ptr),
+    );
     let mut session = InferenceSession::new();
     let environment = session.add_environment(&[], std::slice::from_ref(&callable));
     let variable = session.callable_variables(environment)[0];
@@ -442,10 +388,12 @@ fn pointer_concrete_application_uses_the_typed_pointer_representation() {
         ConstraintOrigin::Receiver,
     );
     session.push(
-        Constraint::ConcreteApplication(super::constraints::NominalApplication::Struct(
-            pointer,
-            vec![variable.into()],
-        )),
+        Constraint::ConcreteApplication(super::constraints::NominalApplication {
+            template: lowerer
+                .nominal_identity(crate::Owner::Struct(pointer))
+                .declaration_id(),
+            arguments: vec![variable.into()],
+        }),
         ConstraintOrigin::Specificity,
     );
 
@@ -459,18 +407,26 @@ fn pointer_concrete_application_uses_the_typed_pointer_representation() {
             .any(|(_, ty)| matches!(ty, Type::Ptr(pointee)
                 if *pointee == lowerer.integer_type(hir::IntegerKind::SIGNED_32)))
     );
-    assert!(!lowerer.struct_application_by_key.contains_key(&(
-        pointer,
-        vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
-    )));
+    assert!(
+        lowerer.struct_application_by_key.contains_key(&(
+            lowerer
+                .nominal_identity(crate::Owner::Struct(pointer))
+                .declaration_id(),
+            vec![lowerer.integer_type(hir::IntegerKind::SIGNED_32)],
+        ))
+    );
 }
 
 #[test]
 fn function_pointer_concrete_application_requires_a_function_type() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(64, 0);
-    let pointer = add_generic_struct(&mut lowerer, "FunPtr", callable.clone());
-    lowerer.ffi_fun_ptr = Some(pointer);
+    let pointer = add_generic_struct(
+        &mut lowerer,
+        "FunPtr",
+        callable.clone(),
+        hir::StructRepresentation::Intrinsic(hir::IntrinsicTypeKind::FunPtr),
+    );
     let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
     let function = lowerer.intern_function_type(false, vec![int], int);
     let mut session = InferenceSession::new();
@@ -481,10 +437,12 @@ fn function_pointer_concrete_application_requires_a_function_type() {
         ConstraintOrigin::Receiver,
     );
     session.push(
-        Constraint::ConcreteApplication(super::constraints::NominalApplication::Struct(
-            pointer,
-            vec![variable.into()],
-        )),
+        Constraint::ConcreteApplication(super::constraints::NominalApplication {
+            template: lowerer
+                .nominal_identity(crate::Owner::Struct(pointer))
+                .declaration_id(),
+            arguments: vec![variable.into()],
+        }),
         ConstraintOrigin::Specificity,
     );
 
@@ -500,11 +458,35 @@ fn function_pointer_concrete_application_requires_a_function_type() {
             .iter()
             .any(|(_, ty)| matches!(ty, Type::FunPtr(found) if *found == signature))
     );
+
+    let mut invalid = InferenceSession::new();
+    let environment = invalid.add_environment(&[], std::slice::from_ref(&callable));
+    let variable = invalid.callable_variables(environment)[0];
+    invalid.push(
+        Constraint::Equal(variable.into(), int.into()),
+        ConstraintOrigin::Receiver,
+    );
+    invalid.push(
+        Constraint::ConcreteApplication(super::constraints::NominalApplication {
+            template: lowerer
+                .nominal_identity(crate::Owner::Struct(pointer))
+                .declaration_id(),
+            arguments: vec![variable.into()],
+        }),
+        ConstraintOrigin::Specificity,
+    );
+    let failure = lowerer
+        .solve_constraints(&invalid)
+        .expect_err("FunPtr<Int> has no function signature");
+    assert!(matches!(
+        failure.kind,
+        ConstraintFailureKind::NonConcreteApplication(_)
+    ));
 }
 
 #[test]
 fn callable_shape_keeps_managed_and_native_categories_separate() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
     let signature = lowerer.intern_function_type(false, vec![int], int);
     let Type::Function(signature) = lowerer.types[signature] else {
@@ -536,7 +518,7 @@ fn callable_shape_keeps_managed_and_native_categories_separate() {
 
 #[test]
 fn native_callable_shape_checks_explicit_parameter_and_return_types() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let int = lowerer.integer_type(hir::IntegerKind::SIGNED_32);
     let signature = lowerer.intern_function_type(false, vec![int], int);
     let Type::Function(signature) = lowerer.types[signature] else {
@@ -568,7 +550,7 @@ fn native_callable_shape_checks_explicit_parameter_and_return_types() {
 
 #[test]
 fn a_variable_from_another_session_is_rejected() {
-    let mut lowerer = Lowerer::new();
+    let mut lowerer = nominals::lowerer();
     let callable = parameter(70, 0);
     let mut first = InferenceSession::new();
     first.add_environment(&[], std::slice::from_ref(&callable));

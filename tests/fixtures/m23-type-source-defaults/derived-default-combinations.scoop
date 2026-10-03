@@ -1,0 +1,14 @@
+private struct Atom() {
+    internal operator fun equals(other: Atom): Boolean = true
+}
+private struct Pair(val first: Atom, val second: Atom)
+private enum Choice { Present(val value: Pair), Empty }
+private fun nested(left: Pair, right: Pair, value: Boolean = left == right): Boolean = value
+private fun enumNested(left: Choice, right: Choice, value: Boolean = left == right): Boolean = value
+private fun closure(left: Pair, right: Pair, value: () -> Boolean = { left == right }): () -> Boolean = value
+private fun use(): Boolean {
+    val pair = Pair(Atom(), Atom())
+    nested(pair, pair)
+    closure(pair, pair)()
+    return enumNested(Choice.Present(pair), Choice.Empty)
+}

@@ -1,0 +1,40 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public class LocalProperty<T>(var value: T), MutableProperty<T>
+  public fun result(): Int
+    val item: MutableProperty<Int>
+      Call PropertyItem<Int>
+        IntLiteral 20
+    val before
+      FieldAccess read
+        Var item
+    assign .value
+      Var item
+      IntLiteral 22
+    val local: MutableProperty<Int>
+      Call LocalProperty<Int>
+        IntLiteral 1
+    assign .value
+      Var local
+      FieldAccess read
+        Var item
+    return
+      Binary Add
+        Var before
+        FieldAccess read
+          Var local
+  public fun make<T>(value: T): T
+    val item: MutableProperty<T>
+      Call PropertyItem<T>
+        Var value
+    val local: MutableProperty<T>
+      Call LocalProperty<T>
+        FieldAccess read
+          Var item
+    assign .value
+      Var local
+      Var value
+    return
+      FieldAccess read
+        Var local

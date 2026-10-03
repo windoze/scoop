@@ -1,0 +1,4 @@
+public fun defaultProviderChild(): ProviderChild = ProviderChild()
+public fun <U> defaultProviderApplied(): ProviderApplied<U> = ProviderApplied<U>()
+public fun <T> defaultProviderGeneric(): ProviderGeneric<T> = ProviderGeneric<T>()
+public fun defaultProviderStatic(): ProviderGeneric.Static = ProviderGeneric.Static()

@@ -1,0 +1,35 @@
+SourceFile
+  RootPackage
+  open class Shape(val name: String)
+    fun kind
+    fun label
+  class Circle(val r: Int) : Shape(<1 args>)
+    fun kind
+  abstract class Base()
+    fun id
+  class Impl(val v: Int) : Base(<0 args>)
+    fun id
+  fun main()
+    val c
+      Call Circle
+        IntLiteral 5
+    Call println
+      MethodCall kind
+        Var c
+    Call println
+      MethodCall label
+        Var c
+    Call println
+      FieldAccess r
+        Var c
+    val s: Shape
+      Var c
+    Call println
+      MethodCall kind
+        Var s
+    val i
+      Call Impl
+        IntLiteral 7
+    Call println
+      MethodCall id
+        Var i

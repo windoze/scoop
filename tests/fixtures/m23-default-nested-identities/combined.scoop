@@ -1,0 +1,14 @@
+public fun nestedIdentity(): Int = 1
+public fun <A, B, Unused> nestedLambda(value: () -> Int = { 1 }): () -> Int = value
+public fun <A, B> nestedLocal(value: () -> Int = if (true) {
+    fun <C> local(value: () -> Int = { 1 }): () -> Int { return value }
+    local<Int>()
+} else { val fallback: () -> Int = { 2 }; fallback }): () -> Int = value
+public fun <A, B, Unused> nestedAnonymous(value: () -> Int = fun(): Int { return 1 }): () -> Int = value
+public fun <T> nestedReference(value: () -> Int = ::nestedIdentity): () -> Int = value
+
+public class NestedBinderHost<Host> {
+    public fun <Own> expanded(value: () -> Int = nestedLambda<Host, (Int, Int), Own>()): () -> Int = value
+    public fun <Own> local(value: () -> Int = nestedLocal<Host, Own>()): () -> Int = value
+    public fun <Own> anonymous(value: () -> Int = nestedAnonymous<Host, (Int, Int), Own>()): () -> Int = value
+}

@@ -1,0 +1,9 @@
+fun main() {
+    val direct = OwnerLocalHost()
+    direct.forward(1, "first")
+    direct.forward("unused", "second")
+    val combined = OwnerCombinationHost()
+    combined.swapped("third", 2)
+    combined.repeated("fourth")
+    combined.layered("fifth")
+}

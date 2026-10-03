@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m22-patterns-errors-uint8-one-missing"
+root = "../../../m22-patterns/errors/uint8-one-missing.scoop"
+inputs = ["../../../m22-patterns/errors/uint8-one-missing.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-patterns", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "uint8-one-missing.diagnostics.json"}

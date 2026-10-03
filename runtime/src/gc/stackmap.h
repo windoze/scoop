@@ -29,13 +29,24 @@ typedef struct ScoopStackMapRootPair {
     ScoopStackMapLocation derived;
 } ScoopStackMapRootPair;
 
+typedef struct ScoopStackMapLiveOut {
+    uint16_t dwarf_register;
+    uint8_t size;
+} ScoopStackMapLiveOut;
+
 typedef struct ScoopStackMapRecord {
     uint64_t safepoint_id;
     uintptr_t function_address;
     uintptr_t return_pc;
     uint64_t stack_size;
+    uint32_t instruction_offset;
+    ScoopStackMapLocation header[3];
     ScoopStackMapRootPair *roots;
     uint16_t root_count;
+    ScoopStackMapLiveOut *live_outs;
+    uint16_t live_out_count;
+    size_t image_index;
+    size_t section_offset;
 } ScoopStackMapRecord;
 
 typedef struct ScoopStackMapIndex {
@@ -77,13 +88,17 @@ typedef struct ScoopStackMapError {
     size_t section_offset;
 } ScoopStackMapError;
 
-bool scoop_stackmap_build_index(const ScoopStackMapImage *images,
-                                size_t image_count,
-                                ScoopStackMapIndex *index,
-                                ScoopStackMapError *error);
+bool scoop_stackmap_build_index(const ScoopStackMapImage *images, size_t image_count,
+                                ScoopStackMapIndex *index, ScoopStackMapError *error);
+/* Decode all contributions, retaining duplicates for registration/ODR joining.
+ * The returned records are not yet sorted for PC lookup. */
+bool scoop_stackmap_read_records(const ScoopStackMapImage *images, size_t image_count,
+                                 ScoopStackMapIndex *index, ScoopStackMapError *error);
+bool scoop_stackmap_finish_index(ScoopStackMapIndex *index, ScoopStackMapError *error);
+void scoop_stackmap_dispose_record(ScoopStackMapRecord *record);
 void scoop_stackmap_dispose_index(ScoopStackMapIndex *index);
-const ScoopStackMapRecord *
-scoop_stackmap_lookup(const ScoopStackMapIndex *index, uintptr_t return_pc);
+const ScoopStackMapRecord *scoop_stackmap_lookup(const ScoopStackMapIndex *index,
+                                                 uintptr_t return_pc);
 const char *scoop_stackmap_error_message(ScoopStackMapErrorCode code);
 
 #endif /* SCOOP_GC_STACKMAP_H */

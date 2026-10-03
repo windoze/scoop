@@ -1,0 +1,266 @@
+Module
+  callback cb0 @fn3 -> @fn5 function_type0 id=144250c607bf1711b51b2b1082a2d72c179723ec2936a30b49571e7ec0e3bd88
+  struct Token ()
+  struct TupleBox (elements: (Token, (Long, Long, Long), Token))
+  struct Wide (first: Long, second: Long, third: Long, marker: Token)
+  struct TupleOps ()
+  struct TupleMarker (elements: (Token, Token))
+  generated_callable gc0 function=@fn5 id=144250c607bf1711b51b2b1082a2d72c179723ec2936a30b49571e7ec0e3bd88
+  fun token @fn0() -> Token <no-gc>
+    bb0 entry
+      call $call.1: Token = external0 direct
+      return
+        Type Token
+        Local $call.1
+  fun primary @fn1() -> Wide <no-gc>
+    bb0 entry
+      call $call.1: Token = external0 direct
+      val $dependency.argument.0: (Long, Token, Long)
+        Type (Long, Token, Long)
+        TupleLiteral
+          Type Long
+          IntegerLiteral Long value=-29 bits=0xffffffffffffffe3
+          Type Token
+          Local $call.1
+          Type Long
+          IntegerLiteral Long value=53 bits=0x0000000000000035
+      val $dependency.parameter.value: (Long, Token, Long)
+        Type (Long, Token, Long)
+        Local $dependency.argument.0
+      call fields: (Long, Token, Long) = external1 direct
+        Type (Long, Token, Long)
+        Local $dependency.parameter.value
+      call $call.2: Token = external0 direct
+      val $dependency.argument.0: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        TupleLiteral
+          Type Token
+          FieldAccess 1
+            Type (Long, Token, Long)
+            Local fields
+          Type (Long, Long, Long)
+          TupleLiteral
+            Type Long
+            IntegerLiteral Long value=17 bits=0x0000000000000011
+            Type Long
+            FieldAccess 0
+              Type (Long, Token, Long)
+              Local fields
+            Type Long
+            FieldAccess 2
+              Type (Long, Token, Long)
+              Local fields
+          Type Token
+          Local $call.2
+      val $dependency.parameter.elements: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.argument.0
+      call $call.3: TupleBox = external2 direct
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.parameter.elements
+      val $dependency.argument.0: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        FieldAccess 0
+          Type TupleBox
+          Local $call.3
+      val $dependency.parameter.values: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.argument.0
+      call $call.4: Wide = external3 direct
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.parameter.values
+      return
+        Type Wide
+        Local $call.4
+  fun secondary @fn2() -> Wide <no-gc>
+    bb0 entry
+      call $call.1: Token = external0 direct
+      call $call.2: Token = external0 direct
+      val $dependency.argument.0: (Token, Token)
+        Type (Token, Token)
+        TupleLiteral
+          Type Token
+          Local $call.1
+          Type Token
+          Local $call.2
+      val $dependency.parameter.elements: (Token, Token)
+        Type (Token, Token)
+        Local $dependency.argument.0
+      call $call.3: TupleMarker = external4 direct
+        Type (Token, Token)
+        Local $dependency.parameter.elements
+      val marker: (Token, Token)
+        Type (Token, Token)
+        FieldAccess 0
+          Type TupleMarker
+          Local $call.3
+      call $dependency.receiver: TupleOps = external5 direct
+      val $dependency.argument.0: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        TupleLiteral
+          Type Token
+          FieldAccess 0
+            Type (Token, Token)
+            Local marker
+          Type (Long, Long, Long)
+          TupleLiteral
+            Type Long
+            IntegerLiteral Long value=5 bits=0x0000000000000005
+            Type Long
+            IntegerLiteral Long value=8 bits=0x0000000000000008
+            Type Long
+            IntegerLiteral Long value=11 bits=0x000000000000000b
+          Type Token
+          FieldAccess 1
+            Type (Token, Token)
+            Local marker
+      val $dependency.parameter.value: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.argument.0
+      call fields: (Token, (Long, Long, Long), Token) = external6 direct
+        Type TupleOps
+        Local $dependency.receiver
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.parameter.value
+      val $dependency.argument.0: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        Local fields
+      val $dependency.parameter.values: (Token, (Long, Long, Long), Token)
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.argument.0
+      call $call.4: Wide = external3 direct
+        Type (Token, (Long, Long, Long), Token)
+        Local $dependency.parameter.values
+      return
+        Type Wide
+        Local $call.4
+  fun defaults @fn3() -> Long <no-gc>
+    bb0 entry
+      call $call.1: Token = external0 direct
+      val $dependency.argument.0: (Long, Token, Long)
+        Type (Long, Token, Long)
+        TupleLiteral
+          Type Long
+          IntegerLiteral Long value=3 bits=0x0000000000000003
+          Type Token
+          Local $call.1
+          Type Long
+          IntegerLiteral Long value=9 bits=0x0000000000000009
+      val $dependency.parameter.value: (Long, Token, Long)
+        Type (Long, Token, Long)
+        Local $dependency.argument.0
+      call $dependency.argument.0: (Long, Token, Long) = external1 direct
+        Type (Long, Token, Long)
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: (Long, Token, Long)
+        Type (Long, Token, Long)
+        Local $dependency.argument.0
+      call $dependency.receiver: Long = external7 direct
+        Type (Long, Token, Long)
+        Local $dependency.parameter.value
+      call $call.2: Token = external0 direct
+      val $dependency.parameter.value: (Long, Token, Long)
+        Type (Long, Token, Long)
+        TupleLiteral
+          Type Long
+          IntegerLiteral Long value=3 bits=0x0000000000000003
+          Type Token
+          Local $call.2
+          Type Long
+          IntegerLiteral Long value=9 bits=0x0000000000000009
+      call $dependency.argument.0: Long = external8 direct
+        Type (Long, Token, Long)
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $call.3: TupleOps = external5 direct
+      call $dependency.argument.0: (Long, Token, Long) = external9 direct
+        Type TupleOps
+        Local $call.3
+      val $dependency.parameter.value: (Long, Token, Long)
+        Type (Long, Token, Long)
+        Local $dependency.argument.0
+      val $default.local.1: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, Token, Long)
+          Local $dependency.parameter.value
+      val $default.local.2: Long
+        Type Long
+        FieldAccess 2
+          Type (Long, Token, Long)
+          Local $dependency.parameter.value
+      val $default.local.3: Long
+        Type Long
+        Local $default.local.2
+      val $dependency.parameter.selected: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $default.local.1
+          Type Long
+          Local $default.local.3
+      call $dependency.argument.0: Long = external10 direct
+        Type (Long, Token, Long)
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.selected
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=24 bits=0x0000000000000018
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun republished @fn4(value: (Long, Token, Long)) -> Long <no-gc>
+    bb0 entry
+      call $dependency.receiver: TupleOps = external5 direct
+      val $dependency.argument.0: (Long, Token, Long)
+        Type (Long, Token, Long)
+        Local value
+      val $dependency.parameter.value: (Long, Token, Long)
+        Type (Long, Token, Long)
+        Local $dependency.argument.0
+      call $call.1: Long = external11 direct
+        Type TupleOps
+        Local $dependency.receiver
+        Type (Long, Token, Long)
+        Local $dependency.parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun callback bridge for defaults @fn5($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn3 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
+  output library

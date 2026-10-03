@@ -1,0 +1,48 @@
+package consumer.closures
+import upstream.closures.*
+
+private fun <T, U> readers(seed: T, marker: U, inspect: (T) -> Int): () -> Int {
+    val first: () -> T = { seed }
+    val second: () -> T = fun (): T { return seed }
+    return { inspect(first()) + inspect(second()) - inspect(seed) }
+}
+
+private fun <T, U> defaultLambda(seed: T, marker: U, read: () -> T = { seed }): T = read()
+
+private fun <T, U> defaultAnonymous(
+    seed: T,
+    marker: U,
+    read: () -> T = fun (): T { return seed }
+): T = read()
+
+private fun <T, U> nested(seed: T, marker: U): () -> () -> T {
+    return { fun (): T { return seed } }
+}
+
+private fun <T, U> nestedDefault(
+    seed: T,
+    marker: U,
+    read: () -> () -> T = { fun (): T { return seed } }
+): T {
+    val inner = read()
+    return inner()
+}
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val expected = inspect(seed)
+    val first = readers<T, Int>(seed, 0, inspect)
+    val repeated = readers<T, Unit>(seed, Unit, inspect)
+    val different = readers<Int, T>(43, seed, { value -> value })
+    if (first() != expected || repeated() != expected || different() != 43) { return 1 }
+    if (inspect(defaultLambda<T, Unit>(seed, Unit)) != expected) { return 2 }
+    if (inspect(defaultAnonymous<T, Int>(seed, 0)) != expected) { return 3 }
+    if (defaultAnonymous<Int, Unit>(42, Unit) != 42) { return 4 }
+    if (defaultAnonymous<Int, Unit>(43, Unit) != 43) { return 5 }
+    val outer = nested<T, Unit>(seed, Unit)
+    val inner = outer()
+    if (inspect(inner()) != expected) { return 6 }
+    if (inspect(nestedDefault<T, Int>(seed, 0)) != expected) { return 7 }
+    return first()
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

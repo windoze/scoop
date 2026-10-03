@@ -1,0 +1,48 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    @Unsafe block
+      val value
+        Call Packet
+          IntLiteral 17
+          IntLiteral 25L
+      Call verifyType
+        Binary And
+          Binary Eq
+            FieldAccess value
+              Var value
+            IntLiteral 17
+          Binary Eq
+            FieldAccess extra
+              Var value
+            IntLiteral 25L
+      Call verifyType
+        Binary And
+          Binary Eq
+            FieldAccess value
+              Call GenericCell
+                IntLiteral 19
+            IntLiteral 19
+          Binary Eq
+            FieldAccess value
+              Call GenericCell
+                StringLiteral "text"
+            StringLiteral "text"
+      Call verifyType
+        Binary And
+          Binary Eq
+            FieldAccess value
+              MethodCall Plain
+                Var Container
+                IntLiteral 23
+            IntLiteral 23
+          Binary Eq
+            MethodCall observe
+              Var Container
+            IntLiteral 5

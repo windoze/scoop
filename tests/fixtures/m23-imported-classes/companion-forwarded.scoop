@@ -1,0 +1,9 @@
+import dependency.classes.Counter
+import dependency.classes.CompanionHost
+import dependency.classes.Token
+
+public fun primary(): Counter {
+    val first = CompanionHost.get(Token())
+    val second = CompanionHost.value
+    return if (first === second) { first } else { Counter(0) }
+}

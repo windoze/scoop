@@ -7,6 +7,8 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
+mod calls;
+mod constructors;
 mod gc_free_pointees;
 mod generic_recursion;
 mod no_gc_generics;
@@ -28,7 +30,7 @@ impl Lowerer {
                 .function_files
                 .get(&id)
                 .copied()
-                .unwrap_or(self.user_file_index);
+                .unwrap_or_else(|| self.primary_output_file());
             let function = self.functions[id].clone();
             if function.is_suspend {
                 continue; // The annotation combination already owns this error.
@@ -100,7 +102,7 @@ impl Lowerer {
                     );
                 }
             }
-            let hir::FunctionKind::User(body) = function.kind else {
+            let hir::FunctionKind::User(ref body) = function.kind else {
                 continue;
             };
             let parameter_locals: HashSet<_> =
@@ -138,6 +140,7 @@ impl Lowerer {
             self.set_function_no_gc_requirements(id, requirements);
         }
 
+        self.check_no_gc_constructors();
         self.validate_no_gc_instantiations();
 
         let safe_functions: Vec<_> = self
@@ -152,7 +155,7 @@ impl Lowerer {
                 .function_files
                 .get(&id)
                 .copied()
-                .unwrap_or(self.user_file_index);
+                .unwrap_or_else(|| self.primary_output_file());
             let function = self.functions[id].clone();
             if let hir::FunctionKind::Extern(extern_id) = function.kind {
                 let extern_ = self.extern_functions[extern_id].clone();
@@ -199,36 +202,6 @@ impl Lowerer {
                     ),
                 );
             }
-        }
-    }
-}
-
-impl Lowerer {
-    fn check_no_gc_callee(
-        &self,
-        callable: hir::Callable,
-        span: Span,
-        out: &mut Vec<(Span, String)>,
-    ) {
-        let function = self.callable_function_id(callable);
-        self.check_no_gc_function(function, span, out);
-    }
-
-    fn check_no_gc_function(
-        &self,
-        function: hir::FunctionId,
-        span: Span,
-        out: &mut Vec<(Span, String)>,
-    ) {
-        let callee = &self.functions[function];
-        if callee.attributes.gc_effect != hir::GcEffect::NoGc {
-            out.push((
-                span,
-                format!(
-                    "`@NoGC` code may not call managed function `{}`",
-                    callee.name
-                ),
-            ));
         }
     }
 }

@@ -1,0 +1,77 @@
+Module
+  global0 $singleton$53d3f34a14ae16e685b5f3a00ecf75270f52e2868b2b6890335a82692e429c86: StorageSingleton imported provider=ebb5b142be9da62650cb4865b1ed8dc509c6d9d6a9dcc0e4db361bb0df08c3d3 storage=b0bc8bc11225e8cba25294530e67eeb0cb28abfb537b3dd69f3d1d921cad2059
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class StorageSingleton vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      call kept: Any = external0 direct
+      call $dependency.receiver: Boolean = external1 direct
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call external5 direct
+      call $dependency.receiver: String = external2 direct
+        Type StorageSingleton
+        GlobalRead $singleton$53d3f34a14ae16e685b5f3a00ecf75270f52e2868b2b6890335a82692e429c86
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external4 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.2
+    bb5 if.merge.5
+      return
+  str @str0 "singleton"
+  str @str1 "illegal state"
+  output executable @fn0

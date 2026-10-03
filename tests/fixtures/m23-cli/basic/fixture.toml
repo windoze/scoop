@@ -1,0 +1,94 @@
+schema = 1
+name = "cli-build-warm-observation-link"
+root = "hello.scoop"
+inputs = ["hello.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "cache", "stage-golden"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/dump", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${build.result.kind}", equals = "executable"},
+  {actual = "${build.result.profile}", equals = "debug"},
+  {actual = "${build.result.output}", equals = "${work}/target/${target}/debug/hello"},
+  {actual = "${build.result.observations.child_invocations.length}", equals = 2},
+  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "expected.ast.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "expected.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "expected.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "expected.lir.txt"},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--release", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${warm.result.observations.child_invocations}", equals = []},
+  {actual = "${warm.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+  {actual = "${warm.result.output}", equals = "${work}/target/${target}/release/hello"},
+  {file = "${warm.result.root.path}", same_as = "${build.result.root.path}"},
+]
+
+[[steps]]
+name = "observed"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--emit", "all", "--dump-dir", "${work}/observed", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${observed.result.observations.child_invocations}", equals = ["${build.result.root.identity}"]},
+  {actual = "${observed.result.root.artifact_fingerprint}", equals = "${build.result.root.artifact_fingerprint}"},
+  {file = "${work}/observed/${build.result.root.identity}/hir.txt", same_as = "${work}/dump/${build.result.root.identity}/hir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${scoop}", "run", "${root}", "--sysroot", "${sysroot}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--", "-o", "", "two words"]
+exit = 0
+stdout = "hello from public CLI\n"
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{actual = "${run.result.observations.child_invocations}", equals = []}]
+
+[[steps]]
+name = "isolate_link"
+files = [
+  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
+  {mkdir = {path = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${build.result.root.path}", {each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--dump-plan", "--message-format", "json"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${link.result.kind}", equals = "link"},
+  {actual = "${link.result.link_plan_fingerprint}", equals = "${build.result.link_plan_fingerprint}"},
+  {actual = "${link.result.link_plan}", contains = "program-link v2\n"},
+]
+
+[[steps]]
+name = "relinked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "hello from public CLI\n"
+stderr = ""

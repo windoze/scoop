@@ -72,7 +72,7 @@ fn typealias_dump_is_source_shaped() {
     assert_eq!(
         scoop_ast::dump(&file),
         concat!(
-            "SourceFile\n",
+            "SourceFile\n  RootPackage\n",
             "  typealias Count = Int\n",
             "  public typealias Names = Array<String>\n",
             "  private typealias Pair = (Int, String)\n",

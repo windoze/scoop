@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of property `inherited` must be of type Int, found T",
+    "notes": [],
+    "origin": {
+      "cone": "ff3c94dfa547e92b9c3d676f44bdc314bf3371c7c33c1baaecb63149f7111840",
+      "end": 162,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 151
+    },
+    "severity": "error"
+  }
+]

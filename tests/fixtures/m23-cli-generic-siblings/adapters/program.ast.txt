@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.union.check
+    @Extern(lib = "m23_union", name = "m23_register_union_check")
+  private fun registerUnionCheck()
+    @Extern(lib = "m23_class_gc", name = "m23_class_gc_collected")
+  fun collected(): Int
+  fun main()
+    @Unsafe block
+      Call registerUnionCheck
+    if
+      Binary Ne
+        Call check
+        IntLiteral 42
+      throw
+        Call IllegalStateException
+    @Unsafe block
+      if
+        Binary Ne
+          Call collected
+          IntLiteral 1
+        throw
+          Call IllegalStateException

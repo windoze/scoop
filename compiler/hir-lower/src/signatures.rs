@@ -1,5 +1,6 @@
 use super::*;
-use crate::types::ArrayKind;
+
+mod parameters;
 
 impl Lowerer {
     /// Resolve the field types of a struct declaration. Fields with
@@ -16,6 +17,7 @@ impl Lowerer {
         }
         let mut seen = HashSet::new();
         let mut fields = Vec::new();
+        let mut field_spans = Vec::new();
         let mut parameter_calling = Vec::new();
         if decl.fields.is_omitted() {
             self.error(
@@ -42,9 +44,15 @@ impl Lowerer {
                 name: field.name.text.clone(),
                 ty,
             });
+            field_spans.push(field.span);
             parameter_calling.push(calling);
         }
         self.structs[id].representation = hir::StructRepresentation::Declared(fields);
+        for (index, span) in field_spans.into_iter().enumerate() {
+            let field = hir::StructFieldRef::checked(&self.structs, id, index as u32)
+                .expect("a resolved struct field index belongs to its declaration");
+            assert!(self.struct_field_spans.insert(field, span).is_none());
+        }
         for (index, field) in self.structs[id]
             .semantic_fields()
             .iter()
@@ -52,12 +60,15 @@ impl Lowerer {
             .enumerate()
             .collect::<Vec<_>>()
         {
+            let field_ref = hir::StructFieldRef::checked(&self.structs, id, index as u32)
+                .expect("a resolved struct field index belongs to its declaration");
+            let field_span = self.struct_field_spans[&field_ref];
             let access = self.fixed_representation_access(Owner::Struct(id));
             let getter = self.property_getters.alloc(hir::PropertyGetter {
                 access: access.clone(),
                 implementation: hir::PropertyAccessorImplementation::Storage,
                 attributes: hir::FunctionAttributes::default(),
-                span: decl.span,
+                span: field_span,
             });
             let property = self.properties.alloc(hir::Property {
                 owner: hir::PropertyOwner::Struct(id),
@@ -66,7 +77,6 @@ impl Lowerer {
                 modifier: hir::MethodModifier::Final,
                 is_override: false,
                 overrides: Vec::new(),
-                override_access: Vec::new(),
                 ty: field.ty,
                 capability: hir::PropertyCapability::ReadOnly { getter },
                 representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
@@ -75,7 +85,7 @@ impl Lowerer {
                         index: index as u32,
                     },
                 }),
-                span: decl.span,
+                span: field_span,
             });
             self.structs[id].properties.push(property);
         }
@@ -113,20 +123,27 @@ impl Lowerer {
         let fields = self.structs[id]
             .semantic_fields()
             .iter()
-            .map(|field| (field.name.clone(), field.ty))
+            .enumerate()
+            .map(|(index, field)| {
+                let field_ref = hir::StructFieldRef::checked(&self.structs, id, index as u32)
+                    .expect("a primary-constructor parameter belongs to its source field");
+                (
+                    field.name.clone(),
+                    field.ty,
+                    self.struct_field_spans[&field_ref],
+                )
+            })
             .collect::<Vec<_>>();
         let parameters = fields
             .into_iter()
-            .map(|(name, ty)| hir::ConstructorParameter {
-                id: self.fresh_constructor_parameter(),
-                name,
-                ty,
-            })
+            .map(|(name, ty, span)| self.constructor_parameter(name, ty, span))
             .collect();
         let access = self.fixed_representation_access(Owner::Struct(id));
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
             owner: id,
             access,
+            safety: hir::Safety::Safe,
+            no_gc_type_params: Vec::new(),
             parameters,
             kind: hir::StructConstructorKind::Primary,
             span: decl.span,
@@ -152,11 +169,11 @@ impl Lowerer {
                 let Some(resolved) = self.resolve_fn_param(parameter) else {
                     continue;
                 };
-                parameters.push(hir::ConstructorParameter {
-                    id: self.fresh_constructor_parameter(),
-                    name: resolved.name.text,
-                    ty: resolved.ty,
-                });
+                parameters.push(self.constructor_parameter(
+                    resolved.name.text,
+                    resolved.ty,
+                    resolved.name.span,
+                ));
                 callings.push(resolved.calling);
             }
             let access = self.member_access(
@@ -167,11 +184,16 @@ impl Lowerer {
                 self.current_file,
                 crate::visibility::MemberSlotAccess::None,
             );
+            let safety = self.constructor_safety(&source.annotations, source.span);
+            let gc_effect = self.constructor_gc_effect(&source.annotations, true);
             let constructor = self.struct_constructors.alloc(hir::StructConstructor {
                 owner: id,
                 access,
+                safety,
+                no_gc_type_params: Vec::new(),
                 parameters,
                 kind: hir::StructConstructorKind::Secondary {
+                    gc_effect,
                     delegation: hir::StructConstructorDelegation {
                         target: primary_application,
                         arguments: hir::ConstructorArguments {
@@ -202,6 +224,8 @@ impl Lowerer {
         self.type_params_in_scope = self.enums[id].type_params.clone();
         let mut seen = HashSet::new();
         let mut variants = Vec::new();
+        let mut resolved_source_indices = Vec::new();
+        let mut member_spans = Vec::new();
         for (index, variant) in decl.variants.iter().enumerate() {
             if !seen.insert(variant.name.text.clone()) {
                 self.error(
@@ -214,23 +238,52 @@ impl Lowerer {
                 continue;
             }
             let style = match &variant.kind {
-                ast::VariantDeclKind::Unit => VariantStyle::Unit,
-                ast::VariantDeclKind::Positional(_) => VariantStyle::Positional,
-                ast::VariantDeclKind::Named(_) => VariantStyle::Named,
-                ast::VariantDeclKind::Constructor(_) => VariantStyle::Constructor,
+                ast::VariantDeclKind::Unit => hir::VariantStyle::Unit,
+                ast::VariantDeclKind::Positional(_) => hir::VariantStyle::Positional,
+                ast::VariantDeclKind::Named(_) => hir::VariantStyle::Named,
+                ast::VariantDeclKind::Constructor(_) => hir::VariantStyle::Constructor,
             };
             let Some(resolved) = self.resolve_variant_fields(variant) else {
                 continue; // diagnostic already recorded
             };
-            self.variant_styles.insert((id, index as u32), style);
+            let source_index = u32::try_from(index).expect("source variant index exceeds u32");
+            let resolved_index =
+                u32::try_from(variants.len()).expect("resolved variant index exceeds u32");
             self.variant_parameter_calling
-                .insert((id, index as u32), resolved.calling);
+                .insert((id, resolved_index), resolved.calling);
+            resolved_source_indices.push((source_index, resolved_index));
+            member_spans.push((resolved_index, variant.span, resolved.spans));
             variants.push(hir::Variant {
                 name: variant.name.text.clone(),
+                style,
                 fields: resolved.fields,
             });
         }
         self.enums[id].variants = variants;
+        for (variant_index, variant_span, field_spans) in member_spans {
+            let variant = hir::EnumVariantRef::checked(&self.enums, id, variant_index)
+                .expect("a resolved enum variant index belongs to its declaration");
+            assert!(
+                self.enum_variant_spans
+                    .insert(variant, variant_span)
+                    .is_none()
+            );
+            for (field_index, field_span) in field_spans.into_iter().enumerate() {
+                let field =
+                    hir::EnumVariantFieldRef::checked(&self.enums, variant, field_index as u32)
+                        .expect("a resolved enum field index belongs to its variant");
+                assert!(
+                    self.enum_variant_field_spans
+                        .insert(field, field_span)
+                        .is_none()
+                );
+            }
+        }
+        for (source_index, resolved_index) in resolved_source_indices {
+            let target = hir::EnumVariantRef::checked(&self.enums, id, resolved_index)
+                .expect("a resolved variant index belongs to its enum");
+            self.imports.bind_variant(id, source_index, target);
+        }
         let mut properties = HashSet::new();
         for property in &decl.properties {
             if !properties.insert(property.name.text.clone()) {
@@ -277,6 +330,7 @@ impl Lowerer {
                         name: format!("_{}", index + 1),
                         ty,
                     });
+                    resolved.spans.push(ty_ref.span);
                     resolved.calling.push(FnParamCalling::Required);
                 }
                 Some(resolved)
@@ -317,6 +371,7 @@ impl Lowerer {
                         name: field.name.text.clone(),
                         ty,
                     });
+                    resolved.spans.push(field.span);
                     resolved.calling.push(calling);
                 }
                 Some(resolved)
@@ -395,14 +450,7 @@ impl Lowerer {
             self.extension_receivers.insert(id, receiver_ty);
         }
 
-        let mut params = Vec::with_capacity(decl.params.len());
-        for param in &decl.params {
-            // On failure the diagnostic is already recorded and the
-            // module is rejected; the parameter is simply dropped.
-            if let Some(param) = self.resolve_fn_param(param) {
-                params.push(param);
-            }
-        }
+        let params = self.resolve_callable_parameters(decl);
         let return_ty = match &decl.return_ty {
             Some(ty_ref) => self.resolve_type_ref(ty_ref).unwrap_or(self.unit),
             None => self.unit,
@@ -438,56 +486,12 @@ impl Lowerer {
             self.extern_functions[extern_id].return_type = return_ty;
         }
     }
-
-    pub(crate) fn resolve_fn_param(&mut self, param: &ast::Param) -> Option<FnParam> {
-        let (ty, calling) = self.resolve_parameter(&param.ty, &param.syntax)?;
-        Some(FnParam {
-            name: param.name.clone(),
-            calling,
-            ty,
-        })
-    }
-
-    pub(crate) fn resolve_parameter(
-        &mut self,
-        ty: &ast::TypeRef,
-        syntax: &ast::ParameterSyntax,
-    ) -> Option<(TypeId, FnParamCalling)> {
-        let declared_ty = self.resolve_type_ref(ty)?;
-        let resolved = match syntax {
-            ast::ParameterSyntax::Required => (declared_ty, FnParamCalling::Required),
-            ast::ParameterSyntax::Default { expression, .. } => (
-                declared_ty,
-                FnParamCalling::Default {
-                    expression: expression.clone(),
-                },
-            ),
-            ast::ParameterSyntax::Vararg { default, .. } => {
-                let ty = self.array_type(ArrayKind::Immutable, declared_ty);
-                let omission = match default {
-                    ast::VarargDefaultSyntax::EmptyWhenOmitted => FnVarargOmission::EmptyArray,
-                    ast::VarargDefaultSyntax::Expression { expression, .. } => {
-                        FnVarargOmission::Default {
-                            expression: expression.clone(),
-                        }
-                    }
-                };
-                (
-                    ty,
-                    FnParamCalling::Vararg {
-                        element_ty: declared_ty,
-                        omission,
-                    },
-                )
-            }
-        };
-        Some(resolved)
-    }
 }
 
 /// Intermediate result of variant field resolution.
 #[derive(Default)]
 struct ResolvedFields {
     fields: Vec<hir::Field>,
+    spans: Vec<Span>,
     calling: Vec<FnParamCalling>,
 }

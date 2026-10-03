@@ -1,0 +1,249 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<Option<Int>>
+    Some(_0: Option<Int>)
+    None()
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.parameter._1: Option<Int>
+        Type Option<Int>
+        Local $dependency.argument.0
+      val a: Option<Option<Int>>
+        Type Option<Option<Int>>
+        VariantConstruct Option<Option<Int>> v0
+          Type Option<Int>
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      val $dependency.parameter._1: Option<Int>
+        Type Option<Int>
+        Local $dependency.argument.0
+      val b: Option<Option<Int>>
+        Type Option<Option<Int>>
+        VariantConstruct Option<Option<Int>> v0
+          Type Option<Int>
+          Local $dependency.parameter._1
+      val c: Option<Option<Int>>
+        Type Option<Option<Int>>
+        VariantConstruct Option<Option<Int>> v1
+      val $opt.1: Option<Option<Int>>
+        Type Option<Option<Int>>
+        Local a
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Option<Int>> v0
+          Type Option<Option<Int>>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Option<Int>
+        Type Option<Int>
+        VariantPayloadProject Option<Option<Int>> v0 f0
+          Type Option<Option<Int>>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external2 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      val $opt.0: Option<Int>
+        Type Option<Int>
+        Local $uw.2
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.0
+    bb4 if.then.4
+      val $res.1: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.0
+      goto bb6
+    bb5 if.else.5
+      val $res.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb6
+    bb6 if.merge.6
+      val $dependency.argument.0: Int
+        Type Int
+        Local $res.1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $opt.3: Option<Option<Int>>
+        Type Option<Option<Int>>
+        Local b
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Option<Int>> v0
+          Type Option<Option<Int>>
+          Local $opt.3
+    bb7 if.then.7
+      val $uw.4: Option<Int>
+        Type Option<Int>
+        VariantPayloadProject Option<Option<Int>> v0 f0
+          Type Option<Option<Int>>
+          Local $opt.3
+      goto bb9
+    bb8 if.else.8
+      assign $new.2
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external2 direct
+        Type UnwrapException
+        Local $new.2
+      throw
+        Type UnwrapException
+        Local $new.2
+    bb9 if.merge.9
+      val $opt.2: Option<Int>
+        Type Option<Int>
+        Local $uw.4
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.2
+    bb10 if.then.10
+      val $res.3: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.2
+      goto bb12
+    bb11 if.else.11
+      val $res.3: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb12
+    bb12 if.merge.12
+      val $dependency.argument.0: Int
+        Type Int
+        Local $res.3
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $opt.4: Option<Option<Int>>
+        Type Option<Option<Int>>
+        Local c
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Option<Option<Int>> v0
+          Type Option<Option<Int>>
+          Local $opt.4
+    bb13 if.then.13
+      val $res.5: Option<Int>
+        Type Option<Int>
+        VariantPayloadProject Option<Option<Int>> v0 f0
+          Type Option<Option<Int>>
+          Local $opt.4
+      goto bb15
+    bb14 if.else.14
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $res.5: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      goto bb15
+    bb15 if.merge.15
+      val $opt.6: Option<Int>
+        Type Option<Int>
+        Local $res.5
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $opt.6
+    bb16 if.then.16
+      val $res.7: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $opt.6
+      goto bb18
+    bb17 if.else.17
+      val $res.7: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb18
+    bb18 if.merge.18
+      val $dependency.argument.0: Int
+        Type Int
+        Local $res.7
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn1 <- println
+  str @str0 "\n"
+  output executable @fn0

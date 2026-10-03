@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.CompanionHost
+  public fun primary(): Counter
+    assign .current
+      Var CompanionHost
+      Call Counter
+        IntLiteral 21
+    return
+      FieldAccess current
+        FieldAccess Factory
+          Var CompanionHost

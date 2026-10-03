@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::identity` in current-unit top-level candidate layer:\n  - fun identity<T>(value: T): T — generic callable references require an expected function type",
+    "notes": [],
+    "origin": {
+      "cone": "caf3c6659003aece1469e0b678e69cf9bc3e277a6f9c988fa73a37449b0bc819",
+      "end": 777,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 767
+    },
+    "severity": "error"
+  }
+]

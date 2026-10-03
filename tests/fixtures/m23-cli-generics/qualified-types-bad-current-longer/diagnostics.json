@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`dependency.paths.Point` names a package, not a type",
+    "notes": [],
+    "origin": {
+      "cone": "6c52d8d13823d902a6a5e8db69923bc760885c2c8b6adde807332077f9eea2fe",
+      "end": 79,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 74
+    },
+    "severity": "error"
+  }
+]

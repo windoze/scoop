@@ -1,16 +1,37 @@
 use super::*;
 
 impl Concretizer<'_> {
+    pub(super) fn is_value_representation(&self, ty: concrete::TypeId) -> bool {
+        matches!(
+            self.types[ty].kind,
+            concrete::TypeKind::Unit
+                | concrete::TypeKind::Integer(_)
+                | concrete::TypeKind::Boolean
+                | concrete::TypeKind::Struct(_)
+                | concrete::TypeKind::Enum(_)
+                | concrete::TypeKind::Tuple(_)
+                | concrete::TypeKind::Ptr(_)
+                | concrete::TypeKind::FunPtr(_)
+        )
+    }
+
     pub(super) fn lower_integer_type(
         &mut self,
         kind: export::IntegerKind,
         substitution: &[concrete::TypeId],
     ) -> concrete::TypeId {
-        let owner = self.source.intrinsic_type_core.integers.owner(kind);
-        let source_type = self.source.struct_applications
-            [self.source.structs[owner].self_application]
-            .canonical_type;
-        self.lower_type(source_type, substitution)
+        match self.core {
+            export::CoreProtocols::Defined(protocols) => {
+                let owner = protocols.fundamental_types.integers.owner(kind);
+                let source_type = self.source.struct_applications
+                    [self.source.structs[owner].self_application]
+                    .canonical_type;
+                self.lower_type(source_type, substitution)
+            }
+            export::CoreProtocols::Imported(_) => {
+                self.intern_type(concrete::TypeKind::Integer(kind), true)
+            }
+        }
     }
 
     pub(super) fn lower_struct_application(
@@ -34,7 +55,7 @@ impl Concretizer<'_> {
                 )
             }
         };
-        self.ensure_struct(application.template, arguments, representation)
+        self.ensure_struct_definition(application.template, arguments, representation)
     }
 
     pub(super) fn lower_enum_application(
@@ -48,7 +69,7 @@ impl Concretizer<'_> {
             .iter()
             .map(|argument| self.lower_type(*argument, substitution))
             .collect();
-        self.ensure_enum(application.template, arguments)
+        self.ensure_enum_definition(application.template, arguments)
     }
 
     pub(super) fn lower_class_application(
@@ -72,7 +93,7 @@ impl Concretizer<'_> {
                 )
             }
         };
-        self.ensure_class(application.template, arguments, representation)
+        self.ensure_class_definition(application.template, arguments, representation)
     }
 
     pub(super) fn lower_intrinsic_type_representation(
@@ -126,7 +147,7 @@ impl Concretizer<'_> {
             .iter()
             .map(|argument| self.lower_type(*argument, substitution))
             .collect();
-        self.ensure_interface(application.template, arguments)
+        self.ensure_interface_definition(application.template, arguments)
     }
 
     pub(super) fn lower_type(
@@ -143,7 +164,11 @@ impl Concretizer<'_> {
             export::Type::String => self.intern_type(concrete::TypeKind::String, false),
             export::Type::Struct(application) => {
                 let value = self.source.struct_applications[application].clone();
-                if value.template == self.source.ffi_core.fun_ptr {
+                if matches!(
+                    self.core,
+                    export::CoreProtocols::Defined(protocols)
+                        if value.template == self.source.nominal_identities[protocols.ffi.fun_ptr].declaration_id()
+                ) {
                     let [function] = value.arguments.as_slice() else {
                         panic!("validated deferred FunPtr has one argument")
                     };
@@ -183,6 +208,7 @@ impl Concretizer<'_> {
             }
             export::Type::FunPtr(id) => {
                 let id = self.lower_function_type(id, substitution);
+                self.prepare_callback_storage_types(id);
                 self.intern_type(concrete::TypeKind::FunPtr(id), true)
             }
             export::Type::Enum(application) => {
@@ -193,6 +219,19 @@ impl Concretizer<'_> {
                 .get(index.into_raw() as usize)
                 .copied()
                 .expect("every local-concrete type parameter has a substitution"),
+        }
+    }
+
+    pub(super) fn prepare_callback_storage_types(&mut self, signature: concrete::FunctionTypeId) {
+        let signature = self.function_types[signature].clone();
+        for ty in signature
+            .parameter_types
+            .into_iter()
+            .chain([signature.return_type])
+        {
+            if !matches!(self.types[ty].kind, concrete::TypeKind::Unit) {
+                self.intern_type(concrete::TypeKind::Ptr(ty), true);
+            }
         }
     }
 
@@ -232,7 +271,20 @@ impl Concretizer<'_> {
             .map(|ty| self.lower_type(*ty, substitution))
             .collect::<Vec<_>>();
         let return_type = self.lower_type(source.return_type, substitution);
-        let key = (source.is_suspend, parameter_types.clone(), return_type);
+        let function = self.intern_function_type(source.is_suspend, parameter_types, return_type);
+        let any = self.intern_type(concrete::TypeKind::Any, false);
+        let arity = self.function_types[function].parameter_types.len();
+        self.intern_function_type(source.is_suspend, vec![any; arity], any);
+        function
+    }
+
+    fn intern_function_type(
+        &mut self,
+        is_suspend: bool,
+        parameter_types: Vec<concrete::TypeId>,
+        return_type: concrete::TypeId,
+    ) -> concrete::FunctionTypeId {
+        let key = (is_suspend, parameter_types.clone(), return_type);
         if let Some(&id) = self.function_type_by_signature.get(&key) {
             return id;
         }
@@ -250,7 +302,7 @@ impl Concretizer<'_> {
         self.type_by_kind.insert(canonical_kind, canonical_type);
         let id = self.function_types.alloc(concrete::FunctionType {
             canonical_type,
-            is_suspend: source.is_suspend,
+            is_suspend,
             parameter_types,
             return_type,
         });

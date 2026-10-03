@@ -60,7 +60,7 @@ fn every_integer_kind_reaches_each_typed_lir_instruction_family() {
         ]);
     }
     let main = builder.main(Arena::new(), statements);
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let function = &module.functions[0];
     let instructions = &function.blocks[function.entry].instructions;
 
@@ -218,7 +218,7 @@ fn all_integer_operators_map_without_generic_binop_or_unop_fallbacks() {
     }
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), statements);
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let function = &module.functions[0];
     let instructions = &function.blocks[function.entry].instructions;
 
@@ -271,7 +271,7 @@ fn boolean_operations_stay_in_the_non_source_integer_family() {
             )),
         ],
     );
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let function = &module.functions[0];
     let instructions = &function.blocks[function.entry].instructions;
     assert!(instructions.iter().any(|instruction| matches!(
@@ -312,7 +312,7 @@ fn reference_equality_maps_to_pointer_equality_without_integer_fallbacks() {
             )),
         ],
     );
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let function = &module.functions[0];
     let operations = function.blocks[function.entry]
         .instructions

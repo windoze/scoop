@@ -1,0 +1,147 @@
+Module
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class box<Long> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface RebuiltReadable
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn3 id=238460a806e82a27677d2c6fdac68ed850bfe0b6147dca69c11ed268cf537205
+  closure cc1 $Closure$adapter$(Any) -> Long$(Long) -> Any type=function_type2 invoke=@fn2 captures=1
+    bridge function_type1 -> @fn4 id=d2bf1ff38809e699438c965e94b14e6ba7ed48f83c56a210130c223d8f68465f
+  generated_exact_type get0 location=closure1 nominal_id=b612decdf1a6063fe0a11de841c967c116194b6320e33569ac1b6de613820851 exact_id=419d13178dbea7b37747c215b5a28e76850d0f8da1d22036deccfc52400c1c14
+  generated_exact_type get1 location=closure0 nominal_id=1f54653e42744e152ab50aa79ed3d7cd0dddccd2fbead26c3d73e651134631d9 exact_id=736c174e8146fe6f7ac333020537c36e26194f6330421b58704855777595eb15
+  generated_exact_type get2 location=class3 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_callable gc0 function=@fn3 id=238460a806e82a27677d2c6fdac68ed850bfe0b6147dca69c11ed268cf537205
+  generated_callable gc1 function=@fn2 id=c60d7fe7a4aa578010acac7cf6562c4b3b6ed8f6c5eb19cb71cf9bf369ddba1d
+  generated_callable gc2 function=@fn4 id=d2bf1ff38809e699438c965e94b14e6ba7ed48f83c56a210130c223d8f68465f
+  adapter ca0 class=cc1 source=function_type0 target=function_type2
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val source: (Any) -> Long
+        Type (Any) -> Long
+        ClosureAlloc cc0 $Closure$lambda0
+      val adapted: (Long) -> Any
+        Type (Long) -> Any
+        ClosureAlloc cc1 $Closure$adapter$(Any) -> Long$(Long) -> Any
+          CaptureInit field=0
+            Type (Any) -> Long
+            Local source
+      call $cast.1: Any = <closure:function_type2> closure[function_type2]
+        Type (Long) -> Any
+        Local adapted
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Long
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: Long
+        Type Long
+        Unbox
+          Type Any
+          Local $cast.1
+      val $dependency.argument.0: Long
+        Type Long
+        Local $ub.2
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun $lambda.0 @fn1($closure: (Any) -> Long, value: Any) -> Long
+    bb0 entry
+      val $cast.1: Any
+        Type Any
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Long
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: Long
+        Type Long
+        Unbox
+          Type Any
+          Local $cast.1
+      return
+        Type Long
+        Local $ub.2
+  fun $adapter.(Any) -> Long.(Long) -> Any @fn2($closure: (Long) -> Any, arg0: Long) -> Any
+    bb0 entry
+      call $call.1: Long = <closure:function_type0> closure[function_type0]
+        Type (Any) -> Long
+        ClosureCapture cc1 0
+          Type (Long) -> Any
+          Local $closure
+        Type Any
+        Box
+          Type Long
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Long
+          Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn3($source: (Any) -> Long, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Long = <closure:function_type0> closure[function_type0]
+        Type (Any) -> Long
+        Local $source
+        Type Any
+        Local arg0
+      return
+        Type Any
+        Box
+          Type Long
+          Local $call.1
+  fun function_bridge.$Closure$adapter$(Any) -> Long$(Long) -> Any.(Any) -> Any @fn4($source: (Long) -> Any, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Any = <closure:function_type2> closure[function_type2]
+        Type (Long) -> Any
+        Local $source
+        Type Long
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  output library

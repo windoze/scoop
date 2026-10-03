@@ -1,0 +1,25 @@
+SourceFile
+  RootPackage
+  interface Show
+    fun show
+  struct Shown : Show
+    field value: Int
+    fun show
+  open class Base(), Show
+    fun show
+  class Derived() : Base(<0 args>)
+    fun show
+  fun read<T : Show>(value: T): Int
+    =
+      MethodCall show
+        Var value
+  fun main()
+    Call println
+      Call read
+        Call Shown
+          IntLiteral 42
+    val base: Base
+      Call Derived
+    Call println
+      Call read
+        Var base

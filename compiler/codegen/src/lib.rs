@@ -45,18 +45,11 @@ use scoop_lir::{
     IntegerShiftOperation, IntegerSignedness, IntegerUnaryOperation, IntegerWidth,
     LirConstantImage, LirStaticInitialState, LirType, MachineScalarKind, Module, NativeGlobal,
     PointerKind, RefScan, StructDef, StructDefs, StructRepresentation, TempId, Terminator,
-    TypeDescriptor, TypeDescriptorRef, TypeDescriptorScan, UnOp, Value,
+    TypeDescriptor, TypeDescriptorRef, UnOp, Value,
 };
 
 const SCAN_ARRAY: u64 = u64::MAX;
 const SCAN_SEQUENCE: u64 = u64::MAX - 1;
-
-/// The write barrier's card table (M9, runtime spec 3.6): the runtime
-/// exports `extern unsigned char *scoop_gc_card_table` — a pointer
-/// variable pre-biased with the arena base, loaded at every marking
-/// site. The v1 collector ignores the table; the remembered-set
-/// consumer arrives with generations.
-const CARD_TABLE_SYMBOL: &str = "scoop_gc_card_table";
 
 /// Card granularity of the write barrier: one card per 512 bytes.
 const CARD_SHIFT: u64 = 9;
@@ -75,41 +68,72 @@ impl std::error::Error for CodegenError {}
 
 mod abi;
 mod artifact;
+mod atom_boundaries;
 mod c_bridge;
+mod c_bridge_emission;
+mod callable_atom_boundaries;
+mod callable_runtime_scans;
+mod dataflow;
 mod declarations;
 mod emission;
 mod function;
-mod image_roots;
-mod initialization;
+mod generated_c_atom_boundaries;
 mod llvm_types;
 mod module_context;
+mod object_materialization;
+mod object_partition;
+mod runtime_metadata_v1;
+mod shape_definitions;
 mod statepoint;
 mod target;
 mod type_descriptors;
 mod validation;
 
-pub use c_bridge::{c_bridge_source, c_layout_assertions};
+pub use c_bridge::{
+    GeneratedCBridgeSourceSetV1, GeneratedCBridgeSourceUnitV1, c_layout_assertions,
+    render_c_bridge_source_set,
+};
+pub use c_bridge_emission::{
+    EmittedGeneratedCBridgeObjectMemberV1, EmittedGeneratedCBridgeObjectSetV1,
+    emit_c_bridge_object_set,
+};
 pub(crate) use declarations::*;
 #[cfg(test)]
 pub(crate) use emission::emit_llvm_module;
 #[cfg(test)]
 pub(crate) use emission::host_target_machine;
-pub use emission::{emit_object, render_llvm_ir};
+pub use emission::{
+    EmittedConeObjectMemberKindV1, EmittedConeObjectMemberV1, EmittedConeObjectSetV1,
+    EmittedConeObjectSetV2, RenderedConeObjectModuleV1, emit_object_set, emit_object_set_v2,
+    render_llvm_ir_members,
+};
 use function::emit_function;
 pub(crate) use llvm_types::*;
 pub(crate) use module_context::*;
+pub use object_materialization::EmittedStrongDigestPatchMaterializationV1;
+pub use object_partition::{
+    ScoopLirObjectKindV1, ScoopLirObjectPartitionError, ScoopLirObjectPartitionV1,
+    ScoopLirObjectUnitSetV1,
+};
+pub use runtime_metadata_v1::{
+    CallableRegistrationPatchSiteV1, EmittedConeImageSupportAtomV1, EmittedConeImageSupportAtomsV1,
+    EmittedConeImageV1, EmittedEntryProductionV1, EmittedRootEntryV1,
+    EmittedStaticStorageInitialStateV1, EmittedStaticStorageRelocationTableV1,
+    EmittedStrongCallableRegistrationSetV1, EmittedStrongCallableRegistrationV1,
+    EmittedStrongImmortalObjectRegistrationSetV1, EmittedStrongImmortalObjectRegistrationV1,
+    EmittedStrongInitializationUnitRegistrationSetV1,
+    EmittedStrongInitializationUnitRegistrationV1, EmittedStrongRuntimeMetadataV1,
+    EmittedStrongSafepointRegistrationSetV1, EmittedStrongSafepointRegistrationV1,
+    EmittedStrongStaticStorageRegistrationSetV1, EmittedStrongStaticStorageRegistrationV1,
+    EmittedStrongTypeRegistrationSetV1, EmittedStrongTypeRegistrationV1,
+    ImmortalObjectRegistrationPatchSiteV1, InitializationRegistrationPatchSiteV1,
+    ProvisionalStrongDigestPatchLocationV1, RootEntryPatchSiteV1, RuntimeImagePatchSiteV1,
+    SafepointRegistrationPatchSiteV1, StaticStorageRegistrationPatchSiteV1,
+    TypeRegistrationPatchSiteV1,
+};
 use target::ManagedAddressSpace;
-pub use target::{LlvmVersion, TargetProfile, TargetProfileId, linked_llvm_version};
-pub(crate) use type_descriptors::{emit_ref_scan, emit_type_descriptors, type_descriptor_global};
-
-fn align_up(value: u64, align: u64) -> u64 {
-    debug_assert!(align.is_power_of_two());
-    (value + align - 1) & !(align - 1)
-}
-
-fn array_data_offset(element_align: u64) -> u64 {
-    align_up(24, element_align)
-}
+pub use target::{LlvmVersion, TargetProfileId, ValidatedBackendProfile, linked_llvm_version};
+pub(crate) use type_descriptors::{TypeDescriptorGlobals, type_descriptor_global};
 
 fn mark_typed_managed_pointer_boundary(
     context: &Context,
@@ -126,3 +150,5 @@ fn mark_typed_managed_pointer_boundary(
 
 #[cfg(test)]
 mod tests;
+
+mod metadata_sections;

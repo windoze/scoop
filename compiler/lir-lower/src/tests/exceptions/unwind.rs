@@ -11,7 +11,6 @@ fn throw_outside_try_is_a_throw_instruction() {
     let mut ctor_locals = Arena::new();
     let make = b.user_fn_body(
         "makeError",
-        "scoop.makeError",
         Vec::new(),
         mir::Type::Class(my_error),
         returning_body(
@@ -26,7 +25,6 @@ fn throw_outside_try_is_a_throw_instruction() {
     let exception = main_locals.alloc(local("$call.1", mir::Type::Class(my_error)));
     let main = b.user_fn_body(
         "main",
-        mir::ENTRY_SYMBOL,
         Vec::new(),
         mir::Type::Unit,
         body_with_terminator(
@@ -48,26 +46,50 @@ fn throw_outside_try_is_a_throw_instruction() {
             },
         ),
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // Outside a try the throw is the `Throw` instruction ending
     // the block; the callee stays a plain call.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop.makeError() -> ptr<managed>
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e() -> ptr<managed>
   block entry
-    poll managed-void-target0 sp3 live=[]
-    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
     ret t0
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 $call.1: ptr<managed>
   block entry
-    poll managed-void-target0 sp4 live=[]
-    call managed-direct-target0 sp2 live=[] t0 = sig=direct0 () -> ptr<managed> local-fn0()
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn0()
     store t0 -> local0
     throw local0
     unreachable
-  td td0 MyError @scoop_td_MyError type-id=2 size=16 parent=none vtable=[] itables=[]
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global0, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td0 MyError @scoop$1$td$eb205ad260a812589e9f030260657692c3e8a971a60e730337a3c28f28bc6cc9 type-id=1930812111026443540 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  td td2 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td7 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td8 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td9 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td10 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -78,8 +100,10 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout MyError value size=8 align=8 refs=[0]
   layout MyError size=16 align=8 refs=[]
-  entry @scoop_main
+  layout String value size=8 align=8 refs=[0]
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -111,14 +135,14 @@ fn throw_inside_try_invokes_to_the_own_landingpad() {
         exception: local_expr(e, mir::Type::Class(my_error)),
         unwind,
     };
-    let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
-    let module = lower(&b.finish(main));
+    let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
+    let module = lower(b.finish(main));
 
-    let function = module
-        .functions
-        .iter()
-        .find(|f| f.symbol == mir::ENTRY_SYMBOL)
-        .expect("the entry function");
+    let function = &module.functions[module
+        .executable_entry()
+        .expect("test module is executable")
+        .declaration()
+        .into_u32() as usize];
     // The explicit MIR entry jumps into the try body. That block
     // ends with the invoke; its unwind target starts with the
     // landingpad.
@@ -162,9 +186,9 @@ fn nested_trys_unwind_to_their_own_pads() {
     let mut b = Builder::new();
     let e1 = b.class("E1", None, &[], vec![], vec![]);
     let e2 = b.class("E2", None, &[], vec![], vec![]);
-    let a = b.user_fn("a", "scoop.a", Arena::new(), vec![]);
-    let bb = b.user_fn("b", "scoop.b", Arena::new(), vec![]);
-    let c = b.user_fn("c", "scoop.c", Arena::new(), vec![]);
+    let a = b.user_fn("a", Arena::new(), vec![]);
+    let bb = b.user_fn("b", Arena::new(), vec![]);
+    let c = b.user_fn("c", Arena::new(), vec![]);
     let mut locals = Arena::new();
     let e1_local = locals.alloc(local("e1", mir::Type::Class(e1)));
     let e2_local = locals.alloc(local("e2", mir::Type::Class(e2)));
@@ -292,14 +316,14 @@ fn nested_trys_unwind_to_their_own_pads() {
         },
         None,
     );
-    let main = b.user_fn_body("main", mir::ENTRY_SYMBOL, Vec::new(), mir::Type::Unit, body);
-    let module = lower(&b.finish(main));
+    let main = b.user_fn_body("main", Vec::new(), mir::Type::Unit, body);
+    let module = lower(b.finish(main));
 
-    let function = module
-        .functions
-        .iter()
-        .find(|f| f.symbol == mir::ENTRY_SYMBOL)
-        .expect("the entry function");
+    let function = &module.functions[module
+        .executable_entry()
+        .expect("test module is executable")
+        .declaration()
+        .into_u32() as usize];
     // The outer primary pad has no incoming exceptional edge after the
     // nested lowering is complete, so final LIR removes it. The inner
     // primary pad remains, as do both handler cleanup pads.
@@ -349,7 +373,7 @@ fn nested_trys_unwind_to_their_own_pads() {
             .map(|(_, u)| *u)
             .unwrap_or_else(|| panic!("{symbol} must be invoked"))
     };
-    assert_eq!(unwind_of("scoop.a"), pads[0]);
-    assert_eq!(unwind_of("scoop.b"), handler_pads[1]);
-    assert_eq!(unwind_of("scoop.c"), handler_pads[0]);
+    assert_eq!(unwind_of(module.functions[0].symbol()), pads[0]);
+    assert_eq!(unwind_of(module.functions[1].symbol()), handler_pads[1]);
+    assert_eq!(unwind_of(module.functions[2].symbol()), handler_pads[0]);
 }

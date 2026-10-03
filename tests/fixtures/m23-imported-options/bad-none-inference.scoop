@@ -1,0 +1,6 @@
+package consumer.options
+
+public fun result(): Int {
+    val missing = None
+    return 0
+}

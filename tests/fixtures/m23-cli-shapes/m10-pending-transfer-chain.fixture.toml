@@ -1,0 +1,34 @@
+schema = 1
+name = "shared-shapes-m10-pending-transfer-chain"
+inputs = ["../m10-coroutines/pending-transfer-chain.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["shared-shapes", "stage-golden", "moving-gc"]
+
+[[variants]]
+name = "normal"
+[[variants]]
+name = "moving"
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${fixture}/../m10-coroutines/pending-transfer-chain.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/${build.result.root.identity}/ast.txt", snapshot = "m10-pending-transfer-chain.ast.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/hir.txt", snapshot = "m10-pending-transfer-chain.hir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/mir.txt", snapshot = "m10-pending-transfer-chain.mir.txt"},
+  {file = "${work}/dump/${build.result.root.identity}/lir.txt", snapshot = "m10-pending-transfer-chain.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "return-inner-suspended\nreturn-inner-caught\nreturn-inner-error\nreturn-outer-suspended\nreturn-done\nreturn-node\nthrow-inner-suspended\nthrow-inner-caught\nthrow-inner-error\nthrow-outer-suspended\nouter-caught\nouter-payload\nthrow-done\nouter-payload\n"
+stderr = ""

@@ -1,0 +1,70 @@
+Module
+  class box<(Int, Int)> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn4 id=4d5752755b05961640cdaf0f4ad3319729231e5dee8b09494cf442e85d04c675
+  generated_exact_type get0 location=class0 nominal_id=f899deb4166a3bbc8d0087df7d070b8b39b0f0bb0f1e3980f9361b0090dc97ec exact_id=7b73acd50e9944a7530292aeab91e26a05c7ae6a2d8ebea4ab22d2a968bebdee
+  generated_exact_type get1 location=closure0 nominal_id=dd764b65aa399abc19593a44a397c32ec02edb3659fbd54e054c5e8c3e516d33 exact_id=b9bfd1489ed7cd342e3104e7911092b6b5f5e7ef1d7ab22869d163819d140c82
+  generated_exact_type get2 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn4 id=4d5752755b05961640cdaf0f4ad3319729231e5dee8b09494cf442e85d04c675
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val selected: ((Int, Int)) -> Int
+        Type ((Int, Int)) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type ((Int, Int)) -> Int
+        Local selected
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local value
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      return
+        Type Int
+        Local $call.1
+  fun select @fn2(value: (Int, Int)) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun $reference.0 @fn3($closure: ((Int, Int)) -> Int, arg0: (Int, Int)) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type (Int, Int)
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn4($source: ((Int, Int)) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type ((Int, Int)) -> Int
+        Local $source
+        Type (Int, Int)
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- select
+  output library

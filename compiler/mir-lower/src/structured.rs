@@ -1,7 +1,7 @@
 //! Private construction IR used before MIR CFG and call normalization.
 
 use la_arena::Arena;
-use scoop_ast::Span;
+use scoop_hir::concrete::Span;
 use scoop_mir as mir;
 
 /// Function-local identity of one structured loop after concrete-HIR ids have
@@ -76,6 +76,9 @@ pub(crate) enum StatementKind {
     /// runtime predecessor. Keeping it explicit prevents Unit fallthrough
     /// completion from turning an impossible edge into a normal return.
     Unreachable,
+    Trap {
+        message: String,
+    },
     Expr(Expr),
     Return {
         value: Option<Expr>,
@@ -358,12 +361,12 @@ pub(crate) enum ExprKind {
     },
     ClassNew {
         class_id: mir::ClassId,
-        initializer: mir::FunctionId,
+        initializer: mir::Callee,
         args: Vec<Expr>,
     },
     ClosureAlloc {
         class: mir::ClosureClassId,
-        captures: Vec<Expr>,
+        captures: Vec<ClosureCaptureInit>,
     },
     ClosureCapture {
         closure: Box<Expr>,
@@ -516,6 +519,18 @@ pub(crate) enum ExprKind {
         operand: Box<Expr>,
         field: mir::MirVariantFieldRef,
     },
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct ClosureCaptureInit {
+    pub(crate) field: u32,
+    pub(crate) value: Expr,
+}
+
+impl ClosureCaptureInit {
+    pub(crate) const fn new(field: u32, value: Expr) -> Self {
+        Self { field, value }
+    }
 }
 
 #[derive(Debug, Clone)]

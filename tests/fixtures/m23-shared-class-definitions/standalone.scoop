@@ -1,0 +1,29 @@
+package consumer.classDefinitions
+import upstream.classDefinitions.*
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val leaf: Link<T> = make(value)
+    val head = Link(value, Some(leaf))
+    leaf.next = Some(head)
+    val wrapped = Wrapper(head)
+    if (read(wrapped.head.next!!.value) != 42) { return 1 }
+    if (read(leaf.next!!.value) != 42) { return 2 }
+    val remote = Remote(value)
+    val base: Base<Unit, T> = remote
+    val view: Readable<T> = remote
+    if (read(remote.echoed) != 42) { return 3 }
+    if (read(base.select()) != 42) { return 4 }
+    if (view.apply(read) != 42) { return 5 }
+    val source: Array<Link<T>> = [leaf, head]
+    val links = MutableArray(source)
+    links[0L] = head
+    if (read(links[0L].value) != 42) { return 6 }
+    return read(readLink(value))
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    val alias: IntChain = make(42)
+    return exercise<Int>(alias.value, { item -> item })
+}

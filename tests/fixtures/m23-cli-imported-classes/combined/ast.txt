@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Holder
+  ImportExact Local dependency.classes.Token
+  ImportExact Local dependency.classes.makeCounter
+  ImportExact Local dependency.classes.identity
+  public fun primary(): Counter
+    val holder
+      Call Holder
+        Call makeCounter
+          IntLiteral 21
+        Call Token
+    Call makeCounter
+      IntLiteral 0
+    return
+      Call identity
+        MethodCall read
+          Var holder

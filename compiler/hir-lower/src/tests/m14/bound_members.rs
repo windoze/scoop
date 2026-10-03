@@ -55,14 +55,22 @@ fn bounded_receiver_call_records_exact_interface_member_identity() {
         .iter()
         .map(|(_, bound)| bound)
         .find(|bound| {
-            let hir::BoundCallableSource::Interface { member, .. } = bound.source else {
+            let hir::BoundCallableSource::Interface {
+                member: hir::InterfaceMethodReference::Local(member),
+                ..
+            } = bound.source
+            else {
                 return false;
             };
             let member = &output.export.interface_methods[member];
             output.export.interfaces[member.owner].name == "Show"
         })
         .expect("read<T> has one non-core bound call");
-    let hir::BoundCallableSource::Interface { member, .. } = bound.source else {
+    let hir::BoundCallableSource::Interface {
+        member: hir::InterfaceMethodReference::Local(member),
+        ..
+    } = bound.source
+    else {
         panic!("Show is an interface-bound member")
     };
     let member = &output.export.interface_methods[member];
@@ -114,10 +122,8 @@ fn bounded_receiver_call_records_exact_interface_member_identity() {
         .find(|(_, function)| {
             function.name == "read"
                 && matches!(
-                    function.origin,
-                    hir::concrete::FunctionOrigin::Free(
-                        hir::concrete::FreeFunctionOrigin::Generic { .. }
-                    )
+                    function.materialization.context(),
+                    hir::concrete::CallableMaterializationContext::Application(_)
                 )
         })
         .expect("read<Shown> specialization")
@@ -206,7 +212,11 @@ fn bound_member_inherits_through_exact_parent_application() {
         .iter()
         .map(|(_, bound)| bound)
         .find(|bound| {
-            let hir::BoundCallableSource::Interface { member, .. } = bound.source else {
+            let hir::BoundCallableSource::Interface {
+                member: hir::InterfaceMethodReference::Local(member),
+                ..
+            } = bound.source
+            else {
                 return false;
             };
             let member = &output.export.interface_methods[member];
@@ -215,13 +225,19 @@ fn bound_member_inherits_through_exact_parent_application() {
         .expect("readParent<T> has one non-core bound call");
     let hir::BoundCallableSource::Interface {
         bound: root,
-        member,
+        member: hir::InterfaceMethodReference::Local(member),
+        ..
     } = bound.source
     else {
         panic!("Parent is reached through an interface bound")
     };
     assert_eq!(
-        output.export.interfaces[output.export.interface_applications[root].template].name,
+        output.export.interfaces[output
+            .export
+            .nominal_identities
+            .interface_id(output.export.interface_applications[root].template)
+            .expect("an application retains its declaration")]
+        .name,
         "Child"
     );
     assert_eq!(
@@ -239,13 +255,23 @@ fn bound_member_inherits_through_exact_parent_application() {
         .interface_implementations
         .iter()
         .find(|conformance| {
-            output.export.interfaces
-                [output.export.interface_applications[conformance.interface].template]
-                .name
+            let hir::Type::Interface(application) = output.export.types[conformance.interface]
+            else {
+                return false;
+            };
+            output.export.interfaces[output
+                .export
+                .nominal_identities
+                .interface_id(output.export.interface_applications[application].template)
+                .expect("an application retains its declaration")]
+            .name
                 == "Child"
         })
         .expect("Child conformance");
-    assert_eq!(child_conformance.methods[0].member, member);
+    assert_eq!(
+        child_conformance.methods[0].member,
+        hir::InterfaceMethodReference::Local(member)
+    );
 }
 
 #[test]

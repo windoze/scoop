@@ -1,0 +1,8 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    val boxed: Any = true
+    val yes: Hash = true
+    val no: Hash = false
+    return Counter(if ((boxed as Boolean) && yes.hash() != no.hash()) { 21 } else { 0 })
+}

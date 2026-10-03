@@ -1,0 +1,115 @@
+Module
+  struct Token ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Token>
+    Completed(value: Token)
+    Suspended()
+  enum CoroutineSlot<Token>
+    Empty()
+    Value(value: Token)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Token> vtable=0 itables=0
+  interface Continuation<Token>
+  interface SuspendTask<Token>
+  interface SuspendRegistration<Token>
+  generated_exact_type get0 location=class3 nominal_id=9fdf8a0a808a971b8d6a738e44252740b5ea4b05b789833c3e9d9fcf1f6231fb exact_id=39747632c60a17cbdf560f220a00f9e5e094e83a0a7f3181e113a2107fcb1542
+  generated_exact_type get1 location=enum2 nominal_id=8ec0ae4903fb3bb8e5668ebe380983ddb48a139a3e26c020591cde39a41b7768 exact_id=c529ad6b99a4ea9cf081527fc78ba9ff3fcecd87d5d9d46cef13ae5c411e3395
+  generated_exact_type get2 location=enum1 nominal_id=4ea6b66d7d03c79e912cbb80401be8f0da35c97cd767ca8a671b71e06a68f67f exact_id=f0ef0e76863e442384e451f1db8b948d5f7cd9dbaa89e7f1b6bba84e77442ba1
+  generated_callable gc0 function=@fn9 id=122b4d747bc6af1889b1d755e91355b9d85338d738cee6bd10673cf71ac681e7
+  fun Token.equals @fn0(this: Token, other: Token) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun pass @fn1(value: Token) -> Token
+    bb0 entry
+      return
+        Type Token
+        Local value
+  fun same @fn2(left: Token, right: Token) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn0 direct
+        Type Token
+        Local left
+        Type Token
+        Local right
+      return
+        Type Boolean
+        Local $call.1
+  fun ready @fn3() -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Continuation.resume @fn4(this: Continuation<Token>, value: Token) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Token>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Token>, $completion: Continuation<Token>) -> CoroutineStep<Token>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Token>, continuation: Continuation<Token>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Token.$c0 @fn8() -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        StructInit Token
+  fun startCoroutine<Token> @fn9(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Token>[0]
+        Type Continuation<Token>
+        Local completion
+        Type Token
+        EnumField v0 f0
+          Type CoroutineStep<Token>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Token>[1]
+        Type Continuation<Token>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Token> = @fn6 interface SuspendTask<Token>[0]
+        Type SuspendTask<Token>
+        Local task
+        Type Continuation<Token>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Token>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Token> result=Token
+  coroutine_slot cl0 CoroutineSlot<Token> value=Token
+  coroutine_start ct0 result=Token function=fn9
+  coroutine_fn cf0 @fn6 source_return=Token step=cs0 immediate
+  instance mi0 function=@fn4 <- Continuation.resume
+  instance mi1 function=@fn5 <- Continuation.resumeWithException
+  instance mi2 function=@fn6 <- SuspendTask.run
+  instance mi3 function=@fn7 <- SuspendRegistration.register
+  output library

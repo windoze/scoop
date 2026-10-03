@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/literal-invalid-radix-digit.scoop:4:21: error: invalid digit in base-2 integer literal `0b102`

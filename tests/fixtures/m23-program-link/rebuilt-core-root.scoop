@@ -1,0 +1,11 @@
+import programlink.shadow.String as OrdinaryString
+
+@Extern(name = "scoop_rt_write", abi = "scoop")
+private fun sameWrite(value: String)
+
+fun main() {
+    rebuiltWrite("rebuilt\n")
+    sameWrite("root\n")
+    println(("te" + "xt").rebuiltAnswer())
+    println(OrdinaryString(40).value + 2)
+}

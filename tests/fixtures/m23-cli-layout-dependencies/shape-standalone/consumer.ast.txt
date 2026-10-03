@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public fun boxInteger(value: Int): Any
+    =
+      Var value
+  public fun testInteger(value: Any): Boolean
+    =
+      Is Int false
+        Var value

@@ -1,0 +1,25 @@
+SourceFile
+  RootPackage
+  ImportStar Local nativelink.gcruntime.*
+  struct Marker
+    field text: String
+  fun main()
+    val text
+      Binary Add
+        StringLiteral "handles-"
+        StringLiteral "alive"
+    val marker
+      Call Marker
+        Binary Add
+          StringLiteral "marker-"
+          StringLiteral "alive"
+    Call println
+      Call preserve
+        Var marker
+        Var text
+    Call gcCollect
+    Call println
+      FieldAccess text
+        Var marker
+    Call println
+      Var text

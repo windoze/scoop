@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "override function `answer` cannot declare a new default expression",
+    "notes": [],
+    "origin": {
+      "cone": "0e25a72cbf9f2d222034eda33d105d6bd41d63f0a4dc6973fa8a248157027385",
+      "end": 168,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 162
+    },
+    "severity": "error"
+  }
+]

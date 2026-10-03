@@ -1,0 +1,4 @@
+import dependency.classes.Counter
+
+public fun preserve(value: RebuiltReadable): RebuiltReadable = value
+public fun primary(): Counter = Counter(preserve(RebuiltCounter(21)).read())

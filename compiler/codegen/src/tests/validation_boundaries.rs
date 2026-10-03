@@ -73,7 +73,10 @@ fn assert_validation_error<T>(
     }
 }
 
-fn assert_public_entries_reject(module: &Module, expected: &str, fixture: &str) {
+fn assert_scoop_entries_reject(module: Module, expected: &str, fixture: &str) {
+    let expected = resolve_function_markers(&module, expected);
+    let input = scoop_lir::ConeLirOutput::try_new(module, Vec::new())
+        .expect("malformed validation fixture still has a complete strong foundation");
     let profile = host_profile();
     let output = std::env::temp_dir().join(format!(
         "scoop_codegen_{fixture}_preflight_test_{}.o",
@@ -82,40 +85,70 @@ fn assert_public_entries_reject(module: &Module, expected: &str, fixture: &str) 
     std::fs::remove_file(&output).ok();
 
     assert_validation_error(
-        std::panic::catch_unwind(|| emit_object(module, &output, profile)),
-        expected,
+        std::panic::catch_unwind(|| {
+            emit_object_set(
+                &input,
+                &scoop_lir::ConeCoordinate::reserved_single_file(),
+                &[scoop_identity::ConeIdentity::CORE],
+                scoop_lir::EntryProductionSourceV1::Library,
+                &output,
+                profile,
+            )
+        }),
+        &expected,
     );
     assert!(
         !output.exists(),
         "failed preflight must not write an object"
     );
     assert_validation_error(
-        std::panic::catch_unwind(|| render_llvm_ir(module, profile)),
-        expected,
+        std::panic::catch_unwind(|| {
+            render_llvm_ir_members(
+                &input,
+                &scoop_lir::ConeCoordinate::reserved_single_file(),
+                &[scoop_identity::ConeIdentity::CORE],
+                scoop_lir::EntryProductionSourceV1::Library,
+                profile,
+            )
+        }),
+        &expected,
     );
-    assert_validation_error(
-        std::panic::catch_unwind(|| c_bridge_source(module)),
-        expected,
-    );
-    assert_validation_error(
-        std::panic::catch_unwind(|| c_layout_assertions(module)),
-        expected,
-    );
+}
+
+fn assert_output_validation_error(module: Module, expected: &str) {
+    let error = scoop_lir::ConeLirOutput::try_new(module, Vec::new())
+        .err()
+        .expect("malformed identities must fail at the LIR output boundary");
+    assert!(error.to_string().contains(expected), "{error}");
 }
 
 fn assert_module_validation_error(module: &Module, expected: &str) {
+    let expected = resolve_function_markers(module, expected);
     assert_validation_error(
         std::panic::catch_unwind(|| crate::validation::validate_module(module)),
-        expected,
+        &expected,
     );
 }
 
+fn resolve_function_markers(module: &Module, expected: &str) -> String {
+    module
+        .functions
+        .iter()
+        .enumerate()
+        .fold(expected.to_string(), |text, (index, function)| {
+            text.replace(
+                &format!("{{function:{index}}}"),
+                &format!("@{}", function.symbol()),
+            )
+        })
+}
+
 #[test]
-fn public_codegen_entries_validate_before_manifests_and_eh_edges() {
+fn scoop_codegen_entries_validate_before_manifests_and_eh_edges() {
     let module = module_with_invalid_invoke_unwind();
-    assert_public_entries_reject(
-        &module,
-        "variant control-flow validation in @scoop.eh_test reached invalid block 99",
+    assert_scoop_entries_reject(
+        module,
+        "variant control-flow validation in {function:2} reached invalid block 99",
         "eh_edge",
     );
 }
@@ -123,9 +156,9 @@ fn public_codegen_entries_validate_before_manifests_and_eh_edges() {
 #[test]
 fn root_plan_validation_rejects_nonterminal_invoke_before_indexing_its_edges() {
     let module = module_with_nonterminal_invoke_and_invalid_edges();
-    assert_public_entries_reject(
-        &module,
-        "invoke @scoop.eh_test: must be the last instruction of block entry",
+    assert_scoop_entries_reject(
+        module,
+        "invoke {function:2}: must be the last instruction of block entry",
         "nonterminal_invoke",
     );
 }
@@ -184,8 +217,9 @@ fn callback_adapter(symbol: &str) -> Function {
         },
     });
     Function {
+        callable_body: callable_body(symbol),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: symbol.to_string(),
         signature: plain_scoop_signature(
             vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
             LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
@@ -212,14 +246,15 @@ fn malformed_callback_registration(corruption: CallbackRegistrationCorruption) -
     let callback = module.foreign_callback_families[family].callback;
     let mode = module.foreign_callback_families[family].modes.reusable();
     let adapter_symbol = "scoop.invalid_id_callback_adapter";
+    let adapter_index = module.functions.len();
     module.functions.push(callback_adapter(adapter_symbol));
     let bridge = module
         .foreign_callback_bridges
         .alloc(scoop_lir::ForeignCallbackBridge {
+            application: callback_application(0),
             family,
-            adapter_symbol: adapter_symbol.to_string(),
-            trampoline_symbol: "scoop.invalid_id_callback_trampoline".to_string(),
-            signature_symbol: "scoop.invalid_id_callback_signature".to_string(),
+            adapter: managed_local_function_ref(adapter_index),
+            trampoline: callback_trampoline(1, 0),
             params: vec![scoop_lir::CType::DataPointer {
                 pointee: scoop_lir::CDataPointee::OpaqueVoid,
                 storage: scoop_lir::CDataPointerStorage::Direct,
@@ -311,16 +346,16 @@ fn malformed_callback_operation(corruption: CallbackOperationCorruption) -> Modu
 #[test]
 fn public_codegen_entries_reject_invalid_typed_instruction_ids_without_panicking() {
     let module = module_with_invalid_enum_wrap_output();
-    assert_public_entries_reject(
-        &module,
-        "enum_wrap result references invalid temporary t99 in @scoop.tagged",
+    assert_scoop_entries_reject(
+        module,
+        "enum_wrap result references invalid temporary t99 in {function:0}",
         "enum_result_id",
     );
 
     let module = module_with_invalid_callback_state_output();
-    assert_public_entries_reject(
-        &module,
-        "foreign callback state result references invalid temporary t99 in @scoop_main",
+    assert_scoop_entries_reject(
+        module,
+        "foreign callback state result references invalid temporary t99 in {function:0}",
         "callback_result_id",
     );
 }
@@ -330,19 +365,19 @@ fn enum_wrap_rejects_every_out_of_bounds_value_reference_before_type_lookup() {
     let cases = [
         (
             Value::Local(scoop_lir::LocalId::from_raw(99.into())),
-            "enum_wrap field 0 references invalid local 99 in @scoop.tagged",
+            "enum_wrap field 0 references invalid local 99 in {function:0}",
         ),
         (
             Value::Param(99),
-            "enum_wrap field 0 references invalid parameter 99 in @scoop.tagged",
+            "enum_wrap field 0 references invalid parameter 99 in {function:0}",
         ),
         (
             Value::Temp(invalid_temp()),
-            "enum_wrap field 0 references invalid temporary t99 in @scoop.tagged",
+            "enum_wrap field 0 references invalid temporary t99 in {function:0}",
         ),
         (
             Value::Global(scoop_lir::GlobalId::from_raw(99.into())),
-            "enum_wrap field 0 references invalid global 99 in @scoop.tagged",
+            "enum_wrap field 0 references invalid global 99 in {function:0}",
         ),
     ];
 
@@ -374,7 +409,7 @@ fn typed_variant_primitives_reject_invalid_result_and_operand_ids() {
         });
     assert_module_validation_error(
         &module,
-        "variant_test result references invalid temporary t99 in @scoop.tagged",
+        "variant_test result references invalid temporary t99 in {function:0}",
     );
 
     let mut module = enum_module();
@@ -391,7 +426,7 @@ fn typed_variant_primitives_reject_invalid_result_and_operand_ids() {
         });
     assert_module_validation_error(
         &module,
-        "variant_test operand references invalid parameter 99 in @scoop.tagged",
+        "variant_test operand references invalid parameter 99 in {function:0}",
     );
 
     let mut module = enum_module();
@@ -411,7 +446,7 @@ fn typed_variant_primitives_reject_invalid_result_and_operand_ids() {
         });
     assert_module_validation_error(
         &module,
-        "variant_payload_project result references invalid temporary t99 in @scoop.tagged",
+        "variant_payload_project result references invalid temporary t99 in {function:0}",
     );
 
     let mut module = enum_module();
@@ -432,7 +467,7 @@ fn typed_variant_primitives_reject_invalid_result_and_operand_ids() {
         });
     assert_module_validation_error(
         &module,
-        "variant_payload_project operand references invalid temporary t99 in @scoop.tagged",
+        "variant_payload_project operand references invalid temporary t99 in {function:0}",
     );
 }
 
@@ -441,19 +476,19 @@ fn callback_instructions_reject_invalid_result_and_operand_ids() {
     for (corruption, expected) in [
         (
             CallbackRegistrationCorruption::Result,
-            "foreign callback registration result references invalid temporary t99 in @scoop_main",
+            "foreign callback registration result references invalid temporary t99 in {function:0}",
         ),
         (
             CallbackRegistrationCorruption::ClosureParameter,
-            "foreign callback registration closure references invalid parameter 99 in @scoop_main",
+            "foreign callback registration closure references invalid parameter 99 in {function:0}",
         ),
         (
             CallbackRegistrationCorruption::ClosureTemporary,
-            "foreign callback registration closure references invalid temporary t99 in @scoop_main",
+            "foreign callback registration closure references invalid temporary t99 in {function:0}",
         ),
         (
             CallbackRegistrationCorruption::ClosureGlobal,
-            "foreign callback registration closure references invalid global 99 in @scoop_main",
+            "foreign callback registration closure references invalid global 99 in {function:0}",
         ),
     ] {
         let module = malformed_callback_registration(corruption);
@@ -463,19 +498,19 @@ fn callback_instructions_reject_invalid_result_and_operand_ids() {
     for (corruption, expected) in [
         (
             CallbackOperationCorruption::Result,
-            "foreign callback state result references invalid temporary t99 in @scoop_main",
+            "foreign callback state result references invalid temporary t99 in {function:0}",
         ),
         (
             CallbackOperationCorruption::CallbackParameter,
-            "foreign callback operation callback references invalid parameter 99 in @scoop_main",
+            "foreign callback operation callback references invalid parameter 99 in {function:0}",
         ),
         (
             CallbackOperationCorruption::CallbackTemporary,
-            "foreign callback operation callback references invalid temporary t99 in @scoop_main",
+            "foreign callback operation callback references invalid temporary t99 in {function:0}",
         ),
         (
             CallbackOperationCorruption::CallbackGlobal,
-            "foreign callback operation callback references invalid global 99 in @scoop_main",
+            "foreign callback operation callback references invalid global 99 in {function:0}",
         ),
     ] {
         let module = malformed_callback_operation(corruption);
@@ -486,9 +521,10 @@ fn callback_instructions_reject_invalid_result_and_operand_ids() {
 fn root_plan_test_module(
     functions: Vec<Function>,
     extern_functions: scoop_lir::ExternFunctions,
-    entry_symbol: &str,
+    entry_index: usize,
 ) -> Module {
-    Module {
+    let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::new(),
         initialization_units: Arena::new(),
         structs: scoop_lir::StructDefs::default(),
@@ -500,9 +536,65 @@ fn root_plan_test_module(
         foreign_callback_families: Arena::new(),
         foreign_callback_bridges: Arena::new(),
         functions,
-        entry_symbol: entry_symbol.to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(entry_index),
+        },
         meta: string_metadata(),
+    };
+    refresh_module_safepoints(&mut module);
+    module
+}
+
+#[test]
+fn callable_runtime_scan_trees_are_emitted_as_closed_strong_atoms() {
+    let mut module = managed_poll_test_module();
+    let element = scoop_lir::NonEmptyRefScan::new(RefScan::References(vec![8])).unwrap();
+    module.functions[0]
+        .call_targets
+        .root_scans
+        .alloc(RefScan::Sequence(vec![
+            RefScan::None,
+            RefScan::References(vec![0, 16]),
+            RefScan::Array {
+                length_offset: 24,
+                first_element_offset: 32,
+                stride: std::num::NonZeroU64::new(8).unwrap(),
+                element: Box::new(element),
+            },
+        ]));
+    let plans = scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(&module).unwrap();
+    let callable = plans
+        .callable(module.functions[0].callable_body.id())
+        .unwrap();
+    assert_eq!(callable.atoms().len(), 4);
+
+    let foundation = scoop_lir::ConeLirFoundation::from_module(&module).unwrap();
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap();
+    let machine = host_target_machine().unwrap();
+    let context = inkwell::context::Context::create();
+    let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).unwrap();
+    let ir = llvm.print_to_string().to_string();
+    for atom in callable.atoms() {
+        let boundary = surface
+            .plans()
+            .iter()
+            .flat_map(|plan| plan.atom_boundaries())
+            .find(|boundary| boundary.atom() == atom.atom())
+            .unwrap();
+        assert!(
+            ir.contains(boundary.start().symbol().as_str()),
+            "missing runtime-scan start boundary for {}",
+            atom.atom()
+        );
+        assert!(
+            ir.contains(boundary.end().symbol().as_str()),
+            "missing runtime-scan end boundary for {}",
+            atom.atom()
+        );
     }
+    assert!(!ir.contains(".root_scan."), "{ir}");
+    assert!(!ir.contains(".native."), "{ir}");
+    assert!(!ir.contains(".invoke."), "{ir}");
 }
 
 fn managed_poll_test_module() -> Module {
@@ -533,8 +625,9 @@ fn managed_poll_test_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let function = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.managed_poll_validation".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
         call_targets,
         locals: Arena::new(),
@@ -542,11 +635,305 @@ fn managed_poll_test_module() -> Module {
         blocks,
         entry,
     };
-    root_plan_test_module(
-        vec![function],
-        scoop_lir::ExternFunctions::default(),
-        "scoop.managed_poll_validation",
+    root_plan_test_module(vec![function], scoop_lir::ExternFunctions::default(), 0)
+}
+
+fn managed_poll_reference(function: &Function) -> scoop_lir::SafepointSiteRef {
+    match &function.blocks[function.entry].instructions[0] {
+        Instruction::ManagedPoll { site } => site.safepoint,
+        _ => panic!("managed poll fixture starts with a poll"),
+    }
+}
+
+#[test]
+fn safepoint_validation_rejects_a_missing_identity_record() {
+    let mut module = managed_poll_test_module();
+    module.functions[0].safepoints = scoop_lir::SafepointIdentities::default();
+
+    assert_module_validation_error(&module, "references missing safepoint site 702");
+}
+
+#[test]
+fn safepoint_validation_rejects_an_identity_owned_by_another_body() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let reference = managed_poll_reference(function);
+    let identity = scoop_lir::SafepointIdentity::new(
+        callable_body("another_safepoint_owner").id(),
+        scoop_lir::SafepointSiteRole::ManagedPoll,
+        0,
     )
+    .unwrap();
+    function.safepoints =
+        scoop_lir::SafepointIdentities::checked(vec![(reference, identity)]).unwrap();
+
+    assert_module_validation_error(&module, "belongs to another callable body");
+}
+
+#[test]
+fn duplicate_type_descriptor_identity_is_rejected() {
+    let mut module = values_module();
+    let identity = module
+        .meta
+        .type_descriptors
+        .iter()
+        .next()
+        .expect("values fixture has the String descriptor")
+        .1
+        .identity
+        .clone();
+    module.meta.type_descriptors.alloc(TypeDescriptor {
+        relations: Default::default(),
+        diagnostic_name: "DuplicateString".to_string(),
+        identity,
+        instance_layout: layout_identity(
+            "String",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
+        instance_shape: TypeInstanceShapeV1::inline_bytes(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        )
+        .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
+        parent: None,
+        vtable: vtable("String", Vec::new()),
+        itables: Vec::new(),
+    });
+
+    assert_output_validation_error(module, "duplicate persistent symbol request");
+}
+
+#[test]
+fn type_descriptor_validation_rejects_an_empty_diagnostic_name() {
+    let mut module = values_module();
+    module
+        .meta
+        .type_descriptors
+        .iter_mut()
+        .next()
+        .expect("values fixture has the String descriptor")
+        .1
+        .diagnostic_name
+        .clear();
+
+    assert_module_validation_error(&module, "has an empty canonical diagnostic name");
+}
+
+#[test]
+fn type_descriptor_validation_rejects_a_foreign_instance_layout() {
+    let mut module = values_module();
+    let descriptor = module
+        .meta
+        .type_descriptors
+        .iter_mut()
+        .next()
+        .expect("values fixture has the String descriptor")
+        .1;
+    descriptor.instance_layout = layout_identity(
+        "NotString",
+        scoop_identity::RepresentationRole::ManagedObject,
+    );
+
+    assert_module_validation_error(
+        &module,
+        "carries an instance layout for another exact type, target, representation, or scan role",
+    );
+}
+
+#[test]
+fn dispatch_table_validation_rejects_a_vtable_for_another_exact_type() {
+    let mut module = values_module();
+    module
+        .meta
+        .type_descriptors
+        .iter_mut()
+        .next()
+        .expect("values fixture has the String descriptor")
+        .1
+        .vtable = vtable("NotString", Vec::new());
+
+    assert_module_validation_error(
+        &module,
+        "carries a vtable identity for another exact type or table role",
+    );
+}
+
+#[test]
+fn dispatch_table_validation_rejects_an_itable_for_another_interface() {
+    let mut module = super::objects::classes_module();
+    let descriptor_id = |name: &str| {
+        module
+            .meta
+            .type_descriptors
+            .iter()
+            .find_map(|(id, descriptor)| (descriptor.diagnostic_name == name).then_some(id))
+            .unwrap_or_else(|| panic!("missing test descriptor {name}"))
+    };
+    let describable = descriptor_id("Describable");
+    let point = descriptor_id("Point");
+    let slots = module.meta.type_descriptors[point].itables[0]
+        .slots()
+        .to_vec();
+    module.meta.type_descriptors[point].itables[0] = itable(
+        "Point",
+        "Shape",
+        TypeDescriptorRef::Local(describable),
+        slots,
+    );
+
+    assert_module_validation_error(
+        &module,
+        "itable identity and interface descriptor identify different exact types",
+    );
+}
+
+#[test]
+fn layout_validation_rejects_two_physical_layouts_for_one_identity() {
+    let mut module = values_module();
+    let identity = module
+        .meta
+        .layouts
+        .iter()
+        .next()
+        .expect("values fixture has the String layout")
+        .1
+        .identity
+        .clone();
+    module.meta.layouts.alloc(Layout {
+        identity,
+        name: "DuplicateString".to_string(),
+        size: 24,
+        align: 8,
+        fields: Vec::new(),
+        c_layout: None,
+        interior_mutable: false,
+        kind: LayoutKind::Intrinsic(scoop_lir::IntrinsicTypeRepresentation::String),
+    });
+
+    assert_output_validation_error(module, "duplicate layout identity");
+}
+
+#[test]
+fn static_storage_validation_rejects_two_globals_for_one_identity() {
+    let mut module = values_module();
+    for _ in 0..2 {
+        module.globals.alloc(Global {
+            address_kind: PointerKind::Raw,
+            scan: RefScan::None,
+            init: GlobalInit::Storage {
+                identity: static_storage_identity("duplicateStorage"),
+                layout: layout_identity(
+                    "duplicateStorage",
+                    scoop_identity::RepresentationRole::ManagedValue,
+                )
+                .into(),
+                ty: LirType::I64,
+                initial_state: LirStaticInitialState::EncodedStaticValue {
+                    payload: LirConstantImage::Integer(scoop_lir::LirIntegerConstant::Signed64(0)),
+                },
+            },
+        });
+    }
+
+    assert_output_validation_error(module, "duplicate static storage identity");
+}
+
+#[test]
+fn safepoint_validation_rejects_a_role_that_disagrees_with_the_instruction() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let reference = managed_poll_reference(function);
+    let identity = scoop_lir::SafepointIdentity::new(
+        function.callable_body.id(),
+        scoop_lir::SafepointSiteRole::ManagedCall,
+        0,
+    )
+    .unwrap();
+    function.safepoints =
+        scoop_lir::SafepointIdentities::checked(vec![(reference, identity)]).unwrap();
+
+    assert_module_validation_error(&module, "has role ManagedCall, expected ManagedPoll");
+}
+
+#[test]
+fn safepoint_validation_rejects_a_noncanonical_role_ordinal() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let reference = managed_poll_reference(function);
+    let identity = scoop_lir::SafepointIdentity::new(
+        function.callable_body.id(),
+        scoop_lir::SafepointSiteRole::ManagedPoll,
+        1,
+    )
+    .unwrap();
+    function.safepoints =
+        scoop_lir::SafepointIdentities::checked(vec![(reference, identity)]).unwrap();
+
+    assert_module_validation_error(&module, "ManagedPoll ordinal 1, expected 0");
+}
+
+#[test]
+fn safepoint_validation_rejects_an_unreferenced_identity_record() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let reference = managed_poll_reference(function);
+    let extra_reference = scoop_lir::SafepointSiteRef::from_u32(800);
+    let first = scoop_lir::SafepointIdentity::new(
+        function.callable_body.id(),
+        scoop_lir::SafepointSiteRole::ManagedPoll,
+        0,
+    )
+    .unwrap();
+    let extra = scoop_lir::SafepointIdentity::new(
+        function.callable_body.id(),
+        scoop_lir::SafepointSiteRole::ManagedPoll,
+        1,
+    )
+    .unwrap();
+    function.safepoints =
+        scoop_lir::SafepointIdentities::checked(vec![(reference, first), (extra_reference, extra)])
+            .unwrap();
+
+    assert_module_validation_error(
+        &module,
+        "has 1 referenced safepoints but 2 identity records",
+    );
+}
+
+#[test]
+fn safepoint_validation_rejects_a_reference_reused_by_two_instructions() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let (target, reference) = match &function.blocks[function.entry].instructions[0] {
+        Instruction::ManagedPoll { site } => (site.target, site.safepoint),
+        _ => panic!("managed poll fixture starts with a poll"),
+    };
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::ManagedPoll {
+            site: scoop_lir::ManagedPollSite {
+                target,
+                safepoint: reference,
+                live: scoop_lir::StatepointLiveSet::default(),
+            },
+        });
+
+    assert_module_validation_error(&module, "reuses safepoint reference 702");
+}
+
+#[test]
+fn safepoint_validation_rejects_unreachable_final_cfg_blocks() {
+    let mut module = managed_poll_test_module();
+    module.functions[0].blocks.alloc(BasicBlock {
+        name: "unreachable".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+
+    assert_module_validation_error(
+        &module,
+        "contains unreachable block 1 during safepoint validation",
+    );
 }
 
 fn managed_indirect_argument_root_module() -> Module {
@@ -564,8 +951,9 @@ fn managed_indirect_argument_root_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let callee = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_indirect_callee".to_string(),
         signature: callee_signature,
         call_targets: CallTargets::default(),
         locals: Arena::new(),
@@ -575,10 +963,7 @@ fn managed_indirect_argument_root_module() -> Module {
     };
 
     let mut locals = Arena::new();
-    let argument = locals.alloc(Local {
-        name: "indirect_argument".to_string(),
-        ty: aggregate.clone(),
-    });
+    let argument = locals.alloc(test_local("indirect_argument", aggregate.clone()));
     let mut temps = Arena::new();
     let value = temps.alloc(Temp {
         ty: aggregate.clone(),
@@ -588,7 +973,7 @@ fn managed_indirect_argument_root_module() -> Module {
         vec![scoop_lir::AbiArgument::Indirect(abi_value.clone())],
         scoop_lir::CallingConvention::Cdecl,
     ));
-    let storage = scoop_lir::AbiArgumentStorage::new(argument, &locals[argument].ty, &abi_value)
+    let storage = scoop_lir::AbiArgumentStorage::new(argument, locals[argument].ty(), &abi_value)
         .expect("test indirect argument has exact storage");
     let site = protocol_site(
         &mut targets,
@@ -618,8 +1003,9 @@ fn managed_indirect_argument_root_module() -> Module {
         terminator: Terminator::Return { value: None },
     });
     let caller = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_indirect_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], LirType::Void),
         call_targets: targets,
         locals,
@@ -630,7 +1016,7 @@ fn managed_indirect_argument_root_module() -> Module {
     root_plan_test_module(
         vec![callee, caller],
         scoop_lir::ExternFunctions::default(),
-        "scoop.root_plan_indirect_caller",
+        1,
     )
 }
 
@@ -673,8 +1059,9 @@ fn native_borrowed_root_module(scan: RefScan) -> Module {
         },
     });
     let caller = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_borrowed_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: targets,
         locals: Arena::new(),
@@ -682,11 +1069,7 @@ fn native_borrowed_root_module(scan: RefScan) -> Module {
         blocks,
         entry,
     };
-    root_plan_test_module(
-        vec![caller],
-        extern_functions,
-        "scoop.root_plan_borrowed_caller",
-    )
+    root_plan_test_module(vec![caller], extern_functions, 0)
 }
 
 fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
@@ -697,8 +1080,9 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
         terminator: Terminator::Return { value: None },
     });
     let callee = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_invoke_callee".to_string(),
         signature: plain_scoop_signature(Vec::new(), LirType::Void),
         call_targets: CallTargets::default(),
         locals: Arena::new(),
@@ -756,8 +1140,9 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
         terminator: Terminator::Br(normal),
     };
     let caller = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "scoop.root_plan_invoke_caller".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: targets,
         locals: Arena::new(),
@@ -768,7 +1153,7 @@ fn managed_invoke_root_module(normal_live: bool, unwind_live: bool) -> Module {
     root_plan_test_module(
         vec![callee, caller],
         scoop_lir::ExternFunctions::default(),
-        "scoop.root_plan_invoke_caller",
+        1,
     )
 }
 
@@ -810,7 +1195,7 @@ fn root_plan_validation_rejects_omitted_managed_poll_root() {
 
     assert_module_validation_error(
         &module,
-        "managed poll root plan in @scoop.managed_poll_validation block0 instruction 0 root plan has 0 entries, expected 1 complete entries",
+        "managed poll root plan in {function:0} block0 instruction 0 root plan has 0 entries, expected 1 complete entries",
     );
 }
 
@@ -826,7 +1211,7 @@ fn scoop_abi_validation_rejects_invalid_managed_poll_target() {
 
     assert_module_validation_error(
         &module,
-        "managed poll @scoop.managed_poll_validation: references invalid managed-void target 99",
+        "managed poll {function:0}: references invalid managed-void target 99",
     );
 }
 
@@ -843,8 +1228,64 @@ fn scoop_abi_validation_rejects_non_safepoint_managed_poll_target() {
 
     assert_module_validation_error(
         &module,
-        "managed poll @scoop.managed_poll_validation: target is not the managed safepoint runtime function",
+        "managed poll {function:0}: target is not the managed safepoint runtime function",
     );
+}
+
+#[test]
+fn scoop_abi_validation_rejects_an_unknown_managed_external_call_target() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let signature = function
+        .call_targets
+        .void_signatures
+        .alloc(VoidCallSignature::new(
+            Vec::new(),
+            scoop_lir::CallingConvention::Cdecl,
+        ));
+    let external = scoop_lir::ExternalCallableId::from_raw(0_u32.into());
+    let target = function
+        .call_targets
+        .managed_targets
+        .void
+        .alloc(scoop_lir::CallTarget {
+            destination: scoop_lir::ManagedCallDestination::external(external),
+            signature,
+        });
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::Call {
+            site: scoop_lir::CallSite::Managed(scoop_lir::ManagedCallSite {
+                call: scoop_lir::TypedCall::Void {
+                    target,
+                    args: Vec::new(),
+                },
+                safepoint: test_safepoint(704),
+                live: scoop_lir::StatepointLiveSet::default(),
+            }),
+        });
+    refresh_module_safepoints(&mut module);
+
+    assert_module_validation_error(&module, "references invalid external callable 0");
+}
+
+#[test]
+fn scoop_abi_validation_rejects_an_unknown_no_gc_external_call_target() {
+    let mut module = managed_poll_test_module();
+    let function = &mut module.functions[0];
+    let external = scoop_lir::ExternalCallableId::from_raw(0_u32.into());
+    let site = void_site(
+        &mut function.call_targets,
+        TestCallProtocol::NoGc {
+            destination: scoop_lir::NoGcCallDestination::external(external),
+        },
+        Vec::new(),
+        Vec::new(),
+    );
+    function.blocks[function.entry]
+        .instructions
+        .push(Instruction::Call { site });
+    assert_module_validation_error(&module, "references invalid external callable 0");
 }
 
 #[test]
@@ -869,7 +1310,7 @@ fn scoop_abi_validation_rejects_noncanonical_managed_poll_signature() {
 
     assert_module_validation_error(
         &module,
-        "managed poll @scoop.managed_poll_validation: target must use the exact `cdecl () -> void` safepoint ABI",
+        "managed poll {function:0}: target must use the exact `cdecl () -> void` safepoint ABI",
     );
 }
 
@@ -877,9 +1318,12 @@ fn scoop_abi_validation_rejects_noncanonical_managed_poll_signature() {
 fn scoop_abi_validation_rejects_managed_poll_in_no_gc_function() {
     let mut module = managed_poll_test_module();
     module.functions[0].gc_effect = GcEffect::NoGc;
+    module.output = scoop_lir::LirOutput::Executable {
+        entry: no_gc_function_ref(0),
+    };
 
     assert_module_validation_error(
         &module,
-        "managed poll @scoop.managed_poll_validation: is only valid in a managed function",
+        "managed poll {function:0}: is only valid in a managed function",
     );
 }

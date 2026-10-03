@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "pattern `TextChoice.Item` does not match a subject of type Choice<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "054e88438f6158388d12ef8c63b136333e2fd1f936b6b9780941afc14fe9c8da",
+      "end": 151,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 127
+    },
+    "severity": "error"
+  }
+]

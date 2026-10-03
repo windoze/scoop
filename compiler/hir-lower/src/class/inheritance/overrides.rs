@@ -1,4 +1,5 @@
 use super::*;
+use hir::ImportedCallableSource;
 
 impl Lowerer {
     /// The `override` rules for one member function: an overriding
@@ -38,16 +39,8 @@ impl Lowerer {
                         (candidate.function, arguments)
                     })
                     .collect();
-                for interface_ty in self.class_interfaces_all(class_id) {
-                    let (iface, args) = self.interface_application(interface_ty);
-                    candidates.extend(
-                        self.interface_methods[&iface]
-                            .iter()
-                            .copied()
-                            .filter(|method| self.function_is_accessible(*method, None))
-                            .map(|method| (method, args.clone())),
-                    );
-                }
+                let interfaces = self.class_interfaces_all(class_id);
+                candidates.extend(self.interface_method_candidates(&interfaces));
                 candidates
             }
             Owner::Object(object) => {
@@ -68,16 +61,8 @@ impl Lowerer {
                         (candidate.function, arguments)
                     })
                     .collect();
-                for interface_ty in self.class_interfaces_all(class_id) {
-                    let (iface, args) = self.interface_application(interface_ty);
-                    candidates.extend(
-                        self.interface_methods[&iface]
-                            .iter()
-                            .copied()
-                            .filter(|method| self.function_is_accessible(*method, None))
-                            .map(|method| (method, args.clone())),
-                    );
-                }
+                let interfaces = self.class_interfaces_all(class_id);
+                candidates.extend(self.interface_method_candidates(&interfaces));
                 candidates
             }
             Owner::Struct(struct_id) => {
@@ -87,11 +72,7 @@ impl Lowerer {
                 self.interface_method_candidates(&self.enums[enum_id].interfaces.clone())
             }
             Owner::Interface(interface) => {
-                let parents = self.interfaces[interface]
-                    .parents
-                    .iter()
-                    .map(|parent| self.interface_applications[*parent].canonical_type)
-                    .collect::<Vec<_>>();
+                let parents = self.interfaces[interface].parents.clone();
                 self.interface_method_candidates(&parents)
             }
         };
@@ -104,39 +85,59 @@ impl Lowerer {
             })
             .cloned()
             .collect::<Vec<_>>();
+        let interfaces = self.owner_interfaces(owner);
+        let signature = super::interfaces::InterfaceSignature::local(&short, &sig);
+        let class = match owner {
+            Owner::Class(class) => Some(class),
+            Owner::Object(object) => Some(self.objects[object].backing_class),
+            _ => None,
+        };
+        let imported_class = class
+            .map(|class| self.inherited_imported_class_methods(class, &short, decl.name.span))
+            .unwrap_or_default();
+        let imported_class_matches = imported_class
+            .iter()
+            .filter(|method| {
+                sig.type_params.len() == sig.owner_type_param_count
+                    && self.same_interface_signature(&signature, &method.signature)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if decl.is_override {
+            for method in &imported_class_matches {
+                self.check_imported_class_override(id, decl, &sig, method);
+            }
+        }
+        let mut imported = Vec::new();
+        for interface in interfaces {
+            if self.dependency_interface_definition(interface).is_some() {
+                for member in self.conformance_members(interface) {
+                    if !imported
+                        .iter()
+                        .any(|other: &super::interfaces::InterfaceMemberInstance| {
+                            other.member == member.member
+                        })
+                    {
+                        imported.push(member);
+                    }
+                }
+            }
+        }
+        let imported_matches = imported
+            .iter()
+            .filter(|member| {
+                sig.type_params.len() == sig.owner_type_param_count
+                    && self.same_interface_signature(&signature, &member.signature)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if decl.is_override {
+            self.check_imported_interface_override(id, decl, &sig, &imported_matches);
+        }
         let overrides = matching_overrides.first().cloned();
         if !matching_overrides.is_empty() {
             if decl.is_override {
                 self.check_override_access_coverage(id, decl, &matching_overrides);
-            }
-            self.override_sources.insert(
-                id,
-                matching_overrides
-                    .iter()
-                    .map(|(candidate, _)| *candidate)
-                    .collect(),
-            );
-            if matches!(owner, Owner::Interface(_)) {
-                let hir::MethodDispatch::Interface(member) = self.functions[id]
-                    .method
-                    .expect("an interface declaration is a method")
-                    .dispatch
-                else {
-                    unreachable!("a non-private interface declaration owns an interface slot")
-                };
-                let overridden = matching_overrides
-                    .iter()
-                    .filter_map(|(candidate, _)| {
-                        let method = self.functions[*candidate].method?;
-                        match method.dispatch {
-                            hir::MethodDispatch::Interface(member) => Some(member),
-                            hir::MethodDispatch::Direct
-                            | hir::MethodDispatch::Virtual(_)
-                            | hir::MethodDispatch::FinalOverride(_) => None,
-                        }
-                    })
-                    .collect::<Vec<_>>();
-                self.interface_method_entities[member].overrides = overridden;
             }
             for (candidate, arguments) in &matching_overrides {
                 let mut default_type_arguments = arguments.clone();
@@ -147,8 +148,12 @@ impl Lowerer {
                     default_type_arguments.len(),
                     self.signatures[candidate].type_params.len()
                 );
-                self.override_default_type_arguments
-                    .insert((id, *candidate), default_type_arguments);
+                self.override_default_sources.entry(id).or_default().push(
+                    crate::defaults::DefaultOverrideSource::Local {
+                        function: *candidate,
+                        type_arguments: default_type_arguments,
+                    },
+                );
                 let inherited = self.instantiated_signature(
                     *candidate,
                     arguments,
@@ -172,34 +177,97 @@ impl Lowerer {
                 }
             }
         }
-        if overrides.is_none()
-            && let Some((candidate, _)) = candidates.iter().find(|(candidate, args)| {
-                self.same_instantiated_signature_shape(*candidate, &short, &sig, args)
-            })
-        {
-            let target = self.functions[*candidate].name.clone();
-            if self.functions[*candidate].is_suspend != sig.is_suspend {
+        if matches!(owner, Owner::Interface(_)) {
+            let hir::MethodDispatch::Interface(member) = self.functions[id]
+                .method
+                .expect("an interface declaration is a method")
+                .dispatch
+            else {
+                unreachable!("a non-private interface declaration owns an interface slot")
+            };
+            let mut overridden = matching_overrides
+                .iter()
+                .filter_map(|(candidate, _)| {
+                    let method = self.functions[*candidate].method?;
+                    match method.dispatch {
+                        hir::MethodDispatch::Interface(member) => {
+                            Some(hir::InterfaceMethodReference::Local(member))
+                        }
+                        hir::MethodDispatch::Direct
+                        | hir::MethodDispatch::Virtual(_)
+                        | hir::MethodDispatch::FinalOverride(_) => None,
+                    }
+                })
+                .collect::<Vec<_>>();
+            overridden.extend(imported_matches.iter().map(|member| member.member));
+            self.interface_method_entities[member].overrides = overridden;
+        }
+        if overrides.is_none() && imported_matches.is_empty() && imported_class_matches.is_empty() {
+            let local_shape = candidates
+                .iter()
+                .find(|(candidate, args)| {
+                    self.same_instantiated_signature_shape(*candidate, &short, &sig, args)
+                })
+                .map(|(candidate, _)| {
+                    (
+                        self.functions[*candidate].name.clone(),
+                        super::interfaces::InterfaceSignature::local(
+                            &short,
+                            &self.signatures[candidate],
+                        ),
+                    )
+                });
+            let inherited = local_shape
+                .or_else(|| {
+                    imported_class
+                        .iter()
+                        .find(|method| {
+                            self.same_interface_signature_shape(&signature, &method.signature)
+                        })
+                        .map(|method| {
+                            (
+                                format!(
+                                    "{}.{}",
+                                    self.type_name(method.owner),
+                                    method.signature.name
+                                ),
+                                method.signature.clone(),
+                            )
+                        })
+                })
+                .or_else(|| {
+                    imported
+                        .iter()
+                        .find(|member| {
+                            self.same_interface_signature_shape(&signature, &member.signature)
+                        })
+                        .map(|member| {
+                            (
+                                format!(
+                                    "{}.{}",
+                                    self.type_name(member.owner),
+                                    member.signature.name
+                                ),
+                                member.signature.clone(),
+                            )
+                        })
+                });
+            if let Some((target, inherited)) = inherited {
+                let modifier = if inherited.is_suspend != signature.is_suspend {
+                    "suspend"
+                } else if inherited.operator != signature.operator {
+                    "operator"
+                } else if inherited.infix != signature.infix {
+                    "infix"
+                } else {
+                    "effect"
+                };
                 self.error(
                     decl.name.span,
-                    format!("`{short}` must have the same `suspend` modifier as `{target}`"),
+                    format!("`{short}` must have the same `{modifier}` modifier as `{target}`"),
                 );
-            } else if self.functions[*candidate].modifiers.operator != sig.modifiers.operator
-                || self.functions[*candidate]
-                    .modifiers
-                    .property_delegate_operator
-                    != sig.modifiers.property_delegate_operator
-            {
-                self.error(
-                    decl.name.span,
-                    format!("`{short}` must have the same `operator` modifier as `{target}`"),
-                );
-            } else if self.functions[*candidate].modifiers.is_infix != sig.modifiers.is_infix {
-                self.error(
-                    decl.name.span,
-                    format!("`{short}` must have the same `infix` modifier as `{target}`"),
-                );
+                return;
             }
-            return;
         }
         if let Some((candidate, _)) = overrides.as_ref()
             && matches!(self.function_owner.get(candidate), Some(Owner::Class(_)))
@@ -214,7 +282,19 @@ impl Lowerer {
             );
             return;
         }
-        if matches!(owner, Owner::Class(_)) {
+        if let Some(method) = imported_class_matches.first()
+            && method.declaration.interface().modality() == hir::CallableModalityV1::Final
+        {
+            self.error(
+                decl.name.span,
+                format!(
+                    "`{short}` cannot override final method `{}.{short}`",
+                    self.type_name(method.owner)
+                ),
+            );
+            return;
+        }
+        if matches!(owner, Owner::Class(_) | Owner::Object(_)) {
             let inherited_family = overrides.as_ref().and_then(|(candidate, _)| {
                 matches!(self.function_owner.get(candidate), Some(Owner::Class(_))).then(|| {
                     let method = self.functions[*candidate]
@@ -227,6 +307,19 @@ impl Lowerer {
                             unreachable!("an overridable class method owns a virtual family")
                         }
                     }
+                })
+            });
+            let inherited_family = inherited_family.or_else(|| {
+                imported_class_matches.first().map(|method| {
+                    let slot = method
+                        .declaration
+                        .interface()
+                        .slot_relations()
+                        .values()
+                        .first()
+                        .expect("an overridable dependency class member has a virtual family");
+                    self.imported_virtual_family(*slot)
+                        .expect("dependency class retains its actual virtual family")
                 })
             });
             let modifier = self.functions[id]
@@ -242,7 +335,7 @@ impl Lowerer {
                 }
                 (None, hir::MethodModifier::Final) => hir::MethodDispatch::Direct,
                 (None, hir::MethodModifier::Open | hir::MethodModifier::Abstract) => {
-                    hir::MethodDispatch::Virtual(self.fresh_virtual_method())
+                    hir::MethodDispatch::Virtual(self.fresh_virtual_method(id))
                 }
             };
             self.functions[id]
@@ -251,21 +344,96 @@ impl Lowerer {
                 .expect("the checked declaration is a method")
                 .dispatch = dispatch;
         }
-        match (overrides, decl.is_override) {
-            (Some((candidate, _)), false) => {
-                let owner = self.functions[candidate].name.clone();
-                self.error(
-                    decl.name.span,
-                    format!("`{short}` overrides `{owner}` and must be marked `override`"),
-                );
-            }
-            (None, true) => {
-                self.error(
-                    decl.name.span,
-                    format!("`{short}` is marked `override` but does not override any method"),
-                );
-            }
+        let overridden_name = overrides
+            .map(|(candidate, _)| self.functions[candidate].name.clone())
+            .or_else(|| {
+                imported_class_matches.first().map(|method| {
+                    format!("{}.{}", self.type_name(method.owner), method.signature.name)
+                })
+            })
+            .or_else(|| {
+                imported_matches.first().map(|member| {
+                    format!("{}.{}", self.type_name(member.owner), member.signature.name)
+                })
+            });
+        match (overridden_name, decl.is_override) {
+            (Some(target), false) => self.error(
+                decl.name.span,
+                format!("`{short}` overrides `{target}` and must be marked `override`"),
+            ),
+            (None, true) => self.error(
+                decl.name.span,
+                format!("`{short}` is marked `override` but does not override any method"),
+            ),
             _ => {}
+        }
+    }
+
+    fn check_imported_interface_override(
+        &mut self,
+        id: FunctionId,
+        decl: &ast::FunctionDecl,
+        signature: &FnSig,
+        inherited: &[super::interfaces::InterfaceMemberInstance],
+    ) {
+        use hir::ImportedCallableSource;
+        for member in inherited {
+            let target = format!("{}.{}", self.type_name(member.owner), member.signature.name);
+            let covers = self.functions[id]
+                .access
+                .slot
+                .as_ref()
+                .is_some_and(|provided| {
+                    self.access_domain_is_subset(&hir::AccessDomain::universal(), &provided.0)
+                });
+            if !covers {
+                self.error(
+                    decl.name.span,
+                    format!(
+                        "visibility of `{}` does not cover inherited slot `{target}`",
+                        decl.name.text
+                    ),
+                );
+            }
+            let hir::InterfaceMethodReference::Imported { owner, slot } = member.member else {
+                unreachable!("imported candidates retain imported slots")
+            };
+            let Some(interface) = self.dependency_interface_definition(owner) else {
+                unreachable!("imported slot owner is an interface")
+            };
+            let declaration = self
+                .dependencies
+                .as_ref()
+                .expect("an imported interface has a dependency catalog")
+                .callable_for_slot(interface.declaration.owner(), slot)
+                .expect("resolved interface callable")
+                .expect("resolved interface slot");
+            for (index, parameter) in signature.params.iter().enumerate() {
+                let inherited_vararg = declaration.source_interface().is_some_and(|source| {
+                    source.parameters().parameters()[index]
+                        .calling()
+                        .is_vararg()
+                });
+                if matches!(parameter.calling, crate::FnParamCalling::Vararg { .. })
+                    != inherited_vararg
+                {
+                    self.error(decl.params[index].span, format!("parameter `{}` of `{}` must have the same `vararg` shape as `{target}`", decl.params[index].name.text, decl.name.text));
+                    break;
+                }
+            }
+            let hir::PublicDeclarationOwnerV1::Nominal(nominal) = declaration.interface().owner()
+            else {
+                unreachable!("an inherited interface method has a nominal owner")
+            };
+            let owner = self
+                .imported_member_owner_type(owner, nominal)
+                .expect("the inherited method retains its declaring application");
+            self.override_default_sources.entry(id).or_default().push(
+                crate::defaults::DefaultOverrideSource::Imported {
+                    declaration: declaration.interface().declaration(),
+                    owner,
+                },
+            );
         }
     }
 
@@ -279,6 +447,7 @@ impl Lowerer {
             unreachable!("an overriding method always owns a slot contract")
         };
         if self.functions[id].access.declared == hir::DeclaredVisibility::Protected
+            && self.functions[inherited[0].0].access.declared == hir::DeclaredVisibility::Protected
             && let Some(required) = self.functions[inherited[0].0].access.slot.clone()
         {
             // `protected override` preserves the inherited protected region;
@@ -288,7 +457,6 @@ impl Lowerer {
             self.functions[id].access.slot = Some(provided.clone());
         }
 
-        let mut witnesses = Vec::new();
         for (candidate, _) in inherited {
             let Some(required) = self.functions[*candidate].access.slot.clone() else {
                 continue;
@@ -304,14 +472,7 @@ impl Lowerer {
                 );
                 continue;
             }
-            witnesses.push(hir::OverrideAccessWitness {
-                overriding: id,
-                inherited: *candidate,
-                required,
-                provided: provided.clone(),
-            });
         }
-        self.functions[id].override_access = witnesses;
     }
 
     pub(super) fn check_member_access_contract(

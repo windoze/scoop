@@ -1,0 +1,33 @@
+SourceFile
+  RootPackage
+  fun main()
+    val immutable
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+    val mutable
+      MethodCall toMutableArray
+        Var immutable
+    assign []
+      Var mutable
+      IntLiteral 0
+      IntLiteral 40
+    Call println
+      Index
+        Var immutable
+        IntLiteral 0
+    val snapshot
+      MethodCall toArray
+        Var mutable
+    assign []
+      Var mutable
+      IntLiteral 0
+      IntLiteral 99
+    Call println
+      Index
+        Var snapshot
+        IntLiteral 0
+    Call println
+      Index
+        Var mutable
+        IntLiteral 0

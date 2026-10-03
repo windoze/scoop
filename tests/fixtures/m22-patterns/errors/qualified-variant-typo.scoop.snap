@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-patterns/errors/qualified-variant-typo.scoop:10:16: error: enum `Signal` has no variant `Raedy`

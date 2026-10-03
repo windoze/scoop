@@ -1,0 +1,300 @@
+SourceFile
+  QualifiedPackage templates.globals
+  private var counter: Int = <expr>
+  internal var internalCounter: Int = <expr>
+  private val enabled: Boolean = <expr>
+  private val banner: String = <expr>
+  public var base: Int = <expr>
+  public var guarded: Int = <expr>
+  private val offset: Int = <expr>
+  public fun reset(): Unit
+    assign counter
+      IntLiteral 0
+    assign internalCounter
+      IntLiteral 0
+    assign base
+      IntLiteral 40
+  public fun count(): Int
+    =
+      Var counter
+  public fun advance<T>(value: T): Int
+    compound-assign Add
+      IntLiteral 1
+    compound-assign Add
+      IntLiteral 1
+    if
+      Binary Or
+        Unary Not
+          Var enabled
+        Binary Ne
+          Var internalCounter
+          Var counter
+      return
+        Unary Neg
+          IntLiteral 1
+    return
+      Var counter
+  public fun first(): Int
+    =
+      Call advance<Int>
+        IntLiteral 0
+  public fun text<T>(): String
+    =
+      Var banner
+    @NoGC
+  public fun leafStep<T>(): Int
+    compound-assign Add
+      IntLiteral 1
+    return
+      Var counter
+  public fun firstLeaf(): Int
+    =
+      Call leafStep<Int>
+  private var reads: Int = <expr>
+  private var writes: Int = <expr>
+  private var order: Int = <expr>
+  private var tracked: Int = <expr>
+  private fun rhs(fail: Boolean): Int
+    assign order
+      Binary Add
+        Binary Mul
+          Var order
+          IntLiteral 10
+        IntLiteral 2
+    if
+      Var fail
+      throw
+        Call IllegalStateException
+    return
+      IntLiteral 32
+  public fun ordered<T>(value: T, fail: Boolean): Int
+    assign tracked
+      IntLiteral 10
+    assign reads
+      IntLiteral 0
+    assign writes
+      IntLiteral 0
+    assign order
+      IntLiteral 0
+    try
+      compound-assign Add
+        Call rhs
+          Var fail
+    catch error: IllegalStateException
+      if
+        Binary Or
+          Binary Or
+            Binary Ne
+              Var reads
+              IntLiteral 1
+            Binary Ne
+              Var writes
+              IntLiteral 0
+          Binary Ne
+            Var order
+            IntLiteral 12
+        return
+          IntLiteral 1
+      return
+        IfExpression
+          Binary Eq
+            Var tracked
+            IntLiteral 10
+          IntLiteral 42
+          else
+          IntLiteral 2
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var reads
+            IntLiteral 1
+          Binary Ne
+            Var writes
+            IntLiteral 1
+        Binary Ne
+          Var order
+          IntLiteral 123
+      return
+        IntLiteral 3
+    return
+      Var tracked
+  private class Cell(val number: Int)
+  private struct Triple
+    field first: Cell
+    field second: Cell
+    field third: Cell
+  private struct Empty
+  private var initializations: Int = <expr>
+  private fun makeCell(number: Int): Cell
+    compound-assign Add
+      IntLiteral 1
+    return
+      Call Cell
+        Var number
+  private val initial: Cell = <expr>
+  private val dependent: Int = <expr>
+  private var payload: Triple = <expr>
+  private var emptyBuilds: Int = <expr>
+  private fun makeEmpty(): Empty
+    compound-assign Add
+      IntLiteral 1
+    return
+      Call Empty
+  private var empty: Empty = <expr>
+  private var reference: Cell = <expr>
+  public fun initialized<T>(value: T): Int
+    val firstValue
+      Var dependent
+    val allocated
+      Call Cell
+        IntLiteral 0
+    if
+      Binary Or
+        Binary Ne
+          Var initializations
+          IntLiteral 1
+        Binary Ne
+          FieldAccess number
+            Var allocated
+          IntLiteral 0
+      return
+        IntLiteral 1
+    return
+      Binary Sub
+        Binary Add
+          Var firstValue
+          FieldAccess number
+            Var initial
+        IntLiteral 42
+  public fun values<T>(value: T): Int
+    assign payload
+      Call Triple
+        Call Cell
+          IntLiteral 10
+        Call Cell
+          IntLiteral 12
+        Call Cell
+          IntLiteral 20
+    val saved
+      Var payload
+    assign reference
+      FieldAccess first
+        Var saved
+    assign payload
+      Call Triple
+        Call Cell
+          IntLiteral 0
+        Call Cell
+          IntLiteral 0
+        Call Cell
+          IntLiteral 0
+    val zero
+      Var empty
+    val before
+      Var emptyBuilds
+    assign empty
+      Call makeEmpty
+    val allocated
+      Call Cell
+        IntLiteral 0
+    if
+      Binary Ne
+        Var emptyBuilds
+        Binary Add
+          Var before
+          IntLiteral 1
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess number
+              Var reference
+            IntLiteral 10
+          Binary Ne
+            FieldAccess number
+              FieldAccess first
+                Var payload
+            IntLiteral 0
+        Binary Ne
+          FieldAccess number
+            Var allocated
+          IntLiteral 0
+      return
+        IntLiteral 1
+    return
+      Binary Add
+        Binary Add
+          FieldAccess number
+            FieldAccess first
+              Var saved
+          FieldAccess number
+            FieldAccess second
+              Var saved
+        FieldAccess number
+          FieldAccess third
+            Var saved
+  public fun makeStep<T>(value: T): () -> Int
+    fun read(): Int
+      val retained
+        Var value
+      compound-assign Add
+        IntLiteral 1
+      return
+        Var counter
+    return
+      Lambda 0 suspend=false
+        parameters omitted
+        Call read
+  public class Probe<T>(val value: T)
+    init
+      compound-assign Add
+        IntLiteral 1
+      compound-assign Add
+        IntLiteral 1
+    public fun take
+  private fun hiddenDefault<T>(value: T, amount: Int = <expr>): Int
+    =
+      Binary Add
+        IntLiteral 40
+        Var amount
+  public fun defaults<T>(value: T, amount: Int = <expr>): Int
+    if
+      Binary Ne
+        Call hiddenDefault<T>
+          Var value
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Binary Add
+        Var amount
+        Var offset
+  private class PlainSlot(var value: Int)
+    operator fun getValue
+    operator fun setValue
+  private var ordinaryDelegate: Int by <expr>
+  public fun delegated<T>(value: T): Int
+    assign ordinaryDelegate
+      IntLiteral 40
+    compound-assign Add
+      IntLiteral 2
+    return
+      Var ordinaryDelegate
+  private var builds: Int = <expr>
+  private var failures: Int = <expr>
+  public fun buildCount(): Int
+    =
+      Var builds
+  public fun failureCount(): Int
+    =
+      Var failures
+  public class Receiver<T>(val value: T)
+  public struct Slot<T>
+    field number: Int
+    public operator fun getValue
+  public class Failed() : Throwable(<0 args>)
+  public val <T>Receiver<T>.shared: Int by <expr>
+  public val <T>Receiver<T>.broken: Int by <expr>

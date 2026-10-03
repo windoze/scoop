@@ -1,6 +1,17 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn instantiate_default_initializing_field(
+        &mut self,
+        source: hir::InitializingClassFieldRef,
+        context: &mut InstantiationContext,
+    ) -> hir::InitializingClassFieldRef {
+        hir::InitializingClassFieldRef {
+            owner: self.instantiate_method_ty(source.owner, &context.bindings),
+            field: source.field,
+        }
+    }
+
     pub(super) fn instantiate_default_callable(
         &mut self,
         source: hir::Callable,
@@ -55,41 +66,52 @@ impl Lowerer {
     pub(super) fn instantiate_default_method_callee(
         &mut self,
         source: hir::MethodCallee,
+        origin: hir::ExpressionOrigin,
         context: &InstantiationContext,
     ) -> hir::MethodCallee {
         match source {
-            hir::MethodCallee::Callable(callable) => {
-                hir::MethodCallee::Callable(self.instantiate_default_callable(callable, context))
-            }
+            hir::MethodCallee::ImportedDerivedEquality { .. } => source,
+            hir::MethodCallee::Callable(callable) => hir::MethodCallee::Callable(
+                self.instantiate_default_callable_target(callable, context),
+            ),
             hir::MethodCallee::Bound(bound) => {
                 let source = self.bound_callable_refs[bound].clone();
                 let bound_source = match source.source {
                     hir::BoundCallableSource::Class { bound, callable } => {
                         hir::BoundCallableSource::Class {
                             bound: self.instantiate_default_class_application(bound, context),
-                            callable: self.instantiate_default_callable(callable, context),
+                            callable: self.instantiate_default_callable_target(callable, context),
                         }
                     }
-                    hir::BoundCallableSource::Interface { bound, member } => {
-                        hir::BoundCallableSource::Interface {
-                            bound: self.instantiate_default_interface_application(bound, context),
-                            member,
-                        }
-                    }
+                    hir::BoundCallableSource::Interface {
+                        bound,
+                        member,
+                        declared,
+                    } => hir::BoundCallableSource::Interface {
+                        bound: self.instantiate_default_interface_application(bound, context),
+                        member: match member {
+                            hir::InterfaceMethodReference::Local(member) => {
+                                hir::InterfaceMethodReference::Local(member)
+                            }
+                            hir::InterfaceMethodReference::Imported { owner, slot } => {
+                                hir::InterfaceMethodReference::Imported {
+                                    owner: self.instantiate_method_ty(owner, &context.bindings),
+                                    slot,
+                                }
+                            }
+                        },
+                        declared: self.instantiate_default_callable_target(declared, context),
+                    },
                 };
                 let instantiated_signature =
                     self.instantiate_default_function_type(source.instantiated_signature, context);
                 let value = hir::BoundCallableRef {
-                    receiver_parameter: source.receiver_parameter,
+                    receiver_type: self
+                        .instantiate_method_ty(source.receiver_type, &context.bindings),
                     source: bound_source,
                     instantiated_signature,
                 };
-                let existing = self
-                    .bound_callable_refs
-                    .iter()
-                    .find_map(|(id, existing)| (existing == &value).then_some(id));
-                let id = existing.unwrap_or_else(|| self.bound_callable_refs.alloc(value));
-                hir::MethodCallee::Bound(id)
+                hir::MethodCallee::Bound(self.record_bound_callable(value))
             }
             hir::MethodCallee::DerivedEquality(application) => {
                 let source = self.derived_equality_applications[application].clone();
@@ -98,16 +120,18 @@ impl Lowerer {
                     hir::MethodCallee::DerivedEquality(application)
                 } else {
                     let candidate = self
-                        .derived_equality_candidate(ty, source.span)
+                        .derived_equality_candidate_at(ty, origin)
                         .expect("a validated default keeps a valid equality derivation")
                         .expect("the original expression has a derived equality target");
                     let application = match candidate {
+                        crate::derived::DerivedEqualityCandidate::Imported(target) => {
+                            return self.imported_equality_callee(target, ty);
+                        }
                         crate::derived::DerivedEqualityCandidate::Nominal {
                             application, ..
                         }
-                        | crate::derived::DerivedEqualityCandidate::Structural {
-                            application,
-                            ..
+                        | crate::derived::DerivedEqualityCandidate::TypeOwned {
+                            application, ..
                         } => application,
                     };
                     hir::MethodCallee::DerivedEquality(application)
@@ -155,7 +179,7 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.struct_application_id(source.template, arguments)
+        self.intern_struct_application(source.template, arguments)
     }
 
     pub(super) fn instantiate_default_enum_application(
@@ -169,37 +193,29 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.enum_application_id(source.template, arguments)
+        self.intern_enum_application(source.template, arguments)
     }
 
-    pub(super) fn instantiate_default_applied_enum_variant(
+    pub(super) fn instantiate_default_variant(
         &mut self,
-        source: hir::AppliedEnumVariantRef,
+        source: hir::EnumVariantApplication,
         context: &InstantiationContext,
-    ) -> hir::AppliedEnumVariantRef {
-        let application = self.instantiate_default_enum_application(source.application(), context);
-        hir::AppliedEnumVariantRef::checked(
-            &self.enums,
-            &self.enum_applications,
-            application,
-            source.declaration(),
-        )
-        .expect("default substitution preserves the enum variant template")
+    ) -> hir::EnumVariantApplication {
+        hir::EnumVariantApplication {
+            owner: self.instantiate_method_ty(source.owner, &context.bindings),
+            variant: source.variant,
+        }
     }
 
-    pub(super) fn instantiate_default_applied_enum_field(
+    pub(super) fn instantiate_default_enum_field(
         &mut self,
-        source: hir::AppliedEnumVariantFieldRef,
+        source: hir::EnumVariantFieldApplication,
         context: &InstantiationContext,
-    ) -> hir::AppliedEnumVariantFieldRef {
-        let variant = self.instantiate_default_applied_enum_variant(source.variant(), context);
-        hir::AppliedEnumVariantFieldRef::checked(
-            &self.enums,
-            &self.enum_applications,
-            variant,
-            source.local_index(),
-        )
-        .expect("default substitution preserves the enum payload field")
+    ) -> hir::EnumVariantFieldApplication {
+        hir::EnumVariantFieldApplication {
+            variant: self.instantiate_default_variant(source.variant, context),
+            field: source.field,
+        }
     }
 
     pub(super) fn instantiate_default_class_application(
@@ -213,7 +229,7 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.class_application_id(source.template, arguments)
+        self.intern_class_application(source.template, arguments)
     }
 
     pub(super) fn instantiate_default_class_constructor(
@@ -247,7 +263,7 @@ impl Lowerer {
             .into_iter()
             .map(|ty| self.instantiate_method_ty(ty, &context.bindings))
             .collect();
-        self.interface_application_id(source.template, arguments)
+        self.intern_interface_application(source.template, arguments)
     }
 
     pub(super) fn instantiate_default_function_type(
@@ -269,23 +285,15 @@ impl Lowerer {
         context: &InstantiationContext,
     ) -> hir::FieldRef {
         match source {
-            hir::FieldRef::StructField(field) => {
-                let application =
-                    self.instantiate_default_struct_application(field.application(), context);
-                let field = hir::AppliedStructFieldRef::checked(
-                    &self.structs,
-                    &self.struct_applications,
-                    application,
-                    field.local_index(),
-                )
-                .expect("default substitution preserves a checked struct field");
-                hir::FieldRef::StructField(field)
-            }
-            hir::FieldRef::TupleIndex(index) => hir::FieldRef::TupleIndex(index),
-            hir::FieldRef::ClassField { application, field } => hir::FieldRef::ClassField {
-                application: self.instantiate_default_class_application(application, context),
+            hir::FieldRef::StructField { owner, field } => hir::FieldRef::StructField {
+                owner: self.instantiate_method_ty(owner, &context.bindings),
                 field,
             },
+            hir::FieldRef::ClassField { owner, field } => hir::FieldRef::ClassField {
+                owner: self.instantiate_method_ty(owner, &context.bindings),
+                field,
+            },
+            hir::FieldRef::TupleIndex(index) => hir::FieldRef::TupleIndex(index),
         }
     }
 
@@ -297,15 +305,7 @@ impl Lowerer {
         let value = self.function_coercions[source].clone();
         let source = self.instantiate_default_function_type(value.source, context);
         let target = self.instantiate_default_function_type(value.target, context);
-        if let Some(&coercion) = self.function_coercion_by_types.get(&(source, target)) {
-            return coercion;
-        }
-        let coercion = self
-            .function_coercions
-            .alloc(hir::FunctionCoercion { source, target });
-        self.function_coercion_by_types
-            .insert((source, target), coercion);
-        coercion
+        self.function_coercion(source, target)
     }
 
     pub(super) fn instantiate_default_foreign_callback(
@@ -320,137 +320,13 @@ impl Lowerer {
             self.instantiate_default_function_type(source.managed_function_type, context);
         self.foreign_callback_registrations
             .alloc(hir::ForeignCallbackRegistration {
+                definition_root: source.definition_root,
+                definition_path: source.definition_path,
                 native_function_type,
                 managed_function_type,
                 context_index: source.context_index,
                 mode: source.mode,
+                span: source.span,
             })
-    }
-
-    pub(super) fn instantiate_default_lambda(
-        &mut self,
-        source: hir::LambdaId,
-        context: &mut InstantiationContext,
-    ) -> hir::LambdaId {
-        let source = self.lambdas[source].clone();
-        let body_type_arguments =
-            self.instantiate_callable_body_arguments(source.function, context);
-        let function_type = self.instantiate_default_function_type(source.function_type, context);
-        let captures = source
-            .captures
-            .iter()
-            .map(|capture| self.instantiate_default_capture(capture, context))
-            .collect();
-        self.lambdas.alloc(hir::Lambda {
-            function: source.function,
-            function_type,
-            owner_type_param_count: source.owner_type_param_count,
-            body_type_arguments,
-            captures,
-            span: source.span,
-        })
-    }
-
-    pub(super) fn instantiate_default_anonymous(
-        &mut self,
-        source: hir::AnonymousFunctionId,
-        context: &mut InstantiationContext,
-    ) -> hir::AnonymousFunctionId {
-        let source = self.anonymous_functions[source].clone();
-        let body_type_arguments =
-            self.instantiate_callable_body_arguments(source.function, context);
-        let function_type = self.instantiate_default_function_type(source.function_type, context);
-        let captures = source
-            .captures
-            .iter()
-            .map(|capture| self.instantiate_default_capture(capture, context))
-            .collect();
-        self.anonymous_functions.alloc(hir::AnonymousFunction {
-            function: source.function,
-            function_type,
-            owner_type_param_count: source.owner_type_param_count,
-            body_type_arguments,
-            captures,
-            span: source.span,
-        })
-    }
-
-    pub(super) fn instantiate_default_reference(
-        &mut self,
-        source: hir::CallableReferenceId,
-        context: &mut InstantiationContext,
-    ) -> hir::CallableReferenceId {
-        let source = self.callable_references[source].clone();
-        let target = match source.target {
-            hir::CallableReferenceTarget::Named(callee) => hir::CallableReferenceTarget::Named(
-                self.instantiate_default_callable(callee, context),
-            ),
-            hir::CallableReferenceTarget::Local {
-                local_function,
-                callee,
-            } => hir::CallableReferenceTarget::Local {
-                local_function,
-                callee: self.instantiate_default_callable(callee, context),
-            },
-            hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-                hir::CallableReferenceTarget::BoundMember {
-                    receiver: Box::new(self.instantiate_default_expr(&receiver, context)),
-                    callee: self.instantiate_default_method_callee(callee, context),
-                }
-            }
-            hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                hir::CallableReferenceTarget::BoundExtension {
-                    receiver: Box::new(self.instantiate_default_expr(&receiver, context)),
-                    callee: self.instantiate_default_callable(callee, context),
-                }
-            }
-        };
-        let function_type = self.instantiate_default_function_type(source.function_type, context);
-        let captures = source
-            .captures
-            .iter()
-            .map(|capture| self.instantiate_default_capture(capture, context))
-            .collect();
-        self.callable_references.alloc(hir::CallableReference {
-            target,
-            function_type,
-            owner_type_param_count: source.owner_type_param_count,
-            captures,
-            span: source.span,
-        })
-    }
-
-    pub(super) fn instantiate_default_capture(
-        &mut self,
-        source: &hir::Capture,
-        context: &mut InstantiationContext,
-    ) -> hir::Capture {
-        hir::Capture {
-            binding: source.binding,
-            name: source.name.clone(),
-            ty: self.instantiate_method_ty(source.ty, &context.bindings),
-            first_use_span: source.first_use_span,
-            source: self.instantiate_default_expr(&source.source, context),
-        }
-    }
-
-    pub(super) fn instantiate_callable_body_arguments(
-        &mut self,
-        function: hir::FunctionId,
-        context: &InstantiationContext,
-    ) -> hir::CallableBodyTypeArguments {
-        let parameters = self.functions[function]
-            .type_params()
-            .into_iter()
-            .map(|parameter| parameter.id)
-            .collect::<Vec<_>>();
-        let arguments = parameters
-            .into_iter()
-            .map(|parameter| {
-                let ty = self.intern_type(Type::Param(parameter));
-                self.instantiate_method_ty(ty, &context.bindings)
-            })
-            .collect();
-        hir::CallableBodyTypeArguments::Explicit(arguments)
     }
 }

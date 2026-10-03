@@ -1,0 +1,72 @@
+Module
+  global @scoop$1$io$9b39fe3af0d7ffede434f53f4413002f00d4b1ae652ef2d3a1423e518189a1b3 = "21"
+  fun @scoop$1$cb$831e96f0583e28248413e980d91b466d3645c207db9fec17c3be3c5f845b254f() -> ptr<managed>
+    local %0 number: ptr<managed>
+    local %1 text: ptr<managed>
+    local %2 reference: ptr<managed>
+    local %3 $dependency.receiver: ptr<managed>
+    local %4 $dependency.receiver: ptr<managed>
+    local %5 $equality.lhs: ptr<managed>
+    local %6 $dependency.receiver: ptr<managed>
+    local %7 $dependency.argument.0: ptr<managed>
+    local %8 $dependency.parameter.other: ptr<managed>
+    local %9 $dependency.receiver: ptr<managed>
+    local %10 $shortCircuit.0: i1
+    local %11 $result.1: i64
+    local %12 $dependency.argument.0: i64
+    local %13 $dependency.parameter.value: i64
+    local %14 $call.1: i1
+    local %15 $call.2: ptr<managed>
+    local %16 $new.3: ptr<managed>
+    local %17 $box.1: i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000015) -> local17
+    t0 = box_value external-td0, local17 scan=none sp<managed-call:0> live=[]
+    store t0 -> local0
+    store global0 -> local1
+    store local1 -> local2
+    store local0 -> local3
+    t1 = heap_load local3 +0 : ptr<metadata>
+    call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, external-td1)
+    call managed-direct-target0 sp<managed-call:1> live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local3:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> ptr<managed> dispatch[Interface:0] t2(local3)
+    store t3 -> local5
+    store local2 -> local4
+    store local5 -> local6
+    t4 = heap_load local4 +0 : ptr<metadata>
+    call no-gc-direct-target1 t5 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t4, external-td1)
+    call managed-direct-target1 sp<managed-call:2> live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local4:ptr<managed>@0, local6:ptr<managed>@0] t6 = sig=direct3 (ptr<managed>) -> ptr<managed> dispatch[Interface:0] t5(local4)
+    store t6 -> local7
+    store local7 -> local8
+    call managed-direct-target2 sp<managed-call:3> live=[local1:ptr<managed>@0, local2:ptr<managed>@0, local6:ptr<managed>@0, local8:ptr<managed>@0] t7 = sig=direct4 (ptr<managed>, ptr<managed>) -> i1 external-fn1(local6, local8)
+    store t7 -> local14
+    cbr local14 then @if.then.1 else @if.else.2
+  block if.then.1
+    store local2 -> local9
+    t8 = heap_load local9 +0 : ptr<metadata>
+    call no-gc-direct-target2 t9 = sig=direct5 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t8, external-td1)
+    call managed-direct-target3 sp<managed-call:4> live=[local1:ptr<managed>@0, local9:ptr<managed>@0] t10 = sig=direct6 (ptr<managed>) -> ptr<managed> dispatch[Interface:0] t9(local9)
+    store t10 -> local15
+    t11 = Eq local1, local15 : i1
+    store t11 -> local10
+    br @if.merge.3
+  block if.else.2
+    store false -> local10
+    br @if.merge.3
+  block if.merge.3
+    cbr local10 then @if.then.4 else @if.else.5
+  block if.then.4
+    store integer<Long>(0x0000000000000015) -> local11
+    br @if.merge.6
+  block if.else.5
+    store integer<Long>(0x0000000000000000) -> local11
+    br @if.merge.6
+  block if.merge.6
+    store local11 -> local12
+    store local12 -> local13
+    call managed-direct-target4 sp<managed-call:5> live=[] t12 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    store t12 -> local16
+    call managed-void-target0 sp<managed-call:6> live=[local16:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn2(local16, local13)
+    t13 = aggregate () : {}
+    ret local16
+  output library

@@ -1,0 +1,231 @@
+Module
+  global0 nativeHandle: GcHandle<Any> extern native_handle
+  extern ef0 verifyFinished @verify_finished() -> Unit <abi=c no-gc lib=m23_native_boundary>
+  extern ef1 exchangeHandles @exchange_handles(NativeHandles, Ptr<GcHandle<Any>>, Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>) -> NativeHandles <abi=c no-gc lib=m23_native_boundary>
+  callback cb0 @fn3 -> @fn9 function_type0 id=62353e7c0e3336fdf9f8bb1f319b1b6fd9b0ee853aa14aff887fb04dbc996c36
+  struct NativeHandles (flag: UInt8, pin: PinnedPtr<Any>, handle: GcHandle<Any>) <c-layout aligned=natural packed=natural>
+  struct PinnedPtr<Any> (raw: ULong) <c-abi uint64-field>
+  struct GcHandle<Any> (raw: ULong) <c-abi uint64-field>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
+    Some(_0: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  generated_callable gc0 function=@fn9 id=62353e7c0e3336fdf9f8bb1f319b1b6fd9b0ee853aa14aff887fb04dbc996c36
+  fun verifyFinished @fn0() -> Unit
+    bb0 entry
+      call extern0 @verify_finished direct
+      return
+  fun perform @fn1() -> Unit
+    bb0 entry
+      call @fn4 direct
+      val $equality.lhs: GcHandle<Any>
+        Type GcHandle<Any>
+        GlobalRead nativeHandle
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=9 bits=0x0000000000000009
+      val $dependency.parameter.raw: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call $call.1: GcHandle<Any> = @fn7 direct
+        Type ULong
+        Local $dependency.parameter.raw
+      call $call.2: Boolean = @fn5 direct
+        Type GcHandle<Any>
+        Local $equality.lhs
+        Type GcHandle<Any>
+        Local $call.1
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.3
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.3
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.3
+    bb2 if.merge.2
+      call extern0 @verify_finished direct
+      return
+  fun exchangeHandles @fn2(arg0: NativeHandles, arg1: Ptr<GcHandle<Any>>, arg2: Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>) -> NativeHandles
+    bb0 entry
+      call $call.1: NativeHandles = extern1 @exchange_handles direct
+        Type NativeHandles
+        Local arg0
+        Type Ptr<GcHandle<Any>>
+        Local arg1
+        Type Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
+        Local arg2
+      return
+        Type NativeHandles
+        Local $call.1
+  fun echoHandle @fn3(value: GcHandle<Any>) -> GcHandle<Any> <no-gc>
+    bb0 entry
+      return
+        Type GcHandle<Any>
+        Local value
+  fun main @fn4() -> Unit
+    bb0 entry
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.parameter.raw: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call handle: GcHandle<Any> = @fn7 direct
+        Type ULong
+        Local $dependency.parameter.raw
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=2 bits=0x0000000000000002
+      val $dependency.parameter.raw: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call pin: PinnedPtr<Any> = @fn8 direct
+        Type ULong
+        Local $dependency.parameter.raw
+      val callback: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>
+        Type FunPtr<(GcHandle<Any>) -> GcHandle<Any>>
+        FunctionAddress cb0
+      val $dependency.argument.0: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>
+        Type FunPtr<(GcHandle<Any>) -> GcHandle<Any>>
+        Local callback
+      val $dependency.parameter._1: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>
+        Type FunPtr<(GcHandle<Any>) -> GcHandle<Any>>
+        Local $dependency.argument.0
+      val optional: Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
+        Type Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
+        VariantConstruct Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>> v0
+          Type FunPtr<(GcHandle<Any>) -> GcHandle<Any>>
+          Local $dependency.parameter._1
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=3 bits=0x03
+      val $argument.1: PinnedPtr<Any>
+        Type PinnedPtr<Any>
+        Local pin
+      val $argument.2: GcHandle<Any>
+        Type GcHandle<Any>
+        Local handle
+      val $parameter.flag: UInt8
+        Type UInt8
+        Local $argument.0
+      val $parameter.pin: PinnedPtr<Any>
+        Type PinnedPtr<Any>
+        Local $argument.1
+      val $parameter.handle: GcHandle<Any>
+        Type GcHandle<Any>
+        Local $argument.2
+      call $argument.0: NativeHandles = @fn6 direct
+        Type UInt8
+        Local $parameter.flag
+        Type PinnedPtr<Any>
+        Local $parameter.pin
+        Type GcHandle<Any>
+        Local $parameter.handle
+      val $argument.1: Ptr<GcHandle<Any>>
+        Type Ptr<GcHandle<Any>>
+        AddressOf handle : Ptr<GcHandle<Any>>
+      val $argument.2: Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
+        Type Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
+        Local optional
+      val $parameter.value: NativeHandles
+        Type NativeHandles
+        Local $argument.0
+      val $parameter.pointer: Ptr<GcHandle<Any>>
+        Type Ptr<GcHandle<Any>>
+        Local $argument.1
+      val $parameter.callback: Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
+        Type Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
+        Local $argument.2
+      call result: NativeHandles = extern1 @exchange_handles direct
+        Type NativeHandles
+        Local $parameter.value
+        Type Ptr<GcHandle<Any>>
+        Local $parameter.pointer
+        Type Option<FunPtr<(GcHandle<Any>) -> GcHandle<Any>>>
+        Local $parameter.callback
+      global_assign nativeHandle
+        Type GcHandle<Any>
+        FieldAccess 2
+          Type NativeHandles
+          Local result
+      return
+  fun $derived.equals.0 @fn5(this: GcHandle<Any>, other: GcHandle<Any>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          FieldAccess 0
+            Type GcHandle<Any>
+            Local this
+          Type ULong
+          FieldAccess 0
+            Type GcHandle<Any>
+            Local other
+  fun ctor.NativeHandles.$c0 @fn6(flag: UInt8, pin: PinnedPtr<Any>, handle: GcHandle<Any>) -> NativeHandles <no-gc>
+    bb0 entry
+      return
+        Type NativeHandles
+        StructInit NativeHandles
+          Type UInt8
+          Local flag
+          Type PinnedPtr<Any>
+          Local pin
+          Type GcHandle<Any>
+          Local handle
+  fun ctor.GcHandle.$c0 @fn7(raw: ULong) -> GcHandle<Any> <no-gc>
+    bb0 entry
+      return
+        Type GcHandle<Any>
+        StructInit GcHandle<Any>
+          Type ULong
+          Local raw
+  fun ctor.PinnedPtr.$c1 @fn8(raw: ULong) -> PinnedPtr<Any> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<Any>
+        StructInit PinnedPtr<Any>
+          Type ULong
+          Local raw
+  fun callback bridge for echoHandle @fn9($result: Ptr<GcHandle<Any>>, $arg0: Ptr<GcHandle<Any>>) -> Unit <no-gc>
+    bb0 entry
+      call $value: GcHandle<Any> = @fn3 direct
+        Type GcHandle<Any>
+        PtrLoad GcHandle<Any>
+          Type Ptr<GcHandle<Any>>
+          Local $arg0
+      Type Unit
+      PtrStore GcHandle<Any>
+        Type Ptr<GcHandle<Any>>
+        Local $result
+        Type GcHandle<Any>
+        Local $value
+      return
+  str @str0 "illegal state"
+  output library

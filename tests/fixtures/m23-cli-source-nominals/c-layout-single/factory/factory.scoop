@@ -1,0 +1,2 @@
+package sourcepolicy
+public fun payloadValue(value: Payload): Int = value.value

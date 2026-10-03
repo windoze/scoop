@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_facade", name = "m23_renamed")
+  fun nativeAdd(left: Int, right: Int): Int
+  fun main()
+    @Unsafe block
+      Call println
+        Call nativeAdd
+          IntLiteral 20
+          IntLiteral 22

@@ -1,0 +1,25 @@
+Module
+  enum Signal tagged size=8 align=8 variants=()@8+0 ()@8+0
+  fun @scoop$1$cb$fd8d840c49935f481f4fd129a73fb9b982b1253cab1a18736bffa0c5857dde73(indirect<enum0 size=8 align=8 scan=none>) -> i32
+    local %0 Raedy: enum0
+    local %1 $result.0: i32
+    local %2 $when.1: enum0
+    local %3 $pattern.subject.2: enum0
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local2
+    store local2 -> local3
+    t0 = variant_test e0 v0 local3 : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store integer<Int>(0x00000001) -> local1
+    br @pattern.merge.3
+  block pattern.else.2
+    store local2 -> local0
+    store integer<Int>(0x00000002) -> local1
+    br @pattern.merge.3
+  block pattern.merge.3
+    ret local1
+  td td0 n(c=test%3Apublication%3A0.1.0;p=;o=-;k=E;x=Signal) @scoop$1$td$5923e556024c12d30ddd137efa804e9377882a1978e787a6a6d34d0849722ad0 type-id=10784084787464572970 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Signal size=8 align=8 enum-scan=none
+  output library

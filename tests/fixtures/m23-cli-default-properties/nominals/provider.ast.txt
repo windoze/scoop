@@ -1,0 +1,139 @@
+SourceFile
+  QualifiedPackage defaults
+  public interface Reading<T>
+    public open val item: T <computed>
+    public open val fallback: T <computed>
+      get()
+        Var item
+    public open val size: Int <computed>
+      get()
+        IntLiteral 1
+  public interface Rich<T> : Reading<T>
+    public open override val size: Int <computed>
+      get()
+        IntLiteral 2
+  public class Reader<T>(val stored: T), Rich<T>
+    public open override val item: T <computed>
+      get()
+        Var stored
+  public open class Base(), Rich<Int>
+    public open override val item: Int <computed>
+      get()
+        IntLiteral 4
+    public open override val size: Int <computed>
+      get()
+        IntLiteral 3
+  public class Child() : Base(<0 args>)
+  public struct Packet<T> : Reading<T>
+    field stored: T
+    public final override val item: T <computed>
+      get()
+        Var stored
+  public enum Choice<T> : Reading<T>
+    Item <ctor>
+      stored: T
+    public final override val item: T <computed>
+      get()
+        WhenExpression
+          This
+          arm Choice.Item(value)
+            Var value
+  public object Singleton
+    public open override val item: Int <computed>
+      get()
+        IntLiteral 7
+  private var stored: Int = <expr>
+  public interface Counter
+    public open var value: Int <computed>
+      get()
+        Var stored
+      set(value)
+        assign stored
+          Var value
+  public class Store(), Counter
+  public fun localCheck(): Boolean
+    val reader
+      Call Reader
+        StringLiteral "local"
+    val packet
+      Call Packet
+        IntLiteral 17
+    val choice
+      MethodCall Item
+        Var Choice
+        StringLiteral "enum"
+    val store
+      Call Store
+    assign .value
+      Var store
+      IntLiteral 5
+    compound-assign Add
+      Var store
+      IntLiteral 2
+    val before
+      Update Postfix Increment
+        Place .value
+          Var store
+    val view: Reading<String>
+      Var reader
+    val counter: Counter
+      Var store
+    return
+      Binary And
+        Binary And
+          Binary And
+            Binary And
+              Binary And
+                Binary And
+                  Binary And
+                    Binary And
+                      Binary And
+                        Binary And
+                          Binary And
+                            Binary Eq
+                              FieldAccess fallback
+                                Var reader
+                              StringLiteral "local"
+                            Binary Eq
+                              FieldAccess size
+                                Var reader
+                              IntLiteral 2
+                          Binary Eq
+                            FieldAccess size
+                              Var view
+                            IntLiteral 2
+                        Binary Eq
+                          FieldAccess fallback
+                            Var packet
+                          IntLiteral 17
+                      Binary Eq
+                        FieldAccess size
+                          Var packet
+                        IntLiteral 1
+                    Binary Eq
+                      FieldAccess fallback
+                        Var choice
+                      StringLiteral "enum"
+                  Binary Eq
+                    FieldAccess size
+                      Var choice
+                    IntLiteral 1
+                Binary Eq
+                  FieldAccess size
+                    Call Child
+                  IntLiteral 3
+              Binary Eq
+                FieldAccess fallback
+                  Var Singleton
+                IntLiteral 7
+            Binary Eq
+              Var before
+              IntLiteral 7
+          Binary Eq
+            FieldAccess value
+              Var store
+            IntLiteral 8
+        Binary Eq
+          FieldAccess value
+            Var counter
+          IntLiteral 8

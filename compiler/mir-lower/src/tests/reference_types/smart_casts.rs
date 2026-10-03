@@ -17,7 +17,9 @@ fn smart_cast_unboxes_bind_typed_hidden_locals() {
     let a = locals.alloc(local("a", any));
     let print_call = expr(
         hir::ExprKind::Call {
-            callee: hir::Callable::Function(println_int),
+            binding: None,
+            receiver: scoop_hir::SourceCallReceiver::NoReceiver,
+            callee: (hir::Callable::Function(println_int)).into(),
             args: vec![expr(
                 hir::ExprKind::FieldAccess {
                     receiver: Box::new(expr(
@@ -50,7 +52,11 @@ fn smart_cast_unboxes_bind_typed_hidden_locals() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mir::Terminator::Branch { then_block, .. } = body.blocks[body.entry].terminator else {
         panic!("expected a conditional branch")
     };

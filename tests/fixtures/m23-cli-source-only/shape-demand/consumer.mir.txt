@@ -1,0 +1,17 @@
+Module
+  enum DeferredEnum
+    Empty()
+    Full(_0: DeferredStorage)
+  class DeferredStorage vtable=0 itables=0
+  interface DeferredGeneric<Int>
+  fun pass @fn0(value: DeferredStorage) -> DeferredStorage
+    bb0 entry
+      return
+        Type DeferredStorage
+        Local value
+  fun passEnum @fn1(value: DeferredEnum) -> DeferredEnum
+    bb0 entry
+      return
+        Type DeferredEnum
+        Local value
+  output library

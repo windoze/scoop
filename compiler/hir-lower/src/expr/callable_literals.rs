@@ -82,6 +82,13 @@ impl Lowerer {
 
         let capture_environment = self.capture_environment();
         let literal_origin = self.expression_origin(span);
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::Lambda);
+        let outer_definition_paths = std::mem::replace(
+            &mut self.definition_paths,
+            crate::definition_paths::DefinitionPathContext::nested(&definition_path),
+        );
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
@@ -99,7 +106,11 @@ impl Lowerer {
         let function_number = self.next_lambda_function;
         self.next_lambda_function += 1;
         self.current_fn_name = format!("$lambda.{function_number}");
-        self.set_source_context(self.current_fn_name.clone());
+        self.set_source_context(hir::SourceContextSubject::LexicalCallable {
+            root: self.current_definition_root(),
+            path: definition_path.clone(),
+            role: scoop_identity::LexicalCallableRole::LambdaBody,
+        });
         self.push_suspension_context(if is_suspend {
             SuspensionContext::SuspendFunction
         } else {
@@ -123,7 +134,7 @@ impl Lowerer {
                 };
                 let parameter_ty = match (explicit_ty, expected_ty) {
                     (Some(explicit), Some(expected)) => {
-                        if !self.types_equal(explicit, expected) {
+                        if !self.is_subtype(expected, explicit) {
                             let found = self.type_name(explicit);
                             let expected = self.type_name(expected);
                             let at = parameter
@@ -162,34 +173,43 @@ impl Lowerer {
                     _ => None,
                 };
                 if let Some(name) = binding_name {
-                    let pattern = ast::Pattern::Binding(name.clone());
-                    let hir::Pattern::Binding { local } = self.lower_pattern_inner(
-                        &pattern,
+                    if self.scopes.is_declared_here(&name.text) {
+                        self.error(
+                            name.span,
+                            format!("`{}` is already declared in this scope", name.text),
+                        );
+                        return None;
+                    }
+                    let local = self.alloc_parameter_local(
+                        name.text.clone(),
                         parameter_ty,
-                        PatternCtx {
-                            mutable: false,
-                            in_when: false,
-                        },
-                    )?
-                    else {
-                        unreachable!("a binding parameter lowers to a binding")
-                    };
+                        index,
+                        name.span,
+                    );
+                    self.scopes.declare(name.text.clone(), local);
                     abi_params.push(hir::Param {
                         name: name.text,
                         ty: parameter_ty,
                         local,
                     });
                 } else {
-                    let local = self.alloc_local(format!("$arg.{index}"), parameter_ty, false);
-                    let plan = self.lower_irrefutable_binding_plan_from_subject(
+                    let local = self.alloc_parameter_local(
+                        format!("$arg.{index}"),
+                        parameter_ty,
+                        index,
+                        parameter
+                            .expect("a destructured lambda parameter is explicit")
+                            .span,
+                    );
+                    let plan = self.lower_irrefutable_binding_from_subject(
                         target.expect("non-binding source parameter has a pattern"),
-                        hir::BindingTemporary {
+                        crate::patterns::BindingSubject {
                             local,
                             ty: parameter_ty,
                         },
                         false,
                     )?;
-                    prefix.extend(plan.into_statements());
+                    prefix.extend(plan);
                     abi_params.push(hir::Param {
                         name: format!("$arg.{index}"),
                         ty: parameter_ty,
@@ -208,7 +228,7 @@ impl Lowerer {
                 .map_or(expected_return.unwrap_or(self.unit), |value| value.ty);
             if let Some(expected_return) = expected_return
                 && !self.types_equal(expected_return, self.unit)
-                && !self.types_equal(return_ty, expected_return)
+                && !self.is_subtype(return_ty, expected_return)
             {
                 let expected = self.type_name(expected_return);
                 let found = self.type_name(return_ty);
@@ -245,7 +265,12 @@ impl Lowerer {
             let Type::Function(function_type) = self.types[function_ty] else {
                 unreachable!()
             };
-            let closure_local = self.alloc_local("$closure".to_string(), function_ty, false);
+            let closure_local = self.alloc_synthetic_local(
+                "$closure".to_string(),
+                function_ty,
+                false,
+                scoop_identity::SyntheticLocalRole::Temporary,
+            );
             let mut params = Vec::with_capacity(abi_params.len() + 1);
             params.push(hir::Param {
                 name: "$closure".to_string(),
@@ -256,28 +281,35 @@ impl Lowerer {
             let type_params = self.type_params_in_scope.clone();
             let access = self.local_declaration_access();
             let function = self.functions.alloc(hir::Function {
-                name: self.current_fn_name.clone(),
+                signature: hir::CallableSignature {
+                    name: self.current_fn_name.clone(),
+                    is_suspend,
+                    modifiers: hir::CallableModifiers::default(),
+                    params,
+                    return_ty,
+                    attributes: hir::FunctionAttributes::default(),
+                    span,
+                },
+
                 access,
-                override_access: Vec::new(),
                 genericity: hir::FunctionGenericity::Plain,
-                is_suspend,
-                modifiers: hir::CallableModifiers::default(),
-                params,
-                return_ty,
-                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: std::mem::take(&mut self.locals),
                     statements: prefix,
                 }),
                 method: None,
-                span,
             });
             if !type_params.is_empty() {
                 self.register_generic(function, type_params.clone());
             }
-            let captures = self.finish_current_captures();
+            self.function_files.insert(function, self.current_file);
+            let captures = self.finish_current_captures(literal_origin);
             let id = self.lambdas.alloc(hir::Lambda {
-                function,
+                definition: hir::LexicalFunctionDefinition::Source {
+                    function,
+                    root: self.current_definition_root(),
+                },
+                definition_path: definition_path.clone(),
                 function_type,
                 owner_type_param_count: type_params.len(),
                 body_type_arguments: hir::CallableBodyTypeArguments::Lexical,
@@ -302,6 +334,7 @@ impl Lowerer {
         self.current_return_ty = outer_return_ty;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
+        self.definition_paths = outer_definition_paths;
         self.current_owner = outer_owner;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;

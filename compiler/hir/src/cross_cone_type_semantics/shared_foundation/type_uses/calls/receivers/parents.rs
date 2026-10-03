@@ -1,0 +1,49 @@
+use super::*;
+
+impl Graph<'_> {
+    pub(in super::super) fn source_receiver_parents(
+        &self,
+        receiver: PersistentExactTypeId,
+        path: &WirePath,
+    ) -> Result<Vec<PersistentExactTypeId>, Error> {
+        let key = self
+            .current
+            .identities
+            .canonical_key::<_, ExactTypeKey>(receiver)?;
+        // Language builtins have no ordinary source nominal declaration.
+        if let ExactTypeKey::Nominal(owner) = key.as_ref() {
+            self.resolve_nominal(*owner)?;
+            if [CoreBuiltinNominal::Unit, CoreBuiltinNominal::Any]
+                .iter()
+                .any(|builtin| builtin.identity_record().id() == *owner)
+            {
+                return Ok(Vec::new());
+            }
+        }
+        let dependencies = self.providers.values().map(|provider| provider.metadata);
+        let application = self.current.applied_nominal(receiver, dependencies)?;
+        let bindings = application.bindings();
+        let supertypes = application.declaration.exact_supertypes().values();
+        let mut parents = Vec::new();
+        scoop_wire::allocation::try_reserve(&mut parents, supertypes.len(), path)?;
+        for parent in supertypes {
+            let exact = self.current.signature_exact_type_with_bindings(
+                parent,
+                &bindings,
+                self.current.identities,
+            )?;
+            let parent = self.current.applied_nominal(
+                exact,
+                self.providers.values().map(|provider| provider.metadata),
+            )?;
+            if !matches!(
+                parent.declaration.kind(),
+                crate::PublicNominalKindV1::Class | crate::PublicNominalKindV1::Interface
+            ) {
+                return Err(Error::InheritanceEdges(receiver));
+            }
+            parents.push(exact);
+        }
+        Ok(parents)
+    }
+}

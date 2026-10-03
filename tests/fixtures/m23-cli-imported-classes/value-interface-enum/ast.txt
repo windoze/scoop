@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Readable
+  ImportExact Local dependency.classes.ReadChoice
+  public fun primary(): Counter
+    val value: Readable
+      FieldAccess Ready
+        Var ReadChoice
+    return
+      Call Counter
+        MethodCall answer
+          Var value

@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  public fun tokenOf(value: Base): Token
+    =
+      FieldAccess token
+        Var value
+SourceFile
+  RootPackage
+  public struct Token
+  public struct Pair
+    field left: Token
+    field right: Token
+    constructor() : this(<2 args>)
+  public open class Base(val token: Token)
+    constructor() : this(<1 args>)
+  public class Child(token: Token = <expr>) : Base(<1 args>)
+  public class Private()
+    public companion object
+      public fun make
+  public object Singleton
+  public struct Managed
+    field item: Base
+    constructor() : this(<1 args>)

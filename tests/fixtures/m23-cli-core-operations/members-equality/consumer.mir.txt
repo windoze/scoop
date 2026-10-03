@@ -1,0 +1,356 @@
+Module
+  callback cb0 @fn0 -> @fn14 function_type0 id=b5910188bf73e7e8bcb78ed1f63a48309f6106d45b865634774d2e86919d7665
+  callback cb1 @fn1 -> @fn15 function_type2 id=556b1d38b87b96a248d73b1988c20e810eeb416a3e53894d0fd651e60ebf9adc
+  callback cb2 @fn2 -> @fn16 function_type3 id=c94fb76506a8484ce64f9bb5e1496b7480fb6e116be2b169c54d0a027fd402c8
+  callback cb3 @fn3 -> @fn17 function_type4 id=24b98e28d830c45b32349a3677f3d8d09824fd3a2530fa90d759e7e86e664798
+  callback cb4 @fn4 -> @fn18 function_type5 id=925f2eed9a33f05b1fcb9680147d863ae05de73ba46094b87d301b19fdb32efc
+  callback cb5 @fn5 -> @fn19 function_type6 id=d51cb61d2d4bb4e66b073cd800a44ee5084423ae0758426be6726b676d6c467a
+  callback cb6 @fn6 -> @fn20 function_type7 id=837a9c890b7a402587a76992c31af664fb33f4d41eae61f2a1c637053084a6a3
+  callback cb7 @fn7 -> @fn21 function_type8 id=343fa7ff6d2899af8de16d51c5620766e53e051cef2ed0f45e7f25635d4fd71f
+  generated_callable gc0 function=@fn17 id=24b98e28d830c45b32349a3677f3d8d09824fd3a2530fa90d759e7e86e664798
+  generated_callable gc1 function=@fn21 id=343fa7ff6d2899af8de16d51c5620766e53e051cef2ed0f45e7f25635d4fd71f
+  generated_callable gc2 function=@fn15 id=556b1d38b87b96a248d73b1988c20e810eeb416a3e53894d0fd651e60ebf9adc
+  generated_callable gc3 function=@fn20 id=837a9c890b7a402587a76992c31af664fb33f4d41eae61f2a1c637053084a6a3
+  generated_callable gc4 function=@fn18 id=925f2eed9a33f05b1fcb9680147d863ae05de73ba46094b87d301b19fdb32efc
+  generated_callable gc5 function=@fn14 id=b5910188bf73e7e8bcb78ed1f63a48309f6106d45b865634774d2e86919d7665
+  generated_callable gc6 function=@fn16 id=c94fb76506a8484ce64f9bb5e1496b7480fb6e116be2b169c54d0a027fd402c8
+  generated_callable gc7 function=@fn19 id=d51cb61d2d4bb4e66b073cd800a44ee5084423ae0758426be6726b676d6c467a
+  fun equalInt8 @fn0(value: Int8) -> Boolean <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int8
+        Type Int8
+        Local value
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+  fun equalInt16 @fn1(value: Int16) -> Boolean <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int16
+        Type Int16
+        Local value
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=1 bits=0x0001
+      val $dependency.parameter.other: Int16
+        Type Int16
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $dependency.receiver
+          Type Int16
+          Local $dependency.parameter.other
+  fun equalInt @fn2(value: Int) -> Boolean <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun equalLong @fn3(value: Long) -> Boolean <no-gc>
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun equalUInt8 @fn4(value: UInt8) -> Boolean <no-gc>
+    bb0 entry
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=UInt8 result=Boolean
+            Type UInt8
+            Local $dependency.receiver
+            Type UInt8
+            Local $dependency.parameter.other
+  fun equalUInt16 @fn5(value: UInt16) -> Boolean <no-gc>
+    bb0 entry
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local value
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=1 bits=0x0001
+      val $dependency.parameter.other: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=UInt16 result=Boolean
+            Type UInt16
+            Local $dependency.receiver
+            Type UInt16
+            Local $dependency.parameter.other
+  fun equalUInt @fn6(value: UInt) -> Boolean <no-gc>
+    bb0 entry
+      val $dependency.receiver: UInt
+        Type UInt
+        Local value
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=1 bits=0x00000001
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=UInt result=Boolean
+            Type UInt
+            Local $dependency.receiver
+            Type UInt
+            Local $dependency.parameter.other
+  fun equalULong @fn7(value: ULong) -> Boolean <no-gc>
+    bb0 entry
+      val $dependency.receiver: ULong
+        Type ULong
+        Local value
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+  fun literalEquality @fn8() -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun contextualLeft @fn9(value: Int8) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $dependency.argument.0: Int8
+        Type Int8
+        Local value
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+  fun leftOperand @fn10() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun middleOperand @fn11() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+  fun rightOperand @fn12(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun singleEvaluation @fn13() -> Boolean
+    bb0 entry
+      call $equality.lhs: Int = @fn10 direct
+      call $argument.0: Int = @fn11 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $dependency.receiver: Int
+        Type Int
+        Local $equality.lhs
+      call $dependency.argument.0: Int = @fn12 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun callback bridge for equalInt8 @fn14($result: Ptr<Boolean>, $arg0: Ptr<Int8>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Boolean = @fn0 direct
+        Type Int8
+        PtrLoad Int8
+          Type Ptr<Int8>
+          Local $arg0
+      Type Unit
+      PtrStore Boolean
+        Type Ptr<Boolean>
+        Local $result
+        Type Boolean
+        Local $value
+      return
+  fun callback bridge for equalInt16 @fn15($result: Ptr<Boolean>, $arg0: Ptr<Int16>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Boolean = @fn1 direct
+        Type Int16
+        PtrLoad Int16
+          Type Ptr<Int16>
+          Local $arg0
+      Type Unit
+      PtrStore Boolean
+        Type Ptr<Boolean>
+        Local $result
+        Type Boolean
+        Local $value
+      return
+  fun callback bridge for equalInt @fn16($result: Ptr<Boolean>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Boolean = @fn2 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Boolean
+        Type Ptr<Boolean>
+        Local $result
+        Type Boolean
+        Local $value
+      return
+  fun callback bridge for equalLong @fn17($result: Ptr<Boolean>, $arg0: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Boolean = @fn3 direct
+        Type Long
+        PtrLoad Long
+          Type Ptr<Long>
+          Local $arg0
+      Type Unit
+      PtrStore Boolean
+        Type Ptr<Boolean>
+        Local $result
+        Type Boolean
+        Local $value
+      return
+  fun callback bridge for equalUInt8 @fn18($result: Ptr<Boolean>, $arg0: Ptr<UInt8>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Boolean = @fn4 direct
+        Type UInt8
+        PtrLoad UInt8
+          Type Ptr<UInt8>
+          Local $arg0
+      Type Unit
+      PtrStore Boolean
+        Type Ptr<Boolean>
+        Local $result
+        Type Boolean
+        Local $value
+      return
+  fun callback bridge for equalUInt16 @fn19($result: Ptr<Boolean>, $arg0: Ptr<UInt16>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Boolean = @fn5 direct
+        Type UInt16
+        PtrLoad UInt16
+          Type Ptr<UInt16>
+          Local $arg0
+      Type Unit
+      PtrStore Boolean
+        Type Ptr<Boolean>
+        Local $result
+        Type Boolean
+        Local $value
+      return
+  fun callback bridge for equalUInt @fn20($result: Ptr<Boolean>, $arg0: Ptr<UInt>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Boolean = @fn6 direct
+        Type UInt
+        PtrLoad UInt
+          Type Ptr<UInt>
+          Local $arg0
+      Type Unit
+      PtrStore Boolean
+        Type Ptr<Boolean>
+        Local $result
+        Type Boolean
+        Local $value
+      return
+  fun callback bridge for equalULong @fn21($result: Ptr<Boolean>, $arg0: Ptr<ULong>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Boolean = @fn7 direct
+        Type ULong
+        PtrLoad ULong
+          Type Ptr<ULong>
+          Local $arg0
+      Type Unit
+      PtrStore Boolean
+        Type Ptr<Boolean>
+        Local $result
+        Type Boolean
+        Local $value
+      return
+  output library

@@ -12,8 +12,8 @@ use inkwell::targets::{
     CodeModel, InitializationConfig, RelocMode, Target, TargetMachine, TargetTriple,
 };
 use inkwell::{AddressSpace, OptimizationLevel};
-use scoop_lir::LirTargetProfile;
 pub use scoop_lir::TargetProfileId;
+use scoop_lir::{BackendProfile, LirTargetProfile, ValidatedLirTargetSelection};
 
 use crate::statepoint::ExpectedSafepoints;
 use crate::{CodegenError, artifact};
@@ -63,7 +63,7 @@ pub(crate) enum UnwindModel {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PersonalityAbi {
-    ScoopLsdaSubsetV1,
+    ScoopLsdaSubset,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -86,7 +86,7 @@ pub(crate) enum EhArtifactInspection {
 impl EhProfile {
     const DARWIN_AARCH64: Self = Self {
         unwind_model: UnwindModel::ItaniumDwarf,
-        personality_abi: PersonalityAbi::ScoopLsdaSubsetV1,
+        personality_abi: PersonalityAbi::ScoopLsdaSubset,
         exception_data_registers: 2,
         encodings: LsdaEncodingProfile {
             lp_start: 0xff,
@@ -130,7 +130,7 @@ impl MachinePipeline {
         self,
         target: &Target,
         triple: &TargetTriple,
-        profile: TargetProfile,
+        profile: ValidatedBackendProfile,
         optimization: OptimizationLevel,
     ) -> Option<TargetMachine> {
         match self {
@@ -170,7 +170,7 @@ enum TailCallPolicy {
 pub(crate) struct ManagedAddressSpace(u16);
 
 impl ManagedAddressSpace {
-    const MOVING_GC: Self = Self(1);
+    pub(crate) const MOVING_GC: Self = Self(1);
 
     #[cfg(test)]
     pub(crate) const fn for_test(value: u16) -> Self {
@@ -186,13 +186,14 @@ impl ManagedAddressSpace {
     }
 }
 
-/// A complete, immutable target/backend profile selected by the driver.
+/// A complete, immutable LIR-to-LLVM backend projection.
 ///
 /// Fields are private so callers cannot construct a contradictory partial
-/// profile.  New targets must be added through [`TargetProfile::resolve`].
+/// profile. New targets are admitted only by the shared toolchain registry and
+/// this module's closed selection-to-backend refinement.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct TargetProfile {
-    lir_target_profile: LirTargetProfile,
+pub struct ValidatedBackendProfile {
+    lir_target_selection: ValidatedLirTargetSelection,
     canonical_triple: &'static str,
     cpu: &'static str,
     features: &'static str,
@@ -200,6 +201,9 @@ pub struct TargetProfile {
     relocation: RelocMode,
     code_model: CodeModel,
     object_format: ObjectFormat,
+    writable_storage_section: &'static str,
+    zero_fill_storage_section: &'static str,
+    c_string_section: &'static str,
     eh: EhProfile,
     llvm_target_backend: LlvmTargetBackend,
     machine_pipeline: MachinePipeline,
@@ -208,14 +212,11 @@ pub struct TargetProfile {
     statepoint_roots: StatepointRootPolicy,
     frame_pointers: FramePointerPolicy,
     tail_calls: TailCallPolicy,
-    runtime_sources: &'static [&'static str],
-    runtime_c_flags: &'static [&'static str],
-    linker_args: &'static [&'static str],
 }
 
-impl TargetProfile {
+impl ValidatedBackendProfile {
     const DARWIN_AARCH64: Self = Self {
-        lir_target_profile: LirTargetProfile::DARWIN_AARCH64,
+        lir_target_selection: ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
         canonical_triple: "aarch64-apple-darwin",
         cpu: "generic",
         features: "",
@@ -223,6 +224,9 @@ impl TargetProfile {
         relocation: RelocMode::PIC,
         code_model: CodeModel::Default,
         object_format: ObjectFormat::MachO64,
+        writable_storage_section: "__DATA,__data",
+        zero_fill_storage_section: "__DATA,__bss",
+        c_string_section: "__TEXT,__cstring,cstring_literals",
         eh: EhProfile::DARWIN_AARCH64,
         llvm_target_backend: LlvmTargetBackend::Aarch64,
         machine_pipeline: MachinePipeline::Llvm22SelectionDagStandard,
@@ -231,86 +235,38 @@ impl TargetProfile {
         statepoint_roots: StatepointRootPolicy::StackIndirectOnly,
         frame_pointers: FramePointerPolicy::All,
         tail_calls: TailCallPolicy::Disabled,
-        runtime_sources: &[
-            "runtime/src/rt.c",
-            "runtime/src/eh.c",
-            "runtime/src/eh_personality.c",
-            "runtime/src/initialization.c",
-            "runtime/src/gc.c",
-            "runtime/src/gc/allocation.c",
-            "runtime/src/gc/collector.c",
-            "runtime/src/gc/evacuation.c",
-            "runtime/src/gc/reclamation.c",
-            "runtime/src/gc/heap.c",
-            "runtime/src/gc/heap_objects.c",
-            "runtime/src/gc/handles.c",
-            "runtime/src/gc/root_frames.c",
-            "runtime/src/gc/roots.c",
-            "runtime/src/gc/stackmap.c",
-            "runtime/src/gc/stack_roots.c",
-            "runtime/src/thread.c",
-            "runtime/src/thread/collection.c",
-            "runtime/src/thread/debug.c",
-            "runtime/src/thread/roots.c",
-            "runtime/src/thread/transitions.c",
-            "runtime/src/callback.c",
-            "runtime/src/platform/profiles/darwin_aarch64.c",
-            "runtime/src/platform/image/macho.c",
-            "runtime/src/platform/arch/aarch64.c",
-            "runtime/src/platform/arch/aarch64_anchor.S",
-            "runtime/src/platform/os/darwin.c",
-        ],
-        runtime_c_flags: &[
-            "-pthread",
-            "-fno-omit-frame-pointer",
-            "-fno-optimize-sibling-calls",
-        ],
-        linker_args: &["-pthread"],
     };
 
-    /// Resolve a user/host triple to the one target profile supported by M15.
-    /// LLVM compatibility is checked before a profile can escape this API.
-    pub fn resolve(triple: &str) -> Result<Self, CodegenError> {
+    pub fn from_selection(selection: ValidatedLirTargetSelection) -> Result<Self, CodegenError> {
         validate_linked_llvm()?;
-        let mut components = triple.split('-');
-        let arch = components.next().unwrap_or_default();
-        let vendor = components.next().unwrap_or_default();
-        let os = components.next().unwrap_or_default();
-        let has_extra_identity = components.any(|component| !component.is_empty());
-        let supported_arch = matches!(arch, "aarch64" | "arm64");
-        let supported_os = versioned_component(os, "darwin") || versioned_component(os, "macosx");
-
-        if supported_arch && vendor == "apple" && supported_os && !has_extra_identity {
+        if selection == ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1 {
             Ok(Self::DARWIN_AARCH64)
         } else {
-            Err(CodegenError(format!(
-                "unsupported target {triple:?}; M15 supports only macOS/AArch64 \
-                 (`aarch64-apple-darwin`, with `arm64` accepted as an alias)"
-            )))
+            Err(CodegenError(
+                "the selected LIR/backend profile is not qualified by this codegen".to_owned(),
+            ))
         }
     }
 
-    /// Resolve LLVM's canonical host triple through the same closed registry
-    /// used for explicit triples. The driver does not reconstruct target
-    /// identity from Rust host constants.
-    pub fn resolve_host() -> Result<Self, CodegenError> {
-        let triple = TargetMachine::get_default_triple();
-        let triple = triple
-            .as_str()
-            .to_str()
-            .map_err(|error| CodegenError(format!("host target triple is not UTF-8: {error}")))?;
-        Self::resolve(triple)
-    }
-
     pub fn id(self) -> TargetProfileId {
-        self.lir_target_profile.id()
+        self.lir_target_selection.target().id()
     }
 
     /// Complete LIR-facing target capabilities selected by this backend
     /// profile. The driver passes this exact value into LIR lowering; codegen
     /// later requires the finished module to carry the same value.
     pub const fn lir_target_profile(self) -> LirTargetProfile {
-        self.lir_target_profile
+        self.lir_target_selection.target()
+    }
+
+    pub const fn backend_profile(self) -> BackendProfile {
+        self.lir_target_selection.backend()
+    }
+
+    /// The exact closed LIR/backend selection represented by this backend
+    /// projection.
+    pub const fn lir_target_selection(self) -> ValidatedLirTargetSelection {
+        self.lir_target_selection
     }
 
     pub fn canonical_triple(self) -> &'static str {
@@ -323,6 +279,31 @@ impl TargetProfile {
 
     pub(crate) fn managed_address_space_contract(self) -> ManagedAddressSpace {
         self.managed_address_space
+    }
+
+    pub(crate) const fn writable_storage_section(self) -> &'static str {
+        self.writable_storage_section
+    }
+
+    pub(crate) const fn zero_fill_storage_section(self) -> &'static str {
+        self.zero_fill_storage_section
+    }
+
+    pub(crate) const fn read_only_metadata_section(self) -> &'static str {
+        match self.object_format {
+            ObjectFormat::MachO64 => "__DATA_CONST,__const",
+        }
+    }
+
+    pub(crate) const fn c_string_section(self) -> &'static str {
+        self.c_string_section
+    }
+
+    /// Closed backend projection used by codegen tests that deliberately do
+    /// not require C-bridge, runtime-build, or final-link capabilities.
+    #[cfg(test)]
+    pub(crate) const fn darwin_aarch64_for_test() -> Self {
+        Self::DARWIN_AARCH64
     }
 
     #[cfg(test)]
@@ -352,21 +333,6 @@ impl TargetProfile {
         self.stack_map_version
     }
 
-    /// Runtime implementation files selected by this target profile.
-    pub fn runtime_sources(self) -> &'static [&'static str] {
-        self.runtime_sources
-    }
-
-    /// Mandatory C compiler flags for this profile's runtime source bundle.
-    pub fn runtime_c_flags(self) -> &'static [&'static str] {
-        self.runtime_c_flags
-    }
-
-    /// Mandatory target/platform arguments for the final system link.
-    pub fn linker_args(self) -> &'static [&'static str] {
-        self.linker_args
-    }
-
     pub(crate) fn create_target_machine(self) -> Result<TargetMachine, CodegenError> {
         self.create_target_machine_with_optimization(self.optimization)
     }
@@ -375,7 +341,7 @@ impl TargetProfile {
         self,
         actual: LirTargetProfile,
     ) -> Result<(), CodegenError> {
-        if actual == self.lir_target_profile {
+        if actual == self.lir_target_selection.target() {
             return Ok(());
         }
         Err(CodegenError(format!(
@@ -386,7 +352,7 @@ impl TargetProfile {
     }
 
     /// Validate the emitted object through the artifact contract selected by
-    /// this complete profile. Generic codegen never chooses an object format
+    /// this backend projection. Generic codegen never chooses an object format
     /// or stack-map decoder on its own.
     pub(crate) fn verify_object(
         self,
@@ -466,17 +432,6 @@ fn validate_llvm_version(version: LlvmVersion) -> Result<LlvmVersion, CodegenErr
              {REQUIRED_LLVM_MAJOR}.{REQUIRED_LLVM_MINOR}"
         )))
     }
-}
-
-fn versioned_component(component: &str, prefix: &str) -> bool {
-    let Some(suffix) = component.strip_prefix(prefix) else {
-        return false;
-    };
-    suffix.is_empty()
-        || suffix.starts_with(|character: char| character.is_ascii_digit())
-        || suffix.strip_prefix('.').is_some_and(|version| {
-            version.starts_with(|character: char| character.is_ascii_digit())
-        })
 }
 
 #[cfg(test)]

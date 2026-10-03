@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_COMPILER_WARNING",
+    "message": "`Raedy` is a catch-all binding because `Signal` has no variant named `Raedy`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
+    "notes": [],
+    "origin": {
+      "cone": "4362cf0c30822547072f73d5c2b650bfd6568ad4569919e332453c77bee74162",
+      "end": 96,
+      "kind": "source",
+      "path": "src/warning.scoop",
+      "start": 91
+    },
+    "severity": "warning"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `missingName`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "838862896e29a9657faa858631e0e023169f57f84c4ec52a9dcc6431d4322922",
+      "end": 31,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 20
+    },
+    "severity": "error"
+  }
+]

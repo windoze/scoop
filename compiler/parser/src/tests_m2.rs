@@ -25,7 +25,7 @@ pub(crate) fn stmt_dump(statement: &str) -> String {
     let file = ok(&format!("fun main() {{\n    {statement}\n}}\n"));
     let dump = scoop_ast::dump(&file);
     let body = dump
-        .strip_prefix("SourceFile\n  fun main()\n")
+        .strip_prefix("SourceFile\n  RootPackage\n  fun main()\n")
         .expect("dump starts with the function header");
     let mut out = String::new();
     for line in body.lines() {

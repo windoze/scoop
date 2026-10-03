@@ -1,0 +1,5 @@
+public fun base(): Base = Base()
+public fun child(): Child = Child()
+public fun user(): User = User()
+private class Immediate : Await { public override suspend fun waitFor(value: Int): Long = 29L }
+public fun awaited(): Await = Immediate()

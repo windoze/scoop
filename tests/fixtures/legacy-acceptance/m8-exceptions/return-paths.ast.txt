@@ -1,0 +1,80 @@
+SourceFile
+  RootPackage
+  enum Choice
+    Left
+    Right
+  fun afterReturn(): Int
+    return
+      IntLiteral 1
+    Call println
+      StringLiteral "unreachable"
+  fun fromIf(flag: Boolean): Int
+    if
+      Var flag
+      return
+        IntLiteral 10
+    else
+      return
+        IntLiteral 11
+  fun fromWhen(choice: Choice): Int
+    when
+      Var choice
+      arm Left
+        return
+          IntLiteral 20
+      arm Right
+        return
+          IntLiteral 21
+  fun fromFinally(): Int
+    try
+      return
+        IntLiteral 30
+    finally
+      return
+        IntLiteral 31
+  fun exceptionReplacedByFinally(): Int
+    try
+      throw
+        Call UnwrapException
+    finally
+      return
+        IntLiteral 40
+  fun branchingFinally(flag: Boolean): Int
+    try
+      Call println
+        StringLiteral "body"
+    finally
+      if
+        Var flag
+        return
+          IntLiteral 50
+      else
+        return
+          IntLiteral 51
+  fun main()
+    Call println
+      Call afterReturn
+    Call println
+      Call fromIf
+        BoolLiteral true
+    Call println
+      Call fromIf
+        BoolLiteral false
+    Call println
+      Call fromWhen
+        FieldAccess Left
+          Var Choice
+    Call println
+      Call fromWhen
+        FieldAccess Right
+          Var Choice
+    Call println
+      Call fromFinally
+    Call println
+      Call exceptionReplacedByFinally
+    Call println
+      Call branchingFinally
+        BoolLiteral true
+    Call println
+      Call branchingFinally
+        BoolLiteral false

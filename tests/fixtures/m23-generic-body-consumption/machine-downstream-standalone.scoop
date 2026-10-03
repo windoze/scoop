@@ -1,0 +1,10 @@
+import dependency.generics.identity
+import primitive
+
+class Result(val value: Int)
+
+public fun check(): Int {
+    val result = identity(Result(primitive() + 2))
+    val other = identity(Result(0))
+    return result.value + other.value
+}

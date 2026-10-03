@@ -1,0 +1,17 @@
+SourceFile
+  QualifiedPackage sourcepolicy
+    @CLayout(aligned = 8, packed = 1)
+  public struct Packed
+    field flag: Boolean
+    field value: Int
+    @CLayout(aligned = 16, packed = 2)
+  public struct Outer
+    field tag: Boolean
+    field packed: Packed
+    @CLayout
+  public struct CBox<T>
+    field value: T
+  public struct Ordinary
+    field value: Int
+  public open class Envelope()
+    protected nested struct Header

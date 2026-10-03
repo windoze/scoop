@@ -9,6 +9,7 @@ fn enum_instances_are_created_once_with_substituted_fields() {
         .iter()
         .map(|name| hir::Variant {
             name: name.to_string(),
+            style: hir::VariantStyle::Unit,
             fields: Vec::new(),
         })
         .collect();
@@ -59,18 +60,35 @@ fn enum_instances_are_created_once_with_substituted_fields() {
     );
     let module = lower(&h.finish(main));
 
-    // One definition per (enum, type args), in creation order; the
-    // duplicate Option<Int> request was deduplicated by enum identity.
+    // Owned non-generic declarations precede lazily instantiated enums.
+    // The duplicate Option<Int> request is deduplicated by enum identity.
     let names: Vec<&str> = module
         .enums
         .iter()
+        .filter(|(id, _)| {
+            module
+                .meta
+                .generated_exact_types
+                .get(mir::GeneratedExactTypeLocation::Enum(*id))
+                .is_none()
+        })
         .map(|(_, def)| def.name.as_str())
         .collect();
-    assert_eq!(names, ["Option$I32", "Color", "Option$S", "Option$D1_SX"]);
+    assert_eq!(
+        names,
+        [
+            "Color",
+            "ForeignCallbackMode",
+            "ForeignCallbackState",
+            "Option",
+            "Option",
+            "Option"
+        ]
+    );
 
     // The variant field types are substituted with the instance's
     // type arguments.
-    let option_int_def = &module.enums[la_arena::Idx::from_raw(0.into())];
+    let option_int_def = &module.enums[la_arena::Idx::from_raw(3.into())];
     assert_eq!(option_int_def.variants[0].name, "Some");
     assert_eq!(
         option_int_def.variants[0].fields[0].ty,
@@ -83,25 +101,28 @@ fn enum_instances_are_created_once_with_substituted_fields() {
             .iter()
             .all(|variant| variant.gc_free)
     );
-    let option_string_def = &module.enums[la_arena::Idx::from_raw(2.into())];
+    let option_string_def = &module.enums[la_arena::Idx::from_raw(4.into())];
     assert_eq!(
         option_string_def.variants[0].fields[0].ty,
         mir::Type::String
     );
-    let option_s_def = &module.enums[la_arena::Idx::from_raw(3.into())];
+    let option_s_def = &module.enums[la_arena::Idx::from_raw(5.into())];
     assert_eq!(
         option_s_def.variants[0].fields[0].ty,
         mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
     );
-    assert_ne!(option_string_def.name, option_s_def.name);
+    assert_ne!(
+        option_string_def.type_arguments,
+        option_s_def.type_arguments
+    );
     assert!(!option_string_def.gc_free);
     assert!(!option_string_def.variants[0].gc_free);
     assert!(option_string_def.variants[1].gc_free);
     assert_eq!(module.option_core.len(), 3);
     for enum_id in [
-        la_arena::Idx::from_raw(0.into()),
-        la_arena::Idx::from_raw(2.into()),
         la_arena::Idx::from_raw(3.into()),
+        la_arena::Idx::from_raw(4.into()),
+        la_arena::Idx::from_raw(5.into()),
     ] {
         let option = module
             .option_core(enum_id)
@@ -138,12 +159,12 @@ fn enum_instances_are_created_once_with_substituted_fields() {
     }
     assert!(
         module
-            .option_core(la_arena::Idx::from_raw(1.into()))
+            .option_core(la_arena::Idx::from_raw(0.into()))
             .is_none(),
         "an equal-shaped user enum must not be recognized as core Option"
     );
     // Color's variants are all unit variants.
-    let color_def = &module.enums[la_arena::Idx::from_raw(1.into())];
+    let color_def = &module.enums[la_arena::Idx::from_raw(0.into())];
     assert!(color_def.gc_free);
     assert_eq!(color_def.variants.len(), 3);
     assert!(
@@ -198,38 +219,10 @@ fn option_consumers_become_guarded_representation_independent_primitives() {
     );
     let module = lower(&h.finish(main));
 
-    let expected = "\
-Module mangling=compact-v2
-  enum Option$I32
-    Some(_1: Int)
-    None()
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val o: Option$I32<Int>
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
-          Type Int
-          IntegerLiteral Int value=41 bits=0x00000029
-      val n: Option$I32<Int>
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
-          Local o
-    bb1 if.then.1
-      val y: Int
-        Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
-          Local o
-      goto bb2
-    bb2 if.merge.2
-      return
-  entry @scoop_main
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot(
+        "option_consumers_become_guarded_representation_independent_primitives",
+        &module,
+    );
     assert_eq!(module.validate(), Ok(()));
 }
 
@@ -273,55 +266,7 @@ fn trapping_unwrap_becomes_a_guarded_extraction() {
     // The operand is evaluated once into `$opt.1`; the semantic variant test
     // guards the representation-independent extraction, and the else branch throws
     // `UnwrapException()` (M8) — an ordinary constructor call.
-    let expected = "\
-Module mangling=compact-v2
-  enum Option$I32
-    Some(_1: Int)
-    None()
-  class UnwrapException vtable=0 itables=0
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val o: Option$I32<Int>
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-      val $opt.1: Option$I32<Int>
-        Type Option$I32<Int>
-        Local o
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
-          Local $opt.1
-    bb1 if.then.1
-      val $uw.2: Int
-        Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
-          Local $opt.1
-      goto bb3
-    bb2 if.else.2
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call @scoop.init.UnwrapException.$c0 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-    bb3 if.merge.3
-      val y: Int
-        Type Int
-        Local $uw.2
-      return
-  fun init.UnwrapException.$c0 @scoop.init.UnwrapException.$c0(this: UnwrapException) -> Unit
-    bb0 entry
-      return
-  entry @scoop_main
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("trapping_unwrap_becomes_a_guarded_extraction", &module);
     assert_eq!(module.validate(), Ok(()));
 }
 
@@ -331,8 +276,21 @@ fn option_primitives_cover_tagged_and_managed_raw_and_code_niche_payloads() {
     let int = h.int;
     let string = h.string;
     let pointer = h.types.alloc(hir::Type::Ptr(int));
-    let function_type = hir::FunctionTypeId::from_raw(0.into());
+    let function_type = hir::FunctionTypeId::from_raw(
+        u32::try_from(h.function_types.len())
+            .expect("function type id fits u32")
+            .into(),
+    );
     let managed_function = h.types.alloc(hir::Type::Function(function_type));
+    assert_eq!(
+        h.function_types.alloc(hir::FunctionType {
+            canonical_type: managed_function,
+            is_suspend: false,
+            parameter_types: vec![int],
+            return_type: int,
+        }),
+        function_type
+    );
     let function_pointer = h.types.alloc(hir::Type::FunPtr(function_type));
     let payload_types = [int, string, pointer, function_pointer];
     let option_types = payload_types.map(|payload| h.option(payload));
@@ -365,20 +323,15 @@ fn option_primitives_cover_tagged_and_managed_raw_and_code_niche_payloads() {
         }));
     }
     let main = h.user_fn("main", hir::Body { locals, statements });
-    let mut source = h.finish(main);
-    assert_eq!(
-        source.function_types.alloc(hir::FunctionType {
-            canonical_type: managed_function,
-            is_suspend: false,
-            parameter_types: vec![int],
-            return_type: int,
-        }),
-        function_type
-    );
-    let module = lower(&source);
+    let executable = h.finish(main);
+    let module = lower(&executable);
     assert_eq!(module.validate(), Ok(()));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mut kinds = Vec::new();
     for (_, block) in body.blocks.iter() {
         let mir::Terminator::Branch {
@@ -498,7 +451,11 @@ fn elvis_subject_and_rhs_are_each_emitted_once_on_their_own_edges() {
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mut source_sites = Vec::new();
     let mut fallback_sites = Vec::new();
     for (block_id, block) in body.blocks.iter() {
@@ -569,12 +526,18 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
     let string_application = h.enum_application_of(option_string);
     let none = hir::EnumVariantRef::checked(&h.enums, h.option_enum, 1)
         .expect("test core Option has None");
-    let int_none =
-        hir::AppliedEnumVariantRef::checked(&h.enums, &h.enum_applications, int_application, none)
-            .expect("None belongs to Option<Int>");
+    let int_none = hir::AppliedEnumVariantRef::checked(
+        &h.enums,
+        &h.enum_applications,
+        &h.nominal_identities(),
+        int_application,
+        none,
+    )
+    .expect("None belongs to Option<Int>");
     let string_none = hir::AppliedEnumVariantRef::checked(
         &h.enums,
         &h.enum_applications,
+        &h.nominal_identities(),
         string_application,
         none,
     )
@@ -587,14 +550,28 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
             statements: Vec::new(),
         },
     );
-    let mut export = h.finish(main);
+    let executable = h.finish(main);
+    let entry = executable.entry();
+    let mut export = executable.into_module();
     for (name, ty, variant) in [
         ("noneInt", option_int, int_none),
         ("noneString", option_string, string_none),
     ] {
-        export.globals.alloc(hir::Global {
+        let global = hir::GlobalId::from_raw((export.globals.len() as u32).into());
+        let property = hir::PropertyId::from_raw((export.properties.len() as u32).into());
+        let getter = export.property_getters.alloc(hir::PropertyGetter {
+            access: hir::DeclarationAccess::public(),
+            implementation: hir::PropertyAccessorImplementation::Storage,
+            attributes: hir::FunctionAttributes::default(),
+            span: SPAN,
+        });
+        let variant = hir::EnumVariantApplication {
+            owner: ty,
+            variant: export.enum_member_identities[variant.declaration()].id(),
+        };
+        let actual_global = export.globals.alloc(hir::Global {
             name: name.to_string(),
-            property: hir::PropertyId::from_raw(0.into()),
+            property,
             ty,
             mutable: false,
             storage: hir::GlobalStorage::Managed {
@@ -604,9 +581,42 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
             },
             span: SPAN,
         });
+        assert_eq!(actual_global, global);
+        let actual_property = export.properties.alloc(hir::Property {
+            owner: hir::PropertyOwner::TopLevel,
+            name: name.to_string(),
+            access: hir::DeclarationAccess::public(),
+            modifier: hir::MethodModifier::Final,
+            is_override: false,
+            overrides: Vec::new(),
+            ty,
+            capability: hir::PropertyCapability::ReadOnly { getter },
+            representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
+                backing: hir::PropertyBacking::TopLevelGlobal {
+                    storage: global,
+                    initialization: hir::TopLevelInitialization::Image,
+                },
+            }),
+            span: SPAN,
+        });
+        assert_eq!(actual_property, property);
     }
+    export.property_identities = crate::tests::harness_nominals::test_property_identities(
+        &export.properties,
+        &export.extension_properties,
+        &export.nominal_identities,
+    );
+    export.property_accessor_identities =
+        crate::tests::harness_nominals::test_property_accessor_identities(
+            &export.properties,
+            &export.property_identities,
+            &export.property_getters,
+            &export.property_setters,
+        );
 
-    let concrete = scoop_hir_lower::concretize_export(&export);
+    let export = executable_output(export, entry);
+    let concrete =
+        scoop_hir_lower::concretize_output(&export).expect("concrete type applications are valid");
     let concrete_refs = ["noneInt", "noneString"].map(|name| {
         let global = concrete
             .globals
@@ -630,11 +640,15 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
             concrete.enums[*enum_id].variants[variant.variant().into_raw() as usize].name,
             "None"
         );
-        *variant
+        let hir::concrete::PropertyStorageOwner::Backing(owner) = global.storage_owner else {
+            panic!("stored global keeps its persistent property backing owner")
+        };
+        (*variant, owner)
     });
-    assert_ne!(concrete_refs[0], concrete_refs[1]);
+    assert_ne!(concrete_refs[0].0, concrete_refs[1].0);
 
-    let module = crate::lower(&concrete);
+    let module = crate::lower(&concrete)
+        .expect("test LocalConcrete HIR carries locally defined core protocols");
     let mir_refs = ["noneInt", "noneString"].map(|name| {
         let global = module
             .globals
@@ -658,6 +672,17 @@ fn generic_enum_unit_constants_preserve_exact_refs_through_concrete_hir_and_mir(
         assert_eq!(variant.definition(&module.enums).unwrap().name, "None");
         *variant
     });
+    for (name, (_, owner)) in ["noneInt", "noneString"].into_iter().zip(concrete_refs) {
+        let global = module
+            .globals
+            .iter()
+            .find_map(|(_, global)| (global.name == name).then_some(global))
+            .expect("MIR global");
+        assert_eq!(
+            global.storage_owner,
+            mir::StaticStorageOwner::PropertyBacking(owner)
+        );
+    }
     assert_ne!(mir_refs[0], mir_refs[1]);
     assert_eq!(
         module.enums[mir_refs[0].enum_id()].type_arguments,

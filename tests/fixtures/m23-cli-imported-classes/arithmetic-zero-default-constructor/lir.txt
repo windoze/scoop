@@ -1,0 +1,234 @@
+Module
+  fun @scoop$1$cb$020bc9d75a03fbe5478d2c6c9ad432a56fbb64271208e0ae86596a0a56c5f34e(i64, i64) -> i64
+    local %0 $dependency.receiver: i64
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.other: i64
+    local %3 $div.1: i64
+    local %4 $div.2: i64
+    local %5 $div.result.3: i64
+    local %6 $new.1: ptr<managed>
+    local %7 $logic.2: i1
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    store param1 -> local1
+    store local1 -> local2
+    store local0 -> local3
+    store local2 -> local4
+    t0 = integer_compare_Equal<Long> local4, integer<Long>(0x0000000000000000) : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(24)))
+    store t1 -> local6
+    call managed-void-target0 sp<managed-call:1> live=[local6:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn1(local6)
+    t2 = aggregate () : {}
+    throw local6
+    unreachable
+  block if.merge.2
+    t3 = integer_compare_Equal<Long> local3, integer<Long>(0x8000000000000000) : i1
+    cbr t3 then @logic.rhs.3 else @logic.short.4
+  block logic.rhs.3
+    t4 = integer_compare_Equal<Long> local4, integer<Long>(0xffffffffffffffff) : i1
+    store t4 -> local7
+    br @logic.merge.5
+  block logic.short.4
+    store false -> local7
+    br @logic.merge.5
+  block logic.merge.5
+    cbr local7 then @if.then.6 else @if.else.7
+  block if.then.6
+    store integer<Long>(0x8000000000000000) -> local5
+    br @if.merge.8
+  block if.else.7
+    t5 = safe_integer_Divide<Long> local3, local4 : i64
+    store t5 -> local5
+    br @if.merge.8
+  block if.merge.8
+    ret local5
+  fun @scoop$1$cb$dada1dc6c57b7f373ce6b453d9e24f3489ef6d8df07bc482129ffd800bef87a5() -> ptr<managed>
+    local %0 caught: i64
+    local %1 $argument.0: i64
+    local %2 $argument.1: i64
+    local %3 $parameter.value: i64
+    local %4 $parameter.divisor: i64
+    local %5 failure: ptr<managed>
+    local %6 $dependency.receiver: i64
+    local %7 $dependency.argument.0: i64
+    local %8 $dependency.parameter.other: i64
+    local %9 value: i32
+    local %10 $dependency.receiver: i32
+    local %11 $dependency.argument.0: i32
+    local %12 $dependency.parameter.other: i32
+    local %13 remainder: i32
+    local %14 $dependency.receiver: i32
+    local %15 $dependency.receiver: i64
+    local %16 $dependency.argument.0: i64
+    local %17 $dependency.parameter.other: i64
+    local %18 failure: ptr<managed>
+    local %19 $dependency.receiver: i64
+    local %20 $dependency.argument.0: i64
+    local %21 $dependency.parameter.other: i64
+    local %22 $dependency.receiver: i64
+    local %23 $dependency.argument.0: i64
+    local %24 $dependency.parameter.other: i64
+    local %25 $dependency.argument.0: i64
+    local %26 $dependency.parameter.value: i64
+    local %27 $div.1: i32
+    local %28 $div.2: i32
+    local %29 $call.1: i64
+    local %30 $catch.2: ptr<managed>
+    local %31 $new.3: ptr<managed>
+    local %32 $catch.4: ptr<managed>
+    local %33 $new.5: ptr<managed>
+    local %34 $sc.1: exception_record
+    local %35 $sc.2: ptr<raw>
+    local %36 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000000) -> local0
+    br @try.body.8
+  block try.unwind.1
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    store t0 -> local34
+    store t1 -> local35
+    br @try.dispatch.2
+  block try.dispatch.2
+    t2 = begin_catch local35 : ptr<managed>
+    store t2 -> local36
+    call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local36, external-td0)
+    cbr t3 then @try.catch.9 else @try.next.10
+  block try.exit_pad.5
+    (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
+    store t6 -> local34
+    store t7 -> local35
+    br @try.exit_cleanup.6
+  block try.exit_cleanup.6
+    end_catch
+    resume local34
+  block try.end.7
+    br @try.body.20
+  block try.body.8
+    store integer<Long>(0x000000000000002a) -> local1
+    store integer<Long>(0x0000000000000000) -> local2
+    store local1 -> local3
+    store local2 -> local4
+    invoke managed-direct-target0 sp<managed-invoke:0> roots=[] t8 = sig=direct1 (i64, i64) -> i64 local-fn0(local3, local4) normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block try.catch.9
+    call managed-direct-target1 sp<managed-call:0> live=[local36:ptr<managed>@0] t9 = sig=direct2 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local36)
+    store t9 -> local30
+    store local30 -> local5
+    br @scope.11
+  block try.next.10
+    invoke no-gc-void-target0 sig=void0 () runtime @scoop_rt_rethrow() normal @rethrow.normal.2 unwind @try.exit_pad.5
+    br @rethrow.normal.2
+  block scope.11
+    store local0 -> local6
+    store integer<Long>(0x000000000000000a) -> local7
+    store local7 -> local8
+    t10 = integer_Add<Long> local6, local8 : i64
+    store t10 -> local0
+    end_catch
+    br @scope.12
+  block scope.12
+    br @try.end.7
+  block try.unwind.13
+    (t11, t12) = landingpad : (exception_record, ptr<raw>)
+    store t11 -> local34
+    store t12 -> local35
+    br @try.dispatch.14
+  block try.dispatch.14
+    t13 = begin_catch local35 : ptr<managed>
+    store t13 -> local36
+    call no-gc-direct-target1 t14 = sig=direct3 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local36, external-td0)
+    cbr t14 then @try.catch.24 else @try.next.25
+  block try.exit_pad.17
+    (t18, t19) = cleanup_pad : (exception_record, ptr<raw>)
+    store t18 -> local34
+    store t19 -> local35
+    br @try.exit_cleanup.18
+  block try.exit_cleanup.18
+    end_catch
+    resume local34
+  block try.end.19
+    store local0 -> local25
+    store local25 -> local26
+    call managed-direct-target2 sp<managed-call:3> live=[] t20 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    store t20 -> local33
+    call managed-void-target0 sp<managed-call:4> live=[local33:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn0(local33, local26)
+    t21 = aggregate () : {}
+    ret local33
+  block try.body.20
+    store integer<UInt>(0x0000002a) -> local9
+    store local9 -> local10
+    store integer<UInt>(0x00000000) -> local11
+    store local11 -> local12
+    store local10 -> local27
+    store local12 -> local28
+    t22 = integer_compare_Equal<UInt> local28, integer<UInt>(0x00000000) : i1
+    cbr t22 then @if.then.21 else @if.merge.22
+  block if.then.21
+    call managed-direct-target3 sp<managed-call:1> live=[] t23 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(24)))
+    store t23 -> local31
+    invoke managed-void-target1 sp<managed-invoke:1> roots=[local31:normal] sig=void2 (ptr<managed>) external-fn1(local31) normal @invoke.normal.3 unwind @try.unwind.13
+    br @invoke.normal.3
+  block if.merge.22
+    t25 = safe_integer_Remainder<UInt> local27, local28 : i32
+    store t25 -> local13
+    store local0 -> local15
+    store local13 -> local14
+    t26 = integer_convert<UInt->Long> local14 : i64
+    store t26 -> local16
+    store local16 -> local17
+    t27 = integer_Add<Long> local15, local17 : i64
+    store t27 -> local0
+    br @scope.23
+  block scope.23
+    store local0 -> local22
+    store integer<Long>(0x0000000000000001) -> local23
+    store local23 -> local24
+    t28 = integer_Add<Long> local22, local24 : i64
+    store t28 -> local0
+    br @try.end.19
+  block try.catch.24
+    call managed-direct-target4 sp<managed-call:2> live=[local36:ptr<managed>@0] t29 = sig=direct6 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local36)
+    store t29 -> local32
+    store local32 -> local18
+    br @scope.26
+  block try.next.25
+    store local0 -> local22
+    store integer<Long>(0x0000000000000001) -> local23
+    store local23 -> local24
+    t30 = integer_Add<Long> local22, local24 : i64
+    store t30 -> local0
+    invoke no-gc-void-target2 sig=void4 () runtime @scoop_rt_rethrow() normal @rethrow.normal.5 unwind @try.exit_pad.17
+    br @rethrow.normal.5
+  block scope.26
+    store local0 -> local19
+    store integer<Long>(0x000000000000000a) -> local20
+    store local20 -> local21
+    t31 = integer_Add<Long> local19, local21 : i64
+    store t31 -> local0
+    end_catch
+    br @scope.27
+  block scope.27
+    store local0 -> local22
+    store integer<Long>(0x0000000000000001) -> local23
+    store local23 -> local24
+    t32 = integer_Add<Long> local22, local24 : i64
+    store t32 -> local0
+    br @try.end.19
+  block invoke.normal.1
+    store t8 -> local29
+    br @try.end.7
+  block rethrow.normal.2
+    unreachable
+  block invoke.normal.3
+    t24 = aggregate () : {}
+    invoke no-gc-void-target1 sig=void3 (ptr<managed>) runtime @scoop_rt_throw(local31) normal @throw.normal.4 unwind @try.unwind.13
+    br @throw.normal.4
+  block throw.normal.4
+    unreachable
+  block rethrow.normal.5
+    unreachable
+  output library

@@ -1,0 +1,336 @@
+Module
+  struct Managed (text: String, number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Managed>
+    Completed(value: Managed)
+    Suspended()
+  enum CoroutineSlot<Managed>
+    Empty()
+    Value(value: Managed)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Managed> vtable=0 itables=0
+  interface Continuation<Managed>
+  interface SuspendTask<Managed>
+  interface SuspendRegistration<Managed>
+  generated_exact_type get0 location=class3 nominal_id=eabc07053b9177abe2fd3debd5ec489a5d9995eb36d6118e37538e421d02a911 exact_id=0a38b20981f3c2e583b6d614badfd132736585ca08118da22e2447e6cafdf918
+  generated_exact_type get1 location=enum2 nominal_id=b5a96de35fd970a17071128637044f941fed215e09a32d7638a5b170fc6c6de5 exact_id=2b103d9aa1b6a21caadb9d1d5b3cd701b4769e2d87e70dfad38c9380c668fd00
+  generated_exact_type get2 location=enum1 nominal_id=76a942900ea65ca395a19de3bdd82824b8e4e91b449cdd45c63bbb3a566c5269 exact_id=90464647ee4da31c772676ae2de7e81cdec3a6f06bf6742f02b8c3b9db3492d1
+  generated_callable gc0 function=@fn12 id=22cf33bf20d8125d92762eb16a497008184debf08ae302e7d1d4b07999973145
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: ULong
+        Type ULong
+        SizeOf Unit
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: ULong
+        Type ULong
+        AlignOf Unit
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      call $dependency.receiver: ULong = @fn2 direct
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+    bb6 if.then.6
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      call $dependency.receiver: ULong = @fn3 direct
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=8 bits=0x0000000000000008
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $shortCircuit.1
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      call $dependency.receiver: ULong = @fn4 direct
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=16 bits=0x0000000000000010
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+    bb11 if.then.11
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      call $dependency.receiver: ULong = @fn5 direct
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=8 bits=0x0000000000000008
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb13
+    bb13 if.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $shortCircuit.2
+    bb14 if.then.14
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb15 if.merge.15
+      val $dependency.parameter.size: ULong
+        Type ULong
+        SizeOf Managed
+      val $dependency.parameter.alignment: ULong
+        Type ULong
+        AlignOf Managed
+      call $dependency.receiver: ULong = @fn6 direct
+        Type ULong
+        Local $dependency.parameter.size
+        Type ULong
+        Local $dependency.parameter.alignment
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=24 bits=0x0000000000000018
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb16 bb17
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+    bb16 if.then.16
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb17 if.merge.17
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun bytes @fn2() -> ULong
+    bb0 entry
+      return
+        Type ULong
+        SizeOf UInt8
+  fun bytes @fn3() -> ULong
+    bb0 entry
+      return
+        Type ULong
+        SizeOf Long
+  fun bytes @fn4() -> ULong
+    bb0 entry
+      return
+        Type ULong
+        SizeOf Managed
+  fun alignment @fn5() -> ULong
+    bb0 entry
+      return
+        Type ULong
+        AlignOf Managed
+  fun layoutDefault @fn6(size: ULong, alignment: ULong) -> ULong
+    bb0 entry
+      val $dependency.local.2: ULong
+        Type ULong
+        Local size
+      val $dependency.local.3: ULong
+        Type ULong
+        Local alignment
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      return
+        Type ULong
+        IntegerBinary add kind=ULong
+          Type ULong
+          Local $dependency.local.2
+          Type ULong
+          Local $dependency.local.4
+  fun Continuation.resume @fn7(this: Continuation<Managed>, value: Managed) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Managed>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Managed>, $completion: Continuation<Managed>) -> CoroutineStep<Managed>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Managed>, continuation: Continuation<Managed>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Managed.$c0 @fn11(text: String, number: Int) -> Managed <no-gc>
+    bb0 entry
+      return
+        Type Managed
+        StructInit Managed
+          Type String
+          Local text
+          Type Int
+          Local number
+  fun startCoroutine<Managed> @fn12(task: SuspendTask<Managed>, completion: Continuation<Managed>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Managed>[0]
+        Type Continuation<Managed>
+        Local completion
+        Type Managed
+        EnumField v0 f0
+          Type CoroutineStep<Managed>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Managed>[1]
+        Type Continuation<Managed>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Managed> = @fn9 interface SuspendTask<Managed>[0]
+        Type SuspendTask<Managed>
+        Local task
+        Type Continuation<Managed>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Managed>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Managed> result=Managed
+  coroutine_slot cl0 CoroutineSlot<Managed> value=Managed
+  coroutine_start ct0 result=Managed function=fn12
+  coroutine_fn cf0 @fn9 source_return=Managed step=cs0 immediate
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- bytes
+  instance mi2 function=@fn3 <- bytes
+  instance mi3 function=@fn4 <- bytes
+  instance mi4 function=@fn5 <- alignment
+  instance mi5 function=@fn6 <- layoutDefault
+  instance mi6 function=@fn7 <- Continuation.resume
+  instance mi7 function=@fn8 <- Continuation.resumeWithException
+  instance mi8 function=@fn9 <- SuspendTask.run
+  instance mi9 function=@fn10 <- SuspendRegistration.register
+  output library

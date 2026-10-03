@@ -1,6 +1,64 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn lower_imported_singletons(&mut self, module: &hir::Module) {
+        if self.imported_singletons.is_empty() {
+            return;
+        }
+        Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        }
+        .lower(
+            module.unit,
+            &mut self.source_exact_types,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+        for (object, ensure) in std::mem::take(&mut self.imported_singletons) {
+            let source_type = module
+                .exact_type_identities
+                .type_for_identity(object.read().object())
+                .expect("a selected singleton retains its actual HIR type");
+            let scoop_identity::ExactTypeKey::Nominal(owner) =
+                module.exact_type_identities[source_type].key()
+            else {
+                unreachable!("a singleton has its source nominal exact identity")
+            };
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            };
+            let ty = types.lower(
+                source_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            let global = self.globals.alloc(mir::Global {
+                name: format!("$singleton${}", object.value()),
+                storage_owner: mir::StaticStorageOwner::SingletonPublishedRoot(*owner),
+                ty,
+                mutable: false,
+                storage: mir::GlobalStorage::Imported {
+                    provider: object.provider(),
+                    storage: scoop_identity::PersistentStaticStorageId::from_key(
+                        &scoop_identity::StaticStorageKey::singleton_published_root(*owner),
+                    )
+                    .expect("a singleton storage key is encodable"),
+                },
+            });
+            self.imported_singleton_map
+                .insert(object.value(), (ensure, global));
+        }
+    }
+
     pub(super) fn lower_singletons(&mut self, module: &hir::Module) {
         for (source_id, source) in module.object_types.iter() {
             let representation = self.class_map[&source.representation];
@@ -22,6 +80,11 @@ impl Lowerer {
         }
 
         for (source_id, source) in module.singleton_published_roots.iter() {
+            let value = &module.singleton_values[source.value];
+            let owner = module.objects[value.declaration]
+                .origin
+                .concrete_type_id()
+                .expect("a materialized singleton has a concrete nominal identity");
             let ty = {
                 let types = Types {
                     module,
@@ -30,6 +93,7 @@ impl Lowerer {
                 };
                 types.lower(
                     source.ty,
+                    &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
                     &mut self.interfaces,
@@ -37,8 +101,8 @@ impl Lowerer {
                 )
             };
             let global = self.globals.alloc(mir::Global {
-                name: format!("$singleton${}", source.link_name),
-                symbol: mir::mangle_singleton_root(&source.link_name),
+                name: format!("$singleton${}", module.objects[value.declaration].name),
+                storage_owner: mir::StaticStorageOwner::SingletonPublishedRoot(owner),
                 ty,
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {
@@ -57,6 +121,7 @@ impl Lowerer {
 
         for (source_id, source) in module.singleton_values.iter() {
             let id = self.singleton_values.alloc(mir::SingletonValue {
+                identity: source.identity,
                 declaration: mir::ObjectId::from_raw(source.declaration.into_raw()),
                 object_type: mir::ObjectTypeId::from_raw(source.object_type.into_raw()),
                 published_root: self.singleton_root_map[&source.published_root],

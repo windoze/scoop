@@ -82,7 +82,7 @@ fn when_expression_dump_marks_guarded_arms() {
     );
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  fun choose(value: Boolean, flag: Boolean): Int\n    =\n      WhenExpression\n        Var value\n        arm true if <guard>\n          IntLiteral 1\n        arm false\n          IntLiteral 0\n"
+        "SourceFile\n  RootPackage\n  fun choose(value: Boolean, flag: Boolean): Int\n    =\n      WhenExpression\n        Var value\n        arm true if <guard>\n          IntLiteral 1\n        arm false\n          IntLiteral 0\n"
     );
 }
 

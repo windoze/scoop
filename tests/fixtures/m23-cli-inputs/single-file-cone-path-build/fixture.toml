@@ -1,0 +1,25 @@
+schema = 1
+name = "cli-input-single-file-cone-path-build"
+inputs = ["../single-file-isolation/main.scoop"]
+tools = ["scoop"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "input", "single-file", "negative"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"copy" = {"from" = "${fixture}/../single-file-isolation/main.scoop", "to" = "${work}/main.scoop"}},
+]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "${work}/main.scoop", "--cone-path", "${work}/absent-cones", "--scoopc", "${work}/absent/scoopc", "--sysroot", "${work}/absent-sysroot", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/cache", "exists" = false},
+  {"file" = "${work}/target", "exists" = false},
+]

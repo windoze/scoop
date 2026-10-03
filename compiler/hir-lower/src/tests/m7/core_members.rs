@@ -46,7 +46,7 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     assert!(has_instantiation(&module, print, &[int_type(&module)]));
 
     // Arguments keep their exact types; formatting no longer crosses Any.
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let first = expression_statement(body, 0);
     let hir::ExprKind::Call { args, .. } = &first.kind else {
         panic!("expected a call")
@@ -63,7 +63,11 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     let write = core_write(&module);
     let body = body_of(&module, print);
     let value = expression_statement(body, 0);
-    let hir::ExprKind::Call { callee, .. } = &value.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = &value.kind
+    else {
         panic!("expected a call")
     };
     assert_eq!(module.callable_function(*callee), write);
@@ -86,8 +90,10 @@ fn print_and_println_use_the_ordinary_to_string_bound() {
     let hir::MethodCallee::Bound(bound) = callee else {
         panic!("generic print must retain a typed bound call")
     };
-    let hir::BoundCallableSource::Interface { member, .. } =
-        module.bound_callable_refs[*bound].source
+    let hir::BoundCallableSource::Interface {
+        member: hir::InterfaceMethodReference::Local(member),
+        ..
+    } = module.bound_callable_refs[*bound].source
     else {
         panic!("ToString is an interface bound")
     };
@@ -155,7 +161,7 @@ fn intrinsic_value_members_resolve_from_their_source_declaration() {
         ))],
     )]);
     let module = lower_user(file).expect("Int.toString is declared in core source");
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let outer = expression_statement(body, 0);
     let hir::ExprKind::Call { .. } = &outer.kind else {
         panic!("expected print call")
@@ -173,11 +179,15 @@ fn intrinsic_value_members_resolve_from_their_source_declaration() {
             Some(callee)
         })
         .expect("expected Int.toString call");
-    let target = module.callable_function(*callee);
+    let target = module.callable_function(crate::tests::local_method_callable(&module, *callee));
     assert_eq!(module.functions[target].name, "Int.toString");
     let body = body_of(&module, target);
     let value = return_value(&body.statements);
-    let hir::ExprKind::Call { callee, .. } = value.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = value.kind
+    else {
         panic!("the core method body must call its representation helper")
     };
     let helper = module.callable_function(callee);

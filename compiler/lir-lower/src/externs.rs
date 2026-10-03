@@ -11,10 +11,11 @@ pub(super) fn lower_extern_functions(
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> (
+    native_externals: &lir::NativeExternalMetadata,
+) -> StorageResult<(
     lir::ExternFunctions,
     HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
-) {
+)> {
     let mut functions = lir::ExternFunctions::default();
     let mut references = HashMap::new();
     for (id, extern_) in module.extern_functions.iter() {
@@ -30,7 +31,16 @@ pub(super) fn lower_extern_functions(
             mir::ExternAbi::C => LoweredExternFunctionRef::C(
                 functions.alloc_c(lir::CExternFunction {
                     identity: identity(),
-                    bridge_symbol: format!("scoop_c_bridge_{}", id.into_raw().into_u32()),
+                    bridge: lir::GeneratedBridgeEntryIdentity::new(
+                        module.cone,
+                        scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(
+                            native_externals
+                                .contract(extern_.source_contract.id())
+                                .expect("every C extern has one normalized target contract")
+                                .fingerprint(),
+                        ),
+                    )
+                    .expect("validated C extern bridge identities are encodable"),
                     signature: lir::CFunctionType {
                         params: extern_
                             .params
@@ -54,13 +64,13 @@ pub(super) fn lower_extern_functions(
                         &extern_.return_type,
                         structs,
                         enums,
-                    ),
+                    )?,
                 }))
             }
         };
         references.insert(id, reference);
     }
-    (functions, references)
+    Ok((functions, references))
 }
 
 fn c_data_pointee(
@@ -106,7 +116,7 @@ pub(super) fn c_return_type(
     }
 }
 
-fn exact_option_payload<'a>(
+pub(super) fn exact_option_payload<'a>(
     module: &'a mir::Module,
     id: mir::EnumId,
     arguments: &'a [mir::Type],
@@ -164,11 +174,23 @@ pub(super) fn c_ffi_type(
             signature: Box::new(c_function_type(module, structs, enums, *signature)),
             storage: lir::CCodePointerStorage::Direct,
         },
-        mir::Type::Struct(id) => lir::CType::Struct(
-            structs
-                .c_ref(struct_def_id(*id))
-                .expect("HIR C-FFI classification admits only C-layout structs"),
-        ),
+        mir::Type::Struct(id) => {
+            if matches!(
+                module.structs[*id].representation,
+                mir::StructRepresentation::Declared {
+                    c_abi: mir::StructCAbi::UInt64Field { .. },
+                    ..
+                }
+            ) {
+                lir::CType::Integer(lir::IntegerKind::UNSIGNED_64)
+            } else {
+                lir::CType::Struct(
+                    structs
+                        .c_ref(struct_def_id(*id))
+                        .expect("C struct storage requires an explicit C layout"),
+                )
+            }
+        }
         mir::Type::Enum(id, args) if module.option_core(*id).is_some() => {
             match exact_option_payload(module, *id, args) {
                 mir::Type::Ptr(pointee) => {

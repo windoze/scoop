@@ -32,11 +32,14 @@ fn struct_values_keep_named_lir_identity() {
             ),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
-    let local_types: Vec<lir::LirType> =
-        function.locals.iter().map(|(_, l)| l.ty.clone()).collect();
+    let local_types: Vec<lir::LirType> = function
+        .locals
+        .iter()
+        .map(|(_, l)| l.ty().clone())
+        .collect();
     assert_eq!(
         local_types,
         [
@@ -91,7 +94,7 @@ fn raw_struct_construction_lowers_fields_in_declaration_order() {
         )],
     );
 
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::MakeAggregate { elements, .. } = instructions[0] else {
@@ -118,11 +121,11 @@ fn unit_is_the_empty_aggregate() {
     let mut locals = Arena::new();
     let u = locals.alloc(local("u", mir::Type::Unit));
     let main = b.main(locals, vec![val_decl(u, mir::Expr::unit())]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let (_, u_local) = function.locals.iter().next().expect("one local");
-    assert_eq!(u_local.ty, lir::LirType::Aggregate(Vec::new()));
+    assert_eq!(u_local.ty(), &lir::LirType::Aggregate(Vec::new()));
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::MakeAggregate { out, elements } = instructions[0] else {
         panic!("Unit must be an empty aggregate")
@@ -130,15 +133,15 @@ fn unit_is_the_empty_aggregate() {
     assert!(elements.is_empty());
     assert_eq!(function.temps[*out].ty, lir::LirType::Aggregate(Vec::new()));
 
-    // Unit itself gets no layout entry (it is just `{}`).
-    assert!(!layout_values(&module).any(|l| l.name == "Unit"));
+    // Local Unit values do not define their provider's persistent layout.
+    assert!(layout_values(&module).all(|layout| layout.name != "Unit"));
 }
 
 #[test]
 fn all_eight_integer_kinds_use_their_exact_target_scalar_layout() {
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), Vec::new());
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
 
     for mir_kind in mir::IntegerKind::ALL {
@@ -175,6 +178,7 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         return_type: mir::Type::Unit,
     });
     let data_shell = builder.structs.alloc(mir::StructDef {
+        type_arguments: Vec::new(),
         name: "Ptr<UInt16>".to_string(),
         gc_free: true,
         representation: mir::StructRepresentation::Intrinsic(
@@ -184,6 +188,7 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         ),
     });
     let code_shell = builder.structs.alloc(mir::StructDef {
+        type_arguments: Vec::new(),
         name: "FunPtr<(Int8, Ptr<Unit>) -> Unit>".to_string(),
         gc_free: true,
         representation: mir::StructRepresentation::Intrinsic(
@@ -191,8 +196,8 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         ),
     });
     let main = builder.main(Arena::new(), Vec::new());
-    let module = lower(&builder.finish(main));
-    let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
+    let source = builder.finish(main);
+    let module = lower(source);
 
     let data_representation = lir::IntrinsicTypeRepresentation::Ptr {
         pointee: lir::LirDataPointee::Value(Box::new(lir::LirType::I16)),
@@ -212,21 +217,12 @@ fn compiler_pointer_declaration_shells_keep_target_layout_and_closed_shape() {
         lir::StructRepresentation::Intrinsic(code_representation.clone())
     );
 
-    for (name, kind, representation) in [
-        ("Ptr<UInt16>", lir::PointerKind::Raw, data_representation),
-        (
-            "FunPtr<(Int8, Ptr<Unit>) -> Unit>",
-            lir::PointerKind::Code,
-            code_representation,
-        ),
-    ] {
-        let layout = layout_values(&module)
-            .find(|layout| layout.name == name)
-            .unwrap_or_else(|| panic!("missing compiler pointer layout {name}"));
-        let expected = context.pointer_layout(kind);
-        assert_eq!((layout.size, layout.align), (expected.size, expected.align));
-        assert_eq!(layout.kind, lir::LayoutKind::Intrinsic(representation),);
-    }
+    assert!(
+        layout_values(&module).all(|layout| {
+            layout.name != "Ptr<UInt16>" && layout.name != "FunPtr<(Int8, Ptr<Unit>) -> Unit>"
+        }),
+        "structural pointer shapes must not acquire persistent layouts"
+    );
 }
 
 #[test]
@@ -237,11 +233,11 @@ fn uint_and_int_are_exact_32_bit_scalars() {
     let mut locals = Arena::new();
     let u = locals.alloc(local("u", UINT));
     let main = b.main(locals, vec![val_decl(u, uint_expr(1))]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let (_, u_local) = function.locals.iter().next().expect("one local");
-    assert_eq!(u_local.ty, lir::LirType::I32);
+    assert_eq!(u_local.ty(), &lir::LirType::I32);
 
     let c_layout = layout_values(&module)
         .find(|l| l.name == "C")
@@ -249,9 +245,9 @@ fn uint_and_int_are_exact_32_bit_scalars() {
     assert_eq!((c_layout.size, c_layout.align), (24, 8));
     assert!(plain_refs(c_layout).is_empty());
     let c_td = descriptor_values(&module)
-        .find(|td| td.name == "C")
+        .find(|td| td.diagnostic_name == "C")
         .expect("a TypeDescriptor per class");
-    assert_eq!(c_td.size, 24);
+    assert_eq!(c_td.instance_shape.minimum_size(), 24);
     assert_eq!(*fixed_scan(c_td), lir::RefScan::None);
 }
 
@@ -270,7 +266,7 @@ fn layouts_mark_reference_fields_for_the_gc() {
     let mut locals = Arena::new();
     let _t = locals.alloc(local("t", mir::Type::Tuple(vec![mir::Type::Boolean, INT])));
     let main = b.main(locals, vec![]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let by_name = |name: &str| {
         layout_values(&module)
@@ -278,13 +274,13 @@ fn layouts_mark_reference_fields_for_the_gc() {
             .unwrap_or_else(|| panic!("missing layout for {name}"))
     };
 
-    // The String singleton is structurally separate; the remaining typed
-    // intrinsic layouts stay in declaration order with ordinary layouts.
+    // This fixture defines String locally. Intrinsic and ordinary layouts
+    // retain their declaration order and actual provider ownership.
     let names: Vec<&str> = layout_values(&module).map(|l| l.name.as_str()).collect();
-    assert_eq!(
-        module.meta.layouts[module.meta.well_known_layouts.string].kind,
+    assert!(layout_values(&module).any(|layout| matches!(
+        layout.kind,
         lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::String)
-    );
+    )));
     assert_eq!(
         names,
         [
@@ -299,15 +295,10 @@ fn layouts_mark_reference_fields_for_the_gc() {
             "UInt",
             "ULong",
             "Boolean",
-            "String",
-            "(String, Int)",
-            "(Boolean, Int)"
+            "String value",
+            "String"
         ]
     );
-
-    let string = &module.meta.layouts[module.meta.well_known_layouts.string];
-    assert_eq!((string.size, string.align), (24, 8));
-    assert!(string.fields.is_empty());
 
     // S { a: Int @0, s: String @8 }: size 16, align 8, refs [8].
     let s_layout = by_name("S");
@@ -320,16 +311,10 @@ fn layouts_mark_reference_fields_for_the_gc() {
     assert_eq!((outer.size, outer.align), (24, 8));
     assert_eq!(plain_refs(outer), [8]);
 
-    // The tuple field type gets its own layout too.
-    let pair_layout = by_name("(String, Int)");
-    assert_eq!((pair_layout.size, pair_layout.align), (16, 8));
-    assert_eq!(plain_refs(pair_layout), [0]);
-
-    // (Boolean, Int): Int is 4-aligned, so it sits at offset 4 and
-    // the size rounds up to 8.
-    let padded = by_name("(Boolean, Int)");
-    assert_eq!((padded.size, padded.align), (8, 4));
-    assert!(plain_refs(padded).is_empty());
+    assert!(
+        layout_values(&module).all(|layout| !layout.name.starts_with('(')),
+        "tuple shapes are transient and must not acquire persistent layouts"
+    );
 }
 
 #[test]
@@ -368,7 +353,7 @@ fn compiler_pointer_element_offsets_keep_their_domain_and_dedicated_stride() {
             ),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::PtrOffset {
@@ -380,7 +365,7 @@ fn compiler_pointer_element_offsets_keep_their_domain_and_dedicated_stride() {
     else {
         panic!("the pointer displacement must stay a dedicated instruction")
     };
-    assert_eq!(*element_size, 4);
+    assert_eq!(element_size.get(), 4);
     assert!(!subtract);
     assert_eq!(
         function.value_ty(&module.globals, *element_offset),
@@ -416,7 +401,7 @@ fn pointer_load_cannot_relabel_a_machine_pointee_as_source_integer() {
         )],
     );
 
-    let _ = lower(&b.finish(main));
+    let _ = lower(b.finish(main));
 }
 
 #[test]
@@ -440,5 +425,5 @@ fn pointer_store_cannot_write_a_source_integer_as_a_machine_pointee() {
         )))],
     );
 
-    let _ = lower(&b.finish(main));
+    let _ = lower(b.finish(main));
 }

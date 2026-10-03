@@ -30,12 +30,12 @@ fn lowers_hello_world() {
     assert_eq!(module.types[module.string], Type::String);
     // `Option` comes from the core library.
     assert_eq!(
-        module.enums[module.option_core.enumeration()].name,
+        module.enums[defined_export_core(&module).option.enumeration()].name,
         "Option"
     );
 
     // Entry point is `main`.
-    assert_eq!(module.functions[module.entry].name, "main");
+    assert_eq!(module.functions[module.entry()].name, "main");
 
     // Golden dump locks the output structure.
     let expected = r#"Module
@@ -45,7 +45,7 @@ fn lowers_hello_world() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -75,6 +75,19 @@ fn lowers_hello_world() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -120,7 +133,7 @@ fn lowers_hello_world() {
       Local $argument.0 : String
     Call print<String> : Unit
       Local $parameter.value : String
-  entry main
+  output executable main
   instance println<String>
   instance print<String>
 "#;
@@ -141,9 +154,9 @@ fn duplicate_function_is_an_error() {
 }
 
 #[test]
-fn redeclaring_a_core_function_is_an_error() {
-    // The user file duplicates core's generic declaration exactly (overloads
-    // with different signatures would be legal).
+fn current_package_may_shadow_a_core_prelude_function() {
+    // The current package and the core prelude are distinct lookup layers, so
+    // an otherwise identical declaration in the current package is legal.
     let mut duplicate = fun_expr(
         "print",
         vec!["T"],
@@ -156,12 +169,7 @@ fn redeclaring_a_core_function_is_an_error() {
     };
     function.type_params[0].inline_bound = Some(ast::TypeBound::Upper(ty_named("ToString")));
     let file = file(vec![fun("main", vec![]), duplicate]);
-    let errors = lower_user(file).expect_err("redeclaring `print` must fail");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0].message,
-        "function `print` is already declared with the same signature"
-    );
+    lower_user(file).expect("the current package may shadow the core prelude");
 }
 
 #[test]
@@ -211,15 +219,15 @@ fn user_function_arity_is_an_error() {
 }
 
 #[test]
-fn missing_main_is_an_error_with_file_span() {
+fn missing_main_is_an_error_with_current_source_anchor() {
     let file = file(vec![fun("helper", vec![])]);
     let errors = lower_user(file.clone()).expect_err("missing `main` must fail");
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "missing entry point: declare `fun main()`"
+        "missing executable entry: declare exactly one ordinary `fun main(): Unit`"
     );
-    assert_eq!(errors[0].span, Some(file.span));
+    assert_eq!(errors[0].span, Some(Span::new(0, 0)));
 }
 
 #[test]

@@ -1,0 +1,200 @@
+//! Actual source bodies consume provider-owned helpers through layout selection.
+
+use super::super::machine_selection::Source;
+use super::*;
+use scoop_identity::{ExactTypeDiagnosticCatalog, PersistentExactTypeId, PersistentTypeId};
+
+mod artifact;
+mod publication;
+mod rejections;
+
+#[derive(Clone, Copy)]
+pub(super) struct PublicationInput<'a, 'p> {
+    pub bridge: &'a mir::CrossConeMirTypeBridgeSectionV1<'p>,
+    pub source: &'a [mir::MirTypeBridgeDependencyV1],
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct Provider<'a, 'p> {
+    pub view: &'a lir::ShapeLinkProviderV1<'p>,
+    pub layout: &'a lir::LayoutAbiExportConstituentsV1,
+    pub target: &'a scoop_toolchain::ResolvedTargetProfile,
+    pub string: PersistentExactTypeId,
+    pub artifact: &'a scoop_slib::AssembledCrossConeLayoutArtifactV1,
+    pub owners: &'a [scoop_slib::CanonicalDefinedLinkSymbolOwnerSetV1],
+}
+
+pub(super) fn check(
+    name: &str,
+    input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
+    callables: &lir::SelectedExternalLirSet,
+    shapes: &[(ConeIdentity, PersistentTypeId)],
+    provider: Provider<'_, '_>,
+    publication_input: PublicationInput<'_, '_>,
+) {
+    let plan = input.mir.materialization();
+    assert!(plan.source_nominal_shapes().is_empty());
+    assert!(plan.generated_nominal_shapes().is_empty());
+    assert!(!plan.dependency_generated_nominal_shapes().is_empty());
+    assert!(input.mir.module().meta.boxing_adjusts.is_empty());
+    let mut source = Source::from_mir(input.mir, provider.layout);
+    for root in plan.dependency_generated_nominal_shapes() {
+        assert_eq!(root.provider(), provider.layout.provider());
+        let shape = provider
+            .layout
+            .shape_support()
+            .records()
+            .iter()
+            .find(|shape| shape.source_nominal() == root.source())
+            .unwrap();
+        assert_eq!(root.source_exact(), shape.exact());
+        assert_eq!(
+            root.exact(),
+            shape.roles().boxed_value().available().unwrap().exact()
+        );
+    }
+    source.roots.extend(shapes.iter().map(|(owner, shape)| {
+        lir::LayoutAbiDependencyV1::new(
+            *owner,
+            lir::LayoutAbiSemanticTargetV1::ShapeSupport(*shape),
+        )
+    }));
+    source.roots.sort_unstable();
+    source.roots.dedup();
+    let consumer = input.mir.module().cone;
+    let selected = lir::StrongProductionDependencySelectionV2::try_new(
+        consumer,
+        provider.target.lir_target(),
+        &[provider.layout],
+        source.imports(provider.view, consumer),
+        &source.roots,
+    )
+    .unwrap();
+    let string = &[selected
+        .materialize_type_descriptor(provider.layout.provider(), provider.string)
+        .unwrap()];
+    assert!(matches!(
+        scoop_lir_lower::lower(input.mir, string, callables, provider.target.lir_target(),),
+        Err(scoop_lir_lower::LirLoweringError::MissingDependencyLayoutSelection { .. })
+    ));
+
+    let coordinate = ConeCoordinate::new("dev.example", "shape-consumer", "0.1.0").unwrap();
+    assert_eq!(consumer, coordinate.identity().unwrap());
+    let coordinates = [ConeCoordinate::reserved_core(), coordinate.clone()];
+    let diagnostics = ExactTypeDiagnosticCatalog::try_new(input.identities, &coordinates).unwrap();
+    rejections::check(
+        input.mir,
+        callables,
+        &diagnostics,
+        &selected,
+        &source,
+        provider,
+    );
+    let output = scoop_lir_lower::lower_with_layout_dependencies(
+        input.mir,
+        callables,
+        provider.target.lir_target(),
+        &selected,
+        &diagnostics,
+    )
+    .unwrap_or_else(|error| panic!("{name} dependency machine lowering: {error}"));
+    assert!(output.module().meta.type_descriptors.is_empty());
+    assert!(output.module().meta.layouts.is_empty());
+    assert_eq!(
+        output.module().meta.external_type_descriptors.len(),
+        source
+            .physical
+            .iter()
+            .filter(|(_, subject)| matches!(
+                subject,
+                lir::ExternalStrongShapeSubjectV1::TypeDescriptor(_)
+            ))
+            .count()
+    );
+    let (production, section) = publication::check(
+        input,
+        &output,
+        &selected,
+        provider,
+        publication_input,
+        &coordinates,
+    );
+    if name == "combined" {
+        assert!(
+            !production
+                .immortal_registrations()
+                .registrations()
+                .is_empty()
+        );
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let emitted = emit(
+        name,
+        &output,
+        &coordinate,
+        provider,
+        production,
+        directory.path(),
+    );
+    artifact::check(
+        input,
+        &output,
+        publication_input,
+        &section,
+        emitted,
+        provider,
+        artifact::Destination {
+            directory: directory.path(),
+            coordinate: &coordinate,
+            name,
+        },
+    );
+}
+
+fn emit(
+    name: &str,
+    output: &lir::ConeLirOutput,
+    coordinate: &ConeCoordinate,
+    provider: Provider<'_, '_>,
+    production: lir::ConeProductionSectionV2,
+    directory: &Path,
+) -> scoop_codegen::EmittedConeObjectSetV2 {
+    let profile = scoop_codegen::ValidatedBackendProfile::from_selection(
+        provider.target.lir_target_selection(),
+    )
+    .unwrap();
+    let dependencies = [provider.layout.provider()];
+    let rendered = scoop_codegen::render_llvm_ir_members(
+        output,
+        coordinate,
+        &dependencies,
+        lir::EntryProductionSourceV1::Library,
+        profile,
+    )
+    .unwrap();
+    let ir = rendered
+        .iter()
+        .map(|member| member.llvm_ir())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(ir.contains("@scoop_rt_box_value"), "{ir}");
+    assert!(ir.contains("@scoop_rt_is_instance"), "{ir}");
+    if name == "combined" {
+        assert!(ir.contains("@scoop_rt_box_zst"), "{ir}");
+        assert!(ir.contains("@scoop_rt_unbox_value"), "{ir}");
+    }
+    for (_, descriptor) in output.module().meta.external_type_descriptors.iter() {
+        let symbol = descriptor.expected_symbol().symbol();
+        let prefixes = [format!("@\"{symbol}\" = "), format!("@{symbol} = ")];
+        for declaration in ir
+            .lines()
+            .filter(|line| prefixes.iter().any(|prefix| line.starts_with(prefix)))
+        {
+            assert!(declaration.contains("external"), "{declaration}");
+        }
+    }
+    let objects =
+        scoop_codegen::emit_object_set_v2(output, production, directory, profile).unwrap();
+    assert_eq!(objects.members().len(), output.module().functions.len() + 1);
+    objects
+}

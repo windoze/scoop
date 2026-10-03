@@ -1,0 +1,78 @@
+Module
+  callback cb0 @fn0 -> @fn1 function_type0 id=18a954ba7a0c2723d575de4e69af35aecb1d1c02731ce4185566b30cf24fb207
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long, marker: Token)
+  generated_callable gc0 function=@fn1 id=18a954ba7a0c2723d575de4e69af35aecb1d1c02731ce4185566b30cf24fb207
+  fun check @fn0() -> Long <no-gc>
+    bb0 entry
+      call marker: Token = external0 direct
+      call $dependency.receiver: Wide = external1 direct
+      call $dependency.receiver: Long = external2 direct
+        Type Wide
+        Local $dependency.receiver
+      call $dependency.receiver: Wide = external3 direct
+      call $dependency.argument.0: Long = external2 direct
+        Type Wide
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Long = external4 direct
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $default.local.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $default.local.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $default.local.2: Long
+        Type Long
+        Local $default.local.0
+      val $default.local.3: Long
+        Type Long
+        Local $default.local.1
+      call $dependency.parameter.value: Wide = external5 direct
+        Type Long
+        Local $default.local.2
+        Type Long
+        Local $default.local.3
+      call $dependency.argument.0: Long = external6 direct
+        Type Wide
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun callback bridge for check @fn1($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn0 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
+  output library

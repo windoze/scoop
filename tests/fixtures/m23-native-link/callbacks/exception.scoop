@@ -1,0 +1,33 @@
+import nativelink.callbacks.*
+
+class CallbackError(val payload: String) : Exception(Some("callback failed"))
+
+fun main() {
+    val caller = "caller-" + "alive"
+    @Unsafe {
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int ->
+                val payload = "failure-" + value.toString()
+                gcCollect()
+                throw CallbackError(payload)
+            }, 1L, ForeignCallbackMode.OneShot
+        )
+        val observer = retainForeignCallback(callback)
+        println(joinNative(callback.function, callback.context, 7))
+        println(when (foreignCallbackState(observer)) {
+            ForeignCallbackState.Failed -> true
+            else -> false
+        })
+        val failure = foreignCallbackFailure(observer)!!
+        gcCollect()
+        try {
+            throw failure
+        } catch (exception: CallbackError) {
+            println(exception.payload)
+        } finally {
+            releaseForeignCallback(observer)
+        }
+        println(threadCount())
+        println(caller)
+    }
+}

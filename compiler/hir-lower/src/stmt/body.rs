@@ -47,30 +47,6 @@ impl Lowerer {
                         body: self.adapt_inferred_returns(body, target),
                     };
                 }
-                hir::StatementKind::For(plan) => {
-                    let mut parts = (*plan).into_parts();
-                    parts.source_setup = self.adapt_inferred_returns(parts.source_setup, target);
-                    parts.iterator_setup =
-                        self.adapt_inferred_returns(parts.iterator_setup, target);
-                    for action in &mut parts.binding.actions {
-                        if let hir::IrrefutableBindingAction::Component { setup, .. } = action {
-                            *setup = self.adapt_inferred_returns(std::mem::take(setup), target);
-                        }
-                    }
-                    parts.body = self.adapt_inferred_returns(parts.body, target);
-                    statement.kind = hir::StatementKind::For(Box::new(hir::ForIterationPlan::new(
-                        parts.target,
-                        parts.source_setup,
-                        parts.source,
-                        parts.source_init,
-                        parts.iterator_setup,
-                        parts.iterator_call,
-                        parts.conformance,
-                        parts.next,
-                        parts.binding,
-                        parts.body,
-                    )));
-                }
                 hir::StatementKind::When(mut when) => {
                     for arm in &mut when.arms {
                         arm.body =
@@ -103,6 +79,10 @@ impl Lowerer {
     pub(crate) fn lower_body(&mut self, id: FunctionId, decl: &ast::FunctionDecl) -> hir::Body {
         let outer_loop_targets = std::mem::take(&mut self.loop_targets);
         let outer_source_context = self.current_source_context;
+        let outer_definition_paths = std::mem::take(&mut self.definition_paths);
+        let outer_definition_root = self
+            .definition_root
+            .replace(hir::LexicalDefinitionRoot::Function(id));
         let sig = self.signatures[&id].clone();
         // Member functions (M6): `this` is parameter 0, an immutable
         // local of the host type; bare property / method names in the
@@ -122,7 +102,7 @@ impl Lowerer {
 
         self.current_owner = owner;
         self.current_this = None;
-        self.set_source_context(decl.name.text.clone());
+        self.set_source_context(hir::SourceContextSubject::Function(id));
 
         // Parameters are immutable locals in the function's outermost
         // scope; the body block nests inside it, so body locals may
@@ -136,7 +116,7 @@ impl Lowerer {
             .map(|owner| self.owner_ty(owner))
             .or(extension_receiver)
         {
-            let local = self.alloc_local("this".to_string(), host_ty, false);
+            let local = self.alloc_this_local(host_ty, self.functions[id].span);
             self.scopes.declare("this".to_string(), local);
             self.current_this = Some((local, host_ty));
             params.push(hir::Param {
@@ -145,7 +125,7 @@ impl Lowerer {
                 local,
             });
         }
-        for param in &sig.params {
+        for (index, param) in sig.params.iter().enumerate() {
             if self.scopes.is_declared_here(&param.name.text) {
                 self.error(
                     param.name.span,
@@ -153,7 +133,12 @@ impl Lowerer {
                 );
                 continue;
             }
-            let local = self.alloc_local(param.name.text.clone(), param.ty, false);
+            let local = self.alloc_parameter_local(
+                param.name.text.clone(),
+                param.ty,
+                index,
+                param.name.span,
+            );
             self.scopes.declare(param.name.text.clone(), local);
             params.push(hir::Param {
                 name: param.name.text.clone(),
@@ -223,6 +208,8 @@ impl Lowerer {
         self.current_this = None;
         self.current_owner = None;
         self.current_source_context = outer_source_context;
+        self.definition_paths = outer_definition_paths;
+        self.definition_root = outer_definition_root;
         self.pop_safety_context();
         self.pop_suspension_context();
         debug_assert!(self.loop_targets.is_empty());

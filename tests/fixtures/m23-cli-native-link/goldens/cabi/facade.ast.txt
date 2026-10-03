@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage nativelink.cabifacade
+  ImportStar PublicReexport nativelink.cabi.*
+  public fun envelope<T>(marker: T, value: Envelope, callback: FunPtr<(Envelope) -> Envelope>): Envelope
+    @Unsafe block
+      return
+        Call transformEnvelope
+          Var value
+          Var callback
+  public fun pointer<T>(marker: T, value: Ptr<Int>, other: Ptr<Int>? = <expr>, callback: FunPtr<(Int) -> Int>? = <expr>): Int
+    @Unsafe block
+      return
+        Call transformPointer
+          Var value
+          Var other
+          Var callback

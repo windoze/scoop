@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Outer
+  ImportExact Local dependency.classes.Counter
+  public class Derived() : Outer(<0 args>)
+    private nested class Sub
+    private fun consume
+    public fun read
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall read
+          Call Derived

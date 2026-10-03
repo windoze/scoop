@@ -1,0 +1,6 @@
+import dependency.classes.Counter
+
+@NoGC public fun invalid(): Long {
+    val value = Counter(21)
+    return value.twice()
+}

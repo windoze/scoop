@@ -1,7 +1,8 @@
 //! Structured MIR construction form to the output MIR CFG.
 
 use la_arena::Arena;
-use scoop_ast::Span;
+use scoop_hir::concrete::Span;
+use scoop_hir::concrete::{StructuralDefinitionSiteRole, SyntheticLocalRole};
 use scoop_mir as mir;
 
 use crate::structured as smir;
@@ -186,11 +187,30 @@ impl PendingTransfer {
     }
 }
 
+pub(crate) struct LoweredBody {
+    pub(crate) body: mir::Body,
+    pub(crate) generated_values: Vec<GeneratedLocalValue>,
+    /// Calls in structured evaluation order, with their locations in the emitted CFG.
+    pub(crate) call_sites: Vec<CallSite>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct CallSite {
+    pub(crate) block: mir::BlockId,
+    pub(crate) statement: usize,
+}
+
+pub(crate) struct GeneratedLocalValue {
+    pub(crate) local: mir::LocalId,
+    pub(crate) site_role: StructuralDefinitionSiteRole,
+    pub(crate) role: SyntheticLocalRole,
+}
+
 pub(crate) fn lower(
     body: smir::Body,
     return_ty: mir::Type,
     enums: &Arena<mir::EnumDef>,
-) -> mir::Body {
+) -> LoweredBody {
     let smir::Body {
         locals,
         statements,
@@ -211,6 +231,8 @@ pub(crate) fn lower(
         current_sealed: false,
         block_count: 0,
         hidden_count: 0,
+        generated_values: Vec::new(),
+        call_sites: Vec::new(),
         return_ty,
         try_stack: Vec::new(),
         unwind_scope_count: 0,
@@ -237,11 +259,15 @@ pub(crate) fn lower(
             && lowerer.active_pending.0.is_empty(),
         "structured control scopes are balanced before MIR CFG construction completes"
     );
-    mir::Body {
-        locals: lowerer.locals,
-        blocks: lowerer.blocks,
-        entry: lowerer.entry,
-        loop_header_polls: lowerer.loop_header_polls,
+    LoweredBody {
+        body: mir::Body {
+            locals: lowerer.locals,
+            blocks: lowerer.blocks,
+            entry: lowerer.entry,
+            loop_header_polls: lowerer.loop_header_polls,
+        },
+        generated_values: lowerer.generated_values,
+        call_sites: lowerer.call_sites,
     }
 }
 
@@ -253,6 +279,8 @@ struct CfgLowerer<'a> {
     current_sealed: bool,
     block_count: usize,
     hidden_count: usize,
+    generated_values: Vec<GeneratedLocalValue>,
+    call_sites: Vec<CallSite>,
     return_ty: mir::Type,
     try_stack: Vec<UnwindTarget>,
     unwind_scope_count: u32,
@@ -268,22 +296,6 @@ mod control;
 mod expression;
 mod patterns;
 mod transfers;
-
-fn trap_message(expr: &smir::Expr) -> Option<mir::StringConstId> {
-    let smir::ExprKind::Call(call) = &expr.kind else {
-        return None;
-    };
-    if call.target.callee != mir::Callee::Runtime(mir::RuntimeFn::Trap) {
-        return None;
-    }
-    let [argument] = call.args.as_slice() else {
-        panic!("the trap intrinsic always carries one string constant")
-    };
-    let smir::ExprKind::StringConst(message) = argument.kind else {
-        panic!("the trap intrinsic always carries one string constant")
-    };
-    Some(message)
-}
 
 fn synthetic_span() -> Span {
     Span { start: 0, end: 0 }

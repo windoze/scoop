@@ -43,6 +43,20 @@ pub enum Type {
     Param(TypeParamId),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ImportedIntrinsicType {
+    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub interfaces: Vec<TypeId>,
+    pub interface_implementations: Vec<InterfaceImplementation>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImportedVirtualMethod {
+    pub slot: scoop_identity::PersistentDispatchSlotId,
+    pub family: VirtualMethodId,
+    pub callable: ImportedDispatchCallable,
+}
+
 /// Canonical structural identity of an ordinary or suspend function type.
 /// Declaration-only metadata such as parameter names/defaults is absent by
 /// construction (spec 8.1.1).
@@ -102,11 +116,14 @@ pub(crate) fn type_name_with_params(
         Type::String => "String".to_string(),
         Type::Struct(application) => {
             let application = &module.struct_applications[*application];
-            let name = nominal_declaration_name(
-                module,
-                &module.structs[application.template].name,
-                module.structs[application.template].owner,
-            );
+            let name = match module.nominal_identities.struct_id(application.template) {
+                Some(template) => nominal_declaration_name(
+                    module,
+                    &module.structs[template].name,
+                    module.structs[template].owner,
+                ),
+                None => module.struct_name(application.template).to_owned(),
+            };
             let args = &application.arguments;
             if args.is_empty() {
                 name
@@ -120,11 +137,14 @@ pub(crate) fn type_name_with_params(
         }
         Type::Class(application) => {
             let application = &module.class_applications[*application];
-            let name = nominal_declaration_name(
-                module,
-                &module.classes[application.template].name,
-                module.classes[application.template].owner,
-            );
+            let name = match module.nominal_identities.class_id(application.template) {
+                Some(template) => nominal_declaration_name(
+                    module,
+                    &module.classes[template].name,
+                    module.classes[template].owner,
+                ),
+                None => module.class_name(application.template).to_owned(),
+            };
             let args = &application.arguments;
             if args.is_empty() {
                 name
@@ -138,11 +158,14 @@ pub(crate) fn type_name_with_params(
         }
         Type::Interface(application) => {
             let application = &module.interface_applications[*application];
-            let name = nominal_declaration_name(
-                module,
-                &module.interfaces[application.template].name,
-                module.interfaces[application.template].owner,
-            );
+            let name = match module.nominal_identities.interface_id(application.template) {
+                Some(template) => nominal_declaration_name(
+                    module,
+                    &module.interfaces[template].name,
+                    module.interfaces[template].owner,
+                ),
+                None => module.interface_name(application.template).to_owned(),
+            };
             let args = &application.arguments;
             if args.is_empty() {
                 name
@@ -157,11 +180,14 @@ pub(crate) fn type_name_with_params(
         Type::Any => "Any".to_string(),
         Type::Enum(application) => {
             let application = &module.enum_applications[*application];
-            let name = nominal_declaration_name(
-                module,
-                &module.enums[application.template].name,
-                module.enums[application.template].owner,
-            );
+            let name = match module.nominal_identities.enum_id(application.template) {
+                Some(template) => nominal_declaration_name(
+                    module,
+                    &module.enums[template].name,
+                    module.enums[template].owner,
+                ),
+                None => module.enum_name(application.template).to_owned(),
+            };
             let args = &application.arguments;
             if args.is_empty() {
                 name

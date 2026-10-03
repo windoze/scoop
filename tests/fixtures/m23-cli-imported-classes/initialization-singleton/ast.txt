@@ -1,0 +1,31 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  private object Saved
+    val value: Counter =
+      Call Counter
+        IntLiteral 21
+  public fun primary(): Counter
+    val first
+      FieldAccess value
+        Var Saved
+    val allocated
+      Call Counter
+        IntLiteral 7
+    val second
+      FieldAccess value
+        Var Saved
+    return
+      IfExpression
+        Binary And
+          Binary RefEq
+            Var first
+            Var second
+          Binary Eq
+            MethodCall twice
+              Var allocated
+            IntLiteral 14
+        Var first
+        else
+        Call Counter
+          IntLiteral 0

@@ -1,0 +1,1315 @@
+Module
+  struct Handler (prefix: String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Probe>
+    Some(_0: Probe)
+    None()
+  enum Option<Option<String>>
+    Some(_0: Option<String>)
+    None()
+  enum Option<Unit>
+    Some(_0: Unit)
+    None()
+  enum Option<Service>
+    Some(_0: Service)
+    None()
+  enum Option<(Int) -> Int>
+    Some(_0: (Int) -> Int)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum CoroutineStep<Probe>
+    Completed(value: Probe)
+    Suspended()
+  enum CoroutineSlot<Probe>
+    Empty()
+    Value(value: Probe)
+  enum CoroutineStep<Handler>
+    Completed(value: Handler)
+    Suspended()
+  enum CoroutineSlot<Handler>
+    Empty()
+    Value(value: Handler)
+  enum CoroutineStep<Service>
+    Completed(value: Service)
+    Suspended()
+  enum CoroutineSlot<Service>
+    Empty()
+    Value(value: Service)
+  class Probe vtable=0 itables=0
+  class Service vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Handler> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Handler>
+  interface SuspendTask<Handler>
+  interface SuspendRegistration<Handler>
+  interface Continuation<Probe>
+  interface SuspendTask<Probe>
+  interface SuspendRegistration<Probe>
+  interface Continuation<Service>
+  interface SuspendTask<Service>
+  interface SuspendRegistration<Service>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn31 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_exact_type get0 location=enum9 nominal_id=e701e8af322c0c9c03a5c47d4f1ce2e0053af01cc961da3e66f837517730f76e exact_id=15cb76b57ac78bbc23be8feb63555581bc9963830b617259eeed92c28b3c7d51
+  generated_exact_type get1 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get2 location=class5 nominal_id=2ccfbde929e9e22c95d3e5a9f05faeef8a54af0504f6d13646ab076b7041a519 exact_id=432ba16193ca6812a2e32bad578449910369a55861a2b12e4396846df8c4a928
+  generated_exact_type get3 location=enum8 nominal_id=2537e59213599a5cd5efbe4c1df0c85071bf13ca2521e5007eb0a09385ba84e9 exact_id=744aeeb40fdbe0e5f31f7d12817289695f281150eb6fa6bd62ee5f26334c6d5d
+  generated_exact_type get4 location=enum10 nominal_id=3f700b66ada8f0680f0a055c5620014c5dfd9d2478eaaf17a1d45283b8866929 exact_id=9a277ecdf36bb1df752a7e96b16db62d0afdb7fb7a699755eca7eb0a40000c81
+  generated_exact_type get5 location=enum11 nominal_id=5d99f04ce324c46e0075d2065d58112d21be837b9aa48755c76503e273795b3f exact_id=b9e5a25f80739a83930840f117344e9845e531da039a91179ca7c1f9938a39f0
+  generated_exact_type get6 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=enum12 nominal_id=cf50dff2e0a98596d841b3f6b9d885f006034fcde71b8279394d8f57f7a54be9 exact_id=e9473522faa18d0d93c5ef9d0421b24f5a23da981f722949bbe286f0e3c22b8c
+  generated_exact_type get8 location=enum7 nominal_id=980ea426df84ef7cffd28d3ae00dc489c0a28e2f22e993aa083f0a0e798b5319 exact_id=f1b0cd923da9aecd50880ece2f68f1d993326a668c36426eb9bc26bfd1d44551
+  generated_callable gc0 function=@fn31 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_callable gc1 function=@fn30 id=27e642b06d374af02bf2a677a17630a732fec603486cf9de5e45684afbda1f47
+  generated_callable gc2 function=@fn28 id=296bfc4daca43a768c1c5242d7c60341a49c800fe561a777e69159bbee683787
+  generated_callable gc3 function=@fn29 id=3cabb903c37a2c630eedc1027b847798d60dcdb26b4ee26c10860f81433b751b
+  fun Handler.invoke @fn0(this: Handler, value: Int) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Handler
+          Local this
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      call $dependency.argument.0: String = external0 direct
+        Type Int
+        Local $dependency.receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun Probe.send @fn1(this: Probe, value: Int) -> String
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Probe
+          Local this
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      call $dependency.argument.0: String = external0 direct
+        Type Int
+        Local $dependency.receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun Probe.nested @fn2(this: Probe) -> Option<String>
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Probe
+          Local this
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      return
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.parameter._1
+  fun Probe.touch @fn3(this: Probe) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun safeDefault @fn4() -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun safeArgument @fn5() -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+  fun makeProbe @fn6() -> Option<Probe>
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $parameter.prefix: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Probe
+        ClassAlloc Probe
+      call @fn25 direct
+        Type Probe
+        Local $new.1
+        Type String
+        Local $parameter.prefix
+      val $dependency.argument.0: Probe
+        Type Probe
+        Local $new.1
+      val $dependency.parameter._1: Probe
+        Type Probe
+        Local $dependency.argument.0
+      return
+        Type Option<Probe>
+        VariantConstruct Option<Probe> v0
+          Type Probe
+          Local $dependency.parameter._1
+  fun $extension.extend @fn7(this: Probe, value: Int) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Probe
+          Local this
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      call $dependency.argument.0: String = external0 direct
+        Type Int
+        Local $dependency.receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun printStringOption @fn8(value: Option<String>) -> Unit
+    bb0 entry
+      val $when.1: Option<String>
+        Type Option<String>
+        Local value
+      val $pattern.subject.2: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val text: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $pattern.subject.2
+      val $dependency.argument.0: String
+        Type String
+        Local text
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<String>
+        Type Option<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<String> v1
+          Type Option<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+    bb4 pattern.pass.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun main @fn9() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str8
+      val $parameter.prefix: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Probe
+        ClassAlloc Probe
+      call @fn25 direct
+        Type Probe
+        Local $new.1
+        Type String
+        Local $parameter.prefix
+      val $dependency.argument.0: Probe
+        Type Probe
+        Local $new.1
+      val $dependency.parameter._1: Probe
+        Type Probe
+        Local $dependency.argument.0
+      val some: Option<Probe>
+        Type Option<Probe>
+        VariantConstruct Option<Probe> v0
+          Type Probe
+          Local $dependency.parameter._1
+      val none: Option<Probe>
+        Type Option<Probe>
+        VariantConstruct Option<Probe> v1
+      val $opt.0: Option<Probe>
+        Type Option<Probe>
+        Local some
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Probe> v0
+          Type Option<Probe>
+          Local $opt.0
+    bb1 if.then.1
+      val $receiver: Probe
+        Type Probe
+        VariantPayloadProject Option<Probe> v0 f0
+          Type Option<Probe>
+          Local $opt.0
+      call $argument.0: Int = @fn5 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.2: String = @fn1 direct
+        Type Probe
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $res.1: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $call.2
+      goto bb3
+    bb2 if.else.2
+      val $res.1: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      goto bb3
+    bb3 if.merge.3
+      val explicit: Option<String>
+        Type Option<String>
+        Local $res.1
+      val $argument.0: Option<String>
+        Type Option<String>
+        Local explicit
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      call @fn8 direct
+        Type Option<String>
+        Local $parameter.value
+      val $opt.2: Option<Probe>
+        Type Option<Probe>
+        Local none
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Probe> v0
+          Type Option<Probe>
+          Local $opt.2
+    bb4 if.then.4
+      val $receiver: Probe
+        Type Probe
+        VariantPayloadProject Option<Probe> v0 f0
+          Type Option<Probe>
+          Local $opt.2
+      call $argument.0: Int = @fn5 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.3: String = @fn1 direct
+        Type Probe
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $res.3: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $call.3
+      goto bb6
+    bb5 if.else.5
+      val $res.3: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      goto bb6
+    bb6 if.merge.6
+      val skippedArgument: Option<String>
+        Type Option<String>
+        Local $res.3
+      val $argument.0: Option<String>
+        Type Option<String>
+        Local skippedArgument
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      call @fn8 direct
+        Type Option<String>
+        Local $parameter.value
+      val $opt.4: Option<Probe>
+        Type Option<Probe>
+        Local some
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Probe> v0
+          Type Option<Probe>
+          Local $opt.4
+    bb7 if.then.7
+      val $receiver: Probe
+        Type Probe
+        VariantPayloadProject Option<Probe> v0 f0
+          Type Option<Probe>
+          Local $opt.4
+      call $parameter.value: Int = @fn4 direct
+      call $call.4: String = @fn1 direct
+        Type Probe
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $res.5: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $call.4
+      goto bb9
+    bb8 if.else.8
+      val $res.5: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      goto bb9
+    bb9 if.merge.9
+      val defaulted: Option<String>
+        Type Option<String>
+        Local $res.5
+      val $argument.0: Option<String>
+        Type Option<String>
+        Local defaulted
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      call @fn8 direct
+        Type Option<String>
+        Local $parameter.value
+      val $opt.6: Option<Probe>
+        Type Option<Probe>
+        Local none
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Probe> v0
+          Type Option<Probe>
+          Local $opt.6
+    bb10 if.then.10
+      val $receiver: Probe
+        Type Probe
+        VariantPayloadProject Option<Probe> v0 f0
+          Type Option<Probe>
+          Local $opt.6
+      call $parameter.value: Int = @fn4 direct
+      call $call.5: String = @fn1 direct
+        Type Probe
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $res.7: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $call.5
+      goto bb12
+    bb11 if.else.11
+      val $res.7: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      goto bb12
+    bb12 if.merge.12
+      val skippedDefault: Option<String>
+        Type Option<String>
+        Local $res.7
+      val $argument.0: Option<String>
+        Type Option<String>
+        Local skippedDefault
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      call @fn8 direct
+        Type Option<String>
+        Local $parameter.value
+      call $opt.8: Option<Probe> = @fn6 direct
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Option<Probe> v0
+          Type Option<Probe>
+          Local $opt.8
+    bb13 if.then.13
+      val $receiver: Probe
+        Type Probe
+        VariantPayloadProject Option<Probe> v0 f0
+          Type Option<Probe>
+          Local $opt.8
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.6: String = @fn1 direct
+        Type Probe
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $res.9: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $call.6
+      goto bb15
+    bb14 if.else.14
+      val $res.9: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      goto bb15
+    bb15 if.merge.15
+      val made: Option<String>
+        Type Option<String>
+        Local $res.9
+      val $argument.0: Option<String>
+        Type Option<String>
+        Local made
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      call @fn8 direct
+        Type Option<String>
+        Local $parameter.value
+      val $opt.10: Option<Probe>
+        Type Option<Probe>
+        Local some
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Option<Probe> v0
+          Type Option<Probe>
+          Local $opt.10
+    bb16 if.then.16
+      val $receiver: Probe
+        Type Probe
+        VariantPayloadProject Option<Probe> v0 f0
+          Type Option<Probe>
+          Local $opt.10
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.7: String = @fn7 direct
+        Type Probe
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $res.11: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $call.7
+      goto bb18
+    bb17 if.else.17
+      val $res.11: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      goto bb18
+    bb18 if.merge.18
+      val extension: Option<String>
+        Type Option<String>
+        Local $res.11
+      val $argument.0: Option<String>
+        Type Option<String>
+        Local extension
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      call @fn8 direct
+        Type Option<String>
+        Local $parameter.value
+      val $opt.12: Option<Probe>
+        Type Option<Probe>
+        Local none
+      branch bb19 bb20
+        Type Boolean
+        VariantTest Option<Probe> v0
+          Type Option<Probe>
+          Local $opt.12
+    bb19 if.then.19
+      val $receiver: Probe
+        Type Probe
+        VariantPayloadProject Option<Probe> v0 f0
+          Type Option<Probe>
+          Local $opt.12
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.8: String = @fn7 direct
+        Type Probe
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $res.13: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $call.8
+      goto bb21
+    bb20 if.else.20
+      val $res.13: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      goto bb21
+    bb21 if.merge.21
+      val skippedExtension: Option<String>
+        Type Option<String>
+        Local $res.13
+      val $argument.0: Option<String>
+        Type Option<String>
+        Local skippedExtension
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      call @fn8 direct
+        Type Option<String>
+        Local $parameter.value
+      val $opt.14: Option<Probe>
+        Type Option<Probe>
+        Local some
+      branch bb22 bb23
+        Type Boolean
+        VariantTest Option<Probe> v0
+          Type Option<Probe>
+          Local $opt.14
+    bb22 if.then.22
+      val $receiver: Probe
+        Type Probe
+        VariantPayloadProject Option<Probe> v0 f0
+          Type Option<Probe>
+          Local $opt.14
+      call $call.9: Option<String> = @fn2 direct
+        Type Probe
+        Local $receiver
+      val $res.15: Option<Option<String>>
+        Type Option<Option<String>>
+        VariantConstruct Option<Option<String>> v0
+          Type Option<String>
+          Local $call.9
+      goto bb24
+    bb23 if.else.23
+      val $res.15: Option<Option<String>>
+        Type Option<Option<String>>
+        VariantConstruct Option<Option<String>> v1
+      goto bb24
+    bb24 if.merge.24
+      val nested: Option<Option<String>>
+        Type Option<Option<String>>
+        Local $res.15
+      val $when.1: Option<Option<String>>
+        Type Option<Option<String>>
+        Local nested
+      val $pattern.subject.2: Option<Option<String>>
+        Type Option<Option<String>>
+        Local $when.1
+      branch bb25 bb26
+        Type Boolean
+        VariantTest Option<Option<String>> v0
+          Type Option<Option<String>>
+          Local $pattern.subject.2
+    bb25 pattern.pass.25
+      val inner: Option<String>
+        Type Option<String>
+        VariantPayloadProject Option<Option<String>> v0 f0
+          Type Option<Option<String>>
+          Local $pattern.subject.2
+      val $argument.0: Option<String>
+        Type Option<String>
+        Local inner
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      call @fn8 direct
+        Type Option<String>
+        Local $parameter.value
+      goto bb27
+    bb26 pattern.else.26
+      val $pattern.subject.3: Option<Option<String>>
+        Type Option<Option<String>>
+        Local $when.1
+      branch bb28 bb29
+        Type Boolean
+        VariantTest Option<Option<String>> v1
+          Type Option<Option<String>>
+          Local $pattern.subject.3
+    bb27 pattern.merge.27
+      val $opt.16: Option<Probe>
+        Type Option<Probe>
+        Local some
+      branch bb31 bb32
+        Type Boolean
+        VariantTest Option<Probe> v0
+          Type Option<Probe>
+          Local $opt.16
+    bb28 pattern.pass.28
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb30
+    bb29 pattern.else.29
+      unreachable
+    bb30 pattern.merge.30
+      goto bb27
+    bb31 if.then.31
+      val $receiver: Probe
+        Type Probe
+        VariantPayloadProject Option<Probe> v0 f0
+          Type Option<Probe>
+          Local $opt.16
+      call @fn3 direct
+        Type Probe
+        Local $receiver
+      val $res.17: Option<Unit>
+        Type Option<Unit>
+        VariantConstruct Option<Unit> v0
+          Type Unit
+          UnitLiteral
+      goto bb33
+    bb32 if.else.32
+      val $res.17: Option<Unit>
+        Type Option<Unit>
+        VariantConstruct Option<Unit> v1
+      goto bb33
+    bb33 if.merge.33
+      val unitResult: Option<Unit>
+        Type Option<Unit>
+        Local $res.17
+      val $when.4: Option<Unit>
+        Type Option<Unit>
+        Local unitResult
+      val $pattern.subject.5: Option<Unit>
+        Type Option<Unit>
+        Local $when.4
+      branch bb34 bb35
+        Type Boolean
+        VariantTest Option<Unit> v0
+          Type Option<Unit>
+          Local $pattern.subject.5
+    bb34 pattern.pass.34
+      val value: Unit
+        Type Unit
+        VariantPayloadProject Option<Unit> v0 f0
+          Type Option<Unit>
+          Local $pattern.subject.5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str10
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb36
+    bb35 pattern.else.35
+      val $pattern.subject.6: Option<Unit>
+        Type Option<Unit>
+        Local $when.4
+      branch bb37 bb38
+        Type Boolean
+        VariantTest Option<Unit> v1
+          Type Option<Unit>
+          Local $pattern.subject.6
+    bb36 pattern.merge.36
+      val $argument.0: String
+        Type String
+        StringConst @str12
+      val $parameter.prefix: String
+        Type String
+        Local $argument.0
+      call $argument.0: Handler = @fn27 direct
+        Type String
+        Local $parameter.prefix
+      val $parameter.handler: Handler
+        Type Handler
+        Local $argument.0
+      assign $new.10
+        Type Service
+        ClassAlloc Service
+      call @fn26 direct
+        Type Service
+        Local $new.10
+        Type Handler
+        Local $parameter.handler
+      val $dependency.argument.0: Service
+        Type Service
+        Local $new.10
+      val $dependency.parameter._1: Service
+        Type Service
+        Local $dependency.argument.0
+      val maybeService: Option<Service>
+        Type Option<Service>
+        VariantConstruct Option<Service> v0
+          Type Service
+          Local $dependency.parameter._1
+      val $opt.18: Option<Service>
+        Type Option<Service>
+        Local maybeService
+      branch bb40 bb41
+        Type Boolean
+        VariantTest Option<Service> v0
+          Type Option<Service>
+          Local $opt.18
+    bb37 pattern.pass.37
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str11
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb39
+    bb38 pattern.else.38
+      unreachable
+    bb39 pattern.merge.39
+      goto bb36
+    bb40 if.then.40
+      val $receiver: Handler
+        Type Handler
+        FieldAccess 0
+          Type Service
+          VariantPayloadProject Option<Service> v0 f0
+            Type Option<Service>
+            Local $opt.18
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.11: String = @fn0 direct
+        Type Handler
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $res.19: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $call.11
+      goto bb42
+    bb41 if.else.41
+      val $res.19: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v1
+      goto bb42
+    bb42 if.merge.42
+      val $argument.0: Option<String>
+        Type Option<String>
+        Local $res.19
+      val $parameter.value: Option<String>
+        Type Option<String>
+        Local $argument.0
+      call @fn8 direct
+        Type Option<String>
+        Local $parameter.value
+      val $dependency.argument.0: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $dependency.parameter._1: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.0
+      val maybeFunction: Option<(Int) -> Int>
+        Type Option<(Int) -> Int>
+        VariantConstruct Option<(Int) -> Int> v0
+          Type (Int) -> Int
+          Local $dependency.parameter._1
+      val $opt.20: Option<(Int) -> Int>
+        Type Option<(Int) -> Int>
+        Local maybeFunction
+      branch bb43 bb44
+        Type Boolean
+        VariantTest Option<(Int) -> Int> v0
+          Type Option<(Int) -> Int>
+          Local $opt.20
+    bb43 if.then.43
+      call $call.12: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        VariantPayloadProject Option<(Int) -> Int> v0 f0
+          Type Option<(Int) -> Int>
+          Local $opt.20
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $res.21: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $call.12
+      goto bb45
+    bb44 if.else.44
+      val $res.21: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+      goto bb45
+    bb45 if.merge.45
+      val $when.7: Option<Int>
+        Type Option<Int>
+        Local $res.21
+      val $pattern.subject.8: Option<Int>
+        Type Option<Int>
+        Local $when.7
+      branch bb46 bb47
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.8
+    bb46 pattern.pass.46
+      val value: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.8
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb48
+    bb47 pattern.else.47
+      val $pattern.subject.9: Option<Int>
+        Type Option<Int>
+        Local $when.7
+      branch bb49 bb50
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.9
+    bb48 pattern.merge.48
+      return
+    bb49 pattern.pass.49
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb51
+    bb50 pattern.else.50
+      unreachable
+    bb51 pattern.merge.51
+      goto bb48
+  fun println @fn10(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str13
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn11($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun println @fn12(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str14
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn13(this: Continuation<Handler>, value: Handler) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn14(this: Continuation<Handler>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn15(this: SuspendTask<Handler>, $completion: Continuation<Handler>) -> CoroutineStep<Handler>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Handler>, continuation: Continuation<Handler>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn17(this: Continuation<Probe>, value: Probe) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Probe>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Probe>, $completion: Continuation<Probe>) -> CoroutineStep<Probe>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Probe>, continuation: Continuation<Probe>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn21(this: Continuation<Service>, value: Service) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn22(this: Continuation<Service>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn23(this: SuspendTask<Service>, $completion: Continuation<Service>) -> CoroutineStep<Service>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn24(this: SuspendRegistration<Service>, continuation: Continuation<Service>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Probe.$c0 @fn25(this: Probe, prefix: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Probe
+        Local this
+        Type String
+        Local prefix
+      return
+  fun init.Service.$c1 @fn26(this: Service, handler: Handler) -> Unit
+    bb0 entry
+      field_set 0
+        Type Service
+        Local this
+        Type Handler
+        Local handler
+      return
+  fun ctor.Handler.$c0 @fn27(prefix: String) -> Handler <no-gc>
+    bb0 entry
+      return
+        Type Handler
+        StructInit Handler
+          Type String
+          Local prefix
+  fun startCoroutine<Probe> @fn28(task: SuspendTask<Probe>, completion: Continuation<Probe>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn17 interface Continuation<Probe>[0]
+        Type Continuation<Probe>
+        Local completion
+        Type Probe
+        EnumField v0 f0
+          Type CoroutineStep<Probe>
+          Local $step
+      return
+    bb2 failed
+      call @fn18 interface Continuation<Probe>[1]
+        Type Continuation<Probe>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Probe> = @fn19 interface SuspendTask<Probe>[0]
+        Type SuspendTask<Probe>
+        Local task
+        Type Continuation<Probe>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Probe>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Handler> @fn29(task: SuspendTask<Handler>, completion: Continuation<Handler>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn13 interface Continuation<Handler>[0]
+        Type Continuation<Handler>
+        Local completion
+        Type Handler
+        EnumField v0 f0
+          Type CoroutineStep<Handler>
+          Local $step
+      return
+    bb2 failed
+      call @fn14 interface Continuation<Handler>[1]
+        Type Continuation<Handler>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Handler> = @fn15 interface SuspendTask<Handler>[0]
+        Type SuspendTask<Handler>
+        Local task
+        Type Continuation<Handler>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Handler>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Service> @fn30(task: SuspendTask<Service>, completion: Continuation<Service>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn21 interface Continuation<Service>[0]
+        Type Continuation<Service>
+        Local completion
+        Type Service
+        EnumField v0 f0
+          Type CoroutineStep<Service>
+          Local $step
+      return
+    bb2 failed
+      call @fn22 interface Continuation<Service>[1]
+        Type Continuation<Service>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Service> = @fn23 interface SuspendTask<Service>[0]
+        Type SuspendTask<Service>
+        Local task
+        Type Continuation<Service>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Service>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn31($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Probe> result=Probe
+  coroutine_step cs1 CoroutineStep<Handler> result=Handler
+  coroutine_step cs2 CoroutineStep<Service> result=Service
+  coroutine_slot cl0 CoroutineSlot<Probe> value=Probe
+  coroutine_slot cl1 CoroutineSlot<Handler> value=Handler
+  coroutine_slot cl2 CoroutineSlot<Service> value=Service
+  coroutine_start ct0 result=Probe function=fn28
+  coroutine_start ct1 result=Handler function=fn29
+  coroutine_start ct2 result=Service function=fn30
+  coroutine_fn cf0 @fn15 source_return=Handler step=cs1 immediate
+  coroutine_fn cf1 @fn19 source_return=Probe step=cs0 immediate
+  coroutine_fn cf2 @fn23 source_return=Service step=cs2 immediate
+  instance mi0 function=@fn10 <- println
+  instance mi1 function=@fn12 <- println
+  instance mi2 function=@fn13 <- Continuation.resume
+  instance mi3 function=@fn14 <- Continuation.resumeWithException
+  instance mi4 function=@fn15 <- SuspendTask.run
+  instance mi5 function=@fn16 <- SuspendRegistration.register
+  instance mi6 function=@fn17 <- Continuation.resume
+  instance mi7 function=@fn18 <- Continuation.resumeWithException
+  instance mi8 function=@fn19 <- SuspendTask.run
+  instance mi9 function=@fn20 <- SuspendRegistration.register
+  instance mi10 function=@fn21 <- Continuation.resume
+  instance mi11 function=@fn22 <- Continuation.resumeWithException
+  instance mi12 function=@fn23 <- SuspendTask.run
+  instance mi13 function=@fn24 <- SuspendRegistration.register
+  str @str0 "send-body"
+  str @str1 "nested"
+  str @str2 "touch-body"
+  str @str3 "safe-default"
+  str @str4 "safe-argument"
+  str @str5 "safe-receiver"
+  str @str6 "made-"
+  str @str7 "none"
+  str @str8 "some-"
+  str @str9 "outer-none"
+  str @str10 "unit-some"
+  str @str11 "unit-none"
+  str @str12 "field-"
+  str @str13 "\n"
+  str @str14 "\n"
+  output executable @fn9

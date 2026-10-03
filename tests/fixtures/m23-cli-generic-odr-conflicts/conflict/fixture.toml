@@ -1,0 +1,320 @@
+schema = 1
+name = "generic-odr-conflicts-conflict"
+inputs = ["left_provider", "../../m23-generic-odr-siblings/conflict-provider-left.scoop", "left_consumer", "../../m23-generic-odr-siblings/conflict-consumer.scoop", "left_program", "right_provider", "../../m23-generic-odr-siblings/conflict-provider-right.scoop", "right_consumer", "right_program"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["generic-odr-conflicts", "cross-cone", "stage-golden", "moving-gc", "negative"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+checks = []
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "5ecaed3d2f76be07ff2e14408b8ea5bce684a4cf52240268cbc55ce0d4b09301"},
+]
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_left_artifacts"
+files = [
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/left/artifacts/scoop/scoop.core/0.1.0/cone.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_left_provider"
+files = [
+  {"copy" = {"from" = "${fixture}/left_provider", "to" = "${work}/sources/left_provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-odr-siblings/conflict-provider-left.scoop", "to" = "${work}/sources/left_provider/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "left_provider"
+argv = ["${scoop}", "build", "${work}/sources/left_provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-left_provider", "--cone-path", "${work}/left/artifacts", "--message-format", "json", "-o", "${work}/left/artifacts/dev.example/generic-odr-conflict-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/left_provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${left_provider.result.root.artifact_fingerprint}", "equals" = "a607ab531d740498be9fa048d614ea323bccf94578c793737f157dbd211ff38d"},
+  {"file" = "${work}/dump/left_provider/${left_provider.result.root.identity}/ast.txt", "snapshot" = "left_provider.ast.txt"},
+  {"file" = "${work}/dump/left_provider/${left_provider.result.root.identity}/hir.txt", "snapshot" = "left_provider.hir.txt"},
+  {"file" = "${work}/dump/left_provider/${left_provider.result.root.identity}/mir.txt", "snapshot" = "left_provider.mir.txt"},
+  {"file" = "${work}/dump/left_provider/${left_provider.result.root.identity}/lir.txt", "snapshot" = "left_provider.lir.txt"},
+]
+
+[[steps]]
+name = "remove_left_provider"
+files = [
+  {"remove" = {"path" = "${work}/sources/left_provider"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_left_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/left_consumer", "to" = "${work}/sources/left_consumer"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-odr-siblings/conflict-consumer.scoop", "to" = "${work}/sources/left_consumer/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "left_consumer"
+argv = ["${scoop}", "build", "${work}/sources/left_consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-left_consumer", "--cone-path", "${work}/left/artifacts", "--message-format", "json", "-o", "${work}/left/artifacts/dev.example/generic-odr-conflict-left/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/left_consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${left_consumer.result.root.artifact_fingerprint}", "equals" = "0188b257e2101cd254d85937e3905c54a3325136cb6c7faeed99a71405a6439b"},
+  {"file" = "${work}/dump/left_consumer/${left_consumer.result.root.identity}/ast.txt", "snapshot" = "left_consumer.ast.txt"},
+  {"file" = "${work}/dump/left_consumer/${left_consumer.result.root.identity}/hir.txt", "snapshot" = "left_consumer.hir.txt"},
+  {"file" = "${work}/dump/left_consumer/${left_consumer.result.root.identity}/mir.txt", "snapshot" = "left_consumer.mir.txt"},
+  {"file" = "${work}/dump/left_consumer/${left_consumer.result.root.identity}/lir.txt", "snapshot" = "left_consumer.lir.txt"},
+]
+
+[[steps]]
+name = "remove_left_consumer"
+files = [
+  {"remove" = {"path" = "${work}/sources/left_consumer"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_left_program"
+files = [
+  {"copy" = {"from" = "${fixture}/left_program", "to" = "${work}/sources/left_program"}},
+]
+checks = []
+
+[[steps]]
+name = "left_program"
+argv = ["${scoop}", "build", "${work}/sources/left_program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-left_program", "--cone-path", "${work}/left/artifacts", "--message-format", "json", "-o", "${work}/built-left_program", "--emit", "all", "--dump-dir", "${work}/dump/left_program", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${left_program.result.root.artifact_fingerprint}", "equals" = "dc679305ef9595c1db95d7b63c08ebc2afde77084027738657cd79f041f6748b"},
+  {"file" = "${work}/dump/left_program/${left_program.result.root.identity}/ast.txt", "snapshot" = "left_program.ast.txt"},
+  {"file" = "${work}/dump/left_program/${left_program.result.root.identity}/hir.txt", "snapshot" = "left_program.hir.txt"},
+  {"file" = "${work}/dump/left_program/${left_program.result.root.identity}/mir.txt", "snapshot" = "left_program.mir.txt"},
+  {"file" = "${work}/dump/left_program/${left_program.result.root.identity}/lir.txt", "snapshot" = "left_program.lir.txt"},
+]
+
+[[steps]]
+name = "left_isolate"
+files = [
+  {"copy" = {"from" = "${left_program.result.root.path}", "to" = "${work}/left/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+checks = []
+
+[[steps]]
+name = "left_link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/left/artifacts/root.slib", "--cone-path", "${work}/left/artifacts", "--runtime-objects", "${left_program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/left_program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${left_link.result.dependencies.length}", "equals" = 3},
+  {"actual" = "${left_link.result.link_plan_fingerprint}", "equals" = "${left_program.result.link_plan_fingerprint}"},
+  {"actual" = "${left_link.result.link_plan}", "snapshot" = "left_link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "left_run"
+argv = ["${work}/left_program"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []
+
+[[steps]]
+name = "left_run_moving"
+argv = ["${work}/left_program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+checks = []
+
+[[steps]]
+name = "prepare_right_artifacts"
+files = [
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/right/artifacts/scoop/scoop.core/0.1.0/cone.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_right_provider"
+files = [
+  {"copy" = {"from" = "${fixture}/right_provider", "to" = "${work}/sources/right_provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-odr-siblings/conflict-provider-right.scoop", "to" = "${work}/sources/right_provider/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "right_provider"
+argv = ["${scoop}", "build", "${work}/sources/right_provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-right_provider", "--cone-path", "${work}/right/artifacts", "--message-format", "json", "-o", "${work}/right/artifacts/dev.example/generic-odr-conflict-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/right_provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${right_provider.result.root.artifact_fingerprint}", "equals" = "8335560e223144a522a1a3ad234be25ef15350a7ccdba1ccc4f06be919c5a3a9"},
+  {"file" = "${work}/dump/right_provider/${right_provider.result.root.identity}/ast.txt", "snapshot" = "right_provider.ast.txt"},
+  {"file" = "${work}/dump/right_provider/${right_provider.result.root.identity}/hir.txt", "snapshot" = "right_provider.hir.txt"},
+  {"file" = "${work}/dump/right_provider/${right_provider.result.root.identity}/mir.txt", "snapshot" = "right_provider.mir.txt"},
+  {"file" = "${work}/dump/right_provider/${right_provider.result.root.identity}/lir.txt", "snapshot" = "right_provider.lir.txt"},
+  {"actual" = "${right_provider.result.root.artifact_fingerprint}", "not_equals" = "${left_provider.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "remove_right_provider"
+files = [
+  {"remove" = {"path" = "${work}/sources/right_provider"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_right_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/right_consumer", "to" = "${work}/sources/right_consumer"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-odr-siblings/conflict-consumer.scoop", "to" = "${work}/sources/right_consumer/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "right_consumer"
+argv = ["${scoop}", "build", "${work}/sources/right_consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-right_consumer", "--cone-path", "${work}/right/artifacts", "--message-format", "json", "-o", "${work}/right/artifacts/dev.example/generic-odr-conflict-right/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/right_consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${right_consumer.result.root.artifact_fingerprint}", "equals" = "50171d4a145448e7a2d9f782d81b85e54ff919d119fc0c09ebf8508642464bdf"},
+  {"file" = "${work}/dump/right_consumer/${right_consumer.result.root.identity}/ast.txt", "snapshot" = "right_consumer.ast.txt"},
+  {"file" = "${work}/dump/right_consumer/${right_consumer.result.root.identity}/hir.txt", "snapshot" = "right_consumer.hir.txt"},
+  {"file" = "${work}/dump/right_consumer/${right_consumer.result.root.identity}/mir.txt", "snapshot" = "right_consumer.mir.txt"},
+  {"file" = "${work}/dump/right_consumer/${right_consumer.result.root.identity}/lir.txt", "snapshot" = "right_consumer.lir.txt"},
+]
+
+[[steps]]
+name = "remove_right_consumer"
+files = [
+  {"remove" = {"path" = "${work}/sources/right_consumer"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_right_program"
+files = [
+  {"copy" = {"from" = "${fixture}/right_program", "to" = "${work}/sources/right_program"}},
+]
+checks = []
+
+[[steps]]
+name = "right_program"
+argv = ["${scoop}", "build", "${work}/sources/right_program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-right_program", "--cone-path", "${work}/right/artifacts", "--message-format", "json", "-o", "${work}/built-right_program", "--emit", "all", "--dump-dir", "${work}/dump/right_program", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${right_program.result.root.artifact_fingerprint}", "equals" = "9e260403fe557a4748af802a3a094d7cbd96f64604f4c55333c93518ca8ea7a0"},
+  {"file" = "${work}/dump/right_program/${right_program.result.root.identity}/ast.txt", "snapshot" = "right_program.ast.txt"},
+  {"file" = "${work}/dump/right_program/${right_program.result.root.identity}/hir.txt", "snapshot" = "right_program.hir.txt"},
+  {"file" = "${work}/dump/right_program/${right_program.result.root.identity}/mir.txt", "snapshot" = "right_program.mir.txt"},
+  {"file" = "${work}/dump/right_program/${right_program.result.root.identity}/lir.txt", "snapshot" = "right_program.lir.txt"},
+]
+
+[[steps]]
+name = "right_isolate"
+files = [
+  {"copy" = {"from" = "${right_program.result.root.path}", "to" = "${work}/right/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+checks = []
+
+[[steps]]
+name = "right_link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/right/artifacts/root.slib", "--cone-path", "${work}/right/artifacts", "--runtime-objects", "${right_program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/right_program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${right_link.result.dependencies.length}", "equals" = 3},
+  {"actual" = "${right_link.result.link_plan_fingerprint}", "equals" = "${right_program.result.link_plan_fingerprint}"},
+  {"actual" = "${right_link.result.link_plan}", "snapshot" = "right_link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "right_run"
+argv = ["${work}/right_program"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []
+
+[[steps]]
+name = "right_run_moving"
+argv = ["${work}/right_program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+checks = []
+
+[[steps]]
+name = "replace_left_provider"
+files = [
+  {"copy" = {"from" = "${right_provider.result.root.path}", "to" = "${work}/left/artifacts/dev.example/generic-odr-conflict-provider/0.1.0/cone.slib"}},
+]
+checks = []
+
+[[steps]]
+name = "reject_stale_provider"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/left/artifacts/root.slib", "--cone-path", "${work}/left/artifacts", "--runtime-objects", "${left_program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/rejected-program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "stale.diagnostics.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"file" = "${work}/rejected-program", "exists" = false},
+]

@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m9-gc/errors/duplicate-struct-type-param.scoop:1:15: error: duplicate type parameter `T`

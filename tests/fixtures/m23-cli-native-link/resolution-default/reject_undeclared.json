@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "unresolved native symbol _m23_add in default namespace (unresolved symbol _m23_add); origins: dev.programlink:default:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([245, 102, 238, 250, 202, 84, 195, 58, 28, 153, 243, 0, 124, 108, 216, 108, 128, 44, 240, 126, 243, 72, 138, 90, 215, 40, 76, 30, 32, 75, 168, 30])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

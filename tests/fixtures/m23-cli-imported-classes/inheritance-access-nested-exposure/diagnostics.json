@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "signature of function `Derived.leak` exposes type `Exposed` outside its access domain",
+    "notes": [],
+    "origin": {
+      "cone": "d4c4b3fc8d9a65d1d26760143cb999e5ee3258ee4e38c0afa33c02f6bcfc0505",
+      "end": 154,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 90
+    },
+    "severity": "error"
+  }
+]

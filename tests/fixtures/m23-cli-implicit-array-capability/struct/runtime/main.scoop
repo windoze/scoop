@@ -1,0 +1,8 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(Values().values.size == 0L)
+    val values = [1, 2]
+    verifyType(Values(3, *values, 4).values.size == 4L)
+    verifyType(Values(values = values).values[1] == 2)
+}

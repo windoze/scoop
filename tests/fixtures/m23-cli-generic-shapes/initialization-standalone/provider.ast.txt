@@ -1,0 +1,53 @@
+SourceFile
+  QualifiedPackage templates.initialization
+  private fun keep<T>(value: T): T
+    =
+      Var value
+  private fun initialNumber(): Int
+    =
+      IntLiteral 1
+  public struct Value<T>
+    field item: T
+    constructor(item: T, checked: Boolean) : this(<1 args>)
+      if
+        Var checked
+        Call keep
+          FieldAccess item
+            This
+  public class Box<T>(seed: T, val marker: Int)
+    public val item: T = <expr>
+      Call keep
+        Var seed
+    public var number: Int = <expr>
+      Call initialNumber
+    init
+      assign .number
+        This
+        Binary Add
+          FieldAccess number
+            This
+          Var marker
+    constructor(seed: T) : this(<2 args>)
+    constructor(seed: T, marker: Int, extra: Int) : this(<2 args>)
+      assign .number
+        This
+        Binary Add
+          FieldAccess number
+            This
+          Var extra
+  private class Unused<T>(val item: T)
+  public fun result(): Int
+    val value
+      Call Value<Int>
+        IntLiteral 40
+        BoolLiteral true
+    val box
+      Call Box<Int>
+        FieldAccess item
+          Var value
+    return
+      Binary Add
+        FieldAccess item
+          Var box
+        FieldAccess number
+          Var box

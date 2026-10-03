@@ -1,0 +1,48 @@
+SourceFile
+  RootPackage
+  struct Box<T>
+    field value: T
+  fun apply(operation: (Int) -> Int): Int
+    =
+      Call operation
+        IntLiteral 40
+  fun apply(operation: (String) -> String): String
+    =
+      Call operation
+        StringLiteral "discarded"
+  fun identity<T>(value: T): T
+    =
+      Var value
+  fun main()
+    val selected
+      Call apply
+        Lambda 0 suspend=false
+          param value: _
+          Binary Add
+            Var value
+            IntLiteral 2
+    val boxed
+      Call Box
+        Call identity
+          Var selected
+    val optional: Int?
+      Call Some
+        FieldAccess value
+          Var boxed
+    val reference: (Int) -> Int
+      CallableReference 0 identity
+    val mutable: MutableArray<Int>
+      ArrayLiteral
+        Call reference
+          NullAssert
+            Var optional
+    val immutable
+      Call Array
+        Var mutable
+    val copied
+      MethodCall toMutableArray
+        Var immutable
+    Call println
+      Index
+        Var copied
+        IntLiteral 0

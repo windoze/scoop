@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  fun id<T>(x: T): T
+    =
+      Var x
+  fun id(x: Int): Int
+    =
+      Binary Add
+        Var x
+        IntLiteral 100
+  fun main()
+    Call println
+      Call id
+        IntLiteral 1
+    Call println
+      Call id
+        StringLiteral "a"

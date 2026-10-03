@@ -1,0 +1,10 @@
+import templates.equality.Payload
+
+private class Missing()
+private fun Missing.equals(other: Missing): Boolean = true
+
+public fun check(): Boolean {
+    val left = Payload<Missing>(Missing(), 1)
+    val right = Payload<Missing>(Missing(), 1)
+    return left == right
+}

@@ -1,0 +1,20 @@
+package consumer.bindings
+import upstream.bindings.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val consume: (Pair<T>) -> Int = { (value, extra) -> read(value) + extra }
+    if (consume(Pair<T>(seed, 0)) != 42) { return 1 }
+    val readers: MutableArray<() -> T> = [{ seed }, { seed }]
+    val entries = [Pair<T>(seed, 0), Pair<T>(seed, 1)]
+    for (Pair { right: slot, left: value } in entries) {
+        if (slot == 0) { readers[0L] = { value } } else { readers[1L] = { value } }
+    }
+    if (read(readers[0L]()) != 42) { return 2 }
+    var total = 0
+    for ((value, extra) in [Pieces<T>(seed, 0)]) {
+        total = total + read(value) + extra
+    }
+    return total
+}
+
+public fun result(): Int = exercise<Int>(42, { item -> item })

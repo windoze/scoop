@@ -56,27 +56,31 @@ impl Harness {
             let generic = !type_params.is_empty();
             let type_params = type_params.into_iter().map(type_param).collect();
             let id = self.functions.alloc(hir::Function {
-                name: name.to_string(),
-                access: hir::DeclarationAccess::public(),
-                override_access: Vec::new(),
-                genericity: hir::FunctionGenericity::Plain,
-                is_suspend: false,
-                modifiers: hir::CallableModifiers::default(),
-                params: params
-                    .into_iter()
-                    .map(|(name, ty)| hir::Param {
-                        name: name.to_string(),
-                        ty,
-                        local: dummy_locals.alloc(hir::Local {
-                            binding: hir::BindingId::from_raw(dummy_locals.len() as u32),
+                signature: hir::CallableSignature {
+                    name: name.to_string(),
+                    is_suspend: false,
+                    modifiers: hir::CallableModifiers::default(),
+                    params: params
+                        .into_iter()
+                        .map(|(name, ty)| hir::Param {
                             name: name.to_string(),
                             ty,
-                            mutable: false,
-                        }),
-                    })
-                    .collect(),
-                return_ty,
-                attributes: hir::FunctionAttributes::default(),
+                            local: dummy_locals.alloc(hir::Local {
+                                binding: hir::BindingId::from_raw(dummy_locals.len() as u32),
+                                selector: test_local_selector(dummy_locals.len() as u32),
+                                definition: hir::LocalValueDefinitionSite::Synthetic,
+                                name: name.to_string(),
+                                ty,
+                                mutable: false,
+                            }),
+                        })
+                        .collect(),
+                    return_ty,
+                    attributes: hir::FunctionAttributes::default(),
+                    span: SPAN,
+                },
+                access: hir::DeclarationAccess::public(),
+                genericity: hir::FunctionGenericity::Plain,
                 kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
                     kind: hir::intrinsic_spec(intrinsic)
                         .expect("test intrinsic is registered")
@@ -84,7 +88,6 @@ impl Harness {
                     provider: hir::IntrinsicProviderId::from_raw(0),
                 }),
                 method: None,
-                span: SPAN,
             });
             if generic {
                 self.register_generic(id, type_params);

@@ -1,0 +1,26 @@
+package upstream.requests
+
+public fun <T> identity(value: T): T = value
+
+public fun <T> factory(value: T): () -> T {
+    fun <U> keep(next: U): U = next
+    return { keep<T>(identity<T>(value)) }
+}
+
+public fun <T> defaulted(value: T, select: (T) -> T = { item -> identity<T>(item) }): T = select(value)
+
+public class Box<T> public constructor(public val value: T) {
+    public fun read(): T = value
+    public fun <U> mix(extra: U, select: (T, U) -> Int): Int = select(value, extra)
+}
+
+public fun <T> captured(value: T, read: (T) -> Int): Int {
+    val amount = 0
+    fun step(delta: Int): Int {
+        val added = delta
+        fun inner(): Int = read(value) + amount + added
+        return inner()
+    }
+    fun <U> apply(extra: U, use: (U) -> Int): Int = step(use(extra))
+    return apply<Int>(0, { number -> number })
+}

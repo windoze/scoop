@@ -1,0 +1,336 @@
+//! Canonical public semantic interface shared across Cone boundaries.
+
+mod binders;
+mod callable_interfaces;
+mod callable_source_interfaces;
+mod canonical_ids;
+mod const_values;
+mod declaration_common;
+mod declaration_references;
+mod default_templates;
+mod definition_sources;
+mod external_references;
+mod generic_templates;
+mod nominal_callables;
+mod nominal_interfaces;
+mod nominal_shapes;
+mod property_interfaces;
+mod public_bindings;
+mod route_closure;
+mod section;
+pub use section::signature_nominal_walk::SignatureNominalWalker;
+mod type_alias_interfaces;
+
+pub use binders::{
+    BinderListValidationError, CanonicalBinderListV1, CanonicalSignatureTypesV1,
+    DecodedCanonicalBinderListV1, DecodedCanonicalSignatureTypesV1,
+    DecodedNominalTypeParameterBoundsV1, DecodedTypeParameterBinderV1,
+    DecodedTypeParameterBoundsV1, NominalBoundSemanticError, NominalInterfaceShapeAuthority,
+    NominalSignatureSemanticError, NominalTypeParameterBoundsV1, PublicNominalShapeV1,
+    SignatureBinderScopeError, SignatureBinderScopeV1, SignatureTypeFormV1,
+    SignatureTypeReferenceResolver, SignatureTypeSemanticError, SignatureTypeSetBuildError,
+    SignatureTypeSetValidationError, TypeParameterBinderBuildError,
+    TypeParameterBinderResolutionError, TypeParameterBinderScopeValidationError,
+    TypeParameterBinderSemanticValidationError, TypeParameterBinderV1, TypeParameterBoundLocation,
+    TypeParameterBoundsBuildError, TypeParameterBoundsResolutionError, TypeParameterBoundsV1,
+};
+pub use callable_interfaces::{
+    CallableDeclarationIdentityShapeV1, CallableDeclarationInventoryError,
+    CallableDeclarationRecordV1, CallableImplementationV1, CallableInfixV1,
+    CallableInterfaceRecordBuildError, CallableInterfaceRecordResolutionError,
+    CallableInterfaceRecordResolver, CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
+    CallableInterfaceSemanticValidationError, CallableInterfaceSetBuildError,
+    CallableInterfaceSetSemanticValidationError, CallableInterfaceSetValidationError,
+    CallableModalityV1, CallableOperatorRoleV1, CallableOperatorV1, CallableSafetyV1,
+    CallableSourceEffectsBuildError, CallableSourceEffectsV1, CanonicalCallableInterfacesV1,
+    CanonicalSourceParameterShapesV1, DecodedCallableDeclarationRecordV1,
+    DecodedCallableInterfaceRecordV1, DecodedCallableSourceEffectsV1,
+    DecodedCanonicalCallableInterfacesV1, DecodedCanonicalSourceParameterShapesV1,
+    DecodedSourceParameterShapeV1, PropertyDelegateOperatorV1, PublicLookupAccessV1,
+    SourceParameterListBuildError, SourceParameterListValidationError,
+    SourceParameterShapeResolutionError, SourceParameterShapeV1,
+};
+pub use callable_source_interfaces::{
+    CallableParameterCallingResolutionError, CallableParameterCallingV1,
+    CallableSourceInterfaceBuildError, CallableSourceInterfaceIndexError,
+    CallableSourceInterfaceResolutionError, CallableSourceInterfaceSemanticAuthority,
+    CallableSourceInterfaceSemanticValidationError, CallableSourceInterfaceSetBuildError,
+    CallableSourceInterfaceSetIndexError, CallableSourceInterfaceSetSemanticValidationError,
+    CallableSourceInterfaceSetValidationError, CallableSourceInterfaceV1,
+    CallableSourceParameterListBuildError, CallableSourceParameterListResolutionError,
+    CallableSourceParameterResolutionError, CallableSourceParameterV1,
+    CanonicalCallableSourceInterfacesV1, CanonicalCallableSourceParametersV1,
+    DecodedCallableParameterCallingV1, DecodedCallableSourceInterfaceV1,
+    DecodedCallableSourceParameterV1, DecodedCanonicalCallableSourceInterfacesV1,
+    DecodedCanonicalCallableSourceParametersV1, ExportDefaultTemplateIndexResolver,
+    ExportDefaultTemplateKeyResolver, IndexedCallableSourceInterfaceV1,
+    IndexedCanonicalCallableSourceInterfacesV1,
+};
+pub use canonical_ids::{
+    CanonicalPersistentIdSetBuildError, CanonicalPersistentIdSetValidationError,
+    CanonicalPersistentIdsV1, DecodedCanonicalPersistentIdsV1,
+};
+pub use const_values::{
+    CanonicalBooleanV1, CanonicalConstValueKindV1, CanonicalConstValueV1,
+    CanonicalExportConstValuesV1, CanonicalIntegerConstantV1, ConstPropertyDeclarationSourceV1,
+    DecodedCanonicalExportConstValuesV1, DecodedExportConstValueV1,
+    ExportConstValueClosureValidationError, ExportConstValueResolutionError,
+    ExportConstValueResolver, ExportConstValueSemanticAuthority,
+    ExportConstValueSemanticValidationError, ExportConstValueSetBuildError,
+    ExportConstValueSetSemanticValidationError, ExportConstValueSetValidationError,
+    ExportConstValueV1,
+};
+pub use declaration_common::{
+    DecodedPublicDeclarationOwnerV1, PublicDeclarationOwnerV1, PublicNominalKindV1,
+    UnsupportedPublicNominalKind,
+};
+pub use declaration_references::{
+    CallableDeclarationId, CallableDeclarationIdResolver, CanonicalPublicMemberRefsV1,
+    DecodedCallableDeclarationId, DecodedCanonicalPublicMemberRefsV1, DecodedPropertyDeclarationId,
+    DecodedPublicMemberRefV1, DecodedSourceNominalId, PropertyDeclarationId,
+    PropertyDeclarationIdResolver, PublicMemberRefBuildError, PublicMemberRefResolver,
+    PublicMemberRefSetValidationError, PublicMemberRefV1, SourceNominalId, SourceNominalIdResolver,
+};
+pub use default_templates::copy_default_signature_type;
+pub use default_templates::{
+    BinderUseListBuildError, BinderUseListSemanticValidationError, BinderUseListValidationError,
+    CanonicalBinderUseListV1, CanonicalExportDefaultTemplatesV1, CanonicalTemplateLocalTableV1,
+    CanonicalTemplateValueParametersV1, DecodedCanonicalBinderUseListV1,
+    DecodedCanonicalExportDefaultTemplatesV1, DecodedCanonicalTemplateLocalTableV1,
+    DecodedCanonicalTemplateValueParametersV1, DecodedDefaultAnonymousFunctionV1,
+    DecodedDefaultArrayAssemblyPartV1, DecodedDefaultArrayAssemblyV1, DecodedDefaultAssignTargetV1,
+    DecodedDefaultBoundCallableRefV1, DecodedDefaultBoundCallableSourceV1,
+    DecodedDefaultCallableBodyTypeArgumentsV1, DecodedDefaultCallableDeclarationV1,
+    DecodedDefaultCallableRefV1, DecodedDefaultCallableReferenceTargetV1,
+    DecodedDefaultCallableReferenceV1, DecodedDefaultCaptureV1, DecodedDefaultCatchV1,
+    DecodedDefaultClassConstructorIdV1, DecodedDefaultConstructorRefV1,
+    DecodedDefaultEnumVariantFieldRefV1, DecodedDefaultEnumVariantRefV1,
+    DecodedDefaultExpressionV1, DecodedDefaultFieldRefV1, DecodedDefaultGenericDelegateReferenceV1,
+    DecodedDefaultIntegerArgumentsV1, DecodedDefaultIntegerOperationV1, DecodedDefaultLambdaV1,
+    DecodedDefaultLiteralEqualityV1, DecodedDefaultLocalFunctionV1, DecodedDefaultMethodCalleeV1,
+    DecodedDefaultPatternFieldV1, DecodedDefaultPatternV1, DecodedDefaultPlaceV1,
+    DecodedDefaultStatementV1, DecodedDefaultStringOwnerV1, DecodedDefaultTryV1,
+    DecodedDefaultWhenArmV1, DecodedDefaultWhenFallbackV1, DecodedDefaultWhenGuardV1,
+    DecodedDefaultWhenV1, DecodedExportDefaultBodyV1, DecodedExportDefaultTemplateKeyV1,
+    DecodedExportDefaultTemplateV1, DecodedOptionalDefaultExpressionV1,
+    DecodedOptionalDefaultStatementListV1, DecodedOptionalDefaultWhenGuardV1,
+    DecodedOptionalTemplateReceiverV1, DecodedPersistentLexicalRootV1,
+    DecodedTemplateLocalDefinitionV1, DecodedTemplateLocalRecordV1, DecodedTemplateReceiverV1,
+    DecodedTemplateValueParameterV1, DefaultAnonymousFunctionV1, DefaultArrayAccessKindV1,
+    DefaultArrayAssemblyBuildError, DefaultArrayAssemblyPartV1, DefaultArrayAssemblyV1,
+    DefaultAssignTargetIndexError, DefaultAssignTargetResolutionError, DefaultAssignTargetV1,
+    DefaultBinaryOperatorV1, DefaultBodyOriginSiteV1,
+    DefaultBodyProviderEnvelopeSemanticValidationError, DefaultBodyProviderTypeSiteV1,
+    DefaultBodyReferenceAttachmentV1, DefaultBodyReferenceMetadataV1,
+    DefaultBodyReferenceOccurrenceV1, DefaultBodyReferenceTargetV1, DefaultBodyReferenceVisitorV1,
+    DefaultBoundCallableRefResolutionError, DefaultBoundCallableRefV1,
+    DefaultBoundCallableSourceResolutionError, DefaultBoundCallableSourceV1,
+    DefaultCallableBodyTypeArgumentsBuildError, DefaultCallableBodyTypeArgumentsResolutionError,
+    DefaultCallableBodyTypeArgumentsV1, DefaultCallableDeclarationV1, DefaultCallableRefBuildError,
+    DefaultCallableRefResolutionError, DefaultCallableRefV1, DefaultCallableReferenceBuildError,
+    DefaultCallableReferenceIndexError, DefaultCallableReferenceResolutionError,
+    DefaultCallableReferenceResolver, DefaultCallableReferenceTargetV1,
+    DefaultCallableReferenceTargetViewV1, DefaultCallableReferenceV1, DefaultCaptureBindingV1,
+    DefaultCaptureIndexError, DefaultCaptureResolutionError, DefaultCaptureSourceV1,
+    DefaultCaptureV1, DefaultCatchV1, DefaultClassConstructorIdResolver,
+    DefaultClassConstructorIdV1, DefaultConstructorRefResolutionError, DefaultConstructorRefV1,
+    DefaultConstructorReferenceResolver, DefaultConstructorReferenceTargetViewV1,
+    DefaultControlFlowBuildError, DefaultControlFlowIndexError, DefaultControlFlowResolutionError,
+    DefaultEnumVariantFieldRefResolutionError, DefaultEnumVariantFieldRefV1,
+    DefaultEnumVariantRefResolutionError, DefaultEnumVariantRefV1, DefaultExpressionBuildError,
+    DefaultExpressionIndexError, DefaultExpressionKindV1, DefaultExpressionReferenceResolver,
+    DefaultExpressionResolutionError, DefaultExpressionV1, DefaultFieldRefResolutionError,
+    DefaultFieldRefV1, DefaultFieldReferenceResolver, DefaultFieldReferenceTargetViewV1,
+    DefaultForeignCallbackOperationV1, DefaultGenericDelegateReferenceV1,
+    DefaultIntegerArgumentsV1, DefaultIntegerDivRemV1, DefaultIntegerKindV1,
+    DefaultIntegerOperationV1, DefaultLambdaV1, DefaultLexicalCallableBuildError,
+    DefaultLexicalCallableIndexError, DefaultLexicalCallableResolutionError,
+    DefaultLiteralEqualityResolutionError, DefaultLiteralEqualityV1,
+    DefaultLocalDataFlowLocalError, DefaultLocalDataFlowSiteV1, DefaultLocalFunctionBuildError,
+    DefaultLocalFunctionIndexError, DefaultLocalFunctionResolutionError,
+    DefaultLocalFunctionSignatureAuthority, DefaultLocalFunctionV1, DefaultLoopControlV1,
+    DefaultMethodCalleeResolutionError, DefaultMethodCalleeV1,
+    DefaultNestedCallableBodyArgumentsV1, DefaultNestedCallableIdentityV1,
+    DefaultNestedCallableReferenceResolver, DefaultNestedCallableSiteV1,
+    DefaultNoGcIntegerOperationV1, DefaultNominalReceiverBuildError, DefaultPatternBuildError,
+    DefaultPatternFieldV1, DefaultPatternIndexError, DefaultPatternReferenceResolver,
+    DefaultPatternResolutionError, DefaultPatternV1, DefaultPatternViewV1, DefaultPlaceIndexError,
+    DefaultPlaceResolutionError, DefaultPlaceV1, DefaultPrimitiveBinaryKindV1,
+    DefaultPrimitiveUnaryKindV1, DefaultStatementBuildError, DefaultStatementIndexError,
+    DefaultStatementKindV1, DefaultStatementReferenceResolver, DefaultStatementResolutionError,
+    DefaultStatementV1, DefaultStringOwnerResolutionError, DefaultStringOwnerV1,
+    DefaultTemplateContractViewV1, DefaultTemplateDeclarationContractError,
+    DefaultTemplateDeclarationContractV1, DefaultTemplateProviderParameterBuildError,
+    DefaultTemplateProviderParameterV1, DefaultTemplateProviderShapeBuildError,
+    DefaultTemplateProviderShapeV1, DefaultTemplateSourceEnvelopeError,
+    DefaultTemplateTypeSubstitutionError, DefaultTryV1, DefaultUnaryOperatorV1, DefaultWhenArmV1,
+    DefaultWhenFallbackV1, DefaultWhenFallbackViewV1, DefaultWhenGuardV1, DefaultWhenV1,
+    ExportDefaultBodyBuildError, ExportDefaultBodyIndexError, ExportDefaultBodyResolutionError,
+    ExportDefaultBodyV1, ExportDefaultLocalDataFlowValidationError,
+    ExportDefaultTemplateBuildError, ExportDefaultTemplateIndexError, ExportDefaultTemplateKeyV1,
+    ExportDefaultTemplateLocalIndexError, ExportDefaultTemplateLookupError,
+    ExportDefaultTemplateResolutionError, ExportDefaultTemplateSetBuildError,
+    ExportDefaultTemplateSetIndexError, ExportDefaultTemplateSetValidationError,
+    ExportDefaultTemplateSourceClosureValidationError, ExportDefaultTemplateV1,
+    IndexedCanonicalExportDefaultTemplatesV1, IndexedCanonicalTemplateValueParametersV1,
+    IndexedDefaultAnonymousFunctionV1, IndexedDefaultAssignTargetV1,
+    IndexedDefaultCallableReferenceV1, IndexedDefaultCaptureV1, IndexedDefaultCatchV1,
+    IndexedDefaultExpressionV1, IndexedDefaultLambdaV1, IndexedDefaultLocalFunctionV1,
+    IndexedDefaultPatternV1, IndexedDefaultPlaceV1, IndexedDefaultStatementV1, IndexedDefaultTryV1,
+    IndexedDefaultWhenArmV1, IndexedDefaultWhenFallbackV1, IndexedDefaultWhenGuardV1,
+    IndexedDefaultWhenV1, IndexedExportDefaultBodyV1, IndexedExportDefaultTemplateV1,
+    IndexedOptionalDefaultStatementListV1, IndexedOptionalDefaultWhenGuardV1,
+    IndexedOptionalTemplateReceiverV1, IndexedTemplateReceiverV1, IndexedTemplateValueParameterV1,
+    OptionalDefaultExpressionV1, OptionalDefaultStatementListV1,
+    OptionalDefaultStatementListViewV1, OptionalDefaultWhenGuardV1, OptionalTemplateReceiverV1,
+    PersistentLexicalRootBuildError, PersistentLexicalRootResolver, PersistentLexicalRootV1,
+    TemplateLocalDefinitionV1, TemplateLocalIndexResolver, TemplateLocalLookupError,
+    TemplateLocalRecordBuildError, TemplateLocalRecordResolutionError, TemplateLocalRecordV1,
+    TemplateLocalReferenceResolver, TemplateLocalScopeValidationError,
+    TemplateLocalSelectorResolver, TemplateLocalTableBuildError, TemplateLocalTableValidationError,
+    TemplateLocalTypeSemanticValidationError, TemplateReceiverBuildError,
+    TemplateReceiverIndexError, TemplateReceiverResolutionError,
+    TemplateReceiverSemanticValidationError, TemplateReceiverV1, TemplateValueParameterBuildError,
+    TemplateValueParameterIndexError, TemplateValueParameterListBuildError,
+    TemplateValueParameterListIndexError, TemplateValueParameterListValidationError,
+    TemplateValueParameterResolutionError, TemplateValueParameterSemanticValidationError,
+    TemplateValueParameterV1,
+};
+pub use default_templates::{
+    DecodedExportDefaultCallableReferenceV1, DecodedExportDefaultCallableTargetV1,
+    DecodedExportDefaultConstructorReferenceV1, DecodedExportDefaultFieldReferenceV1,
+    DecodedExportDefaultGlobalReferenceV1, DecodedExportDefaultReferenceSetV1,
+    DecodedExportDefaultReferenceV1, DecodedExportDefaultSingletonReferenceV1,
+    DecodedExportDefaultTypeReferenceV1, ExportDefaultCallableReferenceV1,
+    ExportDefaultCallableTargetBuildError, ExportDefaultCallableTargetResolutionError,
+    ExportDefaultCallableTargetV1, ExportDefaultConstructorReferenceV1,
+    ExportDefaultFieldReferenceV1, ExportDefaultGlobalReferenceV1,
+    ExportDefaultReferenceClosureValidationError, ExportDefaultReferenceKindV1,
+    ExportDefaultReferenceOccurrenceSiteV1, ExportDefaultReferenceResolutionError,
+    ExportDefaultReferenceResolver, ExportDefaultReferenceSetBuildError,
+    ExportDefaultReferenceSetV1, ExportDefaultReferenceSetValidationError,
+    ExportDefaultReferenceTargetResolutionError, ExportDefaultReferenceV1,
+    ExportDefaultSingletonReferenceV1, ExportDefaultTypeReferenceV1,
+    compare_default_signature_reference_targets,
+};
+pub use generic_templates::*;
+
+pub use default_templates::{
+    DefaultSourceNestedCallableDescriptorV1, DefaultSourceNestedCallableOccurrenceV1,
+    DefaultSourceNestedCallableQueryError, DefaultSourceNestedCallablesV1,
+};
+pub use definition_sources::{
+    CanonicalExportDefinitionSourcesV1, DecodedCanonicalExportDefinitionSourcesV1,
+    DecodedExportDefinitionSourceV1, ExportDefinitionSourceSemanticAuthority,
+    ExportDefinitionSourceSemanticValidationError, ExportDefinitionSourceSetBuildError,
+    ExportDefinitionSourceSetSemanticValidationError, ExportDefinitionSourceSetValidationError,
+    ExportDefinitionSourceV1,
+};
+pub use external_references::{
+    CanonicalDependencyBindingWitnessesV1, CanonicalExternalHirReferenceRolesV1,
+    CanonicalExternalHirReferencesV1, CanonicalHirDependencyCallSitesV1,
+    CanonicalHirDependencyTypeSitesV1, DecodedCanonicalDependencyBindingWitnessesV1,
+    DecodedCanonicalExternalHirReferenceRolesV1, DecodedCanonicalExternalHirReferencesV1,
+    DecodedCanonicalHirDependencyCallSitesV1, DecodedCanonicalHirDependencyTypeSitesV1,
+    DecodedDependencyBindingWitnessV1, DecodedExternalHirReferenceV1, DecodedExternalHirTargetV1,
+    DecodedHirDependencyCallSiteV1, DecodedHirDependencyTypeSiteV1,
+    DependencyBindingWitnessResolutionError, DependencyBindingWitnessSemanticValidationError,
+    DependencyBindingWitnessSetBuildError, DependencyBindingWitnessSetValidationError,
+    DependencyBindingWitnessV1, ExternalHirReexportClosureValidationError,
+    ExternalHirReferenceBuildError, ExternalHirReferenceResolutionError,
+    ExternalHirReferenceResolver, ExternalHirReferenceRoleSetBuildError,
+    ExternalHirReferenceRoleSetValidationError, ExternalHirReferenceRoleV1,
+    ExternalHirReferenceSemanticAuthority, ExternalHirReferenceSemanticValidationError,
+    ExternalHirReferenceSetBuildError, ExternalHirReferenceSetSemanticValidationError,
+    ExternalHirReferenceSetValidationError, ExternalHirReferenceV1,
+    ExternalHirTargetResolutionError, ExternalHirTargetResolver, ExternalHirTargetV1,
+    HirCallableTypePositionV1, HirDependencyCallInstantiationV1, HirDependencyCallReasonV1,
+    HirDependencyCallSignatureError, HirDependencyCallSiteBuildError,
+    HirDependencyCallSiteResolutionError, HirDependencyCallSiteResolver, HirDependencyCallSiteV1,
+    HirDependencyTypePositionV1, HirDependencyTypeRelationError, HirDependencyTypeSiteBuildError,
+    HirDependencyTypeSiteResolutionError, HirDependencyTypeSiteResolver, HirDependencyTypeSiteV1,
+    HirExpressionTypeRoleV1, HirExpressionTypeSiteV1, HirSingletonUseV1, HirTypeSiteExactError,
+    collect_type_site_nominals,
+};
+pub use nominal_callables::{
+    NominalCallableClassificationError, NominalExactLeafClassifierBuildError,
+    NominalExactLeafClassifierV1, ParamFreeNominalCallableV1,
+};
+pub use nominal_interfaces::{
+    CanonicalNestedMemberRefsV1, CanonicalNestedNominalRefsV1,
+    CanonicalNominalDispatchSelectionsV1, CanonicalNominalInterfacesV1,
+    DecodedCanonicalNominalDispatchSelectionsV1, DecodedCanonicalNominalInterfacesV1,
+    DecodedInterfaceSourceMemberV1, DecodedNestedSourceMemberRefV1,
+    DecodedNominalDeclarationDetailsV1, DecodedNominalDispatchOrderV1,
+    DecodedNominalInstantiationConditionsV1, DecodedNominalInterfaceRecordV1,
+    ExactSupertypeSemanticError, InterfaceSourceMemberResolutionError, InterfaceSourceMemberV1,
+    NestedSourceMemberRefV1, NominalDeclarationDetailsResolutionError, NominalDeclarationDetailsV1,
+    NominalDeclarationInventoryError, NominalDeclarationReferenceError,
+    NominalDispatchDeclarationError, NominalDispatchOrderError,
+    NominalDispatchOrderResolutionError, NominalDispatchOrderV1, NominalDispatchSelectionError,
+    NominalDispatchSelectionResolutionError, NominalDispatchSelectionRoleV1,
+    NominalDispatchSelectionV1, NominalInstantiationConditionsV1, NominalInterfaceRecordBuildError,
+    NominalInterfaceRecordResolutionError, NominalInterfaceRecordResolver,
+    NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
+    NominalInterfaceSemanticValidationError, NominalInterfaceSetBuildError,
+    NominalInterfaceSetSemanticValidationError, NominalInterfaceSetValidationError,
+    NominalSourceFieldInventoryError,
+};
+pub use nominal_shapes::{
+    DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceFieldV1,
+    DecodedNominalSourceShapeV1, EnumSourceFieldResolutionError, EnumSourceFieldSelectorV1,
+    EnumSourceFieldSemanticError, EnumSourceFieldV1, EnumSourceShapeV1,
+    EnumSourceVariantBuildError, EnumSourceVariantResolutionError, EnumSourceVariantSemanticError,
+    EnumSourceVariantStyleV1, EnumSourceVariantV1, NominalSourceFieldResolutionError,
+    NominalSourceFieldSemanticError, NominalSourceFieldV1, NominalSourceFieldsV1,
+    NominalSourceShapeBuildError, NominalSourceShapeResolutionError, NominalSourceShapeResolver,
+    NominalSourceShapeSemanticAuthority, NominalSourceShapeSemanticError, NominalSourceShapeV1,
+    ObjectSourceKindV1, ObjectSourceShapeSemanticError, ObjectSourceShapeV1, StructSourceShapeV1,
+};
+pub use property_interfaces::{
+    CanonicalPropertyInterfacesV1, DecodedCanonicalPropertyInterfacesV1,
+    DecodedPropertyAccessorsV1, DecodedPropertyCapabilityV1, DecodedPropertyDeclarationRecordV1,
+    DecodedPropertyInterfaceRecordV1, PropertyAccessorClosureValidationError,
+    PropertyAccessorImplementationV1, PropertyAccessorSourceV1, PropertyAccessorsV1,
+    PropertyCapabilityBuildError, PropertyCapabilityResolutionError, PropertyCapabilityV1,
+    PropertyDeclarationIdentityShapeV1, PropertyDeclarationInventoryError,
+    PropertyDeclarationRecordV1, PropertyDeclarationSourceShapeV1,
+    PropertyInterfaceRecordBuildError, PropertyInterfaceRecordResolutionError,
+    PropertyInterfaceRecordResolver, PropertyInterfaceRecordV1, PropertyInterfaceSemanticAuthority,
+    PropertyInterfaceSemanticValidationError, PropertyInterfaceSetBuildError,
+    PropertyInterfaceSetSemanticValidationError, PropertyInterfaceSetValidationError,
+    PropertyPublicAccessV1, PropertyRepresentationV1, PropertySetterPublicAccessV1,
+};
+pub use public_bindings::{
+    CanonicalPublicExportBindingsV1, DecodedCanonicalPublicExportBindingsV1,
+    DecodedExportBindingSourceV1, DecodedPublicExportBindingRecordV1, ExportBindingSourceV1,
+    PublicExportBindingBuildError, PublicExportBindingDirectSurfaceValidationError,
+    PublicExportBindingRecordV1, PublicExportBindingResolutionError, PublicExportBindingResolver,
+    PublicExportBindingSetValidationError,
+};
+pub use route_closure::{
+    PublicExportBindingClosureAuthority, PublicExportBindingClosureValidationError,
+};
+pub use section::{
+    CrossConeHirExternalReferenceValidationError, CrossConeHirInterfaceIndexError,
+    CrossConeHirInterfaceResolutionError, CrossConeHirInterfaceResolver,
+    CrossConeHirInterfaceSectionV1, CrossConeHirInternalClosureValidationError,
+    DecodedCrossConeHirInterfaceSectionV1, ExportDefinitionSourceClosureValidationError,
+    ExportDefinitionSourceUseSiteV1, ExternalHirAliasClosureValidationError,
+    ExternalHirAliasUseSiteV1, ExternalHirConstTypeClosureValidationError,
+    ExternalHirDefaultClosureValidationError, ExternalHirDefaultOriginMismatch,
+    ExternalHirDefaultUseSiteV1, ExternalHirInheritanceClosureValidationError,
+    ExternalHirSignatureClosureValidationError, ExternalHirSignatureOriginMismatch,
+    ExternalHirSignatureUseSiteV1, IndexedCrossConeHirInterfaceSectionV1,
+};
+pub use type_alias_interfaces::{
+    CanonicalTypeAliasExpansionsV1, CanonicalTypeAliasInterfacesV1,
+    DecodedCanonicalTypeAliasInterfacesV1, DecodedTypeAliasInterfaceRecordV1,
+    DecodedTypeAliasTargetV1, TypeAliasDeclarationSourceV1, TypeAliasExpansionError,
+    TypeAliasExpansionV1, TypeAliasInterfaceRecordBuildError,
+    TypeAliasInterfaceRecordResolutionError, TypeAliasInterfaceRecordResolver,
+    TypeAliasInterfaceRecordV1, TypeAliasInterfaceSemanticAuthority,
+    TypeAliasInterfaceSemanticValidationError, TypeAliasInterfaceSetBuildError,
+    TypeAliasInterfaceSetSemanticValidationError, TypeAliasInterfaceSetValidationError,
+    TypeAliasTargetResolutionError, TypeAliasTargetV1,
+};

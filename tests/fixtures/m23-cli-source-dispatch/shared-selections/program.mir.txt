@@ -1,0 +1,343 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Leaf<Int> vtable=1 itables=2
+  class Base<Int> vtable=1 itables=0
+  class Leaf<String> vtable=1 itables=2
+  class Base<String> vtable=1 itables=0
+  interface Refined<Int> : Generic<Int>
+  interface Generic<Int>
+  interface Refined<String> : Generic<String>
+  interface Generic<String>
+  fun verifyDispatch @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call integer: Leaf<Int> = @fn8 direct
+      val base: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type Leaf<Int>
+          Local integer
+      val generic: Generic<Int>
+        Type Generic<Int>
+        Retype Generic<Int>
+          Type Leaf<Int>
+          Local integer
+      val $dependency.receiver: Leaf<Int>
+        Type Leaf<Int>
+        Local integer
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.input: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn3 direct
+        Type Leaf<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.input
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Base<Int>
+        Type Base<Int>
+        Local base
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.input: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn2 virtual[0]
+        Type Base<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.input
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $dependency.receiver: Generic<Int>
+        Type Generic<Int>
+        Local generic
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.input: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn9 interface Generic<Int>[0]
+        Type Generic<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.input
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call text: Leaf<String> = @fn10 direct
+      val refined: Refined<String>
+        Type Refined<String>
+        Retype Refined<String>
+          Type Leaf<String>
+          Local text
+      val $dependency.receiver: Leaf<String>
+        Type Leaf<String>
+        Local text
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.input: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.receiver: String = @fn6 direct
+        Type Leaf<String>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.input
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb7 bb8
+        Type Boolean
+        Local $call.1
+    bb7 if.then.7
+      val $dependency.receiver: Refined<String>
+        Type Refined<String>
+        Local refined
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.input: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.receiver: String = @fn7 interface Refined<String>[0]
+        Type Refined<String>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.input
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.2: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun compute @fn2(this: Base<Int>, input: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local input
+  fun compute @fn3(this: Leaf<Int>, input: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local input
+  fun value @fn4(this: Refined<Int>, input: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local input
+  fun compute @fn5(this: Base<String>, input: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local input
+  fun compute @fn6(this: Leaf<String>, input: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local input
+  fun value @fn7(this: Refined<String>, input: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local input
+  fun leaf @fn8() -> Leaf<Int>
+    bb0 entry
+      assign $new.1
+        Type Leaf<Int>
+        ClassAlloc Leaf<Int>
+      call @fn11 direct
+        Type Leaf<Int>
+        Local $new.1
+      return
+        Type Leaf<Int>
+        Local $new.1
+  fun value @fn9(this: Generic<Int>, input: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local input
+  fun leaf @fn10() -> Leaf<String>
+    bb0 entry
+      assign $new.1
+        Type Leaf<String>
+        ClassAlloc Leaf<String>
+      call @fn12 direct
+        Type Leaf<String>
+        Local $new.1
+      return
+        Type Leaf<String>
+        Local $new.1
+  fun init.Leaf.$c0 @fn11(this: Leaf<Int>) -> Unit
+    bb0 entry
+      call @fn13 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Leaf<Int>
+          Local this
+      return
+  fun init.Leaf.$c0 @fn12(this: Leaf<String>) -> Unit
+    bb0 entry
+      call @fn14 direct
+        Type Base<String>
+        Retype Base<String>
+          Type Leaf<String>
+          Local this
+      return
+  fun init.Base.$c1 @fn13(this: Base<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.Base.$c1 @fn14(this: Base<String>) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn2 <- compute
+  instance mi1 function=@fn3 <- compute
+  instance mi2 function=@fn4 <- value
+  instance mi3 function=@fn5 <- compute
+  instance mi4 function=@fn6 <- compute
+  instance mi5 function=@fn7 <- value
+  instance mi6 function=@fn8 <- leaf
+  instance mi7 function=@fn9 <- value
+  instance mi8 function=@fn10 <- leaf
+  str @str0 "illegal state"
+  str @str1 "method"
+  str @str2 "method"
+  str @str3 "default"
+  str @str4 "default"
+  output executable @fn1

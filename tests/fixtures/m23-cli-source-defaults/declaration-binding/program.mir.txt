@@ -1,0 +1,974 @@
+Module
+  struct ContractValue<Int> (first: Int, second: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum ContractChoice<Int>
+    Item(first: Int, second: Int)
+  enum CoroutineStep<ContractBase.Static>
+    Completed(value: ContractBase.Static)
+    Suspended()
+  enum CoroutineSlot<ContractBase.Static>
+    Empty()
+    Value(value: ContractBase.Static)
+  class ContractBase.Static vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ContractBase<Int, String> vtable=1 itables=0
+  class ContractChild<Int> vtable=1 itables=0
+  class ContractBase<Int, Int> vtable=1 itables=0
+  interface Continuation<ContractBase.Static>
+  interface SuspendTask<ContractBase.Static>
+  interface SuspendRegistration<ContractBase.Static>
+  generated_exact_type get0 location=enum2 nominal_id=5e41ea20e5b3b13f8f3aeb2dda3f117294334b0320da104a1fe0089f0ae448e3 exact_id=9079959af1896d9bdaf107f89c8b134ade134c62bb380df55306200be2c41a58
+  generated_exact_type get1 location=enum3 nominal_id=0e583a49845ec917adc335da3581a53219e40cd3dbbe1ff4e3c4e8bed47f97c6 exact_id=e9fe70b48f3162b95e74ca5891382aa851bd6bc9697560ddfdeb260d8cc57635
+  generated_callable gc0 function=@fn27 id=e30ca3b012396d2e5856af1edc22c3226bf363f58cf5688834d56ad58d5c9bc8
+  fun declarationSeed @fn0(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun verifyDefault @fn1(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $parameter.first
+      call $call.1: ContractValue<Int> = @fn26 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type ContractValue<Int>
+          Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $parameter.first
+      val choice: ContractChoice<Int>
+        Type ContractChoice<Int>
+        VariantConstruct ContractChoice<Int> v0
+          Type Int
+          Local $parameter.first
+          Type Int
+          Local $parameter.second
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val explicit: ContractChoice<Int>
+        Type ContractChoice<Int>
+        VariantConstruct ContractChoice<Int> v0
+          Type Int
+          Local $parameter.first
+          Type Int
+          Local $parameter.second
+      call $argument.0: Boolean = @fn6 direct
+        Type ContractChoice<Int>
+        Local choice
+        Type ContractChoice<Int>
+        Local explicit
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.2
+        Type ContractBase<Int, String>
+        ClassAlloc ContractBase<Int, String>
+      call @fn23 direct
+        Type ContractBase<Int, String>
+        Local $new.2
+      val $receiver: ContractBase<Int, String>
+        Type ContractBase<Int, String>
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.1: String
+        Type String
+        StringConst @str1
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      call $call.3: (Int, String, Int, Int, Int) = @fn7 direct
+        Type ContractBase<Int, String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+      call $argument.0: Boolean = @fn8 direct
+        Type (Int, String, Int, Int, Int)
+        Local $call.3
+        Type (Int, String, Int, Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+          Type String
+          StringConst @str2
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.4
+        Type ContractChild<Int>
+        ClassAlloc ContractChild<Int>
+      call @fn24 direct
+        Type ContractChild<Int>
+        Local $new.4
+      val $receiver: ContractChild<Int>
+        Type ContractChild<Int>
+        Local $new.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $call.5: (Int, Int, Int, Int, Int) = @fn9 direct
+        Type ContractBase<Int, Int>
+        Retype ContractBase<Int, Int>
+          Type ContractChild<Int>
+          Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      call $argument.0: Boolean = @fn10 direct
+        Type (Int, Int, Int, Int, Int)
+        Local $call.5
+        Type (Int, Int, Int, Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+          Type Int
+          IntegerLiteral Int value=6 bits=0x00000006
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $dependency.receiver: Int = @fn0 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun ContractBase.pick @fn3(this: ContractBase<Int, String>, first: Int, second: String, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ContractBase.pick @fn4(this: ContractBase<Int, Int>, first: Int, second: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ContractChild.pick @fn5(this: ContractChild<Int>, first: Int, second: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ContractChoice.equals @fn6(this: ContractChoice<Int>, other: ContractChoice<Int>) -> Boolean
+    bb0 entry
+      val $when.1: ContractChoice<Int>
+        Type ContractChoice<Int>
+        Local this
+      val $pattern.subject.2: ContractChoice<Int>
+        Type ContractChoice<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest ContractChoice<Int> v0
+          Type ContractChoice<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Int
+        Type Int
+        VariantPayloadProject ContractChoice<Int> v0 f0
+          Type ContractChoice<Int>
+          Local $pattern.subject.2
+      val $left.0.1: Int
+        Type Int
+        VariantPayloadProject ContractChoice<Int> v0 f1
+          Type ContractChoice<Int>
+          Local $pattern.subject.2
+      val $when.3: ContractChoice<Int>
+        Type ContractChoice<Int>
+        Local other
+      val $pattern.subject.4: ContractChoice<Int>
+        Type ContractChoice<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest ContractChoice<Int> v0
+          Type ContractChoice<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Int
+        Type Int
+        VariantPayloadProject ContractChoice<Int> v0 f0
+          Type ContractChoice<Int>
+          Local $pattern.subject.4
+      val $right.0.1: Int
+        Type Int
+        VariantPayloadProject ContractChoice<Int> v0 f1
+          Type ContractChoice<Int>
+          Local $pattern.subject.4
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.0.0
+          Type Int
+          Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 logic.rhs.7
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.0.1
+          Type Int
+          Local $right.0.1
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      return
+        Type Boolean
+        Local $logic.1
+  fun ContractBase.check @fn7(this: ContractBase<Int, String>, first: Int, second: String) -> (Int, String, Int, Int, Int)
+    bb0 entry
+      val $receiver: ContractBase<Int, String>
+        Type ContractBase<Int, String>
+        Local this
+      val $argument.0: Int
+        Type Int
+        Local first
+      val $argument.1: String
+        Type String
+        Local second
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.first
+      val $receiver: ContractBase<Int, String>
+        Type ContractBase<Int, String>
+        Local this
+      val $argument.0: Int
+        Type Int
+        Local first
+      val $argument.1: String
+        Type String
+        Local second
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $parameter.value: String
+        Type String
+        Local $parameter.second
+      val $receiver: ContractBase<Int, String>
+        Type ContractBase<Int, String>
+        Local this
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $receiver: ContractBase<Int, String>
+        Type ContractBase<Int, String>
+        Local this
+      val $argument.0: Int
+        Type Int
+        Local first
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $parameter.first
+      val $parameter.third: Int
+        Type Int
+        Local $parameter.second
+      assign $new.1
+        Type ContractBase.Static
+        ClassAlloc ContractBase.Static
+      call @fn22 direct
+        Type ContractBase.Static
+        Local $new.1
+      val $receiver: ContractBase.Static
+        Type ContractBase.Static
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        Local first
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.first
+      call $call.2: Int = @fn3 virtual[0]
+        Type ContractBase<Int, String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type Int
+        Local $parameter.value
+      call $call.3: String = @fn11 direct
+        Type ContractBase<Int, String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type String
+        Local $parameter.value
+      call $call.4: Int = @fn12 direct
+        Type ContractBase<Int, String>
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      call $call.5: Int = @fn13 direct
+        Type ContractBase<Int, String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.third
+      call $call.6: Int = @fn14 direct
+        Type ContractBase.Static
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.value
+      return
+        Type (Int, String, Int, Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.2
+          Type String
+          Local $call.3
+          Type Int
+          Local $call.4
+          Type Int
+          Local $call.5
+          Type Int
+          Local $call.6
+  fun $derived.equals.1 @fn8(this: (Int, String, Int, Int, Int), other: (Int, String, Int, Int, Int)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, String, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, String, Int, Int, Int)
+            Local other
+    bb1 logic.rhs.1
+      call $call.2: Boolean = external1 direct
+        Type String
+        FieldAccess 1
+          Type (Int, String, Int, Int, Int)
+          Local this
+        Type String
+        FieldAccess 1
+          Type (Int, String, Int, Int, Int)
+          Local other
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 2
+            Type (Int, String, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 2
+            Type (Int, String, Int, Int, Int)
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.3
+    bb7 logic.rhs.7
+      assign $logic.4
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 3
+            Type (Int, String, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 3
+            Type (Int, String, Int, Int, Int)
+            Local other
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $logic.4
+    bb10 logic.rhs.10
+      assign $logic.5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 4
+            Type (Int, String, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 4
+            Type (Int, String, Int, Int, Int)
+            Local other
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.5
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      return
+        Type Boolean
+        Local $logic.5
+  fun ContractBase.check @fn9(this: ContractBase<Int, Int>, first: Int, second: Int) -> (Int, Int, Int, Int, Int)
+    bb0 entry
+      val $receiver: ContractBase<Int, Int>
+        Type ContractBase<Int, Int>
+        Local this
+      val $argument.0: Int
+        Type Int
+        Local first
+      val $argument.1: Int
+        Type Int
+        Local second
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.first
+      val $receiver: ContractBase<Int, Int>
+        Type ContractBase<Int, Int>
+        Local this
+      val $argument.0: Int
+        Type Int
+        Local first
+      val $argument.1: Int
+        Type Int
+        Local second
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.second
+      val $receiver: ContractBase<Int, Int>
+        Type ContractBase<Int, Int>
+        Local this
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $receiver: ContractBase<Int, Int>
+        Type ContractBase<Int, Int>
+        Local this
+      val $argument.0: Int
+        Type Int
+        Local first
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $parameter.first
+      val $parameter.third: Int
+        Type Int
+        Local $parameter.second
+      assign $new.1
+        Type ContractBase.Static
+        ClassAlloc ContractBase.Static
+      call @fn22 direct
+        Type ContractBase.Static
+        Local $new.1
+      val $receiver: ContractBase.Static
+        Type ContractBase.Static
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        Local first
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.first
+      call $call.2: Int = @fn4 virtual[0]
+        Type ContractBase<Int, Int>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.value
+      call $call.3: Int = @fn15 direct
+        Type ContractBase<Int, Int>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.value
+      call $call.4: Int = @fn16 direct
+        Type ContractBase<Int, Int>
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      call $call.5: Int = @fn17 direct
+        Type ContractBase<Int, Int>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.third
+      call $call.6: Int = @fn14 direct
+        Type ContractBase.Static
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.value
+      return
+        Type (Int, Int, Int, Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.2
+          Type Int
+          Local $call.3
+          Type Int
+          Local $call.4
+          Type Int
+          Local $call.5
+          Type Int
+          Local $call.6
+  fun $derived.equals.2 @fn10(this: (Int, Int, Int, Int, Int), other: (Int, Int, Int, Int, Int)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, Int, Int, Int, Int)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Int, Int, Int, Int, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 2
+            Type (Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 2
+            Type (Int, Int, Int, Int, Int)
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.2
+    bb7 logic.rhs.7
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 3
+            Type (Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 3
+            Type (Int, Int, Int, Int, Int)
+            Local other
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $logic.3
+    bb10 logic.rhs.10
+      assign $logic.4
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 4
+            Type (Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 4
+            Type (Int, Int, Int, Int, Int)
+            Local other
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      return
+        Type Boolean
+        Local $logic.4
+  fun ContractBase.copy @fn11(this: ContractBase<Int, String>, first: Int, second: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun ContractBase.number @fn12(this: ContractBase<Int, String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ContractBase.successive @fn13(this: ContractBase<Int, String>, first: Int, second: Int, third: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local third
+  fun ContractBase.Static.copy @fn14(this: ContractBase.Static, first: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ContractBase.copy @fn15(this: ContractBase<Int, Int>, first: Int, second: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ContractBase.number @fn16(this: ContractBase<Int, Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ContractBase.successive @fn17(this: ContractBase<Int, Int>, first: Int, second: Int, third: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local third
+  fun Continuation.resume @fn18(this: Continuation<ContractBase.Static>, value: ContractBase.Static) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn19(this: Continuation<ContractBase.Static>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn20(this: SuspendTask<ContractBase.Static>, $completion: Continuation<ContractBase.Static>) -> CoroutineStep<ContractBase.Static>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<ContractBase.Static>, continuation: Continuation<ContractBase.Static>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ContractBase.Static.$c2 @fn22(this: ContractBase.Static) -> Unit
+    bb0 entry
+      return
+  fun init.ContractBase.$c0 @fn23(this: ContractBase<Int, String>) -> Unit
+    bb0 entry
+      return
+  fun init.ContractChild.$c1 @fn24(this: ContractChild<Int>) -> Unit
+    bb0 entry
+      call @fn25 direct
+        Type ContractBase<Int, Int>
+        Retype ContractBase<Int, Int>
+          Type ContractChild<Int>
+          Local this
+      return
+  fun init.ContractBase.$c0 @fn25(this: ContractBase<Int, Int>) -> Unit
+    bb0 entry
+      return
+  fun ctor.ContractValue.$c0 @fn26(first: Int, second: Int) -> ContractValue<Int> <no-gc>
+    bb0 entry
+      return
+        Type ContractValue<Int>
+        StructInit ContractValue<Int>
+          Type Int
+          Local first
+          Type Int
+          Local second
+  fun startCoroutine<ContractBase.Static> @fn27(task: SuspendTask<ContractBase.Static>, completion: Continuation<ContractBase.Static>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn18 interface Continuation<ContractBase.Static>[0]
+        Type Continuation<ContractBase.Static>
+        Local completion
+        Type ContractBase.Static
+        EnumField v0 f0
+          Type CoroutineStep<ContractBase.Static>
+          Local $step
+      return
+    bb2 failed
+      call @fn19 interface Continuation<ContractBase.Static>[1]
+        Type Continuation<ContractBase.Static>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ContractBase.Static> = @fn20 interface SuspendTask<ContractBase.Static>[0]
+        Type SuspendTask<ContractBase.Static>
+        Local task
+        Type Continuation<ContractBase.Static>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ContractBase.Static>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<ContractBase.Static> result=ContractBase.Static
+  coroutine_slot cl0 CoroutineSlot<ContractBase.Static> value=ContractBase.Static
+  coroutine_start ct0 result=ContractBase.Static function=fn27
+  coroutine_fn cf0 @fn20 source_return=ContractBase.Static step=cs0 immediate
+  instance mi0 function=@fn3 <- ContractBase.pick
+  instance mi1 function=@fn4 <- ContractBase.pick
+  instance mi2 function=@fn5 <- ContractChild.pick
+  instance mi3 function=@fn7 <- ContractBase.check
+  instance mi4 function=@fn9 <- ContractBase.check
+  instance mi5 function=@fn11 <- ContractBase.copy
+  instance mi6 function=@fn12 <- ContractBase.number
+  instance mi7 function=@fn13 <- ContractBase.successive
+  instance mi8 function=@fn14 <- ContractBase.Static.copy
+  instance mi9 function=@fn15 <- ContractBase.copy
+  instance mi10 function=@fn16 <- ContractBase.number
+  instance mi11 function=@fn17 <- ContractBase.successive
+  instance mi12 function=@fn18 <- Continuation.resume
+  instance mi13 function=@fn19 <- Continuation.resumeWithException
+  instance mi14 function=@fn20 <- SuspendTask.run
+  instance mi15 function=@fn21 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  str @str1 "text"
+  str @str2 "text"
+  output executable @fn2

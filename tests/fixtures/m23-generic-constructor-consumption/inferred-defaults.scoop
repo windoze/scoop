@@ -1,0 +1,15 @@
+package consumer.constructors
+
+import templates.constructors.*
+
+private typealias IntPair = Pair<Int>
+
+public fun result(): Int {
+    val pair: Pair<Int> = Pair(first = 20)
+    val fixed = IntPair(first = pair.second)
+    val box = Box(fixed.second)
+    val locked = Locked(value = box.value, marker = true)
+    return locked.value + pair.first + box.count
+}
+
+public fun <T> make(value: T): Box<T> = Box<T>(value)

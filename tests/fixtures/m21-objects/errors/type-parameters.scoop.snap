@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-objects/errors/type-parameters.scoop:1:15: error: object declarations cannot declare type parameters or constructors

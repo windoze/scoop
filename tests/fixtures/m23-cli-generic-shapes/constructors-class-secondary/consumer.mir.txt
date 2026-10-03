@@ -1,0 +1,151 @@
+Module
+  class Box<Int> vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=37 bits=0x00000025
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.extra: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.1
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn4 direct
+        Type Box<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.extra
+      val box: Box<Int>
+        Type Box<Int>
+        Local $new.1
+      call $dependency.receiver: Int = @fn1 direct
+        Type Box<Int>
+        Local box
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Box<Int>
+        Local box
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun echoed @fn1(this: Box<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Box<Int>
+          Local this
+  fun count @fn2(this: Box<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type Box<Int>
+          Local this
+  fun keep @fn3(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun init.Box.$c0 @fn4(this: Box<Int>, value: Int, extra: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call @fn5 direct
+        Type Box<Int>
+        Local this
+        Type Int
+        Local $dependency.constructor.local.1
+      val $dependency.constructor.local.0: Int
+        Type Int
+        FieldAccess 2
+          Type Box<Int>
+          Local this
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local extra
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      field_set 2
+        Type Box<Int>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.0
+          Type Int
+          Local $dependency.constructor.local.2
+      return
+  fun init.Box.$c1 @fn5(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      val $dependency.constructor.local.0: Int
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local this
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call $call.1: Int = @fn3 direct
+        Type Int
+        Local $dependency.constructor.local.1
+      field_set 1
+        Type Box<Int>
+        Local this
+        Type Int
+        Local $call.1
+      field_set 2
+        Type Box<Int>
+        Local this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.0: Int
+        Type Int
+        FieldAccess 2
+          Type Box<Int>
+          Local this
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      field_set 2
+        Type Box<Int>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.0
+          Type Int
+          Local $dependency.constructor.local.2
+      return
+  instance mi0 function=@fn1 <- echoed
+  instance mi1 function=@fn2 <- count
+  instance mi2 function=@fn3 <- keep
+  output library

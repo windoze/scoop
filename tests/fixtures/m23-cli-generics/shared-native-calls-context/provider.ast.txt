@@ -1,0 +1,50 @@
+SourceFile
+  QualifiedPackage dependency.nativecalls
+  public fun choose(value: Int): Int
+    =
+      Var value
+  public fun choose(value: Any): String
+    =
+      StringLiteral "broad"
+  public fun apply(action: (Int) -> Int, value: Int = <expr>): Int
+    =
+      Call action
+        Var value
+  public fun widen(action: (Int) -> Any): Int
+    =
+      Cast Int optional=false
+        Call action
+          IntLiteral 42
+  public fun narrow(value: Int8): Int
+    =
+      MethodCall toInt32
+        Var value
+  public fun narrowAction(action: (Int) -> Int8): Int
+    =
+      MethodCall toInt32
+        Call action
+          IntLiteral 0
+  public fun arrayFirst(values: Array<Int>): Int
+    =
+      IfExpression
+        Binary Eq
+          FieldAccess size
+            Var values
+          IntLiteral 0L
+        IntLiteral 42
+        else
+        Index
+          Var values
+          IntLiteral 0L
+  public fun pack(vararg values: Int): Array<Int>
+    =
+      Var values
+  public fun Int.chooseExtension(): (Int, Int)
+    =
+      TupleLiteral
+        This
+        This
+  public class FixedHost()
+    public fun choose
+    public fun choose
+    public fun apply

@@ -1,0 +1,5 @@
+val initialized: Int = userCoreOffset(40)
+
+fun main() {
+    val value = initialized
+}

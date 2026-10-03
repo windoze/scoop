@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "root"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.programlink:a-bad" = {"version" = "0.1.0", "path" = "../a-bad"}
+"dev.programlink:b-later" = {"version" = "0.1.0", "path" = "../b-later"}

@@ -3,7 +3,6 @@
 use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
-use scoop_ast::Span;
 use scoop_hir::concrete as hir;
 use scoop_mir as mir;
 
@@ -11,12 +10,14 @@ use super::Lowerer;
 
 mod adapters;
 mod construction;
+mod errors;
 mod intrinsics;
 mod liveness;
 mod sites;
 
 use adapters::*;
 use construction::*;
+use errors::protocol_error_block;
 use intrinsics::*;
 use liveness::*;
 use sites::*;
@@ -31,6 +32,7 @@ struct SuspendSite {
     live_after: Vec<mir::LocalId>,
     pending: mir::CoroutinePendingContext,
     state: mir::CoroutineSuspendStateId,
+    identity_path: hir::StructuralDefinitionPath,
 }
 
 #[derive(Clone)]
@@ -61,7 +63,7 @@ pub(super) fn transform(lowerer: &mut Lowerer, module: &hir::Module) {
         .collect();
     for coroutine in coroutine_ids {
         let function = lowerer.coroutines.functions[coroutine].function;
-        let sites = analyze_sites(lowerer, &lowerer.functions[function].body);
+        let sites = analyze_sites(lowerer, function, &lowerer.functions[function].body);
         clear_pending_contexts(&mut lowerer.functions[function].body);
         if sites.is_empty() {
             continue;
@@ -92,13 +94,15 @@ fn transform_function(
 ) {
     let coroutine_meta = &lowerer.coroutines.functions[coroutine];
     let function_id = coroutine_meta.function;
+    let source_materialization = coroutine_meta.source;
+    let source_odr_group = coroutine_meta.source_odr_group;
     let source_return = coroutine_meta.source_return.clone();
+    let source_signature = coroutine_meta.logical_signature.clone();
     let step_ty = lowerer.functions[function_id].return_ty.clone();
-    let (source_name, source_symbol, old_params, mut body) = {
+    let (source_name, old_params, mut body) = {
         let function = &mut lowerer.functions[function_id];
         (
             function.name.clone(),
-            function.symbol.clone(),
             std::mem::take(&mut function.params),
             std::mem::replace(&mut function.body, mir::Body::unreachable(Arena::new())),
         )
@@ -109,8 +113,11 @@ fn transform_function(
     let completion_old = completion.local;
     let completion_ty = completion.ty.clone();
     let source_params = &old_params[..old_params.len() - 1];
-    let throwable_ty =
-        mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
+    let throwable_ty = crate::coroutine_registry::throwable_type(module, &lowerer.class_map);
+    lowerer
+        .source_exact_types
+        .get(&throwable_ty)
+        .expect("local-concrete HIR contains the Throwable exact type");
 
     let mut saved = HashSet::new();
     saved.extend(source_params.iter().map(|param| param.local));
@@ -126,7 +133,31 @@ fn transform_function(
         }
     }
     let mut saved: Vec<_> = saved.into_iter().collect();
-    saved.sort_by_key(|local| raw(*local));
+    let saved_identity_by_local = saved
+        .iter()
+        .map(|local| {
+            (
+                *local,
+                lowerer
+                    .local_values
+                    .get(function_id, *local)
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "coroutine-saved local `{}` has no persistent value identity",
+                            body.locals[*local].name
+                        )
+                    })
+                    .clone(),
+            )
+        })
+        .collect::<HashMap<_, _>>();
+    let frame_identity = mir::CoroutineFrameIdentity::new(
+        source_materialization,
+        saved_identity_by_local.values().cloned().collect(),
+        source_odr_group,
+    )
+    .expect("a coroutine frame has one persistent generated identity");
+    saved.sort_by_key(|local| saved_identity_by_local[local].id());
 
     let mut frame_fields = vec![
         mir::Field {
@@ -142,6 +173,7 @@ fn transform_function(
     for local in &saved {
         let value_ty = body.locals[*local].ty.clone();
         let (slot_id, slot_ty) = lowerer.coroutines.slot_for(
+            &lowerer.source_exact_types,
             &value_ty,
             &lowerer.structs,
             &mut lowerer.enums,
@@ -163,6 +195,7 @@ fn transform_function(
         );
     }
     let (failure_slot_id, failure_slot_ty) = lowerer.coroutines.slot_for(
+        &lowerer.source_exact_types,
         &throwable_ty,
         &lowerer.structs,
         &mut lowerer.enums,
@@ -178,7 +211,7 @@ fn transform_function(
         name: "failure".to_string(),
         ty: failure_slot_ty,
     });
-    let frame_name = format!("CoroutineFrame${}", sanitize(&source_symbol));
+    let frame_name = format!("CoroutineFrame<{source_name}>");
     let frame_class = generated_class(lowerer, frame_name, frame_fields, Vec::new(), Vec::new());
     let state_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 0)
         .expect("the generated coroutine frame has a state field");
@@ -231,6 +264,7 @@ fn transform_function(
         completion_field,
         saved_values,
         failure_value,
+        frame_identity,
     )
     .expect("the generated coroutine frame has disjoint typed field roles");
     let frame = lowerer.coroutines.frames.alloc(frame_metadata);
@@ -238,12 +272,17 @@ fn transform_function(
     let driver = lowerer.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
         name: format!("{source_name}$drive"),
-        symbol: format!("{source_symbol}$drive"),
         params: Vec::new(),
         return_ty: step_ty.clone(),
         body: mir::Body::unreachable(Arena::new()),
     });
     lowerer.top_level.push(driver);
+    let driver_identity = mir::CoroutineDriverIdentity::new(
+        source_materialization,
+        source_odr_group,
+        source_signature,
+    )
+    .expect("a coroutine source has one persistent driver identity");
     let frame_local = body.locals.alloc(mir::Local {
         name: "$frame".to_string(),
         ty: mir::Type::Class(frame_class),
@@ -255,16 +294,27 @@ fn transform_function(
         mutable: false,
     });
 
+    let protocol = lowerer.coroutine_protocol(module, &source_return);
     let continuation = match completion_ty {
         mir::Type::Interface(interface) => interface,
         _ => unreachable!("hidden completion has a concrete Continuation<R> type"),
     };
-    let (outer_resume, outer_failure) = lowerer.coroutines.continuation_shells(
-        &source_return,
+    assert_eq!(
         continuation,
-        throwable_ty,
-        &mut lowerer.functions,
-        &lowerer.shell,
+        lowerer.interfaces.mir_id(protocol.continuation),
+        "the hidden completion type matches the concrete coroutine protocol",
+    );
+    let outer_resume = crate::coroutine_registry::protocol_call(
+        module,
+        &lowerer.instances,
+        &lowerer.interfaces,
+        protocol.continuation_resume,
+    );
+    let outer_failure = crate::coroutine_registry::protocol_call(
+        module,
+        &lowerer.instances,
+        &lowerer.interfaces,
+        protocol.continuation_resume_with_exception,
     );
 
     sites.sort_by_key(|site| (raw(site.block), site.statement));
@@ -285,10 +335,12 @@ fn transform_function(
             failure_value,
             &step_ty,
             continuation,
-            outer_resume,
-            outer_failure,
-            &source_symbol,
+            &outer_resume,
+            &outer_failure,
+            &source_name,
             driver,
+            source_materialization,
+            source_odr_group,
             site,
         );
         resume_points.push(generated.point);
@@ -361,6 +413,9 @@ fn transform_function(
 
     let (wrapper_params, wrapper_locals, wrapper_param_map, wrapper_completion) =
         wrapper_params(&old_params);
+    lowerer
+        .local_values
+        .remap_coroutine_function(function_id, driver, &wrapper_param_map);
     lowerer.functions[function_id].params = wrapper_params;
     lowerer.functions[function_id].body = wrapper_body(
         frame_class,
@@ -376,6 +431,7 @@ fn transform_function(
     lowerer.coroutines.functions[coroutine].lowering = mir::CoroutineLowering::StateMachine {
         frame,
         driver,
+        driver_identity: Box::new(driver_identity),
         resume_points,
     };
 }
@@ -520,5 +576,6 @@ fn register_resume_point(
                 failure_value,
                 unwind.map(mir::CoroutineUnwindTarget::new),
             ),
+            adapter.identity.clone(),
         ))
 }

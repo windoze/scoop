@@ -1,0 +1,36 @@
+SourceFile
+  RootPackage
+  public fun envelope(): Envelope
+    =
+      Call Envelope
+  public fun outer<T>(): GenericOuter<T>
+    =
+      Call GenericOuter<T>
+SourceFile
+  RootPackage
+  public interface Marker
+  public open class GenericBase<T : Marker>()
+  public open class Base()
+    public fun inherited
+  public open class Envelope() : Base(<0 args>)
+    private nested class Reader
+    public fun marker
+    public fun boxed
+    public fun readView
+    public fun cacheValue
+    public fun values
+    protected nested class Box
+    protected nested class Gap
+    protected nested class Leaf
+    protected nested struct Pair
+    protected nested enum Choice
+    protected nested interface View
+    protected nested object Cache
+    private nested class Hidden
+    internal nested class InternalChild
+  public class Derived() : Envelope(<0 args>)
+  public open class GenericOuter<T>()
+    public fun childValue
+    public fun genericValue
+    protected nested class ConcreteChild
+    protected nested class GenericChild

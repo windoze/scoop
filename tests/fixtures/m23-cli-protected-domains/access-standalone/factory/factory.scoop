@@ -1,0 +1,1 @@
+public fun domainBase(): SourceBase<Int> = SourceBase<Int>()

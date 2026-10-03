@@ -1,0 +1,73 @@
+Module
+  fun @scoop$1$cb$cc3281b51e7390ab631dfcc94eec6d58db1a37c97bed118cd28761f176267b6c() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.value: i32
+    local %2 box: ptr<managed>
+    local %3 $dependency.receiver: ptr<managed>
+    local %4 $dependency.parameter.value: i32
+    local %5 $dependency.receiver: ptr<managed>
+    local %6 $dependency.argument.0: i32
+    local %7 $dependency.parameter.value: i32
+    local %8 $dependency.parameter.fallback: i32
+    local %9 $dependency.receiver: i32
+    local %10 $dependency.argument.0: i32
+    local %11 $dependency.parameter.other: i32
+    local %12 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000014) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
+    store t0 -> local12
+    call managed-void-target0 sp<managed-call:1> live=[local12:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn4(local12, local1)
+    t1 = aggregate () : {}
+    store local12 -> local2
+    store local2 -> local3
+    call managed-direct-target1 sp<managed-call:2> live=[local2:ptr<managed>@0, local3:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 local-fn1(local3)
+    store t2 -> local4
+    call managed-direct-target2 sp<managed-call:3> live=[local2:ptr<managed>@0, local3:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>, i32) -> i32 local-fn2(local3, local4)
+    store t3 -> local9
+    store local2 -> local5
+    store integer<Int>(0x00000016) -> local6
+    store local6 -> local7
+    store local7 -> local8
+    call managed-direct-target3 sp<managed-call:4> live=[local5:ptr<managed>@0] t4 = sig=direct3 (ptr<managed>, i32, i32) -> i32 local-fn3(local5, local7, local8)
+    store t4 -> local10
+    store local10 -> local11
+    t5 = integer_Add<Int> local9, local11 : i32
+    ret t5
+  fun @scoop$1$cb$c7943a42a1dd43e60c4f4908b3554a0274ea66a08a7dca952e6bc9b97c6278bf(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    t0 = heap_load param0 +16 : i32
+    ret t0
+  fun @scoop$1$cb$f079552af7210ca9c0f0a39718605c48bce1c273db199af4c62a35b7b2f9d3cb(ptr<managed>, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param1
+  fun @scoop$1$cb$37e52aa4e74b9365031d4b4116c32417fafbb651e7860c31e587329491204206(ptr<managed>, i32, i32) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param2
+  fun @scoop$1$cb$e967c17b1d749c45d19ff72f1eb84b8f21f8b669d4f5b06b081d1f59c7edd549(ptr<managed>, i32) -> void
+    local %0 $dependency.constructor.local.0: i32
+    local %1 $dependency.constructor.local.1: i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    store param1 -> local0
+    store local0 -> local1
+    call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn5(param0, local1)
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$2645d44e8e6b6c60e4880d05534d2fe9750e7930f0af34c726794f5fe98a5656(ptr<managed>, i32) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 param1
+    ret
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=Box);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$8bcd439f6f1acd61b1a534cc82ee15e7e6c27f6fcb3a4507b3d00fe95550aae0 type-id=15150344362566973760 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=Inherited);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$842098d494cf291389655dedc6a582d523ecac7a7b7cd277835b5bc0afe4f175 type-id=6754416861151497033 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[] itables=[]
+  layout Inherited value size=8 align=8 refs=[0]
+  layout Inherited size=24 align=8 refs=[]
+  layout Box value size=8 align=8 refs=[0]
+  layout Box size=24 align=8 refs=[]
+  output library

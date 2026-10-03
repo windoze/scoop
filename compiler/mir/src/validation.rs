@@ -4,9 +4,38 @@ mod constants;
 pub use constants::MirConstantImageError;
 use constants::validate_constant_images;
 mod callbacks;
-use callbacks::validate_foreign_callback_metadata;
+use callbacks::{validate_foreign_callback_metadata, validate_static_callback_metadata};
+mod function_adapters;
+use function_adapters::validate_function_adapter_metadata;
+mod function_bridges;
+use function_bridges::validate_function_bridge_metadata;
+mod closure_environments;
+use closure_environments::validate_closure_environment_metadata;
+mod boxed_values;
+use boxed_values::{validate_boxed_value_metadata, validate_boxing_adjust_metadata};
+mod c_abi;
 mod metadata;
-use metadata::validate_enum_metadata;
+use c_abi::validate_c_abi_projections;
+use metadata::{
+    validate_enum_metadata, validate_local_value_metadata,
+    validate_source_callable_materializations,
+};
+mod generated_exact_types;
+use generated_exact_types::validate_generated_exact_type_metadata;
+mod runtime_types;
+pub use runtime_types::MirRuntimeTypeLocation;
+use runtime_types::validate_runtime_type_metadata;
+mod generated_callables;
+use generated_callables::validate_generated_callable_metadata;
+mod immortal_objects;
+use immortal_objects::validate_immortal_objects;
+mod imported_calls;
+use imported_calls::validate_imported_call;
+
+mod callable_functions;
+use callable_functions::validate_callable_functions;
+mod callable_signatures;
+use callable_signatures::validate_callable_signature_metadata;
 mod coroutines;
 use coroutines::validate_coroutine_metadata;
 
@@ -29,22 +58,77 @@ impl MirVariantOperation {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum MirValidationErrorKind {
+    InvalidStructCAbiProjection,
     InvalidLoopHeaderPollTarget,
     DuplicateLoopHeaderPollTarget,
     InvalidOptionCore,
     InvalidCoroutineStep,
     InvalidCoroutineSlot,
+    InvalidSourceCallableMaterialization {
+        reason: &'static str,
+    },
+    InvalidLocalValue {
+        reason: &'static str,
+    },
+    InvalidGeneratedExactType {
+        reason: &'static str,
+    },
+    InvalidRuntimeTypeIdentity {
+        reason: &'static str,
+    },
+    InvalidGeneratedCallable {
+        reason: &'static str,
+    },
+    DuplicateImmortalObjectIdentity {
+        previous: StringConstId,
+    },
+    InvalidImmortalObjectOwner {
+        reason: &'static str,
+    },
+    InvalidCallableFunction {
+        reason: &'static str,
+    },
+    InvalidCallableSignature {
+        reason: &'static str,
+    },
     InvalidCoroutineMetadata {
         reason: &'static str,
     },
     NonRootCoroutinePendingContext,
+    InvalidExternalCallableReference {
+        callable: ExternalCallableUseId,
+    },
+    InvalidExternalDispatch {
+        reason: &'static str,
+    },
     InvalidForeignCallbackFamily {
         reason: &'static str,
     },
     InvalidForeignCallbackBridge {
         reason: &'static str,
     },
+    InvalidCallbackBridge {
+        reason: &'static str,
+    },
     InvalidForeignCallbackExpression {
+        reason: &'static str,
+    },
+    InvalidFunctionAdapter {
+        reason: &'static str,
+    },
+    InvalidFunctionBridge {
+        reason: &'static str,
+    },
+    InvalidClosureEnvironment {
+        reason: &'static str,
+    },
+    InvalidClosureExpression {
+        reason: &'static str,
+    },
+    InvalidBoxedValue {
+        reason: &'static str,
+    },
+    InvalidBoxingAdjust {
         reason: &'static str,
     },
     InvalidConstantImage {
@@ -133,6 +217,34 @@ pub enum MirValidationLocation {
     CoroutineSlot {
         slot: CoroutineSlotId,
     },
+    SourceCallableMaterialization {
+        function: FunctionId,
+    },
+    LocalValue {
+        function: FunctionId,
+        local: LocalId,
+    },
+    GeneratedExactType {
+        entry: u32,
+    },
+    RuntimeType {
+        location: MirRuntimeTypeLocation,
+    },
+    GeneratedCallable {
+        entry: u32,
+    },
+    StringConstant {
+        string: StringConstId,
+    },
+    CallableFunction {
+        function: FunctionId,
+    },
+    CallableSignature {
+        entry: u32,
+    },
+    CoroutineStart {
+        start: u32,
+    },
     CoroutineSavedValue {
         value: CoroutineSavedValueId,
     },
@@ -153,6 +265,27 @@ pub enum MirValidationLocation {
     },
     ForeignCallbackBridge {
         bridge: ForeignCallbackBridgeId,
+    },
+    CallbackBridge {
+        bridge: CallbackBridgeId,
+    },
+    FunctionAdapter {
+        adapter: ClosureAdapterId,
+    },
+    DynamicFunctionAdapter {
+        adapter: DynamicClosureAdapterId,
+    },
+    FunctionBridge {
+        bridge: u32,
+    },
+    ClosureEnvironment {
+        environment: u32,
+    },
+    BoxedValue {
+        boxed: u32,
+    },
+    BoxingAdjust {
+        adjust: u32,
     },
     FunctionBlock {
         function: FunctionId,
@@ -187,6 +320,46 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR CoroutineSlot metadata {}: ",
                 slot.into_raw().into_u32()
             )?,
+            MirValidationLocation::SourceCallableMaterialization { function } => write!(
+                formatter,
+                "invalid MIR source callable materialization at function {}: ",
+                function.into_raw().into_u32()
+            )?,
+            MirValidationLocation::LocalValue { function, local } => write!(
+                formatter,
+                "invalid MIR local value at function {}, local {}: ",
+                function.into_raw().into_u32(),
+                local.into_raw().into_u32()
+            )?,
+            MirValidationLocation::GeneratedExactType { entry } => write!(
+                formatter,
+                "invalid MIR generated exact-type metadata {entry}: "
+            )?,
+            MirValidationLocation::RuntimeType { location } => write!(
+                formatter,
+                "invalid MIR runtime type identity for {location}: "
+            )?,
+            MirValidationLocation::GeneratedCallable { entry } => write!(
+                formatter,
+                "invalid MIR generated callable metadata {entry}: "
+            )?,
+            MirValidationLocation::StringConstant { string } => write!(
+                formatter,
+                "invalid MIR string constant {}: ",
+                string.into_raw().into_u32()
+            )?,
+            MirValidationLocation::CallableFunction { function } => write!(
+                formatter,
+                "invalid MIR emitted callable function {}: ",
+                function.into_raw().into_u32()
+            )?,
+            MirValidationLocation::CallableSignature { entry } => write!(
+                formatter,
+                "invalid MIR callable signature metadata {entry}: "
+            )?,
+            MirValidationLocation::CoroutineStart { start } => {
+                write!(formatter, "invalid MIR coroutine-start metadata {start}: ")?
+            }
             MirValidationLocation::CoroutineSavedValue { value } => write!(
                 formatter,
                 "invalid MIR coroutine saved-value metadata {}: ",
@@ -222,6 +395,33 @@ impl std::fmt::Display for MirValidationError {
                 "invalid MIR foreign callback bridge {}: ",
                 bridge.into_raw().into_u32()
             )?,
+            MirValidationLocation::CallbackBridge { bridge } => write!(
+                formatter,
+                "invalid MIR callback bridge {}: ",
+                bridge.into_raw().into_u32()
+            )?,
+            MirValidationLocation::FunctionAdapter { adapter } => write!(
+                formatter,
+                "invalid MIR function adapter {}: ",
+                adapter.into_raw().into_u32()
+            )?,
+            MirValidationLocation::DynamicFunctionAdapter { adapter } => write!(
+                formatter,
+                "invalid MIR dynamic function adapter {}: ",
+                adapter.into_raw().into_u32()
+            )?,
+            MirValidationLocation::FunctionBridge { bridge } => {
+                write!(formatter, "invalid MIR function bridge {bridge}: ")?
+            }
+            MirValidationLocation::ClosureEnvironment { environment } => {
+                write!(formatter, "invalid MIR closure environment {environment}: ")?
+            }
+            MirValidationLocation::BoxedValue { boxed } => {
+                write!(formatter, "invalid MIR boxed value {boxed}: ")?
+            }
+            MirValidationLocation::BoxingAdjust { adjust } => {
+                write!(formatter, "invalid MIR boxing adjust {adjust}: ")?
+            }
             MirValidationLocation::FunctionBlock { function, block } => write!(
                 formatter,
                 "invalid MIR in function {}, block {}: ",
@@ -235,6 +435,9 @@ impl std::fmt::Display for MirValidationError {
             )?,
         }
         match &self.kind {
+            MirValidationErrorKind::InvalidStructCAbiProjection => {
+                formatter.write_str("C UInt64 projection requires the exact sole UInt64 field of a GC-free ordinary struct")
+            }
             MirValidationErrorKind::InvalidLoopHeaderPollTarget => {
                 formatter.write_str("loop-header poll target is outside the function body")
             }
@@ -249,17 +452,57 @@ impl std::fmt::Display for MirValidationError {
             ),
             MirValidationErrorKind::InvalidCoroutineSlot => formatter
                 .write_str("stored Value/Empty identities no longer match the coroutine-slot enum"),
+            MirValidationErrorKind::InvalidSourceCallableMaterialization { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::InvalidLocalValue { reason } => formatter.write_str(reason),
+            MirValidationErrorKind::InvalidGeneratedExactType { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::InvalidRuntimeTypeIdentity { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::InvalidGeneratedCallable { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::DuplicateImmortalObjectIdentity { previous } => write!(
+                formatter,
+                "duplicates the immortal-object identity of string constant {}",
+                previous.into_raw().into_u32()
+            ),
+            MirValidationErrorKind::InvalidImmortalObjectOwner { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::InvalidCallableFunction { reason } => {
+                formatter.write_str(reason)
+            }
+            MirValidationErrorKind::InvalidCallableSignature { reason } => {
+                formatter.write_str(reason)
+            }
             MirValidationErrorKind::InvalidCoroutineMetadata { reason } => {
                 formatter.write_str(reason)
             }
             MirValidationErrorKind::NonRootCoroutinePendingContext => formatter.write_str(
                 "transient coroutine pending context remains after state-machine conversion",
             ),
-            MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
-            | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
-            | MirValidationErrorKind::InvalidForeignCallbackExpression { reason } => {
+            MirValidationErrorKind::InvalidExternalCallableReference { callable } => write!(
+                formatter,
+                "external callable {} is missing from this MIR module",
+                callable.into_raw()
+            ),
+            MirValidationErrorKind::InvalidExternalDispatch { reason } => {
                 formatter.write_str(reason)
             }
+            MirValidationErrorKind::InvalidForeignCallbackFamily { reason }
+            | MirValidationErrorKind::InvalidForeignCallbackBridge { reason }
+            | MirValidationErrorKind::InvalidCallbackBridge { reason }
+            | MirValidationErrorKind::InvalidForeignCallbackExpression { reason }
+            | MirValidationErrorKind::InvalidFunctionAdapter { reason }
+            | MirValidationErrorKind::InvalidFunctionBridge { reason }
+            | MirValidationErrorKind::InvalidClosureEnvironment { reason }
+            | MirValidationErrorKind::InvalidClosureExpression { reason }
+            | MirValidationErrorKind::InvalidBoxedValue { reason }
+            | MirValidationErrorKind::InvalidBoxingAdjust { reason } => formatter.write_str(reason),
             MirValidationErrorKind::InvalidConstantImage {
                 path,
                 expected,
@@ -445,9 +688,24 @@ impl Module {
 /// not to printed or structural expression equality. Producers must materialize
 /// a tested enum value into such a local before testing and projecting it.
 pub fn validate_module(module: &Module) -> Result<(), MirValidationError> {
+    validate_c_abi_projections(module)?;
+    validate_source_callable_materializations(module)?;
+    validate_local_value_metadata(module)?;
     validate_enum_metadata(module)?;
     validate_coroutine_metadata(module)?;
     validate_foreign_callback_metadata(module)?;
+    validate_static_callback_metadata(module)?;
+    validate_closure_environment_metadata(module)?;
+    validate_function_adapter_metadata(module)?;
+    validate_function_bridge_metadata(module)?;
+    validate_boxed_value_metadata(module)?;
+    validate_boxing_adjust_metadata(module)?;
+    validate_generated_exact_type_metadata(module)?;
+    validate_runtime_type_metadata(module)?;
+    validate_generated_callable_metadata(module)?;
+    validate_immortal_objects(module)?;
+    validate_callable_functions(module)?;
+    validate_callable_signature_metadata(module)?;
     validate_constant_images(module)?;
     for (function_id, function) in module.functions.iter() {
         validate_body(module, function_id, &function.body)?;
@@ -489,6 +747,14 @@ fn validate_body(
                 return Err(MirValidationError {
                     location: MirValidationLocation::FunctionBlock { function, block },
                     kind: MirValidationErrorKind::NonRootCoroutinePendingContext,
+                });
+            }
+            if let Some(call) = call
+                && let Err(kind) = validate_imported_call(module, call)
+            {
+                return Err(MirValidationError {
+                    location: MirValidationLocation::FunctionBlock { function, block },
+                    kind,
                 });
             }
         }
@@ -574,6 +840,70 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                 }
             }
         }
+        ExprKind::ClosureAlloc { class, captures } => {
+            if class.into_raw().into_u32() as usize >= module.closure_classes.len() {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "allocation references an invalid closure class",
+                });
+            }
+            let definition = &module.closure_classes[*class];
+            if expr.ty != Type::Function(definition.function_type) {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "allocation result does not match the closure function type",
+                });
+            }
+            if captures.len() != definition.captures.len() {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "allocation does not initialize every physical capture field",
+                });
+            }
+            let mut initialized = vec![false; definition.captures.len()];
+            for capture in captures {
+                let field = capture.field() as usize;
+                let Some(expected) = definition.captures.get(field) else {
+                    return Err(MirValidationErrorKind::InvalidClosureExpression {
+                        reason: "allocation references an invalid physical capture field",
+                    });
+                };
+                if std::mem::replace(&mut initialized[field], true) {
+                    return Err(MirValidationErrorKind::InvalidClosureExpression {
+                        reason: "allocation initializes a physical capture field more than once",
+                    });
+                }
+                if capture.value().ty != expected.ty {
+                    return Err(MirValidationErrorKind::InvalidClosureExpression {
+                        reason: "allocation value does not match its physical capture field",
+                    });
+                }
+            }
+        }
+        ExprKind::ClosureCapture {
+            closure,
+            class,
+            index,
+        } => {
+            if class.into_raw().into_u32() as usize >= module.closure_classes.len() {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "capture read references an invalid closure class",
+                });
+            }
+            let definition = &module.closure_classes[*class];
+            if closure.ty != Type::Function(definition.function_type) {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "capture read operand does not match the closure function type",
+                });
+            }
+            let Some(field) = definition.captures.get(*index as usize) else {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "capture read references an invalid physical field",
+                });
+            };
+            if expr.ty != field.ty {
+                return Err(MirValidationErrorKind::InvalidClosureExpression {
+                    reason: "capture read result does not match its physical field",
+                });
+            }
+        }
         ExprKind::VariantConstruct { variant, fields } => {
             let definition = variant.definition(&module.enums).map_err(|error| {
                 MirValidationErrorKind::InvalidVariantReference {
@@ -639,6 +969,19 @@ fn validate_expression_shape(module: &Module, expr: &Expr) -> Result<(), MirVali
                     field: *field,
                     expected: definition.ty.clone(),
                     actual: expr.ty.clone(),
+                });
+            }
+        }
+        ExprKind::FunctionAddress { callback } => {
+            if callback.into_raw().into_u32() as usize >= module.callback_bridges.len() {
+                return Err(MirValidationErrorKind::InvalidCallbackBridge {
+                    reason: "function address references an invalid callback bridge",
+                });
+            }
+            let callback = &module.callback_bridges[*callback];
+            if expr.ty != Type::FunPtr(callback.signature) {
+                return Err(MirValidationErrorKind::InvalidCallbackBridge {
+                    reason: "function address result does not match the callback signature",
                 });
             }
         }
@@ -921,70 +1264,14 @@ fn try_visit_block_exprs(
     block: &BasicBlock,
     visitor: &mut impl FnMut(&Expr) -> Result<(), MirValidationError>,
 ) -> Result<(), MirValidationError> {
-    for statement in &block.statements {
-        match &statement.kind {
-            StatementKind::Expr(expr) => try_visit_expr(expr, visitor)?,
-            StatementKind::Call(effect) => {
-                let call = match effect {
-                    CallEffect::Unit(call) | CallEffect::Value { call, .. } => call,
-                };
-                for argument in &call.args {
-                    try_visit_expr(argument, visitor)?;
-                }
-            }
-            StatementKind::ValDecl { init, .. } => try_visit_expr(init, visitor)?,
-            StatementKind::Assign { value, .. } | StatementKind::GlobalAssign { value, .. } => {
-                try_visit_expr(value, visitor)?
-            }
-            StatementKind::ArraySet {
-                array,
-                index,
-                value,
-                ..
-            } => {
-                try_visit_expr(array, visitor)?;
-                try_visit_expr(index, visitor)?;
-                try_visit_expr(value, visitor)?;
-            }
-            StatementKind::FieldSet { object, value, .. }
-            | StatementKind::AtomicFieldStore { object, value, .. } => {
-                try_visit_expr(object, visitor)?;
-                try_visit_expr(value, visitor)?;
-            }
-            StatementKind::Eh(_) => {}
-        }
-    }
-    match &block.terminator {
-        Terminator::Branch { cond, .. } => try_visit_expr(cond, visitor)?,
-        Terminator::Return { value: Some(value) } => try_visit_expr(value, visitor)?,
-        Terminator::Throw { exception, .. } => try_visit_expr(exception, visitor)?,
-        Terminator::Goto(_)
-        | Terminator::Return { value: None }
-        | Terminator::Rethrow { .. }
-        | Terminator::Resume
-        | Terminator::Trap { .. }
-        | Terminator::Unreachable => {}
-    }
-    Ok(())
-}
-
-fn try_visit_expr(
-    expr: &Expr,
-    visitor: &mut impl FnMut(&Expr) -> Result<(), MirValidationError>,
-) -> Result<(), MirValidationError> {
-    let mut error = None;
-    visit_expr(expr, &mut |expr| {
-        if error.is_none()
-            && let Err(found) = visitor(expr)
-        {
-            error = Some(found);
+    let mut result = Ok(());
+    visit_block_exprs(block, &mut |expr| {
+        if result.is_ok() {
+            result = visitor(expr);
         }
     });
-    match error {
-        Some(error) => Err(error),
-        None => Ok(()),
-    }
+    result
 }
 
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

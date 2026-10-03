@@ -1,0 +1,1 @@
+public fun check(): Int = withHiddenValue<Int>(42)

@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  fun main()
+    val value
+      Call userCoreManagedIntegerDefault

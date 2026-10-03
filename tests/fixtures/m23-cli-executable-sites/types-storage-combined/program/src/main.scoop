@@ -1,0 +1,4 @@
+fun main() {
+    val kept: Any = storageValue()
+    if (!storageReady || StorageSingleton.text != "singleton") { throw IllegalStateException() }
+}

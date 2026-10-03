@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `read` in lexical local candidate layer:\n  - fun read(value: Int): Int — argument for `value` has type String, which is not a subtype of Int",
+    "notes": [],
+    "origin": {
+      "cone": "ce04e810dbcecf41a6274120169c35ec0fbda5734e1c67751cd1ebb546a40721",
+      "end": 115,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 110
+    },
+    "severity": "error"
+  }
+]

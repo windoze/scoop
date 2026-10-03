@@ -1,0 +1,607 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class Remote<Payload, Unit> vtable=0 itables=1
+  class Remote<Int, Unit> vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Values<Payload, Unit>
+  interface Values<Int, Unit>
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn29 id=741597eb142afe3e955cc91085706cbaafedb12fe7fd89f71557bcda345d6bd6
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn30 id=388a46b738e4c9cadc74761fa63518924792c02fe0cc19c6925059583c614548
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn31 id=524258eef6294d7fbdad49906609eb7a7396e36429cb751ca626ff88613ae112
+  closure cc3 $Closure$lambda3 type=function_type3 invoke=@fn16 captures=0
+    bridge function_type1 -> @fn32 id=787299f2ff68bebe79869b48668495c44a946b3fa9efd85fbf63e59040584a9b
+  generated_exact_type get0 location=closure0 nominal_id=4c2c770da7c7bd32b2886b818019ecd88966ab2596c13b37cf25d14723479131 exact_id=0b0369a36612368482a152476ffd7cefe704d1639909d43288a1ac3533a7bbbe
+  generated_exact_type get1 location=enum2 nominal_id=79b720aa7287624cd1eba6cf3452b1406984f030785c645360c67ab9e5bbc360 exact_id=20b3a70cf83a3f126d2de001e5e3e36644deb0f685358db85cb25218a64d5a3c
+  generated_exact_type get2 location=class6 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get3 location=closure2 nominal_id=4bc14309e63990006f47d5d5bb9f1f6037d5bd670d0f9f40626274394cb2e4ce exact_id=54948c6eb9aee4e882145de702a5786494a0774cf1dc9ff8181e7a50807e7fa7
+  generated_exact_type get4 location=enum1 nominal_id=f1b30b84e7cc84afc2354a3d006057b0b58e52c8a73423fab3168fc92537b467 exact_id=ae42857cda39ce4554ed2c2e11ed58d427e62af86caf73b8b089a844527c9d8f
+  generated_exact_type get5 location=closure1 nominal_id=161bd4b9704befd6f89b63f3b8869ad9996e4b9c8397d5b4fc51e5479d3b0fca exact_id=b8c72d4c4681af5e58063b54caf3f88d344df53e2d1423a86278de75652573ed
+  generated_exact_type get6 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=closure3 nominal_id=8230ac3acf6ade048ffb14d9d7a81cc5cfaa246f9e4642eed91621004e36b295 exact_id=fc105694e59e05a41668f2130faa2ca8c07975d9506b05a2ac66c70fefe3212d
+  generated_callable gc0 function=@fn28 id=266b94e9472defee12ea106ccfc8619af6772acfff3c24ea4f8a788f84684a69
+  generated_callable gc1 function=@fn30 id=388a46b738e4c9cadc74761fa63518924792c02fe0cc19c6925059583c614548
+  generated_callable gc2 function=@fn31 id=524258eef6294d7fbdad49906609eb7a7396e36429cb751ca626ff88613ae112
+  generated_callable gc3 function=@fn29 id=741597eb142afe3e955cc91085706cbaafedb12fe7fd89f71557bcda345d6bd6
+  generated_callable gc4 function=@fn32 id=787299f2ff68bebe79869b48668495c44a946b3fa9efd85fbf63e59040584a9b
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call @fn25 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val stored: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local stored
+      val $dependency.argument.1: (Payload) -> Int
+        Type (Payload) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Payload) -> Int
+        Type (Payload) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type Payload
+        Local $dependency.parameter.value
+        Type (Payload) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      call @fn25 direct
+        Type Payload
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocation: Payload
+        Type Payload
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local stored
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local allocation
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.0 @fn1($closure: (Payload) -> Int, item: Payload) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local item
+  fun exercise @fn2(value: Payload, read: (Payload) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Payload
+        Type Payload
+        Local value
+      val $dependency.local.4: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.5: Payload
+        Type Payload
+        Local $dependency.local.3
+      val $dependency.local.6: Unit
+        Type Unit
+        Local $dependency.local.4
+      assign $new.1
+        Type Remote<Payload, Unit>
+        ClassAlloc Remote<Payload, Unit>
+      call @fn26 direct
+        Type Remote<Payload, Unit>
+        Local $new.1
+        Type Payload
+        Local $dependency.local.5
+        Type Unit
+        Local $dependency.local.6
+      val $dependency.local.2: Values<Payload, Unit>
+        Type Values<Payload, Unit>
+        Retype Values<Payload, Unit>
+          Type Remote<Payload, Unit>
+          Local $new.1
+      val $dependency.local.7: Values<Payload, Unit>
+        Type Values<Payload, Unit>
+        Local $dependency.local.2
+      call @fn9 interface Values<Payload, Unit>[3]
+        Type Values<Payload, Unit>
+        Local $dependency.local.7
+        Type Unit
+        UnitLiteral
+      val $dependency.local.8: Values<Payload, Unit>
+        Type Values<Payload, Unit>
+        Local $dependency.local.2
+      val $dependency.local.9: (Payload) -> Int
+        Type (Payload) -> Int
+        Local read
+      val $dependency.local.10: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $dependency.local.11: (Payload) -> Int
+        Type (Payload) -> Int
+        Local $dependency.local.9
+      val $dependency.local.12: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.local.10
+      call $call.2: Int = @fn5 interface Values<Payload, Unit>[0]
+        Type Values<Payload, Unit>
+        Local $dependency.local.8
+        Type (Payload) -> Int
+        Local $dependency.local.11
+        Type (Unit) -> Int
+        Local $dependency.local.12
+      return
+        Type Int
+        Local $call.2
+  fun $lambda.1 @fn3($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn4(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local value
+      val $dependency.local.4: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.6: Unit
+        Type Unit
+        Local $dependency.local.4
+      assign $new.1
+        Type Remote<Int, Unit>
+        ClassAlloc Remote<Int, Unit>
+      call @fn27 direct
+        Type Remote<Int, Unit>
+        Local $new.1
+        Type Int
+        Local $dependency.local.5
+        Type Unit
+        Local $dependency.local.6
+      val $dependency.local.2: Values<Int, Unit>
+        Type Values<Int, Unit>
+        Retype Values<Int, Unit>
+          Type Remote<Int, Unit>
+          Local $new.1
+      val $dependency.local.7: Values<Int, Unit>
+        Type Values<Int, Unit>
+        Local $dependency.local.2
+      call @fn15 interface Values<Int, Unit>[3]
+        Type Values<Int, Unit>
+        Local $dependency.local.7
+        Type Unit
+        UnitLiteral
+      val $dependency.local.8: Values<Int, Unit>
+        Type Values<Int, Unit>
+        Local $dependency.local.2
+      val $dependency.local.9: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.10: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+      val $dependency.local.11: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.9
+      val $dependency.local.12: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.local.10
+      call $call.2: Int = @fn11 interface Values<Int, Unit>[0]
+        Type Values<Int, Unit>
+        Local $dependency.local.8
+        Type (Int) -> Int
+        Local $dependency.local.11
+        Type (Unit) -> Int
+        Local $dependency.local.12
+      return
+        Type Int
+        Local $call.2
+  fun total @fn5(this: Values<Payload, Unit>, left: (Payload) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Payload = @fn17 interface Values<Payload, Unit>[1]
+        Type Values<Payload, Unit>
+        Local this
+      call $dependency.local.3: Int = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Int
+        Local left
+        Type Payload
+        Local $call.1
+      call @fn18 interface Values<Payload, Unit>[2]
+        Type Values<Payload, Unit>
+        Local this
+      call $dependency.local.4: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local right
+        Type Unit
+        UnitLiteral
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun first @fn6(this: Remote<Payload, Unit>) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        FieldAccess 0
+          Type Remote<Payload, Unit>
+          Local this
+  fun second @fn7(this: Remote<Payload, Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 1
+        Type Remote<Payload, Unit>
+        Local this
+      return
+  fun second @fn8(this: Remote<Payload, Unit>, value: Unit) -> Unit
+    bb0 entry
+      field_set 1
+        Type Remote<Payload, Unit>
+        Local this
+        Type Unit
+        Local value
+      return
+  fun Values.$set$second @fn9(this: Values<Payload, Unit>, value: Unit) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$set$second`"
+  fun $lambda @fn10($argument.0: (Unit) -> Int, $argument.1: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun total @fn11(this: Values<Int, Unit>, left: (Int) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn19 interface Values<Int, Unit>[1]
+        Type Values<Int, Unit>
+        Local this
+      call $dependency.local.3: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local left
+        Type Int
+        Local $call.1
+      call @fn20 interface Values<Int, Unit>[2]
+        Type Values<Int, Unit>
+        Local this
+      call $dependency.local.4: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local right
+        Type Unit
+        UnitLiteral
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun first @fn12(this: Remote<Int, Unit>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Remote<Int, Unit>
+          Local this
+  fun second @fn13(this: Remote<Int, Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 1
+        Type Remote<Int, Unit>
+        Local this
+      return
+  fun second @fn14(this: Remote<Int, Unit>, value: Unit) -> Unit
+    bb0 entry
+      field_set 1
+        Type Remote<Int, Unit>
+        Local this
+        Type Unit
+        Local value
+      return
+  fun Values.$set$second @fn15(this: Values<Int, Unit>, value: Unit) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$set$second`"
+  fun $lambda @fn16($argument.0: (Unit) -> Int, $argument.1: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun Values.$get$first @fn17(this: Values<Payload, Unit>) -> Payload
+    bb0 entry
+      trap "call to abstract method `Values.$get$first`"
+  fun Values.$get$second @fn18(this: Values<Payload, Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$get$second`"
+  fun Values.$get$first @fn19(this: Values<Int, Unit>) -> Int
+    bb0 entry
+      trap "call to abstract method `Values.$get$first`"
+  fun Values.$get$second @fn20(this: Values<Int, Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$get$second`"
+  fun Continuation.resume @fn21(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn22(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn23(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn24(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c0 @fn25(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Remote.$c0 @fn26(this: Remote<Payload, Unit>, a: Payload, b: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Remote<Payload, Unit>
+        Local this
+        Type Payload
+        Local a
+      field_set 1
+        Type Remote<Payload, Unit>
+        Local this
+        Type Unit
+        Local b
+      return
+  fun init.Remote.$c0 @fn27(this: Remote<Int, Unit>, a: Int, b: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Remote<Int, Unit>
+        Local this
+        Type Int
+        Local a
+      field_set 1
+        Type Remote<Int, Unit>
+        Local this
+        Type Unit
+        Local b
+      return
+  fun startCoroutine<Payload> @fn28(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn21 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      return
+    bb2 failed
+      call @fn22 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Payload> = @fn23 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn29($source: (Payload) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Int
+        Local $source
+        Type Payload
+        Retype Payload
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn30($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn31($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn32($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_start ct0 result=Payload function=fn28
+  coroutine_fn cf0 @fn23 source_return=Payload step=cs0 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn5 <- total
+  instance mi3 function=@fn6 <- first
+  instance mi4 function=@fn7 <- second
+  instance mi5 function=@fn8 <- second
+  instance mi6 function=@fn9 <- Values.$set$second
+  instance mi7 function=@fn10 <- $lambda
+  instance mi8 function=@fn11 <- total
+  instance mi9 function=@fn12 <- first
+  instance mi10 function=@fn13 <- second
+  instance mi11 function=@fn14 <- second
+  instance mi12 function=@fn15 <- Values.$set$second
+  instance mi13 function=@fn16 <- $lambda
+  instance mi14 function=@fn17 <- Values.$get$first
+  instance mi15 function=@fn18 <- Values.$get$second
+  instance mi16 function=@fn19 <- Values.$get$first
+  instance mi17 function=@fn20 <- Values.$get$second
+  instance mi18 function=@fn21 <- Continuation.resume
+  instance mi19 function=@fn22 <- Continuation.resumeWithException
+  instance mi20 function=@fn23 <- SuspendTask.run
+  instance mi21 function=@fn24 <- SuspendRegistration.register
+  output library

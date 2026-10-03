@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public fun read(): Boolean
+    =
+      Call identity
+        BoolLiteral true

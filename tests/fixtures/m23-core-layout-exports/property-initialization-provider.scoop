@@ -1,0 +1,22 @@
+package dependency.api
+
+public fun seedValue(): Int = 7
+public var runtimeValue: Int = seedValue()
+public val otherValue: Int = seedValue()
+public val imageValue: Int = 4
+public var imageMutable: Int = 5
+public val computedValue: Int
+    get() = runtimeValue
+
+public fun String.receiverAnswer(): Int = 7
+public fun receiverDefault(value: Int = "provider-default".receiverAnswer()): Int = value
+public var String.receiverScore: Int
+    get() = 7
+    set(value) {}
+
+public fun relayAny(value: Any): Any = value
+public fun Any.acceptAny(): Any = this
+public fun anyDefault(value: Any = "provider-default".acceptAny()): Any = value
+public var Any.anyValue: Any
+    get() = this
+    set(value) {}

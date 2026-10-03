@@ -1,0 +1,41 @@
+SourceFile
+  RootPackage
+  fun makeOperation(base: Int): (Int) -> Int
+    return
+      AnonymousFunction 0 suspend=false return=Int
+        param value: Int
+        if
+          Binary Lt
+            Var value
+            IntLiteral 0
+          return
+            Binary Sub
+              IntLiteral 0
+              Var value
+        return
+          Binary Add
+            Var value
+            Var base
+  fun main()
+    val operation
+      Call makeOperation
+        IntLiteral 2
+    val inferred
+      AnonymousFunction 1 suspend=false return=_
+        param value: Int
+        return
+          Binary Add
+            Var value
+            IntLiteral 1
+    Call gcCollect
+    Call println
+      Call operation
+        IntLiteral 40
+    Call println
+      Call operation
+        Binary Sub
+          IntLiteral 0
+          IntLiteral 7
+    Call println
+      Call inferred
+        IntLiteral 41

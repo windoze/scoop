@@ -1,0 +1,151 @@
+Module
+  global0 $singleton$584e295a87abd915347baacf5f6471cc290e77bd91cc09492ff5fb3d34f596d9: HeapSingleton imported provider=741a19165196e61885ab6e592267594cf41815548886c51fa4affef831ec0452 storage=41b7216cf5bf8ef63da207eb36431708078aa16b9e0d6364bcc8b4b111e4f893
+  struct HeapEmpty ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class HeapSingleton vtable=0 itables=0
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call external7 direct
+      call initial: HeapEmpty = external1 direct
+        Type HeapSingleton
+        GlobalRead $singleton$584e295a87abd915347baacf5f6471cc290e77bd91cc09492ff5fb3d34f596d9
+      call $call.1: HeapEmpty = external2 direct
+      call $argument.0: Boolean = external6 direct
+        Type HeapEmpty
+        Local initial
+        Type HeapEmpty
+        Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external3 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      call $call.2: HeapEmpty = external4 direct
+      call $call.3: HeapEmpty = external2 direct
+      call $argument.0: Boolean = external6 direct
+        Type HeapEmpty
+        Local $call.2
+        Type HeapEmpty
+        Local $call.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Int = external5 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.4: HeapEmpty = external4 direct
+      call $call.5: HeapEmpty = external2 direct
+      call $argument.0: Boolean = external6 direct
+        Type HeapEmpty
+        Local $call.4
+        Type HeapEmpty
+        Local $call.5
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Int = external5 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external7 direct
+      call $call.6: HeapEmpty = external1 direct
+        Type HeapSingleton
+        GlobalRead $singleton$584e295a87abd915347baacf5f6471cc290e77bd91cc09492ff5fb3d34f596d9
+      call $call.7: HeapEmpty = external2 direct
+      call $argument.0: Boolean = external6 direct
+        Type HeapEmpty
+        Local $call.6
+        Type HeapEmpty
+        Local $call.7
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

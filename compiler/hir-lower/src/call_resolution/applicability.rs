@@ -2,26 +2,35 @@
 
 use scoop_hir as hir;
 
-use super::arguments::{CandidateArgumentMap, SourceInputKind};
-use super::candidates::{
-    CallableView, NominalConstructorSource, NominalConstructorView, ReceiverShape,
-};
+use super::arguments::CandidateArgumentMap;
+use super::candidates::NominalConstructorView;
 use super::constraints::{
-    CallableCategory, CallableParameter, CallableReturn, CallableShape, Constraint,
-    ConstraintFailure, ConstraintOrigin, InferenceSession, NominalApplication, TypeTerm,
+    Constraint, ConstraintFailure, ConstraintOrigin, InferenceSession, NominalApplication, TypeTerm,
 };
+use crate::Lowerer;
 use crate::expr::ResolvedCallTypeArgument;
-use crate::{Lowerer, Type};
+
+mod references;
+pub(crate) use references::CallableReferenceApplicabilityInput;
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct CallableApplicabilityInput<'a> {
-    pub(crate) view: &'a CallableView,
-    pub(crate) argument_map: &'a CandidateArgumentMap,
-    pub(crate) owner_arguments: &'a [hir::TypeId],
+pub(crate) struct DeclarationApplicabilityInput<'a> {
+    pub(crate) owner_parameters: &'a [hir::TypeParamDecl],
+    pub(crate) callable_parameters: &'a [hir::TypeParamDecl],
+    pub(crate) type_arguments: DeclarationTypeArguments<'a>,
     pub(crate) explicit_arguments: &'a [ResolvedCallTypeArgument],
-    pub(crate) receiver_type: Option<hir::TypeId>,
-    pub(crate) argument_types: &'a [Option<hir::TypeId>],
-    pub(crate) expected_result: Option<hir::TypeId>,
+    pub(crate) bound_receiver: Option<(hir::TypeId, hir::TypeId)>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum DeclarationTypeArguments<'a> {
+    Callable {
+        owner_arguments: &'a [hir::TypeId],
+    },
+    Nominal {
+        template: hir::SourceNominalId,
+        expected_arguments: Option<&'a [hir::TypeId]>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -33,220 +42,70 @@ pub(crate) struct NominalApplicabilityInput<'a> {
     pub(crate) argument_types: &'a [Option<hir::TypeId>],
 }
 
-#[derive(Debug, Clone)]
-pub(crate) struct CallableReferenceApplicabilityInput<'a> {
-    pub(crate) view: &'a CallableView,
-    pub(crate) owner_arguments: &'a [hir::TypeId],
-    pub(crate) bound_receiver: Option<hir::TypeId>,
-    pub(crate) parameter_types: &'a [hir::TypeId],
-    pub(crate) expected_type: hir::TypeId,
-}
-
 impl Lowerer {
-    pub(crate) fn check_concrete_callable_signature(
-        &mut self,
-        category: CallableCategory,
-        is_suspend: bool,
-        parameter_types: &[hir::TypeId],
-        return_type: hir::TypeId,
-        expected_type: hir::TypeId,
-    ) -> Result<(), ConstraintFailure> {
-        let mut session = InferenceSession::new();
-        let shape = CallableShape {
-            category,
-            is_suspend,
-            parameters: parameter_types
-                .iter()
-                .copied()
-                .map(TypeTerm::Rigid)
-                .map(CallableParameter::Explicit)
-                .collect(),
-            return_type: CallableReturn::Explicit(TypeTerm::Rigid(return_type)),
-        };
-        let expected_signature = match (category, &self.types[expected_type]) {
-            (CallableCategory::Managed, Type::Function(signature))
-            | (CallableCategory::Native, Type::FunPtr(signature)) => {
-                Some(self.function_types[*signature].clone())
-            }
-            _ => None,
-        };
-        if let Some(expected) = expected_signature
-            && expected.parameter_types.len() == parameter_types.len()
-        {
-            for (&parameter, &expected) in parameter_types.iter().zip(&expected.parameter_types) {
-                session.push(
-                    Constraint::Equal(TypeTerm::Rigid(parameter), TypeTerm::Rigid(expected)),
-                    ConstraintOrigin::ExpectedResult,
-                );
-            }
-            session.push(
-                Constraint::Equal(
-                    TypeTerm::Rigid(return_type),
-                    TypeTerm::Rigid(expected.return_type),
-                ),
-                ConstraintOrigin::ExpectedResult,
-            );
-        }
-        session.push(
-            Constraint::CallableShape(shape, TypeTerm::Rigid(expected_type)),
-            ConstraintOrigin::ExpectedResult,
-        );
-        self.solve_constraints(&session).map(|_| ())
-    }
-
-    pub(crate) fn solve_callable_reference_applicability(
-        &mut self,
-        input: CallableReferenceApplicabilityInput<'_>,
-    ) -> Result<Vec<hir::TypeId>, ConstraintFailure> {
-        let CallableReferenceApplicabilityInput {
-            view,
-            owner_arguments,
+    pub(crate) fn declaration_applicability_session(
+        &self,
+        input: DeclarationApplicabilityInput<'_>,
+    ) -> (InferenceSession, super::constraints::InferenceEnvironmentId) {
+        let DeclarationApplicabilityInput {
+            owner_parameters,
+            callable_parameters,
+            type_arguments,
+            explicit_arguments,
             bound_receiver,
-            parameter_types,
-            expected_type,
         } = input;
-        debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
-
         let mut session = InferenceSession::new();
-        let environment =
-            session.add_environment(&view.owner_parameters, &view.callable_parameters);
-        for (&variable, &argument) in session
-            .owner_variables(environment)
-            .to_vec()
-            .iter()
-            .zip(owner_arguments)
+        let environment = session.add_environment(owner_parameters, callable_parameters);
+        let owner_variables = session.owner_variables(environment).to_vec();
+        let explicit_variables: Vec<super::constraints::InferenceVariableId> = match type_arguments
         {
-            session.push(
-                Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
-                ConstraintOrigin::Receiver,
-            );
-        }
-        self.add_declaration_bounds(
-            &mut session,
-            view.owner_parameters
-                .iter()
-                .chain(&view.callable_parameters),
-        );
-
-        match (view.receiver, bound_receiver) {
-            (ReceiverShape::Extension(declared), Some(actual)) => session.push(
-                Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(declared)),
-                ConstraintOrigin::Receiver,
-            ),
-            (ReceiverShape::Extension(_), None)
-            | (ReceiverShape::None | ReceiverShape::Instance, None) => {}
-            (ReceiverShape::None | ReceiverShape::Instance, Some(_)) => {
-                unreachable!("only an extension reference has a separately constrained receiver")
-            }
-        }
-
-        let shape = CallableShape {
-            category: CallableCategory::Managed,
-            is_suspend: view.effects.is_suspend,
-            parameters: parameter_types
-                .iter()
-                .copied()
-                .map(TypeTerm::Type)
-                .map(CallableParameter::Explicit)
-                .collect(),
-            return_type: CallableReturn::Explicit(TypeTerm::Type(view.return_type)),
-        };
-        // A declaration reference denotes its exact instantiated signature.
-        // Function variance is represented by later value coercions, not by
-        // choosing a different declaration instantiation here.
-        if let Type::Function(expected) = self.types[expected_type] {
-            let expected = self.function_types[expected].clone();
-            if parameter_types.len() == expected.parameter_types.len() {
-                for (&parameter, &expected) in parameter_types.iter().zip(&expected.parameter_types)
-                {
+            DeclarationTypeArguments::Callable { owner_arguments } => {
+                debug_assert_eq!(owner_parameters.len(), owner_arguments.len());
+                for (&variable, &argument) in owner_variables.iter().zip(owner_arguments) {
                     session.push(
-                        Constraint::Equal(TypeTerm::Type(parameter), TypeTerm::Rigid(expected)),
-                        ConstraintOrigin::ExpectedResult,
+                        Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
+                        ConstraintOrigin::Receiver,
                     );
                 }
+                session
+                    .callable_variables(environment)
+                    .iter()
+                    .copied()
+                    .map(Into::into)
+                    .collect()
             }
-            session.push(
-                Constraint::Equal(
-                    TypeTerm::Type(view.return_type),
-                    TypeTerm::Rigid(expected.return_type),
-                ),
-                ConstraintOrigin::ExpectedResult,
-            );
-        }
-        session.push(
-            Constraint::CallableShape(shape, TypeTerm::Rigid(expected_type)),
-            ConstraintOrigin::ExpectedResult,
-        );
-
-        let solution = self.solve_constraints(&session)?;
-        let arguments = solution.arguments_for(&session, environment);
-        Ok(arguments
-            .owner
-            .into_iter()
-            .chain(arguments.callable)
-            .collect())
-    }
-
-    pub(crate) fn solve_callable_applicability(
-        &mut self,
-        input: CallableApplicabilityInput<'_>,
-    ) -> Result<Vec<hir::TypeId>, ConstraintFailure> {
-        let (session, environment) = self.callable_applicability_session(input);
-        let solution = self.solve_constraints(&session)?;
-        let arguments = solution.arguments_for(&session, environment);
-        Ok(arguments
-            .owner
-            .into_iter()
-            .chain(arguments.callable)
-            .collect())
-    }
-
-    pub(crate) fn partially_solve_callable_applicability(
-        &mut self,
-        input: CallableApplicabilityInput<'_>,
-    ) -> Result<Vec<Option<hir::TypeId>>, ConstraintFailure> {
-        let (session, environment) = self.callable_applicability_session(input);
-        let arguments = self.solve_constraints_partially(&session, environment)?;
-        Ok(arguments
-            .owner
-            .into_iter()
-            .chain(arguments.callable)
-            .collect())
-    }
-
-    fn callable_applicability_session(
-        &self,
-        input: CallableApplicabilityInput<'_>,
-    ) -> (InferenceSession, super::constraints::InferenceEnvironmentId) {
-        let CallableApplicabilityInput {
-            view,
-            argument_map,
-            owner_arguments,
-            explicit_arguments,
-            receiver_type,
-            argument_types,
-            expected_result,
-        } = input;
-        debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
+            DeclarationTypeArguments::Nominal {
+                template,
+                expected_arguments,
+            } => {
+                debug_assert!(callable_parameters.is_empty());
+                if let Some(expected_arguments) = expected_arguments {
+                    debug_assert_eq!(owner_parameters.len(), expected_arguments.len());
+                    for (&variable, &argument) in owner_variables.iter().zip(expected_arguments) {
+                        session.push(
+                            Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
+                            ConstraintOrigin::ExpectedResult,
+                        );
+                    }
+                }
+                session.push(
+                    Constraint::ConcreteApplication(NominalApplication {
+                        template,
+                        arguments: owner_variables
+                            .iter()
+                            .copied()
+                            .map(TypeTerm::from)
+                            .collect(),
+                    }),
+                    ConstraintOrigin::Declaration,
+                );
+                owner_variables.into_iter().map(Into::into).collect()
+            }
+        };
         debug_assert!(
-            explicit_arguments.is_empty()
-                || view.callable_parameters.len() == explicit_arguments.len()
+            explicit_arguments.is_empty() || explicit_variables.len() == explicit_arguments.len()
         );
-        debug_assert_eq!(argument_map.source_order.len(), argument_types.len());
-
-        let mut session = InferenceSession::new();
-        let environment =
-            session.add_environment(&view.owner_parameters, &view.callable_parameters);
-
-        let owner_variables = session.owner_variables(environment).to_vec();
-        for (&variable, &argument) in owner_variables.iter().zip(owner_arguments) {
-            session.push(
-                Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
-                ConstraintOrigin::Receiver,
-            );
-        }
-        let callable_variables = session.callable_variables(environment).to_vec();
-        for (index, (&variable, &argument)) in callable_variables
+        for (index, (&variable, &argument)) in explicit_variables
             .iter()
             .zip(explicit_arguments)
             .enumerate()
@@ -261,64 +120,14 @@ impl Lowerer {
                 ),
             );
         }
-
         self.add_declaration_bounds(
             &mut session,
-            view.owner_parameters
-                .iter()
-                .chain(&view.callable_parameters),
+            owner_parameters.iter().chain(callable_parameters),
         );
-
-        if let ReceiverShape::Extension(expected) = view.receiver {
-            let actual = receiver_type.expect("extension applicability has a receiver type");
+        if let Some((expected, actual)) = bound_receiver {
             session.push(
                 Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected)),
                 ConstraintOrigin::Receiver,
-            );
-        } else {
-            debug_assert!(receiver_type.is_none());
-        }
-
-        for input in &argument_map.source_order {
-            let source_index = input.index();
-            let Some(actual) = argument_types[source_index] else {
-                continue;
-            };
-            let (parameter, kind) = argument_map.source_binding(*input);
-            let parameter = &view.value_parameters[parameter.index()];
-            let expected = match (&parameter.calling, kind) {
-                (
-                    crate::defaults::SourceParameterCalling::Vararg {
-                        element_type: element_ty,
-                        ..
-                    },
-                    SourceInputKind::VarargElement,
-                ) => *element_ty,
-                (
-                    crate::defaults::SourceParameterCalling::Vararg { .. },
-                    SourceInputKind::VarargArray,
-                )
-                | (
-                    crate::defaults::SourceParameterCalling::Required
-                    | crate::defaults::SourceParameterCalling::Default(_),
-                    SourceInputKind::Value,
-                ) => parameter.ty,
-                _ => unreachable!("argument mapping fixes each input shape"),
-            };
-            let constraint = match kind {
-                SourceInputKind::Value | SourceInputKind::VarargElement => {
-                    Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
-                }
-                SourceInputKind::VarargArray => {
-                    Constraint::Equal(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
-                }
-            };
-            session.push(constraint, ConstraintOrigin::Argument(*input));
-        }
-        if let Some(expected) = expected_result {
-            session.push(
-                Constraint::Subtype(TypeTerm::Type(view.return_type), TypeTerm::Rigid(expected)),
-                ConstraintOrigin::ExpectedResult,
             );
         }
         (session, environment)
@@ -328,6 +137,15 @@ impl Lowerer {
         &mut self,
         input: NominalApplicabilityInput<'_>,
     ) -> Result<Vec<hir::TypeId>, ConstraintFailure> {
+        let (session, environment) = self.nominal_applicability_session(input);
+        let solution = self.solve_constraints(&session)?;
+        Ok(solution.arguments_for(&session, environment).owner)
+    }
+
+    pub(crate) fn nominal_applicability_session(
+        &self,
+        input: NominalApplicabilityInput<'_>,
+    ) -> (InferenceSession, super::constraints::InferenceEnvironmentId) {
         let NominalApplicabilityInput {
             view,
             argument_map,
@@ -335,143 +153,33 @@ impl Lowerer {
             expected_arguments,
             argument_types,
         } = input;
-        debug_assert!(
-            explicit_arguments.is_empty()
-                || explicit_arguments.len() == view.owner_parameters.len()
-        );
-        debug_assert!(
-            expected_arguments
-                .is_none_or(|arguments| arguments.len() == view.owner_parameters.len())
-        );
         debug_assert_eq!(argument_map.source_order.len(), argument_types.len());
-        let (declaration_span, result_type) = match view.target {
-            NominalConstructorSource::Struct(constructor) => {
-                let structure = self.struct_constructors[constructor].owner;
-                let declaration = &self.structs[structure];
-                (
-                    declaration.span,
-                    self.struct_applications[declaration.self_application].canonical_type,
-                )
-            }
-            NominalConstructorSource::Class(constructor) => {
-                let class = self.class_constructors[constructor].owner;
-                let declaration = &self.classes[class];
-                (
-                    declaration.span,
-                    self.class_applications[declaration.self_application].canonical_type,
-                )
-            }
-            NominalConstructorSource::IntrinsicClass(class) => {
-                let declaration = &self.classes[class];
-                (
-                    declaration.span,
-                    self.class_applications[declaration.self_application].canonical_type,
-                )
-            }
-            NominalConstructorSource::Variant(variant) => {
-                let enumeration = variant.enumeration();
-                let declaration = &self.enums[enumeration];
-                (
-                    declaration.span,
-                    self.enum_applications[declaration.self_application].canonical_type,
-                )
-            }
-        };
-        debug_assert_eq!(view.declaration_span, declaration_span);
-        debug_assert_eq!(view.result_type, result_type);
-
-        let mut session = InferenceSession::new();
-        let environment = session.add_environment(&view.owner_parameters, &[]);
-        let owner_variables = session.owner_variables(environment).to_vec();
-
-        for (index, (&variable, &argument)) in
-            owner_variables.iter().zip(explicit_arguments).enumerate()
+        let (mut session, environment) =
+            self.declaration_applicability_session(DeclarationApplicabilityInput {
+                owner_parameters: &view.signature.owner_parameters,
+                callable_parameters: &[],
+                type_arguments: DeclarationTypeArguments::Nominal {
+                    template: self
+                        .nominal_application(view.signature.return_type)
+                        .expect("a nominal candidate retains its full result application")
+                        .template,
+                    expected_arguments,
+                },
+                explicit_arguments,
+                bound_receiver: None,
+            });
+        for (index, (pattern, actual)) in argument_map
+            .inference_patterns(&view.signature.value_parameters)
+            .into_iter()
+            .zip(argument_types)
+            .enumerate()
         {
-            let ResolvedCallTypeArgument::Explicit { ty: argument, .. } = argument else {
-                continue;
-            };
-            session.push(
-                Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
-                ConstraintOrigin::ExplicitTypeArgument(
-                    u32::try_from(index).expect("explicit type argument index exceeds u32"),
-                ),
-            );
-        }
-        if let Some(expected_arguments) = expected_arguments {
-            for (&variable, &argument) in owner_variables.iter().zip(expected_arguments) {
-                session.push(
-                    Constraint::Equal(variable.into(), TypeTerm::Rigid(argument)),
-                    ConstraintOrigin::ExpectedResult,
-                );
+            if let Some(actual) = actual {
+                pattern.constrain(&mut session, index, *actual);
             }
         }
 
-        self.add_declaration_bounds(&mut session, view.owner_parameters.iter());
-        for input in &argument_map.source_order {
-            let source_index = input.index();
-            let Some(actual) = argument_types[source_index] else {
-                continue;
-            };
-            let (parameter, kind) = argument_map.source_binding(*input);
-            let parameter = &view.value_parameters[parameter.index()];
-            let expected = match (&parameter.calling, kind) {
-                (
-                    crate::defaults::SourceParameterCalling::Vararg {
-                        element_type: element_ty,
-                        ..
-                    },
-                    SourceInputKind::VarargElement,
-                ) => *element_ty,
-                (
-                    crate::defaults::SourceParameterCalling::Vararg { .. },
-                    SourceInputKind::VarargArray,
-                )
-                | (
-                    crate::defaults::SourceParameterCalling::Required
-                    | crate::defaults::SourceParameterCalling::Default(_),
-                    SourceInputKind::Value,
-                ) => parameter.ty,
-                _ => unreachable!("argument mapping fixes each input shape"),
-            };
-            let constraint = match kind {
-                SourceInputKind::Value | SourceInputKind::VarargElement => {
-                    Constraint::Subtype(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
-                }
-                SourceInputKind::VarargArray => {
-                    Constraint::Equal(TypeTerm::Rigid(actual), TypeTerm::Type(expected))
-                }
-            };
-            session.push(constraint, ConstraintOrigin::Argument(*input));
-        }
-
-        let application_arguments = owner_variables
-            .iter()
-            .copied()
-            .map(TypeTerm::from)
-            .collect();
-        let application = match view.target {
-            NominalConstructorSource::Struct(constructor) => NominalApplication::Struct(
-                self.struct_constructors[constructor].owner,
-                application_arguments,
-            ),
-            NominalConstructorSource::Class(constructor) => NominalApplication::Class(
-                self.class_constructors[constructor].owner,
-                application_arguments,
-            ),
-            NominalConstructorSource::IntrinsicClass(class) => {
-                NominalApplication::Class(class, application_arguments)
-            }
-            NominalConstructorSource::Variant(variant) => {
-                NominalApplication::Enum(variant.enumeration(), application_arguments)
-            }
-        };
-        session.push(
-            Constraint::ConcreteApplication(application),
-            ConstraintOrigin::Declaration,
-        );
-
-        let solution = self.solve_constraints(&session)?;
-        Ok(solution.arguments_for(&session, environment).owner)
+        (session, environment)
     }
 
     pub(crate) fn add_declaration_bounds<'a>(
@@ -490,13 +198,10 @@ impl Lowerer {
             for bound in parameter.nominal_bounds_in_source_order() {
                 let constraint = match bound {
                     hir::NominalBoundRef::Class(bound) => {
-                        let class = self.class_applications[bound.application].canonical_type;
-                        Constraint::ClassBound(variable, TypeTerm::Type(class))
+                        Constraint::ClassBound(variable, TypeTerm::Type(bound.ty))
                     }
                     hir::NominalBoundRef::Interface(bound) => {
-                        let interface =
-                            self.interface_applications[bound.application].canonical_type;
-                        Constraint::Implements(variable, TypeTerm::Type(interface))
+                        Constraint::Implements(variable, TypeTerm::Type(bound.ty))
                     }
                 };
                 session.push(

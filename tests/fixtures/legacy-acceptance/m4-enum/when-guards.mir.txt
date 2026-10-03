@@ -1,0 +1,481 @@
+Module
+  enum E
+    Num(_1: Int)
+    Pair(_1: Int, _2: Int)
+    Empty()
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val v: E
+        Type E
+        VariantConstruct E v0
+          Type Int
+          Local $parameter._1
+      val $when.1: E
+        Type E
+        Local v
+      val $pattern.subject.2: E
+        Type E
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest E v0
+          Type E
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val n: Int
+        Type Int
+        VariantPayloadProject E v0 f0
+          Type E
+          Local $pattern.subject.2
+      val $dependency.receiver: Int
+        Type Int
+        Local n
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 pattern.else.2
+      val $pattern.subject.6: E
+        Type E
+        Local $when.1
+      branch bb16 bb17
+        Type Boolean
+        VariantTest E v0
+          Type E
+          Local $pattern.subject.6
+    bb3 pattern.merge.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $parameter._2: Int
+        Type Int
+        Local $argument.1
+      val w: E
+        Type E
+        VariantConstruct E v1
+          Type Int
+          Local $parameter._1
+          Type Int
+          Local $parameter._2
+      val $when.9: E
+        Type E
+        Local w
+      val $pattern.subject.10: E
+        Type E
+        Local $when.9
+      branch bb25 bb26
+        Type Boolean
+        VariantTest E v0
+          Type E
+          Local $pattern.subject.10
+    bb4 if.then.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb6
+    bb5 if.else.5
+      val $pattern.subject.3: E
+        Type E
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest E v0
+          Type E
+          Local $pattern.subject.3
+    bb6 if.merge.6
+      goto bb3
+    bb7 pattern.pass.7
+      val n: Int
+        Type Int
+        VariantPayloadProject E v0 f0
+          Type E
+          Local $pattern.subject.3
+      val $dependency.argument.0: Int
+        Type Int
+        Local n
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.4: E
+        Type E
+        Local $when.1
+      branch bb10 bb11
+        Type Boolean
+        VariantTest E v1
+          Type E
+          Local $pattern.subject.4
+    bb9 pattern.merge.9
+      goto bb6
+    bb10 pattern.pass.10
+      val a: Int
+        Type Int
+        VariantPayloadProject E v1 f0
+          Type E
+          Local $pattern.subject.4
+      val b: Int
+        Type Int
+        VariantPayloadProject E v1 f1
+          Type E
+          Local $pattern.subject.4
+      val $dependency.receiver: Int
+        Type Int
+        Local a
+      val $dependency.argument.0: Int
+        Type Int
+        Local b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb12
+    bb11 pattern.else.11
+      val $pattern.subject.5: E
+        Type E
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest E v2
+          Type E
+          Local $pattern.subject.5
+    bb12 pattern.merge.12
+      goto bb9
+    bb13 pattern.pass.13
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb15
+    bb14 pattern.else.14
+      unreachable
+    bb15 pattern.merge.15
+      goto bb12
+    bb16 pattern.pass.16
+      val n: Int
+        Type Int
+        VariantPayloadProject E v0 f0
+          Type E
+          Local $pattern.subject.6
+      val $dependency.argument.0: Int
+        Type Int
+        Local n
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb18
+    bb17 pattern.else.17
+      val $pattern.subject.7: E
+        Type E
+        Local $when.1
+      branch bb19 bb20
+        Type Boolean
+        VariantTest E v1
+          Type E
+          Local $pattern.subject.7
+    bb18 pattern.merge.18
+      goto bb3
+    bb19 pattern.pass.19
+      val a: Int
+        Type Int
+        VariantPayloadProject E v1 f0
+          Type E
+          Local $pattern.subject.7
+      val b: Int
+        Type Int
+        VariantPayloadProject E v1 f1
+          Type E
+          Local $pattern.subject.7
+      val $dependency.receiver: Int
+        Type Int
+        Local a
+      val $dependency.argument.0: Int
+        Type Int
+        Local b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb21
+    bb20 pattern.else.20
+      val $pattern.subject.8: E
+        Type E
+        Local $when.1
+      branch bb22 bb23
+        Type Boolean
+        VariantTest E v2
+          Type E
+          Local $pattern.subject.8
+    bb21 pattern.merge.21
+      goto bb18
+    bb22 pattern.pass.22
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb24
+    bb23 pattern.else.23
+      unreachable
+    bb24 pattern.merge.24
+      goto bb21
+    bb25 pattern.pass.25
+      val n: Int
+        Type Int
+        VariantPayloadProject E v0 f0
+          Type E
+          Local $pattern.subject.10
+      val $dependency.argument.0: Int
+        Type Int
+        Local n
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      goto bb27
+    bb26 pattern.else.26
+      val $pattern.subject.11: E
+        Type E
+        Local $when.9
+      branch bb28 bb29
+        Type Boolean
+        VariantTest E v1
+          Type E
+          Local $pattern.subject.11
+    bb27 pattern.merge.27
+      val e: E
+        Type E
+        VariantConstruct E v2
+      val $when.12: E
+        Type E
+        Local e
+      val $pattern.subject.13: E
+        Type E
+        Local $when.12
+      branch bb34 bb35
+        Type Boolean
+        VariantTest E v2
+          Type E
+          Local $pattern.subject.13
+    bb28 pattern.pass.28
+      val a: Int
+        Type Int
+        VariantPayloadProject E v1 f0
+          Type E
+          Local $pattern.subject.11
+      val $dependency.receiver: Int
+        Type Int
+        Local a
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb31 bb32
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb29 pattern.else.29
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb30
+    bb30 pattern.merge.30
+      goto bb27
+    bb31 if.then.31
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb33
+    bb32 if.else.32
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb33
+    bb33 if.merge.33
+      goto bb30
+    bb34 pattern.pass.34
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb36
+    bb35 pattern.else.35
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb36
+    bb36 pattern.merge.36
+      return
+  fun println @fn1(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str8
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str9
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn1 <- println
+  instance mi1 function=@fn2 <- println
+  str @str0 "big"
+  str @str1 "empty"
+  str @str2 "empty"
+  str @str3 "big pair"
+  str @str4 "other"
+  str @str5 "other"
+  str @str6 "empty"
+  str @str7 "not empty"
+  str @str8 "\n"
+  str @str9 "\n"
+  output executable @fn0

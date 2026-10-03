@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  public interface RootRole
+  public interface LeftRole : RootRole
+  public interface RightRole : RootRole
+  public open class Host()
+    private nested class SupportBase
+    protected nested class Entry
+    private nested class UnrelatedSibling
+    internal nested class InternalSibling
+    public nested class PublicSibling
+  public class Derived() : Host(<0 args>)
+  private open class Unrelated()
+    protected nested class NotRequired
+  internal class InternalTop()

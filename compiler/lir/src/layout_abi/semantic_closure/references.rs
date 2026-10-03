@@ -1,0 +1,29 @@
+use super::*;
+
+mod records;
+mod resolve;
+
+pub(super) fn enqueue(
+    record: LayoutAbiSemanticRecordV1<'_>,
+    owner: usize,
+    views: &[&LayoutAbiExportConstituentsV1],
+    index: &LayoutAbiTargetIndex,
+    pending: &mut Vec<Pending>,
+) -> Result<(), LayoutAbiSemanticClosureError> {
+    match record {
+        LayoutAbiSemanticRecordV1::Descriptor(record) => {
+            records::descriptor(record, owner, views, index, pending)
+        }
+        LayoutAbiSemanticRecordV1::Dispatch(record) => {
+            records::dispatch(record, owner, views, index, pending)
+        }
+        // Field storage and signatures embed type/layout data. They do not
+        // reference layout symbols; machine uses carry their own relocations.
+        LayoutAbiSemanticRecordV1::Layout(_)
+        | LayoutAbiSemanticRecordV1::Callable(_)
+        | LayoutAbiSemanticRecordV1::DirectCallable(_) => Ok(()),
+        LayoutAbiSemanticRecordV1::ShapeSupport(record) => {
+            records::shape_support(record, index, pending)
+        }
+    }
+}

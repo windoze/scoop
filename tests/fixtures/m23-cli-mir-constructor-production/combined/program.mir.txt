@@ -1,0 +1,288 @@
+Module
+  global0 $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2: Singleton imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=1ed09dc134578776f6d2e382973eb480035371f925b629bf52db57c6670c89ae
+  global1 $singleton$b14384920b80359c23da7a7b9fb821a5699c236a295c7100fdfe19f81e9623fe: Companion imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=2b872887ccbbb676d59149f55f050535d4cf61ea77141725b6bad384bdb8d1e9
+  struct Token ()
+  struct Pair (left: Token, right: Token)
+  struct Managed (item: Base)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Base vtable=0 itables=0
+  class Child vtable=0 itables=0
+  class Companion vtable=0 itables=0
+  class Private vtable=0 itables=0
+  class Singleton vtable=0 itables=0
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call token: Token = external1 direct
+      call $equality.lhs: Pair = external2 direct
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.argument.1: Token
+        Type Token
+        Local token
+      val $dependency.parameter.left: Token
+        Type Token
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Token
+        Type Token
+        Local $dependency.argument.1
+      call $call.1: Pair = external3 direct
+        Type Token
+        Local $dependency.parameter.left
+        Type Token
+        Local $dependency.parameter.right
+      call $argument.0: Boolean = external10 direct
+        Type Pair
+        Local $equality.lhs
+        Type Pair
+        Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.2
+        Type Base
+        ClassAlloc Base
+      call external4 direct
+        Type Base
+        Local $new.2
+      val base: Base
+        Type Base
+        Local $new.2
+      call $dependency.parameter.token: Token = external1 direct
+      assign $new.3
+        Type Child
+        ClassAlloc Child
+      call external5 direct
+        Type Child
+        Local $new.3
+        Type Token
+        Local $dependency.parameter.token
+      val child: Child
+        Type Child
+        Local $new.3
+      val $dependency.argument.0: Base
+        Type Base
+        Local base
+      val $dependency.parameter.value: Base
+        Type Base
+        Local $dependency.argument.0
+      call $call.4: Token = external6 direct
+        Type Base
+        Local $dependency.parameter.value
+      call $call.5: Boolean = external9 direct
+        Type Token
+        Local $call.4
+        Type Token
+        Local token
+      branch bb1 bb2
+        Type Boolean
+        Local $call.5
+    bb1 if.then.1
+      val $dependency.argument.0: Base
+        Type Base
+        Retype Base
+          Type Child
+          Local child
+      val $dependency.parameter.value: Base
+        Type Base
+        Local $dependency.argument.0
+      call $call.6: Token = external6 direct
+        Type Base
+        Local $dependency.parameter.value
+      call $shortCircuit.0: Boolean = external9 direct
+        Type Token
+        Local $call.6
+        Type Token
+        Local token
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.token: Token
+        Type Token
+        Local $dependency.argument.0
+      assign $new.7
+        Type Child
+        ClassAlloc Child
+      call external5 direct
+        Type Child
+        Local $new.7
+        Type Token
+        Local $dependency.parameter.token
+      val $dependency.argument.0: Base
+        Type Base
+        Retype Base
+          Type Child
+          Local $new.7
+      val $dependency.parameter.value: Base
+        Type Base
+        Local $dependency.argument.0
+      call $call.8: Token = external6 direct
+        Type Base
+        Local $dependency.parameter.value
+      call $call.9: Boolean = external9 direct
+        Type Token
+        Local $call.8
+        Type Token
+        Local token
+      branch bb4 bb5
+        Type Boolean
+        Local $call.9
+    bb4 if.then.4
+      call external11 direct
+      val $dependency.argument.0: Base
+        Type Base
+        Retype Base
+          Type Singleton
+          GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+      val $dependency.parameter.value: Base
+        Type Base
+        Local $dependency.argument.0
+      call $call.10: Token = external6 direct
+        Type Base
+        Local $dependency.parameter.value
+      call $shortCircuit.1: Boolean = external9 direct
+        Type Token
+        Local $call.10
+        Type Token
+        Local token
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.11: Managed = external7 direct
+      val $dependency.argument.0: Base
+        Type Base
+        FieldAccess 0
+          Type Managed
+          Local $call.11
+      val $dependency.parameter.value: Base
+        Type Base
+        Local $dependency.argument.0
+      call $call.12: Token = external6 direct
+        Type Base
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = external9 direct
+        Type Token
+        Local $call.12
+        Type Token
+        Local token
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external12 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$b14384920b80359c23da7a7b9fb821a5699c236a295c7100fdfe19f81e9623fe
+      call privateValue: Private = external8 direct
+        Type Companion
+        Local $dependency.receiver
+      call external11 direct
+      call external11 direct
+      branch bb7 bb8
+        Type Boolean
+        Binary RefEq
+          Type Private
+          Local privateValue
+          Type Private
+          Local privateValue
+    bb7 logic.rhs.7
+      assign $logic.13
+        Type Boolean
+        Binary RefEq
+          Type Singleton
+          GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+          Type Singleton
+          GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.13
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $logic.13
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

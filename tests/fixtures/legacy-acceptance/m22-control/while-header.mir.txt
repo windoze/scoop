@@ -1,0 +1,185 @@
+Module
+  enum Option<Boolean>
+    Some(_0: Boolean)
+    None()
+  class Counter vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun Counter.next @fn0(this: Counter) -> Option<Boolean>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      field_set 0
+        Type Counter
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare less-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter._1: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      return
+        Type Option<Boolean>
+        VariantConstruct Option<Boolean> v0
+          Type Boolean
+          Local $dependency.parameter._1
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.checks: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call @fn3 direct
+        Type Counter
+        Local $new.1
+        Type Int
+        Local $parameter.checks
+      val counter: Counter
+        Type Counter
+        Local $new.1
+      var iterations: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $receiver: Counter
+        Type Counter
+        Local counter
+      call $opt.0: Option<Boolean> = @fn0 direct
+        Type Counter
+        Local $receiver
+      branch bb3 bb4
+        Type Boolean
+        VariantTest Option<Boolean> v0
+          Type Option<Boolean>
+          Local $opt.0
+    bb2 while.exit.2
+      val $dependency.argument.0: Int
+        Type Int
+        Local iterations
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Counter
+          Local counter
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+    bb3 if.then.3
+      val $res.1: Boolean
+        Type Boolean
+        VariantPayloadProject Option<Boolean> v0 f0
+          Type Option<Boolean>
+          Local $opt.0
+      goto bb5
+    bb4 if.else.4
+      val $res.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 if.merge.5
+      branch bb6 bb2
+        Type Boolean
+        Local $res.1
+    bb6 while.body.6
+      val $dependency.receiver: Int
+        Type Int
+        Local iterations
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign iterations
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb1
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Counter.$c0 @fn3(this: Counter, checks: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Counter
+        Local this
+        Type Int
+        Local checks
+      return
+  instance mi0 function=@fn2 <- println
+  str @str0 "\n"
+  output executable @fn1

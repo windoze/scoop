@@ -1,0 +1,33 @@
+package consumer.parents
+
+import dependency.parents.Base
+
+public class Child public constructor(value: Int): Base<Int>(value) {
+    public override fun read(): Int = super.read() + 1
+}
+
+public open class LocalBase<T> public constructor(public val value: T) {
+    public open fun read(): T = this.value
+}
+
+public class LocalChild public constructor(value: Int): LocalBase<Int>(value) {
+    public override fun read(): Int = super.read() + 1
+}
+
+public class InheritedLocalChild public constructor(value: Int): LocalBase<Int>(value)
+
+private class PrivateChild(value: Int): Base<Int>(value)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val local = InheritedLocalChild(read(seed))
+    if (LocalChild(read(seed) - 1).read() != local.read()) { return 1 }
+    return Child(read(seed) - 1).read()
+}
+
+public fun result(): Int {
+    val local: LocalBase<Int> = LocalChild(41)
+    val external: Base<Int> = Child(41)
+    if (local.read() != 42 || external.read() != 42) { return 1 }
+    if (Child(42).value != 42) { return 2 }
+    return PrivateChild(42).read()
+}

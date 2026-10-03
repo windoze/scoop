@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage upstream.classDefinitions
+  public interface Readable<T>
+    fun read
+    fun apply
+  public open class Base<A, B>(val first: A, val second: B), Readable<B>
+    public fun read
+    public fun select
+  public class Remote<T>(value: T) : Base<Unit, T>(<2 args>)
+    public val echoed: T = <expr>
+      FieldAccess second
+        This
+  public class Link<T>(val value: T, var next: Link<T>? = <expr>)
+  public typealias IntChain = Link<Int>
+  public struct Wrapper<T>
+    field head: Link<T>
+  public fun make<T>(value: T): Link<T>
+    =
+      Call Link
+        Var value
+  public fun readLink<T>(value: T, link: Link<T> = <expr>): T
+    =
+      FieldAccess value
+        Var link

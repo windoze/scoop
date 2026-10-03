@@ -1,0 +1,8 @@
+private struct Deep(val flag: Boolean) {}
+private struct Hidden(val part: Deep) {}
+public class Exposed() {
+    private val hidden: Hidden = Hidden(Deep(true))
+    public fun echo(value: Token): Token = value
+}
+public struct Token() {}
+public fun keep(value: Token): Token = value

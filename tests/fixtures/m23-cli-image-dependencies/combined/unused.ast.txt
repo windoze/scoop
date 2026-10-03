@@ -1,0 +1,5 @@
+SourceFile
+  QualifiedPackage image.unused
+  public fun unused(): Int
+    =
+      IntLiteral 1

@@ -4,19 +4,26 @@ use super::*;
 fn type_descriptors_carry_the_gc_scan_descriptors() {
     // A class's plain table is count-prefixed (`[N, off0, ..]`,
     // runtime/include/scoop_rt.h's M9 scan-descriptor contract).
-    let ir = ir_of(&heap_module());
+    let heap = heap_module();
+    let point_scan = strong_scan_symbol(
+        &heap,
+        type_descriptor(&heap, "Point")
+            .instance_layout
+            .scan_record()
+            .id(),
+    );
+    let ir = strong_shape_ir_of(&heap);
     assert!(
-        ir.contains("@scoop_td_Point.refs = private constant [2 x i64] [i64 1, i64 24]"),
+        ir.contains(&format!(
+            "@\"{point_scan}\" = constant [2 x i64] [i64 1, i64 24]"
+        )),
         "plain scan table must be count-prefixed:\n{ir}"
     );
 
-    // A reference-element array's TD carries the SCOOP_REFS_ARRAY
-    // sentinel (u64::MAX, printed -1), its stride, and a pointer
-    // to the recursive scan for one inline element.
-    let nested_element_scan = RefScan::Sequence(vec![
-        RefScan::References(vec![16]),
-        RefScan::References(vec![8]),
-    ]);
+    // A reference-element array's object scan carries the SCOOP_REFS_ARRAY
+    // sentinel (u64::MAX, printed -1), the dynamic count/data offsets, its
+    // stride, and a pointer to the recursive scan for one inline element.
+    let nested_element_scan = RefScan::References(vec![8, 16]);
     let mut meta = string_metadata();
     let ref_array_type = array_type(
         &mut meta,
@@ -60,22 +67,28 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         ],
         terminator: Terminator::Return { value: None },
     });
-    let runtime_type_id = meta.type_descriptors.len() as u64 + 1;
     meta.type_descriptors.alloc(TypeDescriptor {
-        name: "Holder".to_string(),
-        symbol: "scoop_td_Holder".to_string(),
-        runtime_type_id,
-        size: 56,
-        align: 8,
-        scan: TypeDescriptorScan::Fixed(RefScan::Sequence(vec![
-            RefScan::References(vec![16]),
-            RefScan::References(vec![40, 48]),
-        ])),
+        relations: Default::default(),
+        diagnostic_name: "Holder".to_string(),
+        identity: type_descriptor_identity("Holder"),
+        instance_layout: layout_identity(
+            "Holder",
+            scoop_identity::RepresentationRole::ManagedObject,
+        ),
+        instance_shape: TypeInstanceShapeV1::fixed_object(
+            scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+            56,
+            8,
+            RefScan::References(vec![16, 40, 48]),
+        )
+        .unwrap(),
+        inline_scan: scoop_lir::TypeDescriptorInlineScanV1::Null,
         parent: None,
-        vtable: vec![],
+        vtable: vtable("Holder", vec![]),
         itables: vec![],
     });
-    let module = Module {
+    let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -87,8 +100,9 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            callable_body: callable_body_at(file!(), line!()),
+            safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
@@ -96,36 +110,41 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop_main".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta,
     };
-    let ir = ir_of(&module);
+    refresh_module_safepoints(&mut module);
+    let scan_symbol = |name: &str| {
+        strong_scan_symbol(
+            &module,
+            type_descriptor(&module, name)
+                .instance_layout
+                .scan_record()
+                .id(),
+        )
+    };
+    let array_ref_scan = scan_symbol("ArrayRef");
+    let array_nested_scan = scan_symbol("ArrayNested");
+    let holder_scan = scan_symbol("Holder");
+    let ir = strong_shape_ir_of(&module);
     assert!(
-            ir.contains(
-                "@scoop_td_ArrayRef.element = private constant [2 x i64] [i64 1, i64 0]"
-            ) && ir.contains(
-                "@scoop_td_ArrayRef.refs = private constant [3 x i64] [i64 -1, i64 8, i64 ptrtoint (ptr @scoop_td_ArrayRef.element to i64)]"
-            ),
-            "reference-element array TD must carry SCOOP_REFS_ARRAY:\n{ir}"
-        );
-    assert!(
-            ir.contains(
-                "@scoop_td_ArrayNested.element.part.1 = private constant [2 x i64] [i64 1, i64 8]"
-            ) && ir.contains(
-                "@scoop_td_ArrayNested.element = private constant [4 x i64] [i64 -2, i64 2"
-            ) && ir.contains(
-                "@scoop_td_ArrayNested.refs = private constant [3 x i64] [i64 -1, i64 24, i64 ptrtoint (ptr @scoop_td_ArrayNested.element to i64)]"
-            ),
-            "aggregate array TD must wrap the recursive element scan:\n{ir}"
-        );
-    assert!(
-        ir.contains(
-            "@scoop_td_Holder.refs.part.1 = private constant [3 x i64] [i64 2, i64 40, i64 48]"
-        ),
-        "nested tagged enum scan must use fixed ref offsets:\n{ir}"
+        ir.contains(&format!(
+            "@\"{array_ref_scan}\" = constant [7 x i64] [i64 -1, i64 16, i64 24, i64 8, i64 ptrtoint (ptr getelementptr (i64, ptr @\"{array_ref_scan}\", i64 5) to i64), i64 1, i64 0]"
+        )),
+        "reference-element array TD must carry SCOOP_REFS_ARRAY:\n{ir}"
     );
     assert!(
-        ir.contains("@scoop_td_Holder.refs = private constant [4 x i64] [i64 -2, i64 2"),
-        "aggregate scan must compose fixed scans:\n{ir}"
+        ir.contains(&format!(
+            "@\"{array_nested_scan}\" = constant [8 x i64] [i64 -1, i64 16, i64 24, i64 24, i64 ptrtoint (ptr getelementptr (i64, ptr @\"{array_nested_scan}\", i64 5) to i64), i64 2, i64 8, i64 16]"
+        )),
+        "aggregate array TD must wrap the recursive element scan:\n{ir}"
+    );
+    assert!(
+        ir.contains(&format!(
+            "@\"{holder_scan}\" = constant [4 x i64] [i64 3, i64 16, i64 40, i64 48]"
+        )),
+        "aggregate object scan must use one canonical fixed-offset table:\n{ir}"
     );
 }

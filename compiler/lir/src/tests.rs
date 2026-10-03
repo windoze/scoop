@@ -14,6 +14,37 @@ use super::{
     TypedCall, TypedCallResult, TypedCallView, Value, VoidCallSignature,
 };
 
+pub(crate) fn test_physical_exact(
+    name: &str,
+    kind: scoop_identity::SourceNominalKind,
+) -> scoop_identity::PersistentExactTypeId {
+    use scoop_identity::{
+        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
+        PackagePath, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
+        SourceDeclarationSite,
+    };
+    let identifier = format!(
+        "test{}",
+        name.bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let declaration = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(&identifier).unwrap(),
+        kind,
+        0,
+    );
+    let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap()
+}
+
 fn abi_value(ty: LirType, size: u64, alignment: u64, scan: RefScan) -> AbiValue {
     AbiValue::new(
         ty,
@@ -21,6 +52,34 @@ fn abi_value(ty: LirType, size: u64, alignment: u64, scan: RefScan) -> AbiValue 
         scan,
     )
     .expect("test ABI value must be valid")
+}
+
+pub(crate) fn callable_body(symbol: &str) -> super::CallableBodyIdentity {
+    let identifier = format!(
+        "test{}",
+        symbol
+            .as_bytes()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::function(
+        site,
+        scoop_identity::CanonicalIdentifier::new(&identifier).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let function =
+        scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    super::CallableBodyIdentity::for_function(function).unwrap()
 }
 
 fn abi_zst(ty: LirType, alignment: u64) -> AbiZst {
@@ -66,6 +125,10 @@ fn foreign_callback_role_bundles_lock_wire_ordinals_and_failure_provenance() {
     };
     let mut enums = EnumDefs::default();
     let mode = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "ForeignCallbackMode",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "ForeignCallbackMode".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![unit_variant(), unit_variant()],
@@ -75,6 +138,10 @@ fn foreign_callback_role_bundles_lock_wire_ordinals_and_failure_provenance() {
         scan: RefScan::None,
     });
     let state = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "ForeignCallbackState",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "ForeignCallbackState".to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..4).map(|_| unit_variant()).collect(),
@@ -84,6 +151,10 @@ fn foreign_callback_role_bundles_lock_wire_ordinals_and_failure_provenance() {
         scan: RefScan::None,
     });
     let failure = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Option<Throwable>",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Option<Throwable>".to_string(),
         repr: EnumRepr::Niche {
             kind: NichePointerKind::Managed,
@@ -185,6 +256,10 @@ fn niche_representation_atomically_preserves_source_pointer_provenance() {
 fn enum_store_is_the_only_checked_variant_and_payload_field_ref_producer() {
     let mut enums = EnumDefs::default();
     let tagged = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Tagged",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Tagged".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![
@@ -212,6 +287,10 @@ fn enum_store_is_the_only_checked_variant_and_payload_field_ref_producer() {
         scan: RefScan::References(vec![8]),
     });
     let niche = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "RawOption",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "RawOption".to_string(),
         repr: EnumRepr::Niche {
             kind: NichePointerKind::Raw,
@@ -296,6 +375,19 @@ fn local_function_registry_produces_effect_refined_identities() {
     assert!(matches!(
         super::NoGcCallDestination::local(no_gc).view(),
         CallDestination::Local(id) if id == no_gc.declaration()
+    ));
+}
+
+#[test]
+fn external_destinations_are_effect_refined() {
+    let callable = super::ExternalCallableId::from_raw(0_u32.into());
+    assert!(matches!(
+        ManagedCallDestination::external(callable).view(),
+        CallDestination::External(id) if id == callable
+    ));
+    assert!(matches!(
+        super::NoGcCallDestination::external(callable).view(),
+        CallDestination::External(id) if id == callable
     ));
 }
 
@@ -600,10 +692,11 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
         terminator: super::Terminator::Return { value: None },
     });
     let function = super::Function {
+        callable_body: callable_body("logical_params"),
         gc_effect: GcEffect::NoGc,
-        symbol: "logical_params".to_string(),
         signature,
         call_targets: CallTargets::default(),
+        safepoints: super::SafepointIdentities::default(),
         locals: la_arena::Arena::new(),
         temps: la_arena::Arena::new(),
         blocks,
@@ -619,6 +712,22 @@ fn function_parameters_keep_logical_types_across_abi_conventions() {
 #[test]
 fn extern_references_are_refined_by_abi_before_entering_call_targets() {
     let mut functions = ExternFunctions::default();
+    let native_symbol = scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
+        &scoop_identity::SourceNativeSymbol::new("c").unwrap(),
+    )
+    .unwrap();
+    let external_contract = scoop_identity::NativeExternalContract::c_function(
+        scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
+        scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+            Vec::new(),
+            scoop_identity::CanonicalCAbiReturn::Void,
+        ),
+    );
+    let contract = scoop_identity::NativeExternalContractFingerprint::from_symbol_and_contract(
+        scoop_identity::PersistentNativeExternalSymbolId::from_key(&native_symbol).unwrap(),
+        &external_contract,
+    )
+    .unwrap();
     let c_ref: CExternFunctionRef = functions.alloc_c(CExternFunction {
         identity: ExternFunctionIdentity {
             source_name: "c".to_string(),
@@ -626,7 +735,11 @@ fn extern_references_are_refined_by_abi_before_entering_call_targets() {
             library: "test".to_string(),
             calling_convention: CallingConvention::Cdecl,
         },
-        bridge_symbol: "c_bridge".to_string(),
+        bridge: super::GeneratedBridgeEntryIdentity::new(
+            scoop_identity::ConeIdentity::SINGLE_FILE,
+            scoop_identity::GeneratedBridgeUnitKey::OutboundFunction(contract),
+        )
+        .unwrap(),
         signature: super::CFunctionType {
             params: Vec::new(),
             return_type: super::CReturnType::Void,
@@ -748,7 +861,7 @@ fn machine_scalars_keep_closed_domains_and_frozen_i64_encodings() {
 }
 
 #[test]
-fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
+fn source_integer_kinds_have_exact_width_identity() {
     use super::{IntegerKind, IntegerSignedness, IntegerWidth};
 
     let expected = [
@@ -757,7 +870,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Signed,
             IntegerWidth::W8,
             "Int8",
-            "I8",
             LirType::I8,
         ),
         (
@@ -765,7 +877,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Signed,
             IntegerWidth::W16,
             "Int16",
-            "I16",
             LirType::I16,
         ),
         (
@@ -773,7 +884,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Signed,
             IntegerWidth::W32,
             "Int",
-            "I32",
             LirType::I32,
         ),
         (
@@ -781,7 +891,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Signed,
             IntegerWidth::W64,
             "Long",
-            "I64",
             LirType::I64,
         ),
         (
@@ -789,7 +898,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Unsigned,
             IntegerWidth::W8,
             "UInt8",
-            "V8",
             LirType::I8,
         ),
         (
@@ -797,7 +905,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Unsigned,
             IntegerWidth::W16,
             "UInt16",
-            "V16",
             LirType::I16,
         ),
         (
@@ -805,7 +912,6 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Unsigned,
             IntegerWidth::W32,
             "UInt",
-            "V32",
             LirType::I32,
         ),
         (
@@ -813,17 +919,15 @@ fn source_integer_kinds_have_exact_width_identity_and_compact_v2_codes() {
             IntegerSignedness::Unsigned,
             IntegerWidth::W64,
             "ULong",
-            "V64",
             LirType::I64,
         ),
     ];
 
     assert_eq!(IntegerKind::ALL.len(), expected.len());
-    for (kind, signedness, width, name, code, scalar) in expected {
+    for (kind, signedness, width, name, scalar) in expected {
         assert_eq!(kind.signedness(), signedness);
         assert_eq!(kind.width(), width);
         assert_eq!(kind.canonical_name(), name);
-        assert_eq!(kind.compact_v2_code(), code);
         assert_eq!(kind.scalar_type(), scalar);
         assert_eq!(width.bytes(), u64::from(width.bits() / 8));
         assert_eq!(width.shift_mask(), u64::from(width.bits() - 1));
@@ -919,6 +1023,10 @@ fn exact_c_types_totally_determine_their_lir_storage() {
 
     let mut enums = EnumDefs::default();
     let raw_nullable = enums.alloc_c_nullable_data_pointer_option(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Option<Ptr<Unit>>",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Option<Ptr<Unit>>".to_string(),
         repr: EnumRepr::Niche {
             kind: NichePointerKind::Raw,
@@ -928,6 +1036,10 @@ fn exact_c_types_totally_determine_their_lir_storage() {
     });
     let raw_nullable_id = raw_nullable;
     let code_nullable = enums.alloc_c_nullable_code_pointer_option(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Option<FunPtr<() -> Unit>>",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Option<FunPtr<() -> Unit>>".to_string(),
         repr: EnumRepr::Niche {
             kind: NichePointerKind::Code,
@@ -938,6 +1050,7 @@ fn exact_c_types_totally_determine_their_lir_storage() {
     let code_nullable_id = code_nullable;
     let mut structs = StructDefs::default();
     let c_struct = structs.alloc_c(
+        crate::tests::test_physical_exact("CValue", scoop_identity::SourceNominalKind::Struct),
         "CValue".to_string(),
         4,
         4,
@@ -1036,4 +1149,25 @@ fn exact_c_types_totally_determine_their_lir_storage() {
         assert_eq!(c_type.storage_type(), storage);
     }
     assert_eq!(CReturnType::Void.storage_type(), LirType::Void);
+}
+
+#[test]
+fn target_contract_and_fingerprint_match_the_fixed_vectors() {
+    let profile = LirTargetProfile::DARWIN_AARCH64;
+    assert_eq!(
+        hex(&scoop_wire::encode(&profile.contract()).unwrap()),
+        "af0174616172636836342d6170706c652d64617277696e027847652d6d3a6f2d703237303a33323a33322d703237313a33323a33322d703237323a36343a36342d6936343a36342d693132383a3132382d6e33323a36342d533132382d466e333203a301781c6f72672e73636f6f702d6c616e672e6f626a6563742d666f726d617402726d6163682d6f2d72656c6f63617461626c65030104010585a3010102010301a3010202010301a3010302020302a3010402040304a301050208030806a20108020807a4010802080301040108a4010802080301040109a2010802080a100b100c1b7fffffffffffffff0d010e010f01"
+    );
+    assert_eq!(
+        profile.fingerprint().unwrap().to_string(),
+        "42697b4e4e2102ef19d81bd624f7e428065d2ddff90279f1fc458bfcfdb13671"
+    );
+    assert_eq!(
+        super::ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1.target(),
+        profile
+    );
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

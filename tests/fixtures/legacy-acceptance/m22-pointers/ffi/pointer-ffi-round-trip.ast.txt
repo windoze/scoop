@@ -1,0 +1,483 @@
+SourceFile
+  RootPackage
+    @CLayout
+  struct NativeCell
+    field value: Int
+    @CLayout
+  struct PointerBundle
+    field opaque: Ptr<Unit>
+    field cell: Ptr<NativeCell>
+    field optionalOpaque: Ptr<Unit>?
+    field optionalCell: Ptr<NativeCell>?
+    field callback: FunPtr<(Int) -> Int>
+    field optionalCallback: FunPtr<(Int) -> Int>?
+    @Extern(name = "malloc")
+  fun malloc(size: ULong): Ptr<Unit>
+    @Extern(name = "free")
+  fun free(pointer: Ptr<Unit>)
+    @Extern(lib = "fixture_native", name = "m22_round_opaque")
+  fun roundOpaque(pointer: Ptr<Unit>): Ptr<Unit>
+    @Extern(lib = "fixture_native", name = "m22_round_cell")
+  fun roundCell(pointer: Ptr<NativeCell>): Ptr<NativeCell>
+    @Extern(lib = "fixture_native", name = "m22_round_optional_opaque")
+  fun roundOptionalOpaque(pointer: Ptr<Unit>?): Ptr<Unit>?
+    @Extern(lib = "fixture_native", name = "m22_round_optional_cell")
+  fun roundOptionalCell(pointer: Ptr<NativeCell>?): Ptr<NativeCell>?
+    @Extern(lib = "fixture_native", name = "m22_round_callback")
+  fun roundCallback(callback: FunPtr<(Int) -> Int>): FunPtr<(Int) -> Int>
+    @Extern(lib = "fixture_native", name = "m22_round_optional_callback")
+  fun roundOptionalCallback(callback: FunPtr<(Int) -> Int>?): FunPtr<(Int) -> Int>?
+    @Extern(lib = "fixture_native", name = "m22_null_opaque")
+  fun nullOpaque(): Ptr<Unit>?
+    @Extern(lib = "fixture_native", name = "m22_null_cell")
+  fun nullCell(): Ptr<NativeCell>?
+    @Extern(lib = "fixture_native", name = "m22_native_callback")
+  fun nativeCallback(): FunPtr<(Int) -> Int>
+    @Extern(lib = "fixture_native", name = "m22_native_optional_callback")
+  fun nativeOptionalCallback(): FunPtr<(Int) -> Int>?
+    @Extern(lib = "fixture_native", name = "m22_null_callback")
+  fun nullCallback(): FunPtr<(Int) -> Int>?
+    @Extern(lib = "fixture_native", name = "m22_apply_callback")
+  fun applyCallback(value: Int, callback: FunPtr<(Int) -> Int>): Int
+    @Extern(lib = "fixture_native", name = "m22_round_bundle")
+  fun roundBundle(bundle: PointerBundle): PointerBundle
+    @Extern(lib = "fixture_native", name = "m22_make_some_bundle")
+  fun makeSomeBundle(opaque: Ptr<Unit>, cell: Ptr<NativeCell>): PointerBundle
+    @Extern(lib = "fixture_native", name = "m22_make_none_bundle")
+  fun makeNoneBundle(opaque: Ptr<Unit>, cell: Ptr<NativeCell>): PointerBundle
+    @Extern(lib = "fixture_native", name = "m22_read_opaque")
+  fun readOpaque(pointer: Ptr<Unit>): Int
+    @Extern(lib = "fixture_native", name = "m22_prepare_globals")
+  fun prepareGlobals()
+    @Extern(lib = "fixture_native", name = "m22_cleanup_globals")
+  fun cleanupGlobals()
+    @Extern(lib = "fixture_native", name = "m22_globals_match")
+  fun globalsMatch(opaque: Ptr<Unit>, cell: Ptr<NativeCell>, optionalOpaque: Ptr<Unit>?, optionalCell: Ptr<NativeCell>?, callback: FunPtr<(Int) -> Int>, optionalCallback: FunPtr<(Int) -> Int>?): Boolean
+    @Extern(lib = "fixture_native", name = "m22_global_opaque")
+    @Global
+  var globalOpaque: Ptr<Unit>
+    @Extern(lib = "fixture_native", name = "m22_global_cell")
+    @Global
+  var globalCell: Ptr<NativeCell>
+    @Extern(lib = "fixture_native", name = "m22_global_optional_opaque")
+    @Global
+  var globalOptionalOpaque: Ptr<Unit>?
+    @Extern(lib = "fixture_native", name = "m22_global_optional_cell")
+    @Global
+  var globalOptionalCell: Ptr<NativeCell>?
+    @Extern(lib = "fixture_native", name = "m22_global_callback")
+    @Global
+  var globalCallback: FunPtr<(Int) -> Int>
+    @Extern(lib = "fixture_native", name = "m22_global_optional_callback")
+    @Global
+  var globalOptionalCallback: FunPtr<(Int) -> Int>?
+    @NoGC
+  fun scoopIncrement(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+    @Unsafe
+  fun optionalOpaqueMatches(actual: Ptr<Unit>?, expected: Ptr<Unit>): Boolean
+    =
+      WhenExpression
+        Var actual
+        arm Some(pointer)
+          Binary Eq
+            MethodCall toULong
+              Var pointer
+            MethodCall toULong
+              Var expected
+        arm None
+          BoolLiteral false
+    @Unsafe
+  fun optionalCellMatches(actual: Ptr<NativeCell>?, expected: Ptr<NativeCell>): Boolean
+    =
+      WhenExpression
+        Var actual
+        arm Some(pointer)
+          Binary Eq
+            MethodCall toULong
+              Var pointer
+            MethodCall toULong
+              Var expected
+        arm None
+          BoolLiteral false
+  fun optionalOpaqueIsNone(actual: Ptr<Unit>?): Boolean
+    =
+      WhenExpression
+        Var actual
+        arm Some(pointer)
+          BoolLiteral false
+        arm None
+          BoolLiteral true
+  fun optionalCellIsNone(actual: Ptr<NativeCell>?): Boolean
+    =
+      WhenExpression
+        Var actual
+        arm Some(pointer)
+          BoolLiteral false
+        arm None
+          BoolLiteral true
+    @Unsafe
+  fun applyOptionalCallback(callback: FunPtr<(Int) -> Int>?, value: Int): Int
+    =
+      WhenExpression
+        Var callback
+        arm Some(pointer)
+          Call applyCallback
+            Var value
+            Var pointer
+        arm None
+          Unary Neg
+            IntLiteral 1
+  fun optionalCallbackIsNone(callback: FunPtr<(Int) -> Int>?): Boolean
+    =
+      WhenExpression
+        Var callback
+        arm Some(pointer)
+          BoolLiteral false
+        arm None
+          BoolLiteral true
+  fun main()
+    @Unsafe block
+      val opaque
+        Call malloc
+          Call sizeOf<Int>
+      MethodCall store
+        MethodCall cast<Int>
+          Var opaque
+        IntLiteral 101
+      val cell
+        MethodCall cast<NativeCell>
+          Call malloc
+            Call sizeOf<NativeCell>
+      MethodCall store
+        Var cell
+        Call NativeCell
+          IntLiteral 202
+      val scoopCallback: FunPtr<(Int) -> Int>
+        CallableReference 0 scoopIncrement
+      Call println
+        Binary Ne
+          MethodCall toULong
+            Var opaque
+          IntLiteral 0uL
+      Call println
+        Binary Ne
+          MethodCall toULong
+            Var cell
+          IntLiteral 0uL
+      Call println
+        Binary Eq
+          MethodCall toULong
+            Call roundOpaque
+              Var opaque
+          MethodCall toULong
+            Var opaque
+      Call println
+        Binary Eq
+          MethodCall toULong
+            Call roundCell
+              Var cell
+          MethodCall toULong
+            Var cell
+      Call println
+        FieldAccess value
+          MethodCall load
+            Call roundCell
+              Var cell
+      Call println
+        Call optionalOpaqueMatches
+          Call roundOptionalOpaque
+            Call Some
+              Var opaque
+          Var opaque
+      Call println
+        Call optionalCellMatches
+          Call roundOptionalCell
+            Call Some
+              Var cell
+          Var cell
+      Call println
+        Call optionalOpaqueIsNone
+          Call roundOptionalOpaque
+            Var None
+      Call println
+        Call optionalCellIsNone
+          Call roundOptionalCell
+            Var None
+      Call println
+        Call optionalOpaqueIsNone
+          Call nullOpaque
+      Call println
+        Call optionalCellIsNone
+          Call nullCell
+      val cCallback
+        Call nativeCallback
+      Call println
+        Call applyCallback
+          IntLiteral 1
+          Var cCallback
+      Call println
+        Call applyCallback
+          IntLiteral 2
+          Call roundCallback
+            Var cCallback
+      Call println
+        Call applyCallback
+          IntLiteral 40
+          Call roundCallback
+            Var scoopCallback
+      Call println
+        Call applyOptionalCallback
+          Call nativeOptionalCallback
+          IntLiteral 3
+      Call println
+        Call applyOptionalCallback
+          Call roundOptionalCallback
+            Call Some
+              Var scoopCallback
+          IntLiteral 41
+      Call println
+        Call optionalCallbackIsNone
+          Call roundOptionalCallback
+            Var None
+      Call println
+        Call optionalCallbackIsNone
+          Call nullCallback
+      val someBundle
+        Call makeSomeBundle
+          Var opaque
+          Var cell
+      Call println
+        Binary Eq
+          MethodCall toULong
+            FieldAccess opaque
+              Var someBundle
+          MethodCall toULong
+            Var opaque
+      Call println
+        FieldAccess value
+          MethodCall load
+            FieldAccess cell
+              Var someBundle
+      Call println
+        Call optionalOpaqueMatches
+          FieldAccess optionalOpaque
+            Var someBundle
+          Var opaque
+      Call println
+        Call optionalCellMatches
+          FieldAccess optionalCell
+            Var someBundle
+          Var cell
+      Call println
+        Call applyCallback
+          IntLiteral 4
+          FieldAccess callback
+            Var someBundle
+      Call println
+        Call applyOptionalCallback
+          FieldAccess optionalCallback
+            Var someBundle
+          IntLiteral 5
+      val noneBundle
+        Call makeNoneBundle
+          Var opaque
+          Var cell
+      Call println
+        Call optionalOpaqueIsNone
+          FieldAccess optionalOpaque
+            Var noneBundle
+      Call println
+        Call optionalCellIsNone
+          FieldAccess optionalCell
+            Var noneBundle
+      Call println
+        Call optionalCallbackIsNone
+          FieldAccess optionalCallback
+            Var noneBundle
+      val returnedBundle
+        Call roundBundle
+          Call PointerBundle
+            Var opaque
+            Var cell
+            Call Some
+              Var opaque
+            Call Some
+              Var cell
+            Var scoopCallback
+            Call Some
+              Var scoopCallback
+      Call println
+        Binary Eq
+          MethodCall toULong
+            FieldAccess opaque
+              Var returnedBundle
+          MethodCall toULong
+            Var opaque
+      Call println
+        Binary Eq
+          MethodCall toULong
+            FieldAccess cell
+              Var returnedBundle
+          MethodCall toULong
+            Var cell
+      Call println
+        Call optionalOpaqueMatches
+          FieldAccess optionalOpaque
+            Var returnedBundle
+          Var opaque
+      Call println
+        Call optionalCellMatches
+          FieldAccess optionalCell
+            Var returnedBundle
+          Var cell
+      Call println
+        Call applyCallback
+          IntLiteral 42
+          FieldAccess callback
+            Var returnedBundle
+      Call println
+        Call applyOptionalCallback
+          FieldAccess optionalCallback
+            Var returnedBundle
+          IntLiteral 43
+      Call println
+        Call optionalOpaqueIsNone
+          Var globalOptionalOpaque
+      Call println
+        Call optionalCellIsNone
+          Var globalOptionalCell
+      Call println
+        Call optionalCallbackIsNone
+          Var globalOptionalCallback
+      Call prepareGlobals
+      Call println
+        Binary Ne
+          MethodCall toULong
+            Var globalOpaque
+          IntLiteral 0uL
+      Call println
+        Call readOpaque
+          Var globalOpaque
+      Call println
+        Binary Ne
+          MethodCall toULong
+            Var globalCell
+          IntLiteral 0uL
+      Call println
+        FieldAccess value
+          MethodCall load
+            Var globalCell
+      Call println
+        Call optionalOpaqueMatches
+          Var globalOptionalOpaque
+          NullAssert
+            Var globalOptionalOpaque
+      Call println
+        Call readOpaque
+          NullAssert
+            Var globalOptionalOpaque
+      Call println
+        Call optionalCellMatches
+          Var globalOptionalCell
+          NullAssert
+            Var globalOptionalCell
+      Call println
+        FieldAccess value
+          MethodCall load
+            NullAssert
+              Var globalOptionalCell
+      Call println
+        Call applyCallback
+          IntLiteral 6
+          Var globalCallback
+      Call println
+        Call applyOptionalCallback
+          Var globalOptionalCallback
+          IntLiteral 7
+      assign globalOpaque
+        Var opaque
+      assign globalCell
+        Var cell
+      assign globalOptionalOpaque
+        Call Some
+          Var opaque
+      assign globalOptionalCell
+        Call Some
+          Var cell
+      assign globalCallback
+        Var scoopCallback
+      assign globalOptionalCallback
+        Call Some
+          Var scoopCallback
+      Call println
+        Call globalsMatch
+          Var opaque
+          Var cell
+          Call Some
+            Var opaque
+          Call Some
+            Var cell
+          Var scoopCallback
+          Call Some
+            Var scoopCallback
+      Call println
+        Binary Eq
+          MethodCall toULong
+            Var globalOpaque
+          MethodCall toULong
+            Var opaque
+      Call println
+        Binary Eq
+          MethodCall toULong
+            Var globalCell
+          MethodCall toULong
+            Var cell
+      Call println
+        Call optionalOpaqueMatches
+          Var globalOptionalOpaque
+          Var opaque
+      Call println
+        Call optionalCellMatches
+          Var globalOptionalCell
+          Var cell
+      Call println
+        Call applyCallback
+          IntLiteral 44
+          Var globalCallback
+      Call println
+        Call applyOptionalCallback
+          Var globalOptionalCallback
+          IntLiteral 45
+      assign globalOptionalOpaque
+        Var None
+      assign globalOptionalCell
+        Var None
+      assign globalOptionalCallback
+        Var None
+      Call println
+        Call globalsMatch
+          Var opaque
+          Var cell
+          Var None
+          Var None
+          Var scoopCallback
+          Var None
+      Call println
+        Call optionalOpaqueIsNone
+          Var globalOptionalOpaque
+      Call println
+        Call optionalCellIsNone
+          Var globalOptionalCell
+      Call println
+        Call optionalCallbackIsNone
+          Var globalOptionalCallback
+      Call cleanupGlobals
+      Call free
+        MethodCall cast<Unit>
+          Var cell
+      Call free
+        Var opaque

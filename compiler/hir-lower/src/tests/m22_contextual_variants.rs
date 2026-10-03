@@ -20,11 +20,20 @@ fn assert_variant(module: &hir::Module, expression: &hir::Expr, owner: &str, nam
     let hir::ExprKind::VariantConstruct { variant, .. } = &expression.kind else {
         panic!("expected a variant construction, found {expression:?}");
     };
-    let application = variant.application();
-    let enumeration = module.enum_applications[application].template;
-    assert_eq!(module.enums[enumeration].name, owner);
+    let declaration = module
+        .enum_member_identities
+        .variant_declaration(variant.variant)
+        .expect("the construction retains its original variant");
+    let hir::Type::Enum(application) = module.types[variant.owner] else {
+        panic!("the construction retains its complete enum owner")
+    };
     assert_eq!(
-        module.enums[enumeration].variants[variant.local_index() as usize].name,
+        module.enum_applications[application].template,
+        module.nominal_identities[declaration.enumeration()].declaration_id()
+    );
+    assert_eq!(module.enums[declaration.enumeration()].name, owner);
+    assert_eq!(
+        module.enums[declaration.enumeration()].variants[declaration.local_index() as usize].name,
         name
     );
 }
@@ -473,7 +482,9 @@ fn contextual_failures_report_exact_enum_shape_and_missing_targets() {
         .map(|error| error.message.as_str())
         .collect::<Vec<_>>();
     assert!(
-        messages.contains(&"enum `State` has no variant `Missing`"),
+        messages.contains(
+            &"function `Missing` is not a value; use `::Missing` to create a callable reference"
+        ),
         "{errors:?}"
     );
     assert!(
@@ -596,7 +607,7 @@ fn checked_variant_references_reject_wrong_owners_and_indices() {
         hir::OptionCore::checked(&module.enums, &module.types, present_payload, absent).is_none()
     );
 
-    let checked = module.option_core;
+    let checked = defined_export_core(&module).option;
     assert_eq!(module.enums[checked.enumeration()].name, "Option");
     assert_eq!(checked.some_payload().variant(), checked.some());
     assert_eq!(checked.some_payload().local_index(), 0);

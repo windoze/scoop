@@ -1,0 +1,51 @@
+SourceFile
+  QualifiedPackage consumer.construction
+  ImportExact Local dependency.construction.lexicalCopy
+  private struct Number
+    field value: Int
+  public fun exercise<T>(value: T): Int
+    val number
+      Call Number
+        IntLiteral 42
+    @Unsafe block
+      val raw
+        MethodCall toULong
+          Call addressOf
+            Var number
+      fun read(): Number
+        @Unsafe block
+          return
+            MethodCall load
+              Call Ptr<Number>
+                Var raw
+      val closure: () -> Number
+        Lambda 0 suspend=false
+          parameters omitted
+          var loaded
+            Var number
+          @Unsafe block
+            assign loaded
+              MethodCall load
+                Call Ptr<Number>
+                  Var raw
+          Var loaded
+      if
+        Binary Or
+          Binary Ne
+            FieldAccess value
+              Call read
+            IntLiteral 42
+          Binary Ne
+            FieldAccess value
+              Call closure
+            IntLiteral 42
+        return
+          IntLiteral 1
+      return
+        FieldAccess value
+          Call lexicalCopy<Number>
+            Var number
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

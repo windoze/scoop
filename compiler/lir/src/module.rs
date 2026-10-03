@@ -1,6 +1,8 @@
 use super::*;
 
 pub struct Module {
+    /// Producer Cone used for every generated Strong definition.
+    pub cone: scoop_identity::ConeIdentity,
     pub globals: Arena<Global>,
     pub initialization_units: Arena<InitializationUnit>,
     /// Struct definitions with complete physical layouts (indexed by
@@ -26,14 +28,34 @@ pub struct Module {
     /// NoGC static callback bridges at the type level.
     pub foreign_callback_families: Arena<ForeignCallbackFamily>,
     pub foreign_callback_bridges: Arena<ForeignCallbackBridge>,
-    /// Symbol of the entry function (`scoop_main`).
-    pub entry_symbol: String,
+    pub output: LirOutput,
     pub meta: LirMeta,
+}
+
+/// The physical output contract retained by LIR.
+///
+/// The executable branch carries an effect-refined body reference. Libraries
+/// have no sentinel entry and therefore cannot accidentally emit the fixed
+/// native executable shim.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LirOutput {
+    Library,
+    Executable { entry: LocalFunctionRef },
+}
+
+impl Module {
+    pub const fn executable_entry(&self) -> Option<LocalFunctionRef> {
+        match self.output {
+            LirOutput::Library => None,
+            LirOutput::Executable { entry } => Some(entry),
+        }
+    }
 }
 
 #[derive(Debug)]
 pub struct InitializationUnit {
-    pub stable_key: String,
+    pub identity: InitializationUnitIdentityRecord,
+    pub display_name: String,
     pub schedule: InitializationSchedule,
     pub kind: InitializationUnitKind,
     pub failure_root: GlobalId,
@@ -42,16 +64,24 @@ pub struct InitializationUnit {
     pub dependencies: Vec<InitializationUnitId>,
 }
 
+pub type InitializationUnitIdentityRecord = scoop_identity::CborIdentityRecord<
+    scoop_identity::PersistentInitializationUnitId,
+    scoop_identity::InitializationUnitKey,
+>;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationUnitKind {
     EagerTopLevel { storage: GlobalId },
+    GenericDelegatedExtension { storage: GlobalId },
     LazySingleton { published_root: GlobalId },
 }
 
 impl InitializationUnitKind {
     pub const fn storage(self) -> GlobalId {
         match self {
-            Self::EagerTopLevel { storage } => storage,
+            Self::EagerTopLevel { storage } | Self::GenericDelegatedExtension { storage } => {
+                storage
+            }
             Self::LazySingleton { published_root } => published_root,
         }
     }
@@ -66,10 +96,16 @@ pub enum InitializationSchedule {
 #[derive(Debug)]
 pub struct CallbackBridge {
     pub source_name: String,
-    pub bridge_symbol: String,
-    pub trampoline_symbol: String,
+    pub bridge: StaticCallbackTarget,
+    pub trampoline: StaticCallbackTrampolineIdentity,
     pub params: Vec<CType>,
     pub return_type: CReturnType,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StaticCallbackTarget {
+    Local(NoGcLocalFunctionRef),
+    External(ExternalCallableId),
 }
 
 /// One concrete managed-callback protocol family. All three ids are nominal:
@@ -244,10 +280,11 @@ impl ForeignCallbackFailureResult {
 
 #[derive(Debug)]
 pub struct ForeignCallbackBridge {
+    /// Persistent identity shared with the managed adapter materialization.
+    pub application: scoop_identity::PersistentCallbackApplicationId,
     pub family: ForeignCallbackFamilyId,
-    pub adapter_symbol: String,
-    pub trampoline_symbol: String,
-    pub signature_symbol: String,
+    pub adapter: ManagedLocalFunctionRef,
+    pub trampoline: ManagedCallbackTrampolineIdentity,
     pub params: Vec<CType>,
     pub return_type: CReturnType,
     pub context_index: u32,
@@ -331,17 +368,17 @@ pub struct NativeGlobalBridges {
 
 #[derive(Debug)]
 pub struct NativeGlobalGetBridge {
-    pub symbol: String,
+    pub identity: GeneratedBridgeEntryIdentity,
 }
 
 #[derive(Debug)]
 pub struct NativeGlobalSetBridge {
-    pub symbol: String,
+    pub identity: GeneratedBridgeEntryIdentity,
 }
 
 #[derive(Debug)]
 pub struct NativeGlobalAddressBridge {
-    pub symbol: String,
+    pub identity: GeneratedBridgeEntryIdentity,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

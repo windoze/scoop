@@ -1,0 +1,30 @@
+package dependency.protected_source
+
+public open class Surface protected constructor() {
+    protected var stored: Int
+        get() = 1
+        private set(value) {}
+    protected val computed: Int
+        get() = stored
+    protected open var virtualValue: Int
+        get() = stored
+        set(value) {}
+    protected class Box<T> private constructor(private val seed: T) {
+        public fun echo(value: T): T = value
+        public val current: T
+            get() = seed
+        public var writable: T
+            get() = seed
+            private set(value) {}
+        public object Constants {
+            public const val first: Int = 7
+            private const val second: Int = 9
+        }
+        public class Child public constructor(public val code: Int) {}
+    }
+    protected enum Choice<T> { Empty, Some(val value: T) }
+}
+
+public open class GenericOwner<T> protected constructor(protected var value: T) {
+    protected fun echo(value: T): T = value
+}

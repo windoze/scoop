@@ -1,0 +1,8 @@
+import templates.equality.Payload
+import templates.equality.Key
+
+public fun check(): Boolean {
+    val left = Payload<Any>(Key<Int>(1, 42), 1)
+    val right = Payload<Any>(Key<Int>(1, 42), 1)
+    return left == right
+}

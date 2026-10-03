@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  public object Registry
+    public val number: Int = <expr>
+      IntLiteral 1

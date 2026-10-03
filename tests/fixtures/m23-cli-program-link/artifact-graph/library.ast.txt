@@ -1,0 +1,8 @@
+SourceFile
+  QualifiedPackage programlink.library
+  public fun answer(): Int
+    =
+      IntLiteral 40
+  public fun main()
+    Call println
+      IntLiteral 99

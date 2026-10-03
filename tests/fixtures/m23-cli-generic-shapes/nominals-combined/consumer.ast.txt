@@ -1,0 +1,55 @@
+SourceFile
+  QualifiedPackage consumer.nominals
+  ImportExact Local dependency.nominals.pack
+  ImportExact Local dependency.nominals.unpack
+  ImportExact Local dependency.nominals.relay
+  ImportExact Local dependency.nominals.nested
+  struct Marker
+  struct Wide
+    field left: Int
+    field marker: Marker
+    field right: Number
+  class Number(val value: Int)
+  private fun localRelay<T>(value: T): T
+    =
+      Call unpack
+        Call relay
+          Call pack
+            Var value
+        Var value
+  public fun result(): Int
+    val fallback
+      Call Wide
+        IntLiteral 0
+        Call Marker
+        Call Number
+          IntLiteral 0
+    val value
+      Call unpack
+        Call unpack
+          Call nested
+            Call Wide
+              IntLiteral 20
+              Call Marker
+              Call Number
+                IntLiteral 21
+          Call pack
+            Var fallback
+        Var fallback
+    val number
+      Call localRelay
+        Call Number
+          IntLiteral 1
+    val empty
+      Call localRelay
+        Call Marker
+    return
+      Binary Add
+        Binary Add
+          FieldAccess left
+            Var value
+          FieldAccess value
+            FieldAccess right
+              Var value
+        FieldAccess value
+          Var number

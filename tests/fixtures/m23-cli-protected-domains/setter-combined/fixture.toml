@@ -1,0 +1,157 @@
+schema = 1
+name = "protected-domains-setter-combined"
+inputs = ["provider", "runtime", "../../m23-setter-domains/combined.scoop", "../../m23-cli-imported-classes/support/stage3_test.scoop", "factory"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["protected-domains", "stage-golden", "moving-gc"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+checks = []
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "45d75884dda0cc2740c1215a8c49f84bdd82e8ec3ee793ff10a3cf2a341413c4"},
+]
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+checks = []
+
+[[steps]]
+name = "prepare_provider"
+files = [
+  {"copy" = {"from" = "${fixture}/provider", "to" = "${work}/sources/provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-setter-domains/combined.scoop", "to" = "${work}/sources/provider/src/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/setter-domains/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${provider.result.root.artifact_fingerprint}", "equals" = "bf34dddd331d1ea61a4dcd891a4bded5388376ca9ec08018fb4a949a0c314e0e"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.lir.txt"},
+]
+
+[[steps]]
+name = "prepare_exposed"
+files = [
+  {"copy" = {"from" = "${fixture}/factory/factory.scoop", "to" = "${work}/sources/provider/src/factory.scoop"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "public open class AccessBase public constructor() {", "new" = "public open class AccessBase public constructor() {\n    public fun updateInherited(value: Int): Int { inherited = value; return inherited }"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "public class DomainCases public constructor() : AccessBase() {", "new" = "public class DomainCases public constructor() : AccessBase() {\n    public fun inspect(): Int {\n        visible = 12\n        narrower = 18\n        return visible + narrower + InternalOwner().inspect() + ProtectedOwner().inspect()\n    }"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "    internal class InternalOwner {", "new" = "    internal class InternalOwner {\n        public fun inspect(): Int { guarded = 13; return guarded + PrivateOwner().inspect() }"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "        private class PrivateOwner {", "new" = "        private class PrivateOwner {\n            public fun inspect(): Int { guarded = 14; return guarded }"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "    protected class ProtectedOwner {", "new" = "    protected class ProtectedOwner {\n        public fun inspect(): Int { guarded = 15; return guarded }"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "public class GenericOwner<T> : GenericBase<T>() {", "new" = "public class GenericOwner<T> : GenericBase<T>() {\n    public fun inspect(): Int { guarded = 16; return guarded }"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "public object Registry : AccessBase() {", "new" = "public object Registry : AccessBase() {\n    public fun inspect(): Int { visible = 17; return visible + updateInherited(11) }"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "private open class FileOwner {", "new" = "private open class FileOwner {\n    public fun inspect(): Int { guarded = 19; return guarded }"}},
+  {"replace" = {"path" = "${work}/sources/provider/src/main.scoop", "old" = "public class FileHolder {", "new" = "public class FileHolder {\n    public fun inspect(): Int = owner.inspect()"}},
+]
+checks = []
+
+[[steps]]
+name = "exposed"
+argv = ["${scoop}", "build", "${work}/sources/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/setter-domains/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/exposed"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${exposed.result.root.artifact_fingerprint}", "equals" = "3a06d317733b53e1e4ea4c23372c7328eb5dd159611ed869b48096a8f3b3bc50"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/ast.txt", "snapshot" = "exposed.ast.txt"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/hir.txt", "snapshot" = "exposed.hir.txt"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/mir.txt", "snapshot" = "exposed.mir.txt"},
+  {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/lir.txt", "snapshot" = "exposed.lir.txt"},
+]
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"remove" = {"path" = "${work}/sources/provider"}},
+  {"copy" = {"from" = "${fixture}/runtime", "to" = "${work}/sources/program"}},
+  {"copy" = {"from" = "${fixture}/runtime/main.scoop", "to" = "${work}/sources/program/src/main.scoop"}},
+  {"remove" = {"path" = "${work}/sources/program/main.scoop"}},
+]
+checks = []
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/program", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "de648f9fdd44e1f650953dff71b97cc5a632fba71d4562814cf960af59496ca3"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 2},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = []
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+checks = []

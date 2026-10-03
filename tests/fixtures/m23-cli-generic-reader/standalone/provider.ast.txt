@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  private fun helper<T>(value: T): T
+    =
+      Var value
+  private fun seed(): Int
+    =
+      IntLiteral 7
+  private fun unused<T>(value: T): T
+    =
+      Var value
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  public fun composed<T>(value: T): T
+    val result
+      Call helper
+        Var value
+    Call seed
+    return
+      Var result

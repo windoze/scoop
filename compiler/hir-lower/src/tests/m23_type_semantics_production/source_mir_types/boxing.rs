@@ -1,0 +1,96 @@
+use super::*;
+use scoop_mir::{
+    CanonicalMirCallableBindingsV1, ConeMirInput, MirBoxingCallableProductionError as Error,
+    MirTypeBridgeTypeIndexV1,
+};
+
+mod assertions;
+mod rejections;
+
+fn fixture(name: &str) -> (std::path::PathBuf, String) {
+    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/fixtures/m23-mir-boxing-production");
+    let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
+    (directory, source)
+}
+
+fn sources(
+    output: &hir::DependencyHirOutput,
+    hir: &hir::CrossConeTypeSemanticsSectionV1,
+    input: &ConeMirInput,
+    graph: &scoop_identity::ValidatedIdentityGraph,
+    types: &dyn scoop_mir::MirTypeBridgeTypeLookupV1,
+) -> CanonicalMirCallableBindingsV1 {
+    scoop_mir_lower::lower_source_callable_bindings(
+        output,
+        &public_interface(output),
+        hir,
+        input,
+        graph,
+        types,
+        &[],
+    )
+    .unwrap()
+}
+
+#[test]
+fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
+    for name in ["standalone", "combined"] {
+        let (_, source) = fixture(name);
+        let bytes = with_production(&source, |output, input, hir, graph, types| {
+            let unit = dependencies::unit(input, graph);
+            let actual = complete_type_exports(output, input, hir, graph);
+            let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
+            let source = sources(output, hir, input, graph, &index);
+            let bindings = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
+                input, types, graph, &index, &source,
+            )
+            .unwrap();
+            assertions::actual(input, types, &source, &bindings);
+            let restored: scoop_mir::DecodedCanonicalMirCallableBindingsV1 = decoded(&bindings);
+            assert_eq!(
+                restored
+                    .validate(graph, input.foundation(), &index)
+                    .unwrap(),
+                bindings
+            );
+            assertions::selection(output, input, &bindings, name);
+            encode(&bindings).unwrap()
+        });
+        with_production(
+            &format!("private struct Unrelated() {{}}\n{source}"),
+            |output, input, hir, graph, types| {
+                let unit = dependencies::unit(input, graph);
+                let actual = complete_type_exports(output, input, hir, graph);
+                let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
+                let source = sources(output, hir, input, graph, &index);
+                let bindings = CanonicalMirCallableBindingsV1::from_boxing_adjusts(
+                    input, types, graph, &index, &source,
+                )
+                .unwrap();
+                assert_eq!(encode(&bindings).unwrap(), bytes);
+            },
+        );
+    }
+}
+
+#[test]
+fn actual_boxing_callables_require_target_bindings_and_types() {
+    let (_, source) = fixture("standalone");
+    with_production(&source, |output, input, hir, graph, types| {
+        let actual = complete_type_exports(output, input, hir, graph);
+        let unit = dependencies::unit(input, graph);
+        let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
+        let source = sources(output, hir, input, graph, &index);
+        rejections::check(input, graph, types, &source);
+    });
+    with_production("public struct Empty() {}", |_, input, _, graph, types| {
+        let empty = CanonicalMirCallableBindingsV1::try_new(Vec::new()).unwrap();
+        assert!(
+            CanonicalMirCallableBindingsV1::from_boxing_adjusts(input, types, graph, types, &empty)
+                .unwrap()
+                .entries()
+                .is_empty()
+        );
+    });
+}

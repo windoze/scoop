@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Point` is not generic",
+    "notes": [],
+    "origin": {
+      "cone": "6d8464ed9ef4f6465236f934da3cab4cd93cf59f59badddfcc4bdbabf511cbb0",
+      "end": 48,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 43
+    },
+    "severity": "error"
+  }
+]

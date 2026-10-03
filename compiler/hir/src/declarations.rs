@@ -1,6 +1,7 @@
 use super::*;
 
 mod aliases;
+mod dispatch;
 mod functions;
 mod generics;
 mod globals;
@@ -11,6 +12,7 @@ mod objects;
 mod properties;
 
 pub use aliases::*;
+pub use dispatch::*;
 pub use functions::*;
 pub use generics::*;
 pub use globals::*;

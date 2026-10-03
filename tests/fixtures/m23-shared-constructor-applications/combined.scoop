@@ -1,0 +1,24 @@
+package consumer.constructors
+import upstream.constructors.*
+
+private struct CurrentPair<T, U>(val value: T)
+private class CurrentChild<T, U>(value: T): Box<T, U>(value, true)
+
+@NoGC private fun plain(value: Int): Int = Pair<Int, Unit>(value).value
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val first = Pair<T, Unit>(seed)
+    val repeated = Pair<T, Unit>(seed)
+    val secondary = Pair<T, String>(seed, false)
+    val box = Box<T, Int>(seed)
+    val child = CurrentChild<T, Unit>(seed)
+    if (inspect(first.value) != 42 || inspect(repeated.value) != 42) { return 1 }
+    if (inspect(secondary.value) != 42 || inspect(box.copied) != 42) { return 2 }
+    if (inspect(child.value) != 42 || inspect(selected<T, Unit>(seed)) != 42) { return 3 }
+    if (plain(42) != 42) { return 4 }
+    val source = CurrentPair<Box<T, Int>, Unit>(box)
+    val closure: () -> T = { Pair<T, Unit>(source.value.value).value }
+    return inspect(closure())
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

@@ -6,26 +6,61 @@ use crate::{
 };
 
 impl Lowerer {
-    fn illegal_state_message_constructor(
-        &mut self,
-        class: ClassId,
-    ) -> Option<hir::MessageClassConstructor> {
-        let constructor = self.classes[class]
-            .constructors
+    fn initialization_cycle_thrower(&mut self, files: &[ast::SourceFile]) -> Option<FunctionId> {
+        const NAME: &str = "__scoopThrowInitializationCycle";
+
+        let candidates = self
+            .top_level
             .iter()
             .copied()
-            .find(|constructor| {
-                let parameters = &self.class_constructors[*constructor].parameters;
-                parameters.len() == 1 && self.as_option(parameters[0].ty) == Some(self.string)
-            });
-        if constructor.is_none() {
+            .filter(|function| {
+                self.source_function_declarations
+                    .get(function)
+                    .is_some_and(|source| source.name == NAME)
+            })
+            .collect::<Vec<_>>();
+        let [function] = candidates.as_slice() else {
+            let file = candidates
+                .first()
+                .and_then(|function| self.function_files.get(function))
+                .copied()
+                .unwrap_or_else(|| self.core_diagnostic_file());
+            self.current_file = file;
+            let span = candidates
+                .first()
+                .map(|function| self.functions[*function].span)
+                .unwrap_or(files[file].span);
             self.error(
-                self.classes[class].span,
-                "class `IllegalStateException` in scoop.core must provide a constructor whose parameter is `String?`"
-                    .to_string(),
+                span,
+                format!(
+                    "scoop.core must define exactly one internal function `{NAME}(message: String): Unit`"
+                ),
             );
+            return None;
+        };
+        let function = *function;
+        self.current_file = self.function_files[&function];
+        let declaration = &self.functions[function];
+        let signature = &self.signatures[&function];
+        let valid = declaration.access.declared == hir::DeclaredVisibility::Internal
+            && matches!(declaration.genericity, hir::FunctionGenericity::Plain)
+            && !declaration.is_suspend
+            && declaration.method.is_none()
+            && signature.params.len() == 1
+            && signature.params[0].ty == self.string
+            && signature.return_ty == self.unit
+            && signature.attributes.gc_effect == hir::GcEffect::Managed
+            && matches!(declaration.kind, hir::FunctionKind::User(_));
+        if !valid {
+            self.error(
+                declaration.span,
+                format!(
+                    "function `{NAME}` in scoop.core must be internal, non-generic, non-suspend, managed, and have signature `(String) -> Unit`"
+                ),
+            );
+            return None;
         }
-        constructor.map(|constructor| hir::MessageClassConstructor { class, constructor })
+        Some(function)
     }
 
     fn zero_source_argument_constructor(&self, class: ClassId) -> Option<hir::ClassConstructorId> {
@@ -73,16 +108,17 @@ impl Lowerer {
         }
 
         let class = self.class_constructors[source].owner;
-        let view = self.nominal_constructor_view(NominalConstructorSource::Class(source));
+        let span = self.class_constructors[source].span;
+        let view = self.nominal_constructor_view(NominalConstructorSource::Class(source), span);
         let argument_map = CandidateArgumentMap::source_nominal(&view, &[])
             .expect("a validated zero-source-argument constructor is callable without inputs");
-        let span = self.class_constructors[source].span;
         let lowered = self
             .with_constructor_expression_context(
                 source,
                 "compiler exception zero-argument adapter",
+                self.class_constructors[source].safety,
                 |this, sink| {
-                    Some(this.materialize_nominal_arguments(
+                    this.materialize_nominal_arguments(
                         crate::argument_materialization::NominalArgumentMaterialization {
                             view: &view,
                             argument_map: &argument_map,
@@ -92,16 +128,20 @@ impl Lowerer {
                             call_span: span,
                         },
                         sink,
-                    ))
+                    )
                 },
             )
             .expect("compiler exception adapter lowering always returns its arguments");
         let target =
             self.class_constructor_application(source, self.classes[class].self_application);
         let declaration = self.class_constructors[source].clone();
+        let evaluation_context = self.next_class_constructor_context();
         let adapter = self.class_constructors.alloc(hir::ClassConstructor {
             owner: class,
+            identity_kind: hir::ClassConstructorIdentityKind::ZeroArgumentAdapter { source },
             access: declaration.access,
+            safety: declaration.safety,
+            no_gc_type_params: Vec::new(),
             parameters: Vec::new(),
             kind: hir::ClassConstructorKind::Secondary {
                 delegation: hir::ClassSecondaryDelegation::This {
@@ -119,6 +159,7 @@ impl Lowerer {
             },
             span,
             origin: declaration.origin,
+            evaluation_context,
         });
         self.classes[class].constructors.push(adapter);
         self.class_parameter_calling.insert(adapter, Vec::new());
@@ -133,14 +174,20 @@ impl Lowerer {
         files: &[ast::SourceFile],
         throwable: ClassId,
     ) -> Option<hir::CompilerException> {
-        let candidate = self.classes_by_name.get(name).map(|(id, _)| *id);
-        let id = candidate.filter(|id| self.class_files[id] < self.user_file_index);
+        let candidate = self
+            .core_nominal_target(name)
+            .and_then(|target| match target {
+                crate::NominalTarget::Class(id) => Some(id),
+                _ => None,
+            });
+        let id = candidate;
         let Some(id) = id else {
+            let core_diagnostic_file = self.core_diagnostic_file();
             self.current_file = candidate
                 .and_then(|id| self.class_files.get(&id).copied())
-                .unwrap_or(0);
+                .unwrap_or(core_diagnostic_file);
             self.error(
-                files[0].span,
+                files[core_diagnostic_file].span,
                 format!("scoop.core must define class `{name}`"),
             );
             return None;
@@ -162,6 +209,7 @@ impl Lowerer {
             );
         }
         zero_arg.map(|constructor| {
+            self.check_compiler_exception_safety(name, constructor);
             let constructor = self.compiler_exception_callable(constructor);
             hir::CompilerException {
                 constructor: hir::ZeroArgClassConstructor {
@@ -195,6 +243,7 @@ impl Lowerer {
                     .to_string(),
             );
         }
+        self.check_compiler_exception_safety("Throwable", zero_arg?);
         let throwable = hir::CompilerException {
             constructor: hir::ZeroArgClassConstructor {
                 class: throwable,
@@ -203,8 +252,7 @@ impl Lowerer {
         };
         let illegal_state =
             self.compiler_exception("IllegalStateException", files, throwable.class())?;
-        let illegal_state_message_constructor =
-            self.illegal_state_message_constructor(illegal_state.class())?;
+        let initialization_cycle_thrower = self.initialization_cycle_thrower(files)?;
         Some(hir::CompilerExceptionCore {
             throwable,
             unwrap_exception: self.compiler_exception(
@@ -228,15 +276,16 @@ impl Lowerer {
                 throwable.class(),
             )?,
             illegal_state_exception: illegal_state,
-            illegal_state_message_constructor,
+            initialization_cycle_thrower,
         })
     }
 
     pub(crate) fn validate_throwable(&mut self, files: &[ast::SourceFile]) {
         let Some(&candidate) = self.throwable_candidates.first() else {
-            self.current_file = 0;
+            let core_diagnostic_file = self.core_diagnostic_file();
+            self.current_file = core_diagnostic_file;
             self.error(
-                files[0].span,
+                files[core_diagnostic_file].span,
                 "scoop.core must define a class `Throwable`".to_string(),
             );
             return;
@@ -244,11 +293,40 @@ impl Lowerer {
         self.throwable = Some(candidate);
     }
 
-    /// The `Throwable` reference type of `scoop.core`, when validated.
-    /// `throw` / catch lowering skips its subtype check when this is
-    /// `None` (the misconfigured core was already diagnosed, so the
-    /// module is rejected anyway).
-    pub(crate) fn throwable_ty(&self) -> Option<TypeId> {
-        self.throwable.map(|(_, ty)| ty)
+    /// Resolves the actual exception root through the ordinary type query.
+    /// Missing declarations record a diagnostic before lowering can continue.
+    pub(crate) fn throwable_ty(&mut self, span: Span) -> Option<TypeId> {
+        match &self.core {
+            CoreLoweringAuthority::Defined => self.throwable.map(|(_, ty)| ty),
+            CoreLoweringAuthority::Imported(imported) => {
+                let declaration = imported.exceptions().throwable().persistent();
+                match self.imported_signature_type(&scoop_identity::SignatureTypeKey::Nominal(
+                    declaration,
+                )) {
+                    Ok(ty) => Some(ty),
+                    Err(error) => {
+                        self.error(
+                            span,
+                            format!("cannot resolve Throwable dependency type: {error:?}"),
+                        );
+                        None
+                    }
+                }
+            }
+        }
+    }
+
+    fn check_compiler_exception_safety(
+        &mut self,
+        name: &str,
+        constructor: hir::ClassConstructorId,
+    ) {
+        let constructor = &self.class_constructors[constructor];
+        if constructor.safety != hir::Safety::Safe {
+            self.error(
+                constructor.span,
+                format!("compiler exception constructor `{name}` must be safe"),
+            );
+        }
     }
 }

@@ -1,0 +1,51 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        Call accessValues<Int>
+          IntLiteral 7
+        IntLiteral 7
+    Call verifyDefault
+      Binary Eq
+        Call accessValues<String>
+          StringLiteral "value"
+        StringLiteral "value"
+    Call verifyDefault
+      Binary Eq
+        Call accessValues<Int>
+          IntLiteral 1
+          Argument packet=
+            Call AccessPacket
+              IntLiteral 11
+        IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        MethodCall read
+          Call AccessCell<Int>
+            IntLiteral 13
+        IntLiteral 13
+    Call verifyDefault
+      Binary Eq
+        MethodCall read
+          Call AccessCell<String>
+            StringLiteral "cell"
+        StringLiteral "cell"
+    Call verifyDefault
+      Binary Eq
+        FieldAccess seed
+          Var AccessRegistry
+        IntLiteral 3
+    assign ACCESS_GLOBAL
+      IntLiteral 17
+    Call verifyDefault
+      Binary Eq
+        Call accessValues<Int>
+          IntLiteral 19
+        IntLiteral 19

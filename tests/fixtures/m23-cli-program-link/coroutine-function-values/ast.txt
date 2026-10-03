@@ -1,0 +1,154 @@
+SourceFile
+  QualifiedPackage consumer.coroutines
+  ImportStar Local templates.coroutines.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val immediateCompletion
+      Call Completion<T>
+    Call startCoroutine
+      Call constant
+        Var seed
+      Var immediateCompletion
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var immediateCompletion
+          IntLiteral 1
+        Binary Ne
+          Call read
+            NullAssert
+              FieldAccess value
+                Var immediateCompletion
+          IntLiteral 42
+      return
+        IntLiteral 2
+    val gate
+      Call Gate<T>
+    val counter
+      Call Counter
+    val deferredCompletion
+      Call Completion<T>
+    Call startCoroutine
+      Call deferred
+        Var gate
+        Var seed
+        Var read
+        Var counter
+      Var deferredCompletion
+    if
+      Binary Ne
+        FieldAccess calls
+          Var deferredCompletion
+        IntLiteral 0
+      return
+        IntLiteral 3
+    val retained
+      Call Counter
+    assign .value
+      Var retained
+      IntLiteral 42
+    MethodCall complete
+      Var gate
+      Var seed
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess value
+              Var counter
+            IntLiteral 42
+          Binary Ne
+            FieldAccess value
+              Var retained
+            IntLiteral 42
+        Binary Ne
+          FieldAccess calls
+            Var deferredCompletion
+          IntLiteral 1
+      return
+        IntLiteral 4
+    return
+      Call read
+        NullAssert
+          FieldAccess value
+            Var deferredCompletion
+  public fun result(): Int
+    val reference: suspend (Long) -> Long
+      CallableReference 0 immediate
+    val referenced
+      Call Completion<Long>
+    Call startCoroutine
+      Lambda 0 suspend=true
+        parameters omitted
+        Call reference
+          IntLiteral 42L
+      Var referenced
+    if
+      Binary Ne
+        NullAssert
+          FieldAccess value
+            Var referenced
+        IntLiteral 42L
+      return
+        IntLiteral 5
+    val widened
+      Call widenedFunction
+    val staticResult
+      Call Completion<Any>
+    Call startCoroutine
+      Lambda 1 suspend=true
+        parameters omitted
+        Call widened
+          IntLiteral 0
+      Var staticResult
+    if
+      Binary Ne
+        Cast Int optional=false
+          NullAssert
+            FieldAccess value
+              Var staticResult
+        IntLiteral 42
+      return
+        IntLiteral 6
+    val erased
+      Call erasedFunction
+    if
+      Unary Not
+        Is suspend (Int) -> Any false
+          Var erased
+      return
+        IntLiteral 7
+    if
+      Is (Int) -> Any false
+        Var erased
+      return
+        IntLiteral 8
+    val dynamic
+      Cast suspend (Int) -> Any optional=false
+        Var erased
+    val dynamicResult
+      Call Completion<Any>
+    Call startCoroutine
+      Lambda 2 suspend=true
+        parameters omitted
+        Call dynamic
+          IntLiteral 0
+      Var dynamicResult
+    if
+      Binary Ne
+        Cast Int optional=false
+          NullAssert
+            FieldAccess value
+              Var dynamicResult
+        IntLiteral 42
+      return
+        IntLiteral 9
+    return
+      Call exercise
+        IntLiteral 42
+        Lambda 3 suspend=false
+          param value: Int
+          Var value
+  fun main()
+    Call println
+      Call result

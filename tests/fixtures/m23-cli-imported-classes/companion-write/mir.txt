@@ -1,0 +1,38 @@
+Module
+  global0 $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf: Factory imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=c868344859bc1efa30728982fed34d918e59ee308f6bf0ab326183f6e7114413
+  class Factory vtable=0 itables=1
+  class Counter vtable=0 itables=0
+  interface Readable
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call external5 direct
+      val $property_receiver.0: Factory
+        Type Factory
+        GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      call external3 direct
+        Type Factory
+        Local $property_receiver.0
+        Type Counter
+        Local $new.1
+      call external5 direct
+      call $call.2: Counter = external4 direct
+        Type Factory
+        GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
+      return
+        Type Counter
+        Local $call.2
+  output library

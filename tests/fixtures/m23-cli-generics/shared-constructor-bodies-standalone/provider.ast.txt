@@ -1,0 +1,91 @@
+SourceFile
+  QualifiedPackage upstream.constructorbodies
+  public class Trace(var digits: Int)
+    public fun mark
+  public struct Pair<T, U>
+    field value: T
+    field serial: Int
+    constructor(value: T, trace: Trace) : this(<2 args>)
+      MethodCall mark
+        Var trace
+        IntLiteral 2
+  public open class Base<T, U>(val value: T, trace: Trace)
+    public val base: Int = <expr>
+      MethodCall mark
+        Var trace
+        IntLiteral 3
+  public struct Reader<T, U>
+    field content: T
+    field serial: Int
+    public operator fun getValue
+  public class Built<T, U>(value: T, trace: Trace) : Base<T, U>(<2 args>)
+    public val stored: Int = <expr>
+      MethodCall mark
+        Var trace
+        IntLiteral 4
+    public val delegated: T by <expr>
+      Call Reader<T, U>
+        Var value
+        MethodCall mark
+          Var trace
+          IntLiteral 9
+    public val retained: T = <expr>
+      IfExpression
+        BoolLiteral true
+        val snapshot
+          Var value
+        fun copy(): T
+          return
+            Var snapshot
+        val read
+          AnonymousFunction 0 suspend=false return=T
+            return
+              Call copy
+        Call read
+        else
+        Var value
+    public var output: T = <expr>
+      Var value
+    init
+      val snapshot
+        Var value
+      fun copy(): T
+        return
+          Var snapshot
+      val read: () -> T
+        Lambda 0 suspend=false
+          parameters omitted
+          Call copy
+      assign .output
+        This
+        Call read
+      MethodCall mark
+        Var trace
+        IntLiteral 5
+    constructor(value: T, trace: Trace, flag: Boolean) : this(<2 args>)
+      MethodCall mark
+        Var trace
+        IntLiteral 6
+  public class Terminal<T, U>(), Base<T, U>
+    public val copied: T = <expr>
+      FieldAccess value
+        This
+    public var marker: Int = <expr>
+      IntLiteral 0
+    init
+      val digit
+        IntLiteral 7
+      fun read(): Int
+        Var digit
+      assign .marker
+        This
+        Call read
+    constructor(value: T, trace: Trace) : super(<2 args>)
+      MethodCall mark
+        Var trace
+        FieldAccess marker
+          This
+    constructor(value: T, trace: Trace, flag: Boolean) : this(<2 args>)
+      MethodCall mark
+        Var trace
+        IntLiteral 8

@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Readable
+  ImportExact Local dependency.classes.ReferenceReader
+  public fun primary(): Counter
+    val value: Readable
+      Call ReferenceReader
+        Call Counter
+          IntLiteral 21
+    val extra
+      Call Counter
+        IntLiteral 0
+    return
+      Call Counter
+        Binary Add
+          MethodCall read
+            Var value
+          MethodCall twice
+            Var extra

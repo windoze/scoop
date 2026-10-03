@@ -1,0 +1,191 @@
+Module
+  struct Payload<Int> (value: Int)
+  struct Holder (payload: Payload<Int>)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Payload<Int>> vtable=0 itables=0
+  generated_exact_type get0 location=class4 nominal_id=d057119de5f013ff931774f6b0869e06960d96b8e51de806df164dab1d145234 exact_id=51fa26ef652fcc3be3fc4711dd8711379d1634b232c2d2cfeec5dc2088cd07fd
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call value: Payload<Int> = @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Payload<Int>
+        Type Payload<Int>
+        Local value
+      val $dependency.parameter.value: Payload<Int>
+        Type Payload<Int>
+        Local $dependency.argument.0
+      call $call.1: Payload<Int> = external1 direct
+        Type Payload<Int>
+        Local $dependency.parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload<Int>
+          Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Payload<Int>
+        Type Payload<Int>
+        Local value
+      val $dependency.parameter.payload: Payload<Int>
+        Type Payload<Int>
+        Local $dependency.argument.0
+      call $call.2: Holder = external2 direct
+        Type Payload<Int>
+        Local $dependency.parameter.payload
+      call $argument.0: Boolean = @fn2 direct
+        Type Payload<Int>
+        FieldAccess 0
+          Type Holder
+          Local $call.2
+        Type Payload<Int>
+        Local value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val erased: Any
+        Type Any
+        Box
+          Type Payload<Int>
+          Local value
+      val $cast.1: Any
+        Type Any
+        Local erased
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Payload<Int>
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.3
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.3
+      throw
+        Type ClassCastException
+        Local $new.3
+    bb2 if.merge.2
+      val $ub.2: Payload<Int>
+        Type Payload<Int>
+        Unbox
+          Type Any
+          Local $cast.1
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload<Int>
+          Local $ub.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $derived.equals.0 @fn2(this: Payload<Int>, other: Payload<Int>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Payload<Int>
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Payload<Int>
+            Local other
+  fun ctor.Payload.$c0 @fn3(value: Int) -> Payload<Int> <no-gc>
+    bb0 entry
+      return
+        Type Payload<Int>
+        StructInit Payload<Int>
+          Type Int
+          Local value
+  str @str0 "illegal state"
+  output executable @fn1

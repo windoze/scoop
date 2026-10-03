@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.run as direct
+  ImportExact Local facade.api.run as forwarded
+  public fun routes(): Boolean
+    Call direct
+    Call forwarded
+    return
+      Call direct

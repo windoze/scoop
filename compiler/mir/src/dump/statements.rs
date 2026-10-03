@@ -58,7 +58,7 @@ pub(super) fn dump_statements(
             } => {
                 out.push_str(&format!(
                     "{pad}array_set {}\n",
-                    module.classes[*array_type].name
+                    type_name(module, &Type::Class(*array_type))
                 ));
                 dump_expr(module, locals, array, indent + 1, out);
                 dump_expr(module, locals, index, indent + 1, out);
@@ -135,7 +135,7 @@ pub(super) fn dump_terminator(
         }
         Terminator::Resume => out.push_str(&format!("{pad}resume\n")),
         Terminator::Trap { message } => {
-            out.push_str(&format!("{pad}trap @{}\n", module.strings[*message].symbol));
+            out.push_str(&format!("{pad}trap {message:?}\n"));
         }
         Terminator::Unreachable => out.push_str(&format!("{pad}unreachable\n")),
     }

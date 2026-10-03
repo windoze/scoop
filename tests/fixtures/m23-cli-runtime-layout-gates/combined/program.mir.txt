@@ -1,0 +1,329 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Any
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.argument.1: Any
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=25 bits=0x00000019
+      val $dependency.parameter.first: Any
+        Type Any
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Any
+        Type Any
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = external1 direct
+        Type Any
+        Local $dependency.parameter.first
+        Type Any
+        Local $dependency.parameter.second
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Any
+        Type Any
+        Retype Any
+          Type String
+          StringConst @str1
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.value: Any
+        Type Any
+        Local $dependency.argument.0
+      val $dependency.parameter.result: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = external2 direct
+        Type Any
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Any
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.value: Any
+        Type Any
+        Local $dependency.argument.0
+      val $cast.1: Any
+        Type Any
+        Local $dependency.parameter.value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external5 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.1
+      val $dependency.parameter.result: Int
+        Type Int
+        Local $ub.2
+      call $dependency.receiver: Int = @fn2 direct
+        Type Any
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $cast.3: Any = external3 direct
+        Type String
+        Local $dependency.parameter.value
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance String
+            Type Any
+            Local $cast.3
+    bb3 if.then.3
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external5 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb4 if.merge.4
+      val $dependency.receiver: String
+        Type String
+        Retype String
+          Type Any
+          Local $cast.3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      var failed: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb5 try.unwind.5
+      landing_pad cleanup=false
+      goto bb6
+    bb6 try.dispatch.6
+      begin_catch
+      branch bb13 bb14
+        Type Boolean
+        IsInstance ClassCastException
+          Type Any
+          CaughtException
+    bb7 try.handler_pad.7
+      landing_pad cleanup=true
+      goto bb8
+    bb8 try.handler_cleanup.8
+      end_catch
+      resume
+    bb9 try.exit_pad.9
+      landing_pad cleanup=true
+      goto bb10
+    bb10 try.exit_cleanup.10
+      end_catch
+      resume
+    bb11 try.end.11
+      val $argument.0: Boolean
+        Type Boolean
+        Local failed
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+    bb12 try.body.12 unwind bb5
+      val $dependency.argument.0: Any
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.1: Any
+        Type Any
+        Retype Any
+          Type String
+          StringConst @str4
+      val $dependency.parameter.first: Any
+        Type Any
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Any
+        Type Any
+        Local $dependency.argument.1
+      call $call.3: Int = external1 direct
+        Type Any
+        Local $dependency.parameter.first
+        Type Any
+        Local $dependency.parameter.second
+      goto bb11
+    bb13 try.catch.13
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: ClassCastException
+        Type ClassCastException
+        Retype ClassCastException
+          Type Any
+          Local $catch.4
+      goto bb15
+    bb14 try.next.14
+      rethrow unwind bb9
+    bb15 scope.15 unwind bb7
+      assign failed
+        Type Boolean
+        BoolLiteral true
+      end_catch
+      goto bb16
+    bb16 scope.16
+      goto bb11
+  fun dormant @fn2(value: Any, result: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local result
+  instance mi0 function=@fn2 <- dormant
+  str @str0 "illegal state"
+  str @str1 "unused"
+  str @str2 "text"
+  str @str3 "text"
+  str @str4 "bad"
+  output executable @fn1

@@ -1,0 +1,15 @@
+struct Stamp() {}
+enum Envelope<T> {
+    Absent,
+    Present(val payload: T, val revision: Int = 7)
+}
+enum Bundle {
+    Empty,
+    Record { data: Envelope<Int>, stamp: Stamp },
+    Text(Envelope<String>)
+}
+
+fun inspect(value: Bundle, first: Envelope<Int>, second: Envelope<String>) {}
+fun main() {
+    inspect(Bundle.Empty, Envelope.Present(3), Envelope.Present("text"))
+}

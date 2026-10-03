@@ -1,0 +1,236 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type Int, found Long",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 133,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 125
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type UInt, found ULong",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 255,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 247
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type Int, found UInt",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 377,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 369
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type ULong, found Long",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 505,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 497
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `invalid` must be of type Iterable<Int8>, found IntRange; nominal application `Iterable` is invariant: first differing type argument 1 (`T`) is `Int` in `Iterable<Int>`, but `Int8` in `Iterable<Int8>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 657,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 642
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `invalid` must be of type LongRange, found IntRange",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 790,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 775
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `invalid` must be of type ULongRange, found UIntRange",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 930,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 915
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type Int, found Int8",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1035,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1029
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type Long, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1105,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1096
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type UInt, found ULong",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1300,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1289
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type Int, found Int8",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1409,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1403
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type UInt, found Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1484,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1478
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "initializer of `invalid` must be of type Iterator<Long>, found Iterator<Int>; nominal application `Iterator` is invariant: first differing type argument 1 (`T`) is `Int` in `Iterator<Int>`, but `Long` in `Iterator<Long>`; construct the target application directly or convert explicitly",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1620,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1604
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `rangeTo` has no parameter named `other`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1703,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1683
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `IntRange` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1769,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1761
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `LongRange` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1823,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1814
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `UIntRange` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1880,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1871
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "constructor `ULongRange` is not accessible here",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 1939,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 1929
+    },
+    "severity": "error"
+  }
+]

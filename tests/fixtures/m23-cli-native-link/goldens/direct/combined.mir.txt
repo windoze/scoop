@@ -1,0 +1,102 @@
+Module
+  struct Marker (value: Int)
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.left: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      call $dependency.argument.0: Int = external0 direct
+        Type Int
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Marker = @fn3 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Marker
+        Type Marker
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Marker
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun through @fn2(value: Marker) -> Int
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      call $call.1: Int = external0 direct
+        Type Int
+        Local $dependency.local.2
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        Local $call.1
+  fun ctor.Marker.$c0 @fn3(value: Int) -> Marker <no-gc>
+    bb0 entry
+      return
+        Type Marker
+        StructInit Marker
+          Type Int
+          Local value
+  instance mi0 function=@fn1 <- println
+  instance mi1 function=@fn2 <- through
+  str @str0 "\n"
+  output executable @fn0

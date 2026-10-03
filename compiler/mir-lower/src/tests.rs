@@ -1,44 +1,304 @@
 use super::*;
-use scoop_ast::Span;
 use scoop_hir as hir;
+use scoop_hir::Span;
 
 mod basic_lowering;
 mod callbacks;
 mod control_flow;
 mod coroutine_pending;
 mod coroutines;
+mod function_adapters;
 mod generics;
 mod harness_core;
 mod harness_functions;
 mod harness_gc;
+mod harness_metadata;
 mod harness_nominals;
 mod operators;
 mod overloads;
 mod reference_types;
 mod singletons;
+mod snapshots;
+mod source_exact_types;
+use snapshots::check_mir_snapshot;
 mod value_types;
 
-fn lower(module: &hir::Module) -> mir::Module {
-    let concrete = scoop_hir_lower::concretize_export(module);
-    let mut module = super::lower(&concrete);
+trait TestExecutableEntry {
+    type FunctionId: Copy;
+
+    fn entry(&self) -> Self::FunctionId;
+}
+
+impl TestExecutableEntry for hir::ExportHirOutput {
+    type FunctionId = hir::FunctionId;
+
+    fn entry(&self) -> Self::FunctionId {
+        let hir::ConeOutputKind::Executable { local_entry } = self.output_kind() else {
+            panic!("test expected executable Export HIR")
+        };
+        local_entry.local_function().function()
+    }
+}
+
+impl TestExecutableEntry for hir::LocalConcreteHirOutput {
+    type FunctionId = hir::concrete::FunctionId;
+
+    fn entry(&self) -> Self::FunctionId {
+        let hir::LocalConeOutputKind::Executable { local_entry } = self.output_kind() else {
+            panic!("test expected executable LocalConcrete HIR")
+        };
+        local_entry.local_function().function()
+    }
+}
+
+fn lower(module: &hir::ExportHirOutput) -> mir::Module {
+    let concrete =
+        scoop_hir_lower::concretize_output(module).expect("concrete type applications are valid");
+    let output_kind = concrete.output_kind().clone();
+    let materialization = concrete.materialization().clone();
+    let mut concrete_module = concrete.into_module();
+    if concrete_module.initialization_units.is_empty() {
+        let cycle_thrower = defined_concrete_core(&concrete_module)
+            .exceptions
+            .initialization_cycle_thrower;
+        concrete_module
+            .top_level
+            .retain(|&function| function != cycle_thrower);
+    }
+    let concrete =
+        hir::LocalConcreteHirOutput::try_new(concrete_module, output_kind, materialization)
+            .expect("the filtered MIR fixture remains a valid LocalConcrete HIR output");
+    let mut module = super::lower(&concrete)
+        .expect("test LocalConcrete HIR carries locally defined core protocols");
     // Handcrafted unit modules use hidden, valid exception shells to satisfy
     // LocalConcreteHir's complete core contract. Keep their constructor
     // functions out of unrelated top-level ordering/dump assertions.
     let functions = &module.functions;
     module.top_level.retain(|id| {
         let name = &functions[*id].name;
-        !(name.starts_with("init.$") && name.contains("ExceptionProtocol.$c"))
-            && !name.starts_with("init.$ThrowableProtocol.$c")
+        !(name.starts_with("init._") && name.contains("ExceptionProtocol.$c"))
+            && !name.starts_with("init._ThrowableProtocol.$c")
     });
     module
+}
+
+fn defined_export_core(module: &hir::Module) -> &hir::DefinedCoreProtocols {
+    let hir::CoreProtocols::Defined(protocols) = &module.core_protocols else {
+        panic!("test Export HIR carries locally defined core protocols")
+    };
+    protocols
+}
+
+fn defined_concrete_core(
+    module: &hir::concrete::Module,
+) -> &hir::concrete::DefinedConcreteCoreProtocols {
+    let hir::concrete::ConcreteCoreProtocols::Defined(protocols) = &module.core_protocols else {
+        panic!("test LocalConcrete HIR carries locally defined core protocols")
+    };
+    protocols
+}
+
+fn assert_mir_foundation_projection(module: &mir::Module) -> mir::MirFoundationCounts {
+    let foundation = mir::CanonicalMirFoundation::from_module(module)
+        .expect("valid lowered MIR has a complete canonical identity foundation");
+    let counts = foundation.counts();
+    assert_eq!(counts.exact_types, module.meta.generated_exact_types.len());
+    assert_eq!(
+        counts.generated_callables,
+        module.meta.generated_callables.len()
+    );
+    assert_eq!(
+        counts.generated_types,
+        module.meta.generated_exact_types.len()
+    );
+    assert_eq!(
+        counts.callable_signatures,
+        module.meta.callable_signatures.len()
+    );
+    assert_eq!(
+        counts.callback_applications,
+        module.foreign_callback_bridges.len()
+    );
+    assert_eq!(
+        counts.callback_application_records,
+        module.foreign_callback_bridges.len()
+    );
+    let mir_local_values = module
+        .meta
+        .local_values
+        .iter()
+        .filter(|entry| entry.authority() == mir::LocalValueIdentityAuthority::Mir)
+        .map(|entry| entry.identity_record().id())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    assert_eq!(counts.local_values, mir_local_values);
+    counts
+}
+
+fn executable_output(module: hir::Module, entry: hir::FunctionId) -> hir::ExportHirOutput {
+    let local_entry = hir::LocalExecutableEntry::try_new(&module, entry)
+        .expect("the MIR test keeps its executable entry structurally valid");
+    hir::ExportHirOutput::try_new(
+        module,
+        hir::ConeOutputKind::Executable {
+            local_entry: Box::new(local_entry),
+        },
+    )
+    .expect("the MIR test keeps its executable output structurally valid")
+}
+
+fn rebuild_type_identities(module: &hir::Module) -> hir::HirTypeIdentities {
+    hir::HirTypeIdentities::from_types(hir::HirTypeIdentityInputs {
+        types: &module.types,
+        function_types: &module.function_types,
+        structs: &module.structs,
+        struct_applications: &module.struct_applications,
+        enums: &module.enums,
+        loaded_enum_definitions: &module.loaded_enum_definitions,
+        loaded_struct_definitions: &module.loaded_struct_definitions,
+        loaded_class_definitions: &module.loaded_class_definitions,
+        loaded_interface_definitions: &module.loaded_interface_definitions,
+        enum_applications: &module.enum_applications,
+        classes: &module.classes,
+        class_applications: &module.class_applications,
+        interfaces: &module.interfaces,
+        interface_applications: &module.interface_applications,
+        objects: &module.objects,
+        core_types: hir::HirCoreTypeIdentityAuthority::Defined(
+            &defined_export_core(module).fundamental_types,
+        ),
+        nominal_identities: &module.nominal_identities,
+    })
+    .expect("the MIR test keeps its HIR type identities structurally complete")
+}
+
+fn rebuild_initialization_unit_identities(
+    module: &hir::Module,
+) -> hir::HirInitializationUnitIdentities {
+    hir::HirInitializationUnitIdentities::from_declarations(
+        &module.initialization_units,
+        &module.initialization_failure_roots,
+        &module.functions,
+        &module.globals,
+        &module.objects,
+        &module.companion_relations,
+        &module.singleton_values,
+        &module.singleton_published_roots,
+        &module.properties,
+        &module.delegate_storages,
+        &module.generic_delegate_templates,
+        &module.nominal_identities,
+        &module.property_identities,
+    )
+    .expect("the MIR test keeps its initialization-unit identities complete")
+}
+
+fn extend_function_identities(module: &mut hir::Module, preserved_functions: usize) {
+    let preserved = module.function_identities.clone();
+    let identities = module
+        .functions
+        .iter()
+        .map(|(function, declaration)| {
+            let index = function.into_raw().into_u32() as usize;
+            if index < preserved_functions {
+                return preserved[function].clone();
+            }
+            assert!(matches!(
+                declaration.genericity,
+                hir::FunctionGenericity::Plain
+            ));
+            let site = scoop_identity::SourceDeclarationSite::new(
+                scoop_identity::ConeIdentity::SINGLE_FILE,
+                scoop_identity::PackagePath::root(),
+                scoop_identity::DefinitionOwnerChain::top_level(),
+                scoop_identity::DeclarationScope::ConeWide,
+            )
+            .unwrap();
+            let name = format!("extended_fixture_function_{index}");
+            let declaration = scoop_identity::SourceDeclarationKey::function(
+                site,
+                scoop_identity::CanonicalIdentifier::new(&name).unwrap(),
+                0,
+                None,
+                Vec::new(),
+            );
+            hir::HirFunctionIdentity::source(
+                hir::HirSourceFunctionIdentity::from_declaration(declaration).unwrap(),
+            )
+        })
+        .collect();
+    module.function_identities = hir::HirFunctionIdentities::checked(
+        hir::HirFunctionIdentityInputs {
+            functions: &module.functions,
+            lambdas: &module.lambdas,
+            anonymous_functions: &module.anonymous_functions,
+            local_functions: &module.local_functions,
+            property_getters: &module.property_getters,
+            property_setters: &module.property_setters,
+            property_accessor_identities: &module.property_accessor_identities,
+            initialization_units: &module.initialization_units,
+            initialization_unit_identities: &module.initialization_unit_identities,
+            derived_equality_applications: &module.derived_equality_applications,
+            structs: &module.structs,
+            enums: &module.enums,
+            type_identities: &module.type_identities,
+            struct_constructors: &module.struct_constructors,
+            class_constructors: &module.class_constructors,
+            constructor_identities: &module.constructor_identities,
+            enum_member_identities: &module.enum_member_identities,
+        },
+        identities,
+    )
+    .expect("the extended MIR test fixture has a total function identity relation");
+}
+
+fn rebuild_callback_identities(module: &hir::Module) -> hir::HirCallbackRegistrationIdentities {
+    hir::HirCallbackRegistrationIdentities::from_registrations(
+        hir::HirCallbackRegistrationIdentityInputs {
+            registrations: &module.foreign_callback_registrations,
+            functions: &module.functions,
+            lambdas: &module.lambdas,
+            anonymous_functions: &module.anonymous_functions,
+            local_functions: &module.local_functions,
+            class_constructors: &module.class_constructors,
+            struct_constructors: &module.struct_constructors,
+            function_identities: &module.function_identities,
+            property_accessor_identities: &module.property_accessor_identities,
+            constructor_identities: &module.constructor_identities,
+            enum_member_identities: &module.enum_member_identities,
+            type_inputs: hir::HirTypeIdentityInputs {
+                types: &module.types,
+                function_types: &module.function_types,
+                structs: &module.structs,
+                struct_applications: &module.struct_applications,
+                enums: &module.enums,
+                loaded_enum_definitions: &module.loaded_enum_definitions,
+                loaded_struct_definitions: &module.loaded_struct_definitions,
+                loaded_class_definitions: &module.loaded_class_definitions,
+                loaded_interface_definitions: &module.loaded_interface_definitions,
+                enum_applications: &module.enum_applications,
+                classes: &module.classes,
+                class_applications: &module.class_applications,
+                interfaces: &module.interfaces,
+                interface_applications: &module.interface_applications,
+                objects: &module.objects,
+                core_types: hir::HirCoreTypeIdentityAuthority::Defined(
+                    &defined_export_core(module).fundamental_types,
+                ),
+                nominal_identities: &module.nominal_identities,
+            },
+            unit: module.unit,
+        },
+    )
+    .expect("the MIR test keeps its callback identities structurally complete")
 }
 
 fn dump(module: &mir::Module) -> String {
     mir::dump(module)
         .lines()
         .filter(|line| {
-            !(line.contains("class $") && line.contains("ExceptionProtocol"))
-                && !line.contains("class $ThrowableProtocol")
+            !(line.contains("class _") && line.contains("ExceptionProtocol"))
+                && !line.contains("class _ThrowableProtocol")
         })
         .map(|line| format!("{line}\n"))
         .collect()
@@ -124,6 +384,7 @@ enum CanonicalTypePlan {
 
 struct Harness {
     types: Arena<hir::Type>,
+    function_types: Arena<hir::FunctionType>,
     functions: Arena<hir::Function>,
     extern_functions: Arena<hir::ExternFunction>,
     generic_functions: Arena<hir::GenericFunction>,
@@ -165,7 +426,6 @@ struct Harness {
     boolean: hir::TypeId,
     string: hir::TypeId,
     option_enum: hir::EnumId,
-    needs_initialization_core: bool,
     write: Option<hir::FunctionId>,
     long_to_string: Option<hir::FunctionId>,
     bool_to_string: Option<hir::FunctionId>,
@@ -197,9 +457,34 @@ struct GcCore {
     gc_stats: hir::FunctionId,
 }
 
+fn test_local_selector(ordinal: u32) -> scoop_identity::LocalValueSelector {
+    scoop_identity::LocalValueSelector::Synthetic {
+        path: scoop_identity::StructuralDefinitionPath::from_first(
+            scoop_identity::StructuralPathSegment::new(
+                scoop_identity::StructuralDefinitionSiteRole::SyntheticValue,
+                ordinal,
+            ),
+            [],
+        ),
+        role: scoop_identity::SyntheticLocalRole::Temporary,
+    }
+}
+
+fn test_local_ordinal(name: &str, ty: hir::TypeId, line: u32, column: u32) -> u32 {
+    let name = name.bytes().fold(0x811c_9dc5_u32, |hash, byte| {
+        (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
+    });
+    name ^ ty.into_raw().into_u32().rotate_left(7) ^ line.rotate_left(13) ^ column.rotate_left(21)
+}
+
+#[track_caller]
 fn local(name: &str, ty: hir::TypeId) -> hir::Local {
+    let caller = std::panic::Location::caller();
+    let ordinal = test_local_ordinal(name, ty, caller.line(), caller.column());
     hir::Local {
-        binding: hir::BindingId::from_raw(0),
+        binding: hir::BindingId::from_raw(ordinal),
+        selector: test_local_selector(ordinal),
+        definition: hir::LocalValueDefinitionSite::Synthetic,
         name: name.to_string(),
         ty,
         mutable: false,
@@ -257,7 +542,13 @@ fn bool_lit(h: &Harness, value: bool) -> hir::Expr {
 }
 
 fn str_lit(h: &Harness, value: &str) -> hir::Expr {
-    expr(hir::ExprKind::StringLiteral(value.to_string()), h.string)
+    expr(
+        hir::ExprKind::StringLiteral {
+            value: value.to_string(),
+            owner: hir::StringConstantOwner::CurrentDefinition,
+        },
+        h.string,
+    )
 }
 
 fn local_ref(id: hir::LocalId, ty: hir::TypeId) -> hir::Expr {
@@ -317,42 +608,9 @@ fn integer_operation(
         hir::NoGcIntegerOperation::Equals => h.boolean,
         _ => owner,
     };
-    let function = h.functions.alloc(hir::Function {
-        name: format!("$testIntegerNoGc{}", h.functions.len()),
-        access: hir::DeclarationAccess::public(),
-        override_access: Vec::new(),
-        genericity: hir::FunctionGenericity::Plain,
-        is_suspend: false,
-        modifiers: hir::CallableModifiers::default(),
-        params: Vec::new(),
-        return_ty: result_ty,
-        attributes: hir::FunctionAttributes {
-            gc_effect: hir::GcEffect::NoGc,
-            ..hir::FunctionAttributes::default()
-        },
-        kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-            kind: hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::NoGcOperation {
-                kind,
-                operation,
-            }),
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        }),
-        method: Some(hir::Method {
-            owner,
-            modifier: hir::MethodModifier::Final,
-            dispatch: hir::MethodDispatch::Direct,
-        }),
-        span: SPAN,
-    });
-    let target = hir::NoGcCallableRef::try_from_function(function, &h.functions)
-        .expect("the test target carries the matching no-GC integer intrinsic effect");
     expr(
         hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc {
-                kind,
-                operation,
-                target,
-            },
+            operation: hir::IntegerOperation::NoGc { kind, operation },
             arguments,
         },
         result_ty,
@@ -399,38 +657,9 @@ fn integer_div_rem(
     rhs: hir::Expr,
 ) -> hir::Expr {
     let owner = h.integer(kind);
-    let function = h.functions.alloc(hir::Function {
-        name: format!("$testIntegerManaged{}", h.functions.len()),
-        access: hir::DeclarationAccess::public(),
-        override_access: Vec::new(),
-        genericity: hir::FunctionGenericity::Plain,
-        is_suspend: false,
-        modifiers: hir::CallableModifiers::default(),
-        params: Vec::new(),
-        return_ty: owner,
-        attributes: hir::FunctionAttributes::default(),
-        kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-            kind: hir::IntrinsicFunctionKind::Integer(
-                hir::IntegerIntrinsicKind::ManagedOperation { kind, operation },
-            ),
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        }),
-        method: Some(hir::Method {
-            owner,
-            modifier: hir::MethodModifier::Final,
-            dispatch: hir::MethodDispatch::Direct,
-        }),
-        span: SPAN,
-    });
-    let target = hir::ManagedCallableRef::try_from_function(function, &h.functions)
-        .expect("the test target carries the matching managed integer intrinsic effect");
     expr(
         hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::Managed {
-                kind,
-                operation,
-                target,
-            },
+            operation: hir::IntegerOperation::Managed { kind, operation },
             arguments: hir::HirIntegerOperationArguments::Binary {
                 lhs: Box::new(lhs),
                 rhs: Box::new(rhs),
@@ -446,43 +675,12 @@ fn integer_conversion(
     target_kind: hir::IntegerKind,
     operand: hir::Expr,
 ) -> hir::Expr {
-    let owner = h.integer(source);
     let result_ty = h.integer(target_kind);
-    let function = h.functions.alloc(hir::Function {
-        name: format!("$testIntegerConversion{}", h.functions.len()),
-        access: hir::DeclarationAccess::public(),
-        override_access: Vec::new(),
-        genericity: hir::FunctionGenericity::Plain,
-        is_suspend: false,
-        modifiers: hir::CallableModifiers::default(),
-        params: Vec::new(),
-        return_ty: result_ty,
-        attributes: hir::FunctionAttributes {
-            gc_effect: hir::GcEffect::NoGc,
-            ..hir::FunctionAttributes::default()
-        },
-        kind: hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-            kind: hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::Conversion {
-                source,
-                target_kind,
-            }),
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        }),
-        method: Some(hir::Method {
-            owner,
-            modifier: hir::MethodModifier::Final,
-            dispatch: hir::MethodDispatch::Direct,
-        }),
-        span: SPAN,
-    });
-    let target = hir::NoGcCallableRef::try_from_function(function, &h.functions)
-        .expect("the test target carries a no-GC integer conversion effect");
     expr(
         hir::ExprKind::IntegerConversion {
             conversion: hir::IntegerConversion {
                 source,
                 target_kind,
-                target,
             },
             operand: Box::new(operand),
         },
@@ -503,7 +701,9 @@ fn module_integer_type(module: &hir::Module, kind: hir::IntegerKind) -> hir::Typ
 fn call(h: &Harness, function: hir::FunctionId, args: Vec<hir::Expr>) -> hir::Expr {
     expr(
         hir::ExprKind::Call {
-            callee: hir::Callable::Function(function),
+            binding: None,
+            receiver: scoop_hir::SourceCallReceiver::NoReceiver,
+            callee: (hir::Callable::Function(function)).into(),
             args,
         },
         h.unit,
@@ -516,7 +716,9 @@ fn call(h: &Harness, function: hir::FunctionId, args: Vec<hir::Expr>) -> hir::Ex
 fn call_typed(function: hir::FunctionId, args: Vec<hir::Expr>, ty: hir::TypeId) -> hir::Expr {
     expr(
         hir::ExprKind::Call {
-            callee: hir::Callable::Function(function),
+            binding: None,
+            receiver: scoop_hir::SourceCallReceiver::NoReceiver,
+            callee: (hir::Callable::Function(function)).into(),
             args,
         },
         ty,
@@ -527,12 +729,15 @@ fn struct_init(h: &Harness, ty: hir::TypeId, args: Vec<hir::Expr>) -> hir::Expr 
     let hir::Type::Struct(application) = h.types[ty] else {
         panic!("struct construction requires a struct application type")
     };
-    let constructor = h.structs[h.struct_applications[application].template].constructors[0];
+    let constructor =
+        h.structs[h.struct_id(h.struct_applications[application].template)].constructors[0];
     let application = h
         .struct_constructor_applications
         .iter()
         .find_map(|(id, candidate)| {
-            (candidate.constructor == constructor && candidate.owner == application).then_some(id)
+            (candidate.constructor == scoop_hir::StructConstructorDefinition::Local(constructor)
+                && candidate.owner == application)
+                .then_some(id)
         })
         .expect("the harness creates the primary struct constructor application");
     expr(
@@ -553,7 +758,7 @@ fn module_interface_application(
     let application = module
         .interface_applications
         .alloc(hir::InterfaceApplication {
-            template,
+            template: module.nominal_identities[template].declaration_id(),
             arguments,
             canonical_type,
         });
@@ -564,7 +769,7 @@ fn module_interface_application(
 
 /// `main` calls `println("hello, world")` then `helper()`, which
 /// calls `print("!")`.
-fn hello_world() -> hir::Module {
+fn hello_world() -> hir::ExportHirOutput {
     let mut h = Harness::new();
     let print = h.print_string();
     let println = h.println_string();
@@ -595,7 +800,9 @@ fn generic_call(
 ) -> hir::Expr {
     expr(
         hir::ExprKind::Call {
-            callee: hir::Callable::Generic(resolved),
+            binding: None,
+            receiver: scoop_hir::SourceCallReceiver::NoReceiver,
+            callee: (hir::Callable::Generic(resolved)).into(),
             args,
         },
         ty,
@@ -656,10 +863,11 @@ fn class_index(raw: u32) -> mir::ClassId {
 
 // ---- M6: reference types ----
 
-/// The symbol a vtable / itable slot points at.
+/// The display name a vtable / itable slot points at.
 fn slot_fn<'a>(module: &'a mir::Module, slot: &mir::TableSlot) -> &'a str {
     match slot {
-        mir::TableSlot::Function(id) => &module.functions[*id].symbol,
+        mir::TableSlot::Function(id) => &module.functions[*id].name,
+        mir::TableSlot::External(_) => "external",
         mir::TableSlot::Runtime(function) => function.symbol(),
     }
 }

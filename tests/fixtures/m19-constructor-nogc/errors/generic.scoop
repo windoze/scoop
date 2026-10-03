@@ -1,0 +1,3 @@
+struct Native<T>(val value: T) { @NoGC constructor(value: T, flag: Boolean): this(value) {} }
+fun bad() { val bad: Native<String> = Native("text", true) }
+fun main() {}

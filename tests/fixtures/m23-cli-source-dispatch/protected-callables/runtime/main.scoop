@@ -1,0 +1,24 @@
+fun verifyDispatch(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class Completion : Continuation<Long> {
+    public var result: Long = 0L
+    public var finished: Boolean = false
+    public override fun resume(value: Long) { result = value; finished = true }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+class Task(val source: Source) : SuspendTask<Long> {
+    public override suspend fun run(): Long = source.waitObserved(5)
+}
+
+fun main() {
+    val first = source().observe(19, Argument)
+    verifyDispatch(first._1 == 5L && first._2 == 19 && first._3 === Argument)
+    verifyDispatch(first._4 == 1L && first._5 == 13 && first._6 == 13)
+    val second = child().observe("generic", Argument)
+    verifyDispatch(second._1 == 5L && second._2 == "generic" && second._3 === Argument)
+    verifyDispatch(second._4 == 1L && second._5 == 2 && second._6 == 13)
+    verifyDispatch(abstractValue().observe(23) == (23, 17))
+    val completion = Completion()
+    startCoroutine(Task(child()), completion)
+    verifyDispatch(completion.finished && completion.result == 1L)
+}

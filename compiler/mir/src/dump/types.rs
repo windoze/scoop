@@ -8,7 +8,11 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
         Type::MachineScalar(kind) => format!("machine<{}>", kind.name()),
         Type::Boolean => "Boolean".to_string(),
         Type::String => "String".to_string(),
-        Type::Struct(id) => module.structs[*id].name.clone(),
+        Type::Struct(id) => nominal_name(
+            module,
+            &module.structs[*id].name,
+            &module.structs[*id].type_arguments,
+        ),
         Type::Class(id) => match &module.classes[*id].representation {
             ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::Array { element }) => {
                 format!("Array<{}>", type_name(module, element))
@@ -17,14 +21,20 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
                 element,
             }) => format!("MutableArray<{}>", type_name(module, element)),
             ClassRepresentation::Declared { .. }
-            | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => {
-                module.classes[*id].name.clone()
-            }
+            | ClassRepresentation::Intrinsic(IntrinsicTypeRepresentation::String) => nominal_name(
+                module,
+                &module.classes[*id].name,
+                &module.classes[*id].type_arguments,
+            ),
             ClassRepresentation::Intrinsic(_) => {
                 unreachable!("the intrinsic registry fixes declaration targets")
             }
         },
-        Type::Interface(id) => module.interfaces[*id].name.clone(),
+        Type::Interface(id) => nominal_name(
+            module,
+            &module.interfaces[*id].name,
+            &module.interfaces[*id].type_arguments,
+        ),
         Type::Any => "Any".to_string(),
         Type::Tuple(elements) => {
             let inner: Vec<String> = elements.iter().map(|t| type_name(module, t)).collect();
@@ -60,12 +70,20 @@ pub fn type_name(module: &Module, ty: &Type) -> String {
         }
         Type::Enum(id, args) => {
             let name = &module.enums[*id].name;
-            if args.is_empty() {
-                name.clone()
-            } else {
-                let inner: Vec<String> = args.iter().map(|t| type_name(module, t)).collect();
-                format!("{}<{}>", name, inner.join(", "))
-            }
+            nominal_name(module, name, args)
         }
+    }
+}
+
+fn nominal_name(module: &Module, name: &str, arguments: &[Type]) -> String {
+    if arguments.is_empty() {
+        name.to_string()
+    } else {
+        let arguments = arguments
+            .iter()
+            .map(|argument| type_name(module, argument))
+            .collect::<Vec<_>>()
+            .join(", ");
+        format!("{name}<{arguments}>")
     }
 }

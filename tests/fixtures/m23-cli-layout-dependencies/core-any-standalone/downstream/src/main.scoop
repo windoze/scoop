@@ -1,0 +1,1 @@
+public fun read(value: Any): Any = outside(value)

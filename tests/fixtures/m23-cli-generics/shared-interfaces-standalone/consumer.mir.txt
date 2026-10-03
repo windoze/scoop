@@ -1,0 +1,676 @@
+Module
+  class Remote<String, Unit> vtable=0 itables=1
+  class Remote<Unit, Unit> vtable=0 itables=1
+  class Remote<Int, Unit> vtable=0 itables=1
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Values<String, Unit>
+  interface Values<Unit, Unit>
+  interface Values<Int, Unit>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn34 id=5617a2649fd661cf53e75e7bbf5ed7d81ea576c06549a6389eaa2a47f86aface
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn35 id=b4f1e1b9272caa9565d37768817c8add900983b74f031bb80b56d68815df5bfa
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn36 id=46e4624807eb28e5a43a00884ee66713c58f6a83f6ca2364554d02f6fc56fbe6
+  closure cc3 $Closure$lambda3 type=function_type2 invoke=@fn12 captures=0
+    bridge function_type1 -> @fn37 id=9cbb61e9ec6b184f233ebe0a96506ded0ff1418dfed4df0fef0e2e085de133e4
+  closure cc4 $Closure$lambda4 type=function_type2 invoke=@fn18 captures=0
+    bridge function_type1 -> @fn38 id=29d4b56444fd056a6c7e4fdb1b4951595a1ac676a2d37f92db32c5ca8bfcbe86
+  closure cc5 $Closure$lambda5 type=function_type2 invoke=@fn24 captures=0
+    bridge function_type1 -> @fn39 id=787299f2ff68bebe79869b48668495c44a946b3fa9efd85fbf63e59040584a9b
+  generated_exact_type get0 location=class3 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get1 location=closure3 nominal_id=6f7c200a9ecffc054c3e300af3fbb1afe6f10b35e9e1aa124bf48eac72688c55 exact_id=7c75b8d59ca27fa5725454e417728646634e76d485a92a17822a2181885d602c
+  generated_exact_type get2 location=closure4 nominal_id=fc7dd7da6e41a6dc0b9e87089522f2260537268e87106b09d64c2002d7cf3ee4 exact_id=a149b3b0a47544637ff565bb304d68c6f6c26d46ab32102c1f85c4aacc796916
+  generated_exact_type get3 location=closure2 nominal_id=976bb9ad111eb60e71c64af2af226c9b01bff8e94cf1311d200a47688c3966fe exact_id=bde6c75fb8b42bf4678de4531e39af7f84d818858f49b52402d98e4fea192817
+  generated_exact_type get4 location=closure0 nominal_id=e7a7359173d6473da722b7a6e86dda91124b713629448a9ef7e761c1c82e15b2 exact_id=cd99f8687527d09c3099b68a4ed43afd0777b052482cac8a9087abf40ec423db
+  generated_exact_type get5 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get6 location=closure1 nominal_id=a2df42c2d815b1a0006dc4a43ea5f2eb08706a6401f017ed5065dfdb45242eff exact_id=e734b3df4ac60c226f306ca887890a676ed4bed74257ba2d9da2bbe615f2a1c5
+  generated_exact_type get7 location=closure5 nominal_id=8230ac3acf6ade048ffb14d9d7a81cc5cfaa246f9e4642eed91621004e36b295 exact_id=fc105694e59e05a41668f2130faa2ca8c07975d9506b05a2ac66c70fefe3212d
+  generated_callable gc0 function=@fn38 id=29d4b56444fd056a6c7e4fdb1b4951595a1ac676a2d37f92db32c5ca8bfcbe86
+  generated_callable gc1 function=@fn36 id=46e4624807eb28e5a43a00884ee66713c58f6a83f6ca2364554d02f6fc56fbe6
+  generated_callable gc2 function=@fn34 id=5617a2649fd661cf53e75e7bbf5ed7d81ea576c06549a6389eaa2a47f86aface
+  generated_callable gc3 function=@fn39 id=787299f2ff68bebe79869b48668495c44a946b3fa9efd85fbf63e59040584a9b
+  generated_callable gc4 function=@fn37 id=9cbb61e9ec6b184f233ebe0a96506ded0ff1418dfed4df0fef0e2e085de133e4
+  generated_callable gc5 function=@fn35 id=b4f1e1b9272caa9565d37768817c8add900983b74f031bb80b56d68815df5bfa
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $argument.1: (String) -> Int
+        Type (String) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      val $parameter.read: (String) -> Int
+        Type (String) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type String
+        Local $parameter.value
+        Type (String) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.value: Unit
+        Type Unit
+        Local $argument.0
+      val $parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Unit
+        Local $parameter.value
+        Type (Unit) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn6 direct
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.1 @fn1($closure: (String) -> Int, item: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn2(value: String, read: (String) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local value
+      val $dependency.argument.1: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.a: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Unit
+        Type Unit
+        Local $dependency.argument.1
+      assign $new.1
+        Type Remote<String, Unit>
+        ClassAlloc Remote<String, Unit>
+      call @fn31 direct
+        Type Remote<String, Unit>
+        Local $new.1
+        Type String
+        Local $dependency.parameter.a
+        Type Unit
+        Local $dependency.parameter.b
+      val remote: Values<String, Unit>
+        Type Values<String, Unit>
+        Retype Values<String, Unit>
+          Type Remote<String, Unit>
+          Local $new.1
+      val $place.0: Values<String, Unit>
+        Type Values<String, Unit>
+        Local remote
+      call @fn11 interface Values<String, Unit>[3]
+        Type Values<String, Unit>
+        Local $place.0
+        Type Unit
+        UnitLiteral
+      val $dependency.receiver: Values<String, Unit>
+        Type Values<String, Unit>
+        Local remote
+      val $dependency.argument.0: (String) -> Int
+        Type (String) -> Int
+        Local read
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+      val $dependency.parameter.left: (String) -> Int
+        Type (String) -> Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $call.2: Int = @fn7 interface Values<String, Unit>[0]
+        Type Values<String, Unit>
+        Local $dependency.receiver
+        Type (String) -> Int
+        Local $dependency.parameter.left
+        Type (Unit) -> Int
+        Local $dependency.parameter.right
+      return
+        Type Int
+        Local $call.2
+  fun $lambda.2 @fn3($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn4(value: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local value
+      val $dependency.argument.1: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.a: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Unit
+        Type Unit
+        Local $dependency.argument.1
+      assign $new.1
+        Type Remote<Unit, Unit>
+        ClassAlloc Remote<Unit, Unit>
+      call @fn32 direct
+        Type Remote<Unit, Unit>
+        Local $new.1
+        Type Unit
+        Local $dependency.parameter.a
+        Type Unit
+        Local $dependency.parameter.b
+      val remote: Values<Unit, Unit>
+        Type Values<Unit, Unit>
+        Retype Values<Unit, Unit>
+          Type Remote<Unit, Unit>
+          Local $new.1
+      val $place.0: Values<Unit, Unit>
+        Type Values<Unit, Unit>
+        Local remote
+      call @fn17 interface Values<Unit, Unit>[3]
+        Type Values<Unit, Unit>
+        Local $place.0
+        Type Unit
+        UnitLiteral
+      val $dependency.receiver: Values<Unit, Unit>
+        Type Values<Unit, Unit>
+        Local remote
+      val $dependency.argument.0: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc4 $Closure$lambda4
+      val $dependency.parameter.left: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $call.2: Int = @fn13 interface Values<Unit, Unit>[0]
+        Type Values<Unit, Unit>
+        Local $dependency.receiver
+        Type (Unit) -> Int
+        Local $dependency.parameter.left
+        Type (Unit) -> Int
+        Local $dependency.parameter.right
+      return
+        Type Int
+        Local $call.2
+  fun $lambda.3 @fn5($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn6(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.a: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.b: Unit
+        Type Unit
+        Local $dependency.argument.1
+      assign $new.1
+        Type Remote<Int, Unit>
+        ClassAlloc Remote<Int, Unit>
+      call @fn33 direct
+        Type Remote<Int, Unit>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.a
+        Type Unit
+        Local $dependency.parameter.b
+      val remote: Values<Int, Unit>
+        Type Values<Int, Unit>
+        Retype Values<Int, Unit>
+          Type Remote<Int, Unit>
+          Local $new.1
+      val $place.0: Values<Int, Unit>
+        Type Values<Int, Unit>
+        Local remote
+      call @fn23 interface Values<Int, Unit>[3]
+        Type Values<Int, Unit>
+        Local $place.0
+        Type Unit
+        UnitLiteral
+      val $dependency.receiver: Values<Int, Unit>
+        Type Values<Int, Unit>
+        Local remote
+      val $dependency.argument.0: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc5 $Closure$lambda5
+      val $dependency.parameter.left: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $call.2: Int = @fn19 interface Values<Int, Unit>[0]
+        Type Values<Int, Unit>
+        Local $dependency.receiver
+        Type (Int) -> Int
+        Local $dependency.parameter.left
+        Type (Unit) -> Int
+        Local $dependency.parameter.right
+      return
+        Type Int
+        Local $call.2
+  fun total @fn7(this: Values<String, Unit>, left: (String) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: String = @fn25 interface Values<String, Unit>[1]
+        Type Values<String, Unit>
+        Local this
+      call $dependency.local.3: Int = <closure:function_type0> closure[function_type0]
+        Type (String) -> Int
+        Local left
+        Type String
+        Local $call.1
+      call @fn26 interface Values<String, Unit>[2]
+        Type Values<String, Unit>
+        Local this
+      call $dependency.local.4: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local right
+        Type Unit
+        UnitLiteral
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun first @fn8(this: Remote<String, Unit>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Remote<String, Unit>
+          Local this
+  fun second @fn9(this: Remote<String, Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 1
+        Type Remote<String, Unit>
+        Local this
+      return
+  fun second @fn10(this: Remote<String, Unit>, value: Unit) -> Unit
+    bb0 entry
+      field_set 1
+        Type Remote<String, Unit>
+        Local this
+        Type Unit
+        Local value
+      return
+  fun Values.$set$second @fn11(this: Values<String, Unit>, value: Unit) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$set$second`"
+  fun $lambda.0 @fn12($closure: (Unit) -> Int, unused: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun total @fn13(this: Values<Unit, Unit>, left: (Unit) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call @fn27 interface Values<Unit, Unit>[1]
+        Type Values<Unit, Unit>
+        Local this
+      call $dependency.local.3: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local left
+        Type Unit
+        UnitLiteral
+      call @fn28 interface Values<Unit, Unit>[2]
+        Type Values<Unit, Unit>
+        Local this
+      call $dependency.local.4: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local right
+        Type Unit
+        UnitLiteral
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun first @fn14(this: Remote<Unit, Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Remote<Unit, Unit>
+        Local this
+      return
+  fun second @fn15(this: Remote<Unit, Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 1
+        Type Remote<Unit, Unit>
+        Local this
+      return
+  fun second @fn16(this: Remote<Unit, Unit>, value: Unit) -> Unit
+    bb0 entry
+      field_set 1
+        Type Remote<Unit, Unit>
+        Local this
+        Type Unit
+        Local value
+      return
+  fun Values.$set$second @fn17(this: Values<Unit, Unit>, value: Unit) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$set$second`"
+  fun $lambda.0 @fn18($closure: (Unit) -> Int, unused: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun total @fn19(this: Values<Int, Unit>, left: (Int) -> Int, right: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn29 interface Values<Int, Unit>[1]
+        Type Values<Int, Unit>
+        Local this
+      call $dependency.local.3: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local left
+        Type Int
+        Local $call.1
+      call @fn30 interface Values<Int, Unit>[2]
+        Type Values<Int, Unit>
+        Local this
+      call $dependency.local.4: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local right
+        Type Unit
+        UnitLiteral
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun first @fn20(this: Remote<Int, Unit>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Remote<Int, Unit>
+          Local this
+  fun second @fn21(this: Remote<Int, Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 1
+        Type Remote<Int, Unit>
+        Local this
+      return
+  fun second @fn22(this: Remote<Int, Unit>, value: Unit) -> Unit
+    bb0 entry
+      field_set 1
+        Type Remote<Int, Unit>
+        Local this
+        Type Unit
+        Local value
+      return
+  fun Values.$set$second @fn23(this: Values<Int, Unit>, value: Unit) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$set$second`"
+  fun $lambda.0 @fn24($closure: (Unit) -> Int, unused: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun Values.$get$first @fn25(this: Values<String, Unit>) -> String
+    bb0 entry
+      trap "call to abstract method `Values.$get$first`"
+  fun Values.$get$second @fn26(this: Values<String, Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$get$second`"
+  fun Values.$get$first @fn27(this: Values<Unit, Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$get$first`"
+  fun Values.$get$second @fn28(this: Values<Unit, Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$get$second`"
+  fun Values.$get$first @fn29(this: Values<Int, Unit>) -> Int
+    bb0 entry
+      trap "call to abstract method `Values.$get$first`"
+  fun Values.$get$second @fn30(this: Values<Int, Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Values.$get$second`"
+  fun init.Remote.$c0 @fn31(this: Remote<String, Unit>, a: String, b: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Remote<String, Unit>
+        Local this
+        Type String
+        Local a
+      field_set 1
+        Type Remote<String, Unit>
+        Local this
+        Type Unit
+        Local b
+      return
+  fun init.Remote.$c0 @fn32(this: Remote<Unit, Unit>, a: Unit, b: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Remote<Unit, Unit>
+        Local this
+        Type Unit
+        Local a
+      field_set 1
+        Type Remote<Unit, Unit>
+        Local this
+        Type Unit
+        Local b
+      return
+  fun init.Remote.$c0 @fn33(this: Remote<Int, Unit>, a: Int, b: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Remote<Int, Unit>
+        Local this
+        Type Int
+        Local a
+      field_set 1
+        Type Remote<Int, Unit>
+        Local this
+        Type Unit
+        Local b
+      return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn34($source: (String) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (String) -> Int
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn35($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn36($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn37($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn38($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda5.(Any) -> Any @fn39($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn7 <- total
+  instance mi4 function=@fn8 <- first
+  instance mi5 function=@fn9 <- second
+  instance mi6 function=@fn10 <- second
+  instance mi7 function=@fn11 <- Values.$set$second
+  instance mi8 function=@fn12 <- $lambda.0
+  instance mi9 function=@fn13 <- total
+  instance mi10 function=@fn14 <- first
+  instance mi11 function=@fn15 <- second
+  instance mi12 function=@fn16 <- second
+  instance mi13 function=@fn17 <- Values.$set$second
+  instance mi14 function=@fn18 <- $lambda.0
+  instance mi15 function=@fn19 <- total
+  instance mi16 function=@fn20 <- first
+  instance mi17 function=@fn21 <- second
+  instance mi18 function=@fn22 <- second
+  instance mi19 function=@fn23 <- Values.$set$second
+  instance mi20 function=@fn24 <- $lambda.0
+  instance mi21 function=@fn25 <- Values.$get$first
+  instance mi22 function=@fn26 <- Values.$get$second
+  instance mi23 function=@fn27 <- Values.$get$first
+  instance mi24 function=@fn28 <- Values.$get$second
+  instance mi25 function=@fn29 <- Values.$get$first
+  instance mi26 function=@fn30 <- Values.$get$second
+  str @str0 "value"
+  output library

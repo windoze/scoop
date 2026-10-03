@@ -1,0 +1,11 @@
+SourceFile
+  QualifiedPackage consumer.globals
+  ImportExact Local templates.globals.delegated
+  public fun exercise<T>(value: T): Int
+    =
+      Call delegated<T>
+        Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

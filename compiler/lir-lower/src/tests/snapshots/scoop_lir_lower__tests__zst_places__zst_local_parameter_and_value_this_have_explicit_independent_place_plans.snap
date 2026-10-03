@@ -1,0 +1,9 @@
+---
+source: compiler/lir-lower/src/tests/zst_places.rs
+assertion_line: 107
+expression: "locals.join(\"\\n\")"
+---
+    local %0 parameter: struct0 <zst-token f3d51e63e79edcfed0b8e70e8e6866f3024b397dca5d7feb65f5b262cfa588e9 align=1 lifetime=function>
+    local %1 this: struct0 <zst-token f3d51e63e79edcfed0b8e70e8e6866f3024b397dca5d7feb65f5b262cfa588e9 align=1 lifetime=function>
+    local %2 addressed: struct0 <zst-token f3d51e63e79edcfed0b8e70e8e6866f3024b397dca5d7feb65f5b262cfa588e9 align=1 lifetime=function>
+    local %3 logical: struct1 <logical-zst 05c79b4b37c953c45e58822887717a10433301d3b6827935c370b4e5d8454aa6>

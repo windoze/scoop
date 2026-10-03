@@ -1,0 +1,253 @@
+SourceFile
+  QualifiedPackage dependency.inference
+  public fun pack<T>(vararg values: T): Array<T>
+    =
+      Var values
+  public fun whole<T>(seed: T, vararg values: T): Array<T>
+    =
+      Var values
+  public fun empty<T>(): Array<T>
+    =
+      ArrayLiteral
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  public fun arrayOrSeed<T>(values: Array<T>, seed: T): T
+    =
+      IfExpression
+        Binary Eq
+          FieldAccess size
+            Var values
+          IntLiteral 0L
+        Var seed
+        else
+        Index
+          Var values
+          IntLiteral 0L
+  public fun mutableOrSeed<T>(values: MutableArray<T>, seed: T): T
+    =
+      IfExpression
+        Binary Eq
+          FieldAccess size
+            Var values
+          IntLiteral 0L
+        Var seed
+        else
+        Index
+          Var values
+          IntLiteral 0L
+  public fun prefer<T>(value: Option<T>, seed: T): T
+    =
+      WhenExpression
+        Var value
+        arm Some(inner)
+          Var inner
+        arm None
+          Var seed
+  public fun applyTo<T>(action: (T) -> Int, seed: T): Int
+    =
+      Call action
+        Var seed
+  public fun viaReference<T>(action: (T) -> T, seed: T): T
+    =
+      Call action
+        Var seed
+  public fun referenceOnly<T>(action: (T) -> T): Int
+    =
+      IntLiteral 42
+  public fun defaulted<T>(values: Array<T> = <expr>): Int
+    =
+      IntLiteral 42
+  public fun unused<T, U>(values: Array<T>, seed: T): T
+    =
+      Var seed
+  public fun valueSeed<T : value>(values: Array<T>, seed: T): T
+    =
+      Var seed
+  public fun two<A, B>(left: Array<A>, right: Array<B>, first: A, second: B): A
+    =
+      Var first
+  public struct Pair<T>
+    field values: Array<T>
+    field seed: T
+  public enum Choice<T>
+    Data <ctor>
+      values: Array<T>
+      seed: T
+    Empty
+  public fun choiceOrSeed<T>(value: Choice<T>, seed: T): T
+    =
+      WhenExpression
+        Var value
+        arm Data(values, inner)
+          Call arrayOrSeed
+            Var values
+            Var inner
+        arm Empty
+          Var seed
+  public class Host<A>(val value: A)
+    public fun select
+    public fun transform
+  public fun T.fromEmpty<T>(values: Array<T>): T
+    =
+      Call arrayOrSeed
+        Var values
+        This
+  public fun route<T>(action: (T) -> Int, values: Array<T>, seed: T): Int
+    =
+      Call action
+        Call arrayOrSeed
+          Var values
+          Var seed
+  public fun route(action: (Int) -> Int, values: Array<Int>, seed: Int): Int
+    =
+      Binary Add
+        Call action
+          Call arrayOrSeed
+            Var values
+            Var seed
+        IntLiteral 1
+  public fun conflict<T>(action: (T) -> T, values: Array<T>, left: T, right: Any): T
+    =
+      Call action
+        Call arrayOrSeed
+          Var values
+          Var left
+  public fun conflict<T>(action: (T) -> T, values: Array<T>, left: Any, right: T): T
+    =
+      Call action
+        Call arrayOrSeed
+          Var values
+          Var right
+  public var trace: Int = <expr>
+  public fun mark(digit: Int): Int
+    assign trace
+      Binary Add
+        Binary Mul
+          Var trace
+          IntLiteral 10
+        Var digit
+    return
+      IntLiteral 42
+  public fun deferredEmpty<T>(digit: Int): Array<T>
+    Call mark
+      Var digit
+    return
+      ArrayLiteral
+  public fun markedArray(digit: Int): Array<Int>
+    =
+      ArrayLiteral
+        Call mark
+          Var digit
+  public fun ordered<T>(values: Array<T>, seed: T, after: Int = <expr>, copied: Array<T> = <expr>): T
+    Call mark
+      IntLiteral 4
+    return
+      Call arrayOrSeed
+        Var copied
+        Var seed
+  public fun orderedPack<T>(vararg values: T, after: Int = <expr>): Array<T>
+    Call mark
+      IntLiteral 5
+    return
+      Var values
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val packed
+      Call pack
+        Argument *
+          ArrayLiteral
+        Var seed
+    val named
+      Call whole
+        Argument values=
+          ArrayLiteral
+        Argument seed=
+          Var seed
+    val pair
+      Call Pair
+        ArrayLiteral
+        Var seed
+    val choice
+      MethodCall Data
+        Var Choice
+        ArrayLiteral
+        Var seed
+    val host
+      Call Host
+        Var seed
+    val selected
+      Call prefer
+        Var None
+        Var seed
+    val referenced
+      Call viaReference
+        CallableReference 0 identity
+        Var seed
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess size
+              Var packed
+            IntLiteral 1L
+          Binary Ne
+            FieldAccess size
+              Var named
+            IntLiteral 0L
+        Binary Ne
+          FieldAccess size
+            FieldAccess values
+              Var pair
+          IntLiteral 0L
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Call read
+            Index
+              Var packed
+              IntLiteral 0L
+          IntLiteral 42
+        Binary Ne
+          Call read
+            FieldAccess seed
+              Var pair
+          IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Call read
+            Call choiceOrSeed
+              Var choice
+              Var seed
+          IntLiteral 42
+        Binary Ne
+          Call read
+            Var selected
+          IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          Call read
+            MethodCall select
+              Var host
+              ArrayLiteral
+              Var seed
+          IntLiteral 42
+        Binary Ne
+          Call read
+            Var referenced
+          IntLiteral 42
+      return
+        IntLiteral 4
+    return
+      Call applyTo
+        Var read
+        Call arrayOrSeed
+          Call empty
+          Var seed

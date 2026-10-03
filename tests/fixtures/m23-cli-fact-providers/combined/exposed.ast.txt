@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  public fun holder(): Holder
+    =
+      Call Holder
+SourceFile
+  RootPackage
+  public struct Empty
+  public struct Widths
+    field i8: Int8
+    field i16: Int16
+    field i32: Int
+    field i64: Long
+    field u8: UInt8
+    field u16: UInt16
+    field u32: UInt
+    field u64: ULong
+  public struct Packet
+    field meta: (Boolean, Unit)
+    field message: String
+    field empty: Empty
+  public struct NothingStored
+    field pair: (Empty, Unit)
+  public enum Result
+    Ready(Packet)
+    Missing
+  public class Holder()
+    private val enabled: Boolean = <expr>
+      BoolLiteral true
+    public fun read

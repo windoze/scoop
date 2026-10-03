@@ -1,0 +1,64 @@
+SourceFile
+  QualifiedPackage consumer.adapters
+  ImportStar Local templates.adapters.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val before
+      FieldAccess initializations
+        Var Trace
+    val first
+      FieldAccess staticAdapt
+        Call Receiver
+          Var seed
+    val initialized
+      FieldAccess initializations
+        Var Trace
+    val second
+      FieldAccess staticAdapt
+        Call Receiver
+          Var seed
+    if
+      Binary Or
+        Binary Lt
+          Var initialized
+          Var before
+        Binary Gt
+          Var initialized
+          Binary Add
+            Var before
+            IntLiteral 1
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess initializations
+              Var Trace
+            Var initialized
+          Binary Ne
+            Var first
+            IntLiteral 42
+        Binary Ne
+          Var second
+          IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call read
+        Var seed
+  public fun result(): Int
+    val value
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value
+    return
+      IfExpression
+        Binary Eq
+          FieldAccess initializations
+            Var Trace
+          IntLiteral 1
+        Var value
+        else
+        IntLiteral 3

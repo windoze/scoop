@@ -35,11 +35,14 @@ Scoop 是一门静态类型、编译到原生代码的语言：以 Kotlin 核心
 
 ## 构建与测试
 
-- 编译器实现语言：**Rust**（edition 2024），LLVM 绑定用 **inkwell 0.10（feature `llvm22-1`）**，LLVM 版本 **22.1**（与当前 Rust 工具链一致）。
+- 编译器实现语言：**Rust**（edition 2024），LLVM 绑定用 **inkwell 0.10（feature `llvm22-1`）**，Scoop 后端使用本机外部 **LLVM 22.1**，不要求与 Rust 工具链自带的 LLVM 版本相同。
 - 依赖本机 LLVM 22.1（`llvm-config` 在 `PATH` 中，或设置 `LLVM_SYS_221_PREFIX`）；`scoop-codegen` 与 `scoopc` 之外的其他 crate 无 LLVM 依赖。
 - 常用命令：
-  - `cargo build` / `cargo test` — 构建 / 测试；
-  - `cargo fmt --all` + `cargo clippy --workspace` — 格式化 / lint（变更后、测试前先执行，见"编码准则"）。
+  - `cargo build` / `cargo test --workspace` — 构建 / Rust 单元与集成测试；
+  - `cargo build -p scoop -p scoopc -p scoop-linker --bins` — 构建文件 fixture 使用的三个配套命令；
+  - `python3 -m unittest discover -s tests/fixture_runner/tests` + `python3 tests/run_fixtures.py --all` — 公共规则测试与完整文件 fixture 验收；`cargo test` 不能替代这组正式 CLI 覆盖。声明规则与工具位置配置见 [fixture schema 1](tests/fixture_runner/README.md)；
+  - `cargo fmt --all` + `cargo clippy --workspace --all-targets` — Rust 格式化 / lint（变更后、测试前先执行，见"编码准则"）；
+  - Python 变更先执行 `uv tool run --from ruff==0.16.10 ruff format tests/fixture_runner tests/run_fixtures.py` 与同版本 `ruff check tests/fixture_runner tests/run_fixtures.py`，再运行测试。
 
 ## 编码准则
 

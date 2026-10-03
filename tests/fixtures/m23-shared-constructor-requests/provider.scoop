@@ -1,0 +1,19 @@
+package upstream.constructorrequests
+
+public open class Base<T, U> public constructor(public val value: T)
+
+public open class Shell<T, U>: Base<T, U> {
+    public val output: T = if (true) {
+        val saved = this.value
+        fun read(): T { return saved }
+        val reference: () -> T = ::read
+        val anonymous: () -> T = fun(): T { return reference() }
+        val copy: () -> T = { anonymous() }
+        copy()
+    } else { this.value }
+
+    public constructor(value: T): super(value) {}
+    public constructor(value: T, flag: Boolean): super(if (flag) { value } else { value }) {}
+}
+
+public struct Carrier<T, U>(val value: T)

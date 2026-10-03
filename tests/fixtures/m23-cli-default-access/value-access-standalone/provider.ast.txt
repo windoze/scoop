@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+    @Global
+  public var ACCESS_GLOBAL: Int = <expr>
+  public fun accessValue(value: Int = <expr>): Int
+    =
+      Var value

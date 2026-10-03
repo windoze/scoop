@@ -1,0 +1,11 @@
+SourceFile
+  QualifiedPackage startup.later
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  private fun initialize(): Long
+    @Unsafe block
+      Call trace
+        IntLiteral 99L
+    return
+      IntLiteral 99L
+  public val later: Long = <expr>

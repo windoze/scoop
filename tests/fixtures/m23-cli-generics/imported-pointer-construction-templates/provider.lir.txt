@@ -1,0 +1,17 @@
+Module
+  fun @scoop$1$cb$cb69a727dd1015fcffa67e487c38008d480ac7ba5802603e43897af9c80890dd(i64) -> ptr<raw>
+    local %0 pointer: ptr<raw>
+    local %1 $dependency.receiver: ptr<raw>
+    local %2 $dependency.argument.0: i32
+    local %3 $dependency.parameter.value: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = ulong_to_ptr param0 : ptr
+    store t0 -> local0
+    store local0 -> local1
+    store integer<Int>(0x0000002a) -> local2
+    store local2 -> local3
+    raw_store local1 local3 align 4
+    t1 = aggregate () : {}
+    ret local0
+  output library

@@ -59,8 +59,21 @@ fn top_level_reference_is_a_distinct_typed_entity() {
         .iter()
         .next()
         .expect("reference entity");
+    assert_eq!(
+        reference.definition_root,
+        hir::CallableReferenceRoot::Source(hir::LexicalDefinitionRoot::Function(module.entry()))
+    );
+    assert_eq!(
+        definition_path(&reference.definition_path),
+        vec![(
+            scoop_identity::StructuralDefinitionSiteRole::CallableConversion,
+            0,
+        )]
+    );
     assert!(reference.captures.is_empty());
-    let hir::CallableReferenceTarget::Named(callable) = &reference.target else {
+    let hir::CallableReferenceTarget::Named(hir::CallableTarget::Local(callable)) =
+        &reference.target
+    else {
         panic!("expected a top-level callable reference")
     };
     let target = module.callable_function(*callable);
@@ -105,7 +118,8 @@ fn inapplicable_local_reference_layer_falls_through_to_top_level() {
         .iter()
         .next()
         .expect("reference entity");
-    let hir::CallableReferenceTarget::Named(callee) = reference.target else {
+    let hir::CallableReferenceTarget::Named(hir::CallableTarget::Local(callee)) = reference.target
+    else {
         panic!("the top-level reference layer must win")
     };
     let function = module.callable_function(callee);
@@ -142,7 +156,9 @@ fn generic_top_level_reference_is_fixed_by_its_expected_type() {
         .iter()
         .next()
         .expect("reference entity");
-    let hir::CallableReferenceTarget::Named(hir::Callable::Generic(resolved)) = &reference.target
+    let hir::CallableReferenceTarget::Named(hir::CallableTarget::Local(hir::Callable::Generic(
+        resolved,
+    ))) = &reference.target
     else {
         panic!("expected a resolved generic reference")
     };
@@ -194,7 +210,7 @@ fn bound_reference_retains_receiver_and_resolved_member_identity() {
         panic!("expected a bound member target")
     };
     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
-    let target = module.callable_function(*callee);
+    let target = module.callable_function(crate::tests::local_method_callable(&module, *callee));
     assert_eq!(module.functions[target].name, "Mapper.map");
     assert!(reference.captures.is_empty());
 }
@@ -231,11 +247,16 @@ fn extension_receiver_is_a_typed_this_parameter_and_direct_call_argument() {
     assert_eq!(extension.params[0].name, "this");
     assert_eq!(extension.params[0].ty, int_type(&module));
 
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
     let init = local_init(main, "result");
-    let hir::ExprKind::Call { callee, args } = &init.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        args,
+        ..
+    } = &init.kind
+    else {
         panic!("extension invocation must be a direct call")
     };
     assert_eq!(
@@ -276,7 +297,10 @@ fn bound_extension_reference_has_a_distinct_direct_target() {
         .iter()
         .next()
         .expect("reference entity");
-    let hir::CallableReferenceTarget::BoundExtension { receiver, callee } = &reference.target
+    let hir::CallableReferenceTarget::BoundExtension {
+        receiver,
+        callee: hir::CallableTarget::Local(callee),
+    } = &reference.target
     else {
         panic!("expected a bound extension target")
     };
@@ -333,7 +357,11 @@ fn inapplicable_bound_member_reference_falls_through_to_extension() {
         .iter()
         .next()
         .expect("reference entity");
-    let hir::CallableReferenceTarget::BoundExtension { callee, .. } = reference.target else {
+    let hir::CallableReferenceTarget::BoundExtension {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = reference.target
+    else {
         panic!("the extension reference layer must win")
     };
     let function = module.callable_function(callee);

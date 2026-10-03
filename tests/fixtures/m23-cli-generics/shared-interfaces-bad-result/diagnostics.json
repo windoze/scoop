@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property `first` must have the exact inherited type Int, found String",
+    "notes": [],
+    "origin": {
+      "cone": "96c4fe741e794bd30d6c73e826c59d29fc030f984441aa6f59077a4db26605d6",
+      "end": 141,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 84
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`$get$first` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "96c4fe741e794bd30d6c73e826c59d29fc030f984441aa6f59077a4db26605d6",
+      "end": 109,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 104
+    },
+    "severity": "error"
+  }
+]

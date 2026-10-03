@@ -1,0 +1,6 @@
+public class Values {
+    public fun <T> count(seed: T, value: Int = if (true) {
+        val values = [seed]
+        1
+    } else { 2 }): Int = value
+}

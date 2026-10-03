@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `m` is ambiguous in current-unit top-level candidate layer:\n  - fun m(a: Int, b: Any): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `a` = Int, argument for `b` = Int\n  - fun m(a: Any, b: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `a` = Int, argument for `b` = Int",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 95,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 88
+    },
+    "severity": "error"
+  }
+]

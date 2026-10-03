@@ -301,7 +301,7 @@ impl<Owner: Copy + Eq> IntegerTypeCore<Owner> {
 }
 
 /// Integer operations whose declarations and call targets must be `@NoGC`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum NoGcIntegerOperation {
     UnaryPlus,
     UnaryMinus,
@@ -386,7 +386,7 @@ impl NoGcIntegerOperation {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum IntegerDivRem {
     Div,
     Rem,
@@ -409,24 +409,21 @@ pub enum IntegerOperationArity {
     Binary,
 }
 
-/// A validated integer operation registry entry. The target types encode the
-/// effect class, so a div/rem target cannot be stored in the `NoGc` variant or
-/// vice versa.
+/// A normalized integer operation. The closed variants encode its effect;
+/// div/rem cannot be represented as a no-GC operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IntegerOperation<NoGcTarget, ManagedTarget> {
+pub enum IntegerOperation {
     NoGc {
         kind: IntegerKind,
         operation: NoGcIntegerOperation,
-        target: NoGcTarget,
     },
     Managed {
         kind: IntegerKind,
         operation: IntegerDivRem,
-        target: ManagedTarget,
     },
 }
 
-impl<NoGcTarget, ManagedTarget> IntegerOperation<NoGcTarget, ManagedTarget> {
+impl IntegerOperation {
     pub const fn kind(&self) -> IntegerKind {
         match self {
             Self::NoGc { kind, .. } | Self::Managed { kind, .. } => *kind,
@@ -441,12 +438,11 @@ impl<NoGcTarget, ManagedTarget> IntegerOperation<NoGcTarget, ManagedTarget> {
     }
 }
 
-/// A validated, always-`@NoGC` integer conversion registry entry.
+/// A normalized, always-no-GC integer conversion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct IntegerConversion<NoGcTarget> {
+pub struct IntegerConversion {
     pub source: IntegerKind,
     pub target_kind: IntegerKind,
-    pub target: NoGcTarget,
 }
 
 #[cfg(test)]

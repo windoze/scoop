@@ -1,0 +1,6 @@
+Module
+  fun @scoop$1$cb$ba35ea473033f8599a591baaa769635161491a702aea788ab1e68be333d7a955(indirect<struct0 size=4 align=4 scan=none>) -> sret<struct0 size=4 align=4 scan=none>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  output library

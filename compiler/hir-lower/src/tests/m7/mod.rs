@@ -54,11 +54,11 @@ fn body_of(module: &hir::Module, function: hir::FunctionId) -> &hir::Body {
 /// `unnest` is set, the interesting inner call is found in its preceding
 /// argument-evaluation temporary.
 fn call_in_main(
-    module: &hir::Module,
+    module: &hir::ExportHirOutput,
     index: usize,
     unnest: bool,
 ) -> (hir::FunctionId, &[hir::Expr]) {
-    let body = body_of(module, module.entry);
+    let body = body_of(module, module.entry());
     let statement_index = body
         .statements
         .iter()
@@ -70,7 +70,12 @@ fn call_in_main(
     let hir::StatementKind::Expr(expr) = &body.statements[statement_index].kind else {
         unreachable!()
     };
-    let hir::ExprKind::Call { callee, args } = &expr.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        args,
+        ..
+    } = &expr.kind
+    else {
         panic!("statement {index} is not a call")
     };
     if unnest {
@@ -85,7 +90,12 @@ fn call_in_main(
                     hir::ExprKind::Box(operand) => &operand.kind,
                     kind => kind,
                 };
-                let hir::ExprKind::Call { callee, args } = inner else {
+                let hir::ExprKind::Call {
+                    callee: hir::CallableTarget::Local(callee),
+                    args,
+                    ..
+                } = inner
+                else {
                     return None;
                 };
                 Some((callee, args.as_slice()))

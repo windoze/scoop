@@ -1,0 +1,3 @@
+import dependency.odr.adjusted
+
+public fun probe(): Int = adjusted(0, 40)

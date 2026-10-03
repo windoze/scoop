@@ -1,8 +1,10 @@
 @Extern(name = "scoop_rt_write", abi = "scoop")
 fun nativeWrite(message: String)
 
+class NativeNode(val left: NativeNode?, val right: NativeNode?)
+
 @Extern(lib = "fixture_native", name = "native_root_round_trip", abi = "scoop")
-fun nativeRootRoundTrip(message: String): String
+fun nativeRootRoundTrip(message: String, prototype: NativeNode): String
 
 struct ManagedAggregate(val value: String, val left: Long, val right: Long)
 
@@ -13,7 +15,7 @@ fun <T : ToString> stringify(value: T): String = value.toString()
 
 fun main() {
     nativeWrite("direct managed ref")
-    println(nativeRootRoundTrip(stringify(42)))
+    println(nativeRootRoundTrip(stringify(42), NativeNode(None, None)))
     val aggregate = nativeAggregateRoundTrip(ManagedAggregate("agg" + "regate", 10, 20))
     println(aggregate.value)
     println(aggregate.left)

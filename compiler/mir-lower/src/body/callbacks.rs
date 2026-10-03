@@ -1,5 +1,7 @@
 use super::*;
 
+mod protocol;
+
 impl BodyLowerer<'_> {
     pub(super) fn ensure_foreign_callback_family(
         &mut self,
@@ -14,18 +16,23 @@ impl BodyLowerer<'_> {
             struct_map: self.struct_map,
             class_map: self.class_map,
         };
-        let core = self.module.foreign_callback_core;
+        let core = self.callback_protocol();
         for enumeration in [
             core.modes.enumeration(),
             core.states.enumeration(),
             core.failure_result.enumeration(),
         ] {
-            self.enums.get_or_create(
-                &types,
+            let lowered = types.lower(
+                self.module.enums[enumeration].canonical_type,
+                self.source_exact_types,
+                self.enums,
                 self.structs,
                 self.interfaces,
                 self.shell,
-                enumeration,
+            );
+            assert!(
+                matches!(lowered, mir::Type::Enum(id, _) if self.enums.hir_ids[&id] == enumeration),
+                "the canonical callback protocol type retains its physical enum"
             );
         }
         let reusable = self.enums.lower_variant_ref(core.modes.reusable());
@@ -69,160 +76,31 @@ impl BodyLowerer<'_> {
         family
     }
 
-    pub(super) fn ensure_callback_bridge(
-        &mut self,
-        source: mir::FunctionId,
-        signature: mir::FunctionTypeId,
-        span: Span,
-    ) -> mir::CallbackBridgeId {
-        if let Some(callback) = self.callback_by_target.get(&(source, signature)) {
-            return *callback;
-        }
-
-        let callback_index = self.callback_bridges.len();
-        let signature_def = self.shell.function_types[signature].clone();
-        let source_name = self.functions[source].name.clone();
-        let mut locals = Arena::new();
-        let mut params = Vec::new();
-
-        let result_storage = if signature_def.return_type == mir::Type::Unit {
-            None
-        } else {
-            let ty = mir::Type::Ptr(Box::new(signature_def.return_type.clone()));
-            let local = locals.alloc(mir::Local {
-                name: "$result".to_string(),
-                ty: ty.clone(),
-                mutable: false,
-            });
-            params.push(mir::Param {
-                name: "$result".to_string(),
-                ty,
-                local,
-            });
-            Some(local)
-        };
-
-        let mut args = Vec::with_capacity(signature_def.parameter_types.len());
-        for (index, parameter_type) in signature_def.parameter_types.iter().enumerate() {
-            let name = format!("$arg{index}");
-            let pointer_type = mir::Type::Ptr(Box::new(parameter_type.clone()));
-            let local = locals.alloc(mir::Local {
-                name: name.clone(),
-                ty: pointer_type.clone(),
-                mutable: false,
-            });
-            params.push(mir::Param {
-                name,
-                ty: pointer_type.clone(),
-                local,
-            });
-            args.push(mir::Expr::new(
-                parameter_type.clone(),
-                mir::ExprKind::PtrLoad {
-                    pointer: Box::new(mir::Expr::local(local, pointer_type)),
-                    pointee: Box::new(parameter_type.clone()),
-                    offset: None,
-                },
-            ));
-        }
-
-        let call = mir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Direct,
-                callee: mir::Callee::User(source),
-            },
-            args,
-            pending: mir::CoroutinePendingContext::Root,
-        };
-        let mut statements = Vec::new();
-        if let Some(result_storage) = result_storage {
-            let result = locals.alloc(mir::Local {
-                name: "$value".to_string(),
-                ty: signature_def.return_type.clone(),
-                mutable: false,
-            });
-            statements.push(mir::Statement {
-                kind: mir::StatementKind::Call(mir::CallEffect::Value {
-                    destination: result,
-                    call,
-                }),
-                span,
-            });
-            statements.push(mir::Statement {
-                kind: mir::StatementKind::Expr(mir::Expr::new(
-                    mir::Type::Unit,
-                    mir::ExprKind::PtrStore {
-                        pointer: Box::new(mir::Expr::local(
-                            result_storage,
-                            mir::Type::Ptr(Box::new(signature_def.return_type.clone())),
-                        )),
-                        pointee: Box::new(signature_def.return_type.clone()),
-                        offset: None,
-                        value: Box::new(mir::Expr::local(
-                            result,
-                            signature_def.return_type.clone(),
-                        )),
-                    },
-                )),
-                span,
-            });
-        } else {
-            statements.push(mir::Statement {
-                kind: mir::StatementKind::Call(mir::CallEffect::Unit(call)),
-                span,
-            });
-        }
-
-        let mut blocks = Arena::new();
-        let entry = blocks.alloc(mir::BasicBlock {
-            name: "entry".to_string(),
-            statements,
-            terminator: mir::Terminator::Return { value: None },
-            unwind: None,
-        });
-        let bridge_function = self.functions.alloc(mir::Function {
-            gc_effect: mir::GcEffect::NoGc,
-            name: format!("callback bridge for {source_name}"),
-            symbol: format!("scoop_callback_bridge_{callback_index}"),
-            params,
-            return_ty: mir::Type::Unit,
-            body: mir::Body {
-                locals,
-                blocks,
-                entry,
-                loop_header_polls: Vec::new(),
-            },
-        });
-        self.top_level.push(bridge_function);
-        let callback = self.callback_bridges.alloc(mir::CallbackBridge {
-            source,
-            signature,
-            bridge_function,
-        });
-        self.callback_by_target
-            .insert((source, signature), callback);
-        callback
-    }
-
     pub(super) fn ensure_foreign_callback_bridge(
         &mut self,
         registration_id: hir::ForeignCallbackRegistrationId,
         span: Span,
     ) -> mir::ForeignCallbackBridgeId {
-        if let Some(&bridge) = self.foreign_callback_by_registration.get(&registration_id) {
+        let registration = self.module.foreign_callback_registrations[registration_id].clone();
+        if let Some(&bridge) = self
+            .foreign_callback_by_application
+            .get(&registration.application)
+        {
             return bridge;
         }
-
-        let registration = self.module.foreign_callback_registrations[registration_id].clone();
+        let span = source_span(span);
         let native_signature = self.lower_function_type_id(registration.native_function_type);
         let managed_signature = self.lower_function_type_id(registration.managed_function_type);
+        let exact_managed_signature =
+            exact_callback_signature(self.module, registration.managed_function_type);
         let callback = self.struct_map[&registration.callback];
         let family = self.ensure_foreign_callback_family(callback);
-        let mode = self.enums.lower_variant_ref(registration.mode);
-        assert!(
-            self.foreign_callback_families[family].modes.contains(mode),
-            "a callback registration mode belongs to the validated core protocol"
-        );
+        let callback_mode = registration.mode;
+        let modes = self.foreign_callback_families[family].modes;
+        let mode = match callback_mode {
+            hir::CallbackMode::Reusable => modes.reusable(),
+            hir::CallbackMode::OneShot => modes.one_shot(),
+        };
         let signature = self.shell.function_types[managed_signature].clone();
         debug_assert!(!signature.is_suspend);
 
@@ -246,8 +124,11 @@ impl BodyLowerer<'_> {
             ty: arguments_pointer_ty.clone(),
             mutable: false,
         });
-        let throwable =
-            mir::Type::Class(self.class_map[&self.module.exception_core.throwable.class()]);
+        let throwable = mir::Type::Class(
+            self.foreign_callback_families[family]
+                .failure_result
+                .throwable(),
+        );
         let exception_pointer_ty = mir::Type::Ptr(Box::new(throwable.clone()));
         let exception_out = locals.alloc(mir::Local {
             name: "$exception".to_string(),
@@ -414,7 +295,6 @@ impl BodyLowerer<'_> {
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("foreign callback adapter {adapter_index}"),
-            symbol: format!("scoop_foreign_callback_adapter_{adapter_index}"),
             params,
             return_ty: mir::Type::MachineScalar(mir::MachineScalarKind::ForeignCallbackStatus),
             body: mir::Body {
@@ -425,23 +305,130 @@ impl BodyLowerer<'_> {
             },
         });
         self.top_level.push(function);
-        let adapter = self
-            .foreign_callback_adapters
-            .alloc(mir::ForeignCallbackAdapter {
+        let generated = hir::PersistentGeneratedCallableId::from_key(
+            &hir::GeneratedCallableKey::ForeignCallbackManagedAdapter {
+                application: registration.application,
+            },
+        )
+        .expect("a callback adapter generated-callable identity is hashable");
+        let odr_member =
+            callback_adapter_odr_member(self.module, registration.application, generated);
+        let adapter = self.foreign_callback_adapters.alloc(
+            mir::ForeignCallbackAdapter::checked(
                 function,
                 managed_signature,
-            });
+                &signature,
+                registration.application,
+                &exact_managed_signature,
+                odr_member,
+            )
+            .expect("a callback adapter generated-callable identity is hashable"),
+        );
+        let application_identity = self
+            .module
+            .callback_applications
+            .get(registration.application)
+            .expect("a concrete callback registration has a persistent application record")
+            .clone();
+        let application_record = mir::CallbackApplicationRecord::new(
+            registration.application,
+            self.foreign_callback_adapters[adapter].signature_subject(),
+            exact_managed_signature,
+            mir::ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+            callback_mode,
+        );
         let bridge = self
             .foreign_callback_bridges
             .alloc(mir::ForeignCallbackBridge {
+                application_identity,
+                application_record,
                 adapter,
                 family,
                 native_signature,
                 context_index: registration.context_index,
                 mode,
             });
-        self.foreign_callback_by_registration
-            .insert(registration_id, bridge);
+        self.foreign_callback_by_application
+            .insert(registration.application, bridge);
         bridge
     }
+}
+
+fn callback_adapter_odr_member(
+    module: &hir::Module,
+    application: hir::PersistentCallbackApplicationId,
+    generated: hir::PersistentGeneratedCallableId,
+) -> Option<hir::OdrMemberRecord> {
+    let application = module
+        .callback_applications
+        .get(application)
+        .expect("a concrete callback registration has a persistent application record");
+    let group = materialization_context_odr_group(module, application.key().context())?;
+    let key = hir::OdrMemberKey::new(
+        group,
+        hir::OdrMemberRole::CallableBody,
+        hir::OdrMemberDiscriminator::GeneratedCallable(generated),
+    )
+    .expect("a callback adapter is a callable ODR member");
+    Some(
+        hir::CborIdentityRecord::from_key(key)
+            .expect("a callback adapter ODR member identity is hashable"),
+    )
+}
+
+pub(super) fn materialization_context_odr_group(
+    module: &hir::Module,
+    context: hir::CallableMaterializationContext,
+) -> Option<hir::OdrGroupId> {
+    match context {
+        hir::CallableMaterializationContext::NoSubstitution => None,
+        hir::CallableMaterializationContext::Application(application) => Some(
+            module
+                .callable_applications
+                .odr(application)
+                .expect("a materialization references a concrete callable application")
+                .group(),
+        ),
+        hir::CallableMaterializationContext::InitializationApplication(unit) => {
+            let unit = module
+                .initialization_units
+                .iter()
+                .find_map(|(_, candidate)| (candidate.identity.id() == unit).then_some(candidate))
+                .expect("a callback materialization references a concrete initialization unit");
+            let hir::InitializationUnitKey::GenericDelegatedExtensionApplication {
+                property,
+                receiver_arguments,
+            } = unit.identity.key()
+            else {
+                panic!(
+                    "an initialization callback materialization belongs to a generic delegated extension"
+                )
+            };
+            Some(
+                hir::OdrGroupId::from_key(&hir::SpecializationKey::DelegatedProperty {
+                    origin: *property,
+                    receiver_arguments: receiver_arguments.clone(),
+                })
+                .expect("a delegated-property ODR group identity is hashable"),
+            )
+        }
+    }
+}
+
+pub(super) fn exact_callback_signature(
+    module: &hir::Module,
+    signature: hir::FunctionTypeId,
+) -> hir::ExactCallableSignature {
+    let signature = &module.function_types[signature];
+    assert!(!signature.is_suspend, "a managed callback cannot suspend");
+    hir::ExactCallableSignature::new(
+        hir::Effect::Ordinary,
+        None,
+        signature
+            .parameter_types
+            .iter()
+            .map(|parameter| module.exact_type_identities[*parameter].id())
+            .collect(),
+        module.exact_type_identities[signature.return_type].id(),
+    )
 }

@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  private fun privateSeed(): Int
+    =
+      IntLiteral 4
+  internal fun internalSeed(): Int
+    =
+      IntLiteral 5
+  public open class SourceBase<T>()
+    protected val seed: Int = <expr>
+      IntLiteral 3
+    protected fun read
+    private fun hidden
+  public class Cases()
+    private nested class Hidden
+    internal nested class ConeScoped
+  public class Derived() : SourceBase<Int>(<0 args>)
+    protected fun read

@@ -104,7 +104,7 @@ fn class_bound_member_resolves_to_a_concrete_class_method() {
         .find(|bound| {
             matches!(
                 bound.source,
-                hir::BoundCallableSource::Class { callable, .. }
+                hir::BoundCallableSource::Class { callable: hir::CallableTarget::Local(callable), .. }
                     if output.export.functions[output.export.callable_function(callable)].name
                         == "Base.get"
             )
@@ -128,10 +128,8 @@ fn class_bound_member_resolves_to_a_concrete_class_method() {
         .find(|(_, function)| {
             function.name == "read"
                 && matches!(
-                    function.origin,
-                    hir::concrete::FunctionOrigin::Free(
-                        hir::concrete::FreeFunctionOrigin::Generic { .. }
-                    )
+                    function.materialization.context(),
+                    hir::concrete::CallableMaterializationContext::Application(_)
                 )
         })
         .expect("read<StringNode> specialization")
@@ -202,15 +200,9 @@ fn class_and_interface_bounds_form_one_typed_nominal_set() {
     let hir::TypeParamBounds::Nominal(bounds) = &declaration.type_params[0].bounds else {
         panic!("upper bounds use the nominal constraint branch")
     };
-    let class = bounds.class.as_ref().expect("one typed class bound");
+    let class = bounds.class.as_ref().expect("one complete class bound");
     assert_eq!(bounds.interfaces.len(), 1);
-    assert_eq!(
-        hir::type_name(
-            &module,
-            module.class_applications[class.application].canonical_type
-        ),
-        "Base<String>"
-    );
+    assert_eq!(hir::type_name(&module, class.ty), "Base<String>");
 }
 
 #[test]
@@ -354,7 +346,7 @@ fn class_bound_exposes_an_abstract_interface_capability() {
     assert!(output.export.bound_callable_refs.iter().any(|(_, bound)| {
         matches!(
             bound.source,
-            hir::BoundCallableSource::Interface { member, .. }
+            hir::BoundCallableSource::Interface { member: hir::InterfaceMethodReference::Local(member), .. }
                 if output.export.functions[output.export.interface_methods[member].function].name
                     == "Named.name"
         )
@@ -488,7 +480,7 @@ fn partial_type_arguments_commit_only_complete_callable_arguments() {
         .map(|argument| hir::type_name(module, *argument))
         .collect::<Vec<_>>();
     assert_eq!(arguments, ["Int", "String"]);
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main has a user body")
     };
     assert_eq!(
@@ -503,16 +495,26 @@ fn partial_type_arguments_commit_only_complete_callable_arguments() {
         .map(|(_, function)| function)
         .find(|function| function.name == "second")
         .expect("the local graph contains second<Int, String>");
-    let hir::concrete::FunctionOrigin::Free(hir::concrete::FreeFunctionOrigin::Generic {
-        arguments,
-        ..
-    }) = &concrete.origin
+    let hir::concrete::CallableMaterializationContext::Application(application) =
+        concrete.materialization.context()
     else {
-        panic!("the local second function must retain typed generic provenance")
+        panic!("the local second function must retain its typed generic application")
+    };
+    let record = output
+        .local
+        .callable_applications
+        .get(application)
+        .expect("the local second function has one application record");
+    let scoop_identity::CallableArguments::Arguments(arguments) = record.key().callable_arguments()
+    else {
+        panic!("second<Int, String> retains a non-empty argument group")
     };
     assert_eq!(
-        arguments.to_vec(),
-        vec![concrete_int_type(&output.local), output.local.string]
+        arguments.as_slice(),
+        [
+            output.local.exact_type_identities[concrete_int_type(&output.local)].id(),
+            output.local.exact_type_identities[output.local.string].id(),
+        ]
     );
     assert_eq!(concrete.params[0].ty, concrete_int_type(&output.local));
     assert_eq!(concrete.params[1].ty, output.local.string);

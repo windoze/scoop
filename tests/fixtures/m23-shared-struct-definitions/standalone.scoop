@@ -1,0 +1,39 @@
+package consumer.structdefinitions
+import upstream.structdefinitions.*
+
+private var order: Int = 0
+
+private fun <T> mark(step: Int, value: T): T {
+    order = order * 10 + step
+    return value
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    order = 0
+    val base: Cell<T> = make(seed)
+    val changed = mark(1, base).{
+        next: mark(2, Some(Link(base))),
+        value: mark(3, seed)
+    }
+    if (order != 123) { return 1 }
+    if (hasNext(base)) { return 2 }
+    if (!hasNext(changed)) { return 6 }
+    val tail: T = when (changed.next) {
+        Some(link) -> link.cell.value
+        None -> seed
+    }
+    if (read(tail) != 42) { return 3 }
+    val reset = withoutNext(replace(changed, seed))
+    if (hasNext(reset)) { return 4 }
+    val receiver: Readable<T> = reset
+    val native = NativePair(0, 0).{ right: 22, left: 20 }
+    if (native.left != 20 || native.right != 22) { return 5 }
+    return receiver.apply(read)
+}
+
+public fun result(): Int {
+    if (replace(make(1), 42).value != 42) { return 3 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 1 }
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

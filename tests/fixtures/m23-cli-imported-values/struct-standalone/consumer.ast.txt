@@ -1,0 +1,18 @@
+SourceFile
+  QualifiedPackage consumer.values
+  ImportExact Local dependency.values.Token
+  ImportExact Local dependency.values.Wide
+  ImportExact Local dependency.values.passToken
+  ImportExact Local dependency.values.passWide
+    @NoGC
+  public fun keepToken(value: Token): Token
+    =
+      Call passToken
+        Var value
+    @NoGC
+  public fun keepWide(value: Wide): Wide
+    val copy
+      Var value
+    return
+      Call passWide
+        Var copy

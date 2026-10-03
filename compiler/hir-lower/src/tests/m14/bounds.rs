@@ -43,20 +43,11 @@ fn interface_bounds_are_complete_ordered_hir_constraints() {
     };
     assert!(bounds.class.is_none());
     assert_eq!(bounds.interfaces.len(), 2);
-    assert_eq!(
-        hir::type_name(
-            &module,
-            module.interface_applications[bounds.interfaces[0].application].canonical_type
-        ),
-        "Marker"
-    );
-    assert_eq!(
-        hir::type_name(
-            &module,
-            module.interface_applications[bounds.interfaces[1].application].canonical_type
-        ),
-        "Comparable<T0>"
-    );
+    let [marker, comparable] = bounds.interfaces.as_slice() else {
+        panic!("both complete interface bounds are retained")
+    };
+    assert_eq!(hir::type_name(&module, marker.ty), "Marker");
+    assert_eq!(hir::type_name(&module, comparable.ty), "Comparable<T0>");
     assert!(
         hir::dump(&module).contains("struct Constrained<T : Marker & Comparable<T>>"),
         "HIR dump must preserve bound order"

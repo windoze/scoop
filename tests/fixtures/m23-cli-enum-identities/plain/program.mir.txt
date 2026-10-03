@@ -1,0 +1,52 @@
+Module
+  enum Signal
+    Idle()
+    Pair(_1: Int, _2: Boolean)
+    Named(count: Int, ready: Boolean)
+    Defaulted(count: Int)
+  fun consume @fn0(value: Signal) -> Unit
+    bb0 entry
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $parameter._2: Boolean
+        Type Boolean
+        Local $argument.1
+      val $argument.0: Signal
+        Type Signal
+        VariantConstruct Signal v1
+          Type Int
+          Local $parameter._1
+          Type Boolean
+          Local $parameter._2
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call @fn0 direct
+        Type Signal
+        Local $parameter.value
+      val $parameter.count: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $argument.0: Signal
+        Type Signal
+        VariantConstruct Signal v3
+          Type Int
+          Local $parameter.count
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call @fn0 direct
+        Type Signal
+        Local $parameter.value
+      return
+  output executable @fn1

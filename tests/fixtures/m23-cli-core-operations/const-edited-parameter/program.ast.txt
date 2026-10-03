@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  ImportExact Local named
+  ImportExact Local shifted
+  fun main()
+    if
+      Binary Or
+        Binary Ne
+          Var named
+          IntLiteral 12
+        Binary Ne
+          Var shifted
+          IntLiteral 12
+      throw
+        Call IllegalStateException

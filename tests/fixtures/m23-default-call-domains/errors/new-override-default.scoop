@@ -1,0 +1,7 @@
+public interface DefaultRoot<T> {
+    public fun choose(seed: T, value: T = seed): T
+}
+public class DefaultChild<T> : DefaultRoot<T> {
+    public override fun choose(seed: T, value: T = seed): T = value
+}
+fun main() {}

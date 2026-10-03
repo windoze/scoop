@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "copy update field `value` expects Int, found String",
+    "notes": [],
+    "origin": {
+      "cone": "cceb87b66cbc9945af5a88d8922988cc8499cbcda7d008710827c409f85aabbe",
+      "end": 143,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 136
+    },
+    "severity": "error"
+  }
+]

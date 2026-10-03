@@ -40,7 +40,7 @@ impl Lowerer {
             let ty = self.resolve_type_ref(&parameter.ty)?;
             if let Some((_, signature)) = &expected_signature {
                 let expected = signature.parameter_types[index];
-                if !self.types_equal(ty, expected) {
+                if !self.is_subtype(expected, ty) {
                     let found = self.type_name(ty);
                     let expected = self.type_name(expected);
                     self.error(
@@ -62,7 +62,7 @@ impl Lowerer {
             .as_ref()
             .map(|(_, signature)| signature.return_type);
         if let (Some(explicit), Some(expected)) = (explicit_return, expected_return)
-            && !self.types_equal(explicit, expected)
+            && !self.is_subtype(explicit, expected)
         {
             let found = self.type_name(explicit);
             let expected = self.type_name(expected);
@@ -78,6 +78,13 @@ impl Lowerer {
 
         let capture_environment = self.capture_environment();
         let literal_origin = self.expression_origin(span);
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::Lambda);
+        let outer_definition_paths = std::mem::replace(
+            &mut self.definition_paths,
+            crate::definition_paths::DefinitionPathContext::nested(&definition_path),
+        );
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
@@ -96,7 +103,11 @@ impl Lowerer {
         let function_number = self.next_anonymous_function;
         self.next_anonymous_function += 1;
         self.current_fn_name = format!("$anonymous.{function_number}");
-        self.set_source_context(self.current_fn_name.clone());
+        self.set_source_context(hir::SourceContextSubject::LexicalCallable {
+            root: self.current_definition_root(),
+            path: definition_path.clone(),
+            role: scoop_identity::LexicalCallableRole::AnonymousFunctionBody,
+        });
         self.current_return_ty = known_return.unwrap_or(self.unit);
         self.return_inference = known_return.is_none().then(ReturnInference::default);
         self.push_suspension_context(if is_suspend {
@@ -110,7 +121,7 @@ impl Lowerer {
 
         let lowered = (|| {
             let mut params = Vec::with_capacity(source_params.len());
-            for (parameter, ty) in source_params.iter().zip(&parameter_types) {
+            for (index, (parameter, ty)) in source_params.iter().zip(&parameter_types).enumerate() {
                 if self.scopes.is_declared_here(&parameter.name.text) {
                     self.error(
                         parameter.name.span,
@@ -118,7 +129,12 @@ impl Lowerer {
                     );
                     return None;
                 }
-                let local = self.alloc_local(parameter.name.text.clone(), *ty, false);
+                let local = self.alloc_parameter_local(
+                    parameter.name.text.clone(),
+                    *ty,
+                    index,
+                    parameter.name.span,
+                );
                 self.scopes.declare(parameter.name.text.clone(), local);
                 params.push(hir::Param {
                     name: parameter.name.text.clone(),
@@ -180,7 +196,12 @@ impl Lowerer {
             let Type::Function(function_type) = self.types[function_ty] else {
                 unreachable!()
             };
-            let closure_local = self.alloc_local("$closure".to_string(), function_ty, false);
+            let closure_local = self.alloc_synthetic_local(
+                "$closure".to_string(),
+                function_ty,
+                false,
+                scoop_identity::SyntheticLocalRole::Temporary,
+            );
             let mut abi_params = Vec::with_capacity(params.len() + 1);
             abi_params.push(hir::Param {
                 name: "$closure".to_string(),
@@ -191,28 +212,35 @@ impl Lowerer {
             let type_params = self.type_params_in_scope.clone();
             let access = self.local_declaration_access();
             let function = self.functions.alloc(hir::Function {
-                name: self.current_fn_name.clone(),
+                signature: hir::CallableSignature {
+                    name: self.current_fn_name.clone(),
+                    is_suspend,
+                    modifiers: hir::CallableModifiers::default(),
+                    params: abi_params,
+                    return_ty,
+                    attributes: hir::FunctionAttributes::default(),
+                    span,
+                },
+
                 access,
-                override_access: Vec::new(),
                 genericity: hir::FunctionGenericity::Plain,
-                is_suspend,
-                modifiers: hir::CallableModifiers::default(),
-                params: abi_params,
-                return_ty,
-                attributes: hir::FunctionAttributes::default(),
                 kind: hir::FunctionKind::User(hir::Body {
                     locals: std::mem::take(&mut self.locals),
                     statements,
                 }),
                 method: None,
-                span,
             });
             if !type_params.is_empty() {
                 self.register_generic(function, type_params.clone());
             }
-            let captures = self.finish_current_captures();
+            self.function_files.insert(function, self.current_file);
+            let captures = self.finish_current_captures(literal_origin);
             let id = self.anonymous_functions.alloc(hir::AnonymousFunction {
-                function,
+                definition: hir::LexicalFunctionDefinition::Source {
+                    function,
+                    root: self.current_definition_root(),
+                },
+                definition_path: definition_path.clone(),
                 function_type,
                 owner_type_param_count: type_params.len(),
                 body_type_arguments: hir::CallableBodyTypeArguments::Lexical,
@@ -238,6 +266,7 @@ impl Lowerer {
         self.return_inference = outer_return_inference;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
+        self.definition_paths = outer_definition_paths;
         self.current_owner = outer_owner;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;

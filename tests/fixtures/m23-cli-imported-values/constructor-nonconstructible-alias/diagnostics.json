@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Scalar` does not name a constructible type",
+    "notes": [],
+    "origin": {
+      "cone": "9971f986441161aad3929e257a643203d6fa2f24fb3f0e3500b0fd3f5f608a3d",
+      "end": 76,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 68
+    },
+    "severity": "error"
+  }
+]

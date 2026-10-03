@@ -1,0 +1,75 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun equalInt8(value: Int8): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalInt16(value: Int16): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalInt(value: Int): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalLong(value: Long): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalUInt8(value: UInt8): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun equalUInt16(value: UInt16): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun equalUInt(value: UInt): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun equalULong(value: ULong): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+  fun literalEquality(): Boolean
+    =
+      Binary Eq
+        IntLiteral 7
+        IntLiteral 3
+  fun contextualLeft(value: Int8): Boolean
+    =
+      Binary Eq
+        IntLiteral 1
+        Var value
+  fun leftOperand(): Int
+    =
+      IntLiteral 1
+  fun middleOperand(): Int
+    =
+      IntLiteral 2
+  fun rightOperand(value: Int): Int
+    =
+      Var value
+  fun singleEvaluation(): Boolean
+    =
+      Binary Eq
+        Call leftOperand
+        Call rightOperand
+          Call middleOperand

@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Incomplete` does not implement abstract getter `BaseReader.value`",
+    "notes": [],
+    "origin": {
+      "cone": "b5714fcc921bd21f11cca73f149e97c128a5631219068c12ac704d84ea394e4e",
+      "end": 153,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 40
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Incomplete` does not implement abstract setter `BaseReader.value`",
+    "notes": [],
+    "origin": {
+      "cone": "b5714fcc921bd21f11cca73f149e97c128a5631219068c12ac704d84ea394e4e",
+      "end": 153,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 40
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Incomplete` leaves interface method `MutableReader<Int>.$get$value` abstract",
+    "notes": [],
+    "origin": {
+      "cone": "b5714fcc921bd21f11cca73f149e97c128a5631219068c12ac704d84ea394e4e",
+      "end": 153,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 40
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Incomplete` leaves interface method `MutableReader<Int>.$set$value` abstract",
+    "notes": [],
+    "origin": {
+      "cone": "b5714fcc921bd21f11cca73f149e97c128a5631219068c12ac704d84ea394e4e",
+      "end": 153,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 40
+    },
+    "severity": "error"
+  }
+]

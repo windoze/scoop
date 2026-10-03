@@ -1,0 +1,6 @@
+private class SecretStorage {
+    private val payload: Int = 4
+}
+public class Envelope {
+    private val storage: SecretStorage = SecretStorage()
+}

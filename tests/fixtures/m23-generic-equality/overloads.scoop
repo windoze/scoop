@@ -1,0 +1,14 @@
+package consumer.equality
+
+import templates.equality.*
+
+public fun <T> exercise(value: T): Int {
+    val left = Manual<T>(value, 42)
+    if (left != Manual<T>(value, 42) || left == Manual<T>(value, 1)) { return 1 }
+    val derived = Different<T>(42)
+    if (derived != Different<T>(42) || derived == Different<T>(1)) { return 2 }
+    if (!(derived == 42) || derived == 1) { return 3 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(1)

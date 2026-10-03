@@ -1,0 +1,67 @@
+SourceFile
+  RootPackage
+  class InvokeFailure() : Exception(<1 args>)
+  class InvokePayload(val text: String)
+  class InvokeGate(var waiter: Continuation<Int>?)
+    fun complete
+  class InvokeRegistration(val gate: InvokeGate), SuspendRegistration<Int>
+    public fun register
+  suspend fun awaitInvoke(gate: InvokeGate): Int
+    =
+      Call suspendCoroutine
+        Call InvokeRegistration
+          Var gate
+  fun invokeDefault(): String
+    Call println
+      StringLiteral "invoke-default"
+    return
+      StringLiteral "!"
+  class AsyncInvoker<T>(val gate: InvokeGate, val payload: T, val label: String)
+    operator suspend fun invoke
+  class InvokeHolder<T>(val action: AsyncInvoker<T>)
+  class InvokeTask(val holder: InvokeHolder<InvokePayload>), SuspendTask<String>
+    public suspend fun run
+  class InvokeCompletion(val label: String), Continuation<String>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val successGate
+      Call InvokeGate
+        Var None
+    val failureGate
+      Call InvokeGate
+        Var None
+    val payload
+      Call InvokePayload
+        StringLiteral "payload"
+    val success
+      Call InvokeHolder
+        Call AsyncInvoker
+          Var successGate
+          Var payload
+          StringLiteral "-success"
+    val failure
+      Call InvokeHolder
+        Call AsyncInvoker
+          Var failureGate
+          Var payload
+          StringLiteral "-failure"
+    Call startCoroutine
+      Call InvokeTask
+        Var success
+      Call InvokeCompletion
+        StringLiteral "invoke-success"
+    Call startCoroutine
+      Call InvokeTask
+        Var failure
+      Call InvokeCompletion
+        StringLiteral "invoke-failure"
+    Call println
+      StringLiteral "invoke-suspended"
+    Call gcCollect
+    MethodCall complete
+      Var successGate
+      IntLiteral 1
+    MethodCall complete
+      Var failureGate
+      IntLiteral 0

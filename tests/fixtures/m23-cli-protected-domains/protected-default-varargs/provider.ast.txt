@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  public class DefaultVariadic()
+    protected fun defaulted
+    protected fun empty

@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m20-generics-errors-partial-type-arguments"
+root = "../../../m20-generics/errors/partial-type-arguments.scoop"
+inputs = ["../../../m20-generics/errors/partial-type-arguments.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m20-generics", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "partial-type-arguments.diagnostics.json"}

@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        Call divide
+          IntLiteral 42L
+          IntLiteral 2L
+        IntLiteral 21L
+    var failed
+      BoolLiteral false
+    try
+      Call divide
+        IntLiteral 1L
+        IntLiteral 0L
+    catch error: ArithmeticException
+      assign failed
+        BoolLiteral true
+    Call verifyType
+      Var failed

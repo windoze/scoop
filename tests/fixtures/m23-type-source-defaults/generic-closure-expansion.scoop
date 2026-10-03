@@ -1,0 +1,37 @@
+public fun ownerSeed(): String = "source"
+public fun <T> referenceProvider(seed: T, value: () -> String = ::ownerSeed): () -> String = value
+public fun <X, Y> referenceBridge(first: X, second: Y, value: () -> String = referenceProvider(second)): () -> String = value
+fun <X, Y> forwardReference(first: X, second: Y): () -> String = referenceBridge(second, first)
+
+public fun <T> lambdaProvider(seed: T, value: () -> T = { seed }): () -> T = value
+public fun <T> anonymousProvider(seed: T, value: () -> T = fun(): T { return seed }): () -> T = value
+public fun <X, Y> closureBridge(first: X, second: Y,
+    left: () -> Y = lambdaProvider(second),
+    right: () -> Y = anonymousProvider(second)): Y = left()
+
+public fun <A, B> localReference(seed: A, ignored: B, value: () -> A = if (true) {
+    fun read(): A { return seed }
+    ::read
+} else { val fallback: () -> A = { seed }; fallback }): () -> A = value
+fun <X, Y> forwardLocal(first: X, second: Y): () -> Y = localReference(second, first)
+
+public class ReferenceBox(val value: String) {
+    public fun read(): String = value
+}
+public fun String.ownerText(): String = this
+public fun <T> boundMember(unused: T, receiver: ReferenceBox, value: () -> String = receiver::read): () -> String = value
+public fun <T> boundExtension(unused: T, receiver: String, value: () -> String = receiver::ownerText): () -> String = value
+public class ReferenceConstructor<T>(seed: T, val callback: () -> String = ::ownerSeed)
+
+fun main() {
+    forwardReference("kept", 1)()
+    forwardReference(2, "ignored")()
+    closureBridge(1, "lambda")
+    closureBridge("ignored", 2)
+    forwardLocal(1, "local")()
+    forwardLocal("ignored", 2)()
+    boundMember(1, ReferenceBox("member"))()
+    boundExtension("unused", "extension")()
+    ReferenceConstructor(1).callback()
+    ReferenceConstructor("unused").callback()
+}

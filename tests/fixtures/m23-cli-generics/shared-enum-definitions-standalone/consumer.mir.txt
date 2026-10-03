@@ -1,0 +1,1289 @@
+Module
+  global0 empty: Chain<Int> managed initial=encoded(Chain<Int>::v0)
+  enum Chain<Int>
+    End()
+    Cons(_0: Link<Int>)
+  enum Chain<Unit>
+    End()
+    Cons(_0: Link<Unit>)
+  enum Chain<String>
+    End()
+    Cons(_0: Link<String>)
+  enum Entry<Unit>
+    Value(_0: Unit)
+  enum Entry<String>
+    Value(_0: String)
+  enum Entry<Int>
+    Value(_0: Int)
+  class Link<Int> vtable=0 itables=0
+  class Link<Unit> vtable=0 itables=0
+  class Link<String> vtable=0 itables=0
+  class box<Entry<Unit>> vtable=0 itables=1
+  class box<Entry<String>> vtable=0 itables=1
+  class box<Entry<Int>> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  interface Readable<Unit>
+  interface Readable<String>
+  interface Readable<Int>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
+    bridge function_type1 -> @fn41 id=3dca7c9fc959dee1689e618307027ec8b631d794dc9d8114deca2de5f75cae1f
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn4 captures=0
+    bridge function_type1 -> @fn42 id=f838047a8a8f1ad7c631dd3249834e36cda6979240e4ec4ff94cfa55f6942088
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn43 id=54e64afba812fc99e9a2c415aed80eefc59783be1ed8b4387e3f86ac34043036
+  closure cc3 $Closure$lambda3 type=function_type3 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn44 id=fb2eaa35d5d9a8ed00d34581ae8d7724821f9d9985ddbe618fc31acf1db46243
+  closure cc4 $Closure$lambda4 type=function_type3 invoke=@fn17 captures=0
+    bridge function_type1 -> @fn45 id=01ee7c90819262eca497dde65291ea60cf1868e7b0eb58beee7a68dd2e9180c1
+  closure cc5 $Closure$lambda5 type=function_type3 invoke=@fn22 captures=0
+    bridge function_type1 -> @fn46 id=4d2126376b113fed89b630298109218435ac18fafc89033b6c38ead3e0d4a876
+  generated_exact_type get0 location=class3 nominal_id=ed6e6f3865e04a421c79600ae9a26d5b54e0c743886a4ac0d8a30bc713a0c96c exact_id=1793fa460b4c5a4d55d78845f3c1ad428576076f1745ecc924b7d5f5c4fb5e3e
+  generated_exact_type get1 location=closure0 nominal_id=692c78ede5cdfed9970d6de00f0924e7a35fa7c421fa7f3cfcf18832e0ad27b6 exact_id=27d4c1a25c5abae2615936ee06d3d22f02f1658e3b946f1804ffce51a03e714c
+  generated_exact_type get2 location=closure2 nominal_id=eba5ccf59e6fa1cfe5000da649841153812690ed2f0fc531abf5201dea35b341 exact_id=31bbd563fddd11921d70218491f8efa82f2a7c68ea2f1fe4609d342b092c3814
+  generated_exact_type get3 location=closure4 nominal_id=72971d37cfd06fe3cddd44fb96a3634a2f2f9da7415c774e40229fb84d44aba0 exact_id=38cbab2134740ce6f45c1df54c2d822c86eff4c309dd6cd49f47a0c53df3869d
+  generated_exact_type get4 location=class7 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get5 location=closure5 nominal_id=d5e0a0a5a59f0f2f3ee98143231973de77d08c691ad357fe34e9066fe3118a95 exact_id=552aec63dc7f59da70396c2014e93020465ce01bd0b66689bc24249496b4aea3
+  generated_exact_type get6 location=closure1 nominal_id=ea381d4433d98c72d78a3ef32421032681ef48a156f1c3871fb6b030db71db32 exact_id=5b0a48bd06930668567737057c7e3740ba679ba2f9cff21b468f336f8a9f27aa
+  generated_exact_type get7 location=class5 nominal_id=355151cb54f2f4ea11e8b216e68bbd1013c3c39793aa59fe14f2f7fd6cf1272f exact_id=69e20bd81e69321636a61bf538706c2f6ea690c0b198690fcc1fab6453ace1f3
+  generated_exact_type get8 location=class4 nominal_id=09c0938dda3871e74e6d367865509f62821cc777c8708281df755626b2d5cee9 exact_id=881e0702bc8172736e315c95ca4c51a21702bc523d5396bfe8a9c41e830c13fa
+  generated_exact_type get9 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get10 location=closure3 nominal_id=752d2612e649e477af891f604abbdc8b418efa732496e233250f44697dab0466 exact_id=fc7d7b96422b7ee9ce81650ebcdbb500cfb73f53b3ff9ba50998480ae47d745e
+  generated_callable gc0 function=@fn45 id=01ee7c90819262eca497dde65291ea60cf1868e7b0eb58beee7a68dd2e9180c1
+  generated_callable gc1 function=@fn38 id=27e160b909ad63d49db0eb513e623a92e3b04c774af46d2b843c773f487c2dbd
+  generated_callable gc2 function=@fn39 id=3462a8ba300cd02b6841b63bacec2510194db153f71568ac7623f11521f2fa04
+  generated_callable gc3 function=@fn41 id=3dca7c9fc959dee1689e618307027ec8b631d794dc9d8114deca2de5f75cae1f
+  generated_callable gc4 function=@fn46 id=4d2126376b113fed89b630298109218435ac18fafc89033b6c38ead3e0d4a876
+  generated_callable gc5 function=@fn36 id=54286c40baef9dbdd5d7e70296c2e4e7806ae09fd94d6aac35b7c64e85aa8c7b
+  generated_callable gc6 function=@fn43 id=54e64afba812fc99e9a2c415aed80eefc59783be1ed8b4387e3f86ac34043036
+  generated_callable gc7 function=@fn37 id=b6a8547b514e9bce0c131eaf277cf29612cc85e29daddff65bed4408b05fb62f
+  generated_callable gc8 function=@fn40 id=c61e2df24d23082ce3c467326cd0a2c63f876e92b69d38b2e978c9cb770fad1f
+  generated_callable gc9 function=@fn35 id=e716ad5aad40e6f2bd994874aff261b9c2d4b223bd69ebe4d081148654071a98
+  generated_callable gc10 function=@fn42 id=f838047a8a8f1ad7c631dd3249834e36cda6979240e4ec4ff94cfa55f6942088
+  generated_callable gc11 function=@fn44 id=fb2eaa35d5d9a8ed00d34581ae8d7724821f9d9985ddbe618fc31acf1db46243
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Unit
+        Type Unit
+        Local $argument.0
+      val $parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn3 direct
+        Type Unit
+        Local $parameter.seed
+        Type (Unit) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $argument.1: (String) -> Int
+        Type (String) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.read: (String) -> Int
+        Type (String) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn5 direct
+        Type String
+        Local $parameter.seed
+        Type (String) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn7 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $get$empty @fn1() -> Chain<Int>
+    bb0 entry
+      return
+        Type Chain<Int>
+        GlobalRead empty
+  fun $lambda.1 @fn2($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn3(seed: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local seed
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call value: Chain<Unit> = @fn10 direct
+        Type Unit
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Chain<Int> = @fn1 direct
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+      val $dependency.parameter.value: Chain<Int>
+        Type Chain<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn12 direct
+        Type Chain<Int>
+        Local $dependency.parameter.value
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Chain<Unit>
+        Type Chain<Unit>
+        Local value
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.parameter.value: Chain<Unit>
+        Type Chain<Unit>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn13 direct
+        Type Chain<Unit>
+        Local $dependency.parameter.value
+        Type (Unit) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local seed
+      val $dependency.parameter._1: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val selected: Entry<Unit>
+        Type Entry<Unit>
+        VariantConstruct Entry<Unit> v0
+          Type Unit
+          Local $dependency.parameter._1
+      val readable: Readable<Unit>
+        Type Readable<Unit>
+        Box
+          Type Entry<Unit>
+          Local selected
+      val $dependency.receiver: Readable<Unit>
+        Type Readable<Unit>
+        Local readable
+      val $dependency.argument.0: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.parameter.action: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn9 interface Readable<Unit>[1]
+        Type Readable<Unit>
+        Local $dependency.receiver
+        Type (Unit) -> Int
+        Local $dependency.parameter.action
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.2 @fn4($closure: (String) -> Int, item: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn5(seed: String, read: (String) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        Local seed
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call value: Chain<String> = @fn16 direct
+        Type String
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Chain<Int> = @fn1 direct
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc4 $Closure$lambda4
+      val $dependency.parameter.value: Chain<Int>
+        Type Chain<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn12 direct
+        Type Chain<Int>
+        Local $dependency.parameter.value
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Chain<String>
+        Type Chain<String>
+        Local value
+      val $dependency.argument.1: (String) -> Int
+        Type (String) -> Int
+        Local read
+      val $dependency.parameter.value: Chain<String>
+        Type Chain<String>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (String) -> Int
+        Type (String) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn18 direct
+        Type Chain<String>
+        Local $dependency.parameter.value
+        Type (String) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: String
+        Type String
+        Local seed
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val selected: Entry<String>
+        Type Entry<String>
+        VariantConstruct Entry<String> v0
+          Type String
+          Local $dependency.parameter._1
+      val readable: Readable<String>
+        Type Readable<String>
+        Box
+          Type Entry<String>
+          Local selected
+      val $dependency.receiver: Readable<String>
+        Type Readable<String>
+        Local readable
+      val $dependency.argument.0: (String) -> Int
+        Type (String) -> Int
+        Local read
+      val $dependency.parameter.action: (String) -> Int
+        Type (String) -> Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn15 interface Readable<String>[1]
+        Type Readable<String>
+        Local $dependency.receiver
+        Type (String) -> Int
+        Local $dependency.parameter.action
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.3 @fn6($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn7(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call value: Chain<Int> = @fn21 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Chain<Int> = @fn1 direct
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc5 $Closure$lambda5
+      val $dependency.parameter.value: Chain<Int>
+        Type Chain<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn12 direct
+        Type Chain<Int>
+        Local $dependency.parameter.value
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Chain<Int>
+        Type Chain<Int>
+        Local value
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.parameter.value: Chain<Int>
+        Type Chain<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn12 direct
+        Type Chain<Int>
+        Local $dependency.parameter.value
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val selected: Entry<Int>
+        Type Entry<Int>
+        VariantConstruct Entry<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val readable: Readable<Int>
+        Type Readable<Int>
+        Box
+          Type Entry<Int>
+          Local selected
+      val $dependency.receiver: Readable<Int>
+        Type Readable<Int>
+        Local readable
+      val $dependency.argument.0: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.parameter.action: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn20 interface Readable<Int>[1]
+        Type Readable<Int>
+        Local $dependency.receiver
+        Type (Int) -> Int
+        Local $dependency.parameter.action
+      return
+        Type Int
+        Local $call.1
+  fun read @fn8(this: Entry<Unit>) -> Unit
+    bb0 entry
+      val $when.1: Entry<Unit>
+        Type Entry<Unit>
+        Local this
+      val $pattern.subject.2: Entry<Unit>
+        Type Entry<Unit>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Entry<Unit> v0
+          Type Entry<Unit>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Unit
+        Type Unit
+        VariantPayloadProject Entry<Unit> v0 f0
+          Type Entry<Unit>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Unit
+        Local $dependency.local.1
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      Type Unit
+      Local $dependency.local.2
+      return
+  fun apply @fn9(this: Readable<Unit>, action: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: (Unit) -> Int
+        Type (Unit) -> Int
+        Local action
+      val $dependency.local.2: Readable<Unit>
+        Type Readable<Unit>
+        Local this
+      call @fn23 interface Readable<Unit>[0]
+        Type Readable<Unit>
+        Local $dependency.local.2
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Unit) -> Int
+        Local $dependency.local.3
+        Type Unit
+        UnitLiteral
+      return
+        Type Int
+        Local $call.1
+  fun singleton @fn10(value: Unit) -> Chain<Unit>
+    bb0 entry
+      val $dependency.local.1: Unit
+        Type Unit
+        Local value
+      val $dependency.local.2: Chain<Unit>
+        Type Chain<Unit>
+        VariantConstruct Chain<Unit> v0
+      val $dependency.local.3: Unit
+        Type Unit
+        Local $dependency.local.1
+      val $dependency.local.4: Chain<Unit>
+        Type Chain<Unit>
+        Local $dependency.local.2
+      assign $new.1
+        Type Link<Unit>
+        ClassAlloc Link<Unit>
+      call @fn32 direct
+        Type Link<Unit>
+        Local $new.1
+        Type Unit
+        Local $dependency.local.3
+        Type Chain<Unit>
+        Local $dependency.local.4
+      val $dependency.local.5: Link<Unit>
+        Type Link<Unit>
+        Local $new.1
+      val $dependency.local.6: Link<Unit>
+        Type Link<Unit>
+        Local $dependency.local.5
+      return
+        Type Chain<Unit>
+        VariantConstruct Chain<Unit> v1
+          Type Link<Unit>
+          Local $dependency.local.6
+  fun $lambda.0 @fn11($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun total @fn12(value: Chain<Int>, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $when.1: Chain<Int>
+        Type Chain<Int>
+        Local value
+      val $pattern.subject.2: Chain<Int>
+        Type Chain<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Chain<Int> v0
+          Type Chain<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.10
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Chain<Int>
+        Type Chain<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Chain<Int> v1
+          Type Chain<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.10
+    bb4 pattern.pass.4
+      val $dependency.local.2: Link<Int>
+        Type Link<Int>
+        VariantPayloadProject Chain<Int> v1 f0
+          Type Chain<Int>
+          Local $pattern.subject.3
+      call $call.1: Int = @fn24 direct
+        Type Link<Int>
+        Local $dependency.local.2
+      call $dependency.local.7: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.1
+      call $dependency.local.3: Chain<Int> = @fn25 direct
+        Type Link<Int>
+        Local $dependency.local.2
+      val $dependency.local.4: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.5: Chain<Int>
+        Type Chain<Int>
+        Local $dependency.local.3
+      val $dependency.local.6: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.4
+      call $dependency.local.8: Int = @fn12 direct
+        Type Chain<Int>
+        Local $dependency.local.5
+        Type (Int) -> Int
+        Local $dependency.local.6
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      assign $dependency.local.10
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun total @fn13(value: Chain<Unit>, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $when.1: Chain<Unit>
+        Type Chain<Unit>
+        Local value
+      val $pattern.subject.2: Chain<Unit>
+        Type Chain<Unit>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Chain<Unit> v0
+          Type Chain<Unit>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.10
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Chain<Unit>
+        Type Chain<Unit>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Chain<Unit> v1
+          Type Chain<Unit>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.10
+    bb4 pattern.pass.4
+      val $dependency.local.2: Link<Unit>
+        Type Link<Unit>
+        VariantPayloadProject Chain<Unit> v1 f0
+          Type Chain<Unit>
+          Local $pattern.subject.3
+      call @fn26 direct
+        Type Link<Unit>
+        Local $dependency.local.2
+      call $dependency.local.7: Int = <closure:function_type0> closure[function_type0]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        UnitLiteral
+      call $dependency.local.3: Chain<Unit> = @fn27 direct
+        Type Link<Unit>
+        Local $dependency.local.2
+      val $dependency.local.4: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.5: Chain<Unit>
+        Type Chain<Unit>
+        Local $dependency.local.3
+      val $dependency.local.6: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.local.4
+      call $dependency.local.8: Int = @fn13 direct
+        Type Chain<Unit>
+        Local $dependency.local.5
+        Type (Unit) -> Int
+        Local $dependency.local.6
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      assign $dependency.local.10
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun read @fn14(this: Entry<String>) -> String
+    bb0 entry
+      val $when.1: Entry<String>
+        Type Entry<String>
+        Local this
+      val $pattern.subject.2: Entry<String>
+        Type Entry<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Entry<String> v0
+          Type Entry<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: String
+        Type String
+        VariantPayloadProject Entry<String> v0 f0
+          Type Entry<String>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type String
+        Local $dependency.local.1
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      return
+        Type String
+        Local $dependency.local.2
+  fun apply @fn15(this: Readable<String>, action: (String) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: (String) -> Int
+        Type (String) -> Int
+        Local action
+      val $dependency.local.2: Readable<String>
+        Type Readable<String>
+        Local this
+      call $call.1: String = @fn28 interface Readable<String>[0]
+        Type Readable<String>
+        Local $dependency.local.2
+      call $call.2: Int = <closure:function_type2> closure[function_type2]
+        Type (String) -> Int
+        Local $dependency.local.3
+        Type String
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun singleton @fn16(value: String) -> Chain<String>
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      val $dependency.local.2: Chain<String>
+        Type Chain<String>
+        VariantConstruct Chain<String> v0
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.4: Chain<String>
+        Type Chain<String>
+        Local $dependency.local.2
+      assign $new.1
+        Type Link<String>
+        ClassAlloc Link<String>
+      call @fn33 direct
+        Type Link<String>
+        Local $new.1
+        Type String
+        Local $dependency.local.3
+        Type Chain<String>
+        Local $dependency.local.4
+      val $dependency.local.5: Link<String>
+        Type Link<String>
+        Local $new.1
+      val $dependency.local.6: Link<String>
+        Type Link<String>
+        Local $dependency.local.5
+      return
+        Type Chain<String>
+        VariantConstruct Chain<String> v1
+          Type Link<String>
+          Local $dependency.local.6
+  fun $lambda.0 @fn17($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun total @fn18(value: Chain<String>, read: (String) -> Int) -> Int
+    bb0 entry
+      val $when.1: Chain<String>
+        Type Chain<String>
+        Local value
+      val $pattern.subject.2: Chain<String>
+        Type Chain<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Chain<String> v0
+          Type Chain<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.10
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Chain<String>
+        Type Chain<String>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Chain<String> v1
+          Type Chain<String>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.10
+    bb4 pattern.pass.4
+      val $dependency.local.2: Link<String>
+        Type Link<String>
+        VariantPayloadProject Chain<String> v1 f0
+          Type Chain<String>
+          Local $pattern.subject.3
+      call $call.1: String = @fn29 direct
+        Type Link<String>
+        Local $dependency.local.2
+      call $dependency.local.7: Int = <closure:function_type2> closure[function_type2]
+        Type (String) -> Int
+        Local read
+        Type String
+        Local $call.1
+      call $dependency.local.3: Chain<String> = @fn30 direct
+        Type Link<String>
+        Local $dependency.local.2
+      val $dependency.local.4: (String) -> Int
+        Type (String) -> Int
+        Local read
+      val $dependency.local.5: Chain<String>
+        Type Chain<String>
+        Local $dependency.local.3
+      val $dependency.local.6: (String) -> Int
+        Type (String) -> Int
+        Local $dependency.local.4
+      call $dependency.local.8: Int = @fn18 direct
+        Type Chain<String>
+        Local $dependency.local.5
+        Type (String) -> Int
+        Local $dependency.local.6
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      assign $dependency.local.10
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun read @fn19(this: Entry<Int>) -> Int
+    bb0 entry
+      val $when.1: Entry<Int>
+        Type Entry<Int>
+        Local this
+      val $pattern.subject.2: Entry<Int>
+        Type Entry<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Entry<Int> v0
+          Type Entry<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Int
+        Type Int
+        VariantPayloadProject Entry<Int> v0 f0
+          Type Entry<Int>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Int
+        Local $dependency.local.1
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.2
+  fun apply @fn20(this: Readable<Int>, action: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: (Int) -> Int
+        Type (Int) -> Int
+        Local action
+      val $dependency.local.2: Readable<Int>
+        Type Readable<Int>
+        Local this
+      call $call.1: Int = @fn31 interface Readable<Int>[0]
+        Type Readable<Int>
+        Local $dependency.local.2
+      call $call.2: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $dependency.local.3
+        Type Int
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun singleton @fn21(value: Int) -> Chain<Int>
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Chain<Int>
+        Type Chain<Int>
+        VariantConstruct Chain<Int> v0
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.4: Chain<Int>
+        Type Chain<Int>
+        Local $dependency.local.2
+      assign $new.1
+        Type Link<Int>
+        ClassAlloc Link<Int>
+      call @fn34 direct
+        Type Link<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.3
+        Type Chain<Int>
+        Local $dependency.local.4
+      val $dependency.local.5: Link<Int>
+        Type Link<Int>
+        Local $new.1
+      val $dependency.local.6: Link<Int>
+        Type Link<Int>
+        Local $dependency.local.5
+      return
+        Type Chain<Int>
+        VariantConstruct Chain<Int> v1
+          Type Link<Int>
+          Local $dependency.local.6
+  fun $lambda.0 @fn22($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun Readable.read @fn23(this: Readable<Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun value @fn24(this: Link<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Link<Int>
+          Local this
+  fun tail @fn25(this: Link<Int>) -> Chain<Int>
+    bb0 entry
+      return
+        Type Chain<Int>
+        FieldAccess 1
+          Type Link<Int>
+          Local this
+  fun value @fn26(this: Link<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Link<Unit>
+        Local this
+      return
+  fun tail @fn27(this: Link<Unit>) -> Chain<Unit>
+    bb0 entry
+      return
+        Type Chain<Unit>
+        FieldAccess 1
+          Type Link<Unit>
+          Local this
+  fun Readable.read @fn28(this: Readable<String>) -> String
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun value @fn29(this: Link<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Link<String>
+          Local this
+  fun tail @fn30(this: Link<String>) -> Chain<String>
+    bb0 entry
+      return
+        Type Chain<String>
+        FieldAccess 1
+          Type Link<String>
+          Local this
+  fun Readable.read @fn31(this: Readable<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun init.Link.$c0 @fn32(this: Link<Unit>, value: Unit, tail: Chain<Unit>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<Unit>
+        Local this
+        Type Unit
+        Local value
+      field_set 1
+        Type Link<Unit>
+        Local this
+        Type Chain<Unit>
+        Local tail
+      return
+  fun init.Link.$c0 @fn33(this: Link<String>, value: String, tail: Chain<String>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<String>
+        Local this
+        Type String
+        Local value
+      field_set 1
+        Type Link<String>
+        Local this
+        Type Chain<String>
+        Local tail
+      return
+  fun init.Link.$c0 @fn34(this: Link<Int>, value: Int, tail: Chain<Int>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type Link<Int>
+        Local this
+        Type Chain<Int>
+        Local tail
+      return
+  fun thunk<Entry<Unit>> Readable.read() @fn35(this: Readable<Unit>) -> Unit
+    bb0 entry
+      call @fn8 direct
+        Type Entry<Unit>
+        Unbox
+          Type Readable<Unit>
+          Local this
+      return
+  fun thunk<Entry<Unit>> Readable.apply((Unit) -> Int) @fn36(this: Readable<Unit>, action: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn9 direct
+        Type Readable<Unit>
+        Retype Readable<Unit>
+          Type Readable<Unit>
+          Local this
+        Type (Unit) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Entry<String>> Readable.read() @fn37(this: Readable<String>) -> String
+    bb0 entry
+      call $call.1: String = @fn14 direct
+        Type Entry<String>
+        Unbox
+          Type Readable<String>
+          Local this
+      return
+        Type String
+        Local $call.1
+  fun thunk<Entry<String>> Readable.apply((String) -> Int) @fn38(this: Readable<String>, action: (String) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn15 direct
+        Type Readable<String>
+        Retype Readable<String>
+          Type Readable<String>
+          Local this
+        Type (String) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Entry<Int>> Readable.read() @fn39(this: Readable<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn19 direct
+        Type Entry<Int>
+        Unbox
+          Type Readable<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Entry<Int>> Readable.apply((Int) -> Int) @fn40(this: Readable<Int>, action: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn20 direct
+        Type Readable<Int>
+        Retype Readable<Int>
+          Type Readable<Int>
+          Local this
+        Type (Int) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn41($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn42($source: (String) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (String) -> Int
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn43($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn44($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn45($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda5.(Any) -> Any @fn46($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn3 <- exercise
+  instance mi1 function=@fn5 <- exercise
+  instance mi2 function=@fn7 <- exercise
+  instance mi3 function=@fn8 <- read
+  instance mi4 function=@fn9 <- apply
+  instance mi5 function=@fn10 <- singleton
+  instance mi6 function=@fn11 <- $lambda.0
+  instance mi7 function=@fn12 <- total
+  instance mi8 function=@fn13 <- total
+  instance mi9 function=@fn14 <- read
+  instance mi10 function=@fn15 <- apply
+  instance mi11 function=@fn16 <- singleton
+  instance mi12 function=@fn17 <- $lambda.0
+  instance mi13 function=@fn18 <- total
+  instance mi14 function=@fn19 <- read
+  instance mi15 function=@fn20 <- apply
+  instance mi16 function=@fn21 <- singleton
+  instance mi17 function=@fn22 <- $lambda.0
+  instance mi18 function=@fn23 <- Readable.read
+  instance mi19 function=@fn24 <- value
+  instance mi20 function=@fn25 <- tail
+  instance mi21 function=@fn26 <- value
+  instance mi22 function=@fn27 <- tail
+  instance mi23 function=@fn28 <- Readable.read
+  instance mi24 function=@fn29 <- value
+  instance mi25 function=@fn30 <- tail
+  instance mi26 function=@fn31 <- Readable.read
+  str @str0 "value"
+  output library

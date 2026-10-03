@@ -1,0 +1,61 @@
+SourceFile
+  QualifiedPackage consumer.enums
+  ImportStar Local upstream.enums.*
+  ImportExact Local upstream.enums.Choice as Selected
+  public enum Local<T>
+    Item(T)
+  public struct Envelope<T>
+    field payload: T
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val selected
+      WhenExpression
+        Call pack<T>
+          Var seed
+        arm Choice.Empty()
+          Var seed
+        arm Selected.Item(payload)
+          Var payload
+        arm upstream.enums.Choice.Named{payload, ..}
+          Var payload
+        arm Choice.Defaults{payload, ..}
+          Var payload
+    val wrapped
+      MethodCall Item
+        Var Local
+        Call Envelope<T>
+          Var selected
+    return
+      WhenExpression
+        Var wrapped
+        arm consumer.enums.Local.Item(consumer.enums.Envelope(payload))
+          Call read
+            Var payload
+  public fun result(): Int
+    val selected: IntChoice
+      MethodCall Named
+        Var Selected
+        Argument payload=
+          IntLiteral 40
+        Argument amount=
+          IntLiteral 2
+    val number
+      WhenExpression
+        Var selected
+        arm upstream.enums.IntChoice.Empty()
+          IntLiteral 0
+        arm IntChoice.Item(payload)
+          Var payload
+        arm upstream.enums.IntChoice.Named{amount, payload}
+          Binary Add
+            Var payload
+            Var amount
+        arm IntChoice.Defaults{payload, amount}
+          Binary Add
+            Var payload
+            Var amount
+    return
+      Call exercise<Int>
+        Var number
+        Lambda 0 suspend=false
+          param value: _
+          Var value

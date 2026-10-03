@@ -1,0 +1,114 @@
+Module
+  struct HiddenValue (number: Int)
+  struct UnusedValue (number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<HiddenValue>
+    Completed(value: HiddenValue)
+    Suspended()
+  enum CoroutineSlot<HiddenValue>
+    Empty()
+    Value(value: HiddenValue)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<HiddenValue> vtable=0 itables=0
+  interface Continuation<HiddenValue>
+  interface SuspendTask<HiddenValue>
+  interface SuspendRegistration<HiddenValue>
+  generated_exact_type get0 location=enum1 nominal_id=014c2437f1ebc6b9d24ecccbcb920fcfe4e80ff1b13f0376d0fd132f3f0b89d2 exact_id=5f6200c3f2630ec70ec51174d5a020d8f37f0d7fe064a609ec442d3b27f9fc44
+  generated_exact_type get1 location=class3 nominal_id=ae3c52f0f30f6340a1eb1bc345b3c0bfe50b4b1b7e73cd33a8d1fb2498a4aa92 exact_id=758da6152a90a00fa9e19a07899f5b448d1dcb1a1b0fa9cc5c32bcd128e07998
+  generated_exact_type get2 location=enum2 nominal_id=0d309920320cc69f5f9fa39bb6f2a00b433147c45396f32e99e546a2d66f1977 exact_id=e4123ccefdbdf804d45d1c3b09164858404a4db0ed9ed6cfb01d0523c876c11a
+  generated_callable gc0 function=@fn7 id=c69833557d0c5b1a12b7c5be9e95202a03b47300d0d6b45d874b1f19aa9e7fd3
+  fun seed @fn0() -> HiddenValue
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      call $call.1: HiddenValue = @fn5 direct
+        Type Int
+        Local $parameter.number
+      return
+        Type HiddenValue
+        Local $call.1
+  fun Continuation.resume @fn1(this: Continuation<HiddenValue>, value: HiddenValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn2(this: Continuation<HiddenValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn3(this: SuspendTask<HiddenValue>, $completion: Continuation<HiddenValue>) -> CoroutineStep<HiddenValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn4(this: SuspendRegistration<HiddenValue>, continuation: Continuation<HiddenValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.HiddenValue.$c0 @fn5(number: Int) -> HiddenValue <no-gc>
+    bb0 entry
+      return
+        Type HiddenValue
+        StructInit HiddenValue
+          Type Int
+          Local number
+  fun ctor.UnusedValue.$c1 @fn6(number: Int) -> UnusedValue <no-gc>
+    bb0 entry
+      return
+        Type UnusedValue
+        StructInit UnusedValue
+          Type Int
+          Local number
+  fun startCoroutine<HiddenValue> @fn7(task: SuspendTask<HiddenValue>, completion: Continuation<HiddenValue>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn1 interface Continuation<HiddenValue>[0]
+        Type Continuation<HiddenValue>
+        Local completion
+        Type HiddenValue
+        EnumField v0 f0
+          Type CoroutineStep<HiddenValue>
+          Local $step
+      return
+    bb2 failed
+      call @fn2 interface Continuation<HiddenValue>[1]
+        Type Continuation<HiddenValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HiddenValue> = @fn3 interface SuspendTask<HiddenValue>[0]
+        Type SuspendTask<HiddenValue>
+        Local task
+        Type Continuation<HiddenValue>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HiddenValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<HiddenValue> result=HiddenValue
+  coroutine_slot cl0 CoroutineSlot<HiddenValue> value=HiddenValue
+  coroutine_start ct0 result=HiddenValue function=fn7
+  coroutine_fn cf0 @fn3 source_return=HiddenValue step=cs0 immediate
+  instance mi0 function=@fn1 <- Continuation.resume
+  instance mi1 function=@fn2 <- Continuation.resumeWithException
+  instance mi2 function=@fn3 <- SuspendTask.run
+  instance mi3 function=@fn4 <- SuspendRegistration.register
+  output library

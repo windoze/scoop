@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.ConstHost
+  public fun primary(): Counter
+    =
+      Call Counter
+        Binary Div
+          FieldAccess answer
+            Var ConstHost
+          IntLiteral 2

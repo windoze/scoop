@@ -1,0 +1,24 @@
+@CLayout
+struct NativeHandles(val flag: UInt8, val pin: PinnedPtr<Any>, val handle: GcHandle<Any>)
+
+@Extern(name = "exchange_handles")
+fun exchangeHandles(value: NativeHandles, pointer: Ptr<GcHandle<Any>>,
+                    callback: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>?): NativeHandles
+
+@Extern(name = "native_handle")
+@Global
+var nativeHandle: GcHandle<Any>
+
+@NoGC
+fun echoHandle(value: GcHandle<Any>): GcHandle<Any> = value
+
+fun main() {
+    @Unsafe {
+        val handle = GcHandle<Any>(1uL)
+        val pin = PinnedPtr<Any>(2uL)
+        val callback: FunPtr<(GcHandle<Any>) -> GcHandle<Any>> = ::echoHandle
+        val optional: FunPtr<(GcHandle<Any>) -> GcHandle<Any>>? = Some(callback)
+        val result = exchangeHandles(NativeHandles(3u, pin, handle), addressOf<GcHandle<Any>>(handle), optional)
+        nativeHandle = result.handle
+    }
+}

@@ -151,12 +151,16 @@ static ScoopExceptionRecord *scoop_eh_allocate_record(
     const void *object, ScoopThreadState *owner) {
     const ScoopObjectHeader *header = object;
     const ScoopTypeDescriptor *td = header->td;
-    if (td == NULL || td->size < sizeof(ScoopObjectHeader) ||
-        td->size > SIZE_MAX || td->align > SIZE_MAX) {
+    if (td == NULL ||
+        td->instance_shape.instance_kind != SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1 ||
+        td->instance_shape.inline_storage_kind != SCOOP_INLINE_STORAGE_NONE_V1 ||
+        td->instance_shape.minimum_size < sizeof(ScoopObjectHeader) ||
+        td->instance_shape.minimum_size > SIZE_MAX ||
+        td->instance_shape.instance_alignment > SIZE_MAX) {
         scoop_eh_state_error("throw source has an invalid TypeDescriptor");
     }
-    size_t object_size = (size_t)td->size;
-    size_t alignment = (size_t)td->align;
+    size_t object_size = (size_t)td->instance_shape.minimum_size;
+    size_t alignment = (size_t)td->instance_shape.instance_alignment;
     if (!scoop_eh_power_of_two(alignment) ||
         alignment < _Alignof(ScoopObjectHeader)) {
         scoop_eh_state_error("throw source has an invalid object alignment");
@@ -301,12 +305,17 @@ static _Noreturn void scoop_eh_finish_failed_raise(
         scoop_eh_state_error("failed raise left a corrupt exception record");
     }
     const ScoopObjectHeader *payload = scoop_eh_const_payload(record);
-    const char *type_name =
-        payload->td != NULL && payload->td->name != NULL
-            ? payload->td->name
-            : "<unknown>";
     if (reason == _URC_END_OF_STACK) {
-        fprintf(stderr, "scoop: uncaught exception: %s\n", type_name);
+        fputs("scoop: uncaught exception: ", stderr);
+        if (payload->td != NULL && payload->td->diagnostic_name.data != NULL &&
+            payload->td->diagnostic_name.length != 0 &&
+            payload->td->diagnostic_name.length <= SIZE_MAX) {
+            fwrite(payload->td->diagnostic_name.data, 1,
+                   (size_t)payload->td->diagnostic_name.length, stderr);
+        } else {
+            fputs("<unknown>", stderr);
+        }
+        fputc('\n', stderr);
     } else {
         fprintf(stderr, "scoop: fatal unwind error: %s: %s\n", phase,
                 scoop_eh_reason_name(reason));
@@ -420,7 +429,7 @@ void *scoop_rt_materialize_exception_impl(const void *caught,
 
     const ScoopObjectHeader *source = scoop_eh_const_payload(record);
     const ScoopTypeDescriptor *td = source->td;
-    size_t size = (size_t)td->size;
+    size_t size = (size_t)td->instance_shape.minimum_size;
     void *managed = scoop_gc_alloc_internal(td, size);
     /* Allocation may move every outbound reference stored in the stable
      * external payload. Re-read that payload only after the safepoint. */

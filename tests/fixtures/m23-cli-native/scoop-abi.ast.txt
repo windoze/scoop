@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  fun nativeWrite(message: String)
+  class NativeNode(val left: NativeNode?, val right: NativeNode?)
+    @Extern(lib = "fixture_native", name = "native_root_round_trip", abi = "scoop")
+  fun nativeRootRoundTrip(message: String, prototype: NativeNode): String
+  struct ManagedAggregate
+    field value: String
+    field left: Long
+    field right: Long
+    @Extern(lib = "fixture_native", name = "native_aggregate_round_trip", abi = "scoop")
+  fun nativeAggregateRoundTrip(value: ManagedAggregate): ManagedAggregate
+  fun stringify<T : ToString>(value: T): String
+    =
+      MethodCall toString
+        Var value
+  fun main()
+    Call nativeWrite
+      StringLiteral "direct managed ref"
+    Call println
+      Call nativeRootRoundTrip
+        Call stringify
+          IntLiteral 42
+        Call NativeNode
+          Var None
+          Var None
+    val aggregate
+      Call nativeAggregateRoundTrip
+        Call ManagedAggregate
+          Binary Add
+            StringLiteral "agg"
+            StringLiteral "regate"
+          IntLiteral 10
+          IntLiteral 20
+    Call println
+      FieldAccess value
+        Var aggregate
+    Call println
+      FieldAccess left
+        Var aggregate
+    Call println
+      FieldAccess right
+        Var aggregate

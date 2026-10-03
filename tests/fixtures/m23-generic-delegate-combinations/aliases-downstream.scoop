@@ -1,0 +1,17 @@
+import consumer.delegates.result
+import consumer.delegates.exercise
+import consumer.delegates.PairReceiver
+import consumer.delegates.Receiver
+import consumer.delegates.aliasValue
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    if (result() != 42) { return 1 }
+    val value = Later(42)
+    if (exercise<Later>(value) != 42) { return 2 }
+    val repeated = PairReceiver((1, true)).aliasValue
+    val first = Receiver<(Later, Boolean)>((value, true))
+    val allocated = Later(0)
+    return if (repeated == 42 && first.aliasValue == 42 && value.value == 42 && allocated.value == 0) { 42 } else { 3 }
+}

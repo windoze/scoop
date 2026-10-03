@@ -1,0 +1,101 @@
+SourceFile
+  RootPackage
+  struct Box<T>
+    field value: T
+    field label: String
+  struct Cell<T>
+    field value: T
+    field label: String
+  typealias TextBox = Box<String>
+  fun replaceBox<T>(box: Box<T>, value: T): Box<T>
+    =
+      CopyUpdate
+        base
+          Var box
+        field value
+          Var value
+  fun replaceCell<T>(cell: Cell<T>, value: T): Cell<T>
+    =
+      CopyUpdate
+        base
+          Var cell
+        field value
+          Var value
+  fun replaceAlias(box: TextBox): TextBox
+    =
+      CopyUpdate
+        base
+          Var box
+        field value
+          StringLiteral "alias"
+  fun defaultCell(cell: Cell<String> = <expr>): Cell<String>
+    =
+      Var cell
+  fun printIntCell(cell: Cell<Int>)
+    Call println
+      FieldAccess value
+        Var cell
+    Call println
+      FieldAccess label
+        Var cell
+  fun printTextCell(cell: Cell<String>)
+    Call println
+      FieldAccess value
+        Var cell
+    Call println
+      FieldAccess label
+        Var cell
+  fun main()
+    val intBox
+      Call replaceBox
+        Call Box
+          IntLiteral 1
+          StringLiteral "int"
+        IntLiteral 2
+    val textBox
+      Call replaceBox
+        Call Box
+          StringLiteral "before"
+          StringLiteral "text"
+        StringLiteral "after"
+    val aliasBox
+      Call replaceAlias
+        Call TextBox
+          StringLiteral "before-alias"
+          StringLiteral "alias-label"
+    Call println
+      FieldAccess value
+        Var intBox
+    Call println
+      FieldAccess label
+        Var intBox
+    Call println
+      FieldAccess value
+        Var textBox
+    Call println
+      FieldAccess label
+        Var textBox
+    Call println
+      FieldAccess value
+        Var aliasBox
+    Call println
+      FieldAccess label
+        Var aliasBox
+    val intCell
+      Call Cell
+        IntLiteral 3
+        StringLiteral "int-cell"
+    val textCell
+      Call Cell
+        StringLiteral "old"
+        StringLiteral "text-cell"
+    Call printIntCell
+      Call replaceCell
+        Var intCell
+        IntLiteral 4
+    Call printTextCell
+      Call replaceCell
+        Var textCell
+        StringLiteral "new"
+    Call printTextCell
+      Call defaultCell

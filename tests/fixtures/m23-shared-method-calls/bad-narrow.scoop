@@ -1,0 +1,4 @@
+package consumer.methods
+import upstream.methods.*
+
+public fun <T, B: Box<T>> bad(box: B): T = box.onlyLeaf()

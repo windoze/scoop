@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `extensionValueOnly`: type argument `Reference` for `T` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "134f47640cd0f90c879c78f1e436e65348fe9eb671157866b207fc747bc80323",
+      "end": 182,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 164
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,604 @@
+Module
+  class Both vtable=0 itables=2
+  class Wrapped<String> vtable=0 itables=2
+  class Defaults vtable=0 itables=2
+  class RefinedDefaults vtable=0 itables=4
+  interface Describe<String>
+  interface Describe<Int>
+  interface Echo<String>
+  interface Echo<Int>
+  interface Refined<String> : Echo<String>
+  interface Refined<Int> : Echo<Int>
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn20 captures=1
+    bridge function_type1 -> @fn22 id=40425ea016c6762a9e17b1ceb1c44f785d86afff068c6db6ffd3ec1ca53aec68
+  generated_exact_type get0 location=closure0 nominal_id=3c01a054265702e078c7a357812a20ddec30bc9dbfa27ddea16b8f37f579a0ec exact_id=f420a28ee71d92c18970ab7e93bbe039f4a7182fa48ae6424239e444f1db5130
+  generated_callable gc0 function=@fn22 id=40425ea016c6762a9e17b1ceb1c44f785d86afff068c6db6ffd3ec1ca53aec68
+  fun main @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Both
+        ClassAlloc Both
+      call external2 direct
+        Type Both
+        Local $new.1
+      val both: Both
+        Type Both
+        Local $new.1
+      val intView: Describe<Int>
+        Type Describe<Int>
+        Retype Describe<Int>
+          Type Both
+          Local both
+      val stringView: Describe<String>
+        Type Describe<String>
+        Retype Describe<String>
+          Type Both
+          Local both
+      val $dependency.receiver: Describe<Int>
+        Type Describe<Int>
+        Local intView
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @fn7 interface Describe<Int>[0]
+        Type Describe<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Describe<String>
+        Type Describe<String>
+        Local stringView
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @fn9 interface Describe<String>[0]
+        Type Describe<String>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Both
+        Type Both
+        Local both
+      val $parameter.value: Both
+        Type Both
+        Local $argument.0
+      call $dependency.argument.0: String = @fn10 direct
+        Type Both
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Both
+        Type Both
+        Local both
+      val $parameter.value: Both
+        Type Both
+        Local $argument.0
+      call $dependency.argument.0: String = @fn11 direct
+        Type Both
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      assign $new.2
+        Type Wrapped<String>
+        ClassAlloc Wrapped<String>
+      call @fn21 direct
+        Type Wrapped<String>
+        Local $new.2
+      val wrapped: Wrapped<String>
+        Type Wrapped<String>
+        Local $new.2
+      val $argument.0: Wrapped<String>
+        Type Wrapped<String>
+        Local wrapped
+      val $parameter.value: Wrapped<String>
+        Type Wrapped<String>
+        Local $argument.0
+      call $dependency.argument.0: String = @fn12 direct
+        Type Wrapped<String>
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Wrapped<String>
+        Type Wrapped<String>
+        Local wrapped
+      val $parameter.value: Wrapped<String>
+        Type Wrapped<String>
+        Local $argument.0
+      call $dependency.argument.0: String = @fn13 direct
+        Type Wrapped<String>
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      assign $new.3
+        Type Defaults
+        ClassAlloc Defaults
+      call external3 direct
+        Type Defaults
+        Local $new.3
+      val defaults: Defaults
+        Type Defaults
+        Local $new.3
+      val $argument.0: Defaults
+        Type Defaults
+        Local defaults
+      val $parameter.value: Defaults
+        Type Defaults
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn14 direct
+        Type Defaults
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Defaults
+        Type Defaults
+        Local defaults
+      val $parameter.value: Defaults
+        Type Defaults
+        Local $argument.0
+      call $dependency.argument.0: String = @fn16 direct
+        Type Defaults
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      assign $new.4
+        Type RefinedDefaults
+        ClassAlloc RefinedDefaults
+      call external4 direct
+        Type RefinedDefaults
+        Local $new.4
+      val refined: RefinedDefaults
+        Type RefinedDefaults
+        Local $new.4
+      val $argument.0: RefinedDefaults
+        Type RefinedDefaults
+        Local refined
+      val $parameter.value: RefinedDefaults
+        Type RefinedDefaults
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn17 direct
+        Type RefinedDefaults
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: RefinedDefaults
+        Type RefinedDefaults
+        Local refined
+      val $parameter.value: RefinedDefaults
+        Type RefinedDefaults
+        Local $argument.0
+      call $dependency.argument.0: String = @fn18 direct
+        Type RefinedDefaults
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Both
+        Type Both
+        Local both
+      val $dependency.parameter.value: Both
+        Type Both
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @fn19 direct
+        Type Both
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      assign $new.5
+        Type Both
+        ClassAlloc Both
+      call external2 direct
+        Type Both
+        Local $new.5
+      val $dependency.parameter.value: Describe<String>
+        Type Describe<String>
+        Retype Describe<String>
+          Type Both
+          Local $new.5
+      call $dependency.argument.0: String = external5 direct
+        Type Describe<String>
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val closure: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Describe<String>
+            Local stringView
+      call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local closure
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun describe @fn1(this: Wrapped<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str1
+  fun describe @fn2(this: Wrapped<String>, value: Int) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str2
+  fun echo @fn3(this: Echo<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun echo @fn4(this: Echo<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun echo @fn5(this: Refined<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun echo @fn6(this: Refined<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Describe.describe @fn7(this: Describe<Int>, value: Int) -> String
+    bb0 entry
+      trap "call to abstract method `Describe.describe`"
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Describe.describe @fn9(this: Describe<String>, value: String) -> String
+    bb0 entry
+      trap "call to abstract method `Describe.describe`"
+  fun describeInt @fn10(value: Both) -> String
+    bb0 entry
+      val $dependency.receiver: Both
+        Type Both
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: String = external1 direct
+        Type Both
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local $call.1
+  fun describeString @fn11(value: Both) -> String
+    bb0 entry
+      val $dependency.receiver: Both
+        Type Both
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = external0 direct
+        Type Both
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local $call.1
+  fun describeInt @fn12(value: Wrapped<String>) -> String
+    bb0 entry
+      val $dependency.receiver: Wrapped<String>
+        Type Wrapped<String>
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: String = @fn2 direct
+        Type Wrapped<String>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local $call.1
+  fun describeString @fn13(value: Wrapped<String>) -> String
+    bb0 entry
+      val $dependency.receiver: Wrapped<String>
+        Type Wrapped<String>
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @fn1 direct
+        Type Wrapped<String>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local $call.1
+  fun echoInt @fn14(value: Defaults) -> Int
+    bb0 entry
+      val $dependency.receiver: Defaults
+        Type Defaults
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn4 interface Echo<Int>[0]
+        Type Echo<Int>
+        Retype Echo<Int>
+          Type Defaults
+          Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun println @fn15(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun echoString @fn16(value: Defaults) -> String
+    bb0 entry
+      val $dependency.receiver: Defaults
+        Type Defaults
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @fn3 interface Echo<String>[0]
+        Type Echo<String>
+        Retype Echo<String>
+          Type Defaults
+          Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local $call.1
+  fun echoInt @fn17(value: RefinedDefaults) -> Int
+    bb0 entry
+      val $dependency.receiver: RefinedDefaults
+        Type RefinedDefaults
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn6 interface Refined<Int>[0]
+        Type Refined<Int>
+        Retype Refined<Int>
+          Type RefinedDefaults
+          Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun echoString @fn18(value: RefinedDefaults) -> String
+    bb0 entry
+      val $dependency.receiver: RefinedDefaults
+        Type RefinedDefaults
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @fn5 interface Refined<String>[0]
+        Type Refined<String>
+        Retype Refined<String>
+          Type RefinedDefaults
+          Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local $call.1
+  fun throughBound @fn19(value: Both) -> String
+    bb0 entry
+      val $dependency.local.1: Both
+        Type Both
+        Local value
+      val $dependency.local.2: String
+        Type String
+        StringConst @str9
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call $call.1: String = external0 direct
+        Type Both
+        Local $dependency.local.1
+        Type String
+        Local $dependency.local.3
+      return
+        Type String
+        Local $call.1
+  fun $lambda.0 @fn20($closure: () -> String) -> String
+    bb0 entry
+      val $dependency.receiver: Describe<String>
+        Type Describe<String>
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str10
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @fn9 interface Describe<String>[0]
+        Type Describe<String>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local $call.1
+  fun init.Wrapped.$c0 @fn21(this: Wrapped<String>) -> Unit
+    bb0 entry
+      return
+  fun function_bridge.$Closure$lambda0.() -> Any @fn22($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  instance mi0 function=@fn1 <- describe
+  instance mi1 function=@fn2 <- describe
+  instance mi2 function=@fn3 <- echo
+  instance mi3 function=@fn4 <- echo
+  instance mi4 function=@fn5 <- echo
+  instance mi5 function=@fn6 <- echo
+  instance mi6 function=@fn7 <- Describe.describe
+  instance mi7 function=@fn8 <- println
+  instance mi8 function=@fn9 <- Describe.describe
+  instance mi9 function=@fn10 <- describeInt
+  instance mi10 function=@fn11 <- describeString
+  instance mi11 function=@fn12 <- describeInt
+  instance mi12 function=@fn13 <- describeString
+  instance mi13 function=@fn14 <- echoInt
+  instance mi14 function=@fn15 <- println
+  instance mi15 function=@fn16 <- echoString
+  instance mi16 function=@fn17 <- echoInt
+  instance mi17 function=@fn18 <- echoString
+  instance mi18 function=@fn19 <- throughBound
+  str @str0 "x"
+  str @str1 "wrapped-string"
+  str @str2 "wrapped-int"
+  str @str3 "\n"
+  str @str4 "x"
+  str @str5 "x"
+  str @str6 "\n"
+  str @str7 "echo"
+  str @str8 "echo"
+  str @str9 "bound"
+  str @str10 "captured"
+  output executable @fn0

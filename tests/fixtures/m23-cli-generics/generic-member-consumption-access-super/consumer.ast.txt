@@ -1,0 +1,25 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public class Derived<T>(value: T, val replacement: T) : ProtectedMiddle<T>(<1 args>)
+    protected fun secret
+    public fun original
+  public fun result(): Int
+    val value
+      Call Derived<Int>
+        IntLiteral 20
+        IntLiteral 22
+    val base: ProtectedBox<Int>
+      Var value
+    return
+      Binary Add
+        MethodCall original
+          Var value
+        MethodCall readVirtual
+          Var base
+  public fun make<T>(value: T): T
+    =
+      MethodCall readVirtual
+        Call Derived<T>
+          Var value
+          Var value

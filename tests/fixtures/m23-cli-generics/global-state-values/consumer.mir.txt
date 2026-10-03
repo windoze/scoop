@@ -1,0 +1,375 @@
+Module
+  struct Triple (first: Cell, second: Cell, third: Cell)
+  struct Empty ()
+  class Cell vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun values @fn2(value: Int) -> Int
+    bb0 entry
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      call external0 direct
+        Type Cell
+        Local $new.1
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.11: Cell
+        Type Cell
+        Local $new.1
+      val $dependency.local.7: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.7
+      assign $new.2
+        Type Cell
+        ClassAlloc Cell
+      call external0 direct
+        Type Cell
+        Local $new.2
+        Type Int
+        Local $dependency.local.8
+      val $dependency.local.12: Cell
+        Type Cell
+        Local $new.2
+      val $dependency.local.9: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.local.10: Int
+        Type Int
+        Local $dependency.local.9
+      assign $new.3
+        Type Cell
+        ClassAlloc Cell
+      call external0 direct
+        Type Cell
+        Local $new.3
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.13: Cell
+        Type Cell
+        Local $new.3
+      val $dependency.local.14: Cell
+        Type Cell
+        Local $dependency.local.11
+      val $dependency.local.15: Cell
+        Type Cell
+        Local $dependency.local.12
+      val $dependency.local.16: Cell
+        Type Cell
+        Local $dependency.local.13
+      call $call.4: Triple = external1 direct
+        Type Cell
+        Local $dependency.local.14
+        Type Cell
+        Local $dependency.local.15
+        Type Cell
+        Local $dependency.local.16
+      call external2 direct
+        Type Triple
+        Local $call.4
+      call $dependency.local.1: Triple = external3 direct
+      call external4 direct
+        Type Cell
+        FieldAccess 0
+          Type Triple
+          Local $dependency.local.1
+      val $dependency.local.17: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+      assign $new.5
+        Type Cell
+        ClassAlloc Cell
+      call external0 direct
+        Type Cell
+        Local $new.5
+        Type Int
+        Local $dependency.local.18
+      val $dependency.local.23: Cell
+        Type Cell
+        Local $new.5
+      val $dependency.local.19: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.20: Int
+        Type Int
+        Local $dependency.local.19
+      assign $new.6
+        Type Cell
+        ClassAlloc Cell
+      call external0 direct
+        Type Cell
+        Local $new.6
+        Type Int
+        Local $dependency.local.20
+      val $dependency.local.24: Cell
+        Type Cell
+        Local $new.6
+      val $dependency.local.21: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.21
+      assign $new.7
+        Type Cell
+        ClassAlloc Cell
+      call external0 direct
+        Type Cell
+        Local $new.7
+        Type Int
+        Local $dependency.local.22
+      val $dependency.local.25: Cell
+        Type Cell
+        Local $new.7
+      val $dependency.local.26: Cell
+        Type Cell
+        Local $dependency.local.23
+      val $dependency.local.27: Cell
+        Type Cell
+        Local $dependency.local.24
+      val $dependency.local.28: Cell
+        Type Cell
+        Local $dependency.local.25
+      call $call.8: Triple = external1 direct
+        Type Cell
+        Local $dependency.local.26
+        Type Cell
+        Local $dependency.local.27
+        Type Cell
+        Local $dependency.local.28
+      call external2 direct
+        Type Triple
+        Local $call.8
+      call $dependency.local.2: Empty = external5 direct
+      call $dependency.local.3: Int = external6 direct
+      call $call.9: Empty = external7 direct
+      call external8 direct
+        Type Empty
+        Local $call.9
+      val $dependency.local.29: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.29
+      assign $new.10
+        Type Cell
+        ClassAlloc Cell
+      call external0 direct
+        Type Cell
+        Local $new.10
+        Type Int
+        Local $dependency.local.30
+      val $dependency.local.4: Cell
+        Type Cell
+        Local $new.10
+      call $dependency.local.34: Int = external6 direct
+      val $dependency.local.31: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.32: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.33: Int
+        Type Int
+        Local $dependency.local.32
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      val $dependency.local.36: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.31
+          Type Int
+          Local $dependency.local.33
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.36
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.35
+            Type Int
+            Local $dependency.local.37
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb2 if.merge.2
+      call $call.11: Cell = external9 direct
+      val $dependency.local.38: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local $call.11
+      val $dependency.local.39: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.40: Int
+        Type Int
+        Local $dependency.local.39
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.38
+            Type Int
+            Local $dependency.local.40
+    bb3 if.then.3
+      val $dependency.local.44: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb4 if.else.4
+      call $call.12: Triple = external3 direct
+      val $dependency.local.41: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          FieldAccess 0
+            Type Triple
+            Local $call.12
+      val $dependency.local.42: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.43: Int
+        Type Int
+        Local $dependency.local.42
+      val $dependency.local.44: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.41
+            Type Int
+            Local $dependency.local.43
+      goto bb5
+    bb5 if.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $dependency.local.44
+    bb6 if.then.6
+      val $dependency.local.48: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      val $dependency.local.45: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local $dependency.local.4
+      val $dependency.local.46: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.47: Int
+        Type Int
+        Local $dependency.local.46
+      val $dependency.local.48: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.45
+            Type Int
+            Local $dependency.local.47
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $dependency.local.48
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb10 if.merge.10
+      val $dependency.local.49: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          FieldAccess 0
+            Type Triple
+            Local $dependency.local.1
+      val $dependency.local.50: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          FieldAccess 1
+            Type Triple
+            Local $dependency.local.1
+      val $dependency.local.51: Int
+        Type Int
+        Local $dependency.local.50
+      val $dependency.local.52: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.49
+          Type Int
+          Local $dependency.local.51
+      val $dependency.local.53: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          FieldAccess 2
+            Type Triple
+            Local $dependency.local.1
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.52
+          Type Int
+          Local $dependency.local.54
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- values
+  output library

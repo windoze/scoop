@@ -1,0 +1,20 @@
+package consumer.bounds
+
+import templates.bounds.*
+
+public fun <T> exercise(value: T): Int {
+    if (stringBound<Int8>(-128) != "-128") { return 1 }
+    if (stringBound<Int16>(-32768) != "-32768") { return 2 }
+    if (stringBound<Int>(-2147483648) != "-2147483648") { return 3 }
+    if (stringBound<Long>(-9223372036854775808L) != "-9223372036854775808") { return 4 }
+    if (stringBound<UInt8>(255u) != "255") { return 5 }
+    if (stringBound<UInt16>(65535u) != "65535") { return 6 }
+    if (stringBound<UInt>(4294967295u) != "4294967295") { return 7 }
+    if (stringBound<ULong>(18446744073709551615uL) != "18446744073709551615") { return 8 }
+    if (stringBound(true) != "true" || stringBound("bound") != "bound") { return 9 }
+    val number = 42
+    if (hashBound(number) != number.hash()) { return 10 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(1)

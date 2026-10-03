@@ -1,0 +1,46 @@
+SourceFile
+  RootPackage
+  fun firstOf<T>(a: Array<T>): T
+    =
+      Index
+        Var a
+        IntLiteral 0
+  fun sum(a: Array<Int>): Int
+    var total
+      IntLiteral 0
+    var i: Long
+      IntLiteral 0
+    while
+      Binary Lt
+        Var i
+        FieldAccess size
+          Var a
+      assign total
+        Binary Add
+          Var total
+          Index
+            Var a
+            Var i
+      assign i
+        Binary Add
+          Var i
+          IntLiteral 1
+    return
+      Var total
+  fun main()
+    Call println
+      Call firstOf
+        ArrayLiteral
+          IntLiteral 10
+          IntLiteral 20
+    Call println
+      Call firstOf
+        ArrayLiteral
+          StringLiteral "a"
+          StringLiteral "b"
+    Call println
+      Call sum
+        ArrayLiteral
+          IntLiteral 1
+          IntLiteral 2
+          IntLiteral 3

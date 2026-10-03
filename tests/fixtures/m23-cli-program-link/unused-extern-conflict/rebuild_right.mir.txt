@@ -1,0 +1,11 @@
+Module
+  extern ef0 nativeValue @abs(Long) -> Int <abi=c no-gc>
+  fun nativeValue @fn0(arg0: Long) -> Int
+    bb0 entry
+      call $call.1: Int = extern0 @abs direct
+        Type Long
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  output library

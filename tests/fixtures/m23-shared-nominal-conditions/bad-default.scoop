@@ -1,0 +1,7 @@
+package consumer.nominalConditions
+import upstream.nominalConditions.*
+
+public fun wrong(): Int {
+    val value = pack("managed")
+    return 42
+}

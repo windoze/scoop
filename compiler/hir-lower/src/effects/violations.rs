@@ -9,7 +9,8 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
-                hir::StatementKind::InitializationEnsure(_) => out.push((
+                hir::StatementKind::InitializationEnsure(_)
+                | hir::StatementKind::GenericDelegateEnsure(_) => out.push((
                     statement.span,
                     "an initialization gate is not allowed in `@NoGC` code".to_string(),
                 )),
@@ -31,6 +32,7 @@ impl Lowerer {
                     match target {
                         hir::AssignTarget::Local(_)
                         | hir::AssignTarget::Global(_)
+                        | hir::AssignTarget::GenericDelegateStorage(_)
                         | hir::AssignTarget::SingletonPublishedRoot(_) => {}
                         hir::AssignTarget::Index { array, index } => {
                             out.push((
@@ -76,66 +78,6 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(cond, out, requirements);
                     self.collect_no_gc_statement_violations(body, out, requirements);
                 }
-                hir::StatementKind::For(plan) => {
-                    self.collect_no_gc_statement_violations(plan.source_setup(), out, requirements);
-                    self.collect_no_gc_expr_violations(plan.source_init(), out, requirements);
-                    self.collect_no_gc_statement_violations(
-                        plan.iterator_setup(),
-                        out,
-                        requirements,
-                    );
-                    self.collect_no_gc_expr_violations(plan.iterator_call(), out, requirements);
-                    let conformance = plan.conformance();
-                    self.collect_no_gc_type_violations(
-                        conformance.iterator().ty,
-                        conformance.span(),
-                        out,
-                        requirements,
-                    );
-                    let next = plan.next();
-                    self.check_no_gc_callee(
-                        hir::Callable::Method(next.callable()),
-                        next.span(),
-                        out,
-                    );
-                    self.collect_no_gc_type_violations(
-                        next.result().ty,
-                        next.span(),
-                        out,
-                        requirements,
-                    );
-                    self.collect_no_gc_type_violations(
-                        next.element().ty,
-                        next.span(),
-                        out,
-                        requirements,
-                    );
-                    for action in &plan.binding().actions {
-                        match action {
-                            hir::IrrefutableBindingAction::Project { result, span, .. } => {
-                                self.collect_no_gc_type_violations(
-                                    result.ty,
-                                    *span,
-                                    out,
-                                    requirements,
-                                );
-                            }
-                            hir::IrrefutableBindingAction::Component { setup, call, .. } => {
-                                self.collect_no_gc_statement_violations(setup, out, requirements);
-                                self.collect_no_gc_expr_violations(call, out, requirements);
-                            }
-                            hir::IrrefutableBindingAction::Bind { target, span, .. } => {
-                                self.collect_no_gc_type_violations(
-                                    target.ty,
-                                    *span,
-                                    out,
-                                    requirements,
-                                );
-                            }
-                        }
-                    }
-                    self.collect_no_gc_statement_violations(plan.body(), out, requirements);
-                }
                 hir::StatementKind::When(when) => {
                     self.collect_no_gc_expr_violations(&when.subject, out, requirements);
                     for arm in &when.arms {
@@ -168,7 +110,7 @@ impl Lowerer {
         }
     }
 
-    fn collect_no_gc_expr_violations(
+    pub(super) fn collect_no_gc_expr_violations(
         &self,
         expr: &hir::Expr,
         out: &mut Vec<(Span, String)>,
@@ -177,7 +119,7 @@ impl Lowerer {
         use hir::ExprKind;
         self.collect_no_gc_type_violations(expr.ty, expr.span, out, requirements);
         match &expr.kind {
-            ExprKind::StringLiteral(_) => out.push((
+            ExprKind::StringLiteral { .. } => out.push((
                 expr.span,
                 "string literals are not allowed in `@NoGC` code".to_string(),
             )),
@@ -185,8 +127,10 @@ impl Lowerer {
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
+            | ExprKind::ConstructorReceiver
             | ExprKind::ConstructorParam(_)
             | ExprKind::GlobalRead(_)
+            | ExprKind::GenericDelegateStorageRead(_)
             | ExprKind::Capture(_)
             | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::NoneLiteral => {}
@@ -219,7 +163,17 @@ impl Lowerer {
                     }
                 }
             }
-            ExprKind::StructInit { args, .. } | ExprKind::VariantConstruct { args, .. } => {
+            ExprKind::StructInit { constructor, args } => {
+                self.check_no_gc_constructor_call(
+                    self.struct_constructor_applications[*constructor].constructor,
+                    expr.span,
+                    out,
+                );
+                for arg in args {
+                    self.collect_no_gc_expr_violations(arg, out, requirements);
+                }
+            }
+            ExprKind::VariantConstruct { args, .. } => {
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
@@ -272,25 +226,23 @@ impl Lowerer {
                 callee,
                 args,
             } => {
-                match callee {
-                    hir::MethodCallee::Callable(callee) => {
-                        self.check_no_gc_callee(*callee, expr.span, out)
-                    }
-                    hir::MethodCallee::Bound(bound) => {
-                        let function = match self.bound_callable_refs[*bound].source {
-                            hir::BoundCallableSource::Class { callable, .. } => {
-                                self.callable_function_id(callable)
-                            }
-                            hir::BoundCallableSource::Interface { member, .. } => {
-                                self.interface_method_entities[member].function
-                            }
-                        };
-                        self.check_no_gc_function(function, expr.span, out);
-                    }
-                    hir::MethodCallee::DerivedEquality(application) => {
-                        let function = self.derived_equality_applications[*application].function;
-                        self.check_no_gc_function(function, expr.span, out);
-                    }
+                let span = expr.origin.concrete().evaluation.span;
+                if let Some(target) = callee.declared_callable(&self.bound_callable_refs) {
+                    self.check_no_gc_call_target(target, span, out);
+                } else if let hir::MethodCallee::ImportedDerivedEquality { owner, .. } = callee {
+                    out.push((
+                        span,
+                        format!(
+                            "`@NoGC` code may not call managed function `{}.equals`",
+                            self.type_name(*owner)
+                        ),
+                    ));
+                } else if let hir::MethodCallee::DerivedEquality(application) = callee {
+                    self.check_no_gc_function(
+                        self.derived_equality_applications[*application].function,
+                        span,
+                        out,
+                    );
                 }
                 self.collect_no_gc_expr_violations(receiver, out, requirements);
                 for arg in args {
@@ -302,6 +254,9 @@ impl Lowerer {
                     expr.span,
                     "boxing and unboxing are not allowed in `@NoGC` code".to_string(),
                 ));
+                self.collect_no_gc_expr_violations(operand, out, requirements);
+            }
+            ExprKind::ReferenceUpcast(operand) => {
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
             ExprKind::IsInstance { operand, .. } | ExprKind::Cast { operand, .. } => {
@@ -342,23 +297,13 @@ impl Lowerer {
                 ));
                 self.collect_no_gc_expr_violations(operand, out, requirements);
             }
-            ExprKind::Call { callee, args } => {
-                self.check_no_gc_callee(*callee, expr.span, out);
+            ExprKind::Call { callee, args, .. } => {
+                self.check_no_gc_call_target(*callee, expr.span, out);
                 for arg in args {
                     self.collect_no_gc_expr_violations(arg, out, requirements);
                 }
             }
-            ExprKind::LocalFunctionCall {
-                callee,
-                captures,
-                args,
-                ..
-            } => {
-                self.check_no_gc_callee(*callee, expr.span, out);
-                for value in captures.iter().chain(args) {
-                    self.collect_no_gc_expr_violations(value, out, requirements);
-                }
-            }
+
             ExprKind::CallableCall { callee, args, .. } => {
                 out.push((
                     expr.span,

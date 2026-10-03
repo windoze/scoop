@@ -14,7 +14,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     scoop_lir::ManagedCallDestination::view,
                 ),
                 CallProtocol::Managed {
-                    safepoint: site.safepoint,
+                    safepoint: self.safepoint_id(site.safepoint),
                     live: &site.live,
                 },
                 None,
@@ -35,7 +35,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     scoop_lir::NativeSafeCallDestination::view,
                 ),
                 CallProtocol::NativeSafe {
-                    safepoint: site.safepoint,
+                    safepoint: self.safepoint_id(site.safepoint),
                     roots: &site.roots,
                 },
                 None,
@@ -45,7 +45,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 self.emit_typed_call(
                     call.call,
                     CallProtocol::NativeBorrowed {
-                        safepoint: site.safepoint,
+                        safepoint: self.safepoint_id(site.safepoint),
                         roots: &site.roots,
                         result: call.result,
                     },
@@ -68,7 +68,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     scoop_lir::ManagedCallDestination::view,
                 ),
                 CallProtocol::ManagedInvoke {
-                    safepoint: site.safepoint,
+                    safepoint: self.safepoint_id(site.safepoint),
                     roots: &site.roots,
                 },
                 Some((site.normal, site.unwind)),
@@ -100,8 +100,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .ok_or_else(|| {
                         CodegenError(format!("invalid local function id {}", id.into_u32()))
                     })?
-                    .symbol
-                    .as_str();
+                    .symbol();
                 let function = self.llvm.get_function(symbol).ok_or_else(|| {
                     CodegenError(format!(
                         "typed local target `{symbol}` was not declared in the module pass"
@@ -115,8 +114,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 return Ok(function);
             }
             scoop_lir::CallDestination::Runtime(function) => function.symbol(),
+            scoop_lir::CallDestination::External(id) => {
+                let declaration = &self.external_callables[id];
+                let symbol = declaration.expected_symbol().symbol();
+                let function = self.llvm.get_function(symbol.as_str()).ok_or_else(|| {
+                    CodegenError(format!(
+                        "typed external target `{symbol}` was not declared in the module pass"
+                    ))
+                })?;
+                if function.get_type() != fn_ty {
+                    return Err(CodegenError(format!(
+                        "typed target `{symbol}` disagrees with its existing declaration"
+                    )));
+                }
+                return Ok(function);
+            }
             scoop_lir::CallDestination::Extern(id) => match &self.extern_functions[id].kind {
-                ExternFunctionKind::C { bridge_symbol, .. } => bridge_symbol,
+                ExternFunctionKind::C { bridge, .. } => bridge.symbol(),
                 ExternFunctionKind::Scoop { .. } => &self.extern_functions[id].native_symbol,
             },
             scoop_lir::CallDestination::Dispatch { .. } => {
@@ -159,7 +173,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .ok_or_else(|| {
                 CodegenError(format!(
                     "typed dispatch @{} refers to an invalid slot declaration",
-                    self.function.symbol
+                    self.function.symbol()
                 ))
             })?;
         let table_ty = self.function.value_ty(self.globals_arena, table);
@@ -172,7 +186,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             return Err(CodegenError(format!(
                 "typed {:?} dispatch @{} requires table {}, got {}",
                 slot.kind,
-                self.function.symbol,
+                self.function.symbol(),
                 expected_table_ty.dump(),
                 table_ty.dump()
             )));

@@ -31,7 +31,7 @@ impl Harness {
             .iter()
             .map(|&interface| self.interface_ty(interface))
             .collect();
-        let interface_implementations = self.interface_implementation_shells(&interfaces);
+        let interface_implementations = self.initial_interface_implementations(&interfaces);
         let self_application =
             hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
         let owner = hir::StructId::from_raw((self.structs.len() as u32).into());
@@ -42,12 +42,16 @@ impl Harness {
                 self.next_constructor_param += 1;
                 hir::ConstructorParameter {
                     id,
+                    binding: hir::BindingId::from_raw(0x4000_0000 + id.into_raw()),
+                    definition: definition_origin(),
                     name: name.to_string(),
                     ty: *ty,
                 }
             })
             .collect();
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
+            safety: hir::Safety::Safe,
+            no_gc_type_params: Vec::new(),
             owner,
             access: hir::DeclarationAccess::public(),
             parameters,
@@ -59,26 +63,29 @@ impl Harness {
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            self_application,
-            type_params,
-            gc_free_pointee_requirements: Vec::new(),
-            attributes: hir::StructAttributes::default(),
-            representation: hir::StructRepresentation::Declared(
-                fields
-                    .iter()
-                    .map(|(name, ty)| hir::Field {
-                        name: name.to_string(),
-                        ty: *ty,
-                    })
-                    .collect(),
-            ),
             constructors: vec![constructor],
-            interfaces,
-            interface_implementations,
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
+            definition: hir::StructDefinition {
+                self_application,
+                type_params,
+                representation: hir::StructRepresentation::Declared(
+                    fields
+                        .iter()
+                        .map(|(name, ty)| hir::Field {
+                            name: name.to_string(),
+                            ty: *ty,
+                        })
+                        .collect(),
+                ),
+                interfaces,
+                interface_implementations,
+
+                gc_free_pointee_requirements: Vec::new(),
+                attributes: hir::StructAttributes::default(),
+            },
         });
         let actual = self.struct_application(strukt, self_arguments);
         assert_eq!(actual, self_application);
@@ -93,30 +100,31 @@ impl Harness {
     ) -> hir::StructId {
         let self_application =
             hir::StructApplicationId::from_raw((self.struct_applications.len() as u32).into());
-        let declaration = hir::IntrinsicTypeDeclaration {
-            kind,
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        };
+        let declaration = kind;
         let strukt = self.structs.alloc(hir::StructDecl {
             owner: None,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            self_application,
-            type_params: Vec::new(),
-            gc_free_pointee_requirements: Vec::new(),
-            attributes: hir::StructAttributes::default(),
-            representation: hir::StructRepresentation::Intrinsic(declaration),
             constructors: Vec::new(),
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
+            definition: hir::StructDefinition {
+                self_application,
+                type_params: Vec::new(),
+                representation: hir::StructRepresentation::Intrinsic(declaration),
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
+                attributes: hir::StructAttributes::default(),
+            },
         });
         let representation = kind.application(&[]);
+        let template = self.nominal_identities()[strukt].declaration_id();
         let actual = self.struct_applications.alloc(hir::StructApplication {
-            template: strukt,
+            template,
             arguments: Vec::new(),
             canonical_type,
             representation: hir::StructApplicationRepresentation::Intrinsic(representation),
@@ -137,25 +145,26 @@ impl Harness {
     ) -> hir::ClassId {
         let self_application =
             hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
-        let declaration = hir::IntrinsicTypeDeclaration {
-            kind,
-            provider: hir::IntrinsicProviderId::from_raw(0),
-        };
+        let declaration = kind;
         let class = self.classes.alloc(hir::ClassDecl {
             owner: None,
-            modifier: hir::ClassModifier::Final,
             name: name.to_string(),
             access: hir::NominalAccess::public(),
-            self_application,
-            type_params,
-            gc_free_pointee_requirements: Vec::new(),
-            representation: hir::ClassRepresentation::Intrinsic(declaration),
+            definition: hir::ClassDefinition {
+                modifier: hir::ClassModifier::Final,
+                self_application,
+                type_params,
+                representation: hir::ClassRepresentation::Intrinsic(declaration),
+                fields: Vec::new(),
+                base_class: None,
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
+            },
             fields: Vec::new(),
             properties: Vec::new(),
             constructors: Vec::new(),
-            base_class: None,
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
             methods: Vec::new(),
             span: SPAN,
         });
@@ -167,8 +176,9 @@ impl Harness {
                 true,
             ),
         };
+        let template = self.nominal_identities()[class].declaration_id();
         let actual = self.class_applications.alloc(hir::ClassApplication {
-            template: class,
+            template,
             arguments: self_arguments.clone(),
             canonical_type,
             representation: hir::ClassApplicationRepresentation::Intrinsic(representation),
@@ -183,29 +193,38 @@ impl Harness {
         class
     }
 
-    pub(in crate::tests) fn interface_implementation_shells(
-        &self,
+    pub(in crate::tests) fn initial_interface_implementations(
+        &mut self,
         interfaces: &[hir::TypeId],
     ) -> Vec<hir::InterfaceImplementation> {
-        interfaces
-            .iter()
-            .map(|&interface| {
-                let hir::Type::Interface(application) = self.types[interface] else {
-                    panic!("test harness interface lists are fully applied")
+        let mut implementations = Vec::new();
+        for &interface in interfaces {
+            let hir::Type::Interface(application) = self.types[interface] else {
+                panic!("test harness interface lists are fully applied")
+            };
+            let template = self.interface_id(self.interface_applications[application].template);
+            let mut methods = Vec::new();
+            for member in self.interfaces[template].methods.clone() {
+                let declaration = &self.interface_methods[member];
+                let application = self.method_applications.alloc(hir::MethodApplication {
+                    function: declaration.function,
+                    owner: hir::MethodOwnerApplication::Interface(application),
+                });
+                let target = match declaration.implementation {
+                    hir::InterfaceMemberImplementation::AbstractSlot => {
+                        hir::InterfaceImplementationTarget::Abstract(application)
+                    }
+                    hir::InterfaceMemberImplementation::Body => {
+                        hir::InterfaceImplementationTarget::Method(application)
+                    }
                 };
-                let template = self.interface_applications[application].template;
-                hir::InterfaceImplementation {
-                    interface: application,
-                    methods: self.interfaces[template]
-                        .methods
-                        .iter()
-                        .map(|&member| hir::InterfaceMethodImplementation {
-                            member,
-                            target: hir::InterfaceImplementationTarget::Subclass,
-                        })
-                        .collect(),
-                }
-            })
-            .collect()
+                methods.push(hir::InterfaceMethodImplementation {
+                    member: hir::InterfaceMethodReference::Local(member),
+                    target,
+                });
+            }
+            implementations.push(hir::InterfaceImplementation { interface, methods });
+        }
+        implementations
     }
 }

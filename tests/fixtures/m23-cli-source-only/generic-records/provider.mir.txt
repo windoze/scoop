@@ -1,0 +1,7 @@
+Module
+  fun dormant @fn0(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  output library

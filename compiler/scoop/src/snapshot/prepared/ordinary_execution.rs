@@ -1,0 +1,251 @@
+use std::fmt;
+use std::sync::Arc;
+
+use scoop_identity::ConeIdentity;
+use scoop_protocol::{RequestCorrelationId, ScoopcResponseEnvelopeV1, StructuredDiagnosticV1};
+use scoop_slib::ArtifactSnapshot;
+use scoop_wire::HashError;
+
+use super::model::{PreparedBuildGraph, PreparedGraphNode};
+use crate::artifact::{CompiledCompletionError, CompletedNode, complete_compiled_candidate};
+use crate::{
+    CacheCompletionError, CacheReceiptBodyV1, CacheReceiptV1, CacheReceiptValidationError,
+    ChildRequestPlanError, ChildSuccessArtifactMismatch, ChildTransportError, CompileCacheKeyError,
+    CompileCacheLookupV1, CompileCacheStoreError, CompileCacheStoreV1, ImmutableInputSnapshot,
+    SingleConeCompilerRunner, SnapshotFileError, validate_child_success_artifact,
+};
+
+mod diagnostics;
+
+impl PreparedBuildGraph {
+    /// Resolves one ordinary source node through the content-addressed cache
+    /// or exactly one paired compiler child while the exclusive key lock is
+    /// held across the miss, validation, and atomic summary.
+    pub(crate) fn execute_ordinary_source(
+        &mut self,
+        identity: ConeIdentity,
+        completed: &[&CompletedNode],
+        runner: &mut impl SingleConeCompilerRunner,
+        request_id: RequestCorrelationId,
+    ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
+        if !matches!(
+            self.nodes.get(&identity),
+            Some(PreparedGraphNode::ManifestSource(_) | PreparedGraphNode::SingleFile(_))
+        ) {
+            return Err(OrdinarySourceExecutionError::NotOrdinarySource(identity));
+        }
+        let key = self
+            .compile_cache_key(identity, completed)
+            .map_err(|source| OrdinarySourceExecutionError::CacheKey(Box::new(source)))?;
+        let store = CompileCacheStoreV1::new(&self.context.cache_root);
+        let observed = self.is_observed(identity);
+        if !observed {
+            let lock = store
+                .acquire_shared(key)
+                .map_err(OrdinarySourceExecutionError::CacheStore)?;
+            if let CompileCacheLookupV1::Hit(entry) = store
+                .lookup(&lock)
+                .map_err(OrdinarySourceExecutionError::CacheStore)?
+            {
+                return self
+                    .complete_cache_hit(identity, *entry, completed)
+                    .map_err(OrdinarySourceExecutionError::CacheCompletion);
+            }
+        }
+
+        let lock = store
+            .acquire_exclusive(key)
+            .map_err(OrdinarySourceExecutionError::CacheStore)?;
+        if let CompileCacheLookupV1::Hit(entry) = store
+            .lookup(&lock)
+            .map_err(OrdinarySourceExecutionError::CacheStore)?
+        {
+            let hit = self
+                .complete_cache_hit(identity, *entry, completed)
+                .map_err(OrdinarySourceExecutionError::CacheCompletion)?;
+            if !observed {
+                return Ok(hit);
+            }
+        }
+
+        let invocation = self
+            .child_invocation_plan(identity, request_id, completed)
+            .map_err(OrdinarySourceExecutionError::RequestPlan)?;
+        self.staging
+            .require_empty_output(invocation.output_path())
+            .map_err(OrdinarySourceExecutionError::OutputLayout)?;
+
+        let response = runner
+            .invoke(&self.compiler, invocation.request(), invocation.io())
+            .map_err(OrdinarySourceExecutionError::ChildTransport)?;
+
+        let success = match response {
+            ScoopcResponseEnvelopeV1::Success { result, .. } => result,
+            ScoopcResponseEnvelopeV1::Failure {
+                mut diagnostics, ..
+            } => {
+                diagnostics::restore_artifact_locations(&mut diagnostics, completed)
+                    .map_err(OrdinarySourceExecutionError::DiagnosticPath)?;
+                return Err(OrdinarySourceExecutionError::ChildFailure(diagnostics));
+            }
+        };
+        self.finish_source_output(identity, completed, &invocation, &lock, &success)
+            .map_err(|source| {
+                if success.warnings().is_empty() {
+                    source
+                } else {
+                    OrdinarySourceExecutionError::ProducedOutput {
+                        source: Box::new(source),
+                        warnings: success.warnings().to_vec(),
+                    }
+                }
+            })
+    }
+
+    fn finish_source_output(
+        &self,
+        identity: ConeIdentity,
+        completed: &[&CompletedNode],
+        invocation: &super::model::child_request::ChildInvocationPlanV1,
+        lock: &crate::CompileCacheKeyLockV1,
+        success: &scoop_protocol::ScoopcSuccessV1,
+    ) -> Result<CompletedNode, OrdinarySourceExecutionError> {
+        let key = lock.key();
+        let store = CompileCacheStoreV1::new(&self.context.cache_root);
+        self.staging
+            .validate_completed_output(invocation.output_path())
+            .map_err(OrdinarySourceExecutionError::OutputLayout)?;
+        let output = ImmutableInputSnapshot::capture_no_follow(invocation.output_path())
+            .map_err(OrdinarySourceExecutionError::OutputSnapshot)?;
+        let snapshot = Arc::new(ArtifactSnapshot::from_shared(output.shared_bytes()));
+        let plan = self.artifact_closure_plan();
+        let mut completed_node = complete_compiled_candidate(
+            &plan,
+            identity,
+            snapshot,
+            invocation.output_path().to_path_buf(),
+            completed,
+            success.warnings().to_vec(),
+        )
+        .map_err(OrdinarySourceExecutionError::Completion)?;
+        validate_child_success_artifact(success, completed_node.artifact())
+            .map_err(OrdinarySourceExecutionError::ChildResult)?;
+
+        self.publish_dumps(identity, success.emitted_dump_descriptors())
+            .map_err(OrdinarySourceExecutionError::Observation)?;
+        let summary = completed_node.artifact().summary();
+        let receipt = CacheReceiptV1::new(
+            CacheReceiptBodyV1::new(
+                key,
+                summary.artifact_fingerprint(),
+                summary.cone().clone(),
+                summary.target_selection(),
+                summary.direct_dependencies().to_vec(),
+                self.compiler.fingerprint(),
+                summary.profile().clone(),
+                success.warnings().to_vec(),
+            )
+            .map_err(OrdinarySourceExecutionError::ReceiptValidation)?,
+        )
+        .map_err(OrdinarySourceExecutionError::ReceiptHash)?;
+        completed_node.replace_warnings(receipt.body().structured_warnings().to_vec());
+        let published = store
+            .publish(lock, &output, &receipt)
+            .map_err(OrdinarySourceExecutionError::CacheStore)?;
+        let (crate::CompileCachePublishV1::Published(entry)
+        | crate::CompileCachePublishV1::ExistingEquivalent(entry)) = published;
+        completed_node.replace_artifact_locator(entry.artifact().source_locator().to_path_buf());
+
+        Ok(completed_node)
+    }
+}
+
+#[derive(Debug)]
+pub enum OrdinarySourceExecutionError {
+    ProducedOutput {
+        source: Box<OrdinarySourceExecutionError>,
+        warnings: Vec<StructuredDiagnosticV1>,
+    },
+    Observation(std::io::Error),
+    NotOrdinarySource(ConeIdentity),
+    CacheKey(Box<CompileCacheKeyError>),
+    CacheStore(CompileCacheStoreError),
+    CacheCompletion(CacheCompletionError),
+    RequestPlan(ChildRequestPlanError),
+
+    ChildTransport(ChildTransportError),
+    ChildFailure(Vec<StructuredDiagnosticV1>),
+    DiagnosticPath(scoop_protocol::HostPathError),
+    OutputLayout(crate::StagingError),
+    OutputSnapshot(SnapshotFileError),
+    Completion(CompiledCompletionError),
+    ChildResult(ChildSuccessArtifactMismatch),
+    ReceiptValidation(CacheReceiptValidationError),
+    ReceiptHash(HashError),
+}
+
+impl fmt::Display for OrdinarySourceExecutionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ProducedOutput { source, .. } => source.fmt(formatter),
+            Self::Observation(source) => {
+                write!(formatter, "cannot observe compiler stages: {source}")
+            }
+            Self::NotOrdinarySource(identity) => {
+                write!(formatter, "Cone {identity} is not an ordinary source node")
+            }
+            Self::CacheKey(source) => write!(formatter, "cannot derive cache key: {source}"),
+            Self::CacheStore(source) => source.fmt(formatter),
+            Self::CacheCompletion(source) => source.fmt(formatter),
+            Self::RequestPlan(source) => write!(formatter, "cannot plan compiler child: {source}"),
+
+            Self::ChildTransport(source) => write!(formatter, "child transport failed: {source}"),
+            Self::ChildFailure(diagnostics) => write!(
+                formatter,
+                "compiler child reported {} diagnostic(s)",
+                diagnostics.len()
+            ),
+            Self::DiagnosticPath(source) => write!(
+                formatter,
+                "cannot retain artifact diagnostic locator: {source}"
+            ),
+            Self::OutputLayout(source) => {
+                write!(formatter, "invalid private child output layout: {source}")
+            }
+            Self::OutputSnapshot(source) => {
+                write!(formatter, "cannot snapshot compiler child output: {source}")
+            }
+            Self::Completion(source) => source.fmt(formatter),
+            Self::ChildResult(source) => source.fmt(formatter),
+            Self::ReceiptValidation(source) => {
+                write!(formatter, "cannot construct cache receipt: {source}")
+            }
+            Self::ReceiptHash(source) => {
+                write!(formatter, "cannot fingerprint cache receipt: {source}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for OrdinarySourceExecutionError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::ProducedOutput { source, .. } => Some(source.as_ref()),
+            Self::Observation(source) => Some(source),
+            Self::CacheKey(source) => Some(source.as_ref()),
+            Self::CacheStore(source) => Some(source),
+            Self::CacheCompletion(source) => Some(source),
+            Self::RequestPlan(source) => Some(source),
+
+            Self::ChildTransport(source) => Some(source),
+            Self::DiagnosticPath(source) => Some(source),
+            Self::OutputLayout(source) => Some(source),
+            Self::OutputSnapshot(source) => Some(source),
+            Self::Completion(source) => Some(source),
+            Self::ChildResult(source) => Some(source),
+            Self::ReceiptValidation(source) => Some(source),
+            Self::ReceiptHash(source) => Some(source),
+            Self::NotOrdinarySource(_) | Self::ChildFailure(_) => None,
+        }
+    }
+}

@@ -1,0 +1,11 @@
+typealias Small = Int8
+
+public const val compared: Long = 7.compareTo(3)
+public const val wrapped: Small = 120 + 10
+public const val shifted: UInt = 3u shl 2L
+public const val combined: Boolean = compared > 0L && wrapped < 0 && shifted == 12u
+public const val converted: Int = compared.toInt32()
+
+fun main() {
+    val value = userCoreOffset(converted)
+}

@@ -11,8 +11,9 @@ pub(crate) fn declare_function<'ctx>(
     llvm: &LlvmModule<'ctx>,
     structs: &StructDefs,
     enums: &EnumDefs,
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
     function: &Function,
+    definition: bool,
 ) -> Result<(), CodegenError> {
     let managed_address_space = profile.managed_address_space_contract();
     let fn_ty = abi::function_type(
@@ -22,7 +23,12 @@ pub(crate) fn declare_function<'ctx>(
         managed_address_space,
         &function.signature,
     )?;
-    let llvm_function = llvm.add_function(&function.symbol, fn_ty, None);
+    let llvm_function = llvm.add_function(function.symbol(), fn_ty, None);
+    crate::emission::apply_persistent_linkage(
+        &llvm_function.as_global_value(),
+        function.callable_body.symbol_request(),
+        definition,
+    )?;
     abi::apply_function_attributes(
         context,
         structs,
@@ -32,6 +38,36 @@ pub(crate) fn declare_function<'ctx>(
         &function.signature,
     )?;
     statepoint::configure_function(context, llvm_function, function.gc_effect, profile);
+    Ok(())
+}
+
+/// Declare one external Scoop callable from its selected semantic
+/// bridge. It remains an external declaration; no local body or runtime
+/// registration is emitted for it.
+pub(crate) fn declare_external_callable<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    structs: &StructDefs,
+    enums: &EnumDefs,
+    managed_address_space: ManagedAddressSpace,
+    callable: &scoop_lir::ExternalCallable,
+) -> Result<(), CodegenError> {
+    let symbol = callable.expected_symbol().symbol();
+    if llvm.get_function(symbol.as_str()).is_some() {
+        return Err(CodegenError(format!(
+            "external callable `{symbol}` collides with an existing declaration"
+        )));
+    }
+    let declaration = abi::declare_or_get(
+        context,
+        llvm,
+        structs,
+        enums,
+        managed_address_space,
+        symbol.as_str(),
+        callable.signature(),
+    )?;
+    declaration.set_linkage(inkwell::module::Linkage::External);
     Ok(())
 }
 
@@ -170,7 +206,7 @@ pub(crate) fn declare_callback_trampoline<'ctx>(
         enums,
         managed_address_space,
         CCallbackDeclaration {
-            symbol: &callback.trampoline_symbol,
+            symbol: callback.trampoline.entry().symbol(),
             params: &callback.params,
             return_type: &callback.return_type,
         },
@@ -192,7 +228,7 @@ pub(crate) fn declare_foreign_callback_trampoline<'ctx>(
         enums,
         managed_address_space,
         CCallbackDeclaration {
-            symbol: &callback.trampoline_symbol,
+            symbol: callback.trampoline.entry().symbol(),
             params: &callback.params,
             return_type: &callback.return_type,
         },

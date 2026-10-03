@@ -1,20 +1,22 @@
 use super::*;
+use crate::HirNominalIdentity;
+use scoop_identity::{PersistentEnumVariantFieldId, PersistentEnumVariantId};
 
 /// Static declaration owner retained after concretization. Origins name the
 /// declaration template rather than an outer application, so a generic host
 /// does not replicate its nested declarations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum NominalOwner {
-    Class(ClassOriginId),
-    Interface(InterfaceOriginId),
-    Struct(StructOriginId),
-    Enum(EnumOriginId),
-    Object(ObjectOriginId),
+    Class(HirNominalIdentity),
+    Interface(HirNominalIdentity),
+    Struct(HirNominalIdentity),
+    Enum(HirNominalIdentity),
+    Object(HirNominalIdentity),
 }
 
 #[derive(Debug, Clone)]
 pub struct ObjectDecl {
-    pub origin: ObjectOriginId,
+    pub origin: HirNominalIdentity,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub object_type: ObjectTypeId,
@@ -50,8 +52,17 @@ pub struct ObjectType {
     pub canonical_type: TypeId,
 }
 
+/// A selected singleton value retains this IR's declaration handle or its
+/// original dependency identity. Initialization and storage stay with that owner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SingletonValueTarget {
+    Local(SingletonValueId),
+    Dependency(scoop_identity::PersistentObjectValueId),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SingletonValue {
+    pub identity: scoop_identity::PersistentObjectValueId,
     pub declaration: ObjectId,
     pub object_type: ObjectTypeId,
     pub published_root: SingletonPublishedRootId,
@@ -62,17 +73,20 @@ pub struct SingletonValue {
 pub struct SingletonPublishedRoot {
     pub value: SingletonValueId,
     pub ty: TypeId,
-    pub link_name: String,
 }
 
 #[derive(Debug, Clone)]
 pub struct StructDef {
-    pub origin: StructOriginId,
+    pub origin: HirNominalIdentity,
+    /// Canonical concrete type represented by this physical declaration.
+    pub canonical_type: TypeId,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub representation: StructRepresentation,
+    /// Direct source conformance after substituting this nominal's arguments.
+    pub direct_interfaces: Vec<TypeId>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
@@ -83,16 +97,25 @@ pub struct StructDef {
 pub enum StructRepresentation {
     Declared {
         attributes: StructAttributes,
-        fields: Vec<Field>,
+        c_abi: StructCAbi,
+        fields: Vec<DeclaredStructField>,
     },
     Intrinsic {
-        declaration: IntrinsicTypeDeclaration,
+        declaration: IntrinsicTypeKind,
         application: IntrinsicTypeRepresentation,
     },
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructCAbi {
+    SourceRepresentation,
+    UInt64Field {
+        field: scoop_identity::PersistentFieldId,
+    },
+}
+
 impl StructDef {
-    pub fn declared_fields(&self) -> &[Field] {
+    pub fn declared_fields(&self) -> &[DeclaredStructField] {
         match &self.representation {
             StructRepresentation::Declared { fields, .. } => fields,
             StructRepresentation::Intrinsic { .. } => {
@@ -104,12 +127,16 @@ impl StructDef {
 
 #[derive(Debug, Clone)]
 pub struct EnumDef {
-    pub origin: EnumOriginId,
+    pub origin: HirNominalIdentity,
+    /// Canonical concrete type represented by this exact enum application.
+    pub canonical_type: TypeId,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub gc_free: bool,
     pub variants: Vec<Variant>,
+    /// Direct source conformance after substituting this nominal's arguments.
+    pub direct_interfaces: Vec<TypeId>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
     pub methods: Vec<FunctionId>,
@@ -283,16 +310,29 @@ impl StructFieldRef {
 
 #[derive(Debug, Clone)]
 pub struct ClassDef {
-    pub origin: ClassOriginId,
+    pub origin: HirNominalIdentity,
+    /// Canonical concrete type represented by this physical declaration.
+    pub canonical_type: TypeId,
     pub modifier: ClassModifier,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub type_arguments: Vec<TypeId>,
     pub representation: ClassRepresentation,
+    /// Direct source conformance, excluding inherited implementations.
+    pub direct_interfaces: Vec<TypeId>,
     pub interfaces: Vec<TypeId>,
     pub interface_implementations: Vec<InterfaceImplementation>,
-    pub methods: Vec<FunctionId>,
+    pub methods: Vec<ClassMethod>,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ClassMethod {
+    Local(FunctionId),
+    Imported {
+        family: VirtualMethodId,
+        callable: ImportedDependencyCallableUseId,
+    },
 }
 
 /// Complete signature and owning class of one compiler-hidden constructor.
@@ -301,14 +341,28 @@ pub struct ClassDef {
 #[derive(Debug, Clone)]
 pub struct ClassConstructor {
     pub class: ClassId,
+    pub safety: Safety,
+    /// Persistent identity of this exact constructor implementation. Generic
+    /// nominal owners use their constructor application as the context;
+    /// parameter-free constructors use `NoSubstitution`.
+    pub materialization: CallableMaterialization,
     pub source_discriminator: u32,
+    pub origin: DefinitionOrigin,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: ClassConstructorKind,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ClassInitializerTarget {
+    Local(ClassConstructorId),
+    Imported(ImportedDependencyCallableUseId),
 }
 
 #[derive(Debug, Clone)]
 pub struct ConstructorParameter {
     pub id: ConstructorParamId,
+    pub binding: BindingId,
+    pub definition: DefinitionOrigin,
     pub name: String,
     pub ty: TypeId,
 }
@@ -337,7 +391,11 @@ impl ClassConstructor {
 #[derive(Debug, Clone)]
 pub struct StructConstructor {
     pub structure: StructId,
+    pub safety: Safety,
+    /// Persistent identity of this exact constructor implementation.
+    pub materialization: CallableMaterialization,
     pub source_discriminator: u32,
+    pub origin: DefinitionOrigin,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: StructConstructorKind,
 }
@@ -346,6 +404,7 @@ pub struct StructConstructor {
 pub enum StructConstructorKind {
     Primary,
     Secondary {
+        gc_effect: GcEffect,
         target: StructConstructorId,
         arguments: ConstructorArguments,
         body: Body,
@@ -366,7 +425,7 @@ pub enum ClassRepresentation {
         base_class: Option<ClassId>,
     },
     Intrinsic {
-        declaration: IntrinsicTypeDeclaration,
+        declaration: IntrinsicTypeKind,
         application: IntrinsicTypeRepresentation,
     },
 }
@@ -404,11 +463,14 @@ pub enum IntrinsicTypeRepresentation {
 
 #[derive(Debug, Clone)]
 pub struct InterfaceDef {
-    pub origin: InterfaceOriginId,
+    pub origin: HirNominalIdentity,
+    /// Canonical concrete type represented by this exact interface application.
+    pub canonical_type: TypeId,
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub family: InterfaceFamilyId,
     pub type_arguments: Vec<TypeId>,
+    pub parents: Vec<TypeId>,
     pub methods: Vec<MethodSig>,
     pub span: Span,
 }
@@ -430,10 +492,14 @@ pub struct InterfaceMethodImplementation {
 #[derive(Debug, Clone, Copy)]
 pub enum InterfaceImplementationTarget {
     Method(FunctionId),
+    Imported(ImportedDependencyCallableUseId),
     /// An abstract class intentionally leaves this obligation to a concrete
     /// subclass. The declaration supplies the complete slot signature.
     Abstract {
         declaration: FunctionId,
+    },
+    ImportedAbstract {
+        declaration: ImportedDependencyCallableUseId,
     },
 }
 
@@ -456,13 +522,34 @@ pub enum InterfaceMemberImplementation {
 
 #[derive(Debug, Clone)]
 pub struct Variant {
+    pub identity: PersistentEnumVariantId,
     pub name: String,
     pub gc_free: bool,
-    pub fields: Vec<Field>,
+    pub fields: Vec<VariantField>,
+}
+
+/// A payload field retains its declaration identity across specialization.
+#[derive(Debug, Clone)]
+pub struct VariantField {
+    pub identity: PersistentEnumVariantFieldId,
+    pub name: String,
+    pub ty: TypeId,
 }
 
 #[derive(Debug, Clone)]
 pub struct Field {
+    /// Declaration identity retained through concretization, including object storage.
+    pub identity: PersistentFieldId,
+    pub name: String,
+    pub ty: TypeId,
+}
+
+/// One source-declared struct field with its persistent semantic identity.
+/// Keeping the identity in the field makes layout projection structurally
+/// total instead of relying on a parallel vector or a field-name lookup.
+#[derive(Debug, Clone)]
+pub struct DeclaredStructField {
+    pub identity: PersistentFieldId,
     pub name: String,
     pub ty: TypeId,
 }
@@ -470,10 +557,26 @@ pub struct Field {
 #[derive(Debug, Clone)]
 pub struct Global {
     pub name: String,
+    /// Persistent property owner and physical storage role retained across
+    /// concretization. MIR/LIR must not reconstruct either from `name`.
+    pub storage_owner: PropertyStorageOwner,
     pub ty: TypeId,
     pub mutable: bool,
     pub storage: GlobalStorage,
     pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PropertyStorageOwner {
+    Backing(scoop_identity::PropertyOwner),
+    Delegate(scoop_identity::PropertyOwner),
+    GenericDelegate(GenericDelegateStorageSpecializationId),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct GenericDelegateStorageSpecialization {
+    pub storage: GlobalId,
+    pub initialization: InitializationUnitId,
 }
 
 #[derive(Debug, Clone)]
@@ -486,6 +589,7 @@ pub enum GlobalStorage {
         initializer: HirConstantImage,
     },
     Extern {
+        source_contract: Box<SourceNativeExternalContractRecord>,
         library: String,
         native_symbol: String,
         thread_local: bool,
@@ -520,111 +624,4 @@ pub enum HirPointerNullKind {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn concrete_variant_and_struct_field_refs_are_checked() {
-        let ty = TypeId::from_raw(0.into());
-        let mut enums = Arena::new();
-        let enumeration = enums.alloc(EnumDef {
-            origin: EnumOriginId::from_raw(0),
-            name: "Option".to_string(),
-            owner: None,
-            type_arguments: vec![ty],
-            gc_free: true,
-            variants: vec![
-                Variant {
-                    name: "Some".to_string(),
-                    gc_free: true,
-                    fields: vec![Field {
-                        name: "value".to_string(),
-                        ty,
-                    }],
-                },
-                Variant {
-                    name: "None".to_string(),
-                    gc_free: true,
-                    fields: Vec::new(),
-                },
-            ],
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
-            methods: Vec::new(),
-            span: Span::new(0, 0),
-        });
-        let data = EnumVariantRef::checked(&enums, enumeration, VariantId::from_raw(0))
-            .expect("Data exists");
-        let empty = EnumVariantRef::checked(&enums, enumeration, VariantId::from_raw(1))
-            .expect("Empty exists");
-        assert!(EnumVariantRef::checked(&enums, enumeration, VariantId::from_raw(2)).is_none());
-        assert!(
-            EnumVariantRef::checked(&enums, EnumId::from_raw(99.into()), VariantId::from_raw(0))
-                .is_none()
-        );
-        let field = EnumVariantFieldRef::checked(&enums, data, 0).expect("Data.value exists");
-        assert_eq!(field.variant(), data);
-        assert!(EnumVariantFieldRef::checked(&enums, data, 1).is_none());
-        assert!(EnumVariantFieldRef::checked(&enums, empty, 0).is_none());
-        let option = OptionCore::checked(&enums, field, empty).expect("valid Option shape");
-        assert_eq!(option.enumeration(), enumeration);
-        assert_eq!(option.some_payload(), field);
-        assert_eq!(option.some(), data);
-        assert_eq!(option.none(), empty);
-        assert!(OptionCore::checked(&enums, field, data).is_none());
-        enums[enumeration].type_arguments.clear();
-        assert!(OptionCore::checked(&enums, field, empty).is_none());
-        enums[enumeration].type_arguments.push(ty);
-        enums[enumeration].type_arguments[0] = TypeId::from_raw(1.into());
-        assert!(OptionCore::checked(&enums, field, empty).is_none());
-        enums[enumeration].type_arguments[0] = ty;
-        enums[enumeration].variants.push(Variant {
-            name: "Unexpected".to_string(),
-            gc_free: true,
-            fields: Vec::new(),
-        });
-        assert!(OptionCore::checked(&enums, field, empty).is_none());
-        enums[enumeration].variants.pop();
-        let other = enums.alloc(EnumDef {
-            origin: EnumOriginId::from_raw(1),
-            name: "Other".to_string(),
-            owner: None,
-            type_arguments: Vec::new(),
-            gc_free: true,
-            variants: vec![Variant {
-                name: "Empty".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            }],
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
-            methods: Vec::new(),
-            span: Span::new(0, 0),
-        });
-        let other_empty = EnumVariantRef::checked(&enums, other, VariantId::from_raw(0)).unwrap();
-        assert!(OptionCore::checked(&enums, field, other_empty).is_none());
-
-        let mut structs = Arena::new();
-        let declared = structs.alloc(StructDef {
-            origin: StructOriginId::from_raw(0),
-            name: "Record".to_string(),
-            owner: None,
-            type_arguments: Vec::new(),
-            gc_free: true,
-            representation: StructRepresentation::Declared {
-                attributes: StructAttributes::default(),
-                fields: vec![Field {
-                    name: "value".to_string(),
-                    ty,
-                }],
-            },
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
-            methods: Vec::new(),
-            span: Span::new(0, 0),
-        });
-        assert!(StructFieldRef::checked(&structs, declared, 0).is_some());
-        assert!(StructFieldRef::checked(&structs, declared, 1).is_none());
-        assert!(StructFieldRef::checked(&structs, StructId::from_raw(99.into()), 0).is_none());
-    }
-}
+mod tests;

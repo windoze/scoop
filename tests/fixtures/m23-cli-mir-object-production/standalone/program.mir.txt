@@ -1,0 +1,137 @@
+Module
+  global0 $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab: Registry imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=3a526283084ebedba97eaa36d7f52805272cb4afce09bb5e17c04d14d61a27bc
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Registry vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
+    bridge function_type1 -> @fn3 id=6b7fa18842173ffb2b1f61bd2c12cdef74623fc678993bb5f5c9f59c5e333757
+  generated_exact_type get0 location=closure0 nominal_id=1191d918b5239cb9b620c98dbfa5fe2400ac34da3ee320d6a50431e000b3da8c exact_id=70041b36b59315f28b4f968ab1f1442c97102ad2eb6300fbc6cc580cf77e59ee
+  generated_exact_type get1 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn3 id=6b7fa18842173ffb2b1f61bd2c12cdef74623fc678993bb5f5c9f59c5e333757
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call external2 direct
+      call $dependency.receiver: Int = external1 direct
+        Type Registry
+        GlobalRead $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external2 direct
+      call external2 direct
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Registry
+          GlobalRead $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab
+          Type Registry
+          GlobalRead $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val captured: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local captured
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $lambda.0 @fn2($closure: () -> Int) -> Int
+    bb0 entry
+      call external2 direct
+      call $call.1: Int = external1 direct
+        Type Registry
+        GlobalRead $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn3($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  str @str0 "illegal state"
+  output executable @fn1

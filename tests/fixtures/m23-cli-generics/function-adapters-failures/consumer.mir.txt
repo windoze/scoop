@@ -1,0 +1,732 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Payload vtable=0 itables=0
+  class Failure vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn7 id=e5b961b59896dd07284c24687310161b1c4be71ec7490cf988f2afdbdca06c9b
+  closure cc1 $Closure$lambda1 type=function_type3 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn8 id=12082e731436e8094cfc4bf45282d634f96e347be745cfeae691f37e41424678
+  closure cc2 $Closure$dynamic_adapter$(Int) -> Any type=function_type2 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn9 id=bf62327e4f57f8bdbb208cf6cfaf6dff4ddc6888451adcc954f02b1106d2cdcb
+  closure cc3 $Closure$adapter$(Any) -> Int$(Int) -> Any type=function_type2 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn10 id=b0352fc253c48348bfd227fd5d7a57b2f5f6c00732b76dfc43cd8082de8b93d0
+  generated_exact_type get0 location=closure2 nominal_id=82eb6cdea007b9ac9f983945e76d5d1662935a4787ac243216b4652a888ec27b exact_id=45f8e2e2641bd74e514db69ac229823ded85314557dd5844bbcbaca377c0769f
+  generated_exact_type get1 location=closure0 nominal_id=543662a4c86e27615ef74f7e6bc7b14ade734bce2adfd41666397e4a098c7828 exact_id=7baff9a9a9d84cfbad527f78b38c283bab50b7cc4e7843bf0ba4c0e1685e37b7
+  generated_exact_type get2 location=closure1 nominal_id=c4189da09e94cdc0af7fc52634a6f803689c8637a482e9cf9cfd212be8edcc7f exact_id=a0794b2cab4ece3f40b63d46911c0fb7fc89e0337cb8b61683dd3d51512717ed
+  generated_exact_type get3 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get4 location=closure3 nominal_id=dd1c4f092e4da177fc30c6f74e1f7123cec87ffd8c67e57b32788f559aafbb1b exact_id=f7d1128e9410ea5e7c316cc5257eb5844f8b2ac667de28fcf1af17b770b930bb
+  generated_callable gc0 function=@fn8 id=12082e731436e8094cfc4bf45282d634f96e347be745cfeae691f37e41424678
+  generated_callable gc1 function=@fn6 id=3a1197eb2cb7f4e83df4e0902998d3491df2ddcda9a2b9c94e7b1d02c30158aa
+  generated_callable gc2 function=@fn5 id=43c8b06bf2fe6ececeeb1ba3d1806fb6be3f6f77d431cd4ac215fc6d740ef584
+  generated_callable gc3 function=@fn10 id=b0352fc253c48348bfd227fd5d7a57b2f5f6c00732b76dfc43cd8082de8b93d0
+  generated_callable gc4 function=@fn9 id=bf62327e4f57f8bdbb208cf6cfaf6dff4ddc6888451adcc954f02b1106d2cdcb
+  generated_callable gc5 function=@fn7 id=e5b961b59896dd07284c24687310161b1c4be71ec7490cf988f2afdbdca06c9b
+  adapter ca0 class=cc3 source=function_type3 target=function_type2
+  dynamic_adapter da0 class=cc2 target=function_type2
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn1($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn2(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      call $dependency.argument.0: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local seed
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call external0 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.parameter.payload: Payload
+        Type Payload
+        Local $dependency.argument.0
+      assign $new.2
+        Type Failure
+        ClassAlloc Failure
+      call external1 direct
+        Type Failure
+        Local $new.2
+        Type Payload
+        Local $dependency.parameter.payload
+      val error: Failure
+        Type Failure
+        Local $new.2
+      val $dependency.argument.0: Throwable
+        Type Throwable
+        Retype Throwable
+          Type Failure
+          Local error
+      val $dependency.parameter.error: Throwable
+        Type Throwable
+        Local $dependency.argument.0
+      call staticAction: (Int) -> Any = @fn3 direct
+        Type Throwable
+        Local $dependency.parameter.error
+      val erased: Any
+        Type Any
+        Retype Any
+          Type (Int) -> Any
+          Local staticAction
+      val $cast.1: Any
+        Type Any
+        Local erased
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance (Int) -> Any
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.3
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external4 direct
+        Type ClassCastException
+        Local $new.3
+      throw
+        Type ClassCastException
+        Local $new.3
+    bb2 if.merge.2
+      val dynamicAction: (Int) -> Any
+        Type (Int) -> Any
+        ClosureAlloc cc2 $Closure$dynamic_adapter$(Int) -> Any
+          CaptureInit field=0
+            Type Any
+            Local $cast.1
+      var caught: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      var finalized: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb10
+    bb3 try.unwind.3
+      landing_pad cleanup=false
+      goto bb4
+    bb4 try.dispatch.4
+      begin_catch
+      branch bb12 bb13
+        Type Boolean
+        IsInstance Failure
+          Type Any
+          CaughtException
+    bb5 try.handler_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.handler_cleanup.6
+      end_catch
+      val $old.2: Int
+        Type Int
+        Local finalized
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign finalized
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      resume
+    bb7 try.exit_pad.7
+      landing_pad cleanup=true
+      goto bb8
+    bb8 try.exit_cleanup.8
+      end_catch
+      resume
+    bb9 try.end.9
+      goto bb28
+    bb10 try.body.10 unwind bb3
+      call $call.4: Any = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Any
+        Local staticAction
+        Type Int
+        Local seed
+      goto bb11
+    bb11 scope.11
+      val $old.2: Int
+        Type Int
+        Local finalized
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign finalized
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb12 try.catch.12
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val failure: Failure
+        Type Failure
+        Retype Failure
+          Type Any
+          Local $catch.5
+      goto bb14
+    bb13 try.next.13 unwind bb7
+      val $old.2: Int
+        Type Int
+        Local finalized
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign finalized
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      rethrow unwind bb7
+    bb14 scope.14 unwind bb5
+      call $call.6: Payload = external2 direct
+        Type Failure
+        Local failure
+      call $call.7: Payload = external2 direct
+        Type Failure
+        Local error
+      branch bb15 bb16
+        Type Boolean
+        Binary RefEq
+          Type Payload
+          Local $call.6
+          Type Payload
+          Local $call.7
+    bb15 if.then.15 unwind bb5
+      call $call.8: Payload = external2 direct
+        Type Failure
+        Local failure
+      call $dependency.receiver: Int = external3 direct
+        Type Payload
+        Local $call.8
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb17
+    bb16 if.else.16 unwind bb5
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb17
+    bb17 if.merge.17 unwind bb5
+      branch bb18 bb19
+        Type Boolean
+        Local $shortCircuit.0
+    bb18 if.then.18 unwind bb5
+      val $old.1: Int
+        Type Int
+        Local caught
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb19
+    bb19 if.merge.19 unwind bb5
+      end_catch
+      goto bb20
+    bb20 scope.20
+      val $old.2: Int
+        Type Int
+        Local finalized
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign finalized
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb21 try.unwind.21
+      landing_pad cleanup=false
+      goto bb22
+    bb22 try.dispatch.22
+      begin_catch
+      branch bb30 bb31
+        Type Boolean
+        IsInstance Failure
+          Type Any
+          CaughtException
+    bb23 try.handler_pad.23
+      landing_pad cleanup=true
+      goto bb24
+    bb24 try.handler_cleanup.24
+      end_catch
+      val $old.5: Int
+        Type Int
+        Local finalized
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign finalized
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      resume
+    bb25 try.exit_pad.25
+      landing_pad cleanup=true
+      goto bb26
+    bb26 try.exit_cleanup.26
+      end_catch
+      resume
+    bb27 try.end.27
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb39 bb40
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb28 try.body.28 unwind bb21
+      call $call.9: Any = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Any
+        Local dynamicAction
+        Type Int
+        Local seed
+      goto bb29
+    bb29 scope.29
+      val $old.5: Int
+        Type Int
+        Local finalized
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign finalized
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb27
+    bb30 try.catch.30
+      call $catch.10: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val failure: Failure
+        Type Failure
+        Retype Failure
+          Type Any
+          Local $catch.10
+      goto bb32
+    bb31 try.next.31 unwind bb25
+      val $old.5: Int
+        Type Int
+        Local finalized
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign finalized
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      rethrow unwind bb25
+    bb32 scope.32 unwind bb23
+      call $call.11: Payload = external2 direct
+        Type Failure
+        Local failure
+      call $call.12: Payload = external2 direct
+        Type Failure
+        Local error
+      branch bb33 bb34
+        Type Boolean
+        Binary RefEq
+          Type Payload
+          Local $call.11
+          Type Payload
+          Local $call.12
+    bb33 if.then.33 unwind bb23
+      call $call.13: Payload = external2 direct
+        Type Failure
+        Local failure
+      call $dependency.receiver: Int = external3 direct
+        Type Payload
+        Local $call.13
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb35
+    bb34 if.else.34 unwind bb23
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb35
+    bb35 if.merge.35 unwind bb23
+      branch bb36 bb37
+        Type Boolean
+        Local $shortCircuit.3
+    bb36 if.then.36 unwind bb23
+      val $old.4: Int
+        Type Int
+        Local caught
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb37
+    bb37 if.merge.37 unwind bb23
+      end_catch
+      goto bb38
+    bb38 scope.38
+      val $old.5: Int
+        Type Int
+        Local finalized
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign finalized
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb27
+    bb39 if.then.39
+      val $dependency.receiver: Int
+        Type Int
+        Local finalized
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb41
+    bb40 if.else.40
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb41
+    bb41 if.merge.41
+      branch bb42 bb43
+        Type Boolean
+        Local $shortCircuit.6
+    bb42 if.then.42
+      call $call.14: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local seed
+      assign $result.7
+        Type Int
+        Local $call.14
+      goto bb44
+    bb43 if.else.43
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=100 bits=0x00000064
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local finalized
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.7
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb44
+    bb44 if.merge.44
+      return
+        Type Int
+        Local $result.7
+  fun failing @fn3(error: Throwable) -> (Int) -> Any
+    bb0 entry
+      val $dependency.local.1: (Any) -> Int
+        Type (Any) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Throwable
+            Local error
+      return
+        Type (Int) -> Any
+        ClosureAlloc cc3 $Closure$adapter$(Any) -> Int$(Int) -> Any
+          CaptureInit field=0
+            Type (Any) -> Int
+            Local $dependency.local.1
+  fun $lambda @fn4($argument.0: (Any) -> Int, $argument.1: Any) -> Int
+    bb0 entry
+      throw
+        Type Throwable
+        ClosureCapture cc1 0
+          Type (Any) -> Int
+          Local $argument.0
+  fun $dynamic_adapter.(Int) -> Any @fn5($closure: (Int) -> Any, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Any = <function_bridge:function_type1> function_bridge[function_type1]
+        Type Any
+        ClosureCapture cc2 0
+          Type (Int) -> Any
+          Local $closure
+        Type Any
+        Box
+          Type Int
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  fun $adapter.(Any) -> Int.(Int) -> Any @fn6($closure: (Int) -> Any, arg0: Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Any) -> Int
+        ClosureCapture cc3 0
+          Type (Int) -> Any
+          Local $closure
+        Type Any
+        Box
+          Type Int
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn7($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn8($source: (Any) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Any) -> Int
+        Local $source
+        Type Any
+        Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$dynamic_adapter$(Int) -> Any.(Any) -> Any @fn9($source: (Int) -> Any, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Any = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Any
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  fun function_bridge.$Closure$adapter$(Any) -> Int$(Int) -> Any.(Any) -> Any @fn10($source: (Int) -> Any, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Any = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Any
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- failing
+  instance mi2 function=@fn4 <- $lambda
+  output library

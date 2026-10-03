@@ -1,0 +1,3 @@
+public fun service(): Service = Service()
+public fun outer(): Outer = Outer()
+public fun updateCache(value: Int): Int { Cache.size = value; return Cache.size }

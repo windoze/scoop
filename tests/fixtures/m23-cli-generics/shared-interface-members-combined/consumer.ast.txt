@@ -1,0 +1,45 @@
+SourceFile
+  QualifiedPackage consumer.readers
+  ImportExact Local dependency.readers.NumberReader
+  ImportExact Local dependency.readers.Reader
+  ImportExact Local dependency.readers.ValueReader
+  public fun result(): Int
+    val reader
+      Call NumberReader
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            MethodCall read
+              Var reader
+              IntLiteral 21
+            IntLiteral 21
+          Binary Eq
+            MethodCall again
+              Var reader
+            IntLiteral 42
+        MethodCall read
+          Var reader
+        else
+        IntLiteral 0
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val reader
+      Call ValueReader<T>
+        Var value
+    val protocol: Reader<T>
+      Var reader
+    return
+      IfExpression
+        Binary Eq
+          Call read
+            MethodCall again
+              Var protocol
+          Call read
+            MethodCall read
+              Var reader
+              Var value
+        Call read
+          MethodCall read
+            Var reader
+        else
+        IntLiteral 0

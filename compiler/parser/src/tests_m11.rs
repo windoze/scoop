@@ -85,7 +85,7 @@ fn parses_ordinary_and_suspend_function_types() {
     assert_eq!(result.parameters.len(), 1);
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  fun use(op: (Int, String) -> Boolean, task: suspend () -> Int): (Int) -> String\n    =\n      Var op\n  fun main()\n"
+        "SourceFile\n  RootPackage\n  fun use(op: (Int, String) -> Boolean, task: suspend () -> Int): (Int) -> String\n    =\n      Var op\n  fun main()\n"
     );
 }
 

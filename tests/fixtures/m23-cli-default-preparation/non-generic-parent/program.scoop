@@ -1,0 +1,10 @@
+fun sourceDefault(seed: Int, value: Int = if (true) {
+    val copy = seed
+    fun <T> keep(unused: T): Int { return copy }
+    keep<Int>(1)
+} else { seed }): Int = value
+
+fun main() {
+    if (sourceDefault(7) != 7) { throw IllegalStateException() }
+    if (sourceDefault(11) != 11) { throw IllegalStateException() }
+}

@@ -1,0 +1,23 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportExact Local templates.references.identity as importedIdentity
+  public fun exercise<T>(value: T): Int
+    val copy: (T) -> T
+      CallableReference 0 importedIdentity
+    val copyAgain: (T) -> T
+      CallableReference 1 importedIdentity
+    val values
+      TupleLiteral
+        Call copy
+          Var value
+        Call copyAgain
+          Var value
+    val number: (Int) -> Int
+      CallableReference 2 importedIdentity
+    return
+      Call number
+        IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

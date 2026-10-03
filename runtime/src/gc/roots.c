@@ -4,9 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "scoop_rt.h"
+#include "../image/registry.h"
 #include "gc_internal.h"
-
+#include "scoop_rt.h"
 
 typedef enum ScoopGcRootKind {
     SCOOP_GC_ROOT_SLOT,
@@ -25,12 +25,6 @@ static pthread_mutex_t roots_lock = PTHREAD_MUTEX_INITIALIZER;
 static ScoopGcRoot *roots;
 static size_t roots_len;
 static size_t roots_cap;
-
-static const ScoopManagedGlobalDescriptor *image_managed_globals;
-static uint64_t image_managed_global_count;
-static const ScoopImmortalObjectDescriptor *image_immortal_objects;
-static uint64_t image_immortal_object_count;
-static bool image_roots_registered;
 
 _Noreturn void scoop_gc_roots_fatal(const char *message) {
     fprintf(stderr, "scoop gc: %s\n", message);
@@ -62,88 +56,8 @@ static void root_push(ScoopGcRoot root) {
     roots[roots_len++] = root;
 }
 
-static bool ranges_overlap(uintptr_t left_start, uint64_t left_size,
-                           uintptr_t right_start, uint64_t right_size) {
-    if (left_size > UINTPTR_MAX - left_start ||
-        right_size > UINTPTR_MAX - right_start) {
-        scoop_gc_roots_fatal("immortal object range overflows uintptr_t");
-    }
-    uintptr_t left_end = left_start + (uintptr_t)left_size;
-    uintptr_t right_end = right_start + (uintptr_t)right_size;
-    return left_start < right_end && right_start < left_end;
-}
-
-void scoop_gc_register_image_roots(
-    const ScoopManagedGlobalDescriptor *managed_globals,
-    uint64_t managed_global_count,
-    const ScoopImmortalObjectDescriptor *immortal_objects,
-    uint64_t immortal_object_count) {
-    scoop_gc_roots_lock();
-    if (image_roots_registered) {
-        scoop_gc_roots_unlock();
-        scoop_gc_roots_fatal("image roots were registered more than once");
-    }
-    if (managed_globals == NULL || immortal_objects == NULL) {
-        scoop_gc_roots_unlock();
-        scoop_gc_roots_fatal("image root table symbol is null");
-    }
-    for (uint64_t index = 0; index < managed_global_count; index++) {
-        if (managed_globals[index].writable_base == NULL ||
-            managed_globals[index].scan == NULL) {
-            scoop_gc_roots_unlock();
-            scoop_gc_roots_fatal("managed global descriptor is incomplete");
-        }
-        for (uint64_t previous = 0; previous < index; previous++) {
-            if (managed_globals[index].writable_base ==
-                managed_globals[previous].writable_base) {
-                scoop_gc_roots_unlock();
-                scoop_gc_roots_fatal("managed global storage is registered twice");
-            }
-        }
-    }
-    for (uint64_t index = 0; index < immortal_object_count; index++) {
-        const ScoopImmortalObjectDescriptor *entry =
-            &immortal_objects[index];
-        if (entry->object_start == NULL || entry->td == NULL ||
-            entry->object_size < sizeof(ScoopObjectHeader) ||
-            entry->object_size < entry->td->size) {
-            scoop_gc_roots_unlock();
-            scoop_gc_roots_fatal("immortal object descriptor is incomplete");
-        }
-        const ScoopObjectHeader *header = entry->object_start;
-        if (header->td != entry->td) {
-            scoop_gc_roots_unlock();
-            scoop_gc_roots_fatal("immortal object TypeDescriptor does not match header");
-        }
-        if (entry->td->ref_offsets != NULL) {
-            scoop_gc_roots_unlock();
-            scoop_gc_roots_fatal("read-only immortal object contains managed references");
-        }
-        for (uint64_t previous = 0; previous < index; previous++) {
-            if (ranges_overlap(
-                    (uintptr_t)entry->object_start, entry->object_size,
-                    (uintptr_t)immortal_objects[previous].object_start,
-                    immortal_objects[previous].object_size)) {
-                scoop_gc_roots_unlock();
-                scoop_gc_roots_fatal("immortal object ranges overlap");
-            }
-        }
-    }
-    image_managed_globals = managed_globals;
-    image_managed_global_count = managed_global_count;
-    image_immortal_objects = immortal_objects;
-    image_immortal_object_count = immortal_object_count;
-    image_roots_registered = true;
-    scoop_gc_roots_unlock();
-}
-
 bool scoop_gc_is_immortal_object_locked(const void *object) {
-    for (uint64_t index = 0; index < image_immortal_object_count; index++) {
-        if (image_immortal_objects[index].object_start == object) {
-            return true;
-        }
-    }
-    return false;
+    return scoop_image_immortal(scoop_image_current(), object) != NULL;
 }
 
 bool scoop_gc_is_external_object_locked(const void *object) {
@@ -214,12 +128,10 @@ void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor) {
         visitor.visit_region == NULL) {
         scoop_gc_roots_fatal("collector supplied an incomplete root visitor");
     }
-    if (!image_roots_registered) {
-        scoop_gc_roots_fatal("collector ran before image roots were registered");
-    }
-    for (uint64_t index = 0; index < image_managed_global_count; index++) {
-        visitor.visit_region(image_managed_globals[index].writable_base,
-                             image_managed_globals[index].scan,
+    const ScoopImageRegistry *registry = scoop_image_current();
+    for (size_t index = 0; index < registry->static_root_count; index++) {
+        const ScoopStaticStorageDescriptorV1 *storage = registry->static_roots[index];
+        visitor.visit_region(storage->writable_base, storage->scan_program,
                              visitor.context);
     }
     for (size_t index = 0; index < roots_len; index++) {
@@ -228,8 +140,8 @@ void scoop_gc_visit_roots_locked(ScoopGcRootVisitor visitor) {
             visitor.visit_slot(roots[index].source.slot, visitor.context);
             break;
         case SCOOP_GC_ROOT_EXTERNAL_OBJECT:
-            visitor.visit_external_object(
-                roots[index].source.external_object, visitor.context);
+            visitor.visit_external_object(roots[index].source.external_object,
+                                          visitor.context);
             break;
         }
     }

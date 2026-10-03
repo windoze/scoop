@@ -1,0 +1,4 @@
+public class DefaultVariadic {
+    protected fun defaulted(seed: Int = 3, vararg values: Int = [seed, seed]): Int = 0
+    protected fun empty(vararg values: Int): Int = 0
+}

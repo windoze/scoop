@@ -6,6 +6,7 @@ use scoop_hir as hir;
 
 use crate::Lowerer;
 
+mod callbacks;
 mod classification;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,7 +122,7 @@ impl Lowerer {
                         self.globals[*id].span,
                         format!(
                             "extern data symbol `{symbol}` conflicts with global `{}`",
-                            self.globals[*previous].name
+                            self.properties[self.globals[*previous].property].name
                         ),
                     );
                 }
@@ -305,10 +306,8 @@ impl Lowerer {
             .filter_map(|(ty, value)| match value {
                 hir::Type::Struct(application) => {
                     let application = &self.struct_applications[*application];
-                    (self.structs[application.template]
-                        .attributes
-                        .c_layout
-                        .is_some()
+                    let id = self.source_struct_id(application.template)?;
+                    (self.structs[id].attributes.c_layout.is_some()
                         && !application.arguments.is_empty()
                         && !self.type_contains_param(ty))
                     .then_some((ty, application.template))
@@ -317,13 +316,13 @@ impl Lowerer {
             })
             .collect();
         for (ty, id) in concrete_layouts {
-            self.current_file = self.struct_files[&id];
+            self.current_file = self.struct_files[&self.struct_id(id)];
             let mut visiting = HashSet::new();
             if let Err(error) =
                 self.classify_c_ffi_type(ty, &[], false, vec![self.type_name(ty)], &mut visiting)
             {
                 self.error(
-                    self.structs[id].span,
+                    self.structs[self.struct_id(id)].span,
                     format!(
                         "concrete `@CLayout` type is not C-FFI-safe: {}",
                         error.render()

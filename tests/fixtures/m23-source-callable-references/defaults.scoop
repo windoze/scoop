@@ -1,0 +1,19 @@
+package consumer.references
+
+import templates.references.*
+import templates.references.answer as templatesAnswer
+
+public fun <T> copy(value: T, transform: (T) -> T = ::identity): T = transform(value)
+public fun <A, B> first(value: A, other: B, copy: (A) -> A = ::identity): A = copy(value)
+public fun <T> copyOwner(owner: Box<T>, read: () -> T = owner::read): T = read()
+public fun answer(read: () -> Int = ::templatesAnswer): Int = read()
+
+public fun <T> exercise(value: T): Int {
+    val copied = copy<T>(value)
+    val values = (copied, copyOwner<T>(Box<T>(value)))
+    if (first<Int, T>(42, value) != 42) { return 1 }
+    val reordered = first<T, Int>(value, 42)
+    return answer()
+}
+
+public fun result(): Int = exercise<Int>(0)

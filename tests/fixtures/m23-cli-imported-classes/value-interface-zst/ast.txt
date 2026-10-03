@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.ChildReader
+  ImportExact Local dependency.classes.ZeroReader
+  public fun primary(): Counter
+    val first: ChildReader
+      Call ZeroReader
+    val second: Any
+      Call ZeroReader
+    if
+      Binary RefEq
+        Var first
+        Var second
+      return
+        Call Counter
+          IntLiteral 0
+    return
+      Call Counter
+        MethodCall child
+          Var first

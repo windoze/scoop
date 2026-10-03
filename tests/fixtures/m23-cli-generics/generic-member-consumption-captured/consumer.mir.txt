@@ -1,0 +1,60 @@
+Module
+  class Box<String> vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      assign $new.1
+        Type Box<String>
+        ClassAlloc Box<String>
+      call @fn3 direct
+        Type Box<String>
+        Local $new.1
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: Box<String>
+        Type Box<String>
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.2: Int = @fn1 direct
+        Type Box<String>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.2
+  fun captured @fn1(this: Box<String>, value: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun readValue @fn2($capture.0: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.0
+  fun init.Box.$c0 @fn3(this: Box<String>, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<String>
+        Local this
+        Type String
+        Local value
+      return
+  instance mi0 function=@fn1 <- captured
+  instance mi1 function=@fn2 <- readValue
+  str @str0 "owner"
+  output library

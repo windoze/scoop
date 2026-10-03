@@ -1,0 +1,1114 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class ReaderBox<Later> vtable=5 itables=1
+  class BaseReader<Later> vtable=5 itables=1
+  class ReaderBox<Int> vtable=5 itables=1
+  class BaseReader<Int> vtable=5 itables=1
+  class ReaderBox<Unit> vtable=5 itables=1
+  class BaseReader<Unit> vtable=5 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface MutableReader<Later>
+  interface MutableReader<Int>
+  interface MutableReader<Unit>
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn47 captures=0
+    bridge function_type1 -> @fn64 id=c7ca484eddc71c0bbb1b76703e8441038672f7e7e180110a543951d7ca5f0f97
+  closure cc1 $Closure$reference1 type=function_type2 invoke=@fn48 captures=0
+    bridge function_type1 -> @fn65 id=fc65b282825a7777bbd61d67429e4919a22ae47c428a4ecd9e9460eb0e7233f4
+  closure cc2 $Closure$reference2 type=function_type3 invoke=@fn49 captures=0
+    bridge function_type1 -> @fn66 id=e563eafcc6dccf088b24cbd0a58c85d12776de3485f282a98dd534c35aa34b9d
+  closure cc3 $Closure$reference3 type=function_type4 invoke=@fn50 captures=1
+    bridge function_type1 -> @fn67 id=ad1cbb1b36bd378b64be83c71ee30b08728ae81acad3fb7a2604563f20473ef0
+  closure cc4 $Closure$reference4 type=function_type5 invoke=@fn51 captures=1
+    bridge function_type6 -> @fn68 id=89f84c6941bd27eca13cb54599c852cd95ce5f1275bcf18ed65cea5d42f6be7f
+  closure cc5 $Closure$reference5 type=function_type7 invoke=@fn52 captures=1
+    bridge function_type1 -> @fn69 id=73e00d3af504780d7f79b3190010c0cf43ab13956bcf667f550f1897846096a7
+  closure cc6 $Closure$reference6 type=function_type8 invoke=@fn53 captures=1
+    bridge function_type6 -> @fn70 id=b6a530537918f2dd46114989ec8ba6157d76283dc223556ac39b964d91d16303
+  closure cc7 $Closure$reference7 type=function_type9 invoke=@fn54 captures=1
+    bridge function_type1 -> @fn71 id=1233667fbea016c0c877c855085f5bcd69c10a009e9d4a01ae801f574551f9fb
+  closure cc8 $Closure$reference8 type=function_type10 invoke=@fn55 captures=1
+    bridge function_type6 -> @fn72 id=aa13a66ba3b06ee79c2804bbe5bc5c3b255b8542c5a17571758d5e6c8d5abdfa
+  generated_exact_type get0 location=enum2 nominal_id=28a62ec28cc392e5f3329d6b0f8fd0e7d452c8ca63fe51b66d6c19cca54a0eb5 exact_id=0ad45305ceed30c3525c1873665ba0d34fcdcd46c3df14ac9aae2cae8f45a44b
+  generated_exact_type get1 location=closure2 nominal_id=a298cb2a88a50f2342cfe5f56cb9235bffe62d88fb31cee5981aa7b6d48472ef exact_id=191600924cea1e2237fe3f3b552db7859e30737afb287bf3ce4c16452791f9c1
+  generated_exact_type get2 location=closure8 nominal_id=c9886b59ad4f5e40570dff19a964ad5c34d0b51de9b07701438d4a9b45ccf1d9 exact_id=2a29c329026383d8fbbcbf4a3e8abff65687fb04684cf9a72053201c8968c18a
+  generated_exact_type get3 location=class10 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get4 location=closure4 nominal_id=184eaaff1215f7e8085c695fbfb90a5ade7debaf4ba8419e69d8aefc79d8ed17 exact_id=612d5f2023c4b3f414249686adfb33e67bb6ccc45388a60d80a625447bed1d0e
+  generated_exact_type get5 location=closure5 nominal_id=0fef3bd7478a87841773bda4652d1209462366cded378f8e16c81a05738df34c exact_id=89cf9b7978e07ef8e88b8e0ff74edb7a74e258abbcdd3b84d1051895981eac51
+  generated_exact_type get6 location=closure6 nominal_id=d241ce77c3551477c0b52f60808eff0c670dcbbc6e965a717e0c4d41740a37db exact_id=a2df82c24e92adf21f07e90048752c33ec6adfe612bdba488e3f123d8776b2af
+  generated_exact_type get7 location=enum1 nominal_id=5e4773d3d3bdffb9fd1235a72877edc7856d992e038b1c9de3fcff6e9a0e66ea exact_id=ac1139f53abd3a82dac45e0837625934d09ceb8847f6cf96b061776f2ba0f6e7
+  generated_exact_type get8 location=closure0 nominal_id=ab1739dc86624048c8b71f170ce4751186a7fdc7da4d7e7027ee1f626c96bb93 exact_id=ad8492a4cc56877deb40ec8405b5d3e1bbb44e62d69f051971f4b112d03965a8
+  generated_exact_type get9 location=closure3 nominal_id=86dc0333e615435939023bdf3d5f5e84d6af5a95c3cccdd38cacb0567447bba3 exact_id=b84cfb7c669d08098b38e9a779591313a969c4577353c8d9279fdd9da047e8af
+  generated_exact_type get10 location=closure1 nominal_id=9cf39617cd053179c8be57bf90d3e0a9b12189bdf90576db48d24efbad1eea66 exact_id=dd2434b701e60917da2aafd348936fbb37db60618a83d86c3d044d430f08a6f6
+  generated_exact_type get11 location=class11 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get12 location=closure7 nominal_id=791c40eb237aa3fb1c824c25f6e0943002a49e7bdc21e7a50aa67f3e887aa5b9 exact_id=f9013aef83f0627fec53b6b4758f4abb7371ea5aa19b1fb952435627523d36f5
+  generated_callable gc0 function=@fn71 id=1233667fbea016c0c877c855085f5bcd69c10a009e9d4a01ae801f574551f9fb
+  generated_callable gc1 function=@fn63 id=53abf4722fcceabd3b777f1e045a288f35046609abd5f52073e014356d2eefa3
+  generated_callable gc2 function=@fn69 id=73e00d3af504780d7f79b3190010c0cf43ab13956bcf667f550f1897846096a7
+  generated_callable gc3 function=@fn68 id=89f84c6941bd27eca13cb54599c852cd95ce5f1275bcf18ed65cea5d42f6be7f
+  generated_callable gc4 function=@fn72 id=aa13a66ba3b06ee79c2804bbe5bc5c3b255b8542c5a17571758d5e6c8d5abdfa
+  generated_callable gc5 function=@fn67 id=ad1cbb1b36bd378b64be83c71ee30b08728ae81acad3fb7a2604563f20473ef0
+  generated_callable gc6 function=@fn70 id=b6a530537918f2dd46114989ec8ba6157d76283dc223556ac39b964d91d16303
+  generated_callable gc7 function=@fn64 id=c7ca484eddc71c0bbb1b76703e8441038672f7e7e180110a543951d7ca5f0f97
+  generated_callable gc8 function=@fn66 id=e563eafcc6dccf088b24cbd0a58c85d12776de3485f282a98dd534c35aa34b9d
+  generated_callable gc9 function=@fn65 id=fc65b282825a7777bbd61d67429e4919a22ae47c428a4ecd9e9460eb0e7233f4
+  fun readLater @fn0(value: Later) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+  fun readInt @fn1(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun readUnit @fn2(value: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun check @fn3() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn56 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.number
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.argument.1: (Later) -> Int
+        Type (Later) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Later
+        Local $dependency.parameter.value
+        Type (Later) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$reference1
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc2 $Closure$reference2
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn6 direct
+        Type Unit
+        Local $dependency.parameter.value
+        Type (Unit) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn56 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.number
+      val allocated: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      assign $result.0
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      goto bb9
+    bb8 if.else.8
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      goto bb9
+    bb9 if.merge.9
+      return
+        Type Int
+        Local $result.0
+  fun exercise @fn4(value: Later, read: (Later) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.5: Later
+        Type Later
+        Local value
+      val $dependency.local.6: Later
+        Type Later
+        Local $dependency.local.5
+      assign $new.1
+        Type ReaderBox<Later>
+        ClassAlloc ReaderBox<Later>
+      call @fn57 direct
+        Type ReaderBox<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.6
+      val $dependency.local.2: MutableReader<Later>
+        Type MutableReader<Later>
+        Retype MutableReader<Later>
+          Type ReaderBox<Later>
+          Local $new.1
+      val $dependency.local.3: (Later) -> Unit
+        Type (Later) -> Unit
+        ClosureAlloc cc3 $Closure$reference3
+          CaptureInit field=0
+            Type MutableReader<Later>
+            Local $dependency.local.2
+      call <closure:function_type4> closure[function_type4]
+        Type (Later) -> Unit
+        Local $dependency.local.3
+        Type Later
+        Local value
+      val $dependency.local.4: () -> Later
+        Type () -> Later
+        ClosureAlloc cc4 $Closure$reference4
+          CaptureInit field=0
+            Type MutableReader<Later>
+            Local $dependency.local.2
+      val $dependency.local.8: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      val $dependency.local.7: MutableReader<Later>
+        Type MutableReader<Later>
+        Local $dependency.local.2
+      call $call.2: Later = @fn12 interface MutableReader<Later>[2]
+        Type MutableReader<Later>
+        Local $dependency.local.7
+      call $dependency.local.9: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $dependency.local.8
+        Type Later
+        Local $call.2
+      call $call.3: Later = <closure:function_type5> closure[function_type5]
+        Type () -> Later
+        Local $dependency.local.4
+      call $dependency.local.10: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local read
+        Type Later
+        Local $call.3
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.10
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.9
+          Type Int
+          Local $dependency.local.11
+    bb1 if.then.1
+      call $call.4: Later = @fn18 interface MutableReader<Later>[3]
+        Type MutableReader<Later>
+        Local $dependency.local.2
+      call $call.5: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local read
+        Type Later
+        Local $call.4
+      assign $dependency.local.12
+        Type Int
+        Local $call.5
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.12
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $dependency.local.12
+  fun exercise @fn5(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.5: Int
+        Type Int
+        Local value
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      assign $new.1
+        Type ReaderBox<Int>
+        ClassAlloc ReaderBox<Int>
+      call @fn58 direct
+        Type ReaderBox<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.2: MutableReader<Int>
+        Type MutableReader<Int>
+        Retype MutableReader<Int>
+          Type ReaderBox<Int>
+          Local $new.1
+      val $dependency.local.3: (Int) -> Unit
+        Type (Int) -> Unit
+        ClosureAlloc cc5 $Closure$reference5
+          CaptureInit field=0
+            Type MutableReader<Int>
+            Local $dependency.local.2
+      call <closure:function_type7> closure[function_type7]
+        Type (Int) -> Unit
+        Local $dependency.local.3
+        Type Int
+        Local value
+      val $dependency.local.4: () -> Int
+        Type () -> Int
+        ClosureAlloc cc6 $Closure$reference6
+          CaptureInit field=0
+            Type MutableReader<Int>
+            Local $dependency.local.2
+      val $dependency.local.8: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.7: MutableReader<Int>
+        Type MutableReader<Int>
+        Local $dependency.local.2
+      call $call.2: Int = @fn24 interface MutableReader<Int>[2]
+        Type MutableReader<Int>
+        Local $dependency.local.7
+      call $dependency.local.9: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $dependency.local.8
+        Type Int
+        Local $call.2
+      call $call.3: Int = <closure:function_type8> closure[function_type8]
+        Type () -> Int
+        Local $dependency.local.4
+      call $dependency.local.10: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.3
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.10
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.9
+          Type Int
+          Local $dependency.local.11
+    bb1 if.then.1
+      call $call.4: Int = @fn30 interface MutableReader<Int>[3]
+        Type MutableReader<Int>
+        Local $dependency.local.2
+      call $call.5: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $call.4
+      assign $dependency.local.12
+        Type Int
+        Local $call.5
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.12
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $dependency.local.12
+  fun exercise @fn6(value: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.5: Unit
+        Type Unit
+        Local value
+      val $dependency.local.6: Unit
+        Type Unit
+        Local $dependency.local.5
+      assign $new.1
+        Type ReaderBox<Unit>
+        ClassAlloc ReaderBox<Unit>
+      call @fn59 direct
+        Type ReaderBox<Unit>
+        Local $new.1
+        Type Unit
+        Local $dependency.local.6
+      val $dependency.local.2: MutableReader<Unit>
+        Type MutableReader<Unit>
+        Retype MutableReader<Unit>
+          Type ReaderBox<Unit>
+          Local $new.1
+      val $dependency.local.3: (Unit) -> Unit
+        Type (Unit) -> Unit
+        ClosureAlloc cc7 $Closure$reference7
+          CaptureInit field=0
+            Type MutableReader<Unit>
+            Local $dependency.local.2
+      call <closure:function_type9> closure[function_type9]
+        Type (Unit) -> Unit
+        Local $dependency.local.3
+        Type Unit
+        Local value
+      val $dependency.local.4: () -> Unit
+        Type () -> Unit
+        ClosureAlloc cc8 $Closure$reference8
+          CaptureInit field=0
+            Type MutableReader<Unit>
+            Local $dependency.local.2
+      val $dependency.local.8: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.7: MutableReader<Unit>
+        Type MutableReader<Unit>
+        Local $dependency.local.2
+      call @fn36 interface MutableReader<Unit>[2]
+        Type MutableReader<Unit>
+        Local $dependency.local.7
+      call $dependency.local.9: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $dependency.local.8
+        Type Unit
+        UnitLiteral
+      call <closure:function_type10> closure[function_type10]
+        Type () -> Unit
+        Local $dependency.local.4
+      call $dependency.local.10: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        UnitLiteral
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.10
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.9
+          Type Int
+          Local $dependency.local.11
+    bb1 if.then.1
+      call @fn42 interface MutableReader<Unit>[3]
+        Type MutableReader<Unit>
+        Local $dependency.local.2
+      call $call.2: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        UnitLiteral
+      assign $dependency.local.12
+        Type Int
+        Local $call.2
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.local.12
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $dependency.local.12
+  fun BaseReader.stored @fn7(this: BaseReader<Later>) -> Later
+    bb0 entry
+      trap "call to abstract method `BaseReader.stored`"
+  fun read @fn8(this: BaseReader<Later>) -> Later
+    bb0 entry
+      val $dependency.local.1: BaseReader<Later>
+        Type BaseReader<Later>
+        Local this
+      call $call.1: Later = @fn7 virtual[0]
+        Type BaseReader<Later>
+        Local $dependency.local.1
+      return
+        Type Later
+        Local $call.1
+  fun replace @fn9(this: BaseReader<Later>, value: Later) -> Unit
+    bb0 entry
+      call @fn11 virtual[4]
+        Type BaseReader<Later>
+        Local this
+        Type Later
+        Local value
+      return
+  fun BaseReader.$get$value @fn10(this: BaseReader<Later>) -> Later
+    bb0 entry
+      trap "call to abstract method `BaseReader.$get$value`"
+  fun BaseReader.$set$value @fn11(this: BaseReader<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `BaseReader.$set$value`"
+  fun again @fn12(this: MutableReader<Later>) -> Later
+    bb0 entry
+      val $dependency.local.1: MutableReader<Later>
+        Type MutableReader<Later>
+        Local this
+      call $call.1: Later = @fn17 interface MutableReader<Later>[1]
+        Type MutableReader<Later>
+        Local $dependency.local.1
+      return
+        Type Later
+        Local $call.1
+  fun stored @fn13(this: ReaderBox<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type ReaderBox<Later>
+          Local this
+  fun value @fn14(this: ReaderBox<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type ReaderBox<Later>
+          Local this
+  fun value @fn15(this: ReaderBox<Later>, next: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReaderBox<Later>
+        Local this
+        Type Later
+        Local next
+      return
+  fun MutableReader.replace @fn16(this: MutableReader<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `MutableReader.replace`"
+  fun read @fn17(this: MutableReader<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn18 interface MutableReader<Later>[3]
+        Type MutableReader<Later>
+        Local this
+      return
+        Type Later
+        Local $call.1
+  fun MutableReader.$get$value @fn18(this: MutableReader<Later>) -> Later
+    bb0 entry
+      trap "call to abstract method `MutableReader.$get$value`"
+  fun BaseReader.stored @fn19(this: BaseReader<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `BaseReader.stored`"
+  fun read @fn20(this: BaseReader<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: BaseReader<Int>
+        Type BaseReader<Int>
+        Local this
+      call $call.1: Int = @fn19 virtual[0]
+        Type BaseReader<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun replace @fn21(this: BaseReader<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn23 virtual[4]
+        Type BaseReader<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun BaseReader.$get$value @fn22(this: BaseReader<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `BaseReader.$get$value`"
+  fun BaseReader.$set$value @fn23(this: BaseReader<Int>, value: Int) -> Unit
+    bb0 entry
+      trap "call to abstract method `BaseReader.$set$value`"
+  fun again @fn24(this: MutableReader<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: MutableReader<Int>
+        Type MutableReader<Int>
+        Local this
+      call $call.1: Int = @fn29 interface MutableReader<Int>[1]
+        Type MutableReader<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun stored @fn25(this: ReaderBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ReaderBox<Int>
+          Local this
+  fun value @fn26(this: ReaderBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ReaderBox<Int>
+          Local this
+  fun value @fn27(this: ReaderBox<Int>, next: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReaderBox<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun MutableReader.replace @fn28(this: MutableReader<Int>, value: Int) -> Unit
+    bb0 entry
+      trap "call to abstract method `MutableReader.replace`"
+  fun read @fn29(this: MutableReader<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn30 interface MutableReader<Int>[3]
+        Type MutableReader<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun MutableReader.$get$value @fn30(this: MutableReader<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `MutableReader.$get$value`"
+  fun BaseReader.stored @fn31(this: BaseReader<Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `BaseReader.stored`"
+  fun read @fn32(this: BaseReader<Unit>) -> Unit
+    bb0 entry
+      val $dependency.local.1: BaseReader<Unit>
+        Type BaseReader<Unit>
+        Local this
+      call @fn31 virtual[0]
+        Type BaseReader<Unit>
+        Local $dependency.local.1
+      return
+  fun replace @fn33(this: BaseReader<Unit>, value: Unit) -> Unit
+    bb0 entry
+      call @fn35 virtual[4]
+        Type BaseReader<Unit>
+        Local this
+        Type Unit
+        Local value
+      return
+  fun BaseReader.$get$value @fn34(this: BaseReader<Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `BaseReader.$get$value`"
+  fun BaseReader.$set$value @fn35(this: BaseReader<Unit>, value: Unit) -> Unit
+    bb0 entry
+      trap "call to abstract method `BaseReader.$set$value`"
+  fun again @fn36(this: MutableReader<Unit>) -> Unit
+    bb0 entry
+      val $dependency.local.1: MutableReader<Unit>
+        Type MutableReader<Unit>
+        Local this
+      call @fn41 interface MutableReader<Unit>[1]
+        Type MutableReader<Unit>
+        Local $dependency.local.1
+      return
+  fun stored @fn37(this: ReaderBox<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type ReaderBox<Unit>
+        Local this
+      return
+  fun value @fn38(this: ReaderBox<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type ReaderBox<Unit>
+        Local this
+      return
+  fun value @fn39(this: ReaderBox<Unit>, next: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type ReaderBox<Unit>
+        Local this
+        Type Unit
+        Local next
+      return
+  fun MutableReader.replace @fn40(this: MutableReader<Unit>, value: Unit) -> Unit
+    bb0 entry
+      trap "call to abstract method `MutableReader.replace`"
+  fun read @fn41(this: MutableReader<Unit>) -> Unit
+    bb0 entry
+      call @fn42 interface MutableReader<Unit>[3]
+        Type MutableReader<Unit>
+        Local this
+      return
+  fun MutableReader.$get$value @fn42(this: MutableReader<Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `MutableReader.$get$value`"
+  fun Continuation.resume @fn43(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn44(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn45(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn46(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn47($closure: (Later) -> Int, arg0: Later) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type Later
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn48($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.2 @fn49($closure: (Unit) -> Int, arg0: Unit) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type Unit
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun $reference.3 @fn50($closure: (Later) -> Unit, arg0: Later) -> Unit
+    bb0 entry
+      call @fn16 interface MutableReader<Later>[0]
+        Type MutableReader<Later>
+        ClosureCapture cc3 0
+          Type (Later) -> Unit
+          Local $closure
+        Type Later
+        Local arg0
+      return
+  fun $reference.4 @fn51($closure: () -> Later) -> Later
+    bb0 entry
+      call $call.1: Later = @fn17 interface MutableReader<Later>[1]
+        Type MutableReader<Later>
+        ClosureCapture cc4 0
+          Type () -> Later
+          Local $closure
+      return
+        Type Later
+        Local $call.1
+  fun $reference.5 @fn52($closure: (Int) -> Unit, arg0: Int) -> Unit
+    bb0 entry
+      call @fn28 interface MutableReader<Int>[0]
+        Type MutableReader<Int>
+        ClosureCapture cc5 0
+          Type (Int) -> Unit
+          Local $closure
+        Type Int
+        Local arg0
+      return
+  fun $reference.6 @fn53($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn29 interface MutableReader<Int>[1]
+        Type MutableReader<Int>
+        ClosureCapture cc6 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.7 @fn54($closure: (Unit) -> Unit, arg0: Unit) -> Unit
+    bb0 entry
+      call @fn40 interface MutableReader<Unit>[0]
+        Type MutableReader<Unit>
+        ClosureCapture cc7 0
+          Type (Unit) -> Unit
+          Local $closure
+        Type Unit
+        Local arg0
+      return
+  fun $reference.8 @fn55($closure: () -> Unit) -> Unit
+    bb0 entry
+      call @fn41 interface MutableReader<Unit>[1]
+        Type MutableReader<Unit>
+        ClosureCapture cc8 0
+          Type () -> Unit
+          Local $closure
+      return
+  fun init.Later.$c0 @fn56(this: Later, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local number
+      return
+  fun init.ReaderBox.$c0 @fn57(this: ReaderBox<Later>, item: Later) -> Unit
+    bb0 entry
+      call @fn60 direct
+        Type BaseReader<Later>
+        Retype BaseReader<Later>
+          Type ReaderBox<Later>
+          Local this
+      field_set 0
+        Type ReaderBox<Later>
+        Local this
+        Type Later
+        Local item
+      return
+  fun init.ReaderBox.$c0 @fn58(this: ReaderBox<Int>, item: Int) -> Unit
+    bb0 entry
+      call @fn61 direct
+        Type BaseReader<Int>
+        Retype BaseReader<Int>
+          Type ReaderBox<Int>
+          Local this
+      field_set 0
+        Type ReaderBox<Int>
+        Local this
+        Type Int
+        Local item
+      return
+  fun init.ReaderBox.$c0 @fn59(this: ReaderBox<Unit>, item: Unit) -> Unit
+    bb0 entry
+      call @fn62 direct
+        Type BaseReader<Unit>
+        Retype BaseReader<Unit>
+          Type ReaderBox<Unit>
+          Local this
+      field_set 0
+        Type ReaderBox<Unit>
+        Local this
+        Type Unit
+        Local item
+      return
+  fun init.BaseReader.$c1 @fn60(this: BaseReader<Later>) -> Unit
+    bb0 entry
+      return
+  fun init.BaseReader.$c1 @fn61(this: BaseReader<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.BaseReader.$c1 @fn62(this: BaseReader<Unit>) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<Later> @fn63(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn43 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn44 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn45 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn64($source: (Later) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn65($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference2.(Any) -> Any @fn66($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference3.(Any) -> Any @fn67($source: (Later) -> Unit, arg0: Any) -> Any
+    bb0 entry
+      call <closure:function_type4> closure[function_type4]
+        Type (Later) -> Unit
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$reference4.() -> Any @fn68($source: () -> Later) -> Any
+    bb0 entry
+      call $call.1: Later = <closure:function_type5> closure[function_type5]
+        Type () -> Later
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type Later
+          Local $call.1
+  fun function_bridge.$Closure$reference5.(Any) -> Any @fn69($source: (Int) -> Unit, arg0: Any) -> Any
+    bb0 entry
+      call <closure:function_type7> closure[function_type7]
+        Type (Int) -> Unit
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$reference6.() -> Any @fn70($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type8> closure[function_type8]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference7.(Any) -> Any @fn71($source: (Unit) -> Unit, arg0: Any) -> Any
+    bb0 entry
+      call <closure:function_type9> closure[function_type9]
+        Type (Unit) -> Unit
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$reference8.() -> Any @fn72($source: () -> Unit) -> Any
+    bb0 entry
+      call <closure:function_type10> closure[function_type10]
+        Type () -> Unit
+        Local $source
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn63
+  coroutine_fn cf0 @fn45 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn4 <- exercise
+  instance mi1 function=@fn5 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn7 <- BaseReader.stored
+  instance mi4 function=@fn8 <- read
+  instance mi5 function=@fn9 <- replace
+  instance mi6 function=@fn10 <- BaseReader.$get$value
+  instance mi7 function=@fn11 <- BaseReader.$set$value
+  instance mi8 function=@fn12 <- again
+  instance mi9 function=@fn13 <- stored
+  instance mi10 function=@fn14 <- value
+  instance mi11 function=@fn15 <- value
+  instance mi12 function=@fn16 <- MutableReader.replace
+  instance mi13 function=@fn17 <- read
+  instance mi14 function=@fn18 <- MutableReader.$get$value
+  instance mi15 function=@fn19 <- BaseReader.stored
+  instance mi16 function=@fn20 <- read
+  instance mi17 function=@fn21 <- replace
+  instance mi18 function=@fn22 <- BaseReader.$get$value
+  instance mi19 function=@fn23 <- BaseReader.$set$value
+  instance mi20 function=@fn24 <- again
+  instance mi21 function=@fn25 <- stored
+  instance mi22 function=@fn26 <- value
+  instance mi23 function=@fn27 <- value
+  instance mi24 function=@fn28 <- MutableReader.replace
+  instance mi25 function=@fn29 <- read
+  instance mi26 function=@fn30 <- MutableReader.$get$value
+  instance mi27 function=@fn31 <- BaseReader.stored
+  instance mi28 function=@fn32 <- read
+  instance mi29 function=@fn33 <- replace
+  instance mi30 function=@fn34 <- BaseReader.$get$value
+  instance mi31 function=@fn35 <- BaseReader.$set$value
+  instance mi32 function=@fn36 <- again
+  instance mi33 function=@fn37 <- stored
+  instance mi34 function=@fn38 <- value
+  instance mi35 function=@fn39 <- value
+  instance mi36 function=@fn40 <- MutableReader.replace
+  instance mi37 function=@fn41 <- read
+  instance mi38 function=@fn42 <- MutableReader.$get$value
+  instance mi39 function=@fn43 <- Continuation.resume
+  instance mi40 function=@fn44 <- Continuation.resumeWithException
+  instance mi41 function=@fn45 <- SuspendTask.run
+  instance mi42 function=@fn46 <- SuspendRegistration.register
+  output library

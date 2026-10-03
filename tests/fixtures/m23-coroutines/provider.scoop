@@ -1,0 +1,166 @@
+package templates.coroutines
+
+public suspend fun immediate(value: Long): Long = value
+public suspend fun <T> identity(value: T): T = value
+
+public class Completion<T> public constructor() : Continuation<T> {
+    public var value: T? = None
+    public var failure: Throwable? = None
+    public var calls: Int = 0
+    public override fun resume(value: T) { this.calls += 1; this.value = Some(value) }
+    public override fun resumeWithException(exception: Throwable) { this.calls += 1; this.failure = Some(exception) }
+}
+
+public class Task<T> public constructor(public val value: T) : SuspendTask<T> {
+    public override suspend fun run(): T = identity(this.value)
+}
+
+public class Counter public constructor() {
+    public var value: Int = 0
+}
+
+public class Gate<T> public constructor() {
+    public var waiter: Continuation<T>? = None
+    public fun complete(value: T) {
+        val continuation = this.waiter!!
+        this.waiter = None
+        continuation.resume(value)
+    }
+    public fun fail(exception: Throwable) {
+        val continuation = this.waiter!!
+        this.waiter = None
+        continuation.resumeWithException(exception)
+    }
+}
+
+public class Registration<T> public constructor(public val gate: Gate<T>) : SuspendRegistration<T> {
+    public override fun register(continuation: Continuation<T>) {
+        this.gate.waiter = Some(continuation)
+    }
+}
+
+public suspend fun <T> await(gate: Gate<T>): T = suspendCoroutine(Registration(gate))
+public suspend fun awaitLong(gate: Gate<Long>): Long = await(gate)
+
+public class WaitingTask<T> public constructor(
+    public val gate: Gate<T>,
+    public val saved: T,
+    public val read: (T) -> Int,
+    public val counter: Counter
+) : SuspendTask<T> {
+    public override suspend fun run(): T {
+        val retained = this.saved
+        val value = await(this.gate)
+        this.counter.value = this.read(retained)
+        return value
+    }
+}
+
+public suspend fun <T> recover(gate: Gate<T>, fallback: T, counter: Counter): T {
+    try {
+        return await(gate)
+    } catch (exception: UnwrapException) {
+        return fallback
+    } finally {
+        counter.value += 1
+    }
+}
+
+public suspend fun <T> delayedFinally(gate: Gate<T>, cleanup: Gate<Unit>, counter: Counter): T {
+    try {
+        return await(gate)
+    } finally {
+        await(cleanup)
+        counter.value += 1
+    }
+}
+
+public class RecoveryTask<T> public constructor(
+    public val gate: Gate<T>, public val fallback: T, public val counter: Counter
+) : SuspendTask<T> {
+    public override suspend fun run(): T = recover(this.gate, this.fallback, this.counter)
+}
+
+public class FinallyTask<T> public constructor(
+    public val gate: Gate<T>, public val cleanup: Gate<Unit>, public val counter: Counter
+) : SuspendTask<T> {
+    public override suspend fun run(): T = delayedFinally(this.gate, this.cleanup, this.counter)
+}
+
+public struct ValueTask<T>(val value: T) : SuspendTask<T> {
+    public override suspend fun run(): T = identity(this.value)
+}
+
+public fun <T> valueTask(value: T): SuspendTask<T> = ValueTask(value)
+
+public open class BaseResult public constructor(public val value: Int)
+public class DerivedResult public constructor(value: Int) : BaseResult(value)
+
+public class DerivedTask public constructor() : SuspendTask<DerivedResult> {
+    public override suspend fun run(): DerivedResult = DerivedResult(42)
+}
+
+public class DeferredDerivedTask public constructor(public val gate: Gate<DerivedResult>) : SuspendTask<DerivedResult> {
+    public override suspend fun run(): DerivedResult = await(this.gate)
+}
+
+public fun <T> constant(value: T): suspend () -> T = suspend { identity(value) }
+
+public fun <T> deferred(gate: Gate<T>, saved: T, read: (T) -> Int, counter: Counter): suspend () -> T = suspend {
+    val result = await(gate)
+    counter.value = read(saved)
+    result
+}
+
+public suspend fun acceptAny(value: Any): Int = 42
+
+public fun widenedFunction(): suspend (Int) -> Any {
+    val exact: suspend (Any) -> Int = ::acceptAny
+    return exact
+}
+
+public fun erasedFunction(): Any {
+    val exact: suspend (Any) -> Int = ::acceptAny
+    return exact
+}
+
+public struct WaitingValueTask<T>(val gate: Gate<T>) : SuspendTask<T> {
+    public override suspend fun run(): T = await(this.gate)
+}
+
+public fun <T> waitingValueTask(gate: Gate<T>): SuspendTask<T> = WaitingValueTask(gate)
+
+public suspend fun <T> synchronous(value: T): T = suspendCoroutine() { continuation: Continuation<T> ->
+    continuation.resume(value)
+}
+
+public suspend fun <T> synchronousFailure(): T = suspendCoroutine() { continuation: Continuation<T> ->
+    continuation.resumeWithException(UnwrapException())
+}
+
+public suspend fun <T> registrationFailure(): T = suspendCoroutine() { continuation: Continuation<T> ->
+    throw UnwrapException()
+}
+
+public suspend fun <T> resumedThenThrows(value: T): T = suspendCoroutine() { continuation: Continuation<T> ->
+    continuation.resume(value)
+    throw UnwrapException()
+}
+
+public suspend fun <T> resumedTwice(value: T): T = suspendCoroutine() { continuation: Continuation<T> ->
+    continuation.resume(value)
+    continuation.resume(value)
+}
+
+public fun <T> recoveringFunction(
+    gate: Gate<T>, cleanup: Gate<Unit>, fallback: T, counter: Counter
+): suspend () -> T = suspend {
+    try {
+        await(gate)
+    } catch (exception: UnwrapException) {
+        fallback
+    } finally {
+        await(cleanup)
+        counter.value += 1
+    }
+}

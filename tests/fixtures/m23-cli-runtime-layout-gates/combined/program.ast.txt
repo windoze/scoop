@@ -1,0 +1,43 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        Call combined
+          IntLiteral 17
+          IntLiteral 25
+        IntLiteral 42
+    Call verifyType
+      Binary Eq
+        Call withDefault
+          StringLiteral "unused"
+          IntLiteral 9
+        IntLiteral 9
+    Call verifyType
+      Binary Eq
+        Call dormant<Int>
+          IntLiteral 23
+        IntLiteral 23
+    Call verifyType
+      Binary Eq
+        Cast String optional=false
+          Call upcast
+            StringLiteral "text"
+        StringLiteral "text"
+    var failed
+      BoolLiteral false
+    try
+      Call combined
+        IntLiteral 1
+        StringLiteral "bad"
+    catch error: ClassCastException
+      assign failed
+        BoolLiteral true
+    Call verifyType
+      Var failed

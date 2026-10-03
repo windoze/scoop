@@ -1,0 +1,25 @@
+SourceFile
+  RootPackage
+  fun main()
+    val t
+      TupleLiteral
+        IntLiteral 1
+        StringLiteral "hello"
+        BoolLiteral true
+    Call println
+      FieldAccess _1
+        Var t
+    Call println
+      FieldAccess _2
+        Var t
+    Call println
+      FieldAccess _3
+        Var t
+    val u
+      UnitLiteral
+    val s
+      TupleLiteral
+        IntLiteral 42
+    Call println
+      FieldAccess _1
+        Var s

@@ -1,0 +1,36 @@
+Module
+  fun withDefault @fn0(value: Any, result: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local result
+  fun supplied @fn1(value: Any) -> Int
+    bb0 entry
+      val $argument.0: Any
+        Type Any
+        Local value
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      val $parameter.result: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Int = @fn0 direct
+        Type Any
+        Local $parameter.value
+        Type Int
+        Local $parameter.result
+      return
+        Type Int
+        Local $call.1
+  fun upcast @fn2(value: String) -> Any
+    bb0 entry
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local value
+  output library

@@ -1,4 +1,6 @@
 use super::*;
+
+mod type_uses;
 use crate::{ArrayAccessKind, PrimitiveBinaryKind, PrimitiveUnaryKind};
 
 #[derive(Debug, Clone)]
@@ -10,10 +12,7 @@ pub struct Statement {
 #[derive(Debug, Clone)]
 pub enum StatementKind {
     Expr(Expr),
-    InitializationEnsure {
-        unit: InitializationUnitId,
-        cycle_exception: MessageClassConstructor,
-    },
+    InitializationEnsure(InitializationUnitId),
     LocalFunction(LocalFunctionId),
     Return {
         /// Absent in `Unit` functions (bare `return`). If substitution makes
@@ -157,13 +156,8 @@ pub enum Pattern {
 /// function by MIR lowering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiteralPatternEquality {
-    Integer {
-        kind: IntegerKind,
-        target: NoGcCallableRef,
-    },
-    Ordinary {
-        equals: Callable,
-    },
+    Integer { kind: IntegerKind },
+    Ordinary { equals: CallableTarget },
 }
 
 #[derive(Debug, Clone)]
@@ -176,7 +170,10 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
-    StringLiteral(String),
+    StringLiteral {
+        value: String,
+        owner: StringConstantOwner<scoop_identity::PropertyOwner>,
+    },
     IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
     UnitLiteral,
@@ -199,7 +196,7 @@ pub enum ExprKind {
     },
     ClassInitializerCall {
         receiver: Box<Expr>,
-        initializer: ClassConstructorId,
+        initializer: ClassInitializerTarget,
         args: Vec<Expr>,
     },
     /// Ordinary, fully initialized receiver value inside a checked concrete
@@ -220,7 +217,7 @@ pub enum ExprKind {
     },
     Local(LocalId),
     GlobalRead(GlobalId),
-    SingletonValue(SingletonValueId),
+    SingletonValue(SingletonValueTarget),
     Capture(BindingId),
     Lambda(LambdaId),
     AnonymousFunction(AnonymousFunctionId),
@@ -250,7 +247,7 @@ pub enum ExprKind {
     AddressOf(Place),
     SizeOf(TypeId),
     AlignOf(TypeId),
-    FunctionAddress(FunctionId),
+    FunctionAddress(CallableTarget),
     ForeignCallbackRegister {
         registration: ForeignCallbackRegistrationId,
         closure: Box<Expr>,
@@ -275,12 +272,14 @@ pub enum ExprKind {
     },
     Box(Box<Expr>),
     Unbox(Box<Expr>),
+    ReferenceUpcast(Box<Expr>),
     IsInstance {
         operand: Box<Expr>,
         check_ty: TypeId,
     },
     Cast {
         operand: Box<Expr>,
+        check_ty: TypeId,
         optional: bool,
     },
     ArrayLiteral(Vec<Expr>),
@@ -299,14 +298,11 @@ pub enum ExprKind {
     ArrayLen(Box<Expr>),
     ArrayClone(Box<Expr>),
     Call {
-        callee: Callable,
+        callee: CallableTarget,
+        /// Original namespace binding, when this use selected an imported name.
+        binding: Option<std::sync::Arc<crate::DirectImportedTargetBinding>>,
         args: Vec<Expr>,
-    },
-    LocalFunctionCall {
-        local_function: LocalFunctionId,
-        callee: Callable,
-        captures: Vec<Expr>,
-        args: Vec<Expr>,
+        receiver: crate::SourceCallReceiver<TypeId>,
     },
     CallableCall {
         callee: Box<Expr>,

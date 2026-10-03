@@ -1,0 +1,10 @@
+public fun withDefault(value: Any, result: Int = value as Int): Int = result
+
+public fun combined(first: Any, second: Any): Int {
+    val left = withDefault(first)
+    val right = withDefault(second)
+    return left + right
+}
+
+public fun <T> dormant(value: Any, result: T = value as T): T = result
+public fun upcast(value: String): Any = value as Any

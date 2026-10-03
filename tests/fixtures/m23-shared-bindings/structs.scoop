@@ -1,0 +1,29 @@
+package consumer.bindings
+import upstream.bindings.*
+
+private struct LocalPair<T>(val left: T, val right: Int)
+private var subjects: Int = 0
+private fun marked(): IntPair {
+    subjects = subjects + 1
+    return IntPair(40, 2)
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val pair = Pair<T>(seed, 0)
+    val Pair(value, extra) = pair
+    val LocalPair(localValue, localExtra) = LocalPair<T>(seed, 0)
+    if (read(value) + extra != read(localValue) + localExtra) { return 1 }
+    return fromDefinition<T>(pair, read)
+}
+
+public fun result(): Int {
+    subjects = 0
+    var IntPair(left, right) = marked()
+    left = left + right
+    if (subjects != 1 || left != 42) { return 1 }
+    val Nested { empty: _, payload: (value, _), .. } = Nested<Int>((42, 9), 7, Unit)
+    val (_, .., ignored) = Nested<Int>((0, 0), 0, Unit)
+    val { right: extra, left: first } = Pair<Int>(40, 2)
+    if (first + extra != 42) { return 2 }
+    return exercise<Int>(value, { item -> item })
+}

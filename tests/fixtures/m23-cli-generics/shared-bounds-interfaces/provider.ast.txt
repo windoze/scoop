@@ -1,0 +1,34 @@
+SourceFile
+  QualifiedPackage upstream.sharedbounds
+  public interface Reader<T>
+    fun read
+  public interface LeftReader<T> : Reader<T>
+  public interface RightReader<T> : Reader<T>
+  public interface BothReader<T> : LeftReader<T>, RightReader<T>
+  public class Holder<T>(val value: T), BothReader<T>
+    public fun read
+  public open class Base<T>(val value: T)
+    public fun read
+  public class Child<T>(value: T) : Base<T>(<1 args>)
+  public fun readBound<T, R : BothReader<T>>(value: R): T
+    =
+      MethodCall read
+        Var value
+  public fun readClass<T, R : Base<T>>(value: R): T
+    =
+      MethodCall read
+        Var value
+  public fun choose<T, R : Reader<T>>(value: T, source: R): T
+    =
+      Var value
+  public fun delayed<T, R : Reader<T>>(source: R, read: (T) -> Int): Int
+    =
+      Call read
+        MethodCall read
+          Var source
+  public fun same<T>(first: Reader<T>, second: Reader<T>): Int
+    =
+      IntLiteral 42
+  public fun unfilled<R : Reader<Int>>(): Int
+    =
+      IntLiteral 42

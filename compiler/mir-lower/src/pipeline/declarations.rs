@@ -1,19 +1,40 @@
 use super::*;
 
 impl Lowerer {
+    pub(super) fn lower_failure_root_type(&mut self, module: &hir::Module) {
+        let any = module
+            .types
+            .iter()
+            .find_map(|(id, ty)| matches!(ty.kind, hir::TypeKind::Any).then_some(id))
+            .expect("the complete HIR graph contains the failure-root Any type");
+        Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        }
+        .lower(
+            any,
+            &mut self.source_exact_types,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
+    }
+
     pub(super) fn lower_initialization_units(&mut self, module: &hir::Module) {
         if module.initialization_units.is_empty() {
             assert!(module.initialization_failure_roots.is_empty());
             return;
         }
-        let throwable_ty =
-            mir::Type::Class(self.class_map[&module.exception_core.throwable.class()]);
-        for (source_id, _) in module.initialization_failure_roots.iter() {
+        for (source_id, source) in module.initialization_failure_roots.iter() {
             let raw = source_id.into_raw().into_u32();
             let global = self.globals.alloc(mir::Global {
                 name: format!("$init$failure${raw}"),
-                symbol: format!("scoop.init.failure.{raw}"),
-                ty: throwable_ty.clone(),
+                storage_owner: mir::StaticStorageOwner::InitializationFailureRoot(
+                    module.initialization_units[source.unit].identity.id(),
+                ),
+                ty: mir::Type::Any,
                 mutable: true,
                 storage: mir::GlobalStorage::Managed {
                     initial_state: mir::MirStaticInitialState::ZeroedForRuntimeUnit,
@@ -25,31 +46,42 @@ impl Lowerer {
             assert_eq!(source_id.into_raw(), id.into_raw());
         }
 
-        let cycle_source = module.exception_core.illegal_state_message_constructor;
-        let message_type = {
-            let types = Types {
-                module,
-                struct_map: &self.struct_map,
-                class_map: &self.class_map,
-            };
-            types.lower(
-                module.class_constructors[cycle_source.callable].parameters[0].ty,
-                &mut self.enums,
-                &mut self.structs,
-                &mut self.interfaces,
-                &mut self.shell,
-            )
-        };
-        let cycle_exception = mir::MessageClassConstructor {
-            class: self.class_map[&cycle_source.class],
-            initializer: self.ctors[&cycle_source.callable],
-            message_type,
-        };
         for (source_id, source) in module.initialization_units.iter() {
+            let cycle_thrower = match &source.cycle_thrower {
+                hir::InitializationCycleThrower::Local(function) => {
+                    mir::InitializationCycleThrower::Local(self.function_map[function])
+                }
+                hir::InitializationCycleThrower::Imported(protocol) => {
+                    let scoop_hir::ImportedCoreProtocolCallableDefinition::Function(definition) =
+                        protocol.definition()
+                    else {
+                        unreachable!("initialization cycle targets are typed source functions")
+                    };
+                    let target = scoop_identity::StrongCallableDefinitionOwner::Function(
+                        definition.persistent(),
+                    );
+                    let callable = self
+                        .external_callables
+                        .iter()
+                        .find_map(|(id, callable)| {
+                            (callable.reference().provider() == protocol.provider()
+                                && callable.reference().implementation() == target)
+                                .then_some(id)
+                        })
+                        .expect("the unit's actual dependency function has been selected");
+                    mir::InitializationCycleThrower::External(callable)
+                }
+            };
             let kind = match source.kind {
                 hir::InitializationUnitKind::EagerTopLevel { storage } => {
                     mir::InitializationUnitKind::EagerTopLevel {
                         storage: self.global_map[&storage],
+                    }
+                }
+                hir::InitializationUnitKind::GenericDelegatedExtension { specialization } => {
+                    mir::InitializationUnitKind::GenericDelegatedExtension {
+                        storage: self.global_map
+                            [&module.generic_delegate_specializations[specialization].storage],
                     }
                 }
                 hir::InitializationUnitKind::LazySingleton {
@@ -61,7 +93,8 @@ impl Lowerer {
                 },
             };
             let id = self.initialization_units.alloc(mir::InitializationUnit {
-                stable_key: source.stable_key.clone(),
+                identity: source.identity.clone(),
+                display_name: source.display_name.clone(),
                 schedule: match source.schedule {
                     hir::InitializationSchedule::EagerStartup => {
                         mir::InitializationSchedule::EagerStartup
@@ -83,7 +116,7 @@ impl Lowerer {
                         mir::InitializationUnitId::from_raw(dependency.unit.into_raw())
                     })
                     .collect(),
-                cycle_exception: cycle_exception.clone(),
+                cycle_thrower,
             });
             assert_eq!(source_id.into_raw(), id.into_raw());
         }
@@ -102,6 +135,7 @@ impl Lowerer {
                 .map(|&ty| {
                     types.lower(
                         ty,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -111,12 +145,14 @@ impl Lowerer {
                 .collect();
             let return_type = types.lower(
                 extern_.return_type,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
                 &mut self.shell,
             );
             let id = self.extern_functions.alloc(mir::ExternFunction {
+                source_contract: extern_.source_contract.clone(),
                 source_name: extern_.source_name.clone(),
                 native_symbol: extern_.native_symbol.clone(),
                 library: extern_.library.clone(),
@@ -154,6 +190,7 @@ impl Lowerer {
                 .map(|parameter| {
                     types.lower(
                         *parameter,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -163,6 +200,7 @@ impl Lowerer {
                 .collect();
             let return_type = types.lower(
                 source.return_type,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
@@ -186,11 +224,24 @@ impl Lowerer {
             };
             let ty = types.lower(
                 global.ty,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
                 &mut self.shell,
             );
+            let property_owner = match global.storage_owner {
+                hir::PropertyStorageOwner::Backing(owner)
+                | hir::PropertyStorageOwner::Delegate(owner) => owner,
+                hir::PropertyStorageOwner::GenericDelegate(specialization) => {
+                    let unit = &module.initialization_units
+                        [module.generic_delegate_specializations[specialization].initialization];
+                    let scoop_identity::InitializationUnitKey::GenericDelegatedExtensionApplication { property, .. } = unit.identity.key() else {
+                        unreachable!("generic delegate storage belongs to an application unit")
+                    };
+                    scoop_identity::PropertyOwner::ExtensionProperty(*property)
+                }
+            };
             let storage = match &global.storage {
                 hir::GlobalStorage::Managed { state } => mir::GlobalStorage::Managed {
                     initial_state: lower_managed_static_state(
@@ -199,6 +250,7 @@ impl Lowerer {
                         &self.structs.defs,
                         &self.enums,
                         &mut self.strings,
+                        property_owner,
                     ),
                 },
                 hir::GlobalStorage::Local {
@@ -206,27 +258,48 @@ impl Lowerer {
                     initializer,
                 } => mir::GlobalStorage::Local {
                     thread_local: *thread_local,
-                    initial_state: lower_encoded_static_state(
+                    initializer: lower_global_constant(
                         initializer,
                         &ty,
                         &self.structs.defs,
                         &self.enums,
                         &mut self.strings,
+                        property_owner,
+                        &mut 0,
                     ),
                 },
                 hir::GlobalStorage::Extern {
+                    source_contract,
                     library,
                     native_symbol,
                     thread_local,
                 } => mir::GlobalStorage::Extern {
+                    source_contract: source_contract.clone(),
                     library: library.clone(),
                     native_symbol: native_symbol.clone(),
                     thread_local: *thread_local,
                 },
             };
+            let storage_owner = match global.storage_owner {
+                hir::PropertyStorageOwner::Backing(owner) => {
+                    mir::StaticStorageOwner::PropertyBacking(owner)
+                }
+                hir::PropertyStorageOwner::Delegate(owner) => {
+                    mir::StaticStorageOwner::PropertyDelegate(owner)
+                }
+                hir::PropertyStorageOwner::GenericDelegate(specialization) => {
+                    mir::StaticStorageOwner::GenericDelegate(
+                        module.initialization_units[module.generic_delegate_specializations
+                            [specialization]
+                            .initialization]
+                            .identity
+                            .id(),
+                    )
+                }
+            };
             let id = self.globals.alloc(mir::Global {
                 name: global.name.clone(),
-                symbol: mir::mangle_global(&global.name),
+                storage_owner,
                 ty,
                 mutable: global.mutable,
                 storage,

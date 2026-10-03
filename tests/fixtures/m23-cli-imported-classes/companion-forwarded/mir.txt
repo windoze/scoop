@@ -1,0 +1,61 @@
+Module
+  global0 $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf: Factory imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=c868344859bc1efa30728982fed34d918e59ee308f6bf0ab326183f6e7114413
+  struct Token ()
+  class Factory vtable=0 itables=1
+  class Counter vtable=0 itables=0
+  interface Readable
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call external6 direct
+      val $dependency.receiver: Factory
+        Type Factory
+        GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
+      call $dependency.argument.0: Token = external2 direct
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.0
+      call first: Counter = external3 direct
+        Type Factory
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.marker
+      call external6 direct
+      call second: Counter = external4 direct
+        Type Factory
+        GlobalRead $singleton$3ca804d0bb794190ef49b0abd87f860ba6754a981affcd63098f759564570ebf
+      branch bb1 bb2
+        Type Boolean
+        Binary RefEq
+          Type Counter
+          Local first
+          Type Counter
+          Local second
+    bb1 if.then.1
+      assign $result.0
+        Type Counter
+        Local first
+      goto bb3
+    bb2 if.else.2
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external5 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      assign $result.0
+        Type Counter
+        Local $new.1
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Counter
+        Local $result.0
+  output library

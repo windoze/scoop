@@ -10,12 +10,21 @@ pub struct Property {
     pub access: DeclarationAccess,
     pub modifier: MethodModifier,
     pub is_override: bool,
-    pub overrides: Vec<PropertyId>,
-    pub override_access: Vec<PropertyOverrideAccessWitness>,
+    pub overrides: Vec<PropertyReference>,
     pub ty: TypeId,
     pub capability: PropertyCapability,
     pub representation: PropertyRepresentation,
     pub span: Span,
+}
+
+/// The actual property declaration overridden by a local property.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PropertyReference {
+    Local(PropertyId),
+    Imported {
+        owner: TypeId,
+        declaration: scoop_identity::PersistentPropertyId,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,6 +82,7 @@ pub enum PropertyRepresentation {
     Stored(StoredProperty),
     AccessorOnly,
     Delegated { storage: DelegateStorageId },
+    GenericDelegated { template: GenericDelegateTemplateId },
     Const { value: ConstPropertyValue },
     NativeStorage { storage: GlobalId },
 }
@@ -89,6 +99,27 @@ pub struct DelegateStorage {
     pub property: PropertyId,
     pub ty: TypeId,
     pub location: DelegateStorageLocation,
+}
+
+/// A receiver-parameterized delegate has no source-level physical global.
+#[derive(Debug, Clone)]
+pub struct GenericDelegateTemplate {
+    pub property: PropertyId,
+    pub ty: TypeId,
+    pub initialization: InitializationUnitId,
+}
+
+/// Complete symbolic arguments at one use of a delegate template.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GenericDelegateReference {
+    pub template: GenericDelegateTemplateSource,
+    pub arguments: NonEmptyVec<TypeId>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum GenericDelegateTemplateSource {
+    Defined(GenericDelegateTemplateId),
+    Imported(ImportedGenericDelegateTemplateId),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -30,10 +30,23 @@ impl Lowerer {
             return false;
         }
         visiting.push(current);
-        let reaches = self.interfaces[current].parents.iter().any(|parent| {
-            let parent = self.interface_applications[*parent].template;
-            parent == target || self.interface_reaches(parent, target, visiting)
-        });
+        let reaches =
+            self.interfaces[current]
+                .parents
+                .iter()
+                .any(|parent| match self.types[*parent] {
+                    Type::Interface(application) => {
+                        let parent = self.interface_applications[application].template;
+                        parent
+                            == self
+                                .nominal_identity(crate::Owner::Interface(target))
+                                .declaration_id()
+                            || self.source_interface_id(parent).is_some_and(|parent| {
+                                self.interface_reaches(parent, target, visiting)
+                            })
+                    }
+                    _ => unreachable!("resolved interface parents are interface types"),
+                });
         visiting.pop();
         reaches
     }
@@ -42,10 +55,11 @@ impl Lowerer {
 
     pub(crate) fn direct_base_class(&self, class: ClassId) -> Option<ClassId> {
         let base = self.classes[class].base_class.as_ref()?;
-        let Type::Class(application) = self.types[*base] else {
-            unreachable!("resolved class bases are class applications")
+        let application = match self.types[*base] {
+            Type::Class(application) => application,
+            _ => unreachable!("resolved class bases have class types"),
         };
-        Some(self.class_applications[application].template)
+        self.source_class_id(self.class_applications[application].template)
     }
 
     /// Every interface implemented by class `c` or its base classes,
@@ -62,71 +76,31 @@ impl Lowerer {
         let mut seen = vec![current];
         loop {
             let application = self.class_applications[current].clone();
-            let Some(base) = self.classes[application.template].base_class else {
+            let Some(base) = self.classes[self.class_id(application.template)].base_class else {
                 break;
             };
             let base = self.instantiate_ty(base, &application.arguments);
-            let Type::Class(base_application) = self.types[base] else {
-                unreachable!("class bases are resolved class applications")
+            let base_application = match self.types[base] {
+                Type::Class(application) => application,
+                _ => unreachable!("resolved class bases have class types"),
             };
             if seen.contains(&base_application) {
                 break;
             }
             seen.push(base_application);
             let base = self.class_applications[base_application].clone();
-            result.extend(
-                self.classes[base.template]
-                    .methods
-                    .iter()
-                    .copied()
-                    .map(|function| {
-                        crate::CallableCandidate::inheritance_method(
-                            function,
-                            hir::MethodOwnerApplication::Class(base_application),
-                        )
-                    }),
-            );
+            let Some(class) = self.source_class_id(base.template) else {
+                break;
+            };
+            result.extend(self.classes[class].methods.iter().copied().map(|function| {
+                crate::CallableCandidate::method(
+                    function,
+                    hir::MethodOwnerApplication::Class(base_application),
+                )
+            }));
             current = base_application;
         }
         result
-    }
-
-    /// Field lookup on a complete class application. The declaration/layout
-    /// identity remains the declaring `ClassId`, while the returned field type
-    /// is fully substituted through every generic base application.
-    pub(crate) fn find_class_application_field(
-        &mut self,
-        application: hir::ClassApplicationId,
-        name: &str,
-    ) -> Option<(hir::ClassApplicationId, hir::ClassFieldId, TypeId, bool)> {
-        let application_value = self.class_applications[application].clone();
-        let class = application_value.template;
-        if let Some(&property_id) = self.classes[class]
-            .properties
-            .iter()
-            .find(|property| self.properties[**property].name == name)
-        {
-            let property = self.properties[property_id].clone();
-            let hir::PropertyRepresentation::Stored(stored) = property.representation else {
-                return None;
-            };
-            let hir::PropertyBacking::ClassField {
-                field: field_id, ..
-            } = stored.backing
-            else {
-                return None;
-            };
-            let field_ty = property.ty;
-            let ty = self.instantiate_ty(field_ty, &application_value.arguments);
-            let mutable = property.capability.setter().is_some();
-            return Some((application, field_id, ty, mutable));
-        }
-        let base = self.classes[class].base_class?;
-        let base = self.instantiate_ty(base, &application_value.arguments);
-        let Type::Class(base_application) = self.types[base] else {
-            unreachable!("resolved class bases are class applications")
-        };
-        self.find_class_application_field(base_application, name)
     }
 
     pub(crate) fn find_accessible_class_application_property(
@@ -142,15 +116,12 @@ impl Lowerer {
             }
             seen.push(application);
             let application_value = self.class_applications[application].clone();
-            let class = application_value.template;
+            let class = self.source_class_id(application_value.template)?;
             if let Some(&property) = self.classes[class]
                 .properties
                 .iter()
                 .find(|property| self.properties[**property].name == name)
-                && self.access_domain_allows(
-                    &self.properties[property].access.lookup.0,
-                    Some(receiver_ty),
-                )
+                && self.property_is_accessible(property, Some(receiver_ty))
             {
                 let ty =
                     self.instantiate_ty(self.properties[property].ty, &application_value.arguments);
@@ -158,8 +129,9 @@ impl Lowerer {
             }
             let base = self.classes[class].base_class?;
             let base = self.instantiate_ty(base, &application_value.arguments);
-            let Type::Class(base_application) = self.types[base] else {
-                unreachable!("class bases are resolved class applications")
+            let base_application = match self.types[base] {
+                Type::Class(application) => application,
+                _ => unreachable!("resolved class bases have class types"),
             };
             application = base_application;
         }

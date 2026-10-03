@@ -1,0 +1,19 @@
+package consumer.arrays
+
+import upstream.arrays.*
+import upstream.arrays.exercise as providerExercise
+
+private fun readInt(value: Int): Int = value
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val implicit = pack(20, 22)
+    val defaulted = defaultPack(42)
+    return if (implicit.size == 2L && first(defaulted) == 42 &&
+        first(implicit) + first(implicit, 1L) == 42) {
+        exercise<Int>(42, ::readInt)
+    } else {
+        0
+    }
+}

@@ -1,0 +1,1068 @@
+Module
+  struct Local (value: Int, unit: Unit)
+  struct Scalar<Local> (value: Local)
+  struct Scalar<Scalar<Local>> (value: Scalar<Local>)
+  struct Managed (text: String)
+  struct Phantom<Managed> ()
+  struct Scalar<Unit> (value: Unit)
+  struct Scalar<Scalar<Unit>> (value: Scalar<Unit>)
+  struct Scalar<Int> (value: Int)
+  struct Scalar<Scalar<Int>> (value: Scalar<Int>)
+  struct Scalar<Phantom<Managed>> (value: Phantom<Managed>)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum State<Local>
+    Unset()
+    Set(_1: Scalar<Local>)
+  enum Option<Scalar<Local>>
+    Some(_0: Scalar<Local>)
+    None()
+  enum State<Unit>
+    Unset()
+    Set(_1: Scalar<Unit>)
+  enum Option<Scalar<Unit>>
+    Some(_0: Scalar<Unit>)
+    None()
+  enum State<Int>
+    Unset()
+    Set(_1: Scalar<Int>)
+  enum Option<Scalar<Int>>
+    Some(_0: Scalar<Int>)
+    None()
+  enum CoroutineStep<Local>
+    Completed(value: Local)
+    Suspended()
+  enum CoroutineSlot<Local>
+    Empty()
+    Value(value: Local)
+  class Carrier<Scalar<Local>> vtable=0 itables=0
+  class Carrier<Scalar<Unit>> vtable=0 itables=0
+  class Carrier<Scalar<Int>> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Local> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  interface Continuation<Local>
+  interface SuspendTask<Local>
+  interface SuspendRegistration<Local>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn34 id=0a84c702bf6f08519e12b66c2bb9c49f9eb14e3d416e06236d3f80de745b85c6
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn35 id=a3d00b0a6d07d404e8c436166b03180127855b90e6c622dd816e842524258b37
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn36 id=234003afc606f57ae3e2e2d26513e047b555e2a20f8c13b987718f5b038a06b5
+  generated_exact_type get0 location=enum7 nominal_id=a7d37fe97ce9329c26b6b0245f0e309566a6cebbdf5f4d13d4a664eef833647b exact_id=17c19b23627a6cba83f5df0b308f547661f8f0ed26c2476d2b04efea5d09cfb9
+  generated_exact_type get1 location=class8 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=class6 nominal_id=cc0a92d2c7118cb97a01d4c868858138333ae24d780d6b647ccc12e3deedc21a exact_id=43c537cf8c59e582bb961a75e6a13ac007f7b43ee874cc95263e7f9354c902a6
+  generated_exact_type get3 location=closure1 nominal_id=0fbea3ce773d0c1cffb7c502f83946a29f5d34d4c68adf05209303ffd36fa608 exact_id=6368fe21d62589c60d3cbd188426b914f0b6fb6b10808b47f5bd2fa70e22feac
+  generated_exact_type get4 location=closure2 nominal_id=710ebe59596fad122b0c35f4288c45dec84530d8318d577c78f8034025af0141 exact_id=a150cfdc98a6525a4a2e6141def8d3ab676ff34dae24e565ee99cc0fa0acb9f3
+  generated_exact_type get5 location=enum8 nominal_id=129737a90613d0d6330a42fbe17de7605f4489602961f03c7bcf0bea57c5b701 exact_id=ad43d3ca677a54364f606b8ed3ba8ebbbc5d66ef3d99ef62bc4d65964c57be72
+  generated_exact_type get6 location=class7 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=closure0 nominal_id=6d3910953259c29d27fa1e697f4a1b9fc3a12b3206c9d90761d29cf66b2ef06b exact_id=fc00c98e9fe9668c07751517e4fc589f9b87ecfb268e5f29dddc9c3961eb06cc
+  generated_callable gc0 function=@fn34 id=0a84c702bf6f08519e12b66c2bb9c49f9eb14e3d416e06236d3f80de745b85c6
+  generated_callable gc1 function=@fn36 id=234003afc606f57ae3e2e2d26513e047b555e2a20f8c13b987718f5b038a06b5
+  generated_callable gc2 function=@fn35 id=a3d00b0a6d07d404e8c436166b03180127855b90e6c622dd816e842524258b37
+  generated_callable gc3 function=@fn33 id=b42c02d1e6db7144d8feb02bdc54080523b38273924b7279f6556f5d09354df4
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: Unit
+        Type Unit
+        UnitLiteral
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.unit: Unit
+        Type Unit
+        Local $argument.1
+      call $argument.0: Local = @fn24 direct
+        Type Int
+        Local $parameter.value
+        Type Unit
+        Local $parameter.unit
+      val $argument.1: (Local) -> Int
+        Type (Local) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.value: Local
+        Type Local
+        Local $argument.0
+      val $parameter.read: (Local) -> Int
+        Type (Local) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type Local
+        Local $parameter.value
+        Type (Local) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.value: Unit
+        Type Unit
+        Local $argument.0
+      val $parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Unit
+        Local $parameter.value
+        Type (Unit) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn6 direct
+        Type Int
+        Local $parameter.value
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn1($closure: (Local) -> Int, item: Local) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Local
+          Local item
+  fun exercise @fn2(value: Local, read: (Local) -> Int) -> Int
+    bb0 entry
+      val $argument.0: Local
+        Type Local
+        Local value
+      val $parameter.value: Local
+        Type Local
+        Local $argument.0
+      call $dependency.argument.0: Scalar<Local> = @fn7 direct
+        Type Local
+        Local $parameter.value
+      val $dependency.parameter.value: Scalar<Local>
+        Type Scalar<Local>
+        Local $dependency.argument.0
+      val $default.local.1: Scalar<Local>
+        Type Scalar<Local>
+        Local $dependency.parameter.value
+      val $default.local.2: Scalar<Local>
+        Type Scalar<Local>
+        Local $default.local.1
+      call $dependency.parameter.scalar: Scalar<Scalar<Local>> = @fn25 direct
+        Type Scalar<Local>
+        Local $default.local.2
+      call $dependency.argument.0: Scalar<Scalar<Local>> = @fn8 direct
+        Type Scalar<Local>
+        Local $dependency.parameter.value
+        Type Scalar<Scalar<Local>>
+        Local $dependency.parameter.scalar
+      val $dependency.parameter.scalar: Scalar<Scalar<Local>>
+        Type Scalar<Scalar<Local>>
+        Local $dependency.argument.0
+      assign $new.1
+        Type Carrier<Scalar<Local>>
+        ClassAlloc Carrier<Scalar<Local>>
+      call @fn21 direct
+        Type Carrier<Scalar<Local>>
+        Local $new.1
+        Type Scalar<Scalar<Local>>
+        Local $dependency.parameter.scalar
+      val record: Carrier<Scalar<Local>>
+        Type Carrier<Scalar<Local>>
+        Local $new.1
+      call $call.2: Scalar<Scalar<Local>> = @fn9 direct
+        Type Carrier<Scalar<Local>>
+        Local record
+      val copied: Scalar<Local>
+        Type Scalar<Local>
+        FieldAccess 0
+          Type Scalar<Scalar<Local>>
+          Local $call.2
+      val $argument.0: Scalar<Local>
+        Type Scalar<Local>
+        Local copied
+      val $parameter._1: Scalar<Local>
+        Type Scalar<Local>
+        Local $argument.0
+      val state: State<Local>
+        Type State<Local>
+        VariantConstruct State<Local> v1
+          Type Scalar<Local>
+          Local $parameter._1
+      val $when.1: State<Local>
+        Type State<Local>
+        Local state
+      val $pattern.subject.2: State<Local>
+        Type State<Local>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest State<Local> v0
+          Type State<Local>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Option<Scalar<Local>>
+        VariantConstruct Option<Scalar<Local>> v1
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: State<Local>
+        Type State<Local>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest State<Local> v1
+          Type State<Local>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val selected: Option<Scalar<Local>>
+        Type Option<Scalar<Local>>
+        Local $result.0
+      call phantom: Phantom<Managed> = @fn26 direct
+      val $dependency.argument.0: Phantom<Managed>
+        Type Phantom<Managed>
+        Local phantom
+      val $dependency.parameter.value: Phantom<Managed>
+        Type Phantom<Managed>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn10 direct
+        Type Phantom<Managed>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb4 pattern.pass.4
+      val item: Scalar<Local>
+        Type Scalar<Local>
+        VariantPayloadProject State<Local> v1 f0
+          Type State<Local>
+          Local $pattern.subject.3
+      val $dependency.argument.0: Scalar<Local>
+        Type Scalar<Local>
+        Local item
+      val $dependency.parameter._1: Scalar<Local>
+        Type Scalar<Local>
+        Local $dependency.argument.0
+      assign $result.0
+        Type Option<Scalar<Local>>
+        VariantConstruct Option<Scalar<Local>> v0
+          Type Scalar<Local>
+          Local $dependency.parameter._1
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      val $when.4: Option<Scalar<Local>>
+        Type Option<Scalar<Local>>
+        Local selected
+      val $pattern.subject.5: Option<Scalar<Local>>
+        Type Option<Scalar<Local>>
+        Local $when.4
+      branch bb9 bb10
+        Type Boolean
+        VariantTest Option<Scalar<Local>> v1
+          Type Option<Scalar<Local>>
+          Local $pattern.subject.5
+    bb9 pattern.pass.9
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb11
+    bb10 pattern.else.10
+      val $pattern.subject.6: Option<Scalar<Local>>
+        Type Option<Scalar<Local>>
+        Local $when.4
+      branch bb12 bb13
+        Type Boolean
+        VariantTest Option<Scalar<Local>> v0
+          Type Option<Scalar<Local>>
+          Local $pattern.subject.6
+    bb11 pattern.merge.11
+      return
+        Type Int
+        Local $result.1
+    bb12 pattern.pass.12
+      val item: Scalar<Local>
+        Type Scalar<Local>
+        VariantPayloadProject Option<Scalar<Local>> v0 f0
+          Type Option<Scalar<Local>>
+          Local $pattern.subject.6
+      call $call.3: Int = <closure:function_type0> closure[function_type0]
+        Type (Local) -> Int
+        Local read
+        Type Local
+        FieldAccess 0
+          Type Scalar<Local>
+          Local item
+      assign $result.1
+        Type Int
+        Local $call.3
+      goto bb14
+    bb13 pattern.else.13
+      unreachable
+    bb14 pattern.merge.14
+      goto bb11
+  fun $lambda.1 @fn3($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn4(value: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $argument.0: Unit
+        Type Unit
+        Local value
+      val $parameter.value: Unit
+        Type Unit
+        Local $argument.0
+      call $dependency.argument.0: Scalar<Unit> = @fn11 direct
+        Type Unit
+        Local $parameter.value
+      val $dependency.parameter.value: Scalar<Unit>
+        Type Scalar<Unit>
+        Local $dependency.argument.0
+      val $default.local.1: Scalar<Unit>
+        Type Scalar<Unit>
+        Local $dependency.parameter.value
+      val $default.local.2: Scalar<Unit>
+        Type Scalar<Unit>
+        Local $default.local.1
+      call $dependency.parameter.scalar: Scalar<Scalar<Unit>> = @fn27 direct
+        Type Scalar<Unit>
+        Local $default.local.2
+      call $dependency.argument.0: Scalar<Scalar<Unit>> = @fn12 direct
+        Type Scalar<Unit>
+        Local $dependency.parameter.value
+        Type Scalar<Scalar<Unit>>
+        Local $dependency.parameter.scalar
+      val $dependency.parameter.scalar: Scalar<Scalar<Unit>>
+        Type Scalar<Scalar<Unit>>
+        Local $dependency.argument.0
+      assign $new.1
+        Type Carrier<Scalar<Unit>>
+        ClassAlloc Carrier<Scalar<Unit>>
+      call @fn22 direct
+        Type Carrier<Scalar<Unit>>
+        Local $new.1
+        Type Scalar<Scalar<Unit>>
+        Local $dependency.parameter.scalar
+      val record: Carrier<Scalar<Unit>>
+        Type Carrier<Scalar<Unit>>
+        Local $new.1
+      call $call.2: Scalar<Scalar<Unit>> = @fn13 direct
+        Type Carrier<Scalar<Unit>>
+        Local record
+      val copied: Scalar<Unit>
+        Type Scalar<Unit>
+        FieldAccess 0
+          Type Scalar<Scalar<Unit>>
+          Local $call.2
+      val $argument.0: Scalar<Unit>
+        Type Scalar<Unit>
+        Local copied
+      val $parameter._1: Scalar<Unit>
+        Type Scalar<Unit>
+        Local $argument.0
+      val state: State<Unit>
+        Type State<Unit>
+        VariantConstruct State<Unit> v1
+          Type Scalar<Unit>
+          Local $parameter._1
+      val $when.1: State<Unit>
+        Type State<Unit>
+        Local state
+      val $pattern.subject.2: State<Unit>
+        Type State<Unit>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest State<Unit> v0
+          Type State<Unit>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Option<Scalar<Unit>>
+        VariantConstruct Option<Scalar<Unit>> v1
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: State<Unit>
+        Type State<Unit>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest State<Unit> v1
+          Type State<Unit>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val selected: Option<Scalar<Unit>>
+        Type Option<Scalar<Unit>>
+        Local $result.0
+      call phantom: Phantom<Managed> = @fn26 direct
+      val $dependency.argument.0: Phantom<Managed>
+        Type Phantom<Managed>
+        Local phantom
+      val $dependency.parameter.value: Phantom<Managed>
+        Type Phantom<Managed>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn10 direct
+        Type Phantom<Managed>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb4 pattern.pass.4
+      val item: Scalar<Unit>
+        Type Scalar<Unit>
+        VariantPayloadProject State<Unit> v1 f0
+          Type State<Unit>
+          Local $pattern.subject.3
+      val $dependency.argument.0: Scalar<Unit>
+        Type Scalar<Unit>
+        Local item
+      val $dependency.parameter._1: Scalar<Unit>
+        Type Scalar<Unit>
+        Local $dependency.argument.0
+      assign $result.0
+        Type Option<Scalar<Unit>>
+        VariantConstruct Option<Scalar<Unit>> v0
+          Type Scalar<Unit>
+          Local $dependency.parameter._1
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      val $when.4: Option<Scalar<Unit>>
+        Type Option<Scalar<Unit>>
+        Local selected
+      val $pattern.subject.5: Option<Scalar<Unit>>
+        Type Option<Scalar<Unit>>
+        Local $when.4
+      branch bb9 bb10
+        Type Boolean
+        VariantTest Option<Scalar<Unit>> v1
+          Type Option<Scalar<Unit>>
+          Local $pattern.subject.5
+    bb9 pattern.pass.9
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb11
+    bb10 pattern.else.10
+      val $pattern.subject.6: Option<Scalar<Unit>>
+        Type Option<Scalar<Unit>>
+        Local $when.4
+      branch bb12 bb13
+        Type Boolean
+        VariantTest Option<Scalar<Unit>> v0
+          Type Option<Scalar<Unit>>
+          Local $pattern.subject.6
+    bb11 pattern.merge.11
+      return
+        Type Int
+        Local $result.1
+    bb12 pattern.pass.12
+      val item: Scalar<Unit>
+        Type Scalar<Unit>
+        VariantPayloadProject Option<Scalar<Unit>> v0 f0
+          Type Option<Scalar<Unit>>
+          Local $pattern.subject.6
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        FieldAccess 0
+          Type Scalar<Unit>
+          Local item
+      assign $result.1
+        Type Int
+        Local $call.3
+      goto bb14
+    bb13 pattern.else.13
+      unreachable
+    bb14 pattern.merge.14
+      goto bb11
+  fun $lambda.2 @fn5($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn6(value: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Scalar<Int> = @fn14 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Scalar<Int>
+        Type Scalar<Int>
+        Local $dependency.argument.0
+      val $default.local.1: Scalar<Int>
+        Type Scalar<Int>
+        Local $dependency.parameter.value
+      val $default.local.2: Scalar<Int>
+        Type Scalar<Int>
+        Local $default.local.1
+      call $dependency.parameter.scalar: Scalar<Scalar<Int>> = @fn28 direct
+        Type Scalar<Int>
+        Local $default.local.2
+      call $dependency.argument.0: Scalar<Scalar<Int>> = @fn15 direct
+        Type Scalar<Int>
+        Local $dependency.parameter.value
+        Type Scalar<Scalar<Int>>
+        Local $dependency.parameter.scalar
+      val $dependency.parameter.scalar: Scalar<Scalar<Int>>
+        Type Scalar<Scalar<Int>>
+        Local $dependency.argument.0
+      assign $new.1
+        Type Carrier<Scalar<Int>>
+        ClassAlloc Carrier<Scalar<Int>>
+      call @fn23 direct
+        Type Carrier<Scalar<Int>>
+        Local $new.1
+        Type Scalar<Scalar<Int>>
+        Local $dependency.parameter.scalar
+      val record: Carrier<Scalar<Int>>
+        Type Carrier<Scalar<Int>>
+        Local $new.1
+      call $call.2: Scalar<Scalar<Int>> = @fn16 direct
+        Type Carrier<Scalar<Int>>
+        Local record
+      val copied: Scalar<Int>
+        Type Scalar<Int>
+        FieldAccess 0
+          Type Scalar<Scalar<Int>>
+          Local $call.2
+      val $argument.0: Scalar<Int>
+        Type Scalar<Int>
+        Local copied
+      val $parameter._1: Scalar<Int>
+        Type Scalar<Int>
+        Local $argument.0
+      val state: State<Int>
+        Type State<Int>
+        VariantConstruct State<Int> v1
+          Type Scalar<Int>
+          Local $parameter._1
+      val $when.1: State<Int>
+        Type State<Int>
+        Local state
+      val $pattern.subject.2: State<Int>
+        Type State<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest State<Int> v0
+          Type State<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Option<Scalar<Int>>
+        VariantConstruct Option<Scalar<Int>> v1
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: State<Int>
+        Type State<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest State<Int> v1
+          Type State<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val selected: Option<Scalar<Int>>
+        Type Option<Scalar<Int>>
+        Local $result.0
+      call phantom: Phantom<Managed> = @fn26 direct
+      val $dependency.argument.0: Phantom<Managed>
+        Type Phantom<Managed>
+        Local phantom
+      val $dependency.parameter.value: Phantom<Managed>
+        Type Phantom<Managed>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn10 direct
+        Type Phantom<Managed>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb4 pattern.pass.4
+      val item: Scalar<Int>
+        Type Scalar<Int>
+        VariantPayloadProject State<Int> v1 f0
+          Type State<Int>
+          Local $pattern.subject.3
+      val $dependency.argument.0: Scalar<Int>
+        Type Scalar<Int>
+        Local item
+      val $dependency.parameter._1: Scalar<Int>
+        Type Scalar<Int>
+        Local $dependency.argument.0
+      assign $result.0
+        Type Option<Scalar<Int>>
+        VariantConstruct Option<Scalar<Int>> v0
+          Type Scalar<Int>
+          Local $dependency.parameter._1
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      val $when.4: Option<Scalar<Int>>
+        Type Option<Scalar<Int>>
+        Local selected
+      val $pattern.subject.5: Option<Scalar<Int>>
+        Type Option<Scalar<Int>>
+        Local $when.4
+      branch bb9 bb10
+        Type Boolean
+        VariantTest Option<Scalar<Int>> v1
+          Type Option<Scalar<Int>>
+          Local $pattern.subject.5
+    bb9 pattern.pass.9
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb11
+    bb10 pattern.else.10
+      val $pattern.subject.6: Option<Scalar<Int>>
+        Type Option<Scalar<Int>>
+        Local $when.4
+      branch bb12 bb13
+        Type Boolean
+        VariantTest Option<Scalar<Int>> v0
+          Type Option<Scalar<Int>>
+          Local $pattern.subject.6
+    bb11 pattern.merge.11
+      return
+        Type Int
+        Local $result.1
+    bb12 pattern.pass.12
+      val item: Scalar<Int>
+        Type Scalar<Int>
+        VariantPayloadProject Option<Scalar<Int>> v0 f0
+          Type Option<Scalar<Int>>
+          Local $pattern.subject.6
+      call $call.3: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        FieldAccess 0
+          Type Scalar<Int>
+          Local item
+      assign $result.1
+        Type Int
+        Local $call.3
+      goto bb14
+    bb13 pattern.else.13
+      unreachable
+    bb14 pattern.merge.14
+      goto bb11
+  fun local @fn7(value: Local) -> Scalar<Local>
+    bb0 entry
+      val $dependency.argument.0: Local
+        Type Local
+        Local value
+      val $dependency.parameter.value: Local
+        Type Local
+        Local $dependency.argument.0
+      call $call.1: Scalar<Local> = @fn29 direct
+        Type Local
+        Local $dependency.parameter.value
+      return
+        Type Scalar<Local>
+        Local $call.1
+  fun pack @fn8(value: Scalar<Local>, scalar: Scalar<Scalar<Local>>) -> Scalar<Scalar<Local>>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Local>>
+        Local scalar
+  fun scalar @fn9(this: Carrier<Scalar<Local>>) -> Scalar<Scalar<Local>>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Local>>
+        FieldAccess 0
+          Type Carrier<Scalar<Local>>
+          Local this
+  fun hidden @fn10(value: Phantom<Managed>) -> Int
+    bb0 entry
+      val $dependency.local.2: Phantom<Managed>
+        Type Phantom<Managed>
+        Local value
+      val $dependency.local.3: Phantom<Managed>
+        Type Phantom<Managed>
+        Local $dependency.local.2
+      call $dependency.local.1: Scalar<Phantom<Managed>> = @fn30 direct
+        Type Phantom<Managed>
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun local @fn11(value: Unit) -> Scalar<Unit>
+    bb0 entry
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local value
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call $call.1: Scalar<Unit> = @fn31 direct
+        Type Unit
+        Local $dependency.parameter.value
+      return
+        Type Scalar<Unit>
+        Local $call.1
+  fun pack @fn12(value: Scalar<Unit>, scalar: Scalar<Scalar<Unit>>) -> Scalar<Scalar<Unit>>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Unit>>
+        Local scalar
+  fun scalar @fn13(this: Carrier<Scalar<Unit>>) -> Scalar<Scalar<Unit>>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Unit>>
+        FieldAccess 0
+          Type Carrier<Scalar<Unit>>
+          Local this
+  fun local @fn14(value: Int) -> Scalar<Int>
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Scalar<Int> = @fn32 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Scalar<Int>
+        Local $call.1
+  fun pack @fn15(value: Scalar<Int>, scalar: Scalar<Scalar<Int>>) -> Scalar<Scalar<Int>>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Int>>
+        Local scalar
+  fun scalar @fn16(this: Carrier<Scalar<Int>>) -> Scalar<Scalar<Int>>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Int>>
+        FieldAccess 0
+          Type Carrier<Scalar<Int>>
+          Local this
+  fun Continuation.resume @fn17(this: Continuation<Local>, value: Local) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Local>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Local>, $completion: Continuation<Local>) -> CoroutineStep<Local>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Local>, continuation: Continuation<Local>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Carrier.$c1 @fn21(this: Carrier<Scalar<Local>>, scalar: Scalar<Scalar<Local>>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Carrier<Scalar<Local>>
+        Local this
+        Type Scalar<Scalar<Local>>
+        Local scalar
+      return
+  fun init.Carrier.$c1 @fn22(this: Carrier<Scalar<Unit>>, scalar: Scalar<Scalar<Unit>>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Carrier<Scalar<Unit>>
+        Local this
+        Type Scalar<Scalar<Unit>>
+        Local scalar
+      return
+  fun init.Carrier.$c1 @fn23(this: Carrier<Scalar<Int>>, scalar: Scalar<Scalar<Int>>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Carrier<Scalar<Int>>
+        Local this
+        Type Scalar<Scalar<Int>>
+        Local scalar
+      return
+  fun ctor.Local.$c0 @fn24(value: Int, unit: Unit) -> Local <no-gc>
+    bb0 entry
+      return
+        Type Local
+        StructInit Local
+          Type Int
+          Local value
+          Type Unit
+          Local unit
+  fun ctor.Scalar.$c0 @fn25(value: Scalar<Local>) -> Scalar<Scalar<Local>> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Local>>
+        StructInit Scalar<Scalar<Local>>
+          Type Scalar<Local>
+          Local value
+  fun ctor.Phantom.$c2 @fn26() -> Phantom<Managed> <no-gc>
+    bb0 entry
+      return
+        Type Phantom<Managed>
+        StructInit Phantom<Managed>
+  fun ctor.Scalar.$c0 @fn27(value: Scalar<Unit>) -> Scalar<Scalar<Unit>> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Unit>>
+        StructInit Scalar<Scalar<Unit>>
+          Type Scalar<Unit>
+          Local value
+  fun ctor.Scalar.$c0 @fn28(value: Scalar<Int>) -> Scalar<Scalar<Int>> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Scalar<Int>>
+        StructInit Scalar<Scalar<Int>>
+          Type Scalar<Int>
+          Local value
+  fun ctor.Scalar.$c0 @fn29(value: Local) -> Scalar<Local> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Local>
+        StructInit Scalar<Local>
+          Type Local
+          Local value
+  fun ctor.Scalar.$c0 @fn30(value: Phantom<Managed>) -> Scalar<Phantom<Managed>> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Phantom<Managed>>
+        StructInit Scalar<Phantom<Managed>>
+          Type Phantom<Managed>
+          Local value
+  fun ctor.Scalar.$c0 @fn31(value: Unit) -> Scalar<Unit> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Unit>
+        StructInit Scalar<Unit>
+          Type Unit
+          Local value
+  fun ctor.Scalar.$c0 @fn32(value: Int) -> Scalar<Int> <no-gc>
+    bb0 entry
+      return
+        Type Scalar<Int>
+        StructInit Scalar<Int>
+          Type Int
+          Local value
+  fun startCoroutine<Local> @fn33(task: SuspendTask<Local>, completion: Continuation<Local>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn17 interface Continuation<Local>[0]
+        Type Continuation<Local>
+        Local completion
+        Type Local
+        EnumField v0 f0
+          Type CoroutineStep<Local>
+          Local $step
+      return
+    bb2 failed
+      call @fn18 interface Continuation<Local>[1]
+        Type Continuation<Local>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Local> = @fn19 interface SuspendTask<Local>[0]
+        Type SuspendTask<Local>
+        Local task
+        Type Continuation<Local>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Local>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn34($source: (Local) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Local) -> Int
+        Local $source
+        Type Local
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn35($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn36($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Local> result=Local
+  coroutine_slot cl0 CoroutineSlot<Local> value=Local
+  coroutine_start ct0 result=Local function=fn33
+  coroutine_fn cf0 @fn19 source_return=Local step=cs0 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn7 <- local
+  instance mi4 function=@fn8 <- pack
+  instance mi5 function=@fn9 <- scalar
+  instance mi6 function=@fn10 <- hidden
+  instance mi7 function=@fn11 <- local
+  instance mi8 function=@fn12 <- pack
+  instance mi9 function=@fn13 <- scalar
+  instance mi10 function=@fn14 <- local
+  instance mi11 function=@fn15 <- pack
+  instance mi12 function=@fn16 <- scalar
+  instance mi13 function=@fn17 <- Continuation.resume
+  instance mi14 function=@fn18 <- Continuation.resumeWithException
+  instance mi15 function=@fn19 <- SuspendTask.run
+  instance mi16 function=@fn20 <- SuspendRegistration.register
+  output library

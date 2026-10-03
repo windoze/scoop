@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Source` has no method `iterator`",
+    "notes": [],
+    "origin": {
+      "cone": "50cb9fbf114a4832b46ce575972e7465642dc46d626d40e222fb74cb9f4e9122",
+      "end": 159,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 151
+    },
+    "severity": "error"
+  }
+]

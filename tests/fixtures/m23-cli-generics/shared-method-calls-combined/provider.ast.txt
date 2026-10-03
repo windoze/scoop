@@ -1,0 +1,36 @@
+SourceFile
+  QualifiedPackage upstream.methods
+  public interface Reader<T>
+    fun read
+  public interface Label
+    fun label
+  public interface Numbered
+    fun number
+  public open class Box<T>(val value: T), Reader<T>, Label
+    public fun read
+    public fun choose
+  public class Leaf<T>(value: T) : Box<T>(<1 args>)
+    public fun onlyLeaf
+  public open class RemoteNumber()
+    public fun number
+  public struct Number : Numbered
+    field value: Int
+    public fun number
+  public fun boundRead<T, R : Reader<T>>(reader: R, chosen: T = <expr>): T
+    =
+      Var chosen
+  public fun reference<T, R : Reader<T>>(reader: R): () -> T
+    =
+      CallableReference 0 read
+        Var reader
+  public fun classRead<T, B : Box<T>>(box: B, chosen: T = <expr>): T
+    =
+      Var chosen
+  public fun label<R : Label>(value: R): Int
+    =
+      MethodCall label
+        Var value
+  public fun number<R : Numbered>(value: R): Int
+    =
+      MethodCall number
+        Var value

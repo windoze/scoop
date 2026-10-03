@@ -1,0 +1,3 @@
+private val answer: String = "global"
+@NoGC
+public fun <T> bad(): String = answer

@@ -1,0 +1,762 @@
+Module
+  struct Point (x: Int, y: Int)
+  struct RenderPair<Point> (first: Point, second: Point)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum RenderState<Point>
+    Value(_1: Point)
+    Empty()
+  enum CoroutineStep<Label>
+    Completed(value: Label)
+    Suspended()
+  enum CoroutineSlot<Label>
+    Empty()
+    Value(value: Label)
+  enum CoroutineStep<Point>
+    Completed(value: Point)
+    Suspended()
+  enum CoroutineSlot<Point>
+    Empty()
+    Value(value: Point)
+  class User vtable=0 itables=2
+  class RenderBox<Point> vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Point> vtable=0 itables=3
+  interface ToString
+  interface Hash
+  interface Label
+  interface Continuation<Point>
+  interface SuspendTask<Point>
+  interface SuspendRegistration<Point>
+  interface Continuation<Label>
+  interface SuspendTask<Label>
+  interface SuspendRegistration<Label>
+  generated_exact_type get0 location=enum4 nominal_id=ccac458f1167fa753072394c97ec264da000aaa86840136c77a9e04f70980f83 exact_id=01289d22dae9748bde2ad73b697df11cc3845128f52d08b8da0523f629da6cae
+  generated_exact_type get1 location=enum3 nominal_id=62d9c7e467a7568b1f70e6327fe60da7d30e934c2651552b21c62ec2aa1770c7 exact_id=115f3834a35e5bca81adc411e5def2ae8514d615db4e52490fe33780333415ca
+  generated_exact_type get2 location=enum2 nominal_id=410c0625bed689075aa05d20f6fb73d5107510a77066f077ec386d7a0d2b2e69 exact_id=962c23de47c2920d33a42843116719afb2c76951ae1369ceee8095f992e87427
+  generated_exact_type get3 location=enum5 nominal_id=58fdada013fcf18d269530cebf57be93f9f345cc299ec384986d62b11d712f4c exact_id=a0d2a9d499ae1f7970e62979fcebe6fa71a937ecbe4748a275c4a57449992946
+  generated_exact_type get4 location=class5 nominal_id=f3f91b4130a1ee3233f394c01e48e0d668ede5f7f3b647f8dbd7bb0c6d30c2ee exact_id=c9bccfaf04f63846264d81bab213b36668c75f122087aa26bce5d19d9e5140d6
+  generated_callable gc0 function=@fn33 id=463b7f5875bea0087b9f22351e91f9d69079bf012a0cc24c7f88e19ef6b7eb57
+  generated_callable gc1 function=@fn31 id=467a5707f94112724914fa53531e932274698d14d1d804d3b2fc32ab67b34492
+  generated_callable gc2 function=@fn32 id=9c3eacc6da778e5cdcbb647c0ce7ff05550d13da7c1852ec458744374c78ae6c
+  generated_callable gc3 function=@fn34 id=bf7496d894f6f7a072d520b5ec3e29d946670550b81855b04bbaf16ca33f2229
+  generated_callable gc4 function=@fn35 id=fc431d6518085342b546e79c8ca3e0c6b39f0171c432421a68a220fba0c3d95b
+  fun Point.toString @fn0(this: Point) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun Point.hash @fn1(this: Point) -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Point
+          Local this
+      return
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.receiver
+  fun Point.label @fn2(this: Point) -> String
+    bb0 entry
+      val $receiver: Point
+        Type Point
+        Local this
+      call $call.1: String = @fn0 direct
+        Type Point
+        Local $receiver
+      return
+        Type String
+        Local $call.1
+  fun User.toString @fn3(this: User) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str1
+  fun User.hash @fn4(this: User) -> Long
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type User
+          Local this
+      return
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.receiver
+  fun User.equals @fn5(this: User, other: User) -> Boolean
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type User
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type User
+          Local other
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun main @fn6() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call point: Point = @fn29 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $dependency.argument.0: Point
+        Type Point
+        Local point
+      val $dependency.parameter.value: Point
+        Type Point
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Point
+        Local $dependency.parameter.value
+      val $receiver: Point
+        Type Point
+        Local point
+      call $dependency.argument.0: Long = @fn1 direct
+        Type Point
+        Local $receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type User
+        ClassAlloc User
+      call @fn27 direct
+        Type User
+        Local $new.1
+        Type Int
+        Local $parameter.id
+      val first: User
+        Type User
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type User
+        ClassAlloc User
+      call @fn27 direct
+        Type User
+        Local $new.2
+        Type Int
+        Local $parameter.id
+      val second: User
+        Type User
+        Local $new.2
+      call $dependency.argument.0: Boolean = @fn5 direct
+        Type User
+        Local first
+        Type User
+        Local second
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Point
+        Type Point
+        Local point
+      val $parameter.value: Point
+        Type Point
+        Local $argument.0
+      assign $new.3
+        Type RenderBox<Point>
+        ClassAlloc RenderBox<Point>
+      call @fn28 direct
+        Type RenderBox<Point>
+        Local $new.3
+        Type Point
+        Local $parameter.value
+      val $dependency.argument.0: RenderBox<Point>
+        Type RenderBox<Point>
+        Local $new.3
+      val $dependency.parameter.value: RenderBox<Point>
+        Type RenderBox<Point>
+        Local $dependency.argument.0
+      call @fn13 direct
+        Type RenderBox<Point>
+        Local $dependency.parameter.value
+      val $argument.0: Point
+        Type Point
+        Local point
+      val $argument.1: Point
+        Type Point
+        Local point
+      val $parameter.first: Point
+        Type Point
+        Local $argument.0
+      val $parameter.second: Point
+        Type Point
+        Local $argument.1
+      call $dependency.argument.0: RenderPair<Point> = @fn30 direct
+        Type Point
+        Local $parameter.first
+        Type Point
+        Local $parameter.second
+      val $dependency.parameter.value: RenderPair<Point>
+        Type RenderPair<Point>
+        Local $dependency.argument.0
+      call @fn14 direct
+        Type RenderPair<Point>
+        Local $dependency.parameter.value
+      val $argument.0: Point
+        Type Point
+        Local point
+      val $parameter._1: Point
+        Type Point
+        Local $argument.0
+      val $dependency.argument.0: RenderState<Point>
+        Type RenderState<Point>
+        VariantConstruct RenderState<Point> v0
+          Type Point
+          Local $parameter._1
+      val $dependency.parameter.value: RenderState<Point>
+        Type RenderState<Point>
+        Local $dependency.argument.0
+      call @fn15 direct
+        Type RenderState<Point>
+        Local $dependency.parameter.value
+      val $argument.0: Point
+        Type Point
+        Local point
+      val $parameter.value: Point
+        Type Point
+        Local $argument.0
+      call $dependency.argument.0: String = @fn16 direct
+        Type Point
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun RenderBox.toString @fn7(this: RenderBox<Point>) -> String
+    bb0 entry
+      val $dependency.receiver: Point
+        Type Point
+        FieldAccess 0
+          Type RenderBox<Point>
+          Local this
+      call $call.1: String = @fn0 direct
+        Type Point
+        Local $dependency.receiver
+      return
+        Type String
+        Local $call.1
+  fun RenderPair.toString @fn8(this: RenderPair<Point>) -> String
+    bb0 entry
+      val $dependency.receiver: Point
+        Type Point
+        FieldAccess 0
+          Type RenderPair<Point>
+          Local this
+      call $dependency.receiver: String = @fn0 direct
+        Type Point
+        Local $dependency.receiver
+      val $dependency.receiver: Point
+        Type Point
+        FieldAccess 1
+          Type RenderPair<Point>
+          Local this
+      call $dependency.argument.0: String = @fn0 direct
+        Type Point
+        Local $dependency.receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun RenderState.toString @fn9(this: RenderState<Point>) -> String
+    bb0 entry
+      val $when.1: RenderState<Point>
+        Type RenderState<Point>
+        Local this
+      val $pattern.subject.2: RenderState<Point>
+        Type RenderState<Point>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest RenderState<Point> v0
+          Type RenderState<Point>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val value: Point
+        Type Point
+        VariantPayloadProject RenderState<Point> v0 f0
+          Type RenderState<Point>
+          Local $pattern.subject.2
+      val $dependency.receiver: Point
+        Type Point
+        Local value
+      call $call.1: String = @fn0 direct
+        Type Point
+        Local $dependency.receiver
+      assign $result.0
+        Type String
+        Local $call.1
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: RenderState<Point>
+        Type RenderState<Point>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest RenderState<Point> v1
+          Type RenderState<Point>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type String
+        Local $result.0
+    bb4 pattern.pass.4
+      assign $result.0
+        Type String
+        StringConst @str2
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun println @fn10(value: Point) -> Unit
+    bb0 entry
+      val $dependency.local.1: Point
+        Type Point
+        Local value
+      call $dependency.local.2: String = @fn0 direct
+        Type Point
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn11(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn12(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn13(value: RenderBox<Point>) -> Unit
+    bb0 entry
+      val $dependency.local.1: RenderBox<Point>
+        Type RenderBox<Point>
+        Local value
+      call $dependency.local.2: String = @fn7 direct
+        Type RenderBox<Point>
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn14(value: RenderPair<Point>) -> Unit
+    bb0 entry
+      val $dependency.local.1: RenderPair<Point>
+        Type RenderPair<Point>
+        Local value
+      call $dependency.local.2: String = @fn8 direct
+        Type RenderPair<Point>
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn15(value: RenderState<Point>) -> Unit
+    bb0 entry
+      val $dependency.local.1: RenderState<Point>
+        Type RenderState<Point>
+        Local value
+      call $dependency.local.2: String = @fn9 direct
+        Type RenderState<Point>
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str8
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun render @fn16(value: Point) -> String
+    bb0 entry
+      val $dependency.receiver: Point
+        Type Point
+        Local value
+      call $call.1: String = @fn0 direct
+        Type Point
+        Local $dependency.receiver
+      return
+        Type String
+        Local $call.1
+  fun println @fn17(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str9
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn18(this: Continuation<Point>, value: Point) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn19(this: Continuation<Point>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn20(this: SuspendTask<Point>, $completion: Continuation<Point>) -> CoroutineStep<Point>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Point>, continuation: Continuation<Point>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn22(this: Continuation<Label>, value: Label) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn23(this: Continuation<Label>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn24(this: SuspendTask<Label>, $completion: Continuation<Label>) -> CoroutineStep<Label>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Label>, continuation: Continuation<Label>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Label.label @fn26(this: Label) -> String
+    bb0 entry
+      trap "call to abstract method `Label.label`"
+  fun init.User.$c0 @fn27(this: User, id: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type User
+        Local this
+        Type Int
+        Local id
+      return
+  fun init.RenderBox.$c1 @fn28(this: RenderBox<Point>, value: Point) -> Unit
+    bb0 entry
+      field_set 0
+        Type RenderBox<Point>
+        Local this
+        Type Point
+        Local value
+      return
+  fun ctor.Point.$c0 @fn29(x: Int, y: Int) -> Point <no-gc>
+    bb0 entry
+      return
+        Type Point
+        StructInit Point
+          Type Int
+          Local x
+          Type Int
+          Local y
+  fun ctor.RenderPair.$c1 @fn30(first: Point, second: Point) -> RenderPair<Point> <no-gc>
+    bb0 entry
+      return
+        Type RenderPair<Point>
+        StructInit RenderPair<Point>
+          Type Point
+          Local first
+          Type Point
+          Local second
+  fun startCoroutine<Label> @fn31(task: SuspendTask<Label>, completion: Continuation<Label>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn22 interface Continuation<Label>[0]
+        Type Continuation<Label>
+        Local completion
+        Type Label
+        EnumField v0 f0
+          Type CoroutineStep<Label>
+          Local $step
+      return
+    bb2 failed
+      call @fn23 interface Continuation<Label>[1]
+        Type Continuation<Label>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Label> = @fn24 interface SuspendTask<Label>[0]
+        Type SuspendTask<Label>
+        Local task
+        Type Continuation<Label>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Label>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Point> @fn32(task: SuspendTask<Point>, completion: Continuation<Point>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn18 interface Continuation<Point>[0]
+        Type Continuation<Point>
+        Local completion
+        Type Point
+        EnumField v0 f0
+          Type CoroutineStep<Point>
+          Local $step
+      return
+    bb2 failed
+      call @fn19 interface Continuation<Point>[1]
+        Type Continuation<Point>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Point> = @fn20 interface SuspendTask<Point>[0]
+        Type SuspendTask<Point>
+        Local task
+        Type Continuation<Point>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Point>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<Point> ToString.toString() @fn33(this: ToString) -> String
+    bb0 entry
+      call $call.1: String = @fn0 direct
+        Type Point
+        Unbox
+          Type ToString
+          Local this
+      return
+        Type String
+        Local $call.1
+  fun thunk<Point> Hash.hash() @fn34(this: Hash) -> Long
+    bb0 entry
+      call $call.1: Long = @fn1 direct
+        Type Point
+        Unbox
+          Type Hash
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<Point> Label.label() @fn35(this: Label) -> String
+    bb0 entry
+      call $call.1: String = @fn2 direct
+        Type Point
+        Unbox
+          Type Label
+          Local this
+      return
+        Type String
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Label> result=Label
+  coroutine_step cs1 CoroutineStep<Point> result=Point
+  coroutine_slot cl0 CoroutineSlot<Label> value=Label
+  coroutine_slot cl1 CoroutineSlot<Point> value=Point
+  coroutine_start ct0 result=Label function=fn31
+  coroutine_start ct1 result=Point function=fn32
+  coroutine_fn cf0 @fn20 source_return=Point step=cs1 immediate
+  coroutine_fn cf1 @fn24 source_return=Label step=cs0 immediate
+  instance mi0 function=@fn7 <- RenderBox.toString
+  instance mi1 function=@fn8 <- RenderPair.toString
+  instance mi2 function=@fn9 <- RenderState.toString
+  instance mi3 function=@fn10 <- println
+  instance mi4 function=@fn11 <- println
+  instance mi5 function=@fn12 <- println
+  instance mi6 function=@fn13 <- println
+  instance mi7 function=@fn14 <- println
+  instance mi8 function=@fn15 <- println
+  instance mi9 function=@fn16 <- render
+  instance mi10 function=@fn17 <- println
+  instance mi11 function=@fn18 <- Continuation.resume
+  instance mi12 function=@fn19 <- Continuation.resumeWithException
+  instance mi13 function=@fn20 <- SuspendTask.run
+  instance mi14 function=@fn21 <- SuspendRegistration.register
+  instance mi15 function=@fn22 <- Continuation.resume
+  instance mi16 function=@fn23 <- Continuation.resumeWithException
+  instance mi17 function=@fn24 <- SuspendTask.run
+  instance mi18 function=@fn25 <- SuspendRegistration.register
+  str @str0 "Point"
+  str @str1 "User"
+  str @str2 "Empty"
+  str @str3 "\n"
+  str @str4 "\n"
+  str @str5 "\n"
+  str @str6 "\n"
+  str @str7 "\n"
+  str @str8 "\n"
+  str @str9 "\n"
+  output executable @fn6

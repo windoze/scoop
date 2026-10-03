@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.slotSelections.*
+  public fun read(value: Leaf): Int
+    =
+      Binary Add
+        MethodCall count
+          Var value
+        MethodCall value
+          Var value

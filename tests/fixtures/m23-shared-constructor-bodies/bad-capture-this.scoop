@@ -1,0 +1,7 @@
+package consumer.constructorbodies
+
+private class Escaping<T>(val value: T) {
+    val read: () -> T = fun(): T { return this.value }
+}
+
+public fun result(): Int = Escaping<Int>(42).read()

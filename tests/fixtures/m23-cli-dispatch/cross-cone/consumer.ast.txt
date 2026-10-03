@@ -1,0 +1,81 @@
+SourceFile
+  QualifiedPackage dispatch.consumer
+  ImportStar Local dispatch.facade.*
+  fun describeInt<T : Describe<Int>>(value: T): String
+    =
+      MethodCall describe
+        Var value
+        IntLiteral 1
+  fun describeString<T : Describe<String>>(value: T): String
+    =
+      MethodCall describe
+        Var value
+        StringLiteral "x"
+  fun echoInt<T : Echo<Int>>(value: T): Int
+    =
+      MethodCall echo
+        Var value
+        IntLiteral 7
+  fun echoString<T : Echo<String>>(value: T): String
+    =
+      MethodCall echo
+        Var value
+        StringLiteral "echo"
+  fun main()
+    val both
+      Call Both
+    val intView: Describe<Int>
+      Var both
+    val stringView: Describe<String>
+      Var both
+    Call println
+      MethodCall describe
+        Var intView
+        IntLiteral 1
+    Call println
+      MethodCall describe
+        Var stringView
+        StringLiteral "x"
+    Call println
+      Call describeInt
+        Var both
+    Call println
+      Call describeString
+        Var both
+    val wrapped
+      Call Wrapped<String>
+    Call println
+      Call describeInt
+        Var wrapped
+    Call println
+      Call describeString
+        Var wrapped
+    val defaults
+      Call Defaults
+    Call println
+      Call echoInt
+        Var defaults
+    Call println
+      Call echoString
+        Var defaults
+    val refined
+      Call RefinedDefaults
+    Call println
+      Call echoInt
+        Var refined
+    Call println
+      Call echoString
+        Var refined
+    Call println
+      Call throughBound
+        Var both
+    Call println
+      Call throughDefault
+    val closure: () -> String
+      Lambda 0 suspend=false
+        parameters omitted
+        MethodCall describe
+          Var stringView
+          StringLiteral "captured"
+    Call println
+      Call closure

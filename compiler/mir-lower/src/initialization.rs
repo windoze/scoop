@@ -7,10 +7,25 @@ impl Lowerer {
         unit: mir::InitializationUnitId,
         span: Span,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
+        // The implicit cycle message crosses the same type boundary as a
+        // source expression, even when no source body mentions String.
+        let message_ty = Types {
+            module,
+            struct_map: &self.struct_map,
+            class_map: &self.class_map,
+        }
+        .lower(
+            module.string,
+            &mut self.source_exact_types,
+            &mut self.enums,
+            &mut self.structs,
+            &mut self.interfaces,
+            &mut self.shell,
+        );
         let declaration = &self.initialization_units[unit];
         let initializer = declaration.initializer;
-        let cycle = declaration.cycle_exception.clone();
-        let throwable = mir::Type::Class(self.class_map[&module.exception_core.throwable.class()]);
+        let cycle_thrower = declaration.cycle_thrower;
+        let throwable_carrier = mir::Type::Any;
         let mut locals = Arena::new();
         let state = locals.alloc(mir::Local {
             name: "$init.state".to_string(),
@@ -19,22 +34,17 @@ impl Lowerer {
         });
         let caught = locals.alloc(mir::Local {
             name: "$init.caught".to_string(),
-            ty: throwable.clone(),
-            mutable: false,
-        });
-        let materialized = locals.alloc(mir::Local {
-            name: "$init.materialized".to_string(),
-            ty: throwable.clone(),
+            ty: throwable_carrier.clone(),
             mutable: false,
         });
         let failure = locals.alloc(mir::Local {
             name: "$init.failure".to_string(),
-            ty: throwable.clone(),
+            ty: throwable_carrier.clone(),
             mutable: false,
         });
         let message = locals.alloc(mir::Local {
             name: "$init.message".to_string(),
-            ty: mir::Type::String,
+            ty: message_ty.clone(),
             mutable: false,
         });
 
@@ -71,25 +81,14 @@ impl Lowerer {
                 ],
                 catches: vec![smir::CatchClause {
                     local: caught,
-                    ty: Box::new(throwable.clone()),
+                    ty: Box::new(throwable_carrier.clone()),
                     body: vec![
-                        statement(
-                            smir::StatementKind::ValDecl {
-                                local: materialized,
-                                init: runtime_call(
-                                    mir::RuntimeFn::MaterializeException,
-                                    vec![smir::Expr::local(caught, throwable.clone())],
-                                    throwable.clone(),
-                                ),
-                            },
-                            span,
-                        ),
                         statement(
                             smir::StatementKind::Expr(runtime_call(
                                 mir::RuntimeFn::InitializationFail,
                                 vec![
                                     unit_address(unit),
-                                    smir::Expr::local(materialized, throwable.clone()),
+                                    smir::Expr::local(caught, throwable_carrier.clone()),
                                 ],
                                 mir::Type::Unit,
                             )),
@@ -97,8 +96,8 @@ impl Lowerer {
                         ),
                         statement(
                             smir::StatementKind::Throw(smir::Expr::local(
-                                materialized,
-                                throwable.clone(),
+                                caught,
+                                throwable_carrier.clone(),
                             )),
                             span,
                         ),
@@ -116,25 +115,16 @@ impl Lowerer {
                     init: runtime_call(
                         mir::RuntimeFn::InitializationFailure,
                         vec![unit_address(unit)],
-                        throwable.clone(),
+                        throwable_carrier.clone(),
                     ),
                 },
                 span,
             ),
             statement(
-                smir::StatementKind::Throw(smir::Expr::local(failure, throwable.clone())),
+                smir::StatementKind::Throw(smir::Expr::local(failure, throwable_carrier.clone())),
                 span,
             ),
         ];
-        let cycle_message = smir::Expr::local(message, mir::Type::String);
-        let option = option_core_for_type(module, &self.enums, &cycle.message_type);
-        let some_message = smir::Expr::new(
-            cycle.message_type.clone(),
-            smir::ExprKind::VariantConstruct {
-                variant: option.some(),
-                fields: vec![cycle_message],
-            },
-        );
         let cycle_body = vec![
             statement(
                 smir::StatementKind::ValDecl {
@@ -142,22 +132,19 @@ impl Lowerer {
                     init: runtime_call(
                         mir::RuntimeFn::InitializationCycleMessage,
                         vec![unit_address(unit)],
-                        mir::Type::String,
+                        message_ty.clone(),
                     ),
                 },
                 span,
             ),
             statement(
-                smir::StatementKind::Throw(smir::Expr::new(
-                    mir::Type::Class(cycle.class),
-                    smir::ExprKind::ClassNew {
-                        class_id: cycle.class,
-                        initializer: cycle.initializer,
-                        args: vec![some_message],
-                    },
+                smir::StatementKind::Expr(initialization_cycle_call(
+                    cycle_thrower,
+                    smir::Expr::local(message, message_ty),
                 )),
                 span,
             ),
+            statement(smir::StatementKind::Unreachable, span),
         ];
         let terminal = vec![statement(
             smir::StatementKind::If {
@@ -238,6 +225,27 @@ fn direct_call(
             },
             args,
             return_ty,
+        }),
+    )
+}
+
+fn initialization_cycle_call(
+    target: mir::InitializationCycleThrower,
+    message: smir::Expr,
+) -> smir::Expr {
+    let callee = match target {
+        mir::InitializationCycleThrower::Local(function) => mir::Callee::User(function),
+        mir::InitializationCycleThrower::External(callable) => mir::Callee::External(callable),
+    };
+    smir::Expr::new(
+        mir::Type::Unit,
+        smir::ExprKind::Call(smir::Call {
+            target: mir::CallTarget {
+                kind: mir::CallKind::Direct,
+                callee,
+            },
+            args: vec![message],
+            return_ty: mir::Type::Unit,
         }),
     )
 }

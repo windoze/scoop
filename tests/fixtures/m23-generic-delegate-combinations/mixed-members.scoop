@@ -1,0 +1,21 @@
+package consumer.delegates
+
+import templates.delegateCombinations.*
+
+private class LocalBroad<T>() : SpecificBase<T>() {
+    operator fun getValue(thisRef: Any): Int = 1
+}
+private class LocalSpecific<T>() : BroadBase() {
+    operator fun getValue(thisRef: Receiver<T>): Int = 21
+}
+
+private val <T> Receiver<T>.inheritedSpecific: Int by LocalBroad<T>()
+private val <T> Receiver<T>.localSpecific: Int by LocalSpecific<T>()
+
+public fun <T> exercise(value: T): Int {
+    val receiver = Receiver<T>(value)
+    val inherited = receiver.inheritedSpecific
+    Payload(0)
+    return inherited + receiver.localSpecific
+}
+public fun result(): Int = exercise<Int>(1)

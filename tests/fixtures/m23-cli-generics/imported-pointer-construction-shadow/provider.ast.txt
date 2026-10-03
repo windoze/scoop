@@ -1,0 +1,78 @@
+SourceFile
+  QualifiedPackage dependency.construction
+  public typealias IntPointer = Ptr<Int>
+  public typealias Callback = FunPtr<() -> Int>
+    @Unsafe
+  public fun reconstruct<T : value>(raw: ULong): Ptr<T>
+    =
+      Call Ptr<T>
+        Var raw
+    @Unsafe
+  public fun reencode<T : value>(raw: ULong): ULong
+    =
+      MethodCall toULong
+        Call Ptr<T>
+          Var raw
+    @Unsafe
+  public fun loadDefault<T : value>(raw: ULong, pointer: Ptr<T> = <expr>): T
+    =
+      MethodCall load
+        Var pointer
+    @Unsafe
+  public fun copy<T : value>(value: T): T
+    val raw
+      MethodCall toULong
+        Call addressOf
+          Var value
+    return
+      MethodCall load
+        Call reconstruct<T>
+          Var raw
+    @Unsafe
+  public fun lexicalCopy<T : value>(value: T): T
+    val raw
+      MethodCall toULong
+        Call addressOf
+          Var value
+    fun read(): T
+      @Unsafe block
+        return
+          MethodCall load
+            Call Ptr<T>
+              Var raw
+    val first
+      Call read
+    val nextRaw
+      MethodCall toULong
+        Call addressOf
+          Var first
+    val closure: () -> T
+      Lambda 0 suspend=false
+        parameters omitted
+        var loaded
+          Var first
+        @Unsafe block
+          assign loaded
+            MethodCall load
+              Call Ptr<T>
+                Var nextRaw
+        Var loaded
+    return
+      Call closure
+  public fun safely(raw: ULong): Ptr<Int>
+    @Unsafe block
+      val pointer
+        Call Ptr<Int>
+          Var raw
+      MethodCall store
+        Var pointer
+        IntLiteral 42
+      return
+        Var pointer
+  public fun shifted<T : value>(raw: ULong): Ptr<T>
+    @Unsafe block
+      return
+        Call Ptr<T>
+          Binary Add
+            Var raw
+            IntLiteral 8uL

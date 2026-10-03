@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  public open class Base(seed: Int)
+    protected fun execute
+    protected open var state: Int <computed>
+      get()
+        IntLiteral 1
+      set(value)
+    public var visible: Int <computed>
+      get()
+        IntLiteral 2
+      protected set(value)
+  public open class Child() : Base(<1 args>)
+    protected fun execute
+    public fun read
+  public object Singleton

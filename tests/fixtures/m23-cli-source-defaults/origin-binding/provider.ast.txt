@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  public struct LocationValue
+    field field: Int = <expr>
+  public enum LocationChoice
+    Item <ctor>
+      value: Int = <expr>
+  public object LocationMarker
+  public val locationSeed: Int = <expr>
+  public fun locationFirst(): Int
+    =
+      IntLiteral 1
+  public open class LocationHost(seed: Int = <expr>)
+    private fun local
+    protected fun callback
+    private fun combined
+    internal fun generic
+    protected fun inherited
+  public class LocationChild() : LocationHost(<0 args>)
+    protected fun inherited

@@ -1,0 +1,21 @@
+Module
+  global @scoop$1$ss$f44352e7d0e885d43865b7c3814564936ed924d3e3adbdfbdabe6d9e31354b6a : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$9d5ba9e1da7ad822fbbb3f7f5568a227a9c12e9606be9e026f9c7ff609db129d() -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$f48f79fcf92aa06c9451e1c030ed71c9dc053ce5c5e414a9d3015a04e2c347eb() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global0, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  output executable @scoop$1$cb$9d5ba9e1da7ad822fbbb3f7f5568a227a9c12e9606be9e026f9c7ff609db129d

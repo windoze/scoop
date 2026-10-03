@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type parameter `T` of function cannot have more than one class upper bound; found `LocalBase`",
+    "notes": [],
+    "origin": {
+      "cone": "601fe16bad0167c681cf188b7b5323d1b0e8abd5088b8bcf9f19f93fa109051f",
+      "end": 140,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 127
+    },
+    "severity": "error"
+  }
+]

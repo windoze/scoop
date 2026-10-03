@@ -1,0 +1,2 @@
+import upstream.arrays.first
+public fun result(index: Int): Int = first([42], index)

@@ -48,7 +48,7 @@ fn when_over_enum_with_bare_and_qualified_variants() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -78,6 +78,19 @@ fn when_over_enum_with_bare_and_qualified_variants() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -135,7 +148,7 @@ fn when_over_enum_with_bare_and_qualified_variants() {
         Call println<String> : Unit
           Local $parameter.value : String
       impossible <enum pattern matrix for Color>
-  entry main
+  output executable main
   instance println<String>
 "#;
     assert_eq!(hir::dump(&module), expected);
@@ -182,7 +195,7 @@ fn when_over_option_with_guard() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -212,6 +225,19 @@ fn when_over_option_with_guard() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -262,7 +288,7 @@ fn when_over_option_with_guard() {
             Local $argument.0 : Int
         guard condition
           Binary Gt : Boolean
-            IntegerOperation int.compare_to target=function69 <no-gc> : Long
+            IntegerOperation int.compare_to <no-gc> : Long
               Local $receiver : Int
               Local $parameter.other : Int
             IntegerLiteral 0 : Long
@@ -287,7 +313,7 @@ fn when_over_option_with_guard() {
         Call println<String> : Unit
           Local $parameter.value : String
       impossible <enum pattern matrix for Option<Int>>
-  entry main
+  output executable main
   instance println<Int>
   instance println<String>
 "#;
@@ -361,7 +387,7 @@ fn when_over_tuple_and_struct() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property11: Option<String>
-    property11 val message: Option<String> getter11=storage <stored field0 init=parameter11>
+    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -391,6 +417,19 @@ fn when_over_tuple_and_struct() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -459,7 +498,7 @@ fn when_over_tuple_and_struct() {
       Local p : Point
       arm struct(0: local11, 1: local12) if <guard>
         guard condition
-          IntegerOperation int.equals target=function70 <no-gc> : Boolean
+          IntegerOperation int.equals <no-gc> : Boolean
             Local x : Int
             Local yy : Int
         val local13
@@ -476,7 +515,7 @@ fn when_over_tuple_and_struct() {
         Call println<Int> : Unit
           Local $parameter.value : Int
       impossible <irrefutable Point>
-  entry main
+  output executable main
   instance println<String>
   instance println<Int>
 "#;

@@ -1,0 +1,54 @@
+Module
+  fun token @fn0() -> Unit
+    bb0 entry
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call @fn0 direct
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call external0 direct
+        Type Unit
+        Local $dependency.parameter.value
+      call @fn0 direct
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call external0 direct
+        Type Unit
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.2: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.token: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.text: String
+        Type String
+        Local $dependency.argument.2
+      call text: String = external1 direct
+        Type Unit
+        Local $dependency.parameter.token
+        Type Int
+        Local $dependency.parameter.number
+        Type String
+        Local $dependency.parameter.text
+      return
+  str @str0 "mixed ABI"
+  output executable @fn1

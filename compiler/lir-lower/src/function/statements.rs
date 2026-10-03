@@ -3,29 +3,31 @@
 use super::*;
 
 impl<'a> FunctionLowerer<'a> {
-    pub(super) fn lower_statements(&mut self, statements: &'a [mir::Statement]) {
+    pub(super) fn lower_statements(
+        &mut self,
+        statements: &'a [mir::Statement],
+    ) -> StorageResult<()> {
         for statement in statements {
             if self.current_sealed {
                 break;
             }
-            self.lower_statement(statement);
+            self.lower_statement(statement)?;
         }
+        Ok(())
     }
 
-    fn lower_statement(&mut self, statement: &'a mir::Statement) {
+    fn lower_statement(&mut self, statement: &'a mir::Statement) -> StorageResult<()> {
         match &statement.kind {
             mir::StatementKind::Expr(expr) => {
-                self.lower_expr(expr);
+                self.lower_expr(expr)?;
             }
             mir::StatementKind::Call(effect) => match effect {
                 mir::CallEffect::Unit(call) => {
-                    let _ = self.lower_call(call, &mir::Type::Unit);
+                    let _ = self.lower_call(call, &mir::Type::Unit)?;
                 }
                 mir::CallEffect::Value { destination, call } => {
                     let ty = self.mir_locals[*destination].ty.clone();
-                    let value = self
-                        .lower_call(call, &ty)
-                        .expect("a value-producing MIR call cannot diverge");
+                    let value = self.lower_call(call, &ty)?;
                     self.push(lir::Instruction::Store {
                         local: self.local_slot(*destination),
                         value,
@@ -35,21 +37,22 @@ impl<'a> FunctionLowerer<'a> {
             // Initialization and assignment are both stores into the
             // local's stack slot.
             mir::StatementKind::ValDecl { local, init } => {
-                let value = self.lower_expr(init);
+                let value = self.lower_expr(init)?;
                 self.push(lir::Instruction::Store {
                     local: self.local_slot(*local),
                     value,
                 });
             }
             mir::StatementKind::Assign { local, value } => {
-                let value = self.lower_expr(value);
+                let value = self.lower_expr(value)?;
                 self.push(lir::Instruction::Store {
                     local: self.local_slot(*local),
                     value,
                 });
             }
             mir::StatementKind::GlobalAssign { global, value } => {
-                let value = self.lower_expr(value);
+                let ty = &value.ty;
+                let value = self.lower_expr(value)?;
                 match *self
                     .storage_globals
                     .get(global)
@@ -59,7 +62,9 @@ impl<'a> FunctionLowerer<'a> {
                         self.push(lir::Instruction::GlobalStore { global, value })
                     }
                     StorageGlobal::Native(global) => {
-                        let safepoint = self.next_safepoint();
+                        let value = self.project_c_value(ty, value);
+                        let safepoint =
+                            self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition);
                         self.push(lir::Instruction::NativeGlobalStore {
                             global,
                             value,
@@ -78,9 +83,9 @@ impl<'a> FunctionLowerer<'a> {
                 index,
                 value,
             } => {
-                let array = self.lower_expr(array);
-                let index = self.lower_expr(index);
-                let value = self.lower_expr(value);
+                let array = self.lower_expr(array)?;
+                let index = self.lower_expr(index)?;
+                let value = self.lower_expr(value)?;
                 self.push(lir::Instruction::ArraySet {
                     array,
                     index,
@@ -110,12 +115,11 @@ impl<'a> FunctionLowerer<'a> {
                     self.module,
                     self.enums,
                     &self.module.classes[*class_id],
-                );
+                )?;
                 let offset = offsets[*index as usize];
-                let field_lir_ty = self.value_type(field_ty);
-                let object = self.lower_expr(object);
-                let value = self.lower_expr(value);
-                self.store_at_offset(object, offset, value, field_lir_ty);
+                let object = self.lower_expr(object)?;
+                let value = self.lower_expr(value)?;
+                self.store_heap_value(object, offset, value, field_ty)?;
             }
             mir::StatementKind::AtomicFieldStore {
                 kind,
@@ -143,9 +147,9 @@ impl<'a> FunctionLowerer<'a> {
                     self.module,
                     self.enums,
                     &self.module.classes[*class_id],
-                );
-                let object = self.lower_expr(object);
-                let value = self.lower_expr(value);
+                )?;
+                let object = self.lower_expr(object)?;
+                let value = self.lower_expr(value)?;
                 let kind = machine_scalar_kind(*kind);
                 self.push(lir::Instruction::AtomicStore {
                     kind,
@@ -154,14 +158,15 @@ impl<'a> FunctionLowerer<'a> {
                     value,
                 });
             }
-            mir::StatementKind::Eh(eh) => self.lower_eh_statement(eh),
+            mir::StatementKind::Eh(eh) => self.lower_eh_statement(eh)?,
         }
+        Ok(())
     }
 
-    fn lower_eh_statement(&mut self, statement: &mir::EhStatement) {
+    fn lower_eh_statement(&mut self, statement: &mir::EhStatement) -> StorageResult<()> {
         match statement {
             mir::EhStatement::LandingPad { cleanup } => {
-                let (record_slot, raw_slot) = self.exception_slots();
+                let (record_slot, raw_slot) = self.exception_slots()?;
                 let record = self.new_temp(lir::LirType::ExceptionRecord);
                 let raw = self.new_temp(lir::RAW_PTR);
                 if *cleanup {
@@ -179,7 +184,7 @@ impl<'a> FunctionLowerer<'a> {
                 });
             }
             mir::EhStatement::BeginCatch => {
-                let (_, raw_slot) = self.exception_slots();
+                let (_, raw_slot) = self.exception_slots()?;
                 let exception = self.new_temp(lir::MANAGED_PTR);
                 self.push(lir::Instruction::BeginCatch {
                     out: exception,
@@ -188,7 +193,7 @@ impl<'a> FunctionLowerer<'a> {
                 let slot = match self.caught_exception {
                     Some(slot) => slot,
                     None => {
-                        let slot = self.new_hidden_local(lir::MANAGED_PTR);
+                        let slot = self.new_hidden_local(lir::MANAGED_PTR)?;
                         self.caught_exception = Some(slot);
                         slot
                     }
@@ -200,9 +205,10 @@ impl<'a> FunctionLowerer<'a> {
             }
             mir::EhStatement::EndCatch => self.push(lir::Instruction::EndCatch),
         }
+        Ok(())
     }
 
-    pub(super) fn lower_terminator(&mut self, terminator: &mir::Terminator) {
+    pub(super) fn lower_terminator(&mut self, terminator: &mir::Terminator) -> StorageResult<()> {
         match terminator {
             mir::Terminator::Goto(target) => {
                 self.seal(lir::Terminator::Br(self.block_map[target]));
@@ -212,7 +218,7 @@ impl<'a> FunctionLowerer<'a> {
                 then_block,
                 else_block,
             } => {
-                let cond = self.lower_expr(cond);
+                let cond = self.lower_expr(cond)?;
                 self.seal(lir::Terminator::CondBr {
                     cond,
                     then_block: self.block_map[then_block],
@@ -223,20 +229,20 @@ impl<'a> FunctionLowerer<'a> {
                 let value = match (self.returns_void, value) {
                     (true, None) => None,
                     (true, Some(value)) => {
-                        self.lower_expr(value);
+                        self.lower_expr(value)?;
                         None
                     }
-                    (false, Some(value)) => Some(self.lower_expr(value)),
+                    (false, Some(value)) => Some(self.lower_expr(value)?),
                     (false, None) => unreachable!("non-Unit return without a value"),
                 };
                 self.seal(lir::Terminator::Return { value });
             }
             mir::Terminator::Throw { exception, unwind } => {
-                let value = self.lower_expr(exception);
+                let value = self.lower_expr(exception)?;
                 if let Some(unwind) = unwind {
                     let normal = self.new_block("throw.normal");
                     let (call, _) =
-                        self.typed_call(vec![lir::MANAGED_PTR], lir::LirType::Void, vec![value]);
+                        self.typed_call(vec![lir::MANAGED_PTR], lir::LirType::Void, vec![value])?;
                     let site = self.invoke_site(
                         LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::Throw),
                         call,
@@ -255,7 +261,7 @@ impl<'a> FunctionLowerer<'a> {
             mir::Terminator::Rethrow { unwind } => match unwind {
                 Some(unwind) => {
                     let normal = self.new_block("rethrow.normal");
-                    let (call, _) = self.typed_call(Vec::new(), lir::LirType::Void, Vec::new());
+                    let (call, _) = self.typed_call(Vec::new(), lir::LirType::Void, Vec::new())?;
                     let site = self.invoke_site(
                         LoweredCallDestination::no_gc_runtime(lir::NoGcRuntimeFunction::Rethrow),
                         call,
@@ -273,22 +279,22 @@ impl<'a> FunctionLowerer<'a> {
                         Vec::new(),
                         lir::LirType::Void,
                         Vec::new(),
-                    );
+                    )?;
                     self.seal(lir::Terminator::Unreachable);
                 }
             },
             mir::Terminator::Resume => {
-                let (record, _) = self.exception_slots();
+                let (record, _) = self.exception_slots()?;
                 self.seal(lir::Terminator::Resume {
                     exception: lir::Value::Local(record),
                 });
             }
             mir::Terminator::Trap { message } => {
-                let message = self.module.strings[*message].value.clone();
-                let trap = self.trap_block(&message);
+                let trap = self.trap_block(message)?;
                 self.seal(lir::Terminator::Br(trap));
             }
             mir::Terminator::Unreachable => self.seal(lir::Terminator::Unreachable),
         }
+        Ok(())
     }
 }

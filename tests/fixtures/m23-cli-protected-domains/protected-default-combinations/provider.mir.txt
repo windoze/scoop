@@ -1,0 +1,174 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<DefaultContainer.Nested>
+    Completed(value: DefaultContainer.Nested)
+    Suspended()
+  enum CoroutineSlot<DefaultContainer.Nested>
+    Empty()
+    Value(value: DefaultContainer.Nested)
+  enum CoroutineStep<DefaultContainer>
+    Completed(value: DefaultContainer)
+    Suspended()
+  enum CoroutineSlot<DefaultContainer>
+    Empty()
+    Value(value: DefaultContainer)
+  class DefaultContainer vtable=0 itables=0
+  class DefaultContainer.Nested vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<DefaultContainer>
+  interface SuspendTask<DefaultContainer>
+  interface SuspendRegistration<DefaultContainer>
+  interface Continuation<DefaultContainer.Nested>
+  interface SuspendTask<DefaultContainer.Nested>
+  interface SuspendRegistration<DefaultContainer.Nested>
+  generated_exact_type get0 location=enum1 nominal_id=edead4f737aa0f1099035a2707403119a7728f79e371b06d74602e7d8b83aa1d exact_id=092e170fa50af95ec038a20d5b668ab55e56b749614a9bde2567a5fe3b0aa3b2
+  generated_exact_type get1 location=enum3 nominal_id=b2bb3f4da335cc1bb11fc75de5744aa7f7c86d5ae1529e93163ba667b1848b51 exact_id=83d5e13b2d13bf66d64c65ff35a4c7dce851ae017ae71bb50e34a3c61b242b61
+  generated_exact_type get2 location=enum2 nominal_id=930ab59cccc3af8c62a494c4acb9cccd2759705e1df9a5a618b811fb97890dc4 exact_id=d1ae2e3ba4a3f94ebccb5f96721f91898227b321d36ac2acdeb67e9eadb19c90
+  generated_exact_type get3 location=enum4 nominal_id=840e637db255181a018dfc959fdf270d5e59615ec0315cd769984376a26fb92b exact_id=e1d2a3a6d9cf9c51ae869a3e65b5f480a73bbb7ced321d69e920ffc173af0685
+  generated_callable gc0 function=@fn12 id=21f50c50b05543ca2e068b354c57d6435330d8726791ddee352f5922aec3a212
+  generated_callable gc1 function=@fn13 id=47bb2aa8fd762b91a5cfc353d8d97bc00eddcdaedead687c6151340ba4ed2c3e
+  fun DefaultContainer.local @fn0(this: DefaultContainer, seed: Int, value: () -> Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        Local value
+  fun DefaultContainer.Nested.hidden @fn1(this: DefaultContainer.Nested, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Continuation.resume @fn2(this: Continuation<DefaultContainer>, value: DefaultContainer) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn3(this: Continuation<DefaultContainer>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn4(this: SuspendTask<DefaultContainer>, $completion: Continuation<DefaultContainer>) -> CoroutineStep<DefaultContainer>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn5(this: SuspendRegistration<DefaultContainer>, continuation: Continuation<DefaultContainer>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn6(this: Continuation<DefaultContainer.Nested>, value: DefaultContainer.Nested) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<DefaultContainer.Nested>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<DefaultContainer.Nested>, $completion: Continuation<DefaultContainer.Nested>) -> CoroutineStep<DefaultContainer.Nested>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<DefaultContainer.Nested>, continuation: Continuation<DefaultContainer.Nested>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.DefaultContainer.$c0 @fn10(this: DefaultContainer) -> Unit
+    bb0 entry
+      return
+  fun init.DefaultContainer.Nested.$c2 @fn11(this: DefaultContainer.Nested) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<DefaultContainer.Nested> @fn12(task: SuspendTask<DefaultContainer.Nested>, completion: Continuation<DefaultContainer.Nested>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn6 interface Continuation<DefaultContainer.Nested>[0]
+        Type Continuation<DefaultContainer.Nested>
+        Local completion
+        Type DefaultContainer.Nested
+        EnumField v0 f0
+          Type CoroutineStep<DefaultContainer.Nested>
+          Local $step
+      return
+    bb2 failed
+      call @fn7 interface Continuation<DefaultContainer.Nested>[1]
+        Type Continuation<DefaultContainer.Nested>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DefaultContainer.Nested> = @fn8 interface SuspendTask<DefaultContainer.Nested>[0]
+        Type SuspendTask<DefaultContainer.Nested>
+        Local task
+        Type Continuation<DefaultContainer.Nested>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DefaultContainer.Nested>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DefaultContainer> @fn13(task: SuspendTask<DefaultContainer>, completion: Continuation<DefaultContainer>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn2 interface Continuation<DefaultContainer>[0]
+        Type Continuation<DefaultContainer>
+        Local completion
+        Type DefaultContainer
+        EnumField v0 f0
+          Type CoroutineStep<DefaultContainer>
+          Local $step
+      return
+    bb2 failed
+      call @fn3 interface Continuation<DefaultContainer>[1]
+        Type Continuation<DefaultContainer>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DefaultContainer> = @fn4 interface SuspendTask<DefaultContainer>[0]
+        Type SuspendTask<DefaultContainer>
+        Local task
+        Type Continuation<DefaultContainer>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DefaultContainer>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<DefaultContainer.Nested> result=DefaultContainer.Nested
+  coroutine_step cs1 CoroutineStep<DefaultContainer> result=DefaultContainer
+  coroutine_slot cl0 CoroutineSlot<DefaultContainer.Nested> value=DefaultContainer.Nested
+  coroutine_slot cl1 CoroutineSlot<DefaultContainer> value=DefaultContainer
+  coroutine_start ct0 result=DefaultContainer.Nested function=fn12
+  coroutine_start ct1 result=DefaultContainer function=fn13
+  coroutine_fn cf0 @fn4 source_return=DefaultContainer step=cs1 immediate
+  coroutine_fn cf1 @fn8 source_return=DefaultContainer.Nested step=cs0 immediate
+  instance mi0 function=@fn2 <- Continuation.resume
+  instance mi1 function=@fn3 <- Continuation.resumeWithException
+  instance mi2 function=@fn4 <- SuspendTask.run
+  instance mi3 function=@fn5 <- SuspendRegistration.register
+  instance mi4 function=@fn6 <- Continuation.resume
+  instance mi5 function=@fn7 <- Continuation.resumeWithException
+  instance mi6 function=@fn8 <- SuspendTask.run
+  instance mi7 function=@fn9 <- SuspendRegistration.register
+  output library

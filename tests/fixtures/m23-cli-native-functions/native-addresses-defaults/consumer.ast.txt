@@ -1,0 +1,28 @@
+SourceFile
+  QualifiedPackage consumer.nativeAddresses
+  ImportExact Local dependency.nativeAddresses.selected
+  ImportExact Local dependency.nativeAddresses.privateAddress
+    @Extern(lib = "m23_native_calls", name = "m23_call_scalar")
+  private fun nativeScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
+  public fun callScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
+    @Unsafe block
+      return
+        Call nativeScalar
+          Var callback
+          Var value
+  public fun exercise<T>(value: T): Long
+    @Unsafe block
+      return
+        Binary Add
+          Call callScalar
+            Call selected<T>
+              Var value
+            IntLiteral 20
+          Call callScalar
+            Call privateAddress<T>
+              Var value
+            IntLiteral 20
+  public fun result(): Long
+    =
+      Call exercise<Int>
+        IntLiteral 0

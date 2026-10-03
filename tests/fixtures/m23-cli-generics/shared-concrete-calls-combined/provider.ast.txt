@@ -1,0 +1,28 @@
+SourceFile
+  QualifiedPackage upstream.calls
+  private var count: Int = <expr>
+  public fun calls(): Int
+    =
+      Var count
+  public fun mark(): Unit
+    compound-assign Add
+      IntLiteral 1
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  public fun nested<T>(value: T): T
+    =
+      Call identity<T>
+        Var value
+  public fun defaulted<T>(value: T, other: T = <expr>): T
+    =
+      Var other
+  public fun action<T>(value: T, read: (T) -> Int): Int
+    val callback
+      Lambda 0 suspend=false
+        parameters omitted
+        Call read
+          Call nested<T>
+            Var value
+    return
+      Call callback

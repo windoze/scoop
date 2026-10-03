@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `Value`: type argument `Cell` for `T` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "d30cbe5956c0f3d1791f1c9b38e467a92a918c326d6f3829fca5a1f40bd74325",
+      "end": 156,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 131
+    },
+    "severity": "error"
+  }
+]

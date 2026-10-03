@@ -1,0 +1,316 @@
+schema = 1
+name = "generic-siblings-adapters"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "generic-odr-provider", "../../m23-odr-member-unions/provider.scoop", "generic-odr-adapters-left", "../../m23-odr-member-unions/adapters-left.scoop", "generic-odr-adapters-right", "../../m23-odr-member-unions/adapters-right.scoop", "generic-odr-adapters-consumer", "../../m23-odr-member-unions/adapters-consumer.scoop", "../../m23-odr-member-unions/addresses.c", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["generic-siblings", "adapters", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_generic-odr-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-odr-provider", "to" = "${work}/sources/generic-odr-provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-odr-member-unions/provider.scoop", "to" = "${work}/sources/generic-odr-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/generic-odr-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-odr-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${provider.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.lir.txt"},
+]
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/generic-odr-provider"}},
+]
+
+[[steps]]
+name = "prepare_generic-odr-adapters-left"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-odr-adapters-left", "to" = "${work}/sources/generic-odr-adapters-left"}},
+  {"copy" = {"from" = "${fixture}/../../m23-odr-member-unions/adapters-left.scoop", "to" = "${work}/sources/generic-odr-adapters-left/src/main.scoop"}},
+]
+
+[[steps]]
+name = "left"
+argv = ["${scoop}", "build", "${work}/sources/generic-odr-adapters-left", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-left", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-odr-adapters-left/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/left"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${left.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/left/${left.result.root.identity}/ast.txt", "snapshot" = "left.ast.txt"},
+  {"file" = "${work}/dump/left/${left.result.root.identity}/hir.txt", "snapshot" = "left.hir.txt"},
+  {"file" = "${work}/dump/left/${left.result.root.identity}/mir.txt", "snapshot" = "left.mir.txt"},
+  {"file" = "${work}/dump/left/${left.result.root.identity}/lir.txt", "snapshot" = "left.lir.txt"},
+]
+
+[[steps]]
+name = "remove_left_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/generic-odr-adapters-left"}},
+]
+
+[[steps]]
+name = "prepare_generic-odr-adapters-right"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-odr-adapters-right", "to" = "${work}/sources/generic-odr-adapters-right"}},
+  {"copy" = {"from" = "${fixture}/../../m23-odr-member-unions/adapters-right.scoop", "to" = "${work}/sources/generic-odr-adapters-right/src/main.scoop"}},
+]
+
+[[steps]]
+name = "right"
+argv = ["${scoop}", "build", "${work}/sources/generic-odr-adapters-right", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-right", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-odr-adapters-right/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/right"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${right.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/right/${right.result.root.identity}/ast.txt", "snapshot" = "right.ast.txt"},
+  {"file" = "${work}/dump/right/${right.result.root.identity}/hir.txt", "snapshot" = "right.hir.txt"},
+  {"file" = "${work}/dump/right/${right.result.root.identity}/mir.txt", "snapshot" = "right.mir.txt"},
+  {"file" = "${work}/dump/right/${right.result.root.identity}/lir.txt", "snapshot" = "right.lir.txt"},
+]
+
+[[steps]]
+name = "remove_right_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/generic-odr-adapters-right"}},
+]
+
+[[steps]]
+name = "prepare_generic-odr-adapters-consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-odr-adapters-consumer", "to" = "${work}/sources/generic-odr-adapters-consumer"}},
+  {"copy" = {"from" = "${fixture}/../../m23-odr-member-unions/adapters-consumer.scoop", "to" = "${work}/sources/generic-odr-adapters-consumer/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/generic-odr-adapters-consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-odr-adapters-consumer/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "remove_consumer_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/generic-odr-adapters-consumer"}},
+]
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../../m23-odr-member-unions/addresses.c", "to" = "${work}/native/addresses.c"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "UNION_LEFT_TD", "new" = "_scoop$1$td$36dcd3dbc334218f9b25c996c755ca8b42cec9ca5ccd2b312e3d5703f7f5763e"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "UNION_RIGHT_TD", "new" = "_scoop$1$td$36dcd3dbc334218f9b25c996c755ca8b42cec9ca5ccd2b312e3d5703f7f5763e"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "UNION_OTHER_TD", "new" = "_scoop$1$td$599e53dc26b5f79de59241629aa64ad86dcaa30453d9f7732c86478aa52ecee3"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "UNION_INTERFACE_TD", "new" = "_scoop$1$td$1d717c086d4b0d78b659c74b11c8297163070209063f7a06d87ad08ab08192bb"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "left_slots[UNION_READ_SLOT] != NULL", "new" = "left_slots[0] != NULL"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "left_slots[UNION_READ_SLOT] == right_slots[UNION_READ_SLOT]", "new" = "left_slots[0] == right_slots[0]"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "#include \"scoop_rt.h\"", "new" = "#include \"scoop_rt.h\"\n#include <stdio.h>\n#include <stdlib.h>"}},
+  {"replace" = {"path" = "${work}/native/addresses.c", "old" = "#define SCOOP_FIXTURE_METADATA_CHECK() union_metadata_check()", "new" = "static void check_after_shutdown(void) {\n    if (!union_metadata_check()) {\n        fputs(\"shared type or interface slot address differs\\n\", stderr);\n        abort();\n    }\n}\n\nvoid m23_register_union_check(void) {\n    if (atexit(check_after_shutdown) != 0) { abort(); }\n}"}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-I", "${runtime}/src", "-c", "${work}/native/addresses.c", "-o", "${work}/native/addresses.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_union.a", "${work}/native/addresses.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_native_source"
+files = [
+  {"remove" = {"path" = "${work}/native/addresses.c"}},
+  {"remove" = {"path" = "${work}/native/addresses.o"}},
+]
+
+[[steps]]
+name = "prepare_runtime"
+files = [
+  {"copy" = {"from" = "${fixture}/runtime-fixture", "to" = "${work}/sources/runtime-fixture"}},
+]
+
+[[steps]]
+name = "prepare_gc"
+files = [
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/gc.c", "to" = "${work}/native/gc.c"}},
+]
+
+[[steps]]
+name = "compile_gc"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/native/gc.c", "-o", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_gc"
+argv = ["${ar}", "qcS", "${work}/native/libm23_class_gc.a", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_gc_source"
+files = [
+  {"remove" = {"path" = "${work}/native/gc.c"}},
+  {"remove" = {"path" = "${work}/native/gc.o"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/runtime-fixture", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--emit", "all", "--dump-dir", "${work}/dump/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/root.slib", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program", "--dependency-slib", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-provider/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-left/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-right/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-consumer/0.1.0/cone.slib", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 5},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+
+[[steps]]
+name = "reverse_link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/root.slib", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/reverse-program", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-consumer/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-right/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-adapters-left/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/dev.example/generic-odr-provider/0.1.0/cone.slib", "--dependency-slib", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${reverse_link.result.dependencies.length}", "equals" = 5},
+  {"actual" = "${reverse_link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${reverse_link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {}
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "reverse_run"
+argv = ["${work}/reverse-program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {}
+
+[[steps]]
+name = "reverse_run_moving"
+argv = ["${work}/reverse-program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "symbols"
+argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "${work}/program"]
+exit = 0
+stdout = {"file" = "symbols.txt"}
+stderr = ""
+
+[[steps]]
+name = "strong_symbols"
+argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "--no-weak", "${work}/program"]
+exit = 0
+stdout = {"file" = "strong_symbols.txt"}
+stderr = ""

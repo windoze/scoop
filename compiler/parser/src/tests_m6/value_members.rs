@@ -16,7 +16,7 @@ fn struct_member_functions() {
     assert!(matches!(method.body, FunctionBody::Expr(_)));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  struct S\n    field v: Int\n    fun describe\n"
+        "SourceFile\n  RootPackage\n  struct S\n    field v: Int\n    fun describe\n"
     );
 }
 

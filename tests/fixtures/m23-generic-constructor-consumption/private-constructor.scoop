@@ -1,0 +1,6 @@
+import templates.constructors.Locked
+
+public fun bad(): Int {
+    val value = Locked<Int>(1)
+    return 0
+}

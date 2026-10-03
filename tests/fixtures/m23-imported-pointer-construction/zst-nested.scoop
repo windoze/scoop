@@ -1,0 +1,28 @@
+package consumer.construction
+
+public fun <T> exercise(value: T): Int {
+    val empty = Unit
+    var number = 40
+    @Unsafe {
+        val emptyRaw = addressOf(empty).toULong()
+        val emptyPointer = Ptr<Unit>(emptyRaw)
+        if (emptyRaw == 0uL || emptyPointer.toULong() != emptyRaw) { return 1 }
+        val unit = emptyPointer.load()
+        emptyPointer.store(unit)
+        val inner = Ptr<Int>(addressOf(number).toULong())
+        val outer = Ptr<Ptr<Int>>(addressOf(inner).toULong())
+        val present: Option<Ptr<Int>> = Some(outer.load())
+        val absent: Option<Ptr<Int>> = None
+        if (sizeOf<Option<Ptr<Int>>>() != sizeOf<Ptr<Int>>()) { return 2 }
+        when (present) {
+            Some(pointer) -> pointer.store(pointer.load() + 2)
+            None -> { return 3 }
+        }
+        when (absent) {
+            Some(pointer) -> { return 4 }
+            None -> { return number }
+        }
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

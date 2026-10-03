@@ -1,0 +1,106 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Trace>
+    Completed(value: Trace)
+    Suspended()
+  enum CoroutineSlot<Trace>
+    Empty()
+    Value(value: Trace)
+  class Trace vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Trace>
+  interface SuspendTask<Trace>
+  interface SuspendRegistration<Trace>
+  generated_exact_type get0 location=enum2 nominal_id=8b640a857345f151a5ac2b232c1c1d75db7aa73102321f915a6d05b9df19028b exact_id=3422f55356b0e3642dd14b6669c2fb0d5fc8e7bc54b44b3beb1182f96fd45226
+  generated_exact_type get1 location=enum1 nominal_id=c7d704ae200e024d07a4c3e5b1fd5a3aeab8ac91998c96ed21b9e4d83def9cfd exact_id=cf4a9a7dd1d50b89defbc1363af3166920551f93587c23164431050cc3426b0a
+  generated_callable gc0 function=@fn7 id=3bbeecf9350144f3142f0aecd0ea2bf2efa8dbb95ffdfa30762024564303c37c
+  fun Trace.$get$count @fn0(this: Trace) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Trace
+          Local this
+  fun Trace.$set$count @fn1(this: Trace, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Trace
+        Local this
+        Type Int
+        Local value
+      return
+  fun Continuation.resume @fn2(this: Continuation<Trace>, value: Trace) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn3(this: Continuation<Trace>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn4(this: SuspendTask<Trace>, $completion: Continuation<Trace>) -> CoroutineStep<Trace>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn5(this: SuspendRegistration<Trace>, continuation: Continuation<Trace>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Trace.$c1 @fn6(this: Trace, count: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Trace
+        Local this
+        Type Int
+        Local count
+      return
+  fun startCoroutine<Trace> @fn7(task: SuspendTask<Trace>, completion: Continuation<Trace>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn2 interface Continuation<Trace>[0]
+        Type Continuation<Trace>
+        Local completion
+        Type Trace
+        EnumField v0 f0
+          Type CoroutineStep<Trace>
+          Local $step
+      return
+    bb2 failed
+      call @fn3 interface Continuation<Trace>[1]
+        Type Continuation<Trace>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Trace> = @fn4 interface SuspendTask<Trace>[0]
+        Type SuspendTask<Trace>
+        Local task
+        Type Continuation<Trace>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Trace>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Trace> result=Trace
+  coroutine_slot cl0 CoroutineSlot<Trace> value=Trace
+  coroutine_start ct0 result=Trace function=fn7
+  coroutine_fn cf0 @fn4 source_return=Trace step=cs0 immediate
+  instance mi0 function=@fn2 <- Continuation.resume
+  instance mi1 function=@fn3 <- Continuation.resumeWithException
+  instance mi2 function=@fn4 <- SuspendTask.run
+  instance mi3 function=@fn5 <- SuspendRegistration.register
+  output library

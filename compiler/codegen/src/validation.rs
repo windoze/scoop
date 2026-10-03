@@ -3,26 +3,247 @@ use std::collections::{HashMap, HashSet};
 use super::*;
 use scoop_lir::{EnumDefId, GcEffect, StructDefId};
 
+mod callbacks;
 mod constants;
+mod external;
+use external::validate_external_metadata;
 mod root_plans;
+mod safepoints;
 mod scoop_abi;
 mod variants;
+use callbacks::{validate_callback_declarations, validate_callback_instructions};
 use constants::validate_constant_images;
 use root_plans::validate_call_root_plans;
+use safepoints::validate_safepoint_identities;
 use scoop_abi::validate_scoop_abi;
 use variants::validate_variant_primitives;
 
 pub(crate) fn validate_module(module: &Module) -> Result<(), CodegenError> {
+    validate_external_metadata(module)?;
+    validate_type_descriptor_symbols(module)?;
+    validate_array_metadata(module)?;
+    validate_output(module)?;
     validate_niche_representations(module)?;
     validate_scoop_abi(module)?;
     validate_constant_images(module)?;
     validate_variant_primitives(module)?;
     validate_machine_containers(module)?;
+    validate_dispatch_table_identities(module)?;
     validate_dispatch_callable_tables(module)?;
     validate_dispatch_signatures(module)?;
+    validate_native_boundary(module)?;
+    validate_callback_instructions(module)?;
+    validate_safepoint_identities(module)?;
+    validate_call_root_plans(module)?;
+    scoop_lir::validate_startup_gateways(module)
+        .map_err(|error| CodegenError(error.to_string()))?;
+    Ok(())
+}
+
+pub(crate) fn validate_native_boundary(module: &Module) -> Result<(), CodegenError> {
     validate_c_abi(module)?;
-    validate_foreign_callbacks(module)?;
-    validate_call_root_plans(module)
+    validate_callback_declarations(module)
+}
+
+fn validate_type_descriptor_symbols(module: &Module) -> Result<(), CodegenError> {
+    match module.meta.well_known_type_descriptors.string {
+        TypeDescriptorRef::Local(string) => {
+            if arena_index(string) >= module.meta.type_descriptors.len() {
+                return Err(CodegenError(format!(
+                    "the runtime String TypeDescriptor local reference {} is out of bounds",
+                    arena_index(string)
+                )));
+            }
+        }
+        TypeDescriptorRef::External(string) => {
+            if arena_index(string) >= module.meta.external_type_descriptors.len() {
+                return Err(CodegenError(format!(
+                    "the runtime String TypeDescriptor external reference {} is out of bounds",
+                    arena_index(string)
+                )));
+            }
+        }
+    }
+
+    for (_, descriptor) in module.meta.type_descriptors.iter() {
+        if descriptor.diagnostic_name.is_empty() {
+            return Err(CodegenError(format!(
+                "type descriptor {} has an empty canonical diagnostic name",
+                descriptor.identity.exact_type()
+            )));
+        }
+        if !descriptor
+            .instance_layout
+            .is_managed_instance_of(descriptor.identity.exact_type(), module.meta.target_profile)
+        {
+            return Err(CodegenError(format!(
+                "type descriptor `{}` carries an instance layout for another exact type, target, representation, or scan role",
+                descriptor.diagnostic_name
+            )));
+        }
+    }
+    Ok(())
+}
+
+fn validate_array_metadata(module: &Module) -> Result<(), CodegenError> {
+    for (_, array) in module.meta.arrays.iter() {
+        if contains_machine_scalar(&module.structs, &module.enums, &array.element) {
+            return Err(CodegenError(format!(
+                "array element type {} contains an internal machine scalar",
+                array.element.dump()
+            )));
+        }
+        let TypeDescriptorRef::Local(descriptor_id) = array.type_descriptor else {
+            return Err(CodegenError(
+                "array metadata requires a complete local TypeDescriptor".to_string(),
+            ));
+        };
+        let descriptor_index = arena_index(descriptor_id);
+        if descriptor_index >= module.meta.type_descriptors.len() {
+            return Err(CodegenError(format!(
+                "array metadata has invalid local TypeDescriptor id {descriptor_index}"
+            )));
+        }
+        let descriptor = &module.meta.type_descriptors[descriptor_id];
+        let exact = descriptor.identity.exact_type();
+        if !array
+            .identity
+            .is_managed_array_of(exact, module.meta.target_profile)
+        {
+            return Err(CodegenError(format!(
+                "array TypeDescriptor `{}` and its element layout identify different exact types, targets, representations, or scan roles",
+                descriptor.diagnostic_name
+            )));
+        }
+        let expected = array.layout.instance();
+        if &descriptor.instance_shape != expected {
+            return Err(CodegenError(format!(
+                "array TypeDescriptor `{}` does not match its closed element size, alignment, and scan shape",
+                descriptor.diagnostic_name
+            )));
+        }
+    }
+    for function in &module.functions {
+        for (_, block) in function.blocks.iter() {
+            for instruction in &block.instructions {
+                let Instruction::ArrayClone {
+                    source_type,
+                    array_type,
+                    ..
+                } = instruction
+                else {
+                    continue;
+                };
+                if arena_index(*source_type) >= module.meta.arrays.len()
+                    || arena_index(*array_type) >= module.meta.arrays.len()
+                {
+                    return Err(CodegenError(
+                        "array clone source or target metadata is missing".into(),
+                    ));
+                }
+                let source = &module.meta.arrays[*source_type];
+                let target = &module.meta.arrays[*array_type];
+                if source.element_exact != target.element_exact
+                    || source.element != target.element
+                    || source.layout != target.layout
+                {
+                    return Err(CodegenError(
+                        "array clone exact element type or storage disagrees".into(),
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn executable_entry(
+    module: &Module,
+    entry: scoop_lir::LocalFunctionRef,
+) -> Result<&Function, CodegenError> {
+    let (declaration, expected_effect) = match entry {
+        scoop_lir::LocalFunctionRef::Managed(reference) => {
+            (reference.declaration(), GcEffect::Managed)
+        }
+        scoop_lir::LocalFunctionRef::NoGc(reference) => (reference.declaration(), GcEffect::NoGc),
+    };
+    let index = declaration.into_u32() as usize;
+    let function = module.functions.get(index).ok_or_else(|| {
+        CodegenError(format!(
+            "module has invalid executable entry function id {index}"
+        ))
+    })?;
+    if function.gc_effect != expected_effect {
+        return Err(CodegenError(format!(
+            "executable entry @{} has {:?} body but {:?} typed reference",
+            function.symbol(),
+            function.gc_effect,
+            expected_effect
+        )));
+    }
+    Ok(function)
+}
+
+fn validate_output(module: &Module) -> Result<(), CodegenError> {
+    let scoop_lir::LirOutput::Executable { entry } = module.output else {
+        return Ok(());
+    };
+    executable_entry(module, entry).map(|_| ())
+}
+
+pub(crate) fn validate_executable_entry(
+    module: &Module,
+    entry: scoop_lir::LocalFunctionRef,
+) -> Result<(), CodegenError> {
+    let function = executable_entry(module, entry)?;
+    if !function.signature.arguments().is_empty()
+        || !matches!(function.signature.result(), scoop_lir::AbiReturn::UnitVoid)
+    {
+        return Err(CodegenError(format!(
+            "executable entry @{} must have signature () -> Unit",
+            function.symbol()
+        )));
+    }
+    Ok(())
+}
+
+fn validate_dispatch_table_identities(module: &Module) -> Result<(), CodegenError> {
+    for (_, descriptor) in module.meta.type_descriptors.iter() {
+        let owner = descriptor.identity.exact_type();
+        if !descriptor.vtable.belongs_to_exact_type(owner) {
+            return Err(CodegenError(format!(
+                "type descriptor `{}` carries a vtable identity for another exact type or table role",
+                descriptor.diagnostic_name
+            )));
+        }
+
+        for itable in &descriptor.itables {
+            if !itable.belongs_to_exact_type(owner) {
+                return Err(CodegenError(format!(
+                    "type descriptor `{}` carries an itable identity for another exact type or table role",
+                    descriptor.diagnostic_name
+                )));
+            }
+            let TypeDescriptorRef::Local(interface_id) = itable.interface() else {
+                continue;
+            };
+            let interface_index = arena_index(interface_id);
+            if interface_index >= module.meta.type_descriptors.len() {
+                return Err(CodegenError(format!(
+                    "type descriptor `{}` has invalid local itable interface id {interface_index}",
+                    descriptor.diagnostic_name
+                )));
+            }
+            let interface = &module.meta.type_descriptors[interface_id];
+            if !itable.belongs_to_interface_exact_type(interface.identity.exact_type()) {
+                return Err(CodegenError(format!(
+                    "type descriptor `{}` itable identity and interface descriptor identify different exact types",
+                    descriptor.diagnostic_name
+                )));
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_variant_ref(
@@ -49,7 +270,7 @@ fn checked_temp_type<'a>(
     if index >= function.temps.len() {
         return Err(CodegenError(format!(
             "{owner} references invalid temporary t{index} in @{}",
-            function.symbol
+            function.symbol()
         )));
     }
     Ok(&function.temps[temp].ty)
@@ -64,7 +285,7 @@ fn checked_value_type(
     let invalid = |kind: &str, index: usize| {
         CodegenError(format!(
             "{owner} references invalid {kind} {index} in @{}",
-            function.symbol
+            function.symbol()
         ))
     };
     match value {
@@ -73,7 +294,7 @@ fn checked_value_type(
             if index >= function.locals.len() {
                 return Err(invalid("local", index));
             }
-            Ok(function.locals[id].ty.clone())
+            Ok(function.locals[id].ty().clone())
         }
         Value::Param(index) => function
             .signature
@@ -172,21 +393,39 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
     let validate_entry = |descriptor: &TypeDescriptor,
                           entry: &DispatchEntry|
      -> Result<(), CodegenError> {
-        let CallableRef::Local(id) = entry.callable else {
-            if matches!(
-                entry.callable,
-                CallableRef::Runtime(scoop_lir::RuntimeFunction::Managed(
-                    scoop_lir::ManagedRuntimeFunction::Alloc
-                        | scoop_lir::ManagedRuntimeFunction::Box
-                        | scoop_lir::ManagedRuntimeFunction::InitializationEnter
-                ))
-            ) {
-                return Err(CodegenError(format!(
-                    "type descriptor `{}` dispatches to a runtime function whose closed ABI contains an internal machine scalar",
-                    descriptor.name
-                )));
+        let id = match entry.callable {
+            CallableRef::Local(id) => id,
+            CallableRef::External(id) => {
+                if arena_index(id) >= module.meta.external_callables.len() {
+                    return Err(CodegenError(format!(
+                        "type descriptor `{}` has invalid external dispatch callable id {}",
+                        descriptor.diagnostic_name,
+                        arena_index(id)
+                    )));
+                }
+                return Ok(());
             }
-            return Ok(());
+            CallableRef::Runtime(runtime) => {
+                if runtime.requires_dedicated_operation() {
+                    return Err(CodegenError(format!(
+                        "type descriptor `{}` dispatches to a dedicated boxing operation",
+                        descriptor.diagnostic_name
+                    )));
+                }
+                if matches!(
+                    runtime,
+                    scoop_lir::RuntimeFunction::Managed(
+                        scoop_lir::ManagedRuntimeFunction::Alloc
+                            | scoop_lir::ManagedRuntimeFunction::InitializationEnter
+                    )
+                ) {
+                    return Err(CodegenError(format!(
+                        "type descriptor `{}` dispatches to a runtime function whose closed ABI contains an internal machine scalar",
+                        descriptor.diagnostic_name
+                    )));
+                }
+                return Ok(());
+            }
         };
         let function = module
             .functions
@@ -194,7 +433,7 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
             .ok_or_else(|| {
                 CodegenError(format!(
                     "type descriptor `{}` has invalid local dispatch callable id {}",
-                    descriptor.name,
+                    descriptor.diagnostic_name,
                     id.into_u32()
                 ))
             })?;
@@ -212,18 +451,19 @@ fn validate_dispatch_callable_tables(module: &Module) -> Result<(), CodegenError
         {
             return Err(CodegenError(format!(
                 "type descriptor `{}` dispatches to local function @{} whose signature exposes an internal machine scalar",
-                descriptor.name, function.symbol
+                descriptor.diagnostic_name,
+                function.symbol()
             )));
         }
         Ok(())
     };
 
     for (_, descriptor) in module.meta.type_descriptors.iter() {
-        for entry in &descriptor.vtable {
+        for entry in descriptor.vtable.slots() {
             validate_entry(descriptor, entry)?;
         }
         for record in &descriptor.itables {
-            for entry in &record.slots {
+            for entry in record.slots() {
                 validate_entry(descriptor, entry)?;
             }
         }
@@ -252,7 +492,7 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
             {
                 return Err(CodegenError(format!(
                     "function @{} {owner} embeds an internal machine scalar in {}",
-                    function.symbol,
+                    function.symbol(),
                     ty.dump()
                 )));
             }
@@ -273,7 +513,7 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
             validate_value_type(
                 function,
                 &format!("local {}", id.into_raw().into_u32()),
-                &local.ty,
+                local.ty(),
             )?;
         }
         for (id, temp) in function.temps.iter() {
@@ -285,28 +525,17 @@ fn validate_machine_containers(module: &Module) -> Result<(), CodegenError> {
         }
     }
     for (_, global) in module.globals.iter() {
-        let GlobalInit::Storage { ty, .. } = &global.init else {
+        let (GlobalInit::Storage { ty, .. }
+        | GlobalInit::RawStorage { ty, .. }
+        | GlobalInit::ImportedStorage { ty, .. }) = &global.init
+        else {
             continue;
         };
         if contains_machine_scalar(&module.structs, &module.enums, ty) {
             return Err(CodegenError(format!(
                 "storage global `{}` has internal machine-scalar type {}",
-                global.symbol,
+                global.symbol(),
                 ty.dump()
-            )));
-        }
-    }
-    for (_, array) in module.meta.arrays.iter() {
-        if array.element_align == 0 || !array.element_align.is_power_of_two() {
-            return Err(CodegenError(format!(
-                "array element layout has invalid size/alignment {}/{}",
-                array.element_size, array.element_align
-            )));
-        }
-        if contains_machine_scalar(&module.structs, &module.enums, &array.element) {
-            return Err(CodegenError(format!(
-                "array element type {} contains an internal machine scalar",
-                array.element.dump()
             )));
         }
     }
@@ -422,6 +651,23 @@ fn validate_c_abi(module: &Module) -> Result<(), CodegenError> {
         })?;
     }
     for (_, callback) in module.callback_bridges.iter() {
+        let effect = match callback.bridge {
+            scoop_lir::StaticCallbackTarget::Local(bridge) => module
+                .functions
+                .get(bridge.declaration().into_u32() as usize)
+                .map(|function| function.gc_effect),
+            scoop_lir::StaticCallbackTarget::External(bridge) => module
+                .meta
+                .external_callables
+                .iter()
+                .find_map(|(id, function)| (id == bridge).then_some(function.gc_effect())),
+        };
+        if effect != Some(GcEffect::NoGc) {
+            return Err(CodegenError(format!(
+                "static callback `{}` must reference an existing NoGC storage bridge",
+                callback.source_name
+            )));
+        }
         for parameter in &callback.params {
             validate_c_type(module, parameter, false, &mut HashSet::new())?;
         }
@@ -464,7 +710,7 @@ fn validate_dispatch_signatures(module: &Module) -> Result<(), CodegenError> {
         if has_machine {
             return Err(CodegenError(format!(
                 "dispatch signature in @{} exposes an internal machine scalar without an authoritative dynamic-slot declaration",
-                function.symbol
+                function.symbol()
             )));
         }
         Ok(())
@@ -733,344 +979,4 @@ fn validate_c_type(
             }
         }
     }
-}
-
-fn foreign_callback_family<'a>(
-    module: &'a Module,
-    id: scoop_lir::ForeignCallbackFamilyId,
-    owner: &str,
-) -> Result<&'a scoop_lir::ForeignCallbackFamily, CodegenError> {
-    if id.into_raw().into_u32() as usize >= module.foreign_callback_families.len() {
-        return Err(CodegenError(format!(
-            "{owner} references invalid foreign callback family {}",
-            id.into_raw()
-        )));
-    }
-    Ok(&module.foreign_callback_families[id])
-}
-
-fn validate_foreign_callback_family(
-    module: &Module,
-    id: scoop_lir::ForeignCallbackFamilyId,
-    family: &scoop_lir::ForeignCallbackFamily,
-) -> Result<(), CodegenError> {
-    let owner = format!("foreign callback family {}", id.into_raw());
-    if family.callback.into_raw().into_u32() as usize >= module.structs.len() {
-        return Err(CodegenError(format!(
-            "{owner} references invalid callback struct {}",
-            family.callback.into_raw()
-        )));
-    }
-    let callback = &module.structs[family.callback];
-    let callback_shape = callback.scoop_fields().is_some_and(|fields| {
-        matches!(
-            fields,
-            [function, context]
-                if function.ty == scoop_lir::CODE_PTR
-                    && context.ty == scoop_lir::RAW_PTR
-                    && function.layout.offset == 0
-                    && context.layout.offset == 8
-                    && function.layout.access_align == 8
-                    && context.layout.access_align == 8
-        )
-    }) && !callback.interior_mutable
-        && callback.size == 16
-        && callback.align == 8;
-    if !callback_shape {
-        return Err(CodegenError(format!(
-            "{owner} callback struct `{}` does not have the closed {{ ptr<code>, ptr<raw> }} representation",
-            callback.name
-        )));
-    }
-
-    let modes = scoop_lir::ForeignCallbackModes::checked(
-        &module.enums,
-        family.modes.reusable(),
-        family.modes.one_shot(),
-    );
-    if modes != Some(family.modes) {
-        return Err(CodegenError(format!(
-            "{owner} carries invalid callback mode variant metadata"
-        )));
-    }
-    let states = scoop_lir::ForeignCallbackStates::checked(
-        &module.enums,
-        family.states.registered(),
-        family.states.active(),
-        family.states.completed(),
-        family.states.failed(),
-    );
-    if states != Some(family.states) {
-        return Err(CodegenError(format!(
-            "{owner} carries invalid callback state variant metadata"
-        )));
-    }
-    let state = &module.enums[family.states.definition()];
-    if !matches!(
-        &state.repr,
-        EnumRepr::Tagged {
-            size: 8,
-            align: 8,
-            ..
-        }
-    ) || state.scan.contains_reference()
-    {
-        return Err(CodegenError(format!(
-            "{owner} state enum `{}` does not have the closed four-state unit representation",
-            state.name
-        )));
-    }
-    let failure_result = scoop_lir::ForeignCallbackFailureResult::checked(
-        &module.enums,
-        family.failure_result.some_payload(),
-        family.failure_result.none(),
-    );
-    if failure_result != Some(family.failure_result) {
-        return Err(CodegenError(format!(
-            "{owner} carries invalid managed-reference callback failure metadata"
-        )));
-    }
-    Ok(())
-}
-
-fn validate_foreign_callbacks(module: &Module) -> Result<(), CodegenError> {
-    let mut family_by_callback = HashMap::new();
-    let mut protocol = None;
-    for (id, family) in module.foreign_callback_families.iter() {
-        validate_foreign_callback_family(module, id, family)?;
-        if let Some(previous) = family_by_callback.insert(family.callback, id) {
-            return Err(CodegenError(format!(
-                "foreign callback struct {} belongs to both family {} and family {}",
-                family.callback.into_raw(),
-                previous.into_raw(),
-                id.into_raw()
-            )));
-        }
-        let identity = (family.modes, family.states, family.failure_result);
-        if let Some(expected) = protocol {
-            if expected != identity {
-                return Err(CodegenError(format!(
-                    "foreign callback family {} conflicts with the module's nominal state/failure protocol",
-                    id.into_raw()
-                )));
-            }
-        } else {
-            protocol = Some(identity);
-        }
-    }
-
-    let expected_params = [
-        scoop_lir::MANAGED_PTR,
-        scoop_lir::RAW_PTR,
-        scoop_lir::RAW_PTR,
-        scoop_lir::RAW_PTR,
-    ];
-    let expected_result = LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus);
-    let mut trampolines = HashMap::new();
-    let mut signatures = HashMap::new();
-    for (id, bridge) in module.foreign_callback_bridges.iter() {
-        foreign_callback_family(
-            module,
-            bridge.family,
-            &format!("foreign callback bridge {}", id.into_raw()),
-        )?;
-        let family = &module.foreign_callback_families[bridge.family];
-        if family.modes.runtime_code(bridge.mode).is_none() {
-            return Err(CodegenError(format!(
-                "foreign callback bridge {} carries a mode outside family {}",
-                id.into_raw(),
-                bridge.family.into_raw()
-            )));
-        }
-        let Some(context_type) = bridge.params.get(bridge.context_index as usize) else {
-            return Err(CodegenError(format!(
-                "foreign callback bridge {} context index {} is outside its {} C parameters",
-                id.into_raw(),
-                bridge.context_index,
-                bridge.params.len()
-            )));
-        };
-        if !matches!(
-            context_type,
-            scoop_lir::CType::DataPointer {
-                pointee: scoop_lir::CDataPointee::OpaqueVoid,
-                storage: scoop_lir::CDataPointerStorage::Direct,
-            }
-        ) {
-            return Err(CodegenError(format!(
-                "foreign callback bridge {} context parameter {} must be a direct opaque C data pointer, found {context_type:?}",
-                id.into_raw(),
-                bridge.context_index
-            )));
-        }
-
-        let abi = (
-            bridge.signature_symbol.as_str(),
-            bridge.params.as_slice(),
-            &bridge.return_type,
-            bridge.context_index,
-        );
-        if let Some(previous) = trampolines.insert(bridge.trampoline_symbol.as_str(), abi) {
-            if previous != abi {
-                return Err(CodegenError(format!(
-                    "foreign callback trampoline symbol @{} has conflicting ABI metadata",
-                    bridge.trampoline_symbol
-                )));
-            }
-        }
-        let signature_abi = (
-            bridge.trampoline_symbol.as_str(),
-            bridge.params.as_slice(),
-            &bridge.return_type,
-            bridge.context_index,
-        );
-        if let Some(previous) = signatures.insert(bridge.signature_symbol.as_str(), signature_abi) {
-            if previous != signature_abi {
-                return Err(CodegenError(format!(
-                    "foreign callback signature symbol @{} has conflicting ABI metadata",
-                    bridge.signature_symbol
-                )));
-            }
-        }
-
-        let mut matches = module
-            .functions
-            .iter()
-            .filter(|function| function.symbol == bridge.adapter_symbol);
-        let Some(adapter) = matches.next() else {
-            return Err(CodegenError(format!(
-                "foreign callback adapter @{} is not a module function",
-                bridge.adapter_symbol
-            )));
-        };
-        if matches.next().is_some() {
-            return Err(CodegenError(format!(
-                "foreign callback adapter symbol @{} is not unique",
-                bridge.adapter_symbol
-            )));
-        }
-        let adapter_params_match = adapter.signature.arguments().len() == expected_params.len()
-            && adapter
-                .signature
-                .arguments()
-                .iter()
-                .zip(expected_params.iter())
-                .all(|(argument, expected)| {
-                    matches!(argument, scoop_lir::AbiArgument::Direct(value)
-                        if value.storage_type() == expected)
-                });
-        let adapter_result_matches = matches!(
-            adapter.signature.result(),
-            scoop_lir::AbiReturn::Direct(value) if value.storage_type() == &expected_result
-        );
-        if adapter.gc_effect != GcEffect::Managed
-            || !adapter_params_match
-            || !adapter_result_matches
-        {
-            return Err(CodegenError(format!(
-                "foreign callback adapter @{} must be managed (ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> machine<foreign-callback-status>",
-                bridge.adapter_symbol
-            )));
-        }
-    }
-
-    for function in &module.functions {
-        for (_, block) in function.blocks.iter() {
-            for instruction in &block.instructions {
-                match instruction {
-                    Instruction::ForeignCallbackRegister {
-                        out,
-                        bridge,
-                        closure,
-                    } => {
-                        if bridge.into_raw().into_u32() as usize
-                            >= module.foreign_callback_bridges.len()
-                        {
-                            return Err(CodegenError(format!(
-                                "foreign callback registration @{} references invalid bridge {}",
-                                function.symbol,
-                                bridge.into_raw()
-                            )));
-                        }
-                        let bridge = &module.foreign_callback_bridges[*bridge];
-                        let family = foreign_callback_family(
-                            module,
-                            bridge.family,
-                            &format!("foreign callback registration @{}", function.symbol),
-                        )?;
-                        let closure_ty = checked_value_type(
-                            module,
-                            function,
-                            *closure,
-                            "foreign callback registration closure",
-                        )?;
-                        let result_ty = checked_temp_type(
-                            function,
-                            *out,
-                            "foreign callback registration result",
-                        )?;
-                        if closure_ty != scoop_lir::MANAGED_PTR
-                            || result_ty != &LirType::Struct(family.callback)
-                        {
-                            return Err(CodegenError(format!(
-                                "foreign callback registration @{} for family {} requires a managed closure and exact callback struct {}, got closure {} and result {}",
-                                function.symbol,
-                                bridge.family.into_raw(),
-                                family.callback.into_raw(),
-                                closure_ty.dump(),
-                                result_ty.dump()
-                            )));
-                        }
-                    }
-                    Instruction::ForeignCallbackOperation(operation) => {
-                        let family_id = operation.family();
-                        let family = foreign_callback_family(
-                            module,
-                            family_id,
-                            &format!("foreign callback operation @{}", function.symbol),
-                        )?;
-                        let callback_ty = checked_value_type(
-                            module,
-                            function,
-                            operation.callback(),
-                            "foreign callback operation callback",
-                        )?;
-                        if callback_ty != LirType::Struct(family.callback) {
-                            return Err(CodegenError(format!(
-                                "foreign callback operation @{} for family {} requires exact callback struct {}, got {}",
-                                function.symbol,
-                                family_id.into_raw(),
-                                family.callback.into_raw(),
-                                callback_ty.dump()
-                            )));
-                        }
-                        let result_valid = match *operation {
-                            scoop_lir::ForeignCallbackOperation::Retain { out, .. } => {
-                                checked_temp_type(function, out, "foreign callback retain result")?
-                                    == &LirType::Struct(family.callback)
-                            }
-                            scoop_lir::ForeignCallbackOperation::Release { .. } => true,
-                            scoop_lir::ForeignCallbackOperation::State { out, .. } => {
-                                checked_temp_type(function, out, "foreign callback state result")?
-                                    == &LirType::Enum(family.states.definition())
-                            }
-                            scoop_lir::ForeignCallbackOperation::Failure { out, .. } => {
-                                checked_temp_type(function, out, "foreign callback failure result")?
-                                    == &LirType::Enum(family.failure_result.definition())
-                            }
-                        };
-                        if !result_valid {
-                            return Err(CodegenError(format!(
-                                "foreign callback operation @{} for family {} has a non-protocol result type",
-                                function.symbol,
-                                family_id.into_raw()
-                            )));
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-    }
-    Ok(())
 }

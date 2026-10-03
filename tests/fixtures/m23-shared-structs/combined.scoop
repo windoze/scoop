@@ -1,0 +1,28 @@
+package consumer.structs
+import upstream.structs.*
+import upstream.structs.RemoteCell as ReusedCell
+
+private struct LocalCell<T>(val value: T, val remote: ReusedCell<T>): Reader<T> {
+    public override fun get(): T = this.value
+}
+
+@CLayout
+private struct LocalNative(val left: Int, val right: Int)
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val local = LocalCell(value, create(value))
+    val current: Reader<T> = local
+    val remote: Readable<T> = local.remote
+    if (read(current.read()) != 42) { return 1 }
+    if (read(remote.get()) != 42) { return 2 }
+    if (read(local.remote.optional ?: local.value) != 42) { return 3 }
+    val first = NativePair(20, 22)
+    val second = LocalNative(first.left, first.right)
+    return second.left + second.right
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

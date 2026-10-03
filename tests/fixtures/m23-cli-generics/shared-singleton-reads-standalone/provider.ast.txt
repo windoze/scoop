@@ -1,0 +1,33 @@
+SourceFile
+  QualifiedPackage upstream.singletons
+  private var starts: Int = <expr>
+  private fun initialized(): Int
+    assign starts
+      Binary Add
+        Var starts
+        IntLiteral 1
+    return
+      IntLiteral 42
+  public class State(var value: Int)
+  public object Registry
+    public val state: State = <expr>
+      Call State
+        Call initialized
+    public val label: String = <expr>
+      StringLiteral "ready"
+  public fun readRegistry(): Registry
+    =
+      Var Registry
+  public fun initializationCount(): Int
+    =
+      Var starts
+  public fun selected<T>(seed: T, inspect: (T) -> Int, registry: Registry = <expr>): Int
+    =
+      Binary Sub
+        Binary Add
+          Call inspect
+            Var seed
+          FieldAccess value
+            FieldAccess state
+              Var registry
+        IntLiteral 42

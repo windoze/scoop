@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  fun main()
+    val child
+      Call Child
+    if
+      Binary Ne
+        MethodCall read
+          Var child
+          IntLiteral 3
+        IntLiteral 3
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call probe
+          Var child
+        IntLiteral 2
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call inherited
+          Var child
+          IntLiteral 5
+        IntLiteral 5
+      throw
+        Call IllegalStateException
+SourceFile
+  RootPackage
+  public fun probe(child: Child): Int
+    =
+      Call inherited
+        Var child

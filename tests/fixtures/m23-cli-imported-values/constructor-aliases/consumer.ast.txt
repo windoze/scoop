@@ -1,0 +1,53 @@
+SourceFile
+  QualifiedPackage consumer.constructors
+  ImportExact Local dependency.constructors.Packet
+  ImportExact Local dependency.constructors.Marker
+  ImportExact Local dependency.constructors.Wide
+  ImportExact Local dependency.constructors.defaultWide
+  public typealias Parcel = Packet
+  typealias LocalWide = Wide
+  typealias Zero = Marker
+    @NoGC
+  public fun token(): Marker
+    =
+      Call Zero
+    @NoGC
+  public fun primary(): Parcel
+    =
+      Call Packet
+        Argument marker=
+          Call Marker
+        Argument third=
+          IntLiteral 53
+        Argument first=
+          IntLiteral 17
+        Argument second=
+          Unary Neg
+            IntLiteral 29
+    @NoGC
+  public fun secondary(): Parcel
+    =
+      Call Parcel
+        Argument seed=
+          Binary Add
+            FieldAccess first
+              Call LocalWide
+                Argument seed=
+                  IntLiteral 3
+            IntLiteral 2
+        Argument step=
+          IntLiteral 3
+    @NoGC
+  public fun defaults(): Long
+    =
+      Call defaultWide
+        Argument value=
+          Call LocalWide
+            IntLiteral 3
+            IntLiteral 4
+            IntLiteral 5
+    @NoGC
+  public fun republished(value: Parcel = <expr>): Long
+    =
+      MethodCall sum
+        Var value

@@ -1,0 +1,22 @@
+package upstream.interfaceDefinitions
+
+public interface View<A, B> {
+    public val first: A
+    public val second: B
+    public fun choose(next: B = this.second): B = next
+    public fun peer(other: View<A, B>): View<A, B> = other
+}
+
+public interface Swap<A, B>: View<B, A> {
+    public override fun choose(next: A): A = next
+    public fun same(other: Swap<A, B>): Swap<A, B> = other
+}
+
+public class Remote<T> public constructor(public override val second: T): Swap<T, Unit> {
+    public override val first: Unit
+        get() = Unit
+}
+
+public struct Pair<A, B>(val first: A, val second: B)
+public typealias IntView = Swap<Int, Unit>
+public fun <T> reference(value: T): Swap<T, Unit> = Remote(value)

@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  fun verifyDomain(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  class ConsumerChild() : Child(<0 args>)
+    fun inspect
+  fun main()
+    Call verifyDomain
+      Binary Eq
+        MethodCall read
+          Call Child
+        IntLiteral 1
+    Call verifyDomain
+      Binary Eq
+        MethodCall read
+          Var Singleton
+        IntLiteral 1
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspect
+          Call ConsumerChild
+        IntLiteral 6

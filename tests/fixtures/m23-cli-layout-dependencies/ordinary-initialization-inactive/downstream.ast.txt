@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public fun read(): Int
+    =
+      Binary Add
+        Binary Add
+          Call callback
+          Call anonymousCallback
+        Call accessorCallback

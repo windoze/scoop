@@ -4,20 +4,853 @@ mod support;
 
 use support::*;
 
-fn lower(module: &mir::Module) -> lir::Module {
-    super::lower(module, lir::LirTargetProfile::DARWIN_AARCH64)
+mod callable_abi;
+mod dependency_external;
+mod exact_callable_abi;
+mod exact_layouts;
+mod initialization;
+mod native_storage;
+mod pointers;
+mod storage_replay;
+mod zst_places;
+
+use scoop_identity::{
+    CallableMaterialization, CallableMaterializationContext, CallableTemplateOwner,
+    CallbackApplicationKey, CallbackMode, CallbackParameterIndex, CallbackRegistrationKey,
+    CanonicalIdentifier, CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
+    DefinitionOwnerChain, Effect, ExactCallableSignature, ExactOrdinaryNoArgUnitSignature,
+    ExactTypeKey, ExecutableSourceEntryIdentity, FieldIdentityKey, GeneratedCallableKey,
+    InitializationUnitKey, LexicalCallableParent, LexicalCallableRole, NonEmptyVec, PackagePath,
+    PendingIdentityValidation, PersistentCallbackApplicationId, PersistentExactTypeId,
+    PersistentFieldId, PersistentFunctionId, PersistentGenericTypeId, PersistentPropertyId,
+    PersistentTypeId, SignatureCallableShape, SignatureTypeKey, SourceCAbiFunctionSignature,
+    SourceCAbiReturn, SourceDeclarationKey, SourceDeclarationSite, SourceExternFunctionAbi,
+    SourceNativeExternalContract, SourceNativeExternalContractKey,
+    SourceNativeExternalContractRecord, SourceNativeLibraryBinding, SourceNativeSymbol,
+    SourceNominalKind, SourceScoopAbiFunctionSignature, SpecializationKey,
+    StructuralDefinitionPath, StructuralDefinitionSiteRole, StructuralPathSegment,
+};
+
+pub(crate) fn test_physical_exact(
+    name: &str,
+    kind: scoop_identity::SourceNominalKind,
+) -> scoop_identity::PersistentExactTypeId {
+    use scoop_identity::{
+        CanonicalIdentifier, ConeIdentity, DeclarationScope, DefinitionOwnerChain, ExactTypeKey,
+        PackagePath, PersistentExactTypeId, PersistentTypeId, SourceDeclarationKey,
+        SourceDeclarationSite,
+    };
+    let identifier = format!(
+        "test{}",
+        name.bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let declaration = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(&identifier).unwrap(),
+        kind,
+        0,
+    );
+    let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
+    PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(nominal)).unwrap()
+}
+
+fn test_field_identity(owner_name: &str, field_name: &str) -> PersistentFieldId {
+    fn identifier(value: &str) -> CanonicalIdentifier {
+        let encoded = format!(
+            "test{}",
+            value
+                .bytes()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>()
+        );
+        CanonicalIdentifier::new(&encoded).unwrap()
+    }
+
+    let owner = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        identifier(owner_name),
+        SourceNominalKind::Struct,
+        0,
+    );
+    PersistentFieldId::from_key(
+        &FieldIdentityKey::source_declared(&owner, identifier(field_name)).unwrap(),
+    )
+    .unwrap()
+}
+
+fn test_source_native_contract(
+    source_name: &str,
+    native_symbol: &str,
+    abi: mir::ExternAbi,
+) -> SourceNativeExternalContractRecord {
+    let identifier = format!(
+        "test{}",
+        format!("{source_name}:{native_symbol}")
+            .bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let declaration = SourceDeclarationKey::function(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(&identifier).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let abi = match abi {
+        mir::ExternAbi::C => SourceExternFunctionAbi::C(SourceCAbiFunctionSignature::new(
+            Vec::new(),
+            SourceCAbiReturn::Void,
+        )),
+        mir::ExternAbi::Scoop => SourceExternFunctionAbi::Scoop {
+            signature: SourceScoopAbiFunctionSignature::new(
+                Vec::new(),
+                SignatureTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
+            ),
+            gc_effect: scoop_identity::GcEffect::Managed,
+        },
+    };
+    SourceNativeExternalContractRecord::new(
+        SourceNativeExternalContractKey::function(&declaration).unwrap(),
+        SourceNativeExternalContract::Function {
+            symbol: SourceNativeSymbol::new(native_symbol).unwrap(),
+            library: SourceNativeLibraryBinding::DefaultNativeNamespace,
+            abi,
+            calling_convention: scoop_identity::SourceCallingConvention::Cdecl,
+        },
+    )
+    .unwrap()
+}
+
+fn test_source_native_data_contract(
+    source_name: &str,
+    native_symbol: &str,
+    storage: SignatureTypeKey,
+    library: SourceNativeLibraryBinding,
+) -> SourceNativeExternalContractRecord {
+    let identifier = format!(
+        "test{}",
+        source_name
+            .bytes()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let declaration = SourceDeclarationKey::property(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new(&identifier).unwrap(),
+    );
+    SourceNativeExternalContractRecord::new(
+        SourceNativeExternalContractKey::property(&declaration).unwrap(),
+        SourceNativeExternalContract::ReadOnlyData {
+            symbol: SourceNativeSymbol::new(native_symbol).unwrap(),
+            library,
+            storage,
+        },
+    )
+    .unwrap()
+}
+
+fn seal_strong_input(mut module: mir::Module) -> mir::ConeMirInput {
+    if let mir::MirOutput::Executable { entry } = module.output
+        && (!module.functions[entry].params.is_empty()
+            || module.functions[entry].return_ty != mir::Type::Unit)
+    {
+        module.output = mir::MirOutput::Library;
+    }
+    if matches!(module.output, mir::MirOutput::Executable { .. })
+        || !module.initialization_units.is_empty()
+    {
+        let mut types = module.meta.source_exact_types.iter().cloned().collect();
+        test_exact_type(&module.function_types, &mir::Type::Any, &mut types);
+        module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(types).unwrap();
+    }
+    let selected = mir::SelectedExternalMirSet::empty(module.cone);
+    let mir_output = mir::DependencyMirOutput::try_new(module, selected).unwrap();
+    let module = mir_output.module();
+    let foundation = mir_output.foundation();
+    let strong_callable_bridges = mir::StrongCallableBridgeSurfaceV1::from_foundation(foundation);
+    let entry_bridge = match module.output {
+        mir::MirOutput::Library => mir::EntryMirBridgeBranchV1::Library,
+        mir::MirOutput::Executable { entry } => {
+            assert!(module.top_level.contains(&entry), "test entry is emitted");
+            let declaration = CborIdentityRecord::from_key(SourceDeclarationKey::function(
+                SourceDeclarationSite::new(
+                    ConeIdentity::SINGLE_FILE,
+                    PackagePath::root(),
+                    DefinitionOwnerChain::top_level(),
+                    DeclarationScope::ConeWide,
+                )
+                .unwrap(),
+                CanonicalIdentifier::new("main").unwrap(),
+                0,
+                None,
+                Vec::new(),
+            ))
+            .unwrap();
+            let unit = module
+                .meta
+                .source_exact_types
+                .get(&mir::Type::Unit)
+                .expect("test module supplies Unit exact type")
+                .identity_record()
+                .id();
+            let source = ExecutableSourceEntryIdentity::try_new(
+                &declaration,
+                ExactOrdinaryNoArgUnitSignature::new(unit),
+            )
+            .unwrap();
+            let mir::CallableSignatureSubject::Strong(implementation) = module
+                .meta
+                .callable_signature_subject(entry)
+                .expect("test entry has a callable subject")
+            else {
+                panic!("strong test entry cannot have an ODR callable subject")
+            };
+            mir::EntryMirBridgeBranchV1::Executable(Box::new(
+                mir::EntryMirBridgeV1::new(source, implementation).unwrap(),
+            ))
+        }
+    };
+    let production = mir::CoreBootstrapBridgeSectionV1::try_new(
+        module.cone,
+        entry_bridge,
+        strong_callable_bridges,
+    )
+    .unwrap();
+    mir::ConeMirInput::try_new(mir_output, production, Vec::new()).unwrap()
+}
+
+fn try_lower(module: mir::Module) -> Result<lir::ConeLirOutput, LirLoweringError> {
+    let input = seal_strong_input(module);
+    lower_test_input(&input)
+}
+
+fn test_external_descriptors(input: &mir::ConeMirInput) -> Vec<lir::ExternalTypeDescriptor> {
+    let string = input
+        .module()
+        .meta
+        .source_exact_types
+        .get(&mir::Type::String)
+        .expect("the MIR fixture supplies the String declaration");
+    let mir::SourceExactTypeOwner::Cone(provider) = string.owner() else {
+        panic!("String has a nominal provider")
+    };
+    if provider == input.module().cone {
+        Vec::new()
+    } else {
+        vec![lir::ExternalTypeDescriptor::new(provider, string.identity_record().id()).unwrap()]
+    }
+}
+
+fn lower(module: mir::Module) -> lir::Module {
+    try_lower(module).unwrap().into_module()
+}
+
+fn lower_production(module: mir::Module) -> lir::ConeProductionSectionV1 {
+    let input = seal_strong_input(module);
+    let entry_source = super::lower_entry_production_source(input.production().entry_bridge());
+    let output = lower_test_input(&input).unwrap();
+    output
+        .build_production_section(
+            scoop_identity::ConeCoordinate::reserved_single_file(),
+            &[scoop_identity::ConeIdentity::CORE],
+            entry_source,
+        )
+        .unwrap()
+}
+
+fn mark_test_nominal_application(module: &mut mir::Module, ty: mir::Type) {
+    let argument = module
+        .meta
+        .source_exact_types
+        .get(&INT)
+        .expect("test module supplies Int exact type")
+        .identity_record()
+        .id();
+    let declaration = SourceDeclarationKey::nominal(
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap(),
+        CanonicalIdentifier::new("GenericArray").unwrap(),
+        SourceNominalKind::Class,
+        1,
+    );
+    let origin = PersistentGenericTypeId::from_source_declaration(&declaration).unwrap();
+    let arguments = NonEmptyVec::from_first(argument, []);
+    let exact = CborIdentityRecord::from_key(ExactTypeKey::NominalApplication {
+        origin,
+        arguments: arguments.clone(),
+    })
+    .unwrap();
+    let specialization =
+        CborIdentityRecord::from_key(SpecializationKey::Nominal { origin, arguments }).unwrap();
+    let replacement = mir::SourceExactTypeIdentity::checked(
+        ty.clone(),
+        exact,
+        mir::SourceExactTypeOrigin::NominalApplication(specialization),
+    )
+    .unwrap();
+    let entries = module
+        .meta
+        .source_exact_types
+        .iter()
+        .filter(|entry| entry.ty() != &ty)
+        .cloned()
+        .chain([replacement])
+        .collect();
+    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(entries).unwrap();
+}
+
+fn register_test_source_exact_type(module: &mut mir::Module, ty: mir::Type) {
+    let mut entries = module
+        .meta
+        .source_exact_types
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    test_exact_type(&module.function_types, &ty, &mut entries);
+    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(entries).unwrap();
+}
+
+fn test_callable_body(symbol: &str) -> lir::CallableBodyIdentity {
+    let identifier = format!(
+        "test{}",
+        symbol
+            .as_bytes()
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+    );
+    let site = scoop_identity::SourceDeclarationSite::new(
+        scoop_identity::ConeIdentity::SINGLE_FILE,
+        scoop_identity::PackagePath::root(),
+        scoop_identity::DefinitionOwnerChain::top_level(),
+        scoop_identity::DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration = scoop_identity::SourceDeclarationKey::function(
+        site,
+        scoop_identity::CanonicalIdentifier::new(&identifier).unwrap(),
+        0,
+        None,
+        Vec::new(),
+    );
+    let function =
+        scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+    lir::CallableBodyIdentity::for_function(function).unwrap()
+}
+
+fn expected_callable_body(subject: mir::CallableSignatureSubject) -> lir::CallableBodyIdentity {
+    let mir::CallableSignatureSubject::Strong(owner) = subject else {
+        panic!("strong test subject cannot use ODR ownership")
+    };
+    crate::lowering::strong_callable_body_identity(owner)
+}
+
+fn callback_application()
+-> CborIdentityRecord<PersistentCallbackApplicationId, CallbackApplicationKey> {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::CORE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let function = PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
+        site,
+        CanonicalIdentifier::new("callbackOwner").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    ))
+    .unwrap();
+    let unit = CoreBuiltinNominal::Unit.identity_record().id();
+    let registration = CallbackRegistrationKey::new(
+        LexicalCallableParent::function(function),
+        StructuralDefinitionPath::from_first(
+            StructuralPathSegment::new(StructuralDefinitionSiteRole::CallbackConversion, 0),
+            [],
+        ),
+        SourceCAbiFunctionSignature::new(Vec::new(), SourceCAbiReturn::Void),
+        CallbackParameterIndex::new(0),
+        SignatureCallableShape::new(
+            Effect::Ordinary,
+            None,
+            Vec::new(),
+            SignatureTypeKey::Nominal(unit),
+        ),
+        CallbackMode::Reusable,
+    );
+    let application = CallbackApplicationKey::new(
+        &registration,
+        CallableMaterializationContext::NoSubstitution,
+    )
+    .unwrap();
+    CborIdentityRecord::from_key(application).unwrap()
+}
+
+fn exact_callback_signature() -> ExactCallableSignature {
+    let unit = CoreBuiltinNominal::Unit.identity_record().id();
+    let unit = PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(unit)).unwrap();
+    ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), unit)
+}
+
+fn register_boxed_source_nominal(
+    module: &mut mir::Module,
+    payload: mir::Type,
+    class: mir::ClassId,
+    name: &str,
+    kind: SourceNominalKind,
+) {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let declaration =
+        SourceDeclarationKey::nominal(site, CanonicalIdentifier::new(name).unwrap(), kind, 0);
+    let nominal = PersistentTypeId::from_source_declaration(&declaration).unwrap();
+    let exact = CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal)).unwrap();
+
+    let mut exact_types = module
+        .meta
+        .source_exact_types
+        .iter()
+        .filter(|entry| entry.ty() != &mir::Type::Class(class) && entry.ty() != &payload)
+        .cloned()
+        .collect::<Vec<_>>();
+    exact_types.push(
+        mir::SourceExactTypeIdentity::checked(
+            payload.clone(),
+            exact.clone(),
+            mir::SourceExactTypeOrigin::Nominal(module.cone),
+        )
+        .unwrap(),
+    );
+    module.meta.source_exact_types = mir::SourceExactTypeIdentities::checked(exact_types).unwrap();
+    module
+        .meta
+        .boxed_types
+        .push(mir::BoxedType::for_source_nominal(payload, class, &exact).unwrap());
+    install_generated_exact_types(module);
+}
+
+fn install_generated_exact_types(module: &mut mir::Module) {
+    let mut entries = Vec::new();
+    let mut register = |location, nominal, odr_member| {
+        entries.push(mir::GeneratedExactTypeIdentity::new(location, nominal, odr_member).unwrap());
+    };
+    for environment in &module.meta.closure_environments {
+        register(
+            mir::GeneratedExactTypeLocation::Closure(environment.class()),
+            environment.identity().generated_type_record(),
+            environment.identity().odr_member_record(),
+        );
+    }
+    for (_, adapter) in module.meta.closure_adapters.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Closure(adapter.class()),
+            adapter.identity().environment_record(),
+            Some(adapter.identity().environment_member_record()),
+        );
+    }
+    for (_, adapter) in module.meta.dynamic_closure_adapters.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Closure(adapter.class()),
+            adapter.identity().environment_record(),
+            Some(adapter.identity().environment_member_record()),
+        );
+    }
+    for (_, step) in module.meta.coroutine_steps.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Enum(step.enum_id()),
+            step.identity().generated_type_record(),
+            step.identity().root().member_record(),
+        );
+    }
+    for (_, slot) in module.meta.coroutine_slots.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Enum(slot.enum_id()),
+            slot.identity().generated_type_record(),
+            slot.identity().root().member_record(),
+        );
+    }
+    for (_, frame) in module.meta.coroutine_frames.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Class(frame.class()),
+            frame.identity().generated_type_record(),
+            frame.identity().odr_member_record(),
+        );
+    }
+    for (_, point) in module.meta.coroutine_resume_points.iter() {
+        register(
+            mir::GeneratedExactTypeLocation::Class(point.adapter()),
+            point.identity().generated_type_record(),
+            point.identity().odr_member_record(),
+        );
+    }
+    for boxed in &module.meta.boxed_types {
+        register(
+            mir::GeneratedExactTypeLocation::Class(boxed.class()),
+            boxed.identity().generated_type_record(),
+            boxed.identity().root().member_record(),
+        );
+    }
+    module.meta.generated_exact_types =
+        mir::GeneratedExactTypeIdentities::checked(entries).unwrap();
+}
+
+fn install_callable_signatures(module: &mut mir::Module) {
+    let mut entries = module
+        .meta
+        .source_callable_materializations
+        .iter()
+        .map(|source| source.signature_record().clone())
+        .collect::<Vec<_>>();
+    entries.extend(module.foreign_callback_bridges.iter().map(|(_, bridge)| {
+        mir::CallableSignatureRecord::new(
+            bridge.application_record.managed_adapter(),
+            bridge.application_record.managed_signature().clone(),
+        )
+    }));
+    module.meta.callable_signatures = mir::MirCallableSignatures::checked(entries).unwrap();
+}
+
+fn initialization_unit_identity() -> mir::InitializationUnitIdentityRecord {
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let property =
+        SourceDeclarationKey::property(site, CanonicalIdentifier::new("initializedValue").unwrap());
+    let property = PersistentPropertyId::from_source_declaration(&property).unwrap();
+    CborIdentityRecord::from_key(InitializationUnitKey::TopLevelProperty(property)).unwrap()
 }
 
 #[test]
 fn selected_target_profile_is_embedded_in_lir_meta() {
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), Vec::new());
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
 
     assert_eq!(
         module.meta.target_profile,
         lir::LirTargetProfile::DARWIN_AARCH64
     );
+}
+
+#[test]
+fn strong_lowering_retains_complete_materialized_exact_type_records() {
+    let mut builder = Builder::new();
+    let class = builder.class("Retained", None, &[], Vec::new(), Vec::new());
+    let interface = builder.interface("RetainedView", &[]);
+    let c_struct = builder.c_strukt(
+        "RetainedCValue",
+        mir::MirCLayoutValue::Natural,
+        mir::MirCLayoutValue::Natural,
+        false,
+        &[("value", LONG)],
+    );
+    let main = builder.main(Arena::new(), Vec::new());
+    let source = builder.finish(main);
+    let mut expected = source
+        .meta
+        .source_exact_types
+        .iter()
+        .filter(|identity| {
+            identity.owner() == mir::SourceExactTypeOwner::Cone(source.cone)
+                && matches!(identity.identity_record().key(), ExactTypeKey::Nominal(_))
+        })
+        .map(|identity| identity.identity_record().clone())
+        .chain(
+            source
+                .meta
+                .generated_exact_types
+                .iter()
+                .filter(|identity| identity.owner() == &mir::GeneratedExactTypeOwner::ConeOwned)
+                .map(|identity| identity.exact_record().clone()),
+        )
+        .collect::<Vec<_>>();
+    expected.sort_unstable_by_key(|record| record.id());
+
+    let input = seal_strong_input(source);
+    let exact = |ty: &mir::Type| {
+        input
+            .module()
+            .meta
+            .source_exact_types
+            .get(ty)
+            .unwrap()
+            .identity_record()
+            .id()
+    };
+    let class_exact = exact(&mir::Type::Class(class));
+    let interface_exact = exact(&mir::Type::Interface(interface));
+    let c_struct_exact = exact(&mir::Type::Struct(c_struct));
+    let output = lower_test_input(&input).unwrap();
+
+    assert_eq!(output.module().meta.exact_types, expected);
+    assert_eq!(
+        output
+            .foundation()
+            .as_canonical()
+            .counts()
+            .materialized_exact_types,
+        expected.len()
+    );
+    let expected_ids = expected
+        .iter()
+        .map(CborIdentityRecord::id)
+        .collect::<std::collections::BTreeSet<_>>();
+    let descriptor_ids = output
+        .module()
+        .meta
+        .type_descriptors
+        .iter()
+        .map(|(_, descriptor)| descriptor.identity.exact_type())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(descriptor_ids, expected_ids);
+    let managed_value_layout_ids = output
+        .module()
+        .meta
+        .layouts
+        .iter()
+        .filter(|(_, layout)| {
+            layout.identity.layout_record().key().representation()
+                == scoop_identity::RepresentationRole::ManagedValue
+        })
+        .map(|(_, layout)| layout.identity.layout_record().key().exact_type())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(managed_value_layout_ids, expected_ids);
+    let representations = |exact| {
+        output
+            .module()
+            .meta
+            .layouts
+            .iter()
+            .filter(|(_, layout)| layout.identity.layout_record().key().exact_type() == exact)
+            .map(|(_, layout)| layout.identity.layout_record().key().representation())
+            .collect::<std::collections::BTreeSet<_>>()
+    };
+    assert_eq!(
+        representations(class_exact),
+        [
+            scoop_identity::RepresentationRole::ManagedValue,
+            scoop_identity::RepresentationRole::ManagedObject,
+        ]
+        .into_iter()
+        .collect()
+    );
+    assert_eq!(
+        representations(interface_exact),
+        [scoop_identity::RepresentationRole::ManagedValue]
+            .into_iter()
+            .collect()
+    );
+    assert_eq!(
+        representations(c_struct_exact),
+        [
+            scoop_identity::RepresentationRole::ManagedValue,
+            scoop_identity::RepresentationRole::CValue,
+        ]
+        .into_iter()
+        .collect()
+    );
+    for exact in [class_exact, interface_exact] {
+        let layout = output
+            .module()
+            .meta
+            .layouts
+            .iter()
+            .find_map(|(_, layout)| {
+                (layout.identity.layout_record().key().exact_type() == exact
+                    && layout.identity.layout_record().key().representation()
+                        == scoop_identity::RepresentationRole::ManagedValue)
+                    .then_some(layout)
+            })
+            .unwrap();
+        assert_eq!(
+            layout.kind,
+            lir::LayoutKind::Plain {
+                scan: lir::RefScan::References(vec![0]),
+            }
+        );
+        assert_eq!(
+            layout.identity.scan_record().key().role(),
+            scoop_identity::ScanRole::InlineValue
+        );
+    }
+}
+
+#[test]
+fn nominal_descriptor_symbols_use_exact_type_identity() {
+    let mut builder = Builder::new();
+    builder.class("Same", None, &[], Vec::new(), Vec::new());
+    builder.class("Same", None, &[], Vec::new(), Vec::new());
+    builder.interface("View", &[]);
+    builder.interface("View", &[]);
+    let main = builder.main(Arena::new(), Vec::new());
+    let mut source = builder.finish(main);
+    let function_type = source.function_types.alloc(mir::FunctionType {
+        is_suspend: false,
+        parameter_types: Vec::new(),
+        return_type: mir::Type::Any,
+    });
+    register_test_source_exact_type(&mut source, mir::Type::Function(function_type));
+    let site = SourceDeclarationSite::new(
+        ConeIdentity::SINGLE_FILE,
+        PackagePath::root(),
+        DefinitionOwnerChain::top_level(),
+        DeclarationScope::ConeWide,
+    )
+    .unwrap();
+    let owner = PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
+        site,
+        CanonicalIdentifier::new("descriptorClosureOwner").unwrap(),
+        0,
+        None,
+        Vec::new(),
+    ))
+    .unwrap();
+    let mut source_callables = source
+        .meta
+        .source_callable_materializations
+        .iter()
+        .cloned()
+        .collect::<Vec<_>>();
+    for index in 0..2 {
+        let callable = CborIdentityRecord::from_key(GeneratedCallableKey::Lexical {
+            parent: LexicalCallableParent::function(owner),
+            role: LexicalCallableRole::LambdaBody,
+            path: StructuralDefinitionPath::from_first(
+                StructuralPathSegment::new(
+                    StructuralDefinitionSiteRole::Lambda,
+                    u32::try_from(index).unwrap(),
+                ),
+                [],
+            ),
+        })
+        .unwrap()
+        .id();
+        let materialization = CallableMaterialization::new(
+            CallableTemplateOwner::Generated(callable),
+            CallableMaterializationContext::NoSubstitution,
+        );
+        let invoke_function = source.functions.alloc(mir::Function {
+            gc_effect: mir::GcEffect::Managed,
+            name: format!("$closure{index}.invoke"),
+            params: Vec::new(),
+            return_ty: mir::Type::Any,
+            body: mir::Body::unreachable(Arena::new()),
+        });
+        source.top_level.push(invoke_function);
+        source_callables.push(
+            mir::SourceCallableMaterialization::new(
+                invoke_function,
+                materialization,
+                scoop_identity::ExactCallableSignature::new(
+                    scoop_identity::Effect::Ordinary,
+                    None,
+                    Vec::new(),
+                    source
+                        .meta
+                        .source_exact_types
+                        .get(&mir::Type::Any)
+                        .unwrap()
+                        .identity_record()
+                        .id(),
+                ),
+                None,
+            )
+            .unwrap(),
+        );
+        let invoke = source
+            .closure_invoke_functions
+            .alloc(mir::ClosureInvokeFunction {
+                function: invoke_function,
+            });
+        let class = source.closure_classes.alloc(mir::ClosureClass {
+            name: "SameClosure".to_string(),
+            function_type,
+            invoke,
+            captures: Vec::new(),
+            bridges: vec![mir::FunctionBridge {
+                target: function_type,
+                function: invoke_function,
+            }],
+        });
+        let identity =
+            mir::ClosureEnvironmentIdentity::for_lambda(materialization, Vec::new(), None).unwrap();
+        source.meta.closure_environments.push(
+            mir::ClosureEnvironment::checked(class, &source.closure_classes[class], identity)
+                .unwrap(),
+        );
+    }
+    source.meta.source_callable_materializations =
+        mir::SourceCallableMaterializations::checked(source_callables).unwrap();
+    install_generated_exact_types(&mut source);
+    install_callable_signatures(&mut source);
+    let module = lower(source);
+
+    let descriptors = module
+        .meta
+        .type_descriptors
+        .iter()
+        .filter(|(_, descriptor)| {
+            matches!(
+                descriptor.diagnostic_name.as_str(),
+                "Same" | "View" | "SameClosure"
+            )
+        })
+        .map(|(_, descriptor)| descriptor)
+        .collect::<Vec<_>>();
+    assert_eq!(descriptors.len(), 6);
+    let symbols = descriptors
+        .iter()
+        .map(|descriptor| descriptor.identity.symbol())
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(symbols.len(), 6);
+    for descriptor in descriptors {
+        assert_eq!(
+            descriptor.identity.symbol_request().key(),
+            scoop_identity::PersistentSymbolKey::TypeDescriptor(descriptor.identity.exact_type())
+        );
+    }
 }
 
 #[test]
@@ -82,18 +915,7 @@ fn lowering_context_derives_scalar_pointer_and_runtime_prefix_layouts() {
     let (_, expected_exception) = context.aggregate_layout([raw_pointer, i32_layout]);
     assert_eq!(context.exception_record_layout(), expected_exception);
 
-    let (descriptor_offsets, _) = context.aggregate_layout([
-        i64_layout,
-        i64_layout,
-        i64_layout,
-        metadata_pointer,
-        metadata_pointer,
-        metadata_pointer,
-    ]);
-    assert_eq!(
-        context.type_descriptor_vtable_offset(),
-        descriptor_offsets[5]
-    );
+    assert_eq!(context.type_descriptor_vtable_offset(), 88);
 }
 
 #[test]
@@ -107,11 +929,11 @@ fn profile_layout_drives_aggregate_root_scan_offsets() {
     let (offsets, expected) = context.aggregate_layout([bool_layout, pointer_layout]);
 
     assert_eq!(
-        safepoints::lir_size_align(&context, &ty, &structs, &enums),
+        safepoints::lir_size_align(&context, &ty, &structs, &enums).unwrap(),
         (expected.size, expected.align)
     );
     assert_eq!(
-        safepoints::root_scan(&context, &ty, &structs, &enums, 0),
+        safepoints::root_scan(&context, &ty, &structs, &enums, 0).unwrap(),
         lir::RefScan::References(vec![offsets[1]])
     );
 }
@@ -121,9 +943,61 @@ fn no_gc_effect_is_preserved_in_lir() {
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), Vec::new());
     builder.functions[main].gc_effect = mir::GcEffect::NoGc;
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     assert_eq!(module.functions[0].gc_effect, lir::GcEffect::NoGc);
     assert!(lir::dump(&module).contains("-> void <no-gc>"));
+}
+
+#[test]
+fn scoop_extern_produces_one_exact_target_contract() {
+    let mut builder = Builder::new();
+    let external = builder.managed_scoop_extern("read", "scoop_read", vec![INT], INT);
+    let source_contract = builder.extern_functions[external].source_contract.id();
+    let main = builder.main(Arena::new(), Vec::new());
+    let source = builder.finish(main);
+    let exact_int = source
+        .meta
+        .source_exact_types
+        .get(&INT)
+        .expect("Int has an exact identity")
+        .identity_record()
+        .id();
+
+    let module = lower(source);
+    let storage = scoop_identity::CanonicalScoopStorage::new(
+        exact_int,
+        4,
+        std::num::NonZeroU64::new(4).unwrap(),
+        scoop_identity::ScoopAbiValueShape::Scalar,
+    );
+    let signature = scoop_identity::CanonicalScoopAbiFunctionSignature::new(
+        ExactCallableSignature::new(Effect::Ordinary, None, vec![exact_int], exact_int),
+        vec![scoop_identity::ScoopAbiArgument::direct(storage).unwrap()],
+        scoop_identity::ScoopAbiReturn::direct(storage).unwrap(),
+        scoop_identity::GcEffect::Managed,
+    )
+    .unwrap();
+    let expected = scoop_identity::NativeExternalContractRecord::new(
+        source_contract,
+        scoop_identity::NativeExternalSymbolKey::darwin_macho_external(
+            &SourceNativeSymbol::new("scoop_read").unwrap(),
+        )
+        .unwrap(),
+        scoop_identity::NativeExternalContract::scoop_function(
+            scoop_identity::NativeLibraryBinding::DefaultNativeNamespace,
+            signature,
+            scoop_identity::TargetCallingConvention::Cdecl,
+        ),
+    )
+    .unwrap();
+
+    assert_eq!(module.meta.native_externals.contracts(), &[expected]);
+    assert!(module.meta.native_externals.link_requirements().is_empty());
+    let counts = lir::CanonicalLirFoundation::from_module(&module)
+        .unwrap()
+        .counts();
+    assert_eq!(counts.native_contracts, 1);
+    assert_eq!(counts.native_link_requirements, 0);
 }
 
 #[test]
@@ -133,19 +1007,30 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         .map(mir::Type::Integer)
         .into_iter()
         .collect::<Vec<_>>();
-    builder.extern_functions.alloc(mir::ExternFunction {
+    let integers = builder.extern_functions.alloc(mir::ExternFunction {
+        source_contract: test_source_native_contract("integers", "integers", mir::ExternAbi::C),
         source_name: "integers".to_string(),
         native_symbol: "integers".to_string(),
         library: String::new(),
         abi: mir::ExternAbi::C,
         calling_convention: mir::CallingConvention::Cdecl,
         gc_effect: mir::GcEffect::NoGc,
-        params,
+        params: params.clone(),
         return_type: mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
     });
+    let same_integers = builder.c_extern(
+        "sameIntegers",
+        "same_integers",
+        params,
+        mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
+    );
+    let source_contracts = [
+        builder.extern_functions[integers].source_contract.id(),
+        builder.extern_functions[same_integers].source_contract.id(),
+    ];
     let main = builder.main(Arena::new(), Vec::new());
     let mut mir_module = builder.finish(main);
-    mir_module.function_types.alloc(mir::FunctionType {
+    let native_signature = mir_module.function_types.alloc(mir::FunctionType {
         is_suspend: false,
         parameter_types: mir::IntegerKind::ALL
             .map(mir::Type::Integer)
@@ -153,8 +1038,32 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
             .collect(),
         return_type: mir::Type::Integer(mir::IntegerKind::UNSIGNED_64),
     });
-    let module = lower(&mir_module);
-    let (_, function) = module.extern_functions.iter().next().expect("one C extern");
+    let forbidden_descriptor_name = format!(
+        "function<{}>",
+        mir::type_name(&mir_module, &mir::Type::Function(native_signature))
+    );
+    let integer_exact_types = mir::IntegerKind::ALL.map(|kind| {
+        mir_module
+            .meta
+            .source_exact_types
+            .get(&mir::Type::Integer(kind))
+            .expect("every source integer has an exact identity")
+            .identity_record()
+            .id()
+    });
+    let return_exact = mir_module
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Integer(mir::IntegerKind::UNSIGNED_64))
+        .expect("the source return type has an exact identity")
+        .identity_record()
+        .id();
+    let module = lower(mir_module);
+    let (_, function) = module
+        .extern_functions
+        .iter()
+        .next()
+        .expect("at least one C extern");
     let lir::ExternFunctionKind::C { signature, .. } = &function.kind else {
         panic!("C declaration remains a C bridge")
     };
@@ -185,25 +1094,257 @@ fn c_abi_preserves_all_eight_exact_integer_kinds() {
         ]
     );
     assert!(
-        descriptor_values(&module).any(|descriptor| {
-            descriptor.name == "function$FI8_I16_I32_I64_V8_V16_V32_V64RV64X"
-        })
+        descriptor_values(&module)
+            .all(|descriptor| descriptor.diagnostic_name != forbidden_descriptor_name),
+        "a native FunPtr signature must not fabricate a managed TypeDescriptor"
     );
+
+    let expected_parameters = mir::IntegerKind::ALL
+        .into_iter()
+        .zip(integer_exact_types)
+        .map(|(kind, exact_type)| {
+            let storage = scoop_identity::CanonicalCStorageType::Integer {
+                exact_type,
+                signedness: match kind.signedness() {
+                    mir::IntegerSignedness::Signed => scoop_identity::Signedness::Signed,
+                    mir::IntegerSignedness::Unsigned => scoop_identity::Signedness::Unsigned,
+                },
+                bit_width: match kind.width() {
+                    mir::IntegerWidth::W8 => scoop_identity::IntegerBitWidth::Bits8,
+                    mir::IntegerWidth::W16 => scoop_identity::IntegerBitWidth::Bits16,
+                    mir::IntegerWidth::W32 => scoop_identity::IntegerBitWidth::Bits32,
+                    mir::IntegerWidth::W64 => scoop_identity::IntegerBitWidth::Bits64,
+                },
+            };
+            scoop_identity::CanonicalCAbiParameter::new(exact_type, storage).unwrap()
+        })
+        .collect();
+    let expected_signature = scoop_identity::CanonicalCAbiSignatureFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+            expected_parameters,
+            scoop_identity::CanonicalCAbiReturn::value(
+                return_exact,
+                scoop_identity::CanonicalCStorageType::Integer {
+                    exact_type: return_exact,
+                    signedness: scoop_identity::Signedness::Unsigned,
+                    bit_width: scoop_identity::IntegerBitWidth::Bits64,
+                },
+            )
+            .unwrap(),
+        ),
+    )
+    .unwrap();
+    assert_eq!(
+        module.meta.canonical_c_abi.signatures(),
+        &[expected_signature]
+    );
+    assert!(module.meta.canonical_c_abi.layouts().is_empty());
+    assert_eq!(module.meta.native_externals.contracts().len(), 2);
+    for source_contract in source_contracts {
+        assert!(
+            module
+                .meta
+                .native_externals
+                .contracts()
+                .iter()
+                .any(|contract| contract.source() == source_contract),
+            "each source C extern must have one target contract"
+        );
+    }
+    let counts = lir::CanonicalLirFoundation::from_module(&module)
+        .unwrap()
+        .counts();
+    assert_eq!(counts.c_abi_signatures, 1);
+    assert_eq!(counts.native_contracts, 2);
+    assert_eq!(counts.bridge_units, 2);
+    assert_eq!(counts.bridge_atoms, 2);
+}
+
+#[test]
+fn canonical_c_abi_metadata_handles_struct_function_pointer_recursion() {
+    let mut builder = Builder::new();
+    let node_id = mir::StructId::from_raw(
+        u32::try_from(builder.structs.len())
+            .expect("test struct arena length fits u32")
+            .into(),
+    );
+    let handler_signature = builder.function_types.alloc(mir::FunctionType {
+        is_suspend: false,
+        parameter_types: vec![mir::Type::Struct(node_id)],
+        return_type: mir::Type::Unit,
+    });
+    let handler_type = mir::Type::FunPtr(handler_signature);
+    let node = builder.c_strukt(
+        "Node",
+        mir::MirCLayoutValue::Natural,
+        mir::MirCLayoutValue::Natural,
+        false,
+        &[("handler", handler_type.clone())],
+    );
+    assert_eq!(node, node_id);
+    builder.c_extern(
+        "visitNode",
+        "visit_node",
+        vec![mir::Type::Struct(node)],
+        mir::Type::Unit,
+    );
+    let main = builder.main(Arena::new(), Vec::new());
+    let mut source = builder.finish(main);
+    register_test_source_exact_type(&mut source, handler_type.clone());
+    let node_exact = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Struct(node))
+        .expect("Node has an exact identity")
+        .identity_record()
+        .id();
+    let handler_exact = source
+        .meta
+        .source_exact_types
+        .get(&handler_type)
+        .expect("Node handler has an exact identity")
+        .identity_record()
+        .id();
+
+    let module = lower(source);
+    let expected_layout = scoop_identity::CanonicalCAbiLayoutFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiLayout::new(
+            node_exact,
+            8,
+            std::num::NonZeroU64::new(8).unwrap(),
+            scoop_identity::CLayoutOverride::Natural,
+            scoop_identity::CLayoutOverride::Natural,
+            vec![scoop_identity::CanonicalCAbiLayoutField::new(
+                test_field_identity("Node", "handler"),
+                0,
+                scoop_identity::CanonicalCStorageType::CodePointer {
+                    exact_type: handler_exact,
+                    storage: scoop_identity::CPointerStorage::Direct,
+                },
+            )],
+        ),
+    )
+    .unwrap();
+    let expected_signature = scoop_identity::CanonicalCAbiSignatureFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+            vec![
+                scoop_identity::CanonicalCAbiParameter::new(
+                    node_exact,
+                    scoop_identity::CanonicalCStorageType::Struct {
+                        exact_type: node_exact,
+                        layout: expected_layout.fingerprint(),
+                    },
+                )
+                .unwrap(),
+            ],
+            scoop_identity::CanonicalCAbiReturn::Void,
+        ),
+    )
+    .unwrap();
+
+    assert_eq!(module.meta.canonical_c_abi.layouts(), &[expected_layout]);
+    assert_eq!(
+        module.meta.canonical_c_abi.signatures(),
+        &[expected_signature]
+    );
+    let foundation = lir::CanonicalLirFoundation::from_module(&module).unwrap();
+    assert_eq!(foundation.counts().c_abi_layouts, 1);
+    assert_eq!(foundation.counts().c_abi_signatures, 1);
+}
+
+#[test]
+fn canonical_c_abi_metadata_includes_external_global_layouts() {
+    let mut builder = Builder::new();
+    let header = builder.c_strukt(
+        "Header",
+        mir::MirCLayoutValue::A8,
+        mir::MirCLayoutValue::A1,
+        false,
+        &[("flag", mir::Type::Boolean), ("value", INT)],
+    );
+    let main = builder.main(Arena::new(), Vec::new());
+    let mut source = builder.finish(main);
+    let exact = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Struct(header))
+        .expect("Header has an exact identity")
+        .identity_record();
+    let ExactTypeKey::Nominal(nominal) = exact.key() else {
+        panic!("a non-generic test struct has a nominal exact identity")
+    };
+    let library = scoop_identity::CanonicalNativeLibraryName::new("native-headers").unwrap();
+    let expected_requirement = scoop_identity::CborIdentityRecord::from_key(
+        scoop_identity::NativeLinkRequirementKey::target_default(library.clone()),
+    )
+    .unwrap();
+    let source_contract = test_source_native_data_contract(
+        "header",
+        "native_header",
+        SignatureTypeKey::Nominal(*nominal),
+        SourceNativeLibraryBinding::LogicalLibrary(library),
+    );
+    let source_contract_id = source_contract.id();
+    source.globals.alloc(mir::Global {
+        name: "header".to_string(),
+        storage_owner: mir::StaticStorageOwner::PropertyBacking(property_owner("header")),
+        ty: mir::Type::Struct(header),
+        mutable: false,
+        storage: mir::GlobalStorage::Extern {
+            source_contract: Box::new(source_contract),
+            library: "native-headers".to_string(),
+            native_symbol: "native_header".to_string(),
+            thread_local: false,
+        },
+    });
+
+    let module = lower(source);
+    assert!(module.meta.canonical_c_abi.signatures().is_empty());
+    assert_eq!(module.meta.canonical_c_abi.layouts().len(), 1);
+    let native_contracts = module.meta.native_externals.contracts();
+    assert_eq!(native_contracts.len(), 1);
+    assert_eq!(native_contracts[0].source(), source_contract_id);
+    assert_eq!(
+        native_contracts[0]
+            .symbol_key()
+            .native_link_symbol()
+            .as_bytes(),
+        b"_native_header"
+    );
+    assert_eq!(
+        module.meta.native_externals.link_requirements(),
+        &[expected_requirement]
+    );
+    let counts = lir::CanonicalLirFoundation::from_module(&module)
+        .unwrap()
+        .counts();
+    assert_eq!(counts.c_abi_layouts, 1);
+    assert_eq!(counts.native_contracts, 1);
+    assert_eq!(counts.native_link_requirements, 1);
+    assert_eq!(counts.bridge_units, 2);
+    // The read and address bridge units each own their primary atom plus one
+    // generated C static-assert atom for the shared Header layout.
+    assert_eq!(counts.bridge_atoms, 4);
 }
 
 #[test]
 fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
     let mut builder = Builder::new();
     let raw_payload = mir::Type::Ptr(Box::new(INT));
-    let raw_option = builder.option_enum("Option$Ptr$Int", raw_payload.clone());
+    let raw_option = builder.option_enum("Option<Ptr<Int>>", raw_payload.clone());
     let native_signature = builder.function_types.alloc(mir::FunctionType {
         is_suspend: false,
         parameter_types: vec![mir::Type::Integer(mir::IntegerKind::UNSIGNED_16)],
         return_type: mir::Type::Integer(mir::IntegerKind::SIGNED_8),
     });
     let code_payload = mir::Type::FunPtr(native_signature);
-    let code_option = builder.option_enum("Option$FunPtr", code_payload.clone());
+    let code_option = builder.option_enum("Option<FunPtr>", code_payload.clone());
     builder.extern_functions.alloc(mir::ExternFunction {
+        source_contract: test_source_native_contract(
+            "nullablePointers",
+            "nullable_pointers",
+            mir::ExternAbi::C,
+        ),
         source_name: "nullablePointers".to_string(),
         native_symbol: "nullable_pointers".to_string(),
         library: String::new(),
@@ -218,7 +1359,7 @@ fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
     });
     let main = builder.main(Arena::new(), Vec::new());
 
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let (_, function) = module.extern_functions.iter().next().expect("one C extern");
     let lir::ExternFunctionKind::C { signature, .. } = &function.kind else {
         panic!("C declaration remains a C bridge")
@@ -260,7 +1401,6 @@ fn c_abi_nullable_refs_bind_the_exact_lowered_pointee_and_signature() {
 }
 
 #[test]
-#[should_panic(expected = "HIR C-FFI classification rejects")]
 fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
     let mut builder = Builder::new();
     let payload = mir::Type::Ptr(Box::new(INT));
@@ -269,22 +1409,19 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
         type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
-            mir::VariantDef {
-                name: "Some".to_string(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            test_variant(
+                "Some".to_string(),
+                true,
+                vec![mir::Field {
                     name: "_1".to_string(),
                     ty: payload.clone(),
                 }],
-            },
-            mir::VariantDef {
-                name: "None".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
+            ),
+            test_variant("None".to_string(), true, Vec::new()),
         ],
     });
     builder.extern_functions.alloc(mir::ExternFunction {
+        source_contract: test_source_native_contract("lookalike", "lookalike", mir::ExternAbi::C),
         source_name: "lookalike".to_string(),
         native_symbol: "lookalike".to_string(),
         library: String::new(),
@@ -296,35 +1433,42 @@ fn c_abi_does_not_guess_nullable_pointer_from_a_non_option_enum_shape() {
     });
     let main = builder.main(Arena::new(), Vec::new());
 
-    let _ = lower(&builder.finish(main));
+    assert!(matches!(
+        try_lower(builder.finish(main)),
+        Err(LirLoweringError::StorageReplay(
+            StorageLoweringError::InvalidRepresentation(
+                "the source type has no C object representation"
+            )
+        )),
+    ));
 }
 
 #[test]
 fn foreign_callback_bridge_preserves_its_nominal_family() {
     let mut builder = Builder::new();
     let callback = builder.structs.alloc(mir::StructDef {
+        type_arguments: Vec::new(),
         name: "ForeignCallback<(Int) -> Unit>".to_string(),
         gc_free: true,
         representation: mir::StructRepresentation::Declared {
+            c_abi: mir::StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
             fields: vec![
-                mir::Field {
+                mir::DeclaredStructField {
+                    identity: test_field_identity("Lookalike", "function"),
                     name: "function".to_string(),
                     ty: mir::Type::FunPtr(mir::FunctionTypeId::from_raw(0.into())),
                 },
-                mir::Field {
+                mir::DeclaredStructField {
+                    identity: test_field_identity("Lookalike", "context"),
                     name: "context".to_string(),
                     ty: mir::Type::Ptr(Box::new(mir::Type::Unit)),
                 },
             ],
         },
     });
-    let unit_variant = |name: &str| mir::VariantDef {
-        name: name.to_string(),
-        gc_free: true,
-        fields: Vec::new(),
-    };
+    let unit_variant = |name: &str| test_variant(name.to_string(), true, Vec::new());
     let mode = builder.enums.alloc(mir::EnumDef {
         name: "ForeignCallbackMode".to_string(),
         type_arguments: Vec::new(),
@@ -381,23 +1525,80 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             states,
             failure_result,
         });
-    let adapter = module
-        .foreign_callback_adapters
-        .alloc(mir::ForeignCallbackAdapter {
-            function: main,
+    let application_identity = callback_application();
+    let application = application_identity.id();
+    let exact_signature = exact_callback_signature();
+    let adapter_function = module.functions.alloc(mir::Function {
+        gc_effect: mir::GcEffect::Managed,
+        name: "foreign callback adapter".to_string(),
+        params: Vec::new(),
+        return_ty: mir::Type::Unit,
+        body: mir::Body::unreachable(Arena::new()),
+    });
+    module.top_level.push(adapter_function);
+    let adapter = module.foreign_callback_adapters.alloc(
+        mir::ForeignCallbackAdapter::checked(
+            adapter_function,
             managed_signature,
-        });
+            &module.function_types[managed_signature],
+            application,
+            &exact_signature,
+            None,
+        )
+        .unwrap(),
+    );
     module
         .foreign_callback_bridges
         .alloc(mir::ForeignCallbackBridge {
+            application_identity,
+            application_record: mir::CallbackApplicationRecord::new(
+                application,
+                module.foreign_callback_adapters[adapter].signature_subject(),
+                exact_signature,
+                mir::ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+                CallbackMode::Reusable,
+            ),
             adapter,
             family,
             native_signature,
             context_index: 0,
             mode: modes.reusable(),
         });
+    module.meta.generated_callables =
+        mir::MirGeneratedCallableIdentities::checked(vec![mir::MirGeneratedCallableIdentity::new(
+            adapter_function,
+            module.foreign_callback_adapters[adapter].identity_record(),
+            module.foreign_callback_adapters[adapter].signature_subject(),
+        )])
+        .unwrap();
+    register_test_source_exact_type(&mut module, mir::Type::Ptr(Box::new(mir::Type::Unit)));
+    install_callable_signatures(&mut module);
 
-    let lowered = lower(&module);
+    let lowered = lower(module);
+    let lowered_bridge = lowered
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .expect("the callback bridge is retained")
+        .1;
+    assert_eq!(lowered_bridge.application, application);
+    assert!(
+        lowered_bridge
+            .trampoline
+            .entry()
+            .symbol()
+            .starts_with("scoop$1$br$")
+    );
+    assert!(
+        lowered_bridge
+            .trampoline
+            .signature_descriptor_symbol()
+            .starts_with("scoop$1$br$")
+    );
+    assert_ne!(
+        lowered_bridge.trampoline.entry().symbol(),
+        lowered_bridge.trampoline.signature_descriptor_symbol()
+    );
     let lowered_family = lowered.foreign_callback_families.iter().next().unwrap().1;
     assert_eq!(lowered_family.callback.into_raw(), callback.into_raw());
     assert_eq!(
@@ -422,6 +1623,12 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
             .family,
         scoop_lir::ForeignCallbackFamilyId::from_raw(family.into_raw())
     );
+    let counts = lir::CanonicalLirFoundation::from_module(&lowered)
+        .unwrap()
+        .counts();
+    assert_eq!(counts.bridge_units, 1);
+    assert_eq!(counts.bridge_atoms, 2);
+    assert_eq!(counts.callback_bridges, 1);
 }
 
 mod arrays;

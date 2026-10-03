@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    if
+      Binary Ne
+        Call identity<Int>
+          IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call composed<Int>
+        IntLiteral 42

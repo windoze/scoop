@@ -1,0 +1,2 @@
+public fun defaultSamples(): Samples = Samples()
+public fun defaultChild(): Child = Child()

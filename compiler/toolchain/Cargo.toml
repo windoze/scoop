@@ -1,0 +1,15 @@
+[package]
+name = "scoop-toolchain"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+scoop-process.workspace = true
+object.workspace = true
+scoop-lir.workspace = true
+scoop-protocol.workspace = true
+scoop-slib.workspace = true
+scoop-wire.workspace = true
+tempfile.workspace = true
+serde.workspace = true
+serde_yaml_ng.workspace = true

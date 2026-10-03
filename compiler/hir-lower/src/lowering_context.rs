@@ -2,21 +2,46 @@ use super::*;
 
 impl Lowerer {
     /// Establish one lexical source boundary for expression provenance.
-    /// Contexts are arena-backed so origins stay Copy while function/type
-    /// names remain typed HIR data rather than duplicated strings.
-    pub(crate) fn set_source_context(&mut self, function_name: impl Into<String>) {
-        let type_name = match self.current_owner {
-            Some(Owner::Class(id)) => self.classes[id].name.clone(),
-            Some(Owner::Interface(id)) => self.interfaces[id].name.clone(),
-            Some(Owner::Struct(id)) => self.structs[id].name.clone(),
-            Some(Owner::Enum(id)) => self.enums[id].name.clone(),
-            Some(Owner::Object(id)) => self.objects[id].name.clone(),
-            None => String::new(),
-        };
-        self.current_source_context = self.source_contexts.alloc(hir::SourceContext {
-            function_name: function_name.into(),
-            type_name,
-        });
+    /// Contexts are interned by source and typed subject so arena allocation
+    /// order and repeated visits cannot create distinct semantic contexts.
+    pub(crate) fn set_source_context(&mut self, subject: hir::SourceContextSubject) {
+        self.current_source_context = Some(self.intern_source_context(subject));
+    }
+
+    fn intern_source_context(
+        &mut self,
+        subject: hir::SourceContextSubject,
+    ) -> hir::SourceContextId {
+        let context = hir::SourceContext::new(
+            self.intrinsic_sources[self.current_file].identity.clone(),
+            subject,
+        );
+        self.source_context_by_value
+            .get(&context)
+            .copied()
+            .unwrap_or_else(|| {
+                let id = self.source_contexts.alloc(context.clone());
+                self.source_context_by_value.insert(context, id);
+                id
+            })
+    }
+
+    /// Interning a context never allocates constructors, so the next arena
+    /// slot is also the exact typed subject of the following allocation.
+    pub(crate) fn next_class_constructor_context(&mut self) -> hir::SourceContextId {
+        let index = u32::try_from(self.class_constructors.len())
+            .expect("constructor arena indices fit in u32");
+        let constructor = hir::ClassConstructorId::from_raw(index.into());
+        self.intern_source_context(hir::SourceContextSubject::Constructor(
+            hir::SourceContextConstructor::Class(constructor),
+        ))
+    }
+
+    pub(crate) fn source_context_for_current_file(&self) -> hir::SourceContextId {
+        let source = &self.intrinsic_sources[self.current_file].identity;
+        self.current_source_context
+            .filter(|&context| self.source_contexts[context].source() == source)
+            .unwrap_or(self.file_source_contexts[self.current_file])
     }
 
     /// Allocate a hidden desugaring temporary (`$opt.N` / `$res.N`).
@@ -24,9 +49,30 @@ impl Lowerer {
     /// never produces `$` identifiers), so it is not registered in
     /// `scopes`; generated code references it by `LocalId` directly.
     pub(crate) fn alloc_hidden(&mut self, prefix: &str, ty: TypeId) -> hir::LocalId {
+        self.alloc_hidden_with_role(prefix, ty, scoop_identity::SyntheticLocalRole::Temporary)
+    }
+
+    pub(crate) fn alloc_desugared_iterator_hidden(
+        &mut self,
+        prefix: &str,
+        ty: TypeId,
+    ) -> hir::LocalId {
+        self.alloc_hidden_with_role(
+            prefix,
+            ty,
+            scoop_identity::SyntheticLocalRole::DesugaredIterator,
+        )
+    }
+
+    fn alloc_hidden_with_role(
+        &mut self,
+        prefix: &str,
+        ty: TypeId,
+        role: scoop_identity::SyntheticLocalRole,
+    ) -> hir::LocalId {
         let name = format!("${prefix}.{}", self.hidden_count);
         self.hidden_count += 1;
-        self.alloc_local(name, ty, false)
+        self.alloc_synthetic_local(name, ty, false, role)
     }
 
     /// Allocate the branch-result local used when a structured control
@@ -35,7 +81,12 @@ impl Lowerer {
     pub(crate) fn alloc_hidden_result(&mut self, ty: TypeId) -> hir::LocalId {
         let name = format!("$result.{}", self.hidden_count);
         self.hidden_count += 1;
-        self.alloc_local(name, ty, true)
+        self.alloc_synthetic_local(
+            name,
+            ty,
+            true,
+            scoop_identity::SyntheticLocalRole::Temporary,
+        )
     }
 
     /// The variant index of `name` in `enum_id`, if it exists.
@@ -64,10 +115,7 @@ impl Lowerer {
     }
 
     pub(crate) fn resolved_variant_style(&self, target: hir::EnumVariantRef) -> VariantStyle {
-        *self
-            .variant_styles
-            .get(&(target.enumeration(), target.local_index()))
-            .expect("a checked resolved variant retains its source call shape")
+        self.enums[target.enumeration()].variants[target.local_index() as usize].style
     }
 
     /// Resolve the lowest-priority contextual layer against one exact enum
@@ -81,14 +129,23 @@ impl Lowerer {
             return None;
         };
         let enumeration = self.enum_applications[application].template;
-        self.find_variant_ref(enumeration, name)
+        let crate::Owner::Enum(enumeration) = self.nominal_owners.get(&enumeration)? else {
+            unreachable!("an enum application retains its enum declaration")
+        };
+        self.find_variant_ref(*enumeration, name)
     }
 
     pub(crate) fn exact_expected_enum(&self, expected: Option<TypeId>) -> Option<EnumId> {
         let Type::Enum(application) = self.types[*expected.as_ref()?] else {
             return None;
         };
-        Some(self.enum_applications[application].template)
+        let crate::Owner::Enum(enumeration) = self
+            .nominal_owners
+            .get(&self.enum_applications[application].template)?
+        else {
+            unreachable!("an enum application retains its enum declaration")
+        };
+        Some(*enumeration)
     }
 
     /// During declaration/type pass 1 this reads the provisional core enum;
@@ -99,22 +156,43 @@ impl Lowerer {
             .or(self.pending_option_enum)
     }
 
+    pub(crate) fn has_option_protocol(&self) -> bool {
+        matches!(self.core, crate::CoreLoweringAuthority::Imported(_))
+            || self.option_enumeration().is_some()
+    }
+
     /// Whether `ty` is `Option<T>`; returns `T`.
     pub(crate) fn as_option(&self, ty: TypeId) -> Option<TypeId> {
-        match &self.types[ty] {
-            Type::Enum(application) => {
-                let application = &self.enum_applications[*application];
-                (Some(application.template) == self.option_enumeration()
-                    && application.arguments.len() == 1)
-                    .then_some(application.arguments[0])
+        let Type::Enum(application) = self.types[ty] else {
+            return None;
+        };
+        let application = &self.enum_applications[application];
+        let [argument] = application.arguments.as_slice() else {
+            return None;
+        };
+        let option = match &self.core {
+            crate::CoreLoweringAuthority::Imported(protocols) => {
+                hir::SourceNominalId::GenericTemplate(protocols.option().option().persistent())
             }
-            _ => None,
-        }
+            _ => self
+                .nominal_identity(crate::Owner::Enum(self.option_enumeration()?))
+                .declaration_id(),
+        };
+        (application.template == option).then_some(*argument)
     }
 
     /// `Option<inner>` (interned). Only called when the core `Option`
     /// validated successfully.
     pub(crate) fn option_type(&mut self, inner: TypeId) -> TypeId {
+        if let crate::CoreLoweringAuthority::Imported(protocols) = &self.core {
+            let owner = protocols.option().option().persistent();
+            return self
+                .imported_nominal_application(
+                    hir::SourceNominalId::GenericTemplate(owner),
+                    vec![inner],
+                )
+                .expect("the checked Option protocol has a complete dependency declaration");
+        }
         let id = self
             .option_enumeration()
             .expect("Option types only exist after core validation");
@@ -145,14 +223,8 @@ impl Lowerer {
         self.safety_contexts.pop();
     }
 
-    /// Diagnose a suspend call made from a declaration body whose ABI has
-    /// no continuation. The resolved callable, including a generic
-    /// instantiation, always leads back to exactly one function entity.
-    pub(crate) fn check_suspend_call(&mut self, callable: hir::Callable, span: Span) {
-        let function = self.callable_function_id(callable);
-        if !self.functions[function].is_suspend {
-            return;
-        }
+    /// Diagnose a selected suspend call in a body whose ABI has no continuation.
+    pub(crate) fn check_suspend_context(&mut self, callee: &str, span: Span) {
         let context = *self
             .suspension_contexts
             .last()
@@ -160,7 +232,6 @@ impl Lowerer {
         let SuspensionContext::Forbidden(reason) = context else {
             return;
         };
-        let callee = self.functions[function].name.clone();
         let location = match reason {
             ForbiddenSuspendContext::TopLevel => "a non-suspend declaration".to_string(),
             ForbiddenSuspendContext::Function => {
@@ -181,8 +252,10 @@ impl Lowerer {
     }
 
     pub(crate) fn check_call_effects(&mut self, callable: hir::Callable, span: Span) {
-        self.check_suspend_call(callable, span);
         let function = self.callable_function_id(callable);
+        if self.functions[function].is_suspend {
+            self.check_suspend_context(&self.functions[function].name.clone(), span);
+        }
         if self.functions[function].attributes.safety != hir::Safety::Unsafe {
             return;
         }

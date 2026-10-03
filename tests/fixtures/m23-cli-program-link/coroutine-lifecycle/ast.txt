@@ -1,0 +1,171 @@
+SourceFile
+  QualifiedPackage consumer.coroutines
+  ImportStar Local templates.coroutines.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val done
+      Call Completion<T>
+    Call startCoroutine
+      Lambda 0 suspend=true
+        parameters omitted
+        Call synchronous
+          Var seed
+      Var done
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var done
+          IntLiteral 1
+        Binary Ne
+          Call read
+            NullAssert
+              FieldAccess value
+                Var done
+          IntLiteral 42
+      return
+        IntLiteral 2
+    val failed
+      Call Completion<T>
+    Call startCoroutine
+      Lambda 1 suspend=true
+        parameters omitted
+        Call synchronousFailure<T>
+      Var failed
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var failed
+          IntLiteral 1
+        Unary Not
+          Is UnwrapException false
+            NullAssert
+              FieldAccess failure
+                Var failed
+      return
+        IntLiteral 3
+    val registration
+      Call Completion<T>
+    Call startCoroutine
+      Lambda 2 suspend=true
+        parameters omitted
+        Call registrationFailure<T>
+      Var registration
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var registration
+          IntLiteral 1
+        Unary Not
+          Is UnwrapException false
+            NullAssert
+              FieldAccess failure
+                Var registration
+      return
+        IntLiteral 4
+    val resumedFailure
+      Call Completion<T>
+    Call startCoroutine
+      Lambda 3 suspend=true
+        parameters omitted
+        Call resumedThenThrows
+          Var seed
+      Var resumedFailure
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var resumedFailure
+          IntLiteral 1
+        Unary Not
+          Is IllegalStateException false
+            NullAssert
+              FieldAccess failure
+                Var resumedFailure
+      return
+        IntLiteral 5
+    val duplicate
+      Call Completion<T>
+    Call startCoroutine
+      Lambda 4 suspend=true
+        parameters omitted
+        Call resumedTwice
+          Var seed
+      Var duplicate
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var duplicate
+          IntLiteral 1
+        Unary Not
+          Is IllegalStateException false
+            NullAssert
+              FieldAccess failure
+                Var duplicate
+      return
+        IntLiteral 6
+    val gate
+      Call Gate<T>
+    val deferred
+      Call Completion<T>
+    Call startCoroutine
+      Lambda 5 suspend=true
+        parameters omitted
+        Call await
+          Var gate
+      Var deferred
+    if
+      Binary Ne
+        FieldAccess calls
+          Var deferred
+        IntLiteral 0
+      return
+        IntLiteral 7
+    val continuation
+      NullAssert
+        FieldAccess waiter
+          Var gate
+    MethodCall complete
+      Var gate
+      Var seed
+    var rejected
+      BoolLiteral false
+    try
+      MethodCall resume
+        Var continuation
+        Var seed
+    catch exception: IllegalStateException
+      assign rejected
+        BoolLiteral true
+    if
+      Binary Or
+        Binary Or
+          Unary Not
+            Var rejected
+          Binary Ne
+            FieldAccess calls
+              Var deferred
+            IntLiteral 1
+        Binary Ne
+          Call read
+            NullAssert
+              FieldAccess value
+                Var deferred
+          IntLiteral 42
+      return
+        IntLiteral 8
+    return
+      Call read
+        Var seed
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 6 suspend=false
+          param value: Int
+          Var value
+  fun main()
+    Call println
+      Call result

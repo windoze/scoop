@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native contract conflict for _m23_contract: function/data/TLS/mutability or storage differs; origins: dev.programlink:also-left:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([115, 50, 2, 151, 153, 246, 129, 246, 179, 63, 151, 247, 250, 42, 26, 68, 48, 142, 186, 183, 225, 114, 34, 176, 129, 248, 23, 228, 142, 204, 50, 185])]), dev.programlink:left:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([75, 139, 65, 118, 88, 21, 110, 92, 230, 189, 69, 230, 252, 251, 118, 75, 92, 36, 112, 45, 190, 18, 8, 33, 92, 92, 249, 71, 16, 20, 236, 28])]), dev.programlink:right:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([252, 149, 28, 234, 54, 94, 243, 241, 197, 235, 201, 18, 193, 123, 222, 180, 222, 75, 110, 248, 170, 41, 42, 54, 139, 191, 183, 127, 213, 206, 48, 119])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

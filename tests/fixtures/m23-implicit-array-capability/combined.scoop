@@ -1,0 +1,5 @@
+public class Values<T> public constructor(vararg values: T = []) {
+    public fun count(vararg values: T): Int = 1
+}
+public enum Batches<T> { Items(vararg val values: T) }
+public fun <T> count(vararg values: T): Int = 1

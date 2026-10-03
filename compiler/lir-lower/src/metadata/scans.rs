@@ -1,29 +1,13 @@
 use super::*;
 
-/// Normalize a list of scans: remove empty parts, flatten sequences,
-/// and merge plain reference lists.
-pub(crate) fn sequence(parts: impl IntoIterator<Item = lir::RefScan>) -> lir::RefScan {
-    fn collect(scan: lir::RefScan, refs: &mut Vec<u64>) {
-        match scan {
-            lir::RefScan::None => {}
-            lir::RefScan::References(offsets) => refs.extend(offsets),
-            lir::RefScan::Sequence(parts) => {
-                for part in parts {
-                    collect(part, refs);
-                }
-            }
-        }
-    }
-
-    let mut refs = Vec::new();
-    for part in parts {
-        collect(part, &mut refs);
-    }
-    if refs.is_empty() {
-        lir::RefScan::None
-    } else {
-        lir::RefScan::References(refs)
-    }
+/// Normalize through the shared runtime scan implementation before emission.
+pub(crate) fn sequence(
+    parts: impl IntoIterator<Item = lir::RefScan>,
+) -> StorageResult<lir::RefScan> {
+    Ok(
+        lir::CheckedRefScanV1::normalize(lir::RefScan::Sequence(parts.into_iter().collect()))?
+            .into_ref_scan(),
+    )
 }
 
 /// Scan program for `fields` laid out at `offsets`, shifted by `base`.
@@ -34,13 +18,23 @@ pub(crate) fn scan_fields(
     fields: &[mir::Type],
     offsets: &[u64],
     base: u64,
-) -> lir::RefScan {
-    sequence(
-        fields
-            .iter()
-            .zip(offsets)
-            .map(|(field, offset)| ref_scan(context, module, enums, field, base + offset)),
-    )
+) -> StorageResult<lir::RefScan> {
+    if fields.len() != offsets.len() {
+        return Err(StorageLoweringError::InvalidRepresentation(
+            "field and offset counts differ",
+        ));
+    }
+    let scans = fields
+        .iter()
+        .zip(offsets)
+        .map(|(field, offset)| {
+            let offset = base
+                .checked_add(*offset)
+                .ok_or(lir::RefScanValidationError::OffsetOverflow)?;
+            ref_scan(context, module, enums, field, offset)
+        })
+        .collect::<StorageResult<Vec<_>>>()?;
+    sequence(scans)
 }
 
 /// Recursive scan program for one inline value at `base`.
@@ -50,8 +44,8 @@ pub(crate) fn ref_scan(
     enums: &lir::EnumDefs,
     ty: &mir::Type,
     base: u64,
-) -> lir::RefScan {
-    match ty {
+) -> StorageResult<lir::RefScan> {
+    Ok(match ty {
         mir::Type::String
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
@@ -63,16 +57,18 @@ pub(crate) fn ref_scan(
                 .iter()
                 .map(|field| field.ty.clone())
                 .collect();
-            let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
+            let enum_shape =
+                |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
             let (field_layouts, _, _) =
-                struct_shape(context, module, &enum_shape, &module.structs[*id]);
+                struct_shape(context, module, &enum_shape, &module.structs[*id])?;
             let offsets: Vec<_> = field_layouts.iter().map(|field| field.offset).collect();
-            scan_fields(context, module, enums, &fields, &offsets, base)
+            scan_fields(context, module, enums, &fields, &offsets, base)?
         }
         mir::Type::Tuple(fields) => {
-            let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-            let (offsets, _, _) = aggregate_shape(context, module, &enum_shape, fields);
-            scan_fields(context, module, enums, fields, &offsets, base)
+            let enum_shape =
+                |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+            let (offsets, _, _) = aggregate_shape(context, module, &enum_shape, fields)?;
+            scan_fields(context, module, enums, fields, &offsets, base)?
         }
         mir::Type::Enum(id, _) => match &enums[enum_def_id(*id)].repr {
             lir::EnumRepr::Niche {
@@ -98,8 +94,9 @@ pub(crate) fn ref_scan(
                         let offsets: Vec<u64> =
                             repr.fields.iter().map(|field| field.offset).collect();
                         scan_fields(context, module, enums, &fields, &offsets, base)
-                    }),
-            ),
+                    })
+                    .collect::<StorageResult<Vec<_>>>()?,
+            )?,
         },
         mir::Type::Unit
         | mir::Type::Integer(_)
@@ -107,5 +104,23 @@ pub(crate) fn ref_scan(
         | mir::Type::Boolean
         | mir::Type::Ptr(_)
         | mir::Type::FunPtr(_) => lir::RefScan::None,
-    }
+    })
+}
+
+/// Build inline storage only after the scan is proven against its complete
+/// extent. In particular, zero-sized storage cannot silently discard roots.
+pub(crate) fn value_storage(
+    context: &LoweringContext,
+    size: u64,
+    alignment: u64,
+    scan: lir::RefScan,
+) -> StorageResult<lir::ValueStorageLayoutV1> {
+    lir::StorageGeometryV1::new(context.target_profile(), size, alignment)?;
+    let scan = lir::CheckedRefScanV1::normalize(scan)?;
+    scan.validate_extent(size, alignment)?;
+    Ok(if size == 0 {
+        lir::ValueStorageLayoutV1::zero_sized(alignment)?
+    } else {
+        lir::ValueStorageLayoutV1::inline(size, alignment, scan.into_ref_scan())?
+    })
 }

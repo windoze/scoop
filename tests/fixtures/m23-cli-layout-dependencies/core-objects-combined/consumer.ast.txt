@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.runtimeValue as remote
+  ImportExact Local dependency.api.imageValue
+  ImportExact Local dependency.api.imageMutable
+  ImportExact Local dependency.api.computedValue
+    @Extern(name = "scoop_test_identity")
+  fun nativeIdentity(value: Int): Int
+    @Extern(name = "scoop_test_other")
+  fun nativeOther(value: Int): Int
+  fun defaultRead(value: Int = <expr>): Int
+    =
+      Var value
+  public val localDefault: Int = <expr>
+  public val localExplicit: Int = <expr>
+  public val localTwice: Int = <expr>
+  public val localWrite: Int = <expr>
+  public val localComputed: Int = <expr>
+  public val localImage: Int = <expr>
+  public val localImageWrite: Int = <expr>
+  public fun outside(): Int
+    =
+      Var remote
+  public fun unusedDefault(value: Int = <expr>): Int
+    =
+      Var value
+  public fun nativeCalls(value: Int): Int
+    @Unsafe block
+      return
+        Binary Add
+          Call nativeIdentity
+            Var value
+          Call nativeOther
+            Var value

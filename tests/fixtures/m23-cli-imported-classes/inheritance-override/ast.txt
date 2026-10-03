@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Parent
+  public class Derived(value: Long) : Parent(<1 args>)
+    public fun read
+  public fun primary(): Counter
+    val base: Parent
+      Call Derived
+        IntLiteral 20
+    return
+      Call Counter
+        MethodCall read
+          Var base

@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  public fun holder(value: Message): Holder
+    =
+      Call Holder
+        Var value
+  public fun held(value: Holder): Message
+    =
+      FieldAccess value
+        Var value
+SourceFile
+  RootPackage
+  public interface Marker
+    fun value
+  public struct Payload : Marker
+    field label: String
+  public enum Message
+    Idle
+    Data(Payload)
+  public class Holder(val value: Message)
+  public object Singleton
+    public val label: String = <expr>
+      StringLiteral "stable"
+  private struct Hidden
+    field value: Int
+  public fun hide(): Any
+    =
+      Call Hidden
+        IntLiteral 1

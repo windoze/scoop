@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact PublicReexport dependency.classes.CompanionHost.Companion as SharedFactory
+  public fun primary(): Counter
+    =
+      FieldAccess value
+        Var SharedFactory

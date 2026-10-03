@@ -1,0 +1,87 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val child
+      Call child
+        StringLiteral "child"
+        IntLiteral 17
+    val base: Base
+      Var child
+    val marker: Marker
+      Var child
+    Call verifyType
+      Binary And
+        Binary Eq
+          Call inherited
+            Var base
+          IntLiteral 17
+        Binary Eq
+          Call observeChild
+            Var child
+          TupleLiteral
+            IntLiteral 17
+            StringLiteral "child"
+            IntLiteral 17
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall mark
+            Var marker
+          IntLiteral 7
+        Binary Eq
+          MethodCall mark
+            Var child
+          IntLiteral 7
+    val label
+      Call Label
+        StringLiteral "label"
+    val labelMarker: Marker
+      Var label
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall mark
+            Var labelMarker
+          IntLiteral 7
+        Binary Eq
+          FieldAccess text
+            Var label
+          StringLiteral "label"
+    Call verifyType
+      Binary Eq
+        MethodCall Some
+          Var Choice
+          Var label
+        MethodCall Some
+          Var Choice
+          Var label
+    Call verifyType
+      Binary RefEq
+        Var Singleton
+        Var Singleton
+    Call verifyType
+      Binary And
+        Binary And
+          Binary Eq
+            Call inherited
+              Var Singleton
+            IntLiteral 2
+          Binary Eq
+            FieldAccess number
+              Var Singleton
+            IntLiteral 3
+        Binary Eq
+          FieldAccess text
+            Var Singleton
+          StringLiteral "value"
+    Call verifyType
+      Binary Eq
+        MethodCall mark
+          Var Singleton
+        IntLiteral 7

@@ -1,0 +1,580 @@
+Module
+  global0 attempts: Int managed initial=encoded(Int:0x0)
+  global1 $singleton$Broken: Broken managed initial=zeroed-for-runtime-unit
+  global2 $singleton$Unused: Unused managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global4 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Broken singleton lazy global1 initializer=@fn4 ensure=@fn5 failure=3 deps=[]
+  init1 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Unused singleton lazy global2 initializer=@fn6 ensure=@fn7 failure=4 deps=[]
+  extern ef0 trace @m23_trace(Long) -> Unit <abi=c no-gc lib=m23_runtime_images>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Box>
+    Completed(value: Box)
+    Suspended()
+  enum CoroutineSlot<Box>
+    Empty()
+    Value(value: Box)
+  enum CoroutineStep<Fault>
+    Completed(value: Fault)
+    Suspended()
+  enum CoroutineSlot<Fault>
+    Empty()
+    Value(value: Fault)
+  class Box vtable=0 itables=0
+  class Fault vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Broken vtable=0 itables=0
+  class Unused vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  interface Continuation<Box>
+  interface SuspendTask<Box>
+  interface SuspendRegistration<Box>
+  interface Continuation<Fault>
+  interface SuspendTask<Fault>
+  interface SuspendRegistration<Fault>
+  generated_exact_type get0 location=enum4 nominal_id=24981e3d16a975c1c4f0449ed49476f0ea98119f4b549ab1d14845e8399dbc54 exact_id=74ee54315bd2bb0ba3c36038464efc3ca218bef5747c7cfe7defacb812efe28c
+  generated_exact_type get1 location=enum1 nominal_id=e286bab738c87dcdc4fb3e953736b89675b7c81342d1db4efaee8923713b988d exact_id=8b6a22977f28aebe8d0a199448501bd80e61ad7332b1bdcb3ede8bea5c9fd014
+  generated_exact_type get2 location=enum3 nominal_id=bfa888ef5ffeb4a9e9e0e59cb303be2174eb1a0becf2cfd9cbcabef6b78ddaec exact_id=9bd8928890c63459febd658808dd22e11360337a181d09ecb1ebec520ef8d5f7
+  generated_exact_type get3 location=enum2 nominal_id=6dab9cd66a30d05bc8170c47b71a9a05471d95183b3ba881836f9c432da41f19 exact_id=ae6fc240ada13b8c6f5296601b5550f2ca4285048085f44a6187797da395877a
+  generated_callable gc0 function=@fn26 id=ba86d1fa84efc89abd7785367ec1eed556bfcda110bd7bcff6ac86552cf9b96d
+  generated_callable gc1 function=@fn25 id=d72a4ddb44dcbdbe1611578abb9a6fe30e02c69805af63a9f37629ba4128ae79
+  fun Box.$get$value @fn0(this: Box) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Box
+          Local this
+  fun Fault.$get$payload @fn1(this: Fault) -> Box
+    bb0 entry
+      return
+        Type Box
+        FieldAccess 0
+          Type Fault
+          Local this
+  fun trace @fn2(arg0: Long) -> Unit
+    bb0 entry
+      call extern0 @m23_trace direct
+        Type Long
+        Local arg0
+      return
+  fun fail @fn3() -> Long
+    bb0 entry
+      call $old.1: Int = @fn11 direct
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call extern0 @m23_trace direct
+        Type Long
+        Local $parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.1
+        Type Box
+        ClassAlloc Box
+      call @fn21 direct
+        Type Box
+        Local $new.1
+        Type Long
+        Local $parameter.value
+      val $argument.0: Box
+        Type Box
+        Local $new.1
+      val $parameter.payload: Box
+        Type Box
+        Local $argument.0
+      assign $new.2
+        Type Fault
+        ClassAlloc Fault
+      call @fn22 direct
+        Type Fault
+        Local $new.2
+        Type Box
+        Local $parameter.payload
+      throw
+        Type Fault
+        Local $new.2
+  fun $init$body$0 @fn4() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Broken
+        ClassAlloc Broken
+      call @fn23 direct
+        Type Broken
+        Local $new.1
+      global_assign $singleton$Broken
+        Type Broken
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn5() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Broken
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn4 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Broken
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Broken
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Broken
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Broken
+      call external2 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$1 @fn6() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Unused
+        ClassAlloc Unused
+      call @fn24 direct
+        Type Unused
+        Local $new.1
+      global_assign $singleton$Unused
+        Type Unused
+        Local $new.1
+      return
+  fun $init$ensure$1 @fn7() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Unused
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn6 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Unused
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Unused
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Unused
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object-private:dev.example:lazy-failure-provider:0.1.0/src/main.scoop:Unused
+      call external2 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun readFailure @fn8() -> Long
+    bb0 entry
+      call @fn5 direct
+      return
+        Type Long
+        FieldAccess 0
+          Type Broken
+          GlobalRead $singleton$Broken
+  fun unused @fn9() -> Long
+    bb0 entry
+      call @fn7 direct
+      return
+        Type Long
+        FieldAccess 0
+          Type Unused
+          GlobalRead $singleton$Unused
+  fun count @fn10() -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+      return
+        Type Int
+        Local $call.1
+  fun $get$attempts @fn11() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead attempts
+  fun $set$attempts @fn12(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign attempts
+        Type Int
+        Local value
+      return
+  fun Continuation.resume @fn13(this: Continuation<Box>, value: Box) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn14(this: Continuation<Box>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn15(this: SuspendTask<Box>, $completion: Continuation<Box>) -> CoroutineStep<Box>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Box>, continuation: Continuation<Box>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn17(this: Continuation<Fault>, value: Fault) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Fault>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Fault>, $completion: Continuation<Fault>) -> CoroutineStep<Fault>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Fault>, continuation: Continuation<Fault>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Box.$c0 @fn21(this: Box, value: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box
+        Local this
+        Type Long
+        Local value
+      return
+  fun init.Fault.$c1 @fn22(this: Fault, payload: Box) -> Unit
+    bb0 entry
+      call external0 direct
+        Type Throwable
+        Retype Throwable
+          Type Fault
+          Local this
+      field_set 0
+        Type Fault
+        Local this
+        Type Box
+        Local payload
+      return
+  fun init.Broken.$c2 @fn23(this: Broken) -> Unit
+    bb0 entry
+      call $call.1: Long = @fn3 direct
+      field_set 0
+        Type Broken
+        Local this
+        Type Long
+        Local $call.1
+      return
+  fun init.Unused.$c3 @fn24(this: Unused) -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=99 bits=0x0000000000000063
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call extern0 @m23_trace direct
+        Type Long
+        Local $parameter.value
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.else.2
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      field_set 0
+        Type Unused
+        Local this
+        Type Long
+        Local $result.0
+      return
+  fun startCoroutine<Box> @fn25(task: SuspendTask<Box>, completion: Continuation<Box>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn13 interface Continuation<Box>[0]
+        Type Continuation<Box>
+        Local completion
+        Type Box
+        EnumField v0 f0
+          Type CoroutineStep<Box>
+          Local $step
+      return
+    bb2 failed
+      call @fn14 interface Continuation<Box>[1]
+        Type Continuation<Box>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Box> = @fn15 interface SuspendTask<Box>[0]
+        Type SuspendTask<Box>
+        Local task
+        Type Continuation<Box>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Box>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Fault> @fn26(task: SuspendTask<Fault>, completion: Continuation<Fault>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn17 interface Continuation<Fault>[0]
+        Type Continuation<Fault>
+        Local completion
+        Type Fault
+        EnumField v0 f0
+          Type CoroutineStep<Fault>
+          Local $step
+      return
+    bb2 failed
+      call @fn18 interface Continuation<Fault>[1]
+        Type Continuation<Fault>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Fault> = @fn19 interface SuspendTask<Fault>[0]
+        Type SuspendTask<Fault>
+        Local task
+        Type Continuation<Fault>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Fault>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Box> result=Box
+  coroutine_step cs1 CoroutineStep<Fault> result=Fault
+  coroutine_slot cl0 CoroutineSlot<Box> value=Box
+  coroutine_slot cl1 CoroutineSlot<Fault> value=Fault
+  coroutine_start ct0 result=Box function=fn25
+  coroutine_start ct1 result=Fault function=fn26
+  coroutine_fn cf0 @fn15 source_return=Box step=cs0 immediate
+  coroutine_fn cf1 @fn19 source_return=Fault step=cs1 immediate
+  instance mi0 function=@fn13 <- Continuation.resume
+  instance mi1 function=@fn14 <- Continuation.resumeWithException
+  instance mi2 function=@fn15 <- SuspendTask.run
+  instance mi3 function=@fn16 <- SuspendRegistration.register
+  instance mi4 function=@fn17 <- Continuation.resume
+  instance mi5 function=@fn18 <- Continuation.resumeWithException
+  instance mi6 function=@fn19 <- SuspendTask.run
+  instance mi7 function=@fn20 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  output library

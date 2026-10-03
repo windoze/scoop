@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m1-hello/errors/no-main.scoop:1:1: error: missing entry point: declare `fun main()`

@@ -1,0 +1,46 @@
+SourceFile
+  RootPackage
+  fun verifyDomain(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  class ConsumerDefault() : DefaultBase(<0 args>)
+    fun globalValue
+    fun inspect
+  fun main()
+    val value
+      Call ConsumerDefault
+    Call verifyDomain
+      MethodCall inspect
+        Var value
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspect
+          Call defaultChild
+        IntLiteral 8
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspect
+          Call defaultMulti
+        IntLiteral 1
+    Call verifyDomain
+      Binary Eq
+        Call DefaultValue
+        Call DefaultValue
+          IntLiteral 2
+    Call verifyDomain
+      Binary Eq
+        MethodCall Item
+          Var DefaultChoice
+        MethodCall Item
+          Var DefaultChoice
+          IntLiteral 3
+    assign defaultSeed
+      IntLiteral 11
+    Call verifyDomain
+      Binary Eq
+        MethodCall globalValue
+          Var value
+        IntLiteral 11

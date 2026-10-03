@@ -1,0 +1,15 @@
+package consumer.interfaces
+import upstream.interfaces.Remote
+import upstream.interfaces.Values as View
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val remote: View<T, Unit> = Remote(value, Unit)
+    remote.second = Unit
+    return remote.total(read, { unused -> 0 })
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

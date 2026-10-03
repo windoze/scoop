@@ -1,0 +1,72 @@
+schema = 1
+name = "generic-shape-errors-nominals-bad-arity"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "generic-nominal-provider", "../../m23-generic-nominal-consumption/provider.scoop", "generic-nominal-bad-arity", "../../m23-generic-nominal-consumption/bad-arity.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["generic-shape-errors", "nominals", "negative"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_generic-nominal-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-nominal-provider", "to" = "${work}/sources/generic-nominal-provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-nominal-consumption/provider.scoop", "to" = "${work}/sources/generic-nominal-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/generic-nominal-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-nominal-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/generic-nominal-provider"}},
+]
+
+[[steps]]
+name = "prepare_generic-nominal-bad-arity"
+files = [
+  {"copy" = {"from" = "${fixture}/generic-nominal-bad-arity", "to" = "${work}/sources/generic-nominal-bad-arity"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-nominal-consumption/bad-arity.scoop", "to" = "${work}/sources/generic-nominal-bad-arity/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/generic-nominal-bad-arity", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/generic-nominal-bad-arity/0.1.0/cone.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/artifacts/dev.example/generic-nominal-bad-arity/0.1.0/cone.slib", "exists" = false},
+]

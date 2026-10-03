@@ -192,9 +192,8 @@ fn property_override_owns_one_virtual_accessor_family_and_visibility_witness() {
     let derived_property = derived.properties[0];
     assert_eq!(
         module.properties[derived_property].overrides,
-        [base_property]
+        [hir::PropertyReference::Local(base_property)]
     );
-    assert_eq!(module.properties[derived_property].override_access.len(), 1);
 
     let getter_function = |property: hir::PropertyId| {
         let getter = module.properties[property].capability.getter();

@@ -1,0 +1,187 @@
+SourceFile
+  QualifiedPackage consumer.declarationviews
+  public class Counter()
+    public var calls: Int = <expr>
+      IntLiteral 0
+    public fun next
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  public fun T.retain<T>(): T
+    =
+      This
+  public fun select<T>(value: T): Int
+    =
+      IntLiteral 1
+  public fun select(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  public fun collect<T>(fallback: T, vararg values: T = <expr>): Array<T>
+    =
+      Var values
+  public fun copy<T>(value: T, operation: (T) -> T = <expr>): T
+    =
+      Call operation
+        Var value
+  public class Box<T>(val value: T, val counter: Counter)
+    public fun read
+    public fun relay
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val counter
+      Call Counter
+    val box
+      Call Box<T>
+        Var seed
+        Var counter
+    val read: (Int) -> T
+      CallableReference 1 read
+        Var box
+    val relay: (T) -> T
+      CallableReference 2 relay
+        Var box
+    val bound: () -> T
+      CallableReference 3 retain
+        Var seed
+    val unbound: (T) -> T
+      CallableReference 4 retain
+    val selected: (Int) -> Int
+      CallableReference 5 select
+    val packed: (T, Array<T>) -> Array<T>
+      CallableReference 6 collect
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var counter
+          IntLiteral 0
+        Binary Ne
+          Call selected
+            IntLiteral 41
+          IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            Call read
+              IntLiteral 0
+          IntLiteral 42
+        Binary Ne
+          FieldAccess calls
+            Var counter
+          IntLiteral 0
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            MethodCall read
+              Var box
+          IntLiteral 42
+        Binary Ne
+          FieldAccess calls
+            Var counter
+          IntLiteral 1
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call inspect
+              Call relay
+                Var seed
+            IntLiteral 42
+          Binary Ne
+            Call inspect
+              Call bound
+            IntLiteral 42
+        Binary Ne
+          Call inspect
+            Call unbound
+              Var seed
+          IntLiteral 42
+      return
+        IntLiteral 4
+    val empty: Array<T>
+      ArrayLiteral
+    if
+      Binary Ne
+        FieldAccess size
+          Call packed
+            Var seed
+            Var empty
+        IntLiteral 0L
+      return
+        IntLiteral 5
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            Call collect
+              Var seed
+          IntLiteral 1L
+        Binary Ne
+          Call inspect
+            Index
+              Call collect
+                Var seed
+              IntLiteral 0L
+          IntLiteral 42
+      return
+        IntLiteral 6
+    if
+      Binary Ne
+        Call inspect
+          Index
+            Call collect
+              Var seed
+              Argument values=
+                ArrayLiteral
+                  Var seed
+            IntLiteral 0L
+        IntLiteral 42
+      return
+        IntLiteral 7
+    if
+      Binary Ne
+        FieldAccess size
+          Call collect
+            Var seed
+            Var seed
+            Argument *
+              ArrayLiteral
+                Var seed
+        IntLiteral 2L
+      return
+        IntLiteral 8
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            Call copy
+              Var seed
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            Call copy
+              Argument operation=
+                CallableReference 7 identity
+              Argument value=
+                Var seed
+          IntLiteral 42
+      return
+        IntLiteral 9
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

@@ -1,0 +1,70 @@
+Module
+  class Counter vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Hash
+  interface ToString
+  generated_exact_type get0 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val value: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Hash
+        Type Hash
+        Box
+          Type Int
+          IntegerLiteral Int value=21 bits=0x00000015
+      call $dependency.receiver: Hash = external0 direct
+        Type Hash
+        Local $dependency.parameter.value
+      call $equality.lhs: Long = external1 interface Hash[0]
+        Type Hash
+        Local $dependency.receiver
+      val $dependency.receiver: Long
+        Type Long
+        Local value
+      val $dependency.receiver: Long
+        Type Long
+        Local $equality.lhs
+      call $dependency.argument.0: Long = external2 direct
+        Type Long
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.0
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external3 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  output library

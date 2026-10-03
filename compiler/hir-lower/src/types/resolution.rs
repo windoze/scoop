@@ -2,32 +2,125 @@ use super::*;
 use crate::{NominalTarget, Owner};
 
 impl Lowerer {
+    pub(crate) fn top_level_type_target_is_accessible(
+        &self,
+        target: crate::namespace::TopLevelTypeTarget,
+    ) -> bool {
+        let domain = match target {
+            crate::namespace::TopLevelTypeTarget::Alias(alias) => {
+                return self.source_type_alias_is_accessible(alias);
+            }
+            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Struct(id)) => {
+                &self.structs[id].access.lookup.0
+            }
+            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Enum(id)) => {
+                &self.enums[id].access.lookup.0
+            }
+            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Class(id)) => {
+                &self.classes[id].access.lookup.0
+            }
+            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Interface(id)) => {
+                &self.interfaces[id].access.lookup.0
+            }
+            crate::namespace::TopLevelTypeTarget::Nominal(NominalTarget::Object(id)) => {
+                &self.objects[id].access.lookup.0
+            }
+        };
+        self.access_domain_allows(domain)
+    }
+
+    pub(crate) fn top_level_type_target(
+        &self,
+        name: &str,
+    ) -> Option<crate::namespace::TopLevelTypeTarget> {
+        match self.lookup_type(name) {
+            crate::imports::lookup::LookupResult::Unique(candidate) => candidate.target.current(),
+            crate::imports::lookup::LookupResult::Missing
+            | crate::imports::lookup::LookupResult::Ambiguous { .. }
+            | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
+        }
+    }
+
+    pub(crate) fn top_level_type_target_for_reference(
+        &self,
+        name: &str,
+    ) -> Option<crate::namespace::TopLevelTypeTarget> {
+        match self.lookup_type(name) {
+            crate::imports::lookup::LookupResult::Unique(candidate) => candidate.target.current(),
+            crate::imports::lookup::LookupResult::Inaccessible(candidates)
+                if candidates.len() == 1 =>
+            {
+                candidates.first().target.current()
+            }
+            crate::imports::lookup::LookupResult::Missing
+            | crate::imports::lookup::LookupResult::Ambiguous { .. }
+            | crate::imports::lookup::LookupResult::Inaccessible(_) => None,
+        }
+    }
+
     pub(crate) fn top_level_nominal_target(&self, name: &str) -> Option<NominalTarget> {
-        self.structs_by_name
-            .get(name)
-            .map(|(id, _)| NominalTarget::Struct(*id))
-            .or_else(|| {
-                self.enums_by_name
-                    .get(name)
-                    .copied()
-                    .map(NominalTarget::Enum)
-            })
-            .or_else(|| {
-                self.classes_by_name
-                    .get(name)
-                    .map(|(id, _)| NominalTarget::Class(*id))
-            })
-            .or_else(|| {
-                self.interfaces_by_name
-                    .get(name)
-                    .map(|(id, _)| NominalTarget::Interface(*id))
-            })
-            .or_else(|| {
-                self.objects_by_name
-                    .get(name)
-                    .copied()
-                    .map(NominalTarget::Object)
-            })
+        match self.top_level_type_target_for_reference(name)? {
+            crate::namespace::TopLevelTypeTarget::Nominal(target) => Some(target),
+            crate::namespace::TopLevelTypeTarget::Alias(_) => None,
+        }
+    }
+
+    pub(crate) fn core_nominal_target(&self, name: &str) -> Option<NominalTarget> {
+        let mut declarations = self
+            .intrinsic_sources
+            .iter()
+            .enumerate()
+            .filter(|(_, source)| source.kind == crate::SourceKind::Core)
+            .flat_map(|(file, _)| self.top_level_namespaces.declared_types_in_file(file, name));
+        let target = declarations.next()?;
+        if declarations.next().is_some() {
+            return None;
+        }
+        match target {
+            crate::namespace::TopLevelTypeTarget::Nominal(target) => Some(target),
+            crate::namespace::TopLevelTypeTarget::Alias(_) => None,
+        }
+    }
+
+    pub(crate) fn top_level_struct_named(&self, name: &str) -> Option<(StructId, TypeId)> {
+        let NominalTarget::Struct(id) = self.top_level_nominal_target(name)? else {
+            return None;
+        };
+        let ty = self.struct_applications[self.structs[id].self_application].canonical_type;
+        Some((id, ty))
+    }
+
+    pub(crate) fn top_level_enum_named(&self, name: &str) -> Option<hir::EnumId> {
+        let NominalTarget::Enum(id) = self.top_level_nominal_target(name)? else {
+            return None;
+        };
+        Some(id)
+    }
+
+    pub(crate) fn top_level_class_named(&self, name: &str) -> Option<(hir::ClassId, TypeId)> {
+        let NominalTarget::Class(id) = self.top_level_nominal_target(name)? else {
+            return None;
+        };
+        let ty = self.class_applications[self.classes[id].self_application].canonical_type;
+        Some((id, ty))
+    }
+
+    pub(crate) fn top_level_interface_named(
+        &self,
+        name: &str,
+    ) -> Option<(hir::InterfaceId, TypeId)> {
+        let NominalTarget::Interface(id) = self.top_level_nominal_target(name)? else {
+            return None;
+        };
+        let ty = self.interface_applications[self.interfaces[id].self_application].canonical_type;
+        Some((id, ty))
+    }
+
+    pub(crate) fn top_level_object_named(&self, name: &str) -> Option<hir::ObjectId> {
+        let NominalTarget::Object(id) = self.top_level_nominal_target(name)? else {
+            return None;
+        };
+        Some(id)
     }
 
     pub(crate) fn nested_nominal_target(&self, owner: Owner, name: &str) -> Option<NominalTarget> {
@@ -77,7 +170,7 @@ impl Lowerer {
         }
     }
 
-    fn resolve_nested_nominal_application(
+    pub(super) fn resolve_nested_nominal_application(
         &mut self,
         target: NominalTarget,
         arguments: &[ast::TypeRef],
@@ -126,69 +219,26 @@ impl Lowerer {
             NominalTarget::Struct(id) => self.struct_application(id, resolved),
             NominalTarget::Enum(id) => self.enum_application(id, resolved),
             NominalTarget::Class(id) => self.class_application(id, resolved),
-            NominalTarget::Interface(id) => self.intern_interface_application(id, resolved),
+            NominalTarget::Interface(id) => self.source_interface_type(id, resolved),
             NominalTarget::Object(id) => {
                 self.object_types[self.objects[id].object_type].canonical_type
             }
         })
     }
 
-    fn resolve_qualified_nominal(
-        &mut self,
-        path: &[ast::Ident],
-        arguments: &[ast::TypeRef],
-        span: ast::Span,
-    ) -> Option<TypeId> {
-        let first = path.first().expect("a qualified type path is non-empty");
-        let mut target = if let Some(target) = self.lexical_nested_nominal_target(&first.text) {
-            target
-        } else if self.source_type_alias_named(&first.text).is_some() {
-            let alias = self.resolve_type_alias_reference(first, false)?;
-            let Some(target) = self.nominal_target_for_type(alias) else {
-                self.error(
-                    first.span,
-                    format!("typealias `{}` does not name a type qualifier", first.text),
-                );
-                return None;
-            };
-            target
-        } else {
-            let Some(target) = self.top_level_nominal_target(&first.text) else {
-                self.error(first.span, format!("unknown type `{}`", first.text));
-                return None;
-            };
-            target
-        };
-        for segment in &path[1..] {
-            let owner = target.owner();
-            let Some(nested) = self
-                .nested_nominals_by_owner
-                .get(&(owner, segment.text.clone()))
-                .copied()
-            else {
-                let owner_name = path
-                    .iter()
-                    .take_while(|candidate| candidate.span.end <= segment.span.start)
-                    .map(|candidate| candidate.text.as_str())
-                    .collect::<Vec<_>>()
-                    .join(".");
-                self.error(
-                    segment.span,
-                    format!("type `{owner_name}` has no nested type `{}`", segment.text),
-                );
-                return None;
-            };
-            target = nested;
+    pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
+        let ty = self.resolve_type_ref_shape(ty_ref)?;
+        if matches!(
+            self.types[ty],
+            Type::Struct(_) | Type::Class(_) | Type::Enum(_) | Type::Interface(_)
+        ) {
+            self.nominal_type_uses
+                .push((ty, self.current_file, ty_ref.span));
         }
-        let display_name = path
-            .iter()
-            .map(|segment| segment.text.as_str())
-            .collect::<Vec<_>>()
-            .join(".");
-        self.resolve_nested_nominal_application(target, arguments, span, &display_name)
+        Some(ty)
     }
 
-    pub(crate) fn resolve_type_ref(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
+    fn resolve_type_ref_shape(&mut self, ty_ref: &ast::TypeRef) -> Option<TypeId> {
         let ty = self.resolve_type_ref_unchecked(ty_ref)?;
         if !self.nominal_is_accessible(ty) {
             let name = self.type_name(ty);
@@ -249,11 +299,20 @@ impl Lowerer {
                     return self
                         .resolve_nested_nominal_application(target, args, name.span, &name.text);
                 }
-                if self.source_type_alias_named(&name.text).is_some() {
-                    return self.resolve_type_alias_reference(name, true);
+                match self.resolve_type_lookup(name).ok()? {
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Alias(alias),
+                    )) => return self.resolve_type_alias_id_reference(alias, name, true),
+                    Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
+                        return self.resolve_imported_generic_type_target(&binding, name, args);
+                    }
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Nominal(_),
+                    ))
+                    | None => {}
                 }
                 // Generic structs (M9, spec 3.2).
-                if let Some(&(struct_id, _)) = self.structs_by_name.get(&name.text) {
+                if let Some((struct_id, _)) = self.top_level_struct_named(&name.text) {
                     let arity = self.structs[struct_id].type_params.len();
                     if arity == 0 {
                         self.error(name.span, format!("struct `{}` is not generic", name.text));
@@ -320,7 +379,7 @@ impl Lowerer {
                     }
                     return Some(self.struct_application(struct_id, resolved));
                 }
-                if let Some(&(interface_id, _)) = self.interfaces_by_name.get(&name.text) {
+                if let Some((interface_id, _)) = self.top_level_interface_named(&name.text) {
                     let arity = self.interfaces[interface_id].type_params.len();
                     if arity == 0 {
                         self.error(
@@ -353,9 +412,9 @@ impl Lowerer {
                     ) {
                         return None;
                     }
-                    return Some(self.intern_interface_application(interface_id, resolved));
+                    return Some(self.source_interface_type(interface_id, resolved));
                 }
-                if let Some(&(class_id, _)) = self.classes_by_name.get(&name.text) {
+                if let Some((class_id, _)) = self.top_level_class_named(&name.text) {
                     let arity = self.classes[class_id].type_params.len();
                     if arity == 0 {
                         self.error(name.span, format!("class `{}` is not generic", name.text));
@@ -387,11 +446,11 @@ impl Lowerer {
                     }
                     return Some(self.class_application(class_id, resolved));
                 }
-                if self.objects_by_name.contains_key(&name.text) {
+                if self.top_level_object_named(&name.text).is_some() {
                     self.error(name.span, format!("object `{}` is not generic", name.text));
                     return None;
                 }
-                let Some(&enum_id) = self.enums_by_name.get(&name.text) else {
+                let Some(enum_id) = self.top_level_enum_named(&name.text) else {
                     let what = if name.text == "Any" {
                         "type `Any` takes no type arguments".to_string()
                     } else {
@@ -463,10 +522,34 @@ impl Lowerer {
                         &name.text,
                     );
                 }
-                if self.source_type_alias_named(&name.text).is_some() {
-                    return self.resolve_type_alias_reference(name, false);
+                match self.resolve_type_lookup(name).ok()? {
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Alias(alias),
+                    )) => {
+                        return self.resolve_type_alias_id_reference(alias, name, false);
+                    }
+                    Some(crate::imports::lookup::TypeLookupTarget::Current(
+                        crate::namespace::TopLevelTypeTarget::Nominal(target),
+                    )) => {
+                        return self.resolve_nested_nominal_application(
+                            target,
+                            &[],
+                            name.span,
+                            &name.text,
+                        );
+                    }
+                    Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding)) => {
+                        return self.resolve_imported_dependency_type_target(&binding, name, false);
+                    }
+                    None => {}
                 }
                 match name.text.as_str() {
+                    _ if matches!(self.core, crate::CoreLoweringAuthority::Imported(_))
+                        && !matches!(name.text.as_str(), "Unit" | "Any") =>
+                    {
+                        self.error(name.span, format!("unknown type `{}`", name.text));
+                        None
+                    }
                     "Unit" => Some(self.unit),
                     "Int8" => Some(self.integer_type(hir::IntegerKind::SIGNED_8)),
                     "Int16" => Some(self.integer_type(hir::IntegerKind::SIGNED_16)),
@@ -482,82 +565,8 @@ impl Lowerer {
                     // 5.5); the core library shape arrives with M7/core.
                     "Any" => Some(self.any),
                     _ => {
-                        if let Some(&(struct_id, ty)) = self.structs_by_name.get(&name.text) {
-                            // A generic struct needs its type
-                            // arguments (`PinnedPtr<T>` goes through
-                            // TypeRefKind::Generic), mirroring the
-                            // generic enum rule below.
-                            let arity = self.structs[struct_id].type_params.len();
-                            if arity != 0 {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "generic struct `{}` requires {arity} type argument(s)",
-                                        name.text
-                                    ),
-                                );
-                                return None;
-                            }
-                            return Some(ty);
-                        }
-                        if let Some(&(class_id, ty)) = self.classes_by_name.get(&name.text) {
-                            let arity = self.classes[class_id].type_params.len();
-                            if arity != 0 {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "generic class `{}` requires {arity} type argument(s)",
-                                        name.text
-                                    ),
-                                );
-                                return None;
-                            }
-                            return Some(ty);
-                        }
-                        if let Some(&(interface_id, ty)) = self.interfaces_by_name.get(&name.text) {
-                            let arity = self.interfaces[interface_id].type_params.len();
-                            if arity != 0 {
-                                self.error(
-                                    name.span,
-                                    format!(
-                                        "generic interface `{}` requires {arity} type argument(s)",
-                                        name.text
-                                    ),
-                                );
-                                return None;
-                            }
-                            return Some(ty);
-                        }
-                        if let Some(&object) = self.objects_by_name.get(&name.text) {
-                            return Some(
-                                self.object_types[self.objects[object].object_type].canonical_type,
-                            );
-                        }
-                        match self.enums_by_name.get(&name.text) {
-                            Some(&id) => {
-                                // Bare name without type arguments:
-                                // only non-generic enums are usable
-                                // (`Option<Int>` / `Box<Int>` go
-                                // through TypeRefKind::Generic).
-                                let arity = self.enums[id].type_params.len();
-                                if arity == 0 {
-                                    Some(self.enum_application(id, Vec::new()))
-                                } else {
-                                    let enum_name = self.enums[id].name.clone();
-                                    self.error(
-                                        name.span,
-                                        format!(
-                                            "generic enum `{enum_name}` requires {arity} type argument(s)"
-                                        ),
-                                    );
-                                    None
-                                }
-                            }
-                            None => {
-                                self.error(name.span, format!("unknown type `{}`", name.text));
-                                None
-                            }
-                        }
+                        self.error(name.span, format!("unknown type `{}`", name.text));
+                        None
                     }
                 }
             }
@@ -581,9 +590,9 @@ impl Lowerer {
             // `Option<Option<T>>` and deliberately does not collapse.
             ast::TypeRefKind::Nullable(inner) => {
                 let inner = self.resolve_type_ref(inner)?;
-                match self.option_enumeration() {
-                    Some(_) => Some(self.option_type(inner)),
-                    None => {
+                match self.has_option_protocol() {
+                    true => Some(self.option_type(inner)),
+                    false => {
                         self.error(
                             ty_ref.span,
                             "`T?` requires `Option<T>` from scoop.core, which is not defined"

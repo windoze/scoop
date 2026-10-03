@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  fun unexpanded<T>(value: String): Boolean
+    =
+      BoolLiteral true
+  fun flag(value: Boolean = <expr>): Boolean
+    =
+      Var value
+  public interface SourceOnly<T>
+  public class Deferred(), SourceOnly<Long>

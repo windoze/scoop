@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type argument `Reference` for `V` of type `ValueOnly` must satisfy `value`",
+    "notes": [],
+    "origin": {
+      "cone": "b66622ca9517657ed89659cb1ead3000a9a72c8dfdb494f63611295c12a8b881",
+      "end": 118,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 109
+    },
+    "severity": "error"
+  }
+]

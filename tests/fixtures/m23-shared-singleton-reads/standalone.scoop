@@ -1,0 +1,35 @@
+package consumer.singletons
+import upstream.singletons.*
+
+private var starts: Int = 0
+
+private fun initialized(): Int {
+    starts = starts + 1
+    return 42
+}
+
+private object Current {
+    val state: State = State(initialized())
+}
+
+private fun readCurrent(): Current = Current
+
+private fun <T> selectedCurrent(
+    seed: T,
+    inspect: (T) -> Int,
+    registry: Current = Current
+): Int = inspect(seed) + registry.state.value - 42
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val registry = Current
+    val retained = registry.state
+    val read: () -> Int = { Current.state.value }
+    val again = fun(): Int { return readCurrent().state.value }
+    if (registry !== readCurrent() || starts != 1) { return 1 }
+    val fresh = State(1)
+    if (fresh.value != 1 || retained !== Current.state || starts != 1) { return 2 }
+    if (read() != 42 || again() != 42) { return 3 }
+    return selectedCurrent<T>(seed, inspect)
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

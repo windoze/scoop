@@ -3,20 +3,22 @@ use super::*;
 impl Lowerer {
     pub(crate) fn adapt_variance_bridge(
         &mut self,
+        module: &hir::Module,
         value: smir::Expr,
         source: &mir::Type,
+        source_identity: hir::PersistentExactTypeId,
         target: &mir::Type,
     ) -> smir::Expr {
         if source == target {
             return value;
         }
         if let (mir::Type::Function(source), mir::Type::Function(target_type)) = (source, target) {
-            let adapter = self.ensure_function_adapter(*source, *target_type);
+            let adapter = self.ensure_function_adapter(module, *source, *target_type);
             return smir::Expr::new(
                 mir::Type::Function(*target_type),
                 smir::ExprKind::ClosureAlloc {
-                    class: self.closure_adapters[adapter].class,
-                    captures: vec![value],
+                    class: self.closure_adapters[adapter].class(),
+                    captures: vec![smir::ClosureCaptureInit::new(0, value)],
                 },
             );
         }
@@ -24,9 +26,12 @@ impl Lowerer {
             return value;
         }
         if is_boxable(source) && is_reference_mir(target) {
-            let boxed = self
-                .boxed
-                .get_or_create(&mut self.classes, &mut self.shell, source);
+            let boxed = self.boxed.get_or_create(
+                &mut self.classes,
+                &mut self.shell,
+                source,
+                source_identity,
+            );
             if let mir::Type::Interface(interface) = target {
                 if !self.classes[boxed].interfaces.contains(interface) {
                     self.classes[boxed].interfaces.push(*interface);
@@ -39,6 +44,7 @@ impl Lowerer {
 
     pub(crate) fn ensure_function_adapter(
         &mut self,
+        module: &hir::Module,
         source: mir::FunctionTypeId,
         target: mir::FunctionTypeId,
     ) -> mir::ClosureAdapterId {
@@ -47,14 +53,11 @@ impl Lowerer {
         }
         let source_signature = self.shell.function_types[source].clone();
         let target_signature = self.shell.function_types[target].clone();
-        let source_name = mir::encode_type(&self.shell, &mir::Type::Function(source))
-            .expect("variance adapter sources are source-level MIR types");
-        let target_name = mir::encode_type(&self.shell, &mir::Type::Function(target))
-            .expect("variance adapter targets are source-level MIR types");
+        let source_name = mir::type_name(&self.shell, &mir::Type::Function(source));
+        let target_name = mir::type_name(&self.shell, &mir::Type::Function(target));
         let function = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
             name: format!("$adapter.{source_name}.{target_name}"),
-            symbol: format!("scoop.$adapter.{source_name}.{target_name}"),
             params: Vec::new(),
             return_ty: target_signature.return_type.clone(),
             body: mir::Body::unreachable(Arena::new()),
@@ -73,11 +76,19 @@ impl Lowerer {
             }],
             bridges: Vec::new(),
         });
-        let adapter = self.closure_adapters.alloc(mir::ClosureAdapter {
-            class,
-            source,
-            target,
-        });
+        let (source_identity, _) = exact_function_identity(module, source);
+        let (target_identity, target_function_type) = exact_function_identity(module, target);
+        let adapter = self.closure_adapters.alloc(
+            mir::ClosureAdapter::new(
+                class,
+                source,
+                target,
+                source_identity.clone(),
+                target_identity.clone(),
+                target_function_type,
+            )
+            .expect("concrete HIR function identities match their canonical exact types"),
+        );
         self.closure_adapter_by_types
             .insert((source, target), adapter);
 
@@ -118,8 +129,10 @@ impl Lowerer {
                 local,
             });
             args.push(self.adapt_variance_bridge(
+                module,
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
+                target_identity.parameters()[index],
                 source_ty,
             ));
         }
@@ -151,8 +164,10 @@ impl Lowerer {
             vec![smir::Statement {
                 kind: smir::StatementKind::Return {
                     value: Some(self.adapt_variance_bridge(
+                        module,
                         call,
                         &source_signature.return_type,
+                        source_identity.result(),
                         &target_signature.return_type,
                     )),
                 },
@@ -160,80 +175,38 @@ impl Lowerer {
             }]
         };
         self.functions[function].params = params;
-        self.functions[function].body = cfg::lower(
-            smir::Body {
-                locals,
-                statements,
-                coroutine_eh: None,
-            },
-            target_signature.return_type.clone(),
-            &self.enums.defs,
+        let owner = self.closure_adapters[adapter].identity().materialization();
+        self.local_values.record_generated_dispatch_parameters(
+            function,
+            owner,
+            &self.functions[function].params,
         );
+        let body = finish_cfg_body(
+            &mut self.local_values,
+            &mut self.coroutines,
+            function,
+            owner,
+            cfg::lower(
+                smir::Body {
+                    locals,
+                    statements,
+                    coroutine_eh: None,
+                },
+                target_signature.return_type.clone(),
+                &self.enums.defs,
+            ),
+        );
+        self.functions[function].body = body;
         if target_signature.is_suspend {
+            let identity = self.closure_adapters[adapter].identity();
             self.suspend_sources.push(SuspendSource {
                 function,
+                materialization: identity.materialization(),
+                odr_group: Some(identity.odr_group_record().id()),
+                logical_signature: identity.callable_signature_record().signature().clone(),
                 source_return: target_signature.return_type,
-                instance: None,
             });
         }
         adapter
-    }
-
-    pub(crate) fn interface_is_subtype(
-        &mut self,
-        _module: &hir::Module,
-        source: mir::InterfaceId,
-        target: mir::InterfaceId,
-    ) -> bool {
-        source == target
-    }
-
-    pub(crate) fn mir_type_is_subtype(
-        &mut self,
-        module: &hir::Module,
-        source: &mir::Type,
-        target: &mir::Type,
-    ) -> bool {
-        if source == target || matches!(target, mir::Type::Any) {
-            return true;
-        }
-        match (source, target) {
-            (mir::Type::Class(source), mir::Type::Class(target)) => {
-                let mut current = Some(*source);
-                while let Some(class) = current {
-                    if class == *target {
-                        return true;
-                    }
-                    current = self.classes[class].base_class();
-                }
-                false
-            }
-            (mir::Type::Interface(source), mir::Type::Interface(target)) => {
-                self.interface_is_subtype(module, *source, *target)
-            }
-            (mir::Type::Class(source), mir::Type::Interface(target)) => {
-                let interfaces = self.classes[*source].interfaces.clone();
-                interfaces
-                    .into_iter()
-                    .any(|interface| self.interface_is_subtype(module, interface, *target))
-            }
-            (mir::Type::Struct(_) | mir::Type::Enum(_, _), mir::Type::Interface(target)) => self
-                .value_interfaces(module, source)
-                .into_iter()
-                .any(|interface| self.interface_is_subtype(module, interface, *target)),
-            (mir::Type::Function(source), mir::Type::Function(target)) => {
-                let source = self.shell.function_types[*source].clone();
-                let target = self.shell.function_types[*target].clone();
-                source.is_suspend == target.is_suspend
-                    && source.parameter_types.len() == target.parameter_types.len()
-                    && target
-                        .parameter_types
-                        .iter()
-                        .zip(&source.parameter_types)
-                        .all(|(target, source)| self.mir_type_is_subtype(module, target, source))
-                    && self.mir_type_is_subtype(module, &source.return_type, &target.return_type)
-            }
-            _ => false,
-        }
     }
 }

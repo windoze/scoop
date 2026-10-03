@@ -1,0 +1,295 @@
+Module
+  struct Leaf ()
+  struct Pair (first: Leaf, second: Leaf)
+  struct Manual ()
+  struct UsesManual (value: Manual)
+  struct Overloaded ()
+  struct NotComparable (value: Reference)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Choice
+    Empty()
+    Full(_0: Pair)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Reference vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<NotComparable> vtable=0 itables=0
+  generated_exact_type get0 location=class5 nominal_id=9ea33fbe3c4a7f1a494c773068ba505f68807f302785b1b9483f22e7cb80c5d1 exact_id=7eeb4ee5be4392814fb74ededb5d79ad74f8a19cada76e33c7a888bd802cd5a5
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.argument.0: Leaf = external1 direct
+      call $dependency.argument.1: Leaf = external1 direct
+      val $dependency.parameter.first: Leaf
+        Type Leaf
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Leaf
+        Type Leaf
+        Local $dependency.argument.1
+      call pair: Pair = external2 direct
+        Type Leaf
+        Local $dependency.parameter.first
+        Type Leaf
+        Local $dependency.parameter.second
+      val $equality.lhs: Pair
+        Type Pair
+        Local pair
+      call $dependency.argument.0: Leaf = external1 direct
+      call $dependency.argument.1: Leaf = external1 direct
+      val $dependency.parameter.first: Leaf
+        Type Leaf
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Leaf
+        Type Leaf
+        Local $dependency.argument.1
+      call $call.1: Pair = external2 direct
+        Type Leaf
+        Local $dependency.parameter.first
+        Type Leaf
+        Local $dependency.parameter.second
+      call $argument.0: Boolean = external12 direct
+        Type Pair
+        Local $equality.lhs
+        Type Pair
+        Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Pair
+        Type Pair
+        Local pair
+      val $dependency.parameter._1: Pair
+        Type Pair
+        Local $dependency.argument.0
+      val $dependency.argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Pair
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Pair
+        Type Pair
+        Local pair
+      val $dependency.parameter._1: Pair
+        Type Pair
+        Local $dependency.argument.0
+      val $dependency.argument.1: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Pair
+          Local $dependency.parameter._1
+      val $dependency.parameter.left: Choice
+        Type Choice
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Choice
+        Type Choice
+        Local $dependency.argument.1
+      call $argument.0: Boolean = external3 direct
+        Type Choice
+        Local $dependency.parameter.left
+        Type Choice
+        Local $dependency.parameter.right
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+      val $dependency.argument.0: Pair
+        Type Pair
+        Local pair
+      val $dependency.parameter._1: Pair
+        Type Pair
+        Local $dependency.argument.0
+      val $dependency.argument.1: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Pair
+          Local $dependency.parameter._1
+      val $dependency.parameter.left: Choice
+        Type Choice
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Choice
+        Type Choice
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = external3 direct
+        Type Choice
+        Local $dependency.parameter.left
+        Type Choice
+        Local $dependency.parameter.right
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.argument.0: Manual = external4 direct
+      val $dependency.parameter.value: Manual
+        Type Manual
+        Local $dependency.argument.0
+      call $dependency.argument.0: UsesManual = external5 direct
+        Type Manual
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Manual = external4 direct
+      val $dependency.parameter.value: Manual
+        Type Manual
+        Local $dependency.argument.0
+      call $dependency.argument.1: UsesManual = external5 direct
+        Type Manual
+        Local $dependency.parameter.value
+      val $dependency.parameter.left: UsesManual
+        Type UsesManual
+        Local $dependency.argument.0
+      val $dependency.parameter.right: UsesManual
+        Type UsesManual
+        Local $dependency.argument.1
+      call $dependency.receiver: Boolean = external6 direct
+        Type UsesManual
+        Local $dependency.parameter.left
+        Type UsesManual
+        Local $dependency.parameter.right
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.argument.0: Overloaded = external7 direct
+      call $dependency.argument.1: Overloaded = external7 direct
+      val $dependency.parameter.left: Overloaded
+        Type Overloaded
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Overloaded
+        Type Overloaded
+        Local $dependency.argument.1
+      call $argument.0: Boolean = external8 direct
+        Type Overloaded
+        Local $dependency.parameter.left
+        Type Overloaded
+        Local $dependency.parameter.right
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Overloaded = external7 direct
+      call $dependency.argument.0: Leaf = external1 direct
+      val $dependency.parameter.other: Leaf
+        Type Leaf
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external9 direct
+        Type Overloaded
+        Local $dependency.receiver
+        Type Leaf
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call value: NotComparable = external10 direct
+      val erased: Any
+        Type Any
+        Box
+          Type NotComparable
+          Local value
+      val $cast.1: Any
+        Type Any
+        Local erased
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance NotComparable
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external11 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val $ub.2: NotComparable
+        Type NotComparable
+        Unbox
+          Type Any
+          Local $cast.1
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Reference
+          FieldAccess 0
+            Type NotComparable
+            Local $ub.2
+          Type Reference
+          FieldAccess 0
+            Type NotComparable
+            Local value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

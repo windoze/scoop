@@ -18,16 +18,24 @@ impl Lowerer {
     pub(super) fn lower_structs(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
             let representation = match &decl.representation {
-                hir::StructRepresentation::Declared { attributes, .. } => {
-                    mir::StructRepresentation::Declared {
-                        c_layout: attributes.c_layout.map(|layout| mir::MirCLayoutContract {
-                            aligned: lower_c_layout_value(layout.aligned),
-                            packed: lower_c_layout_value(layout.packed),
-                        }),
-                        interior_mutable: attributes.interior_mutable,
-                        fields: Vec::new(),
-                    }
-                }
+                hir::StructRepresentation::Declared {
+                    attributes, c_abi, ..
+                } => mir::StructRepresentation::Declared {
+                    c_abi: match c_abi {
+                        hir::StructCAbi::SourceRepresentation => {
+                            mir::StructCAbi::SourceRepresentation
+                        }
+                        hir::StructCAbi::UInt64Field { field } => {
+                            mir::StructCAbi::UInt64Field { field: *field }
+                        }
+                    },
+                    c_layout: attributes.c_layout.map(|layout| mir::MirCLayoutContract {
+                        aligned: lower_c_layout_value(layout.aligned),
+                        packed: lower_c_layout_value(layout.packed),
+                    }),
+                    interior_mutable: attributes.interior_mutable,
+                    fields: Vec::new(),
+                },
                 hir::StructRepresentation::Intrinsic { application, .. } => {
                     mir::StructRepresentation::Intrinsic(match application {
                         hir::IntrinsicTypeRepresentation::Integer(kind) => {
@@ -45,6 +53,7 @@ impl Lowerer {
                             mir::IntrinsicTypeRepresentation::Ptr {
                                 pointee: types.lower(
                                     *pointee,
+                                    &mut self.source_exact_types,
                                     &mut self.enums,
                                     &mut self.structs,
                                     &mut self.interfaces,
@@ -67,6 +76,7 @@ impl Lowerer {
             };
             let mir_id = self.structs.defs.alloc(mir::StructDef {
                 name: decl.name.clone(),
+                type_arguments: Vec::new(),
                 gc_free: decl.gc_free,
                 representation,
             });
@@ -75,7 +85,107 @@ impl Lowerer {
         }
     }
 
-    /// Fill the MIR struct field types. This runs after the mangling shell
+    /// Fill the exact arguments of eagerly reserved struct/class
+    /// applications after the initial type context contains every nominal.
+    pub(super) fn fill_nominal_type_arguments(&mut self, module: &hir::Module) {
+        for (hir_id, declaration) in module.structs.iter() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            };
+            let arguments = declaration
+                .type_arguments
+                .iter()
+                .map(|argument| {
+                    types.lower(
+                        *argument,
+                        &mut self.source_exact_types,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let mir_id = self.struct_map[&hir_id];
+            self.structs.defs[mir_id]
+                .type_arguments
+                .clone_from(&arguments);
+            self.shell.structs[mir_id].type_arguments = arguments;
+            types.lower(
+                declaration.canonical_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+        }
+        for (hir_id, declaration) in module.classes.iter() {
+            let types = Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            };
+            let arguments = declaration
+                .type_arguments
+                .iter()
+                .map(|argument| {
+                    types.lower(
+                        *argument,
+                        &mut self.source_exact_types,
+                        &mut self.enums,
+                        &mut self.structs,
+                        &mut self.interfaces,
+                        &mut self.shell,
+                    )
+                })
+                .collect::<Vec<_>>();
+            let mir_id = self.class_map[&hir_id];
+            self.classes[mir_id].type_arguments.clone_from(&arguments);
+            self.shell.classes[mir_id].type_arguments = arguments;
+            types.lower(
+                declaration.canonical_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+        }
+        // Owned non-generic declarations include private types referenced only
+        // by exported default arguments. Foreign and generic applications keep
+        // their existing use-driven materialization path.
+        for declaration in module
+            .enums
+            .iter()
+            .map(|(_, declaration)| declaration)
+            .filter(|declaration| {
+                declaration.type_arguments.is_empty()
+                    && declaration.origin.source().is_some_and(|source| {
+                        source.concrete_id().is_some()
+                            && source.declaration().origin() == module.cone
+                    })
+            })
+        {
+            Types {
+                module,
+                struct_map: &self.struct_map,
+                class_map: &self.class_map,
+            }
+            .lower(
+                declaration.canonical_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+        }
+    }
+
+    /// Fill the MIR struct field types. This runs after the type context
     /// exists because field types can reference concrete enums.
     pub(super) fn fill_struct_fields(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.structs.iter() {
@@ -87,10 +197,12 @@ impl Lowerer {
             let fields = match &decl.representation {
                 hir::StructRepresentation::Declared { fields, .. } => fields
                     .iter()
-                    .map(|field| mir::Field {
+                    .map(|field| mir::DeclaredStructField {
+                        identity: field.identity,
                         name: field.name.clone(),
                         ty: types.lower(
                             field.ty,
+                            &mut self.source_exact_types,
                             &mut self.enums,
                             &mut self.structs,
                             &mut self.interfaces,
@@ -118,21 +230,18 @@ impl Lowerer {
                 struct_map: &self.struct_map,
                 class_map: &self.class_map,
             };
-            let arguments = decl
-                .type_arguments
-                .iter()
-                .map(|argument| {
-                    types.lower(
-                        *argument,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect();
-            self.interfaces
-                .get_or_create(module, &mut self.shell, hir_id, arguments);
+            let lowered = types.lower(
+                decl.canonical_type,
+                &mut self.source_exact_types,
+                &mut self.enums,
+                &mut self.structs,
+                &mut self.interfaces,
+                &mut self.shell,
+            );
+            assert!(
+                matches!(lowered, mir::Type::Interface(id) if self.interfaces.source(id).0 == hir_id),
+                "the canonical interface type retains its physical declaration"
+            );
         }
     }
 
@@ -165,6 +274,7 @@ impl Lowerer {
                             mir::IntrinsicTypeRepresentation::Array {
                                 element: types.lower(
                                     *element,
+                                    &mut self.source_exact_types,
                                     &mut self.enums,
                                     &mut self.structs,
                                     &mut self.interfaces,
@@ -176,6 +286,7 @@ impl Lowerer {
                             mir::IntrinsicTypeRepresentation::MutableArray {
                                 element: types.lower(
                                     *element,
+                                    &mut self.source_exact_types,
                                     &mut self.enums,
                                     &mut self.structs,
                                     &mut self.interfaces,
@@ -195,6 +306,7 @@ impl Lowerer {
             let mir_id = self.classes.alloc(mir::ClassDef {
                 modifier,
                 name: decl.name.clone(),
+                type_arguments: Vec::new(),
                 representation,
                 interfaces: Vec::new(),
                 vtable: Vec::new(),
@@ -205,7 +317,7 @@ impl Lowerer {
     }
 
     /// Resolve base classes and concrete interface applications after the
-    /// mangling shell contains every class name. Interface type arguments may
+    /// type context contains every class name. Interface type arguments may
     /// themselves be class types.
     pub(super) fn fill_class_hierarchy(&mut self, module: &hir::Module) {
         for (hir_id, decl) in module.classes.iter() {
@@ -222,6 +334,7 @@ impl Lowerer {
                 .map(|&interface_ty| {
                     let lowered = types.lower(
                         interface_ty,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -245,92 +358,7 @@ impl Lowerer {
         }
     }
 
-    /// A declared function's symbol: `scoop.<name>` (the fixed
-    /// `scoop_main` for the entry point). When the name is shared by
-    /// overloads (M7), the parameter encoding is appended so each
-    /// overload gets a distinct LLVM symbol: `scoop.show.I`,
-    /// `scoop.println.S`, `scoop.Doc.describe.I` for methods (see
-    /// `mir::mangle_overload`). vtable / itable slots and thunk calls
-    /// reference functions by id, so they pick the final symbol up
-    /// from the arena automatically.
-    pub(super) fn declare_symbol(
-        &mut self,
-        module: &hir::Module,
-        hir_id: hir::FunctionId,
-    ) -> String {
-        let function = &module.functions[hir_id];
-        let name = fn_name(function);
-        if let Some(instance) = function_instance(module, function) {
-            let types = Types {
-                module,
-                struct_map: &self.struct_map,
-                class_map: &self.class_map,
-            };
-            let arguments = instance
-                .all_arguments()
-                .iter()
-                .map(|argument| {
-                    types.lower(
-                        *argument,
-                        &mut self.enums,
-                        &mut self.structs,
-                        &mut self.interfaces,
-                        &mut self.shell,
-                    )
-                })
-                .collect::<Vec<_>>();
-            return match instance.symbol() {
-                hir::InstanceSymbol::Unique => mir::mangle_instance(&self.shell, &name, &arguments),
-                hir::InstanceSymbol::Overloaded { discriminator } => {
-                    mir::mangle_generic_overload(&self.shell, &name, &arguments, discriminator)
-                }
-            }
-            .expect("local-concrete source instances have source-mangleable types");
-        }
-        if hir_id == module.entry || !self.overloaded.contains(&name) {
-            return mir::mangle_function(&name, hir_id == module.entry);
-        }
-        // A method's receiver (parameter 0, hir-lower's contract) is
-        // not part of the overload signature: `Doc.describe(Int)`
-        // encodes as `scoop.Doc.describe.I`.
-        let skip = usize::from(function.method.is_some());
-        let params = self.lower_params(module, &function.params[skip..]);
-        mir::mangle_overload(&self.shell, &name, &params)
-            .expect("local-concrete source overloads have source-mangleable parameters")
-    }
-
-    /// Lower a parameter list to MIR types (concrete enum definitions are
-    /// transposed lazily on first reference).
-    pub(super) fn lower_params(
-        &mut self,
-        module: &hir::Module,
-        params: &[hir::Param],
-    ) -> Vec<mir::Type> {
-        let types = Types {
-            module,
-            struct_map: &self.struct_map,
-            class_map: &self.class_map,
-        };
-        params
-            .iter()
-            .map(|param| {
-                types.lower(
-                    param.ty,
-                    &mut self.enums,
-                    &mut self.structs,
-                    &mut self.interfaces,
-                    &mut self.shell,
-                )
-            })
-            .collect()
-    }
-
-    /// Declare one local-concrete user function (body filled later):
-    /// `scoop.<name>`, `scoop.<Type>.<name>` for members, or the fixed
-    /// entry symbol `scoop_main` that the C runtime calls (`main` is
-    /// never instantiated from a generic template, hir-lower guarantees it);
-    /// overloads get the
-    /// parameter encoding appended (`declare_symbol`).
+    /// Declare one local-concrete user function; its body is filled later.
     pub(super) fn declare_function(
         &mut self,
         module: &hir::Module,
@@ -338,11 +366,13 @@ impl Lowerer {
     ) -> mir::FunctionId {
         let function = &module.functions[hir_id];
         let name = fn_name(function);
-        let symbol = self.declare_symbol(module, hir_id);
         let id = self.functions.alloc(mir::Function {
-            gc_effect: lower_gc_effect(function.attributes.gc_effect),
+            gc_effect: if matches!(function.kind, hir::FunctionKind::Extern(_)) {
+                mir::GcEffect::Managed
+            } else {
+                lower_gc_effect(function.attributes.gc_effect)
+            },
             name,
-            symbol,
             // Filled in when the body is lowered below.
             params: Vec::new(),
             return_ty: mir::Type::Unit,
@@ -350,6 +380,7 @@ impl Lowerer {
         });
         self.top_level.push(id);
         self.function_map.insert(hir_id, id);
+        self.source_callables.record_function(module, id, hir_id);
         self.record_function_instance(module, hir_id, id);
         id
     }
@@ -367,6 +398,7 @@ impl Lowerer {
         }
         .lower(
             ty,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,

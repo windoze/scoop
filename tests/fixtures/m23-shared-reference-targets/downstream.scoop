@@ -1,0 +1,12 @@
+package downstream.references
+import consumer.references.*
+
+private class Later(val value: Int)
+
+public fun check(): Int {
+    if (exercise<Later>(Later(42), { value -> value.value }) != 42) { return 1 }
+    if (exercise<String>("retained", { value -> 42 }) != 42) { return 2 }
+    if (exercise<Unit>(Unit, { value -> 42 }) != 42) { return 3 }
+    if (exercise<Int>(42, { value -> value }) != 42) { return 4 }
+    return result()
+}

@@ -8,6 +8,11 @@ use super::super::*;
 use scoop_lir::{EnumDefId, StructDefId};
 use std::collections::HashSet;
 
+mod boxing;
+mod enums;
+mod pointer_storage;
+mod structures;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct StorageFacts {
     size: u64,
@@ -44,9 +49,25 @@ impl<'a> AbiMetadataValidator<'a> {
         for function in &self.module.functions {
             self.validate_scoop_signature(
                 &function.signature,
-                &format!("function @{}", function.symbol),
+                &format!("function @{}", function.symbol()),
             )?;
             self.validate_call_signatures(function)?;
+            self.validate_boxing(function)?;
+            self.validate_pointer_storage(function)?;
+            for (id, local) in function.locals.iter() {
+                let owner = format!("function @{} local {}", function.symbol(), id.into_raw());
+                match local.storage() {
+                    scoop_lir::LocalStorage::LogicalZst(value) => {
+                        self.validate_zst(value.representation(), &owner)?;
+                    }
+                    scoop_lir::LocalStorage::AddressableZst(place) => {
+                        self.validate_zst(place.value().representation(), &owner)?;
+                    }
+                    scoop_lir::LocalStorage::NonZero(value) => {
+                        self.validate_value(value, &owner)?;
+                    }
+                }
+            }
         }
         for (_, function) in self.module.extern_functions.iter() {
             if let ExternFunctionKind::Scoop { signature, .. } = &function.kind {
@@ -66,7 +87,7 @@ impl<'a> AbiMetadataValidator<'a> {
                 signature.arguments(),
                 &format!(
                     "function @{} void call signature {}",
-                    function.symbol,
+                    function.symbol(),
                     id.into_raw()
                 ),
             )?;
@@ -74,7 +95,7 @@ impl<'a> AbiMetadataValidator<'a> {
         for (id, signature) in targets.elided_zst_signatures.iter() {
             let owner = format!(
                 "function @{} elided-ZST call signature {}",
-                function.symbol,
+                function.symbol(),
                 id.into_raw()
             );
             self.validate_arguments(signature.arguments(), &owner)?;
@@ -83,7 +104,7 @@ impl<'a> AbiMetadataValidator<'a> {
         for (id, signature) in targets.direct_signatures.iter() {
             let owner = format!(
                 "function @{} direct call signature {}",
-                function.symbol,
+                function.symbol(),
                 id.into_raw()
             );
             self.validate_arguments(signature.arguments(), &owner)?;
@@ -98,7 +119,7 @@ impl<'a> AbiMetadataValidator<'a> {
         for (id, signature) in targets.indirect_result_signatures.iter() {
             let owner = format!(
                 "function @{} indirect-result call signature {}",
-                function.symbol,
+                function.symbol(),
                 id.into_raw()
             );
             self.validate_arguments(signature.arguments(), &owner)?;
@@ -303,361 +324,6 @@ impl<'a> AbiMetadataValidator<'a> {
         );
         Ok(StorageFacts { size, align, scan })
     }
-
-    fn struct_facts(&mut self, id: StructDefId, owner: &str) -> Result<StorageFacts, CodegenError> {
-        let index = arena_index(id);
-        if index >= self.module.structs.len() {
-            return Err(CodegenError(format!(
-                "{owner} references invalid struct definition {index}"
-            )));
-        }
-        if !self.visiting_structs.insert(id) {
-            return Err(CodegenError(format!(
-                "{owner} reaches a recursive by-value struct definition {index}"
-            )));
-        }
-        let result = self.compute_struct_facts(id, owner);
-        self.visiting_structs.remove(&id);
-        result
-    }
-
-    fn compute_struct_facts(
-        &mut self,
-        id: StructDefId,
-        owner: &str,
-    ) -> Result<StorageFacts, CodegenError> {
-        enum StructShape {
-            Fields {
-                fields: Vec<(LirType, scoop_lir::FieldLayout)>,
-                packed: Option<u64>,
-                explicit_align: Option<u64>,
-            },
-            Intrinsic(scoop_lir::IntrinsicTypeRepresentation),
-        }
-
-        let (name, stored_size, stored_align, shape) = {
-            let definition = &self.module.structs[id];
-            let shape = match &definition.representation {
-                StructRepresentation::Scoop { fields } => StructShape::Fields {
-                    fields: fields
-                        .iter()
-                        .map(|field| (field.ty.clone(), field.layout))
-                        .collect(),
-                    packed: None,
-                    explicit_align: None,
-                },
-                StructRepresentation::C { contract, fields } => StructShape::Fields {
-                    fields: fields
-                        .iter()
-                        .map(|field| (field.ty.storage_type(), field.layout))
-                        .collect(),
-                    packed: contract.packed.bytes(),
-                    explicit_align: contract.aligned.bytes(),
-                },
-                StructRepresentation::Intrinsic(representation) => {
-                    StructShape::Intrinsic(representation.clone())
-                }
-            };
-            (
-                definition.name.clone(),
-                definition.size,
-                definition.align,
-                shape,
-            )
-        };
-
-        let expected = match shape {
-            StructShape::Fields {
-                fields,
-                packed,
-                explicit_align,
-            } => {
-                let mut field_facts = Vec::with_capacity(fields.len());
-                for (index, (ty, _)) in fields.iter().enumerate() {
-                    field_facts.push(
-                        self.storage_facts(ty, &format!("{owner} struct `{name}` field {index}"))?,
-                    );
-                }
-                let mut cursor = 0;
-                let mut align = explicit_align.unwrap_or(1);
-                let mut scans = Vec::new();
-                for (index, ((_, stored), facts)) in fields.iter().zip(&field_facts).enumerate() {
-                    let access_align = packed.map_or(facts.align, |cap| facts.align.min(cap));
-                    let offset = checked_align_up(cursor, access_align, owner)?;
-                    if stored.offset != offset || stored.access_align != access_align {
-                        return Err(CodegenError(format!(
-                            "{owner} struct `{name}` field {index} layout {}/{} disagrees with target layout {offset}/{access_align}",
-                            stored.offset, stored.access_align
-                        )));
-                    }
-                    scans.push(shift_scan(&facts.scan, offset, owner)?);
-                    cursor = offset.checked_add(facts.size).ok_or_else(|| {
-                        CodegenError(format!("{owner} struct `{name}` layout overflows u64"))
-                    })?;
-                    align = align.max(access_align);
-                }
-                StorageFacts {
-                    size: checked_align_up(cursor, align, owner)?,
-                    align,
-                    scan: sequence_scans(scans),
-                }
-            }
-            StructShape::Intrinsic(representation) => {
-                let profile = self.module.meta.target_profile;
-                let layout = match representation {
-                    scoop_lir::IntrinsicTypeRepresentation::Integer(kind) => {
-                        profile.integer_layout(kind)
-                    }
-                    scoop_lir::IntrinsicTypeRepresentation::Boolean => {
-                        profile.scalar_layout(scoop_lir::BackendScalarKind::I1)
-                    }
-                    scoop_lir::IntrinsicTypeRepresentation::Ptr { .. } => {
-                        profile.pointer_layout(PointerKind::Raw)
-                    }
-                    scoop_lir::IntrinsicTypeRepresentation::FunPtr { .. } => {
-                        profile.pointer_layout(PointerKind::Code)
-                    }
-                    scoop_lir::IntrinsicTypeRepresentation::String => {
-                        return Err(CodegenError(format!(
-                            "{owner} uses intrinsic String declaration `{name}` as value storage"
-                        )));
-                    }
-                };
-                StorageFacts {
-                    size: layout.size_bytes(),
-                    align: layout.alignment_bytes(),
-                    scan: RefScan::None,
-                }
-            }
-        };
-        if (stored_size, stored_align) != (expected.size, expected.align) {
-            return Err(CodegenError(format!(
-                "{owner} struct `{name}` layout {stored_size}/{stored_align} disagrees with target layout {}/{}",
-                expected.size, expected.align
-            )));
-        }
-        Ok(expected)
-    }
-
-    fn enum_facts(&mut self, id: EnumDefId, owner: &str) -> Result<StorageFacts, CodegenError> {
-        let index = arena_index(id);
-        if index >= self.module.enums.len() {
-            return Err(CodegenError(format!(
-                "{owner} references invalid enum definition {index}"
-            )));
-        }
-        if !self.visiting_enums.insert(id) {
-            return Err(CodegenError(format!(
-                "{owner} reaches a recursive by-value enum definition {index}"
-            )));
-        }
-        let result = self.compute_enum_facts(id, owner);
-        self.visiting_enums.remove(&id);
-        result
-    }
-
-    fn compute_enum_facts(
-        &mut self,
-        id: EnumDefId,
-        owner: &str,
-    ) -> Result<StorageFacts, CodegenError> {
-        struct VariantShape {
-            fields: Vec<(LirType, u64)>,
-            slot_offset: u64,
-            slot_size: u64,
-            slot_align: u64,
-            gc_free: bool,
-        }
-        enum EnumShape {
-            Niche(scoop_lir::NichePointerKind),
-            Tagged {
-                variants: Vec<VariantShape>,
-                size: u64,
-                align: u64,
-            },
-        }
-
-        let (name, stored_scan, shape) = {
-            let definition = &self.module.enums[id];
-            let shape = match &definition.repr {
-                EnumRepr::Niche { kind, .. } => EnumShape::Niche(*kind),
-                EnumRepr::Tagged {
-                    variants,
-                    size,
-                    align,
-                } => EnumShape::Tagged {
-                    variants: variants
-                        .iter()
-                        .map(|variant| VariantShape {
-                            fields: variant
-                                .fields
-                                .iter()
-                                .map(|field| (field.ty.clone(), field.offset))
-                                .collect(),
-                            slot_offset: variant.slot_offset,
-                            slot_size: variant.slot_size,
-                            slot_align: variant.slot_align,
-                            gc_free: variant.gc_free,
-                        })
-                        .collect(),
-                    size: *size,
-                    align: *align,
-                },
-            };
-            (definition.name.clone(), definition.scan.clone(), shape)
-        };
-
-        let expected = match shape {
-            EnumShape::Niche(kind) => {
-                let layout = self
-                    .module
-                    .meta
-                    .target_profile
-                    .pointer_layout(kind.pointer_kind());
-                StorageFacts {
-                    size: layout.size_bytes(),
-                    align: layout.alignment_bytes(),
-                    scan: if kind == scoop_lir::NichePointerKind::Managed {
-                        RefScan::References(vec![0])
-                    } else {
-                        RefScan::None
-                    },
-                }
-            }
-            EnumShape::Tagged {
-                variants,
-                size: stored_size,
-                align: stored_align,
-            } => {
-                struct ComputedVariant {
-                    fields: Vec<StorageFacts>,
-                    offsets: Vec<u64>,
-                    size: u64,
-                    align: u64,
-                }
-                let mut computed = Vec::with_capacity(variants.len());
-                for (variant_index, variant) in variants.iter().enumerate() {
-                    let mut fields = Vec::with_capacity(variant.fields.len());
-                    for (field_index, (ty, _)) in variant.fields.iter().enumerate() {
-                        fields.push(self.storage_facts(
-                            ty,
-                            &format!(
-                                "{owner} enum `{name}` variant {variant_index} field {field_index}"
-                            ),
-                        )?);
-                    }
-                    let (offsets, size, align) = aggregate_layout(
-                        fields.iter().map(|field| (field.size, field.align)),
-                        owner,
-                    )?;
-                    if (variant.slot_size, variant.slot_align) != (size, align) {
-                        return Err(CodegenError(format!(
-                            "{owner} enum `{name}` variant {variant_index} slot layout {}/{} disagrees with target layout {size}/{align}",
-                            variant.slot_size, variant.slot_align
-                        )));
-                    }
-                    let expected_gc_free = fields.iter().all(|field| field.scan == RefScan::None);
-                    if variant.gc_free != expected_gc_free {
-                        return Err(CodegenError(format!(
-                            "{owner} enum `{name}` variant {variant_index} gc_free metadata disagrees with its fields"
-                        )));
-                    }
-                    computed.push(ComputedVariant {
-                        fields,
-                        offsets,
-                        size,
-                        align,
-                    });
-                }
-
-                let pure_size = variants
-                    .iter()
-                    .zip(&computed)
-                    .filter(|(variant, _)| variant.gc_free)
-                    .map(|(_, variant)| variant.size)
-                    .max()
-                    .unwrap_or(0);
-                let pure_align = variants
-                    .iter()
-                    .zip(&computed)
-                    .filter(|(variant, _)| variant.gc_free)
-                    .map(|(_, variant)| variant.align)
-                    .max()
-                    .unwrap_or(1);
-                let tag = self
-                    .module
-                    .meta
-                    .target_profile
-                    .scalar_layout(scoop_lir::BackendScalarKind::I64);
-                let pure_offset = checked_align_up(tag.size_bytes(), pure_align, owner)?;
-                let mut cursor = pure_offset.checked_add(pure_size).ok_or_else(|| {
-                    CodegenError(format!("{owner} enum `{name}` layout overflows u64"))
-                })?;
-                let mut align = tag.alignment_bytes().max(pure_align);
-                let mut scans = Vec::new();
-                for (variant_index, (variant, computed)) in
-                    variants.iter().zip(&computed).enumerate()
-                {
-                    let slot_offset = if variant.gc_free {
-                        pure_offset
-                    } else {
-                        cursor = checked_align_up(cursor, computed.align, owner)?;
-                        let offset = cursor;
-                        cursor = cursor.checked_add(computed.size).ok_or_else(|| {
-                            CodegenError(format!("{owner} enum `{name}` layout overflows u64"))
-                        })?;
-                        offset
-                    };
-                    if variant.slot_offset != slot_offset {
-                        return Err(CodegenError(format!(
-                            "{owner} enum `{name}` variant {variant_index} slot offset {} disagrees with target offset {slot_offset}",
-                            variant.slot_offset
-                        )));
-                    }
-                    align = align.max(computed.align);
-                    for (field_index, (((_, stored_offset), facts), relative_offset)) in variant
-                        .fields
-                        .iter()
-                        .zip(&computed.fields)
-                        .zip(&computed.offsets)
-                        .enumerate()
-                    {
-                        let offset =
-                            slot_offset.checked_add(*relative_offset).ok_or_else(|| {
-                                CodegenError(format!(
-                                    "{owner} enum `{name}` field offset overflows u64"
-                                ))
-                            })?;
-                        if *stored_offset != offset {
-                            return Err(CodegenError(format!(
-                                "{owner} enum `{name}` variant {variant_index} field {field_index} offset {stored_offset} disagrees with target offset {offset}"
-                            )));
-                        }
-                        scans.push(shift_scan(&facts.scan, offset, owner)?);
-                    }
-                }
-                let size = checked_align_up(cursor, align, owner)?;
-                if (stored_size, stored_align) != (size, align) {
-                    return Err(CodegenError(format!(
-                        "{owner} enum `{name}` layout {stored_size}/{stored_align} disagrees with target layout {size}/{align}"
-                    )));
-                }
-                StorageFacts {
-                    size,
-                    align,
-                    scan: sequence_scans(scans),
-                }
-            }
-        };
-        if stored_scan != expected.scan {
-            return Err(CodegenError(format!(
-                "{owner} enum `{name}` scan {} disagrees with field-derived scan {}",
-                stored_scan.dump(),
-                expected.scan.dump()
-            )));
-        }
-        Ok(expected)
-    }
 }
 
 fn checked_align_up(value: u64, align: u64, owner: &str) -> Result<u64, CodegenError> {
@@ -680,11 +346,15 @@ fn aggregate_layout(
     let mut size = 0;
     let mut align = 1;
     for (field_size, field_align) in fields {
-        size = checked_align_up(size, field_align, owner)?;
-        offsets.push(size);
-        size = size
-            .checked_add(field_size)
-            .ok_or_else(|| CodegenError(format!("{owner} aggregate layout overflows u64")))?;
+        if field_size == 0 {
+            offsets.push(0);
+        } else {
+            size = checked_align_up(size, field_align, owner)?;
+            offsets.push(size);
+            size = size
+                .checked_add(field_size)
+                .ok_or_else(|| CodegenError(format!("{owner} aggregate layout overflows u64")))?;
+        }
         align = align.max(field_align);
     }
     Ok((offsets, checked_align_up(size, align, owner)?, align))
@@ -709,6 +379,11 @@ fn shift_scan(scan: &RefScan, base: u64, owner: &str) -> Result<RefScan, Codegen
                 .map(|part| shift_scan(part, base, owner))
                 .collect::<Result<Vec<_>, _>>()?,
         ),
+        RefScan::Array { .. } => {
+            return Err(CodegenError(format!(
+                "{owner} value scan cannot contain a variable object scan"
+            )));
+        }
     })
 }
 
@@ -721,6 +396,9 @@ fn sequence_scans(scans: impl IntoIterator<Item = RefScan>) -> RefScan {
                 for part in parts {
                     collect(part, references);
                 }
+            }
+            RefScan::Array { .. } => {
+                unreachable!("Scoop ABI values cannot contain variable object scans")
             }
         }
     }
@@ -997,13 +675,13 @@ fn checked_call_view<'a, Destination: Copy>(
     let invalid_target = |convention: &str, index: usize| {
         CodegenError(format!(
             "typed call @{} references invalid {convention} target {index}",
-            function.symbol
+            function.symbol()
         ))
     };
     let invalid_signature = |convention: &str, index: usize| {
         CodegenError(format!(
             "typed call @{} references invalid {convention} signature {index}",
-            function.symbol
+            function.symbol()
         ))
     };
 
@@ -1131,7 +809,7 @@ fn validate_argument(
                     format!("indirect argument {index} references invalid local {local_index}"),
                 ));
             }
-            let actual_type = &function.locals[local].ty;
+            let actual_type = function.locals[local].ty();
             if actual_type != expected.storage_type() {
                 return Err(call_error(
                     function,
@@ -1234,7 +912,7 @@ fn require_local_type(
             format!("{owner} references invalid local {index}"),
         ));
     }
-    let actual = &function.locals[local].ty;
+    let actual = function.locals[local].ty();
     if actual != expected {
         return Err(call_error(
             function,
@@ -1282,7 +960,7 @@ fn validate_destination(
                     format!(
                         "{} protocol does not match @{}'s {:?} effect",
                         protocol.name(),
-                        declaration.symbol,
+                        declaration.symbol(),
                         declaration.gc_effect
                     ),
                 ));
@@ -1291,7 +969,41 @@ fn validate_destination(
                 function,
                 call,
                 &declaration.signature,
-                &format!("typed local call to @{}", declaration.symbol),
+                &format!("typed local call to @{}", declaration.symbol()),
+            )
+        }
+        scoop_lir::CallDestination::External(id) => {
+            let index = arena_index(id);
+            if index >= module.meta.external_callables.len() {
+                return Err(call_error(
+                    function,
+                    format!("references invalid external callable {index}"),
+                ));
+            }
+            let declaration = &module.meta.external_callables[id];
+            let expected_protocol = match declaration.gc_effect() {
+                scoop_lir::GcEffect::Managed => CallProtocol::Managed,
+                scoop_lir::GcEffect::NoGc => CallProtocol::NoGc,
+            };
+            if protocol != expected_protocol {
+                return Err(call_error(
+                    function,
+                    format!(
+                        "{} protocol does not match external `{}`'s {:?} effect",
+                        protocol.name(),
+                        declaration.expected_symbol().symbol(),
+                        declaration.gc_effect()
+                    ),
+                ));
+            }
+            require_scoop_signature(
+                function,
+                call,
+                declaration.signature(),
+                &format!(
+                    "typed external call to `{}`",
+                    declaration.expected_symbol().symbol()
+                ),
             )
         }
         scoop_lir::CallDestination::Extern(id) => {
@@ -1493,6 +1205,12 @@ fn validate_runtime_call(
     protocol: CallProtocol,
     runtime: scoop_lir::RuntimeFunction,
 ) -> Result<(), CodegenError> {
+    if runtime.requires_dedicated_operation() {
+        return Err(call_error(
+            function,
+            "boxing runtime calls require a descriptor-refined operation",
+        ));
+    }
     let (expected_arguments, expected_result, expected_protocol) = runtime_signature(runtime);
     let arguments_match = call.arguments().len() == expected_arguments.len()
         && call
@@ -1538,14 +1256,8 @@ fn runtime_signature(
                     ],
                     Some(scoop_lir::MANAGED_PTR),
                 ),
-                Managed::Box => (
-                    vec![
-                        scoop_lir::METADATA_PTR,
-                        scoop_lir::RAW_PTR,
-                        LirType::MachineScalar(MachineScalarKind::ByteSize),
-                        scoop_lir::METADATA_PTR,
-                    ],
-                    Some(scoop_lir::MANAGED_PTR),
+                Managed::BoxZst | Managed::BoxValue => unreachable!(
+                    "dedicated operations are rejected before runtime signature lookup"
                 ),
                 Managed::MaterializeException => {
                     (vec![scoop_lir::MANAGED_PTR], Some(scoop_lir::MANAGED_PTR))
@@ -1592,6 +1304,12 @@ fn runtime_signature(
                 NoGc::Trap => (vec![scoop_lir::RAW_PTR], None),
                 NoGc::Throw => (vec![scoop_lir::MANAGED_PTR], None),
                 NoGc::Rethrow => (Vec::new(), None),
+                NoGc::UnboxZst
+                | NoGc::UnboxValue
+                | NoGc::PushRecursiveRegion
+                | NoGc::PopRecursiveRegion => unreachable!(
+                    "dedicated operations are rejected before runtime signature lookup"
+                ),
             };
             (arguments, result, CallProtocol::NoGc)
         }
@@ -1689,20 +1407,25 @@ const fn argument_convention(argument: &scoop_lir::AbiArgument) -> &'static str 
 }
 
 fn call_error(function: &Function, detail: impl std::fmt::Display) -> CodegenError {
-    CodegenError(format!("typed call @{}: {detail}", function.symbol))
+    CodegenError(format!("typed call @{}: {detail}", function.symbol()))
 }
 
 fn managed_poll_error(function: &Function, detail: impl std::fmt::Display) -> CodegenError {
-    CodegenError(format!("managed poll @{}: {detail}", function.symbol))
+    CodegenError(format!("managed poll @{}: {detail}", function.symbol()))
 }
 
 #[cfg(test)]
 mod tests {
+    mod pointer_values;
+    mod struct_zst;
+    mod tagged_zst;
     use super::*;
     use la_arena::Arena;
 
     fn module_with_types(structs: StructDefs, enums: EnumDefs) -> Module {
+        let mut local_functions = scoop_lir::LocalFunctionIdentities::default();
         Module {
+            cone: scoop_identity::ConeIdentity::SINGLE_FILE,
             globals: Arena::new(),
             initialization_units: Arena::new(),
             structs,
@@ -1714,12 +1437,14 @@ mod tests {
             callback_bridges: Arena::new(),
             foreign_callback_families: Arena::new(),
             foreign_callback_bridges: Arena::new(),
-            entry_symbol: String::new(),
+            output: scoop_lir::LirOutput::Executable {
+                entry: scoop_lir::LocalFunctionRef::Managed(local_functions.alloc_managed()),
+            },
             meta: scoop_lir::LirMeta {
+                exact_types: Vec::new(),
                 target_profile: scoop_lir::LirTargetProfile::DARWIN_AARCH64,
-                well_known_layouts: scoop_lir::WellKnownLayouts {
-                    string: scoop_lir::LayoutId::from_raw(0.into()),
-                },
+                canonical_c_abi: scoop_lir::CanonicalCAbiMetadata::default(),
+                native_externals: scoop_lir::NativeExternalMetadata::default(),
                 well_known_type_descriptors: scoop_lir::WellKnownTypeDescriptors {
                     string: scoop_lir::TypeDescriptorRef::Local(
                         scoop_lir::TypeDescriptorId::from_raw(0.into()),
@@ -1760,6 +1485,10 @@ mod tests {
     fn struct_field_offsets_are_revalidated_before_accepting_an_abi_scan() {
         let mut structs = StructDefs::default();
         let id = structs.alloc_scoop(
+            crate::tests::test_physical_exact(
+                "BadOffset",
+                scoop_identity::SourceNominalKind::Struct,
+            ),
             "BadOffset".to_string(),
             16,
             8,
@@ -1787,6 +1516,10 @@ mod tests {
     fn enum_scan_must_match_its_variant_field_offsets() {
         let mut enums = EnumDefs::default();
         let id = enums.alloc(scoop_lir::EnumDef {
+            exact_type: crate::tests::test_physical_exact(
+                "BadScan",
+                scoop_identity::SourceNominalKind::Enum,
+            ),
             name: "BadScan".to_string(),
             repr: EnumRepr::Tagged {
                 variants: vec![scoop_lir::EnumVariantRepr {

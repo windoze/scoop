@@ -1,0 +1,127 @@
+Module
+  callback cb0 @fn3 -> @fn5 function_type0 id=45935cc983aeac768e24e749a952a2198ddf8fb3edb5659c98770cf9277f5952
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long, marker: Token)
+  generated_callable gc0 function=@fn5 id=45935cc983aeac768e24e749a952a2198ddf8fb3edb5659c98770cf9277f5952
+  fun token @fn0() -> Token <no-gc>
+    bb0 entry
+      call $call.1: Token = external0 direct
+      return
+        Type Token
+        Local $call.1
+  fun primary @fn1() -> Wide <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=17 bits=0x0000000000000011
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=-29 bits=0xffffffffffffffe3
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=53 bits=0x0000000000000035
+      call $dependency.argument.3: Token = external0 direct
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.3
+      call $call.1: Wide = external1 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+        Type Token
+        Local $dependency.parameter.marker
+      return
+        Type Wide
+        Local $call.1
+  fun secondary @fn2() -> Wide <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.seed: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.step: Long
+        Type Long
+        Local $dependency.argument.1
+      call $call.1: Wide = external2 direct
+        Type Long
+        Local $dependency.parameter.seed
+        Type Long
+        Local $dependency.parameter.step
+      return
+        Type Wide
+        Local $call.1
+  fun defaults @fn3() -> Long <no-gc>
+    bb0 entry
+      val $default.local.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $default.local.1: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $default.local.2: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      val $default.local.3: Long
+        Type Long
+        Local $default.local.0
+      val $default.local.4: Long
+        Type Long
+        Local $default.local.1
+      val $default.local.5: Long
+        Type Long
+        Local $default.local.2
+      call $default.local.6: Token = external0 direct
+      call $dependency.parameter.value: Wide = external1 direct
+        Type Long
+        Local $default.local.3
+        Type Long
+        Local $default.local.4
+        Type Long
+        Local $default.local.5
+        Type Token
+        Local $default.local.6
+      call $call.1: Long = external3 direct
+        Type Wide
+        Local $dependency.parameter.value
+      return
+        Type Long
+        Local $call.1
+  fun republished @fn4(value: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Wide
+        Type Wide
+        Local value
+      call $call.1: Long = external4 direct
+        Type Wide
+        Local $dependency.receiver
+      return
+        Type Long
+        Local $call.1
+  fun callback bridge for defaults @fn5($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn3 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
+  output library

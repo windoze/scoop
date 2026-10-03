@@ -1,0 +1,33 @@
+public struct SharedConstructorToken()
+public struct SharedConstructorOther()
+public struct SharedConstructorPair(val left: SharedConstructorToken, val right: SharedConstructorToken) {
+    @NoGC public constructor(token: SharedConstructorToken): this(token, token) {}
+    public constructor(): this(SharedConstructorToken(), SharedConstructorToken()) {}
+}
+public open class SharedConstructorBase protected constructor(public val token: SharedConstructorToken) {
+    public constructor(): this(SharedConstructorToken()) {}
+    internal constructor(value: Int): this(SharedConstructorToken()) {}
+    private constructor(value: Boolean): this(SharedConstructorToken()) {}
+    public companion object {
+        public fun createInternal(): SharedConstructorBase = SharedConstructorBase(1)
+        public fun createPrivate(): SharedConstructorBase = SharedConstructorBase(true)
+    }
+}
+public class SharedConstructorDerived public constructor(token: SharedConstructorToken = SharedConstructorToken()): SharedConstructorBase(token)
+public class SharedConstructorPrivate private constructor(public val token: SharedConstructorToken) {
+    public companion object {
+        public fun create(): SharedConstructorPrivate = SharedConstructorPrivate(SharedConstructorToken())
+    }
+}
+internal class SharedConstructorSupport public constructor()
+public class SharedConstructorEnvelope public constructor() {
+    private val support: SharedConstructorSupport = SharedConstructorSupport()
+}
+public struct SharedConstructorManaged(val item: SharedConstructorBase) {
+    public constructor(): this(SharedConstructorBase()) {}
+}
+public struct SharedConstructorGeneric<T>(val value: T)
+public class SharedConstructorDeferred public constructor(public val value: SharedConstructorGeneric<SharedConstructorToken>)
+public class SharedConstructorGenericOwner<T> {
+    public class Nested public constructor()
+}

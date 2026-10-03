@@ -1,0 +1,87 @@
+Module
+  fun @scoop$1$cb$b8639d93570321951d3ea535d8fb63d8e8a0dda97991cec7d09d0026d1fbabaa() -> i32
+    local %0 $argument.0: i32
+    local %1 $parameter.value: i32
+    local %2 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    store t0 -> local2
+    ret local2
+  fun @scoop$1$cb$bbc8d91dbbd0d5111825803f073feeee461ceb14c1885a2bda1aa28e7996e868(i32) -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.parameter.number: i32
+    local %2 first: struct0
+    local %3 $dependency.argument.0: i32
+    local %4 $dependency.parameter.value: i32
+    local %5 box: struct1
+    local %6 kept: i32
+    local %7 $dependency.argument.0: i32
+    local %8 $dependency.parameter.number: i32
+    local %9 second: struct2
+    local %10 fixed: struct2
+    local %11 copy: struct0
+    local %12 $dependency.argument.0: i32
+    local %13 $dependency.parameter.value: i32
+    local %14 generic: struct1
+    local %15 fixedAlias: struct2
+    local %16 localAlias: struct2
+    local %17 $dependency.argument.0: i32
+    local %18 $dependency.parameter.number: i32
+    local %19 deep: struct3
+    local %20 deepAlias: struct3
+    local %21 $dependency.receiver: i32
+    local %22 $dependency.argument.0: i32
+    local %23 $dependency.parameter.other: i32
+    local %24 $sc.1: struct0
+    local %25 $sc.2: struct1
+    local %26 $sc.3: struct2
+    local %27 $sc.4: struct1
+    local %28 $sc.5: struct3
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000028) -> local0
+    store local0 -> local1
+    call no-gc-indirect-target0 local24 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) external-fn0(local1)
+    store local24 -> local2
+    store param0 -> local3
+    store local3 -> local4
+    call no-gc-indirect-target1 local25 = sig=indirect1 (sret struct1 size=4 align=4 scan=none, i32) local-fn2(local4)
+    store local25 -> local5
+    t0 = extract local5, 0 : i32
+    store t0 -> local6
+    store integer<Int>(0x00000002) -> local7
+    store local7 -> local8
+    call no-gc-indirect-target2 local26 = sig=indirect2 (sret struct2 size=4 align=4 scan=none, i32) external-fn1(local8)
+    store local26 -> local9
+    store local9 -> local10
+    store local2 -> local11
+    t1 = extract local11, 0 : i32
+    store t1 -> local12
+    store local12 -> local13
+    call no-gc-indirect-target3 local27 = sig=indirect3 (sret struct1 size=4 align=4 scan=none, i32) local-fn2(local13)
+    store local27 -> local14
+    store local10 -> local15
+    store local15 -> local16
+    t2 = extract local14, 0 : i32
+    store t2 -> local17
+    store local17 -> local18
+    call no-gc-indirect-target4 local28 = sig=indirect4 (sret struct3 size=4 align=4 scan=none, i32) external-fn2(local18)
+    store local28 -> local19
+    store local19 -> local20
+    t3 = extract local20, 0 : i32
+    store t3 -> local21
+    t4 = extract local16, 0 : i32
+    store t4 -> local22
+    store local22 -> local23
+    t5 = integer_Add<Int> local21, local23 : i32
+    ret t5
+  fun @scoop$1$cb$01e8968fd0ab1845273cd03f4ba6cbdd80859ac7a51f0ccd57a72801e1831e6c(i32) -> sret<struct1 size=4 align=4 scan=none> <no-gc>
+  block entry
+    t0 = aggregate (param0) : struct1
+    ret t0
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=dependency.paths;o=C:Outer;k=S;x=Generic);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$fb70bf1eeeba1abfb4c9d60884867e922c8d1a7b50c5f5a17a58c2ef9b8a3d88 type-id=6790456138254157325 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Generic size=4 align=4 refs=[]
+  output library

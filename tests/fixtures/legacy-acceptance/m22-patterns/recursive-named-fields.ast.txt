@@ -1,0 +1,129 @@
+SourceFile
+  RootPackage
+  struct Leaf<T>
+    field value: T
+    field flag: Boolean
+  struct Envelope<T>
+    field label: String
+    field payload: T
+    field marker: (Boolean, Int)
+    field serial: Int
+  enum Event
+    Data <named>
+      envelope: Envelope<Leaf<Int>>
+      enabled: Boolean
+    Empty
+  fun once(value: Event): Event
+    Call println
+      StringLiteral "subject"
+    return
+      Var value
+  fun classify(value: Event): Int
+    =
+      WhenExpression
+        Call once
+          Var value
+        arm Data{envelope: {payload: {value: 0, flag: false}, marker: (_, _), ..}, enabled: false}
+          IntLiteral 10
+        arm Data{enabled: false, envelope: {marker: (_, _), payload: {flag: false, value}, ..}}
+          Var value
+        arm Data{envelope: {payload: {value, flag: false}, marker: (_, _), ..}, enabled: true}
+          Binary Add
+            Var value
+            IntLiteral 100
+        arm Data{enabled, envelope: {payload: {flag: true, value}, marker: (_, _), ..}}
+          Binary Add
+            Var value
+            IntLiteral 200
+        arm Empty
+          Unary Neg
+            IntLiteral 1
+  fun makeEnvelope(): Envelope<Leaf<Int>>
+    Call println
+      StringLiteral "binding-rhs"
+    return
+      Call Envelope
+        StringLiteral "binding"
+        Call Leaf
+          IntLiteral 11
+          BoolLiteral true
+        TupleLiteral
+          BoolLiteral false
+          IntLiteral 12
+        IntLiteral 13
+  fun bindingValue(): Int
+    val {payload: {value, ..}, ..}
+      Call makeEnvelope
+    return
+      Var value
+  fun main()
+    Call println
+      Call classify
+        MethodCall Data
+          Var Event
+          Argument envelope=
+            Call Envelope
+              StringLiteral "zero"
+              Call Leaf
+                IntLiteral 0
+                BoolLiteral false
+              TupleLiteral
+                BoolLiteral true
+                IntLiteral 1
+              IntLiteral 2
+          Argument enabled=
+            BoolLiteral false
+    Call println
+      Call classify
+        MethodCall Data
+          Var Event
+          Argument enabled=
+            BoolLiteral false
+          Argument envelope=
+            Call Envelope
+              StringLiteral "seven"
+              Call Leaf
+                IntLiteral 7
+                BoolLiteral false
+              TupleLiteral
+                BoolLiteral false
+                IntLiteral 3
+              IntLiteral 4
+    Call println
+      Call classify
+        MethodCall Data
+          Var Event
+          Argument envelope=
+            Call Envelope
+              StringLiteral "eight"
+              Call Leaf
+                IntLiteral 8
+                BoolLiteral false
+              TupleLiteral
+                BoolLiteral true
+                IntLiteral 5
+              IntLiteral 6
+          Argument enabled=
+            BoolLiteral true
+    Call println
+      Call classify
+        MethodCall Data
+          Var Event
+          Argument enabled=
+            BoolLiteral false
+          Argument envelope=
+            Call Envelope
+              StringLiteral "nine"
+              Call Leaf
+                IntLiteral 9
+                BoolLiteral true
+              TupleLiteral
+                BoolLiteral false
+                IntLiteral 7
+              IntLiteral 8
+    Call println
+      Call classify
+        FieldAccess Empty
+          Var Event
+    Call println
+      Call bindingValue

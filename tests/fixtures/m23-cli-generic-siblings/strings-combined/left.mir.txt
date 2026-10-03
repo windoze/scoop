@@ -1,0 +1,122 @@
+Module
+  class Named<Int> vtable=0 itables=0
+  fun left @fn0() -> String
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Named<Int>
+        ClassAlloc Named<Int>
+      call @fn9 direct
+        Type Named<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      call $call.2: String = @fn4 direct
+        Type Named<Int>
+        Local $new.1
+      return
+        Type String
+        Local $call.2
+  fun leftMethod @fn1() -> String
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Named<Int>
+        ClassAlloc Named<Int>
+      call @fn9 direct
+        Type Named<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Named<Int>
+        Type Named<Int>
+        Local $new.1
+      call $call.2: String = @fn5 direct
+        Type Named<Int>
+        Local $dependency.receiver
+      return
+        Type String
+        Local $call.2
+  fun leftExtension @fn2() -> String
+    bb0 entry
+      call $call.1: String = @fn6 direct
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      return
+        Type String
+        Local $call.1
+  fun leftNested @fn3() -> String
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: String = @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type String
+        Local $call.1
+  fun label @fn4(this: Named<Int>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 1
+          Type Named<Int>
+          Local this
+  fun text @fn5(this: Named<Int>) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun $extension.constantText @fn6(this: Int) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str1
+  fun nestedConstant @fn7(value: Int) -> String
+    bb0 entry
+      call $call.1: String = @fn8 direct
+      return
+        Type String
+        Local $call.1
+  fun read @fn8() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str2
+  fun init.Named.$c0 @fn9(this: Named<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Named<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type Named<Int>
+        Local this
+        Type String
+        StringConst @str3
+      return
+  instance mi0 function=@fn4 <- label
+  instance mi1 function=@fn5 <- text
+  instance mi2 function=@fn6 <- $extension.constantText
+  instance mi3 function=@fn7 <- nestedConstant
+  instance mi4 function=@fn8 <- read
+  str @str0 "generic constant"
+  str @str1 "generic constant"
+  str @str2 "generic constant"
+  str @str3 "generic constant"
+  output library

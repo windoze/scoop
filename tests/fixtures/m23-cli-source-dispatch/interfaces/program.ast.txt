@@ -1,0 +1,92 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call user
+    val root: Root
+      Var value
+    val diamond: Diamond
+      Var value
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall zeta
+            Var root
+          IntLiteral 5
+        Binary Eq
+          FieldAccess value
+            Var root
+          IntLiteral 8
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            MethodCall left
+              Var diamond
+            IntLiteral 3
+          Binary Eq
+            MethodCall right
+              Var diamond
+            IntLiteral 4
+        Binary Eq
+          MethodCall own
+            Var diamond
+          IntLiteral 6
+    assign .change
+      Var value
+      IntLiteral 19
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          FieldAccess change
+            Var value
+          IntLiteral 7
+        Binary Eq
+          FieldAccess value
+            Var value
+          IntLiteral 8
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall zeta
+            Call derived
+          IntLiteral 5
+        Binary Eq
+          FieldAccess value
+            Var Singleton
+          IntLiteral 8
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall zeta
+            Call Value
+          IntLiteral 5
+        Binary Eq
+          FieldAccess value
+            Call Value
+          IntLiteral 8
+    val boxed: Root
+      Call Value
+    Call verifyDispatch
+      Binary Eq
+        FieldAccess value
+          Var boxed
+        IntLiteral 8
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall zeta
+            FieldAccess One
+              Var Choice
+          IntLiteral 5
+        Binary Eq
+          FieldAccess value
+            FieldAccess One
+              Var Choice
+          IntLiteral 8

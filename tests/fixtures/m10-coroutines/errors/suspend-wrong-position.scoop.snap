@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m10-coroutines/errors/suspend-wrong-position.scoop:1:1: error: `suspend` modifier is only allowed on function declarations

@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage sibling.left
+  ImportStar Local dependency.odr.*
+  public fun left(): String
+    =
+      Call constant<Int>
+  public fun leftOther(): String
+    =
+      Call otherConstant<Int>
+  public fun leftSelected(first: Boolean): String
+    =
+      Call selectedConstant<Int>
+        Var first
+  public fun forwarded<T>(): String
+    =
+      Call constant<T>

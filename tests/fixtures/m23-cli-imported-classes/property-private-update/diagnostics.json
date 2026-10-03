@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "setter of property `privateValue` is not accessible",
+    "notes": [],
+    "origin": {
+      "cone": "ba7d480b3f860a23b40d4e71d13e3e7eb84cbebfea6085b0a3da8e39933d15f8",
+      "end": 97,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  }
+]

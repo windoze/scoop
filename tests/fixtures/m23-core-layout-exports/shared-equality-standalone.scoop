@@ -1,0 +1,9 @@
+public struct SharedEqualityToken()
+public struct SharedEqualityUnused()
+public struct SharedEqualityDeferred()
+private struct SharedEqualityHidden()
+
+public fun sharedEqualitySame(left: SharedEqualityToken, right: SharedEqualityToken): Boolean = left == right
+public fun sharedEqualityHiddenUse(): Boolean = SharedEqualityHidden() == SharedEqualityHidden()
+public fun sharedEqualityDefault(value: Boolean = SharedEqualityDeferred() == SharedEqualityDeferred()): Boolean = value
+public fun sharedEqualityUnit(): Boolean = Unit == Unit

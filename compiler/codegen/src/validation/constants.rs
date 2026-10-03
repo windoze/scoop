@@ -4,15 +4,36 @@ use super::super::*;
 
 pub(super) fn validate_constant_images(module: &Module) -> Result<(), CodegenError> {
     for (_, global) in module.globals.iter() {
-        let GlobalInit::Storage {
+        let (GlobalInit::Storage {
             ty,
             initial_state: LirStaticInitialState::EncodedStaticValue { payload },
             ..
-        } = &global.init
+        }
+        | GlobalInit::RawStorage {
+            ty,
+            initializer: payload,
+            ..
+        }) = &global.init
         else {
             continue;
         };
         validate_constant_image(module, global, ty, payload, "value")?;
+        if matches!(global.init, GlobalInit::RawStorage { .. }) {
+            let scan = super::scoop_abi::canonical_storage_scan(
+                module,
+                ty,
+                &format!("raw storage @{}", global.symbol()),
+            )?;
+            if global.address_kind != PointerKind::Raw
+                || scan != RefScan::None
+                || global.scan != RefScan::None
+            {
+                return Err(CodegenError(format!(
+                    "raw storage must be GC-free: @{}",
+                    global.symbol()
+                )));
+            }
+        }
     }
     Ok(())
 }
@@ -66,7 +87,7 @@ fn validate_constant_image(
                     format!(
                         "global pointer constant declares {} provenance but referenced global `@{}` has {} provenance",
                         kind.dump(),
-                        target.symbol,
+                        target.symbol(),
                         target.address_kind.dump()
                     ),
                 ));
@@ -74,7 +95,7 @@ fn validate_constant_image(
             Ok(())
         }
         LirConstantImage::EnumUnit { variant } => {
-            let owner = format!("storage global `@{}` constant {path}", global.symbol);
+            let owner = format!("storage global `@{}` constant {path}", global.symbol());
             super::validate_variant_ref(module, *variant, &owner)?;
             let enum_id = variant.definition();
             require_exact_type(global, path, expected, &LirType::Enum(enum_id), || {
@@ -183,6 +204,6 @@ fn require_exact_type(
 fn constant_error(global: &Global, path: &str, detail: impl std::fmt::Display) -> CodegenError {
     CodegenError(format!(
         "storage global `@{}` constant {path}: {detail}",
-        global.symbol
+        global.symbol()
     ))
 }

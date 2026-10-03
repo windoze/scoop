@@ -1,0 +1,36 @@
+package consumer.nativecalls
+
+import dependency.nativecalls.*
+
+private fun localApply(action: (Int) -> Int, value: Int = 42): Int = action(value)
+private fun localNarrow(value: Int8): Int = value.toInt32()
+private fun localNarrowAction(action: (Int) -> Int8): Int = action(0).toInt32()
+private fun localArrayFirst(values: Array<Int>): Int = if (values.size == 0L) { 42 } else { values[0L] }
+private fun localPack(vararg values: Int): Array<Int> = values
+private fun identity(value: Int): Int = value
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val external = apply({ value: Int -> read(seed) }, 0)
+    val local = localApply({ value: Int -> read(seed) }, 0)
+    return if (external == local) { external } else { 1 }
+}
+
+public fun result(): Int {
+    val flag = true
+    if (localNarrow(if (flag) { 42 } else { 0 }) != 42) { return 2 }
+    if (narrow(if (flag) { 42 } else { 0 }) != 42) { return 3 }
+    if (localNarrowAction({ value: Int -> 42 }) != 42) { return 4 }
+    if (narrowAction({ value: Int -> 42 }) != 42) { return 5 }
+    if (localNarrowAction(fun(value: Int) { return 42 }) != 42) { return 6 }
+    if (narrowAction(fun(value: Int) { return 42 }) != 42) { return 7 }
+    if (localArrayFirst([]) != 42 || arrayFirst([]) != 42) { return 8 }
+    if (localApply(::identity) != 42 || apply(::identity) != 42) { return 9 }
+    if (localApply(value = 41, action = { it + 1 }) != 42) { return 10 }
+    if (apply(value = 41, action = { it + 1 }) != 42) { return 11 }
+    val values = [42]
+    if (localPack(values = values) !== values || pack(values = values) !== values) { return 12 }
+    if (localPack(*values, 0).size != 2L || pack(*values, 0).size != 2L) { return 13 }
+    if (localPack().size != 0L || pack().size != 0L) { return 14 }
+    val host = FixedHost()
+    return if (host.choose(42) == 42) { host.apply() { it } } else { 15 }
+}

@@ -1,0 +1,7 @@
+Module
+  fun result @fn0(answer: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local answer
+  output library

@@ -1,0 +1,11 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val samples = defaultSamples()
+    val pair = Pair<String, Int>(7, "first", ("second", 11))
+    verifyDefault(samples.pair<Int, String>(pair) == pair)
+    val choice = Choice.Pair<String, Int>("choice", 13)
+    verifyDefault(samples.choice<Int, String>(choice) == choice)
+    verifyDefault(samples.nested() == Outer.Static(Unit))
+}

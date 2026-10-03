@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  interface Describe<T>
+    fun describe
+  class Both(), Describe<Int>, Describe<String>
+    fun describe
+    fun describe
+  fun main()
+    val intView: Describe<Int>
+      Call Both
+    val stringView: Describe<String>
+      Call Both
+    Call println
+      MethodCall describe
+        Var intView
+        IntLiteral 1
+    Call println
+      MethodCall describe
+        Var stringView
+        StringLiteral "x"

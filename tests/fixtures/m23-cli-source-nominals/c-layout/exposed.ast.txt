@@ -1,0 +1,43 @@
+SourceFile
+  QualifiedPackage sourcepolicy
+  public fun packedValues(value: Packed): (Boolean, Int)
+    =
+      TupleLiteral
+        FieldAccess flag
+          Var value
+        FieldAccess value
+          Var value
+  public fun outerValue(value: Outer): Int
+    =
+      FieldAccess value
+        FieldAccess packed
+          Var value
+  public fun boxValue<T>(value: CBox<T>): T
+    =
+      FieldAccess value
+        Var value
+  public fun ordinaryValue(value: Ordinary): Int
+    =
+      FieldAccess value
+        Var value
+  public fun envelope(): Envelope
+    =
+      Call Envelope
+SourceFile
+  QualifiedPackage sourcepolicy
+    @CLayout(aligned = 8, packed = 1)
+  public struct Packed
+    field flag: Boolean
+    field value: Int
+    @CLayout(aligned = 16, packed = 2)
+  public struct Outer
+    field tag: Boolean
+    field packed: Packed
+    @CLayout
+  public struct CBox<T>
+    field value: T
+  public struct Ordinary
+    field value: Int
+  public open class Envelope()
+    public fun headerValue
+    protected nested struct Header

@@ -1,0 +1,22 @@
+package consumer.iteration
+
+import upstream.iteration.*
+
+private interface Reader<T> { fun read(): T }
+private interface LeftReader<T>: Reader<T> {}
+private interface RightReader<T>: Reader<T> {}
+private interface BothReader<T>: LeftReader<T>, RightReader<T> {}
+
+private class Holder<T> public constructor(public val value: T): BothReader<T> {
+    public override fun read(): T = this.value
+}
+
+private fun <T> readBase(value: Reader<T>): T = value.read()
+private fun <T, R: BothReader<T>> readBound(value: R): T = readBase(value)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val value = readBound(Holder<T>(seed))
+    return boundTotal(Cursor<T>([value]), read)
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

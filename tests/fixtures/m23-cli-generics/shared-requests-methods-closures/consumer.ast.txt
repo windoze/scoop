@@ -1,0 +1,79 @@
+SourceFile
+  QualifiedPackage consumer.requests
+  ImportStar Local upstream.requests.*
+  public class Local<T>(val value: T)
+    public fun mix
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val box
+      Call Box<T>
+        Var seed
+    val first
+      MethodCall mix<Int>
+        Var box
+        IntLiteral 0
+        Lambda 0 suspend=false
+          param value: _
+          param extra: _
+          Binary Add
+            Call read
+              Var value
+            Var extra
+    val second
+      MethodCall mix<Unit>
+        Var box
+        UnitLiteral
+        Lambda 1 suspend=false
+          param value: _
+          param extra: _
+          Call read
+            Var value
+    val local
+      Call Local<T>
+        MethodCall read
+          Var box
+    if
+      Binary Ne
+        MethodCall mix<Int>
+          Var local
+          IntLiteral 0
+          Lambda 2 suspend=false
+            param value: _
+            param extra: _
+            Binary Add
+              Call read
+                Var value
+              Var extra
+        Var first
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        MethodCall mix<Unit>
+          Var local
+          UnitLiteral
+          Lambda 3 suspend=false
+            param value: _
+            param extra: _
+            Call read
+              Var value
+        Var second
+      return
+        IntLiteral 2
+    val callback
+      Call factory<T>
+        Var seed
+    return
+      Call read
+        Call defaulted<T>
+          Call callback
+          Lambda 4 suspend=false
+            param value: _
+            Call identity<T>
+              Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 5 suspend=false
+          param value: _
+          Var value

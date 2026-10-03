@@ -1,0 +1,3 @@
+import dependency.classes.Readable
+public interface LocalLeft: Readable, LocalRight {}
+public interface LocalRight: LocalLeft {}

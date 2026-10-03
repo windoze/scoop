@@ -28,7 +28,7 @@ fn expression_body_and_parameters() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -58,6 +58,19 @@ fn expression_body_and_parameters() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -96,7 +109,7 @@ fn expression_body_and_parameters() {
     val local3
       Local $argument.0 : Int
     return
-      IntegerOperation int.mul target=function66 <no-gc> : Int
+      IntegerOperation int.mul <no-gc> : Int
         Local $receiver : Int
         Local $parameter.other : Int
   fun main(): Unit
@@ -111,7 +124,7 @@ fn expression_body_and_parameters() {
       Local $argument.0 : Int
     Call println<Int> : Unit
       Local $parameter.value : Int
-  entry main
+  output executable main
   instance println<Int>
 "#;
     assert_eq!(hir::dump(&module), expected);
@@ -158,7 +171,7 @@ fn return_with_unit_value_is_a_bare_return() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -188,6 +201,19 @@ fn return_with_unit_value_is_a_bare_return() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -228,7 +254,7 @@ fn return_with_unit_value_is_a_bare_return() {
     Call println<String> : Unit
       Local $parameter.value : String
     return
-  entry main
+  output executable main
   instance println<String>
 "#;
     assert_eq!(hir::dump(&module), expected);

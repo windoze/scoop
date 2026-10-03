@@ -1,0 +1,22 @@
+Module
+  global @scoop$1$io$eab48b09884d1dcf7b3134bef5d3351fe533ff5ac8ec09a74aef92fce462bee6 = "local"
+  global @scoop$1$io$67606e0227d9d831141c1128ba2efc484a3f21717560bd991527cba95a54e5a9 = "standalone"
+  fun @scoop$1$cb$c444426bd94192952d4f6dc54be8b3f35313a0987d0fc4e62d4ee64fea6c841e(ptr<managed>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000009)
+  fun @scoop$1$cb$3a2afd6c6af952afcf53ec3f43209d817841a83820d365d45fe23c5dc909e5cc() -> i32
+    local %0 $receiver: ptr<managed>
+    local %1 local: i32
+    local %2 $dependency.receiver: ptr<managed>
+    local %3 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store global0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn0(local0)
+    store t0 -> local1
+    store global1 -> local2
+    call managed-direct-target1 sp<managed-call:1> live=[local2:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>) -> i32 external-fn0(local2)
+    store t1 -> local3
+    ret local3
+  output library

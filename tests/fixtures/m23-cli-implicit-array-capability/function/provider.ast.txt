@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  public fun count(vararg values: Int): Int
+    =
+      IntLiteral 1

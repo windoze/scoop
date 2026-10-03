@@ -1,0 +1,12 @@
+Module
+  fun callablePlain @fn0() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun $extension.callableExtension @fn1(this: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local this
+  output library

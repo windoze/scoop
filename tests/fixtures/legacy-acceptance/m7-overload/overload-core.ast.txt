@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  fun write(v: Int): String
+    =
+      StringLiteral "user-write"
+  fun main()
+    Call println
+      Call write
+        IntLiteral 1
+    Call println
+      StringLiteral "c"

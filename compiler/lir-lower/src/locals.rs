@@ -19,12 +19,14 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             }
             | mir::ExprKind::StructInit { args: values, .. }
             | mir::ExprKind::StructConstruct { fields: values, .. }
-            | mir::ExprKind::ClosureAlloc {
-                captures: values, ..
-            }
             | mir::ExprKind::VariantConstruct { fields: values, .. } => {
                 for value in values {
                     collect_expr(value, out);
+                }
+            }
+            mir::ExprKind::ClosureAlloc { captures, .. } => {
+                for capture in captures {
+                    collect_expr(capture.value(), out);
                 }
             }
             mir::ExprKind::ArrayAssembly { parts, .. } => {

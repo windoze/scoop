@@ -170,13 +170,19 @@ fn val_binding_plan_emits_source_order_projections_and_immutable_temporaries() {
                 return None;
             };
             let hir::ExprKind::FieldAccess {
-                field: hir::FieldRef::StructField(field),
+                field: hir::FieldRef::StructField { field, .. },
                 ..
             } = &init.kind
             else {
                 return None;
             };
-            Some(field.local_index())
+            Some(
+                module
+                    .field_identities
+                    .struct_declaration(*field)
+                    .unwrap()
+                    .local_index(),
+            )
         })
         .collect::<Vec<_>>();
     assert_eq!(
@@ -231,7 +237,8 @@ fn bare_enum_variant_names_bind_in_composite_lambda_parameters() {
 
     let module = lower_user(source).expect("lambda patterns use binding-context name lookup");
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
-    let hir::FunctionKind::User(body) = &module.functions[lambda.function].kind else {
+    let hir::FunctionKind::User(body) = &module.functions[lambda.definition.source_function()].kind
+    else {
         panic!("lambda invoke must have a user body")
     };
     let names = local_names(body);
@@ -309,10 +316,11 @@ fn bare_unit_variant_in_match_remains_variant_first() {
     assert!(matches!(
         &when.arms[0].pattern,
         hir::Pattern::Variant {
-            variant: 0,
+            application,
             fields,
-            ..
         } if fields.is_empty()
+            && module.enum_member_identities.variant_declaration(application.variant)
+                .expect("the pattern retains its original variant").local_index() == 0
     ));
 }
 
@@ -425,10 +433,11 @@ fn match_field_shorthand_classifies_its_same_named_subpattern_from_the_field_typ
             Expected::UnitVariant => assert!(matches!(
                 &fields[0].1,
                 hir::Pattern::Variant {
-                    variant: 0,
+                    application,
                     fields,
-                    ..
                 } if fields.is_empty()
+                    && module.enum_member_identities.variant_declaration(application.variant)
+                        .expect("the pattern retains its original variant").local_index() == 0
             )),
             Expected::PayloadVariantError => unreachable!(),
         }

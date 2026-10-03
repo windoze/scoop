@@ -55,7 +55,7 @@ fn companion_receiver(function: &hir::Function) -> hir::SingletonValueId {
         panic!("companion access must lower to a method call")
     };
     match receiver.kind {
-        hir::ExprKind::SingletonValue(value) => value,
+        hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(value)) => value,
         hir::ExprKind::Local(local) => body
             .statements
             .iter()
@@ -69,7 +69,9 @@ fn companion_receiver(function: &hir::Function) -> hir::SingletonValueId {
                 if *candidate != local {
                     return None;
                 }
-                let hir::ExprKind::SingletonValue(value) = init.kind else {
+                let hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(value)) =
+                    init.kind
+                else {
                     return None;
                 };
                 Some(value)
@@ -170,9 +172,7 @@ fn companion_relation_alias_and_forwarding_are_typed() {
     let local_relation_declaration = &output.local.companion_relations[local_relation];
     assert_eq!(
         local_relation_declaration.host,
-        hir::concrete::NominalOwner::Class(hir::concrete::ClassOriginId::from_raw(
-            host.into_raw().into_u32()
-        ))
+        hir::concrete::NominalOwner::Class(module.nominal_identities[host].clone())
     );
     assert_eq!(
         local_relation_declaration.object,

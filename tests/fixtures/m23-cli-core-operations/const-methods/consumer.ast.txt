@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public val compared: Long <const> = <expr>
+  public val quotient: Int <const> = <expr>
+  public val remainder: Int <const> = <expr>
+  public val converted: UInt16 <const> = <expr>
+  public val inverted: Int8 <const> = <expr>
+  public val shifted: UInt <const> = <expr>
+  public var staticValue: Long = <expr>

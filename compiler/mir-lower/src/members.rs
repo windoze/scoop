@@ -1,135 +1,46 @@
 use super::*;
 
 impl Lowerer {
-    /// Declare an interface method as a signature-only shell that is never
-    /// emitted. Virtual interface calls name it so LIR receives the complete
-    /// indirect-call parameter and return types.
-    pub(super) fn declare_interface_method(
-        &mut self,
-        module: &hir::Module,
-        hir_id: hir::FunctionId,
-    ) -> mir::FunctionId {
-        let function = &module.functions[hir_id];
-        let types = Types {
-            module,
-            struct_map: &self.struct_map,
-            class_map: &self.class_map,
-        };
-        let mut locals = Arena::new();
-        let params = function
-            .params
-            .iter()
-            .map(|param| {
-                let ty = types.lower(
-                    param.ty,
-                    &mut self.enums,
-                    &mut self.structs,
-                    &mut self.interfaces,
-                    &mut self.shell,
-                );
-                let local = locals.alloc(mir::Local {
-                    name: param.name.clone(),
-                    ty: ty.clone(),
-                    mutable: false,
-                });
-                mir::Param {
-                    name: param.name.clone(),
-                    ty,
-                    local,
-                }
-            })
-            .collect();
-        let return_ty = types.lower(
-            function.return_ty,
-            &mut self.enums,
-            &mut self.structs,
-            &mut self.interfaces,
-            &mut self.shell,
-        );
-        let name = fn_name(function);
-        let symbol = self.declare_symbol(module, hir_id);
-        let id = self.functions.alloc(mir::Function {
-            gc_effect: lower_gc_effect(function.attributes.gc_effect),
-            symbol,
-            name,
-            params,
-            return_ty: return_ty.clone(),
-            body: mir::Body::unreachable(locals),
-        });
-        self.function_map.insert(hir_id, id);
-        self.record_function_instance(module, hir_id, id);
-        id
-    }
-
     /// Materialize an interface slot that has no callable use in this cone.
-    /// Local-concrete HIR carries its complete signature on the interface
-    /// definition, so MIR can still give every slot a typed function entity
-    /// without waiting for a call site or reconstructing it from a name.
-    pub(super) fn declare_interface_signature(
+    /// Interfaces contain complete signatures without inventing local bodies.
+    pub(super) fn lower_interface_signature(
         &mut self,
         module: &hir::Module,
         interface: hir::InterfaceId,
         slot: usize,
-    ) -> mir::FunctionId {
+    ) -> mir::InterfaceMethod {
         let declaration = &module.interfaces[interface];
         let method = &declaration.methods[slot];
-        let owner = mir::Type::Interface(self.interfaces.mir_id(interface));
-        let mut locals = Arena::new();
-        let this = locals.alloc(mir::Local {
-            name: "this".to_string(),
-            ty: owner.clone(),
-            mutable: false,
-        });
-        let mut params = vec![mir::Param {
-            name: "this".to_string(),
-            ty: owner,
-            local: this,
-        }];
+        let mut parameters = vec![mir::Type::Interface(self.interfaces.mir_id(interface))];
         let types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
         };
-        params.extend(method.params.iter().map(|param| {
-            let ty = types.lower(
+        parameters.extend(method.params.iter().map(|param| {
+            types.lower(
                 param.ty,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
                 &mut self.shell,
-            );
-            let local = locals.alloc(mir::Local {
-                name: param.name.clone(),
-                ty: ty.clone(),
-                mutable: false,
-            });
-            mir::Param {
-                name: param.name.clone(),
-                ty,
-                local,
-            }
+            )
         }));
-        let return_ty = types.lower(
+        let return_type = types.lower(
             method.return_ty,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
             &mut self.shell,
         );
-        let name = format!("{}.{}", declaration.name, method.name);
-        let symbol = format!(
-            "scoop.$interface_signature.{}.{}",
-            interface.into_raw().into_u32(),
-            slot
-        );
-        self.functions.alloc(mir::Function {
+        mir::InterfaceMethod {
+            name: format!("{}.{}", declaration.name, method.name),
             gc_effect: lower_gc_effect(method.attributes.gc_effect),
-            name,
-            symbol,
-            params,
-            return_ty,
-            body: mir::Body::unreachable(locals),
-        })
+            parameters,
+            return_type,
+        }
     }
 
     /// Fill the MIR class fields: the base class's (already
@@ -161,6 +72,7 @@ impl Lowerer {
                     name: field.name.clone(),
                     ty: types.lower(
                         field.ty,
+                        &mut self.source_exact_types,
                         &mut self.enums,
                         &mut self.structs,
                         &mut self.interfaces,
@@ -189,7 +101,6 @@ impl Lowerer {
         let name = format!("init.{}.$c{}", decl.name, constructor.source_discriminator);
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            symbol: format!("scoop.{name}"),
             name,
             params: Vec::new(),
             return_ty: mir::Type::Unit,
@@ -197,6 +108,8 @@ impl Lowerer {
         });
         self.top_level.push(id);
         self.ctors.insert(constructor_id, id);
+        self.source_callables
+            .record_class_constructor(module, id, constructor_id);
         id
     }
 
@@ -213,11 +126,12 @@ impl Lowerer {
             // value. Defaults and source arguments are evaluated by the
             // caller, so the generated constructor has no managed entry.
             hir::StructConstructorKind::Primary => mir::GcEffect::NoGc,
-            hir::StructConstructorKind::Secondary { .. } => mir::GcEffect::Managed,
+            hir::StructConstructorKind::Secondary { gc_effect, .. } => {
+                crate::lowering_support::lower_gc_effect(*gc_effect)
+            }
         };
         let id = self.functions.alloc(mir::Function {
             gc_effect,
-            symbol: format!("scoop.{name}"),
             name,
             params: Vec::new(),
             return_ty: mir::Type::Unit,
@@ -225,6 +139,8 @@ impl Lowerer {
         });
         self.top_level.push(id);
         self.struct_ctors.insert(constructor_id, id);
+        self.source_callables
+            .record_struct_constructor(module, id, constructor_id);
         id
     }
 
@@ -241,6 +157,14 @@ impl Lowerer {
         let mir_class = self.class_map[&class];
         let mut lowerer = BodyLowerer {
             module,
+            core_protocols: &self.core_protocols,
+            external_callables: &self.external_callables,
+            source_exact_types: &mut self.source_exact_types,
+            local_values: &mut self.local_values,
+            current_function: self.ctors[&constructor_id],
+            current_materialization: constructor.materialization,
+            current_string_owner: mir::ImmortalObjectOwner::Callable(constructor.materialization),
+            next_string_ordinal: 0,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,
@@ -248,6 +172,8 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
+            imported_dependency_callable_map: &self.imported_dependency_callable_map,
+            imported_singleton_map: &self.imported_singleton_map,
             global_map: &self.global_map,
             singleton_root_map: &self.singleton_root_map,
             singleton_published_roots: &self.singleton_published_roots,
@@ -257,7 +183,7 @@ impl Lowerer {
             foreign_callback_families: &mut self.foreign_callback_families,
             foreign_callback_family_by_callback: &mut self.foreign_callback_family_by_callback,
             foreign_callback_bridges: &mut self.foreign_callback_bridges,
-            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
+            foreign_callback_by_application: &mut self.foreign_callback_by_application,
             ctors: &self.ctors,
             struct_ctors: &self.struct_ctors,
             strings: &mut self.strings,
@@ -282,7 +208,8 @@ impl Lowerer {
             reference_closures: &self.reference_closures,
             closure_classes: &mut self.closure_classes,
             closure_invokes: &mut self.closure_invokes,
-            closure_capture_indices: &mut self.closure_capture_indices,
+            closure_capture_indices: &self.closure_capture_indices,
+            closure_receiver_indices: &self.closure_receiver_indices,
             closure_adapters: &mut self.closure_adapters,
             closure_adapter_by_types: &mut self.closure_adapter_by_types,
             dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
@@ -300,19 +227,31 @@ impl Lowerer {
             ty: receiver_ty.clone(),
             mutable: false,
         });
+        lowerer.local_values.record(
+            lowerer.current_function,
+            receiver,
+            module.local_value_identities.class_receiver(constructor_id),
+        );
         lowerer.constructor_receiver = Some(smir::Expr::local(receiver, receiver_ty.clone()));
         let mut params = vec![mir::Param {
             name: "this".into(),
             ty: receiver_ty,
             local: receiver,
         }];
-        for parameter in &constructor.parameters {
+        for (declaration_index, parameter) in constructor.parameters.iter().enumerate() {
             let ty = lowerer.lower_type(parameter.ty);
             let local = lowerer.locals.alloc(mir::Local {
                 name: parameter.name.clone(),
                 ty: ty.clone(),
                 mutable: false,
             });
+            lowerer.local_values.record(
+                lowerer.current_function,
+                local,
+                module
+                    .local_value_identities
+                    .class_parameter(constructor_id, declaration_index),
+            );
             params.push(mir::Param {
                 name: parameter.name.clone(),
                 ty: ty.clone(),
@@ -322,7 +261,7 @@ impl Lowerer {
                 .constructor_param_map
                 .insert(parameter.id, smir::Expr::local(local, ty));
         }
-        lowerer.allocate_fragment_locals(constructor.body());
+        lowerer.allocate_class_locals(constructor_id, constructor.body());
         let statements = lowerer.lower_statements(&constructor.body().statements);
         assert!(
             lowerer.active_loops.is_empty(),
@@ -346,6 +285,14 @@ impl Lowerer {
         let structure = constructor.structure;
         let mut lowerer = BodyLowerer {
             module,
+            core_protocols: &self.core_protocols,
+            external_callables: &self.external_callables,
+            source_exact_types: &mut self.source_exact_types,
+            local_values: &mut self.local_values,
+            current_function: self.struct_ctors[&constructor_id],
+            current_materialization: constructor.materialization,
+            current_string_owner: mir::ImmortalObjectOwner::Callable(constructor.materialization),
+            next_string_ordinal: 0,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,
@@ -353,6 +300,8 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
+            imported_dependency_callable_map: &self.imported_dependency_callable_map,
+            imported_singleton_map: &self.imported_singleton_map,
             global_map: &self.global_map,
             singleton_root_map: &self.singleton_root_map,
             singleton_published_roots: &self.singleton_published_roots,
@@ -362,7 +311,7 @@ impl Lowerer {
             foreign_callback_families: &mut self.foreign_callback_families,
             foreign_callback_family_by_callback: &mut self.foreign_callback_family_by_callback,
             foreign_callback_bridges: &mut self.foreign_callback_bridges,
-            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
+            foreign_callback_by_application: &mut self.foreign_callback_by_application,
             ctors: &self.ctors,
             struct_ctors: &self.struct_ctors,
             strings: &mut self.strings,
@@ -387,7 +336,8 @@ impl Lowerer {
             reference_closures: &self.reference_closures,
             closure_classes: &mut self.closure_classes,
             closure_invokes: &mut self.closure_invokes,
-            closure_capture_indices: &mut self.closure_capture_indices,
+            closure_capture_indices: &self.closure_capture_indices,
+            closure_receiver_indices: &self.closure_receiver_indices,
             closure_adapters: &mut self.closure_adapters,
             closure_adapter_by_types: &mut self.closure_adapter_by_types,
             dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
@@ -402,13 +352,20 @@ impl Lowerer {
         let return_ty = mir::Type::Struct(lowerer.struct_map[&structure]);
         let mut params = Vec::new();
         let mut arguments = Vec::new();
-        for parameter in &constructor.parameters {
+        for (declaration_index, parameter) in constructor.parameters.iter().enumerate() {
             let ty = lowerer.lower_type(parameter.ty);
             let local = lowerer.locals.alloc(mir::Local {
                 name: parameter.name.clone(),
                 ty: ty.clone(),
                 mutable: false,
             });
+            lowerer.local_values.record(
+                lowerer.current_function,
+                local,
+                module
+                    .local_value_identities
+                    .struct_parameter(constructor_id, declaration_index),
+            );
             params.push(mir::Param {
                 name: parameter.name.clone(),
                 ty: ty.clone(),
@@ -437,8 +394,9 @@ impl Lowerer {
                 target,
                 arguments,
                 body,
+                ..
             } => {
-                lowerer.allocate_argument_locals(arguments);
+                lowerer.allocate_struct_argument_locals(constructor_id, arguments);
                 let mut statements = lowerer.lower_statements(&arguments.statements);
                 let call_args = arguments
                     .args
@@ -450,6 +408,14 @@ impl Lowerer {
                     ty: return_ty.clone(),
                     mutable: false,
                 });
+                lowerer.local_values.record(
+                    lowerer.current_function,
+                    receiver,
+                    module
+                        .local_value_identities
+                        .struct_receiver(constructor_id)
+                        .expect("secondary constructor receivers have persistent identities"),
+                );
                 statements.push(smir::Statement {
                     kind: smir::StatementKind::ValDecl {
                         local: receiver,
@@ -469,7 +435,7 @@ impl Lowerer {
                 });
                 lowerer.constructor_receiver = Some(smir::Expr::local(receiver, return_ty.clone()));
                 lowerer.local_map.clear();
-                lowerer.allocate_fragment_locals(body);
+                lowerer.allocate_struct_body_locals(constructor_id, body);
                 statements.extend(lowerer.lower_statements(&body.statements));
                 statements.push(smir::Statement {
                     kind: smir::StatementKind::Return {

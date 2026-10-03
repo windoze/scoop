@@ -1,0 +1,38 @@
+SourceFile
+  RootPackage
+  fun verifyDomain(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call defaults
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspectLocal
+          Var value
+        IntLiteral 17
+    Call verifyDomain
+      Binary Eq
+        MethodCall integerPair
+          Var value
+        TupleLiteral
+          IntLiteral 19
+          IntLiteral 19
+    Call verifyDomain
+      Binary Eq
+        MethodCall stringPair
+          Var value
+        TupleLiteral
+          StringLiteral "kept"
+          StringLiteral "kept"
+    Call verifyDomain
+      Binary Eq
+        MethodCall inspectNested
+          Var value
+        IntLiteral 12
+    Call verifyDomain
+      MethodCall inspectChoice
+        Var value

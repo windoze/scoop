@@ -162,7 +162,7 @@ pub struct CallTarget {
     pub callee: Callee,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CallKind {
     Direct,
     /// vtable slot (load `td` from the receiver, load `vtable[slot]`).
@@ -195,6 +195,9 @@ pub enum Callee {
     Monomorphized(MonomorphizedFunctionId),
     /// A bodyless native declaration in the independent extern arena.
     Extern(ExternFunctionId),
+    /// A direct call to an external Scoop implementation. This id belongs
+    /// to the shared external-use arena, independently of local and native ids.
+    External(ExternalCallableUseId),
     /// Typed marker used only between CFG construction and the coroutine
     /// state-machine pass. The final MIR handed to LIR contains no such
     /// callee; `register` identifies the concrete protocol method shell.
@@ -214,9 +217,6 @@ pub enum Callee {
 /// they do not acquire entries in this enum.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RuntimeFn {
-    /// Box one value; LIR supplies the addressable payload and its complete
-    /// recursive scan program to the managed runtime entry.
-    Box,
     /// `scoop_rt_is_instance(obj, td)`
     IsInstance,
     /// `scoop_rt_itable_lookup(td, iface_td)`
@@ -239,15 +239,11 @@ pub enum RuntimeFn {
     InitializationFail,
     InitializationFailure,
     InitializationCycleMessage,
-    /// Noreturn runtime trap, called with a message string constant
-    /// (M4: `!!` on `None`; M8: real exceptions).
-    Trap,
 }
 
 impl RuntimeFn {
     pub fn symbol(self) -> &'static str {
         match self {
-            RuntimeFn::Box => "scoop_rt_box",
             RuntimeFn::IsInstance => "scoop_rt_is_instance",
             RuntimeFn::ITableLookup => "scoop_rt_itable_lookup",
             RuntimeFn::Pin => "scoop_rt_pin",
@@ -264,7 +260,6 @@ impl RuntimeFn {
             RuntimeFn::InitializationFail => "scoop_rt_init_fail",
             RuntimeFn::InitializationFailure => "scoop_rt_init_failure",
             RuntimeFn::InitializationCycleMessage => "scoop_rt_init_cycle_message",
-            RuntimeFn::Trap => "scoop_rt_trap",
         }
     }
 }

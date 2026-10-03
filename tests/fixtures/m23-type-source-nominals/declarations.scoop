@@ -1,0 +1,26 @@
+public interface Marker {
+    public fun mark(): Int = helper()
+    private fun helper(): Int = 1
+}
+public open class Base {
+    public fun inherited(): Int = 1
+}
+public abstract class Abstract<T> {
+    public abstract fun value(): T
+}
+public class Final<T>(val item: T)
+public struct Pair<T>(val second: T, val first: Int)
+public enum Choice<T> {
+    Empty,
+    Positional(T),
+    Named { value: T },
+    Constructed(val value: T)
+}
+public object Singleton : Marker {
+    private val secret: Int = 7
+    public fun read(): Int = secret
+}
+public class Defaults public constructor(val number: Int = 1) {
+    private constructor(text: String) : this(2) {}
+    internal constructor(flag: Boolean) : this(3) {}
+}

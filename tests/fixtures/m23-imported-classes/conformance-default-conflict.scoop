@@ -1,0 +1,3 @@
+import dependency.classes.FirstChoice
+import dependency.classes.SecondChoice
+public class Ambiguous public constructor(): FirstChoice, SecondChoice

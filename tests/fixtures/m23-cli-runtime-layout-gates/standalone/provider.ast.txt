@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public fun castValue(value: Any): Int
+    =
+      Cast Int optional=false
+        Var value

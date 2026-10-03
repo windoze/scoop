@@ -1,0 +1,104 @@
+Module
+  class RebuiltFailure vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance RebuiltFailure
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      val code: Long
+        Type Long
+        Local $result.0
+      val $dependency.argument.0: Long
+        Type Long
+        Local code
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.4
+        Type Counter
+        ClassAlloc Counter
+      call external3 direct
+        Type Counter
+        Local $new.4
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.4
+    bb8 try.body.8 unwind bb1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.code: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type RebuiltFailure
+        ClassAlloc RebuiltFailure
+      call external0 direct
+        Type RebuiltFailure
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.code
+      val $dependency.argument.0: Throwable
+        Type Throwable
+        Retype Throwable
+          Type RebuiltFailure
+          Local $new.1
+      val $dependency.parameter.value: Throwable
+        Type Throwable
+        Local $dependency.argument.0
+      call external1 direct
+        Type Throwable
+        Local $dependency.parameter.value
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb7
+    bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: RebuiltFailure
+        Type RebuiltFailure
+        Retype RebuiltFailure
+          Type Any
+          Local $catch.2
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      call $call.3: Long = external2 direct
+        Type RebuiltFailure
+        Local error
+      assign $result.0
+        Type Long
+        Local $call.3
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  output library

@@ -1,0 +1,133 @@
+use super::*;
+use crate::{CanonicalExactCallableAbiExportsV1, CanonicalExactLayoutExportsV1};
+#[cfg(test)]
+use crate::{
+    CanonicalExactDescriptorExportsV1, CanonicalExactDispatchExportsV1, ExactLayoutBodyKindV1,
+};
+#[cfg(test)]
+use scoop_identity::ScanRole;
+
+impl ExternalShapeLinkImportV1 {
+    pub(crate) fn semantic_target(
+        &self,
+        layouts: &CanonicalExactLayoutExportsV1,
+        callables: &CanonicalExactCallableAbiExportsV1,
+    ) -> Result<Option<crate::LayoutAbiSemanticTargetV1>, ShapeLinkError> {
+        semantic_target(self.subject(), layouts, callables)
+    }
+    /// Rebinds the semantic contract to the terminal section's actual tables.
+    /// Storage and initialization retain the enclosing closure's support join.
+    #[cfg(test)]
+    pub(crate) fn validate_semantic_against(
+        &self,
+        layouts: &CanonicalExactLayoutExportsV1,
+        callables: &CanonicalExactCallableAbiExportsV1,
+        descriptors: &CanonicalExactDescriptorExportsV1,
+        dispatch: &CanonicalExactDispatchExportsV1,
+    ) -> Result<(), ShapeLinkError> {
+        if [
+            layouts.provider(),
+            callables.provider(),
+            descriptors.provider(),
+            dispatch.provider(),
+        ]
+        .into_iter()
+        .any(|provider| provider != self.provider)
+        {
+            return Err(ShapeLinkError::Provider);
+        }
+        use ExternalStrongShapeSubjectV1 as Subject;
+
+        let expected = match self.subject {
+            Subject::Callable(target) => {
+                let record = callables
+                    .get(target)
+                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?;
+                ShapeLinkContractV1::CallableAbi {
+                    canonical_signature: record.canonical_signature().clone(),
+                    calling_convention: record.calling_convention(),
+                    protocol: record.call_protocol(),
+                }
+            }
+            Subject::Layout(id) => ShapeLinkContractV1::Layout {
+                record: layouts
+                    .get(id)
+                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?
+                    .clone(),
+            },
+            Subject::Scan(id) => {
+                let record = layouts
+                    .records()
+                    .iter()
+                    .find(|record| record.scan() == id)
+                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?;
+                let (role, canonical_scan) = match record.kind() {
+                    ExactLayoutBodyKindV1::Value(value) => (
+                        ScanRole::InlineValue,
+                        crate::shape_link::provider::contracts::storage_scan(
+                            value.value().storage(),
+                        ),
+                    ),
+                    ExactLayoutBodyKindV1::Instance(instance) => {
+                        (ScanRole::ManagedObject, instance.shape().object_scan())
+                    }
+                };
+                ShapeLinkContractV1::Scan {
+                    layout: record.identity().layout(),
+                    role,
+                    canonical_scan: canonical_scan.clone(),
+                }
+            }
+            Subject::TypeDescriptor(id) | Subject::TypeRegistration(id) => {
+                ShapeLinkContractV1::Type {
+                    descriptor_projection: descriptors
+                        .get(id)
+                        .ok_or(ShapeLinkError::MissingSubject(self.subject))?
+                        .clone(),
+                }
+            }
+            Subject::DispatchTable(id) => ShapeLinkContractV1::Dispatch {
+                table_projection: dispatch
+                    .get(id)
+                    .ok_or(ShapeLinkError::MissingSubject(self.subject))?
+                    .clone(),
+            },
+            Subject::StaticStorage(_)
+            | Subject::StaticStorageRegistration(_)
+            | Subject::InitializationCell(_)
+            | Subject::InitializationRegistration(_) => return Ok(()),
+        };
+        if !super::super::wire::equal_fields(self.contract(), &expected)? {
+            return Err(ShapeLinkError::Contract);
+        }
+        Ok(())
+    }
+}
+
+pub(in crate::shape_link) fn semantic_target(
+    subject: ExternalStrongShapeSubjectV1,
+    layouts: &CanonicalExactLayoutExportsV1,
+    callables: &CanonicalExactCallableAbiExportsV1,
+) -> Result<Option<crate::LayoutAbiSemanticTargetV1>, ShapeLinkError> {
+    use crate::{ExternalStrongShapeSubjectV1 as Subject, LayoutAbiSemanticTargetV1 as Target};
+
+    Ok(match subject {
+        Subject::Callable(owner) => callables.get(owner).map(|_| Target::Callable(owner)),
+        Subject::Layout(id) => Some(Target::Layout(id)),
+        Subject::Scan(id) => Some(Target::Layout(
+            layouts
+                .records()
+                .iter()
+                .find(|record| record.scan() == id)
+                .ok_or(ShapeLinkError::MissingSubject(subject))?
+                .identity()
+                .layout(),
+        )),
+        Subject::TypeDescriptor(id) | Subject::TypeRegistration(id) => Some(Target::Descriptor(id)),
+        Subject::DispatchTable(id) => Some(Target::Dispatch(id)),
+        Subject::StaticStorage(_)
+        | Subject::StaticStorageRegistration(_)
+        | Subject::InitializationCell(_)
+        | Subject::InitializationRegistration(_) => None,
+    })
+}

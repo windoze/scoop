@@ -1,0 +1,28 @@
+Module
+  class Recursive vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun preserve @fn0(value: Recursive) -> Recursive
+    bb0 entry
+      return
+        Type Recursive
+        Local value
+  fun primary @fn1() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  output library

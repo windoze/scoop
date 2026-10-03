@@ -1,0 +1,11 @@
+package consumer.constructors
+
+import dependency.constructors.Token
+import dependency.constructors.Wide
+import dependency.constructors.defaultWide
+
+@NoGC public fun token(): Token = Token()
+@NoGC public fun primary(): Wide = Wide(17, -29, 53, Token())
+@NoGC public fun secondary(): Wide = Wide((Token(), (5, 8, 11), Token()))
+@NoGC public fun defaults(): Long = defaultWide()
+@NoGC public fun republished(value: Wide = Wide(1, 2, 3)): Long = value.sum()

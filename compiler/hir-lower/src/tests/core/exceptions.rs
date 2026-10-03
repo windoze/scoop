@@ -57,5 +57,15 @@ pub(super) fn exception_core_declarations() -> Vec<Decl> {
         subclass("ArithmeticException", "arithmetic error"),
         subclass("IndexOutOfBoundsException", "array index out of bounds"),
         illegal_state,
+        fun_sig(
+            "__scoopThrowInitializationCycle",
+            Vec::new(),
+            vec![("message", ty_named("String"))],
+            None,
+            vec![throw_stmt(call(
+                "IllegalStateException",
+                vec![some(var("message"))],
+            ))],
+        ),
     ]
 }

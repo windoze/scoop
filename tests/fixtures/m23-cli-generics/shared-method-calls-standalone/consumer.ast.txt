@@ -1,0 +1,49 @@
+SourceFile
+  QualifiedPackage consumer.methods
+  ImportStar Local upstream.methods.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val box
+      Call Box<T>
+        Var seed
+    val chosen
+      MethodCall choose<Unit>
+        Var box
+        UnitLiteral
+    val callback
+      Call reference<T, Box<T>>
+        Var box
+    if
+      Binary Ne
+        Call label<Box<T>>
+          Var box
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call read
+          Var chosen
+        Call read
+          Call callback
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call read
+          Call classRead<T, Box<T>>
+            Var box
+        Call read
+          Var seed
+      return
+        IntLiteral 3
+    return
+      Call read
+        Call boundRead<T, Box<T>>
+          Var box
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

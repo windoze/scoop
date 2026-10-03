@@ -1,0 +1,134 @@
+SourceFile
+  QualifiedPackage consumer.structdefinitions
+  ImportStar Local upstream.structdefinitions.*
+  private struct LocalCell<T> : Readable<T>
+    field value: T
+    field remote: Cell<T>
+    public fun read
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val remote
+      Call make
+        Var seed
+    val local
+      Call LocalCell
+        Var seed
+        Var remote
+    val changed
+      CopyUpdate
+        base
+          Var local
+        field remote
+          CopyUpdate
+            base
+              FieldAccess remote
+                Var local
+            field next
+              Call Some
+                Call Link
+                  Var remote
+            field value
+              Var seed
+        field value
+          Var seed
+    val first: Readable<T>
+      Var changed
+    val second: Readable<T>
+      FieldAccess remote
+        Var changed
+    if
+      Binary Or
+        Call hasNext
+          Var remote
+        Unary Not
+          Call hasNext
+            FieldAccess remote
+              Var changed
+      return
+        IntLiteral 4
+    if
+      Binary Ne
+        MethodCall apply
+          Var first
+          Var read
+        MethodCall apply
+          Var second
+          Var read
+      return
+        IntLiteral 1
+    val tail: T
+      WhenExpression
+        FieldAccess next
+          FieldAccess remote
+            Var changed
+        arm Some(link)
+          FieldAccess value
+            FieldAccess cell
+              Var link
+        arm None
+          Var seed
+    if
+      Binary Ne
+        Call read
+          Var tail
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val factory: (T) -> Cell<T>
+      Lambda 0 suspend=false
+        param value: _
+        Call withoutNext
+          CopyUpdate
+            base
+              FieldAccess remote
+                Var changed
+            field value
+              Var value
+    val reset
+      Call factory
+        Var seed
+    if
+      Call hasNext
+        Var reset
+      return
+        IntLiteral 3
+    return
+      Call read
+        FieldAccess value
+          Var reset
+  public fun result(): Int
+    if
+      Binary Ne
+        FieldAccess value
+          Call replace
+            Call make
+              IntLiteral 1
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 1 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 2 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 3 suspend=false
+          param item: _
+          Var item

@@ -2,10 +2,25 @@ use super::*;
 
 mod native;
 mod resolution;
+use resolution::ReferenceCandidate;
 
 enum BoundReferenceLayer<'a> {
-    Members(&'a [crate::CallableCandidate]),
-    Extensions(&'a [hir::FunctionId]),
+    Members(&'a [ReferenceCandidate]),
+    Extensions(&'a [ReferenceCandidate]),
+}
+
+enum ReferenceResolutionOutcome {
+    Resolved(ResolvedReference),
+    NoApplicable,
+    Blocked,
+    Failed,
+}
+
+enum BoundReferenceOutcome {
+    Resolved(hir::Expr),
+    NoApplicable,
+    Blocked,
+    Failed,
 }
 
 impl Lowerer {
@@ -48,14 +63,35 @@ impl Lowerer {
         let local_candidates = self.local_function_scopes.lookup(&name.text);
         let mut first_failure = None;
         if !local_candidates.is_empty() {
-            match self.probe_expr_layer(|state, _| {
-                state.lower_local_callable_reference(local_candidates.clone(), name, span, expected)
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => first_failure = Some(failure),
+            let mut state = self.clone();
+            match state.lower_local_callable_reference(
+                local_candidates.clone(),
+                name,
+                span,
+                expected,
+            ) {
+                Ok(Some(expression)) => {
+                    return Some(self.commit_expr_layer(
+                        SuccessfulExprLayer {
+                            state: Box::new(state),
+                            expression,
+                            sink: Vec::new(),
+                        },
+                        sink,
+                    ));
+                }
+                Ok(None) => first_failure = Some(Box::new(state)),
+                Err(()) => {
+                    self.commit_layer_diagnostics(state);
+                    return None;
+                }
             }
         }
-        let candidate_layers = self.named_reference_candidate_layers(&name.text);
+        let candidate_layers = self
+            .named_callable_reference_layers(&name.text)
+            .into_iter()
+            .filter(|layer| !layer.candidates.is_empty() || !layer.suppressed_callables.is_empty())
+            .collect::<Vec<_>>();
         if candidate_layers.is_empty() && first_failure.is_none() {
             if self.lexical_nested_nominal_target(&name.text).is_none()
                 && self.source_type_alias_named(&name.text).is_some()
@@ -70,7 +106,7 @@ impl Lowerer {
                 );
                 return None;
             }
-            if self.is_declared_type_name(&name.text) {
+            if self.is_declared_type_name(name) {
                 self.error(
                     span,
                     format!(
@@ -85,24 +121,52 @@ impl Lowerer {
         }
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("callable reference `::{}`", name.text);
-        for candidates in candidate_layers {
-            match self.probe_expr_layer(|state, _| {
-                let resolved = state.resolve_reference_candidates(
-                    &candidates,
-                    &[],
-                    ReferenceResolutionContext {
-                        expected: expected_signature.as_ref(),
-                        name: &name.text,
-                        display: &display,
-                        span,
-                        extension_mode: ReferenceExtensionMode::IncludeUnbound,
-                    },
-                )?;
-                state.finish_named_callable_reference(resolved, span)
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    first_failure.get_or_insert(failure);
+        for layer in candidate_layers {
+            if layer.candidates.is_empty() && !layer.suppressed_callables.is_empty() {
+                if let Some(failure) = first_failure {
+                    self.commit_layer_diagnostics(*failure);
+                }
+                return None;
+            }
+            let mut state = self.clone();
+            let candidates = layer
+                .candidates
+                .into_iter()
+                .map(ReferenceCandidate::named)
+                .collect::<Vec<_>>();
+            match state.resolve_reference_candidate_set(
+                &candidates,
+                None,
+                ReferenceResolutionContext {
+                    expected: expected_signature.as_ref(),
+                    name: &name.text,
+                    display: &display,
+                    span,
+                    extension_mode: ReferenceExtensionMode::IncludeUnbound,
+                },
+            ) {
+                ReferenceResolutionOutcome::Resolved(resolved) => {
+                    let expression = state.finish_named_callable_reference(resolved, span)?;
+                    return Some(self.commit_expr_layer(
+                        SuccessfulExprLayer {
+                            state: Box::new(state),
+                            expression,
+                            sink: Vec::new(),
+                        },
+                        sink,
+                    ));
+                }
+                ReferenceResolutionOutcome::NoApplicable => {
+                    if !layer.suppressed_callables.is_empty() {
+                        self.commit_layer_diagnostics(state);
+                        return None;
+                    }
+                    first_failure.get_or_insert(Box::new(state));
+                }
+                ReferenceResolutionOutcome::Blocked => return None,
+                ReferenceResolutionOutcome::Failed => {
+                    self.commit_layer_diagnostics(state);
+                    return None;
                 }
             }
         }
@@ -115,16 +179,22 @@ impl Lowerer {
         resolved: ResolvedReference,
         span: Span,
     ) -> Option<hir::Expr> {
-        let callee = resolved.callable;
         let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
+        let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
         let id = self.callable_references.alloc(hir::CallableReference {
-            target: hir::CallableReferenceTarget::Named(callee),
+            definition_root: hir::CallableReferenceRoot::Source(self.current_definition_root()),
+            definition_path,
+            target: resolved.target,
             function_type,
-            owner_type_param_count: self.type_params_in_scope.len(),
+            owner_type_arguments,
             captures: Vec::new(),
+            origin: self.definition_origin(span),
             span,
         });
         Some(hir::Expr {
@@ -160,7 +230,7 @@ impl Lowerer {
         if let ast::Expr::Var(type_name) = receiver
             && self.scopes.lookup(&type_name.text).is_none()
             && !self.host_has_property(&type_name.text)
-            && (self.is_declared_type_name(&type_name.text)
+            && (self.is_declared_type_name(type_name)
                 || self
                     .type_params_in_scope
                     .iter()
@@ -200,37 +270,102 @@ impl Lowerer {
                 first_failure = Some(Box::new(failure));
             }
         }
+        let imported_candidates = match self.imported_member_call_candidates(
+            receiver.ty,
+            name,
+            RequiredCallableModifiers::default(),
+            MemberCallKind::Ordinary,
+        ) {
+            Ok(candidates) => candidates,
+            Err(failure) => {
+                self.commit_layer_diagnostics(*failure);
+                return None;
+            }
+        };
+        let member_candidates = member_candidates
+            .into_iter()
+            .map(ReferenceCandidate::Local)
+            .chain(
+                imported_candidates
+                    .into_iter()
+                    .map(|declaration| ReferenceCandidate::Member(Box::new(declaration))),
+            )
+            .collect::<Vec<_>>();
         let expected_signature = self.expected_function_signature(expected);
         let display = format!("bound callable reference `receiver::{}`", name.text);
         if !member_candidates.is_empty() {
-            match self.probe_expr_layer(|state, _| {
-                state.finish_bound_callable_reference(
-                    BoundReferenceLayer::Members(&member_candidates),
-                    receiver.clone(),
-                    expected_signature.as_ref(),
-                    &name.text,
-                    &display,
-                    span,
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => first_failure = Some(failure),
+            let mut state = self.clone();
+            match state.finish_bound_callable_reference(
+                BoundReferenceLayer::Members(&member_candidates),
+                receiver.clone(),
+                expected_signature.as_ref(),
+                &name.text,
+                &display,
+                span,
+            ) {
+                BoundReferenceOutcome::Resolved(expression) => {
+                    return Some(self.commit_expr_layer(
+                        SuccessfulExprLayer {
+                            state: Box::new(state),
+                            expression,
+                            sink: Vec::new(),
+                        },
+                        sink,
+                    ));
+                }
+                BoundReferenceOutcome::NoApplicable => first_failure = Some(Box::new(state)),
+                BoundReferenceOutcome::Blocked => return None,
+                BoundReferenceOutcome::Failed => {
+                    self.commit_layer_diagnostics(state);
+                    return None;
+                }
             }
         }
-        for extensions in self.extension_candidate_layers(&name.text) {
-            match self.probe_expr_layer(|state, _| {
-                state.finish_bound_callable_reference(
-                    BoundReferenceLayer::Extensions(&extensions),
-                    receiver.clone(),
-                    expected_signature.as_ref(),
-                    &name.text,
-                    &display,
-                    span,
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    first_failure.get_or_insert(failure);
+        for layer in self.named_executable_extension_call_layers(&name.text) {
+            if layer.candidates.is_empty() {
+                if !layer.suppressed_callables.is_empty() {
+                    if let Some(failure) = first_failure {
+                        self.commit_layer_diagnostics(*failure);
+                    }
+                    return None;
+                }
+                continue;
+            }
+            let mut state = self.clone();
+            let candidates = layer
+                .candidates
+                .into_iter()
+                .map(ReferenceCandidate::extension)
+                .collect::<Vec<_>>();
+            match state.finish_bound_callable_reference(
+                BoundReferenceLayer::Extensions(&candidates),
+                receiver.clone(),
+                expected_signature.as_ref(),
+                &name.text,
+                &display,
+                span,
+            ) {
+                BoundReferenceOutcome::Resolved(expression) => {
+                    return Some(self.commit_expr_layer(
+                        SuccessfulExprLayer {
+                            state: Box::new(state),
+                            expression,
+                            sink: Vec::new(),
+                        },
+                        sink,
+                    ));
+                }
+                BoundReferenceOutcome::NoApplicable => {
+                    if !layer.suppressed_callables.is_empty() {
+                        self.commit_layer_diagnostics(state);
+                        return None;
+                    }
+                    first_failure.get_or_insert(Box::new(state));
+                }
+                BoundReferenceOutcome::Blocked => return None,
+                BoundReferenceOutcome::Failed => {
+                    self.commit_layer_diagnostics(state);
+                    return None;
                 }
             }
         }
@@ -254,11 +389,11 @@ impl Lowerer {
         name: &str,
         display: &str,
         span: Span,
-    ) -> Option<hir::Expr> {
-        let is_extension = matches!(layer, BoundReferenceLayer::Extensions(_));
-        let resolved = match layer {
-            BoundReferenceLayer::Members(candidates) => self.resolve_member_reference_candidates(
+    ) -> BoundReferenceOutcome {
+        let outcome = match layer {
+            BoundReferenceLayer::Members(candidates) => self.resolve_reference_candidate_set(
                 candidates,
+                Some(&receiver),
                 ReferenceResolutionContext {
                     expected,
                     name,
@@ -266,10 +401,10 @@ impl Lowerer {
                     span,
                     extension_mode: ReferenceExtensionMode::Exclude,
                 },
-            )?,
-            BoundReferenceLayer::Extensions(candidates) => self.resolve_reference_candidates(
+            ),
+            BoundReferenceLayer::Extensions(candidates) => self.resolve_reference_candidate_set(
                 candidates,
-                &[],
+                Some(&receiver),
                 ReferenceResolutionContext {
                     expected,
                     name,
@@ -277,36 +412,35 @@ impl Lowerer {
                     span,
                     extension_mode: ReferenceExtensionMode::Bound(receiver.ty),
                 },
-            )?,
+            ),
         };
-        let callee = resolved.callable;
+        let resolved = match outcome {
+            ReferenceResolutionOutcome::Resolved(resolved) => resolved,
+            ReferenceResolutionOutcome::NoApplicable => {
+                return BoundReferenceOutcome::NoApplicable;
+            }
+            ReferenceResolutionOutcome::Blocked => return BoundReferenceOutcome::Blocked,
+            ReferenceResolutionOutcome::Failed => return BoundReferenceOutcome::Failed,
+        };
         let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
-        let target = if is_extension {
-            hir::CallableReferenceTarget::BoundExtension {
-                receiver: Box::new(receiver),
-                callee,
-            }
-        } else {
-            hir::CallableReferenceTarget::BoundMember {
-                receiver: Box::new(receiver),
-                callee: self.materialize_method_callee(
-                    resolved.source,
-                    callee,
-                    &resolved.type_args,
-                ),
-            }
-        };
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
+        let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
         let id = self.callable_references.alloc(hir::CallableReference {
-            target,
+            definition_root: hir::CallableReferenceRoot::Source(self.current_definition_root()),
+            definition_path,
+            target: resolved.target,
             function_type,
-            owner_type_param_count: self.type_params_in_scope.len(),
+            owner_type_arguments,
             captures: Vec::new(),
+            origin: self.definition_origin(span),
             span,
         });
-        Some(hir::Expr {
+        BoundReferenceOutcome::Resolved(hir::Expr {
             kind: ExprKind::CallableReference(id),
             ty,
             span,
@@ -320,17 +454,18 @@ impl Lowerer {
         name: &ast::Ident,
         span: Span,
         expected: Option<TypeId>,
-    ) -> Option<hir::Expr> {
+    ) -> Result<Option<hir::Expr>, ()> {
         let expected_signature = self.expected_function_signature(expected);
-        let owner_type_param_count =
-            self.signatures[&self.local_functions[candidates[0]].function].owner_type_param_count;
+        let owner_type_param_count = self.signatures
+            [&self.local_functions[candidates[0]].source_function()]
+            .owner_type_param_count;
         let owner_type_args = self.ambient_type_args(owner_type_param_count);
         let functions = candidates
             .iter()
-            .map(|candidate| self.local_functions[*candidate].function)
+            .map(|candidate| self.local_functions[*candidate].source_function())
             .collect::<Vec<_>>();
         let display = format!("local callable reference `::{}`", name.text);
-        let resolved = self.resolve_reference_candidates(
+        let resolved = match self.resolve_reference_candidates(
             &functions,
             &owner_type_args,
             ReferenceResolutionContext {
@@ -340,14 +475,26 @@ impl Lowerer {
                 span,
                 extension_mode: ReferenceExtensionMode::Exclude,
             },
-        )?;
-        let function = self.callable_function_id(resolved.callable);
+        ) {
+            ReferenceResolutionOutcome::Resolved(resolved) => resolved,
+            ReferenceResolutionOutcome::NoApplicable => return Ok(None),
+            ReferenceResolutionOutcome::Blocked => return Ok(None),
+            ReferenceResolutionOutcome::Failed => return Err(()),
+        };
+        let hir::CallableReferenceTarget::Named(hir::CallableTarget::Local(callee)) =
+            resolved.target
+        else {
+            unreachable!("lexical reference candidates are local named declarations")
+        };
+        let function = self.callable_function_id(callee);
         let local_function = self.local_function_by_function[&function];
         let ty = resolved.ty;
         let Type::Function(function_type) = self.types[ty] else {
             unreachable!("a callable reference has a function type")
         };
-        let capture_sources = self.local_call_capture_args(local_function, span)?;
+        let Some(capture_sources) = self.local_call_capture_args(local_function, span) else {
+            return Err(());
+        };
         let capture_specs: Vec<_> = self.local_functions[local_function]
             .captures
             .iter()
@@ -373,21 +520,28 @@ impl Lowerer {
                 },
             )
             .collect();
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::CallableConversion);
+        let owner_type_arguments = self.ambient_type_args(self.type_params_in_scope.len());
         let id = self.callable_references.alloc(hir::CallableReference {
+            definition_root: hir::CallableReferenceRoot::Source(self.current_definition_root()),
+            definition_path,
             target: hir::CallableReferenceTarget::Local {
-                local_function,
-                callee: resolved.callable,
+                definition_path: self.local_functions[local_function].definition_path.clone(),
+                callee: callee.into(),
             },
             function_type,
-            owner_type_param_count: self.type_params_in_scope.len(),
+            owner_type_arguments,
             captures,
+            origin: self.definition_origin(span),
             span,
         });
-        Some(hir::Expr {
+        Ok(Some(hir::Expr {
             kind: ExprKind::CallableReference(id),
             ty,
             span,
             origin: self.expression_origin(span),
-        })
+        }))
     }
 }

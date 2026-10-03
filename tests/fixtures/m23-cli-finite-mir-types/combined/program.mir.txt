@@ -1,0 +1,289 @@
+Module
+  struct FiniteLabel (text: String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum FiniteChoice
+    Empty()
+    Data(value: FiniteLabel)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class FiniteHolder vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<FiniteLabel> vtable=0 itables=0
+  class box<FiniteChoice> vtable=0 itables=0
+  interface FiniteMarker
+  generated_exact_type get0 location=class5 nominal_id=13c5f62a920e8b2d9b1af83cbf6c2777896c7b43a5c3c11975f43f41c79af135 exact_id=3f064367307c81375af09eb0624e0a794ed5ea63552e8cca3abe6dee10b15129
+  generated_exact_type get1 location=class6 nominal_id=d1cd3543210b2137f8630fe59da8bdb4c6c26a81a24e2763204e2db11f782608 exact_id=b240e6d388b11a4c1a328ff037b8093c4ee29af268b401ca3280add527d2857d
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.text: String
+        Type String
+        Local $dependency.argument.0
+      call value: FiniteLabel = external1 direct
+        Type String
+        Local $dependency.parameter.text
+      val marker: FiniteMarker
+        Type FiniteMarker
+        Box
+          Type FiniteLabel
+          Local value
+      val $dependency.receiver: FiniteMarker
+        Type FiniteMarker
+        Local marker
+      call $dependency.receiver: Int = external2 interface FiniteMarker[0]
+        Type FiniteMarker
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: FiniteMarker
+        Type FiniteMarker
+        Box
+          Type FiniteLabel
+          Local value
+      call $dependency.receiver: Int = external2 interface FiniteMarker[0]
+        Type FiniteMarker
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: FiniteLabel
+        Type FiniteLabel
+        Local value
+      val $dependency.parameter.value: FiniteLabel
+        Type FiniteLabel
+        Local $dependency.argument.0
+      call $dependency.argument.0: FiniteHolder = external3 direct
+        Type FiniteLabel
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: FiniteHolder
+        Type FiniteHolder
+        Local $dependency.argument.0
+      call $call.1: FiniteLabel = external4 direct
+        Type FiniteHolder
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type FiniteLabel
+          Local $call.1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external5 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: FiniteLabel
+        Type FiniteLabel
+        Local value
+      val $dependency.parameter.value: FiniteLabel
+        Type FiniteLabel
+        Local $dependency.argument.0
+      val choice: FiniteChoice
+        Type FiniteChoice
+        VariantConstruct FiniteChoice v1
+          Type FiniteLabel
+          Local $dependency.parameter.value
+      val $when.1: FiniteChoice
+        Type FiniteChoice
+        Local choice
+      val $pattern.subject.2: FiniteChoice
+        Type FiniteChoice
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest FiniteChoice v0
+          Type FiniteChoice
+          Local $pattern.subject.2
+    bb4 pattern.pass.4
+      assign $result.1
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      val $pattern.subject.3: FiniteChoice
+        Type FiniteChoice
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest FiniteChoice v1
+          Type FiniteChoice
+          Local $pattern.subject.3
+    bb6 pattern.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $result.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.3: Any = external6 direct
+      val $argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance String
+            Type Any
+            Local $call.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val erased: Any
+        Type Any
+        Box
+          Type FiniteChoice
+          Local choice
+      val $cast.4: Any
+        Type Any
+        Local erased
+      branch bb10 bb11
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance FiniteChoice
+            Type Any
+            Local $cast.4
+    bb7 pattern.pass.7
+      val payload: FiniteLabel
+        Type FiniteLabel
+        VariantPayloadProject FiniteChoice v1 f0
+          Type FiniteChoice
+          Local $pattern.subject.3
+      call $call.2: Boolean = external9 direct
+        Type FiniteLabel
+        Local payload
+        Type FiniteLabel
+        Local value
+      assign $result.1
+        Type Boolean
+        Local $call.2
+      goto bb9
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      goto bb6
+    bb10 if.then.10
+      assign $new.4
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external7 direct
+        Type ClassCastException
+        Local $new.4
+      throw
+        Type ClassCastException
+        Local $new.4
+    bb11 if.merge.11
+      val $ub.5: FiniteChoice
+        Type FiniteChoice
+        Unbox
+          Type Any
+          Local $cast.4
+      call $argument.0: Boolean = external8 direct
+        Type FiniteChoice
+        Local $ub.5
+        Type FiniteChoice
+        Local choice
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  str @str1 "payload"
+  str @str2 "payload"
+  output executable @fn1

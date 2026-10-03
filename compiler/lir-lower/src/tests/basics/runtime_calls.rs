@@ -5,7 +5,7 @@ fn compiler_runtime_calls_with_results_produce_typed_temps() {
     let mut b = Builder::new();
     let s0 = b.string("a");
     let s1 = b.string("b");
-    let helper = b.user_fn("helper", "scoop.helper", Arena::new(), vec![]);
+    let helper = b.user_fn("helper", Arena::new(), vec![]);
     let mut locals = Arena::new();
     let s = locals.alloc(local("s", mir::Type::String));
     let main = b.main(
@@ -21,7 +21,7 @@ fn compiler_runtime_calls_with_results_produce_typed_temps() {
             call_stmt(user_call(helper)),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // top_level order: helper first, then main.
     let function = &module.functions[1];
@@ -46,7 +46,7 @@ fn compiler_runtime_calls_with_results_produce_typed_temps() {
     assert_eq!(site.result(), lir::TypedCallResult::Void);
     assert_eq!(
         call_symbol(&module, site.destination(&function.call_targets)),
-        "scoop.helper"
+        module.functions[0].symbol()
     );
     let lir::Instruction::MakeAggregate { out, elements } = instructions[3] else {
         panic!("a void call's Unit value must be an empty aggregate")
@@ -72,7 +72,7 @@ fn string_compare_uses_the_closed_signed_64_runtime_abi() {
             ),
         )],
     );
-    let module = lower(&builder.finish(main));
+    let module = lower(builder.finish(main));
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
     let lir::Instruction::Call { site } = instructions[0] else {
@@ -86,7 +86,7 @@ fn string_compare_uses_the_closed_signed_64_runtime_abi() {
     );
     assert_eq!(function.temps[out].ty, lir::LirType::I64);
     let (_, result_local) = function.locals.iter().next().expect("one result local");
-    assert_eq!(result_local.ty, lir::LirType::I64);
+    assert_eq!(result_local.ty(), &lir::LirType::I64);
 }
 
 #[test]
@@ -115,14 +115,15 @@ fn pointer_nulls_preserve_raw_and_code_provenance_in_lir() {
         terminator: lir::Terminator::Return { value: None },
     });
     let function = lir::Function {
+        callable_body: test_callable_body("null_provenance"),
         gc_effect: lir::GcEffect::NoGc,
-        symbol: "null_provenance".to_string(),
         signature: lir::ScoopAbiSignature::new(
             Vec::new(),
             lir::AbiReturn::UnitVoid,
             lir::CallingConvention::Cdecl,
         ),
         call_targets: lir::CallTargets::default(),
+        safepoints: lir::SafepointIdentities::default(),
         locals: Arena::new(),
         temps: Arena::new(),
         blocks,
@@ -149,15 +150,15 @@ fn enum_unit_constant_maps_between_checked_stage_local_refs() {
         name: "Flag".to_string(),
         type_arguments: Vec::new(),
         gc_free: true,
-        variants: vec![mir::VariantDef {
-            name: "Off".to_string(),
-            gc_free: true,
-            fields: Vec::new(),
-        }],
+        variants: vec![test_variant("Off".to_string(), true, Vec::new())],
     });
     let source = mir::MirVariantRef::new(&mir_enums, mir_enum, 0).expect("unit variant");
     let mut lir_enums = lir::EnumDefs::default();
     let lir_enum = lir_enums.alloc(lir::EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Flag",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Flag".to_string(),
         repr: lir::EnumRepr::Tagged {
             variants: vec![lir::EnumVariantRepr {

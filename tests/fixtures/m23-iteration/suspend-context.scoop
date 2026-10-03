@@ -1,0 +1,4 @@
+import upstream.iteration.*
+
+class Source { public suspend operator fun iterator(): Cursor<Int> = Cursor<Int>([]) }
+public fun invalid() { for (value in Source()) {} }

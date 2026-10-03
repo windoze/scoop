@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.CompanionHost as FactoryHost
+
+public typealias Alias = FactoryHost
+private fun identity(value: Alias.Companion): Alias.Factory = value
+
+public fun primary(): Counter {
+    val first = identity(Alias.Factory)
+    val second = Alias.Companion
+    return if (first === second) { first.value } else { Counter(0) }
+}

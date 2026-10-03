@@ -75,7 +75,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         if self.function.temps[out].ty != LirType::I1 || lhs_ty != rhs_ty {
             return Err(CodegenError(format!(
                 "non-source-integer binary {op:?} in @{} has {} and {} operands with {} result",
-                self.function.symbol,
+                self.function.symbol(),
                 lhs_ty.dump(),
                 rhs_ty.dump(),
                 self.function.temps[out].ty.dump(),
@@ -87,7 +87,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if lhs_ty != expected {
                     return Err(CodegenError(format!(
                         "machine equality {kind:?} in @{} has operand type {}",
-                        self.function.symbol,
+                        self.function.symbol(),
                         lhs_ty.dump(),
                     )));
                 }
@@ -96,7 +96,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 if !matches!(lhs_ty, LirType::I1 | LirType::Ptr(_)) {
                     return Err(CodegenError(format!(
                         "generic equality {op:?} in @{} cannot consume source integer or aggregate type {}",
-                        self.function.symbol,
+                        self.function.symbol(),
                         lhs_ty.dump(),
                     )));
                 }
@@ -121,7 +121,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             _ => {
                 return Err(CodegenError(format!(
                     "binary {op:?} in @{} received incompatible LLVM operands",
-                    self.function.symbol
+                    self.function.symbol()
                 )));
             }
         }
@@ -141,7 +141,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         {
             return Err(CodegenError(format!(
                 "Boolean unary {op:?} in @{} requires i1 -> i1",
-                self.function.symbol
+                self.function.symbol()
             )));
         }
         let operand = self.value(operand)?.into_int_value();
@@ -261,7 +261,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             return Err(CodegenError(format!(
                 "integer comparison {comparison:?}<{}> in @{} must produce i1",
                 kind.canonical_name(),
-                self.function.symbol,
+                self.function.symbol(),
             )));
         }
         let predicate = match (kind.signedness(), comparison) {
@@ -299,7 +299,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             return Err(CodegenError(format!(
                 "integer compareTo<{}> in @{} must produce canonical Long/i64",
                 kind.canonical_name(),
-                self.function.symbol,
+                self.function.symbol(),
             )));
         }
         let lhs = self.value(lhs)?.into_int_value();
@@ -409,7 +409,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             return Err(CodegenError(format!(
                 "integer operation {operation:?}<{}> in @{} requires {}, got {}",
                 kind.canonical_name(),
-                self.function.symbol,
+                self.function.symbol(),
                 kind.scalar_type().dump(),
                 actual.dump(),
             )));
@@ -428,7 +428,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             return Err(CodegenError(format!(
                 "integer operation {operation:?}<{}> in @{} must produce {}, got {}",
                 kind.canonical_name(),
-                self.function.symbol,
+                self.function.symbol(),
                 kind.scalar_type().dump(),
                 actual.dump(),
             )));
@@ -445,6 +445,9 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         operation: impl std::fmt::Debug,
         error: inkwell::builder::BuilderError,
     ) -> CodegenError {
-        CodegenError(format!("{operation:?} @{}: {error}", self.function.symbol))
+        CodegenError(format!(
+            "{operation:?} @{}: {error}",
+            self.function.symbol()
+        ))
     }
 }

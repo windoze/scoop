@@ -1,0 +1,6 @@
+import upstream.literals.Tagged
+
+public fun bad(value: Tagged<Int>): Int = when (value) {
+    Tagged("true", _, amount) -> amount
+    else -> 0
+}

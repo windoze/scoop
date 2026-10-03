@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public fun read(): Boolean
+    =
+      FieldAccess enabled
+        Call identity
+          Call Flag
+            BoolLiteral true

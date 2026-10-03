@@ -1,0 +1,108 @@
+//! Actual source metadata is decoded before provider-local fact replay.
+
+use super::*;
+
+mod constructors;
+mod decoded;
+mod defaults;
+mod dispatch;
+mod protected;
+mod selections;
+mod shape_uses;
+use decoded::DecodedTypes;
+
+pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
+    let target = resolved_target().expect("type foundation fixtures require the supported target");
+    let directory = tempfile::tempdir().unwrap();
+    bootstrap_core(directory.path(), &target);
+    let fixtures = crate::workspace_root().join("tests/fixtures/m23-shared-type-foundations");
+    let provider_root = directory.path().join("provider");
+    write_manifest_cone(
+        &provider_root,
+        "dev.example",
+        "type-provider",
+        "library",
+        &std::fs::read_to_string(fixtures.join("provider.scoop")).unwrap(),
+    );
+    let provider = lower(directory.path(), &target, &provider_root, vec![], &[core]);
+    let checked_provider = provider.check(&[core]).unwrap();
+    assert!(!checked_provider.section().selected().records().is_empty());
+    super::type_uses::check(checked_provider, &[core]);
+
+    checked_provider
+        .with_inheritance_graph(&[core], |graph| {
+            for section in [core.section(), checked_provider.section()] {
+                for record in section.inheritance().records() {
+                    assert_eq!(graph.get(record.owner()).unwrap().edges(), record.edges());
+                }
+            }
+        })
+        .unwrap();
+    assert_ne!(checked_provider.provider(), core.provider());
+    assert!(checked_provider.facts().records().iter().any(|fact| {
+        fact.kind()
+            == (ExactTypeKindV1::Value {
+                zst: ZstStatus::ZeroSized,
+            })
+    }));
+    assert!(
+        checked_provider
+            .facts()
+            .records()
+            .iter()
+            .any(|fact| { fact.gc() == ExactTypeGcV1::ContainsManagedReferences })
+    );
+    assert!(
+        matches!(provider.check(&[]), Err(Error::MissingProvider(provider)) if provider == core.provider())
+    );
+    assert!(
+        matches!(provider.check(&[core, core]), Err(Error::DuplicateProvider(provider)) if provider == core.provider())
+    );
+    constructors::check(core, directory.path(), &target, &fixtures);
+    dispatch::check(core, directory.path(), &target, &fixtures);
+    selections::check(core, directory.path(), &target, &fixtures);
+    protected::check(core, directory.path(), &target, &fixtures);
+    defaults::check(core, directory.path(), &target, &fixtures);
+    shape_uses::check(core, directory.path(), &target);
+}
+
+fn lower(
+    sysroot: &Path,
+    target: &scoop_toolchain::ResolvedTargetProfile,
+    root: &Path,
+    direct: Vec<std::path::PathBuf>,
+    dependencies: &[CheckedSharedTypeFoundationV1<'_>],
+) -> DecodedTypes {
+    let loaded = build_manifest_request(
+        sysroot,
+        target,
+        root,
+        &root.join("output.slib"),
+        direct,
+        vec![],
+    )
+    .load_preflight()
+    .unwrap();
+    let request = loaded.validate().unwrap();
+    let parsed = request.parse_current_sources().unwrap();
+    let ValidatedCompilerProtocols::Imported(inputs) = request.protocols() else {
+        panic!("ordinary source imports its actual language declarations")
+    };
+    let world = request
+        .dependencies()
+        .semantic()
+        .imported_semantic_world()
+        .unwrap();
+    let hir = current_hir::CurrentConeHirArtifacts::lower(
+        scoop_identity::RequestedConeKind::Library,
+        parsed.sources(),
+        inputs.as_ref().clone().into(),
+        &world,
+        Default::default(),
+    )
+    .unwrap();
+    let ValidatedCurrentConeInput::Manifest { manifest } = request.current() else {
+        panic!("the fixture uses a manifest Cone")
+    };
+    DecodedTypes::read(hir, manifest.coordinate(), dependencies)
+}

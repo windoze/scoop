@@ -1,0 +1,15 @@
+package consumer.delegates
+
+import templates.delegateGenerated.*
+
+public fun <T> exercise(value: T): Int {
+    val before = TraceMore.localClosure
+    val receiver = Receiver<T>(value)
+    val answer = receiver.initializerLocalClosure
+    val allocated = Payload(0)
+    if (answer != 42 || allocated.value != 0) { return 1 }
+    if (receiver.initializerLocalClosure != 42 || TraceMore.localClosure != before + 1) { return 2 }
+    return answer
+}
+
+public fun result(): Int = exercise<Int>(1)

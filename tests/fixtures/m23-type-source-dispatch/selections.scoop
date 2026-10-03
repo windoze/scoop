@@ -1,0 +1,37 @@
+public interface Root {
+    public fun evaluate(): Int = 1
+    public val value: Int
+        get() = 2
+}
+public interface Refined : Root {
+    public override fun evaluate(): Int = 3
+}
+public interface Obligation : Refined {
+    public override fun evaluate(): Int
+}
+public abstract class Pending : Obligation
+public class Complete : Pending() {
+    public override fun evaluate(): Int = 4
+}
+public open class Winner : Refined {
+    public open override fun evaluate(): Int = 5
+    public open override val value: Int
+        get() = 6
+}
+public object Singleton : Winner()
+public struct Value() : Root {
+    public override fun evaluate(): Int = 7
+}
+public enum Choice : Root {
+    One
+    public override fun evaluate(): Int = 8
+}
+public open class Virtual {
+    public open fun compute(): Int = 9
+}
+public abstract class Reabstract : Virtual() {
+    public abstract override fun compute(): Int
+}
+public class Final : Reabstract() {
+    public final override fun compute(): Int = 10
+}

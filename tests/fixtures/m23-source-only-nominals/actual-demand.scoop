@@ -1,0 +1,9 @@
+public interface DeferredGeneric<T> {}
+public class DeferredUnused : DeferredGeneric<Int> {}
+public struct DeferredBox<T>(val value: T)
+public class DeferredWrapper(private val box: DeferredBox<Int>) {
+    public fun read(): Int = box.value
+}
+public fun demand(): Int = DeferredWrapper(DeferredBox(7)).read()
+public class DeferredAccessorBox<T>(public val value: T)
+public fun demandAccessor(): Int = DeferredAccessorBox(7).value

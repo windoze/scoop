@@ -22,7 +22,11 @@ fn typed_string_concat_lowers_to_its_runtime_target() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let (call, destination) = statement_call(&entry_statements(body)[0]);
     assert_eq!(
         call.target.callee,
@@ -81,7 +85,11 @@ fn typed_primitive_intrinsics_map_to_primitive_mir_ops() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let lowered: Vec<_> = entry_statements(body)
         .iter()
         .map(|statement| {
@@ -153,7 +161,11 @@ fn typed_unary_and_string_compare_intrinsics_lower_without_name_lookup() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let statements = entry_statements(body);
     let unary_ops = statements[..2].iter().map(|statement| {
         let mir::StatementKind::Expr(mir::Expr {
@@ -215,7 +227,13 @@ fn all_integer_constants_and_conversions_preserve_exact_kinds() {
         },
     );
     let module = lower(&h.finish(main));
-    let statements = entry_statements(&module.functions[module.entry].body);
+    let statements = entry_statements(
+        &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body,
+    );
 
     for (index, statement) in statements.iter().enumerate() {
         let source = kinds[index];
@@ -268,7 +286,13 @@ fn shifts_mask_long_counts_then_convert_to_the_operand_kind() {
         },
     );
     let module = lower(&h.finish(main));
-    let statements = entry_statements(&module.functions[module.entry].body);
+    let statements = entry_statements(
+        &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body,
+    );
 
     for (statement, source_kind) in statements.iter().zip(kinds) {
         let kind = crate::types::lower_integer_kind(source_kind);
@@ -340,7 +364,11 @@ fn signed_div_rem_poison_boundaries_are_separated_before_safe_nodes() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let mut safe = HashMap::new();
     let mut special = HashMap::new();
     let mut zero_guards = 0;
@@ -440,7 +468,11 @@ fn short_circuit_rhs_calls_stay_on_rhs_edges() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     let rhs_blocks: Vec<_> = body
         .blocks
@@ -539,7 +571,11 @@ fn nested_calls_are_normalized_left_to_right() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let statements = entry_statements(body);
     assert_eq!(statements.len(), 3);
 
@@ -595,85 +631,7 @@ fn division_by_zero_throws_arithmetic_exception() {
     );
     let module = lower(&h.finish(main));
 
-    let expected = "\
-Module mangling=compact-v2
-  class ArithmeticException vtable=0 itables=0
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val $div.1: Int
-        Type Int
-        IntegerLiteral Int value=10 bits=0x0000000a
-      val $div.2: Int
-        Type Int
-        IntegerLiteral Int value=2 bits=0x00000002
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $div.2
-          Type Int
-          IntegerLiteral Int value=0 bits=0x00000000
-    bb1 if.then.1
-      assign $new.1
-        Type ArithmeticException
-        ClassAlloc ArithmeticException
-      call @scoop.init.ArithmeticException.$c0 direct
-        Type ArithmeticException
-        Local $new.1
-      throw
-        Type ArithmeticException
-        Local $new.1
-    bb2 if.merge.2
-      branch bb3 bb4
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $div.1
-          Type Int
-          IntegerLiteral Int value=-2147483648 bits=0x80000000
-    bb3 logic.rhs.3
-      assign $logic.2
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $div.2
-          Type Int
-          IntegerLiteral Int value=-1 bits=0xffffffff
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.2
-        Type Boolean
-        BoolLiteral false
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.2
-    bb6 if.then.6
-      assign $div.result.3
-        Type Int
-        IntegerLiteral Int value=-2147483648 bits=0x80000000
-      goto bb8
-    bb7 if.else.7
-      assign $div.result.3
-        Type Int
-        SafeIntegerDivRem divide kind=Int
-          Type Int
-          Local $div.1
-          Type Int
-          Local $div.2
-      goto bb8
-    bb8 if.merge.8
-      val q: Int
-        Type Int
-        Local $div.result.3
-      return
-  fun init.ArithmeticException.$c0 @scoop.init.ArithmeticException.$c0(this: ArithmeticException) -> Unit
-    bb0 entry
-      return
-  entry @scoop_main
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("division_by_zero_throws_arithmetic_exception", &module);
 }
 
 #[test]
@@ -697,7 +655,11 @@ fn remainder_uses_the_same_zero_guard_as_division() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     assert!(body.blocks.iter().any(|(_, block)| {
         block.statements.iter().any(|statement| {
             matches!(
@@ -747,7 +709,11 @@ fn uint_division_keeps_unsigned_operation_after_the_zero_guard() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     assert!(body.blocks.iter().any(|(_, block)| {
         block.statements.iter().any(|statement| {
             matches!(

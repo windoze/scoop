@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn exported_defaults_carry_kind_typed_references_and_access_witnesses() {
+fn exported_defaults_preserve_kind_typed_references_and_definition_locations() {
     let public = ast::VisibilitySyntax::Explicit {
         visibility: ast::DeclaredVisibility::Public,
         span: sp(),
@@ -55,28 +55,40 @@ fn exported_defaults_carry_kind_typed_references_and_access_witnesses() {
     else {
         unreachable!()
     };
-    let template = &output.export.export_default_exprs
-        [output.export.export_default_sources[source].expression];
+    let template = &output.export.export_default_exprs[output.export.export_default_sources
+        [source]
+        .declared()
+        .unwrap()
+        .0];
+    assert_eq!(
+        template.definition_root,
+        hir::LexicalDefinitionRoot::Function(consume)
+    );
+    assert_eq!(
+        definition_path(&template.definition_path),
+        vec![(
+            scoop_identity::StructuralDefinitionSiteRole::DefaultValue,
+            0,
+        )]
+    );
     assert_eq!(template.references.callables.len(), 1);
     assert_eq!(template.references.constructors.len(), 1);
     assert!(!template.references.types.is_empty());
-    let expected_owner = hir::ExportParameterOwner::Function(consume);
-    assert!(template.references.callables.iter().all(|reference| {
-        reference.witness.owner == expected_owner
-            && reference.witness.call_domain.slot.is_none()
-            && reference.witness.call_domain.direct.0 == reference.witness.target_domain
-    }));
-    assert!(template.references.constructors.iter().all(|reference| {
-        reference.witness.owner == expected_owner
-            && reference.witness.call_domain.slot.is_none()
-            && reference.witness.call_domain.direct.0 == reference.witness.target_domain
-    }));
-    assert!(
-        template
-            .references
-            .types
-            .iter()
-            .all(|reference| reference.witness.owner == expected_owner)
+    assert!(matches!(
+        template.references.callables[0].target,
+        hir::ExportDefaultCallableTarget::Callable(_),
+    ));
+    assert!(matches!(
+        template.references.constructors[0].target,
+        hir::ExportDefaultConstructorTarget::Struct(_),
+    ));
+    assert_eq!(
+        template.references.callables[0].origin.provider,
+        template.origin.provider
+    );
+    assert_eq!(
+        template.references.constructors[0].origin.provider,
+        template.origin.provider
     );
 }
 

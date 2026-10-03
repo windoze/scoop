@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  public fun choose(seed: Int, enabled: Boolean, value: () -> Int = <expr>): () -> Int
+    =
+      Var value
+  public fun lambda(seed: Int, value: () -> Int = <expr>): () -> Int
+    =
+      Var value
+  public fun anonymous(seed: Int, value: () -> Int = <expr>): () -> Int
+    =
+      Var value

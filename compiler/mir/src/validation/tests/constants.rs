@@ -3,18 +3,17 @@ use super::*;
 fn encoded_global(module: &mut Module, ty: Type, payload: MirConstantImage) -> GlobalId {
     module.globals.alloc(Global {
         name: "constant".to_string(),
-        symbol: "scoop.constant".to_string(),
+        storage_owner: test_static_storage_owner("constant"),
         ty,
         mutable: false,
-        storage: GlobalStorage::Local {
-            thread_local: false,
+        storage: GlobalStorage::Managed {
             initial_state: MirStaticInitialState::EncodedStaticValue { payload },
         },
     })
 }
 
 fn global_payload_mut(module: &mut Module, global: GlobalId) -> &mut MirConstantImage {
-    let GlobalStorage::Local {
+    let GlobalStorage::Managed {
         initial_state: MirStaticInitialState::EncodedStaticValue { payload },
         ..
     } = &mut module.globals[global].storage
@@ -73,17 +72,21 @@ fn struct_global_validation_rejects_an_unknown_struct_reference() {
 fn struct_global_validation_rejects_an_inexact_field_arity() {
     let (mut module, _) = module_with_variants(Vec::new());
     let structure = module.structs.alloc(StructDef {
+        type_arguments: Vec::new(),
         name: "Pair".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
+            c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
-            fields: vec![Field {
+            fields: vec![DeclaredStructField {
+                identity: test_struct_field("BoolWrapper", "value"),
                 name: "value".to_string(),
                 ty: Type::Boolean,
             }],
         },
     });
+    register_test_exact_type(&mut module, &Type::Struct(structure));
     let global = encoded_global(
         &mut module,
         Type::Struct(structure),
@@ -157,6 +160,7 @@ fn enum_unit_global_validation_checks_exact_type_payload_and_reference() {
         gc_free: true,
         variants: vec![variant_def("Empty", Vec::new())],
     });
+    register_test_exact_type(&mut module, &Type::Enum(other, Vec::new()));
     let other_empty = MirVariantRef::new(&module.enums, other, 0).unwrap();
     *global_payload_mut(&mut module, global) = MirConstantImage::EnumUnit {
         variant: other_empty,
@@ -206,29 +210,37 @@ fn nested_global_constant_validation_tracks_the_exact_field_path() {
     let (mut module, enum_id) = module_with_variants(vec![variant_def("Empty", Vec::new())]);
     let empty = MirVariantRef::new(&module.enums, enum_id, 0).unwrap();
     let inner = module.structs.alloc(StructDef {
+        type_arguments: Vec::new(),
         name: "Inner".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
+            c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
-            fields: vec![Field {
+            fields: vec![DeclaredStructField {
+                identity: test_struct_field("ChoiceWrapper", "choice"),
                 name: "choice".to_string(),
                 ty: Type::Enum(enum_id, Vec::new()),
             }],
         },
     });
     let outer = module.structs.alloc(StructDef {
+        type_arguments: Vec::new(),
         name: "Outer".to_string(),
         gc_free: true,
         representation: StructRepresentation::Declared {
+            c_abi: StructCAbi::SourceRepresentation,
             c_layout: None,
             interior_mutable: false,
-            fields: vec![Field {
+            fields: vec![DeclaredStructField {
+                identity: test_struct_field("OuterWrapper", "inner"),
                 name: "inner".to_string(),
                 ty: Type::Struct(inner),
             }],
         },
     });
+    register_test_exact_type(&mut module, &Type::Struct(inner));
+    register_test_exact_type(&mut module, &Type::Struct(outer));
     let global = encoded_global(
         &mut module,
         Type::Struct(outer),

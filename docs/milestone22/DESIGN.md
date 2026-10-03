@@ -74,7 +74,7 @@ private typealias Count = Int
 - alias声明有独立`TypeAliasId`、visibility与source origin；使用处在类型检查前透明展开到目标type id；
 - alias可出现在所有类型位置，也可作为构造器、companion或static nested member的type qualifier；最终候选仍属于真实目标实体；
 - alias不产生新的nominal application、constructor、成员、layout、TypeDescriptor、RTTI、boxing种类、FFI classifier或单态化实例；
-- alias展开图中的直接或间接环是定义处错误；完全展开目标type tree中每个被引用声明的effective access domain都必须覆盖alias自身的effective domain，并保存M21 signature-exposure witness。该规则同样约束internal alias，不能借它把file-private目标泄漏到Cone其他文件；
+- alias展开图中的直接或间接环是定义处错误；完全展开目标type tree中每个被引用声明的effective access domain都必须覆盖alias自身的effective domain，由前端完成 M21 signature-exposure 检查，不保存重复证明记录。该规则同样约束internal alias，不能借它把file-private目标泄漏到Cone其他文件；
 - Export HIR保存“alias声明→typed目标”的语义接口；真实`.slib`编码、跨Cone环检测与re-export由M23落地。generic alias继续按既有backlog拒绝。
 
 ### 1.2 字面量词法与定型
@@ -489,7 +489,7 @@ compiler生成的callback与coroutine metadata也遵守同一规则。callback f
 - LIR scalar type扩展为`I8/I16/I32/I64`；expression、const、annotation/default metadata、global initializer与constant image中的integer constant都显式携带kind/type，不能再由`Value::IntConst`或任一未类型化`i64` metadata payload默认推断I64；signedness由typed operation/FFI classifier携带，因为LLVM integer type本身不编码signedness；
 - arithmetic、Boolean compare、安全的division/remainder、已正规化的shift与conversion使用封闭`IntegerOp { kind, ... }`或等价typed variant。`compareTo`使用独立的`IntegerCompareTo { operand_kind, result_type: I64 }`（或同样不可错的结构），该I64结果对应canonical `Long`，不能按lhs宽度构造结果。shift count输入同样固定为`Long`/I64。codegen只机械选择LLVM指令；除零、`MIN/-1`与shift count normalization已经由MIR表达，不能在此按opcode补分支/掩码；
 - layout、constant/global image、boxing、array element、enum payload、callback/C bridge及mangling全部消费exact integer kind；C type tree增加八个精确classifier，不允许退回`Int/UInt`两项；
-- `docs/milestone23/DESIGN.md`第3.3节的persistent-identity mangler接管前，M22 compact type code与schema兼容边界由impl spec 2.3的`compact-v2`表唯一定义；artifact/cache使用封闭`ManglingSchemaIdentity::CompactV2`，M23对应独立的`PersistentV1`，不能只比较版本数字。alias先展开，internal machine scalar不得取得source compact code；
+- `docs/milestone23/DESIGN.md`第3.3节的persistent-identity mangler在M23-2接管前，M22 compact type code与schema兼容边界由impl spec 2.3的`compact-v2`表唯一定义；artifact/cache使用封闭`ManglingSchemaIdentity::CompactV2`，M23-2对应独立的`PersistentV1`，不能只比较版本数字。alias先展开，internal machine scalar不得取得source compact code；
 - HIR、MIR、LIR分别拥有自己的C-layout value、constant image与static-initial-state IR类型，并由相邻lowering穷尽转写typed id；不能跨crate type-alias或从bits/任意对齐整数重建语义。layout前没有通用`Zero`/裸`i64`常量旁路，layout后的LIR `EncodedStaticValue`只携带canonical allocation-extent bytes与typed relocation，`ZeroedForRuntimeUnit`不由encoded zero bits反推；
 - C bridge type tree把void严格限制在function result，并为data pointer同时保存`OpaqueVoid | Object(CType)` pointee与direct/nullable storage shape：只有`Ptr<Unit>`使用`OpaqueVoid`，其他pointee必须是non-ZST portable C object type。C-layout struct与nullable data/code-pointer enum使用fully concrete refined LIR ref，struct field tree不递归内联；by-value struct dependency必须无环，pointer edge只需forward declaration。C extern/callback/global及C-layout field不再平行保存可矛盾的`LirType`；
 - MIR的`VariantTest`/`VariantPayloadProject`在LIR取得concrete enum layout后，分别机械降低为tagged discriminant或niche/null test与对应payload projection；`for Option`与`when`共享该路径；
@@ -577,7 +577,7 @@ parser按当前literal、字段列表、pattern、for header与statement同步�
 - `tests/fixtures/m22-patterns/`；
 - 各目录的`errors/`与必要warning fixture。
 
-AST、Export HIR、MIR、LIR golden分别锁定source facts、typed winner、cleanup CFG和精确integer width；LocalConcrete HIR通过结构断言及Export → LocalConcrete reader/boundary validation锁定source plan消失，不重复dump一套同源golden。至少一个组合fixture串联fixed-width range → for destructuring → recursive when → copy update → try/finally continue/break → suspend/moving-GC stress；需要stress的fixture加入runner显式白名单。按本节明确迁移unsigned literal的旧fixture后，M1至M21及M25全部回归。
+AST、Export HIR、MIR、LIR golden分别锁定source facts、typed winner、cleanup CFG和精确integer width；LocalConcrete HIR通过真实源码 lowering 的结构断言锁定source plan消失；前端已完成的迭代、类型、effect和局部定义检查不在concretizer入口完整重放，不重复dump一套同源golden。至少一个组合fixture串联fixed-width range → for destructuring → recursive when → copy update → try/finally continue/break → suspend/moving-GC stress；需要stress的fixture加入runner显式白名单。按本节明确迁移unsigned literal的旧fixture后，M1至M21及M25全部回归。
 
 ## 9. 实现顺序与提交门
 

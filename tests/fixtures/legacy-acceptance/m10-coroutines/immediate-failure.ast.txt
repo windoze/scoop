@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  class FailingTask(), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>)
+    Call startCoroutine
+      Var task
+      Var completion
+  fun main()
+    Call launch
+      Call FailingTask
+      Call RecordingCompletion
+    Call println
+      StringLiteral "returned"

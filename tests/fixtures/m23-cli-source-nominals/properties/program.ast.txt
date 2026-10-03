@@ -1,0 +1,77 @@
+SourceFile
+  RootPackage
+  fun verifyNominal(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call envelope
+    Call verifyNominal
+      Binary Eq
+        MethodCall change
+          Var value
+          IntLiteral 17
+          IntLiteral 19
+        TupleLiteral
+          IntLiteral 19
+          IntLiteral 19
+          IntLiteral 17
+    Call verifyNominal
+      Binary Eq
+        MethodCall change
+          Var value
+          StringLiteral "old"
+          StringLiteral "new"
+        TupleLiteral
+          StringLiteral "new"
+          StringLiteral "new"
+          StringLiteral "old"
+    Call verifyNominal
+      Binary Eq
+        MethodCall view
+          Var value
+          IntLiteral 23
+        TupleLiteral
+          IntLiteral 23
+          IntLiteral 1
+    Call verifyNominal
+      Binary Eq
+        MethodCall view
+          Var value
+          StringLiteral "property"
+        TupleLiteral
+          StringLiteral "property"
+          IntLiteral 1
+    Call verifyNominal
+      Binary Eq
+        MethodCall constants
+          Var value
+        TupleLiteral
+          StringLiteral "private value"
+          BoolLiteral true
+          IntLiteral 42
+          IntLiteral 7
+    Call verifyNominal
+      Binary Eq
+        MethodCall nestedValue
+          Var value
+        IntLiteral 18
+    Call verifyNominal
+      Binary Eq
+        MethodCall fileValue
+          Var value
+        IntLiteral 5
+    Call verifyNominal
+      Binary Eq
+        MethodCall cachedValue
+          FieldAccess Companion
+            Var Envelope
+        IntLiteral 9u
+    Call verifyNominal
+      Binary Eq
+        FieldAccess exposed
+          Var Ordinary
+        IntLiteral 3

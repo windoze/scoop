@@ -1,0 +1,12 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val initial = HeapSingleton.empty
+    verifyType(initial == HeapEmpty())
+    heapEffects = 0
+    verifyType(heapClosureRoundtrip() == HeapEmpty())
+    verifyType(heapEffects == 2)
+    verifyType(heapClosureRoundtrip() == HeapEmpty())
+    verifyType(heapEffects == 4)
+    verifyType(HeapSingleton.empty == HeapEmpty())
+}

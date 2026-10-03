@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test"
+name = "root"
+version = "1.0.0"
+kind = "library"
+[dependencies]
+"test:dependency" = { version = "1.0.0", path = "../dependency" }

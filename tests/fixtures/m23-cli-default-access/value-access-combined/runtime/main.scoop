@@ -1,0 +1,13 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(accessValues<Int>(7) == 7)
+    verifyDefault(accessValues<String>("value") == "value")
+    verifyDefault(accessValues<Int>(1, packet = AccessPacket(11)) == 11)
+    verifyDefault(AccessCell<Int>(13).read() == 13)
+    verifyDefault(AccessCell<String>("cell").read() == "cell")
+    verifyDefault(AccessRegistry.seed == 3)
+    ACCESS_GLOBAL = 17
+    verifyDefault(accessValues<Int>(19) == 19)
+}

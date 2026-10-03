@@ -19,7 +19,11 @@ impl Lowerer {
         expected: hir::TypeId,
     ) -> Option<hir::HirConstantImage> {
         let mut probe = self.clone();
-        probe.evaluate_static_property_constant(expression, expected)
+        let value = probe.evaluate_static_property_constant(expression, expected);
+        if value.is_some() {
+            self.dependencies = probe.dependencies;
+        }
+        value
     }
 
     fn evaluate_static_property_constant(
@@ -67,7 +71,23 @@ impl Lowerer {
                 ty: self.string,
             }),
             ast::Expr::Var(name) => {
-                let property = self.visible_property(&name.text, None)?;
+                let crate::imports::lookup::LookupResult::Unique(origin) =
+                    self.lookup_value_origin(&name.text)
+                else {
+                    return None;
+                };
+                if let crate::imports::lookup::values::ValueOrigin::Dependency(binding) = origin {
+                    let imported = self.select_imported_dependency_constant(&binding, name.span)?;
+                    return Some(StaticValue {
+                        value: imported.value,
+                        ty: imported.ty,
+                    });
+                }
+                let crate::imports::lookup::values::ValueTarget::Property(property) =
+                    self.materialized_value_target(&origin)?
+                else {
+                    return None;
+                };
                 let declaration = self.properties[property].clone();
                 let hir::PropertyRepresentation::Const { value } = declaration.representation
                 else {
@@ -109,7 +129,11 @@ impl Lowerer {
                                 unreachable!("the outer match selected an integer unary operator")
                             }
                         };
-                        self.registered_no_gc_integer_operation(kind, operation)?;
+                        if !self.const_integer_operation_available(
+                            hir::IntegerIntrinsicKind::NoGcOperation { kind, operation },
+                        ) {
+                            return None;
+                        }
                         Some(StaticValue {
                             value: evaluate_integer_no_gc_operation(operation, value, None)?,
                             ty: self.integer_no_gc_result_type(kind, operation),
@@ -126,28 +150,11 @@ impl Lowerer {
             }
             ast::Expr::Binary { op, lhs, rhs, .. } => {
                 let equality = matches!(op, ast::BinOp::Eq | ast::BinOp::Ne);
-                let source_name = match op {
-                    ast::BinOp::Add => Some("plus"),
-                    ast::BinOp::Sub => Some("minus"),
-                    ast::BinOp::Mul => Some("times"),
-                    ast::BinOp::Div => Some("div"),
-                    ast::BinOp::Rem => Some("rem"),
-                    ast::BinOp::Lt | ast::BinOp::Le | ast::BinOp::Gt | ast::BinOp::Ge => {
-                        Some("compareTo")
-                    }
-                    _ => None,
-                };
                 let operand_kind = if equality {
                     self.select_static_equality_integer_kind(lhs, rhs)
                 } else {
-                    source_name.and_then(|source_name| {
-                        self.select_static_integer_literal_receiver_kind(
-                            lhs,
-                            Some(rhs),
-                            source_name,
-                            expected,
-                            false,
-                        )
+                    self.select_const_binary_literal_kind(*op, lhs, expected, |kind| {
+                        self.probe_static_integer_kind(rhs, Some(kind)) == Some(kind)
                     })
                 };
                 let operand_expected = operand_kind.map(|kind| self.integer_type(kind));
@@ -255,7 +262,7 @@ impl Lowerer {
                 let Some(resolved) = self.resolve_const_integer_intrinsic(kind, source_name) else {
                     return false;
                 };
-                if require_infix && !self.signatures[&resolved.function].modifiers.is_infix {
+                if require_infix && !resolved.is_infix {
                     return false;
                 }
                 match (
@@ -329,9 +336,7 @@ impl Lowerer {
         let ConstIntegerIntrinsicKind::NoGcOperation(operation) = resolved.kind else {
             return None;
         };
-        if !self.signatures[&resolved.function].modifiers.is_infix
-            || operation.arity() != hir::IntegerOperationArity::Binary
-        {
+        if !resolved.is_infix || operation.arity() != hir::IntegerOperationArity::Binary {
             return None;
         }
         let right_expected = if matches!(
@@ -405,13 +410,10 @@ impl Lowerer {
                         if matches!(argument.spread, ast::SpreadSyntax::Plain)
                             && match &argument.name {
                                 ast::CallArgumentName::Positional => true,
-                                ast::CallArgumentName::Named(argument_name) => self.signatures
-                                    [&resolved.function]
-                                    .params
+                                ast::CallArgumentName::Named(argument_name) => resolved
+                                    .parameters
                                     .first()
-                                    .is_some_and(|parameter| {
-                                        parameter.name.text == argument_name.text
-                                    }),
+                                    .is_some_and(|parameter| *parameter == argument_name.text),
                             } =>
                     {
                         let expected = if matches!(
@@ -447,11 +449,10 @@ impl Lowerer {
                 };
                 let named_argument_matches = match &argument.name {
                     ast::CallArgumentName::Positional => true,
-                    ast::CallArgumentName::Named(argument_name) => self.signatures
-                        [&resolved.function]
-                        .params
+                    ast::CallArgumentName::Named(argument_name) => resolved
+                        .parameters
                         .first()
-                        .is_some_and(|parameter| parameter.name.text == argument_name.text),
+                        .is_some_and(|parameter| *parameter == argument_name.text),
                 };
                 if !matches!(argument.spread, ast::SpreadSyntax::Plain) || !named_argument_matches {
                     return None;

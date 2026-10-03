@@ -1,0 +1,13 @@
+[
+  {
+    "code": "SCOOPC_BUILD_FAILED",
+    "message": "dependency closure is not valid: layout artifact publication validation failed: Semantic { source: LirStrongProduction(CrossConeLayoutLirStrongProductionError { provider: ConeIdentity([223, 19, 184, 157, 212, 80, 86, 185, 97, 125, 38, 68, 138, 91, 248, 184, 41, 48, 24, 198, 214, 190, 209, 60, 5, 168, 251, 152, 153, 156, 234, 175]), source: Replay(Registrations(SurfaceMismatch)) }) }",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "lir/cone-production/4/registrations",
+      "path": "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib"
+    },
+    "severity": "error"
+  }
+]

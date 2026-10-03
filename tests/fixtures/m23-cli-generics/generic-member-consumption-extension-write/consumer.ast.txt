@@ -1,0 +1,23 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public fun result(): Int
+    val holder
+      Call PropertyItem<Int>
+        IntLiteral 20
+    assign .extensionState
+      Var holder
+      IntLiteral 42
+    return
+      FieldAccess extensionState
+        Var holder
+  public fun make<T>(value: T): T
+    val holder
+      Call PropertyItem<T>
+        Var value
+    assign .extensionState
+      Var holder
+      Var value
+    return
+      FieldAccess extensionState
+        Var holder

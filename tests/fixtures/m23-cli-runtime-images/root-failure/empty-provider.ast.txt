@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  public fun unused(): Int
+    =
+      IntLiteral 7

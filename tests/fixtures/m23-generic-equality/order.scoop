@@ -1,0 +1,21 @@
+package consumer.equality
+
+import templates.equality.*
+
+public fun <T> exercise(value: T): Int {
+    val trace = Trace<T>(0)
+    val first = Tracked<T>(value, trace, 1, 1)
+    val second = Tracked<T>(value, trace, 2, 2)
+    val third = Tracked<T>(value, trace, 3, 3)
+    val left = Wide<Tracked<T>>(first, second, third)
+    val other = Wide<Tracked<T>>(first, third, third)
+    if (compareWide(left, other) || trace.visits != 12) { return 1 }
+    trace.visits = 0
+    if (left != left || trace.visits != 123) { return 2 }
+    trace.visits = 0
+    if (pair(first, second) == single(first) || trace.visits != 0) { return 3 }
+    if (compareChoices(pair(first, second), pair(first, third)) || trace.visits != 12) { return 4 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(1)

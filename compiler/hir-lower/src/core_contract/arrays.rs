@@ -38,7 +38,10 @@ impl Lowerer {
         let result_matches = match self.types[signature.return_ty] {
             Type::Class(application) => {
                 let application = &self.class_applications[application];
-                application.template == result
+                application.template
+                    == self
+                        .nominal_identity(crate::Owner::Class(result))
+                        .declaration_id()
                     && matches!(application.arguments.as_slice(), [argument] if self.is_type_param(*argument, 0))
             }
             _ => false,

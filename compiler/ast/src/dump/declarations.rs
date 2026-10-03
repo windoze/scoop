@@ -1,11 +1,12 @@
 use super::super::*;
 use super::{
-    dump_annotations, dump_block, dump_expr, dump_type_param, dump_type_params, dump_type_ref,
-    dump_where_clause,
+    dump_annotations, dump_block, dump_expr, dump_headers, dump_type_param, dump_type_params,
+    dump_type_ref, dump_where_clause,
 };
 
 pub fn dump(file: &SourceFile) -> String {
     let mut out = String::from("SourceFile\n");
+    dump_headers(file, &mut out);
     for decl in &file.declarations {
         match decl {
             Decl::Global(g) => {

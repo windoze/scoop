@@ -1,0 +1,73 @@
+SourceFile
+  RootPackage
+  public struct Pair
+    field number: Int
+    field text: String
+  public enum Choice
+    Number(Int)
+    Text(String)
+  class IntGate(var waiter: Continuation<Int>?)
+    fun complete
+  class PairGate(var waiter: Continuation<Pair>?)
+    fun complete
+  class BooleanGate(var waiter: Continuation<Boolean>?)
+    fun complete
+  class ChoiceGate(var waiter: Continuation<Choice>?)
+    fun complete
+  class IntRegistration(val gate: IntGate), SuspendRegistration<Int>
+    public fun register
+  class PairRegistration(val gate: PairGate), SuspendRegistration<Pair>
+    public fun register
+  class BooleanRegistration(val gate: BooleanGate), SuspendRegistration<Boolean>
+    public fun register
+  class ChoiceRegistration(val gate: ChoiceGate), SuspendRegistration<Choice>
+    public fun register
+  suspend fun awaitTop<T>(registration: SuspendRegistration<T>): T
+    =
+      Call suspendCoroutine
+        Var registration
+  class Awaiter()
+    suspend fun awaitMember
+  class GenericTask(val intGate: IntGate, val pairGate: PairGate, val booleanGate: BooleanGate, val choiceGate: ChoiceGate), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val intGate
+      Call IntGate
+        Var None
+    val pairGate
+      Call PairGate
+        Var None
+    val booleanGate
+      Call BooleanGate
+        Var None
+    val choiceGate
+      Call ChoiceGate
+        Var None
+    Call startCoroutine
+      Call GenericTask
+        Var intGate
+        Var pairGate
+        Var booleanGate
+        Var choiceGate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "started"
+    MethodCall complete
+      Var intGate
+      IntLiteral 10
+    MethodCall complete
+      Var pairGate
+      Call Pair
+        IntLiteral 20
+        StringLiteral "pair"
+    MethodCall complete
+      Var booleanGate
+      BoolLiteral true
+    MethodCall complete
+      Var choiceGate
+      MethodCall Number
+        Var Choice
+        IntLiteral 12

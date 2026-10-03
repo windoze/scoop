@@ -1,0 +1,10 @@
+import consumer.construction.result
+import consumer.construction.exercise
+
+private class Later(public val number: Int)
+
+public fun check(): Int {
+    val value = Later(result())
+    val answer = exercise<Later>(value)
+    return if (exercise<Int>(0) == 42 && value.number == 42) { answer } else { 1 }
+}

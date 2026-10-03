@@ -1,0 +1,13 @@
+SourceFile
+  QualifiedPackage dependency.api
+  public object CallLog
+    public var count: Int = <expr>
+      IntLiteral 0
+  public fun run()
+    compound-assign Add
+      Var CallLog
+      IntLiteral 1
+  public fun invocationCount(): Int
+    =
+      FieldAccess count
+        Var CallLog

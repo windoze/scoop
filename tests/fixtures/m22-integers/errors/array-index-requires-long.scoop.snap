@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/array-index-requires-long.scoop:6:29: error: no applicable candidate for `get` in member candidate layer:
-  - fun Array<T>.get(index: Long): T — argument for `index` has type Int, which is not a subtype of Long

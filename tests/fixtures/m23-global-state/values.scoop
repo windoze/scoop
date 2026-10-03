@@ -1,0 +1,5 @@
+package consumer.globals
+import templates.globals.values
+
+public fun <T> exercise(value: T): Int = values<T>(value)
+public fun result(): Int = exercise<Int>(0)

@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.pointers.result
+  ImportExact Local consumer.pointers.exercise
+  private class Later(val number: Int)
+  public fun check(): Int
+    val value
+      Call Later
+        Call result
+    val answer
+      Call exercise<Later>
+        Var value
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            Call exercise<Int>
+              IntLiteral 0
+            IntLiteral 42
+          Binary Eq
+            FieldAccess number
+              Var value
+            IntLiteral 42
+        Var answer
+        else
+        IntLiteral 1

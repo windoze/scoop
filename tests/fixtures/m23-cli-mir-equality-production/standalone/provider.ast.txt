@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  public struct Token
+  public fun same(left: Token, right: Token): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  private struct Hidden
+  public fun hiddenUse(): Boolean
+    =
+      Binary Eq
+        Call Hidden
+        Call Hidden
+  public struct Unrequested

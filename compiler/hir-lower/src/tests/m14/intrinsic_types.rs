@@ -65,14 +65,13 @@ fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
     ]))
     .expect("the core intrinsic type contract must lower");
     let export = &output.export;
-    let core = export.intrinsic_type_core;
+    let core = defined_export_core(export.module()).fundamental_types;
     for (kind, id) in core.integers.iter() {
         let hir::StructRepresentation::Intrinsic(declaration) = export.structs[id].representation
         else {
             panic!("fixed intrinsic struct must not masquerade as an empty declaration")
         };
-        assert_eq!(declaration.kind, hir::IntrinsicTypeKind::Integer(kind));
-        assert_eq!(declaration.provider, hir::IntrinsicProviderId::from_raw(0));
+        assert_eq!(declaration, hir::IntrinsicTypeKind::Integer(kind));
         assert_eq!(
             export.struct_applications[export.structs[id].self_application].representation,
             hir::StructApplicationRepresentation::Intrinsic(
@@ -85,14 +84,14 @@ fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
     else {
         panic!("Boolean must have an explicit intrinsic representation")
     };
-    assert_eq!(boolean_declaration.kind, hir::IntrinsicTypeKind::Boolean);
+    assert_eq!(boolean_declaration, hir::IntrinsicTypeKind::Boolean);
 
     let hir::ClassRepresentation::Intrinsic(string_declaration) =
         export.classes[core.string].representation
     else {
         panic!("String must have an explicit intrinsic representation")
     };
-    assert_eq!(string_declaration.kind, hir::IntrinsicTypeKind::String);
+    assert_eq!(string_declaration, hir::IntrinsicTypeKind::String);
     assert!(matches!(
         export.class_applications[export.classes[core.string].self_application].representation,
         hir::ClassApplicationRepresentation::Intrinsic(hir::IntrinsicTypeRepresentation::String)
@@ -118,7 +117,7 @@ fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
         else {
             panic!("pointer family must have an intrinsic representation")
         };
-        assert_eq!(declaration.kind, kind);
+        assert_eq!(declaration, kind);
         assert!(export.structs[id].semantic_fields().is_empty());
         let application = &export.struct_applications[export.structs[id].self_application];
         match (&application.representation, kind) {
@@ -152,7 +151,8 @@ fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
     );
 
     let local = &output.local;
-    for (kind, id) in local.intrinsic_type_core.integers.iter() {
+    let fundamental_types = &defined_concrete_core(local).fundamental_types;
+    for (kind, id) in fundamental_types.integers.iter() {
         assert!(matches!(
             &local.structs[id].representation,
             hir::concrete::StructRepresentation::Intrinsic { application, .. }
@@ -160,14 +160,14 @@ fn intrinsic_type_contract_is_complete_in_export_and_local_hir() {
         ));
     }
     assert!(matches!(
-        &local.structs[local.intrinsic_type_core.boolean].representation,
+        &local.structs[fundamental_types.boolean].representation,
         hir::concrete::StructRepresentation::Intrinsic {
             application: hir::concrete::IntrinsicTypeRepresentation::Boolean,
             ..
         }
     ));
     assert!(matches!(
-        local.classes[local.intrinsic_type_core.string].representation,
+        local.classes[fundamental_types.string].representation,
         hir::concrete::ClassRepresentation::Intrinsic {
             application: hir::concrete::IntrinsicTypeRepresentation::String,
             ..
@@ -204,53 +204,6 @@ fn intrinsic_type_shape_is_validated_at_its_source() {
             && error.message
                 == "intrinsic type `core_int` must omit its fields or primary constructor"
     }));
-}
-
-#[test]
-fn allowlisted_type_provider_preserves_provenance_without_relaxing_shape() {
-    let mut core = core_file();
-    let int_index = core
-        .declarations
-        .iter()
-        .position(
-            |declaration| matches!(declaration, Decl::Struct(declaration) if declaration.name.text == "Int"),
-        )
-        .expect("core Int declaration");
-    let int = core.declarations.remove(int_index);
-    let user = file(vec![int, fun("main", vec![])]);
-    let core_provider = hir::IntrinsicProviderId::from_raw(3);
-    let test_provider = hir::IntrinsicProviderId::from_raw(7);
-    let unit = CompilationUnit {
-        core: vec![ProviderSource {
-            source: &core,
-            provider: core_provider,
-            name: "core.scoop",
-            source_text: "",
-        }],
-        user: ProviderSource {
-            source: &user,
-            provider: test_provider,
-            name: "user.scoop",
-            source_text: "",
-        },
-    };
-    let output = lower_compilation_unit(
-        &unit,
-        IntrinsicDeclarationPolicy::AllowListedForTesting {
-            providers: std::collections::HashSet::from([test_provider]),
-        },
-    )
-    .expect("the internal allowlist grants only declaration authority");
-    let hir::StructRepresentation::Intrinsic(declaration) = output.export.structs[output
-        .export
-        .intrinsic_type_core
-        .integers
-        .owner(hir::IntegerKind::SIGNED_32)]
-    .representation
-    else {
-        panic!("the allowlisted declaration remains typed")
-    };
-    assert_eq!(declaration.provider, test_provider);
 }
 
 #[test]

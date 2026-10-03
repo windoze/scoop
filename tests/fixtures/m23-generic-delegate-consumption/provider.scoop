@@ -1,0 +1,12 @@
+package templates.delegates
+
+public class Receiver<A, B> public constructor(public val left: A, public val right: B)
+
+public class Slot<A, B> public constructor(public var stored: Int) {
+    public operator fun getValue(thisRef: Receiver<A, B>): Int = this.stored
+    public operator fun setValue(thisRef: Receiver<A, B>, value: Int): Unit {
+        this.stored = value
+    }
+}
+
+public var <A, B> Receiver<A, B>.shared: Int by Slot<A, B>(40)

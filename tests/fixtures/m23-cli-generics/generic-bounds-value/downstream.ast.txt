@@ -1,0 +1,38 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.bounds.result
+  ImportExact Local consumer.bounds.exercise
+  ImportExact Local consumer.bounds.boxedRead
+  private class Later(val value: Int)
+  public fun check(): Int
+    val first
+      Call Later
+        Call result
+    val answer
+      Call exercise<Later>
+        Var first
+    val boxed
+      Call boxedRead<Int>
+        IntLiteral 1
+    val allocated
+      Call Later
+        IntLiteral 0
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            MethodCall read
+              Var boxed
+            IntLiteral 42
+          Binary Ne
+            FieldAccess value
+              Var first
+            IntLiteral 42
+        Binary Ne
+          FieldAccess value
+            Var allocated
+          IntLiteral 0
+      return
+        IntLiteral 1
+    return
+      Var answer

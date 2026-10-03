@@ -1,0 +1,83 @@
+SourceFile
+  QualifiedPackage consumer.globals
+  ImportStar Local templates.globals.*
+  public fun exercise<T>(value: T): Int
+    val receiver
+      Call Receiver<T>
+        Var value
+    val before
+      Call buildCount
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess shared
+            Var receiver
+          IntLiteral 42
+        Binary Ne
+          FieldAccess shared
+            Call Receiver<T>
+              Var value
+          IntLiteral 42
+      return
+        IntLiteral 1
+    val after
+      Call buildCount
+    if
+      Binary Or
+        Binary Lt
+          Var after
+          Var before
+        Binary Gt
+          Var after
+          Binary Add
+            Var before
+            IntLiteral 1
+      return
+        IntLiteral 2
+    val failedBefore
+      Call failureCount
+    var catches
+      IntLiteral 0
+    try
+      FieldAccess broken
+        Var receiver
+    catch error: Failed
+      compound-assign Add
+        IntLiteral 1
+    val failedAfter
+      Call failureCount
+    try
+      FieldAccess broken
+        Call Receiver<T>
+          Var value
+    catch error: Failed
+      compound-assign Add
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Lt
+          Var failedAfter
+          Var failedBefore
+        Binary Gt
+          Var failedAfter
+          Binary Add
+            Var failedBefore
+            IntLiteral 1
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          Var catches
+          IntLiteral 2
+        Binary Ne
+          Call failureCount
+          Var failedAfter
+      return
+        IntLiteral 4
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

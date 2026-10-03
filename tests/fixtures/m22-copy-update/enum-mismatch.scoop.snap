@@ -1,8 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-copy-update/enum-mismatch.scoop:17:19: error: copy update requires an exact declared struct value, found UnitChoice
-m22-copy-update/enum-mismatch.scoop:22:19: error: copy update requires an exact declared struct value, found PositionalChoice
-m22-copy-update/enum-mismatch.scoop:27:19: error: copy update requires an exact declared struct value, found NamedChoice

@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m3-generics/errors/elvis-type-mismatch.scoop:3:18: error: right-hand side of `?:` must be of type Int, found String
-m3-generics/errors/elvis-type-mismatch.scoop:4:13: error: unknown variable `b`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

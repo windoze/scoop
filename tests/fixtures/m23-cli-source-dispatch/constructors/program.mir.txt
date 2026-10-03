@@ -1,0 +1,427 @@
+Module
+  global0 $singleton$719853cc58d0a8b65069115aca823103e07a48c1fffc05402726b9a2e5ba7735: Companion imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=5227c0d160241dcf13973fb595924b97835db99da3fe18ab73ec273a986b0c79
+  global1 $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2: Singleton imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=1ed09dc134578776f6d2e382973eb480035371f925b629bf52db57c6670c89ae
+  global2 $singleton$dc73758199bb79c40aeb952038ad86dff84b1ff1d68ff83654ca1b5483da92bb: Companion imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=3ada03d9e7b9277d764213890416ef51e226b009dd88e5541e6726f78ccd1650
+  struct Pair (left: Int, right: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Companion vtable=0 itables=0
+  class Product vtable=0 itables=1
+  class Factory vtable=0 itables=1
+  class Companion vtable=0 itables=0
+  class HiddenConstructors vtable=0 itables=0
+  class Defaults vtable=0 itables=0
+  class Singleton vtable=0 itables=1
+  interface Marker
+  fun verifyDispatch @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.text: String
+        Type String
+        Local $dependency.argument.0
+      assign $new.1
+        Type Factory
+        ClassAlloc Factory
+      call external2 direct
+        Type Factory
+        Local $new.1
+        Type String
+        Local $dependency.parameter.text
+      call $dependency.receiver: Int = external3 direct
+        Type Factory
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external15 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$dc73758199bb79c40aeb952038ad86dff84b1ff1d68ff83654ca1b5483da92bb
+      call $call.2: Factory = external4 direct
+        Type Companion
+        Local $dependency.receiver
+      call $dependency.receiver: Int = external3 direct
+        Type Factory
+        Local $call.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.3: Factory = external5 direct
+      call $dependency.receiver: Int = external3 direct
+        Type Factory
+        Local $call.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.count: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.label: String
+        Type String
+        Local $dependency.argument.0
+      assign $new.4
+        Type Product
+        ClassAlloc Product
+      call external6 direct
+        Type Product
+        Local $new.4
+        Type Int
+        Local $dependency.parameter.count
+        Type String
+        Local $dependency.parameter.label
+      val product: Product
+        Type Product
+        Local $new.4
+      call $dependency.receiver: Int = external3 direct
+        Type Factory
+        Retype Factory
+          Type Product
+          Local product
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Marker
+        Type Marker
+        Retype Marker
+          Type Product
+          Local product
+      call $dependency.receiver: Int = external1 interface Marker[0]
+        Type Marker
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.text: String
+        Type String
+        Local $dependency.argument.0
+      call $equality.lhs: Pair = external7 direct
+        Type String
+        Local $dependency.parameter.text
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.left: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.1
+      call $call.5: Pair = external8 direct
+        Type Int
+        Local $dependency.parameter.left
+        Type Long
+        Local $dependency.parameter.right
+      call $argument.0: Boolean = external12 direct
+        Type Pair
+        Local $equality.lhs
+        Type Pair
+        Local $call.5
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      assign $new.6
+        Type Defaults
+        ClassAlloc Defaults
+      call external9 direct
+        Type Defaults
+        Local $new.6
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = external10 direct
+        Type Defaults
+        Local $new.6
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb4 if.then.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.7
+        Type Defaults
+        ClassAlloc Defaults
+      call external9 direct
+        Type Defaults
+        Local $new.7
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = external10 direct
+        Type Defaults
+        Local $new.7
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external14 direct
+      call $dependency.receiver: Int = external3 direct
+        Type Factory
+        Retype Factory
+          Type Singleton
+          GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      call external14 direct
+      val $dependency.receiver: Marker
+        Type Marker
+        Retype Marker
+          Type Singleton
+          GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+      call $dependency.receiver: Int = external1 interface Marker[0]
+        Type Marker
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external13 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$719853cc58d0a8b65069115aca823103e07a48c1fffc05402726b9a2e5ba7735
+      call hidden: HiddenConstructors = external11 direct
+        Type Companion
+        Local $dependency.receiver
+      call external13 direct
+      val $dependency.receiver: Companion
+        Type Companion
+        GlobalRead $singleton$719853cc58d0a8b65069115aca823103e07a48c1fffc05402726b9a2e5ba7735
+      call $call.8: HiddenConstructors = external11 direct
+        Type Companion
+        Local $dependency.receiver
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type HiddenConstructors
+          Local hidden
+          Type HiddenConstructors
+          Local $call.8
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  str @str1 "text"
+  str @str2 "label"
+  str @str3 "text"
+  output executable @fn1

@@ -1,7 +1,68 @@
 use super::*;
 
+mod calls;
 mod expr;
+mod variants;
+use calls::{callable_target_name, lexical_function_name, method_callee_name};
 use expr::dump_expr;
+use variants::{enum_field_name, enum_variant_names};
+
+fn generic_delegate_name(module: &Module, reference: &GenericDelegateReference) -> String {
+    let name = match reference.template {
+        GenericDelegateTemplateSource::Defined(template) => {
+            let property = module.generic_delegate_templates[template].property;
+            &module.properties[property].name
+        }
+        GenericDelegateTemplateSource::Imported(template) => {
+            &module.imported_generic_delegate_templates[template].diagnostic_path
+        }
+    };
+    let arguments = reference
+        .arguments
+        .iter()
+        .map(|ty| type_name(module, *ty))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!("{name}<{arguments}>")
+}
+
+fn initializing_field_name(module: &Module, field: InitializingClassFieldRef) -> &str {
+    class_field_name(module, field.owner, field.field)
+}
+
+fn class_field_name(
+    module: &Module,
+    owner: TypeId,
+    field: scoop_identity::PersistentFieldId,
+) -> &str {
+    if let Some(declaration) = module.field_identities.class_declaration(field) {
+        return &module.class_field_definition(declaration).name;
+    }
+    let Type::Class(application) = module.types[owner] else {
+        unreachable!("a class field retains its declaring class")
+    };
+    let class = &module.loaded_class_definitions[&module.class_applications[application].template];
+    let index = class
+        .field_index(field)
+        .expect("a resolved field belongs to its declaring class");
+    &class.definition.fields[index].name
+}
+
+fn struct_field_index(
+    module: &Module,
+    owner: TypeId,
+    field: scoop_identity::PersistentFieldId,
+) -> u32 {
+    if let Some(declaration) = module.field_identities.struct_declaration(field) {
+        return declaration.local_index();
+    }
+    let Type::Struct(application) = module.types[owner] else {
+        unreachable!("a struct field retains its declaring struct")
+    };
+    module.loaded_struct_definitions[&module.struct_applications[application].template]
+        .field_index(field)
+        .expect("a resolved field belongs to its declaring struct") as u32
+}
 
 pub(super) fn dump_statements(
     module: &Module,
@@ -13,18 +74,30 @@ pub(super) fn dump_statements(
     for statement in statements {
         let pad = "  ".repeat(indent);
         match &statement.kind {
+            StatementKind::GenericDelegateEnsure(reference) => out.push_str(&format!(
+                "{pad}ensure delegate {}\n",
+                generic_delegate_name(module, reference)
+            )),
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
             StatementKind::InitializationEnsure(unit) => out.push_str(&format!(
                 "{pad}ensure init{} {}\n",
                 unit.into_raw(),
-                module.initialization_units[*unit].stable_key
+                module.initialization_units[*unit].display_name
             )),
             StatementKind::LocalFunction(id) => {
                 let local = &module.local_functions[*id];
+                let name = match local.definition {
+                    LexicalFunctionDefinition::Source { function, .. } => {
+                        &module.functions[function].name
+                    }
+                    LexicalFunctionDefinition::Template(template) => {
+                        &module.imported_generic_templates[template].name
+                    }
+                };
                 out.push_str(&format!(
                     "{pad}LocalFunction local{} body={} captures={}\n",
                     id.into_raw(),
-                    module.functions[local.function].name,
+                    name,
                     local.captures.len()
                 ));
             }
@@ -35,11 +108,15 @@ pub(super) fn dump_statements(
                 }
             }
             StatementKind::ValDecl { pattern, init } => {
-                out.push_str(&format!("{pad}val {}\n", dump_pattern(pattern)));
+                out.push_str(&format!("{pad}val {}\n", dump_pattern(module, pattern)));
                 dump_expr(module, locals, init, indent + 1, out);
             }
             StatementKind::Assign { target, value } => {
                 match target {
+                    AssignTarget::GenericDelegateStorage(reference) => out.push_str(&format!(
+                        "{pad}assign delegate {}\n",
+                        generic_delegate_name(module, reference)
+                    )),
                     AssignTarget::Local(local) => {
                         out.push_str(&format!("{pad}assign {}\n", locals[*local].name))
                     }
@@ -57,7 +134,7 @@ pub(super) fn dump_statements(
                     }
                     AssignTarget::InitializingClassField { field, .. } => out.push_str(&format!(
                         "{pad}assign initializing .{}\n",
-                        module.properties[module.class_fields[*field].property].name
+                        initializing_field_name(module, *field)
                     )),
                     AssignTarget::Index { array, index } => {
                         out.push_str(&format!("{pad}assign []\n"));
@@ -94,119 +171,6 @@ pub(super) fn dump_statements(
                 dump_expr(module, locals, cond, indent + 1, out);
                 dump_statements(module, locals, body, indent + 1, out);
             }
-            StatementKind::For(plan) => {
-                out.push_str(&format!("{pad}for loop{}\n", plan.target().into_raw()));
-                if !plan.source_setup().is_empty() {
-                    out.push_str(&format!("{pad}  source setup\n"));
-                    dump_statements(module, locals, plan.source_setup(), indent + 2, out);
-                }
-                out.push_str(&format!(
-                    "{pad}  source {}\n",
-                    dump_binding_temporary(module, locals, plan.source())
-                ));
-                dump_expr(module, locals, plan.source_init(), indent + 2, out);
-                if !plan.iterator_setup().is_empty() {
-                    out.push_str(&format!("{pad}  iterator setup\n"));
-                    dump_statements(module, locals, plan.iterator_setup(), indent + 2, out);
-                }
-                let conformance = plan.conformance();
-                out.push_str(&format!(
-                    "{pad}  iterator call -> {}\n",
-                    dump_binding_temporary(module, locals, conformance.source())
-                ));
-                dump_expr(module, locals, plan.iterator_call(), indent + 2, out);
-                out.push_str(&format!(
-                    "{pad}  conformance {} as {}\n",
-                    dump_binding_temporary(module, locals, conformance.source()),
-                    dump_binding_temporary(module, locals, conformance.iterator())
-                ));
-
-                let next = plan.next();
-                let option_core = next.option();
-                let next_application = &module.method_applications[next.callable()];
-                let option_application = &module.enum_applications[option_core.application()];
-                let option = &module.enums[option_application.template];
-                let some =
-                    &option.variants[option_core.some_payload().variant().local_index() as usize];
-                let none = &option.variants[option_core.none().local_index() as usize];
-                out.push_str(&format!(
-                    "{pad}  next {} -> {} [{}.{}/{}; {}.{}]\n",
-                    module.functions[next_application.function].name,
-                    dump_binding_temporary(module, locals, next.result()),
-                    option.name,
-                    some.name,
-                    some.fields[option_core.some_payload().local_index() as usize].name,
-                    option.name,
-                    none.name,
-                ));
-                out.push_str(&format!(
-                    "{pad}  element {}\n",
-                    dump_binding_temporary(module, locals, next.element())
-                ));
-                let binding = plan.binding();
-                out.push_str(&format!(
-                    "{pad}  binding {}\n",
-                    dump_binding_shape(module, locals, &binding.shape)
-                ));
-                for action in &binding.actions {
-                    match action {
-                        IrrefutableBindingAction::Project {
-                            source,
-                            result,
-                            projection,
-                            ..
-                        } => {
-                            let projection = match projection {
-                                BindingProjection::TupleIndex(index) => format!("tuple#{index}"),
-                                BindingProjection::StructField(field) => {
-                                    format!("field#{}", field.local_index())
-                                }
-                            };
-                            out.push_str(&format!(
-                                "{pad}    project {} {projection} -> {}\n",
-                                dump_binding_temporary(module, locals, *source),
-                                dump_binding_temporary(module, locals, *result),
-                            ));
-                        }
-                        IrrefutableBindingAction::Component {
-                            source,
-                            index,
-                            result,
-                            setup,
-                            call,
-                            ..
-                        } => {
-                            out.push_str(&format!(
-                                "{pad}    component{} {} -> {}\n",
-                                index.get(),
-                                dump_binding_temporary(module, locals, *source),
-                                dump_binding_temporary(module, locals, *result),
-                            ));
-                            if !setup.is_empty() {
-                                out.push_str(&format!("{pad}      setup\n"));
-                                dump_statements(module, locals, setup, indent + 4, out);
-                            }
-                            out.push_str(&format!("{pad}      call\n"));
-                            dump_expr(module, locals, call, indent + 4, out);
-                        }
-                        IrrefutableBindingAction::Bind { source, target, .. } => {
-                            out.push_str(&format!(
-                                "{pad}    bind {} -> {}{}: {}\n",
-                                dump_binding_temporary(module, locals, *source),
-                                if target.mutability.is_mutable() {
-                                    "var "
-                                } else {
-                                    ""
-                                },
-                                locals[target.local].name,
-                                type_name(module, target.ty),
-                            ));
-                        }
-                    }
-                }
-                out.push_str(&format!("{pad}  body\n"));
-                dump_statements(module, locals, plan.body(), indent + 2, out);
-            }
             StatementKind::Break { target } => {
                 out.push_str(&format!("{pad}break loop{}\n", target.into_raw()));
             }
@@ -240,7 +204,7 @@ pub(super) fn dump_statements(
                     out.push_str(&format!(
                         "{}  arm {}{}\n",
                         pad,
-                        dump_pattern(&arm.pattern),
+                        dump_pattern(module, &arm.pattern),
                         if arm.guard.is_some() {
                             " if <guard>"
                         } else {
@@ -287,86 +251,8 @@ pub(super) fn dump_statements(
     }
 }
 
-fn dump_binding_temporary(
-    module: &Module,
-    locals: &Arena<Local>,
-    temporary: BindingTemporary,
-) -> String {
-    format!(
-        "{}: {}",
-        locals[temporary.local].name,
-        type_name(module, temporary.ty)
-    )
-}
-
-fn dump_binding_shape(
-    module: &Module,
-    locals: &Arena<Local>,
-    shape: &IrrefutableBindingShape,
-) -> String {
-    match shape {
-        IrrefutableBindingShape::Binding(binding) => format!(
-            "{}{}: {}",
-            if binding.mutability.is_mutable() {
-                "var "
-            } else {
-                ""
-            },
-            locals[binding.local].name,
-            type_name(module, binding.ty),
-        ),
-        IrrefutableBindingShape::Wildcard => "_".to_string(),
-        IrrefutableBindingShape::Tuple(elements) => format!(
-            "({})",
-            elements
-                .iter()
-                .map(|element| dump_binding_shape(module, locals, element))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        IrrefutableBindingShape::Struct {
-            application,
-            fields,
-        } => format!(
-            "{} {{{}}}",
-            type_name(
-                module,
-                module.struct_applications[*application].canonical_type
-            ),
-            fields
-                .iter()
-                .map(|(field, shape)| format!(
-                    "#{}: {}",
-                    field.local_index(),
-                    dump_binding_shape(module, locals, shape)
-                ))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-        IrrefutableBindingShape::Class {
-            application,
-            components,
-        } => format!(
-            "{}({})",
-            type_name(
-                module,
-                module.class_applications[*application].canonical_type
-            ),
-            components
-                .iter()
-                .map(|(index, shape)| format!(
-                    "#{}: {}",
-                    index.get(),
-                    dump_binding_shape(module, locals, shape)
-                ))
-                .collect::<Vec<_>>()
-                .join(", ")
-        ),
-    }
-}
-
 /// Compact one-line pattern rendering for dumps.
-pub fn dump_pattern(pattern: &Pattern) -> String {
+pub fn dump_pattern(module: &Module, pattern: &Pattern) -> String {
     match pattern {
         Pattern::Binding { local } => format!("local{}", local.into_raw()),
         Pattern::Wildcard => "_".to_string(),
@@ -374,22 +260,27 @@ pub fn dump_pattern(pattern: &Pattern) -> String {
             format!("<lit {:?}>", value.kind).chars().take(40).collect()
         }
         Pattern::Variant {
-            variant, fields, ..
+            application,
+            fields,
         } => {
-            let fields: Vec<String> = fields
+            let (_, _, _, variant) = enum_variant_names(module, *application);
+            let fields = fields
                 .iter()
-                .map(|(i, p)| format!("{i}: {}", dump_pattern(p)))
-                .collect();
-            format!("variant{}({})", variant, fields.join(", "))
+                .map(|(index, pattern)| format!("{index}: {}", dump_pattern(module, pattern)))
+                .collect::<Vec<_>>();
+            format!("variant{variant}({})", fields.join(", "))
         }
         Pattern::Tuple(elements) => {
-            let parts: Vec<String> = elements.iter().map(dump_pattern).collect();
+            let parts: Vec<String> = elements
+                .iter()
+                .map(|pattern| dump_pattern(module, pattern))
+                .collect();
             format!("({})", parts.join(", "))
         }
         Pattern::Struct { fields, .. } => {
             let fields: Vec<String> = fields
                 .iter()
-                .map(|(i, p)| format!("{i}: {}", dump_pattern(p)))
+                .map(|(i, p)| format!("{i}: {}", dump_pattern(module, p)))
                 .collect();
             format!("struct({})", fields.join(", "))
         }

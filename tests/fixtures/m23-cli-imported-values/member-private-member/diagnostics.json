@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Wide` has no method `hidden`",
+    "notes": [],
+    "origin": {
+      "cone": "a6415b2f8c89ad5df290b4b57dbe4632adad88bc37a303bf521ef1c2601286cf",
+      "end": 111,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 105
+    },
+    "severity": "error"
+  }
+]

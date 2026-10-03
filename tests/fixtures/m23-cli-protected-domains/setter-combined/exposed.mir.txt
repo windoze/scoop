@@ -1,0 +1,1158 @@
+Module
+  global0 $singleton$Registry: Registry managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Registry singleton lazy global0 initializer=@fn21 ensure=@fn22 failure=1 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<DomainCases>
+    Completed(value: DomainCases)
+    Suspended()
+  enum CoroutineSlot<DomainCases>
+    Empty()
+    Value(value: DomainCases)
+  enum CoroutineStep<Registry>
+    Completed(value: Registry)
+    Suspended()
+  enum CoroutineSlot<Registry>
+    Empty()
+    Value(value: Registry)
+  enum CoroutineStep<FileOwner>
+    Completed(value: FileOwner)
+    Suspended()
+  enum CoroutineSlot<FileOwner>
+    Empty()
+    Value(value: FileOwner)
+  enum CoroutineStep<AccessBase>
+    Completed(value: AccessBase)
+    Suspended()
+  enum CoroutineSlot<AccessBase>
+    Empty()
+    Value(value: AccessBase)
+  enum CoroutineStep<DomainCases.InternalOwner>
+    Completed(value: DomainCases.InternalOwner)
+    Suspended()
+  enum CoroutineSlot<DomainCases.InternalOwner>
+    Empty()
+    Value(value: DomainCases.InternalOwner)
+  enum CoroutineStep<DomainCases.InternalOwner.PrivateOwner>
+    Completed(value: DomainCases.InternalOwner.PrivateOwner)
+    Suspended()
+  enum CoroutineSlot<DomainCases.InternalOwner.PrivateOwner>
+    Empty()
+    Value(value: DomainCases.InternalOwner.PrivateOwner)
+  enum CoroutineStep<DomainCases.ProtectedOwner>
+    Completed(value: DomainCases.ProtectedOwner)
+    Suspended()
+  enum CoroutineSlot<DomainCases.ProtectedOwner>
+    Empty()
+    Value(value: DomainCases.ProtectedOwner)
+  enum CoroutineStep<FileHolder>
+    Completed(value: FileHolder)
+    Suspended()
+  enum CoroutineSlot<FileHolder>
+    Empty()
+    Value(value: FileHolder)
+  class AccessBase vtable=0 itables=0
+  class DomainCases vtable=0 itables=0
+  class Registry vtable=0 itables=0
+  class FileOwner vtable=0 itables=0
+  class FileHolder vtable=0 itables=0
+  class DomainCases.InternalOwner vtable=0 itables=0
+  class DomainCases.InternalOwner.PrivateOwner vtable=0 itables=0
+  class DomainCases.ProtectedOwner vtable=0 itables=0
+  class GenericOwner<Int> vtable=0 itables=0
+  class GenericBase<Int> vtable=0 itables=0
+  class GenericOwner<String> vtable=0 itables=0
+  class GenericBase<String> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<AccessBase>
+  interface SuspendTask<AccessBase>
+  interface SuspendRegistration<AccessBase>
+  interface Continuation<DomainCases>
+  interface SuspendTask<DomainCases>
+  interface SuspendRegistration<DomainCases>
+  interface Continuation<Registry>
+  interface SuspendTask<Registry>
+  interface SuspendRegistration<Registry>
+  interface Continuation<FileOwner>
+  interface SuspendTask<FileOwner>
+  interface SuspendRegistration<FileOwner>
+  interface Continuation<FileHolder>
+  interface SuspendTask<FileHolder>
+  interface SuspendRegistration<FileHolder>
+  interface Continuation<DomainCases.InternalOwner>
+  interface SuspendTask<DomainCases.InternalOwner>
+  interface SuspendRegistration<DomainCases.InternalOwner>
+  interface Continuation<DomainCases.InternalOwner.PrivateOwner>
+  interface SuspendTask<DomainCases.InternalOwner.PrivateOwner>
+  interface SuspendRegistration<DomainCases.InternalOwner.PrivateOwner>
+  interface Continuation<DomainCases.ProtectedOwner>
+  interface SuspendTask<DomainCases.ProtectedOwner>
+  interface SuspendRegistration<DomainCases.ProtectedOwner>
+  generated_exact_type get0 location=enum15 nominal_id=05d4e64e3379c645c7753c4c2fc2c69ae8a69943629bddbc94a08300900acc71 exact_id=05cc9f2b9452471ffa044b1ee3796311cf52973b304398b4217cfd56be594e67
+  generated_exact_type get1 location=enum9 nominal_id=9271d45696b5d9a258f314d222d87c77af84d6ecd9258bf0ccb1b8f245ca1950 exact_id=0b6f2d5b1d95626294c35333b5c1fba9d2e0e9d4006c186e41c29b85eb607049
+  generated_exact_type get2 location=enum7 nominal_id=6696af4576f94dbbc4c0dd7198434b271cc0790163be1689ce362c169ed04b03 exact_id=0f1526832bb41b9db3b944ae8b3938f1b6e8af476620c6423a1cc2e185420166
+  generated_exact_type get3 location=enum11 nominal_id=a3c88a79e691482f453606d83d7fbc76b96abd3e9216d83f34e3279daa1672a7 exact_id=161c2fc0d194389bf0859468a181d86580171582b12f6764c4f4cf7996fcf7ac
+  generated_exact_type get4 location=enum4 nominal_id=2ff0296a76984d458625fd28d5bdf6aa113203f2d4708a2e97a20bb2d32fc61c exact_id=226d5434906f72f457b08ed50dec4bca206188bfd48bb570c5c76682930b54f4
+  generated_exact_type get5 location=enum3 nominal_id=59a088e1bd3037e4633f5728d16dbe7296f56ebe2541e2706da9e225b47de36d exact_id=29e9ecf76663548454b391e0a8957c81c9f7892979590d2ad461d181b6f6c1a4
+  generated_exact_type get6 location=enum2 nominal_id=a6fa876ca635bfa8c877f70be26d716b1b2dd80a6547eafb7046efc600359584 exact_id=2db08ad6654b663f16cf5655e29b29a8a1161e822b5567207634dc44d213a584
+  generated_exact_type get7 location=enum13 nominal_id=b72cbb7c908a73f17f63d9934f688571bf8a9b4da24a98e6832ed16c03738b58 exact_id=305eb76ad9f3688d5390d88edc953971a5253e47771b3858c5ae290a2b55b64a
+  generated_exact_type get8 location=enum12 nominal_id=cfca01023ade54aeb5383534d3bef896e5b55d2273f1e13e5e96b4161e615cc7 exact_id=32eee5f2c9fc8ad79f3a2b00317075aed69e173c5197b707203dc00f1809cc5f
+  generated_exact_type get9 location=enum14 nominal_id=b0bab4d1ca57a80eb41f24d0de63cce0aab2566af8b23c986190f79d0089047b exact_id=643e9790ce869d6385bbdc8f4fe5d99f8ab65600a69b2e7b49b3d6a87dd13703
+  generated_exact_type get10 location=enum8 nominal_id=626f1ab20f0d83c239e006b6211703f6ff5afc2bdda68389e4a66769d5901009 exact_id=8327b021795340a428f3213d33c8f4635ef84a5afff461c9508b540068aa7f56
+  generated_exact_type get11 location=enum10 nominal_id=e13ecb33b535e968a70c1b6ebb3eac66322f9b59c4a40b4330be0b8337463fae exact_id=93338ac66bcd1ba34bbf5037c9be840386bf323fe20937fac099e4ed1da8bdf7
+  generated_exact_type get12 location=enum6 nominal_id=efacddb66ec4a46a0a14e5c20046edf899da3bca226b33ace6681ce9c0f14eb4 exact_id=d200c0b67bd6d401481f706c7b36b520b20387e2dbd07b6654f2cae416847670
+  generated_exact_type get13 location=enum5 nominal_id=5112dc86d82167d76545e819e64de60d986aafe56bbce4b7fbb9836118f194eb exact_id=dbe546f66d5645898407481f8bec54c3b51399fb99b15ec33bd441b36ce9a9da
+  generated_exact_type get14 location=enum1 nominal_id=48f39a6411dd8ad19cfbf191aec3daa8f193f7f36d8c878f780ff8753929f78a exact_id=e7817494fde69e34f5098f4282206946a8452ea7ef8a0673ae584066719aba69
+  generated_exact_type get15 location=enum16 nominal_id=2c4f21b9672fa4abb0b9c3c7f2459190cab4f2fc9180b93778bcda41fb537432 exact_id=f5e38171c536bae317e250a4cd3e96d22620e469e92a608ab285665b5a6fcf43
+  generated_callable gc0 function=@fn72 id=578a5d850a9df6de310e484cf4d1c3bcfe513104bf4c5d389015bf0017f4c7a2
+  generated_callable gc1 function=@fn67 id=6a2bb2934a169c74e95d8f3fafff76acebccf63cb50b0f3ad2d9841c38502117
+  generated_callable gc2 function=@fn69 id=89af30d3eec2489c68cbf9b8f042f5372e859315370f64a217127c2634daf36e
+  generated_callable gc3 function=@fn74 id=c17f7e24fed4d37953fffda2b8c2c7ed1779423c5fc0c062bba21306cadb6df2
+  generated_callable gc4 function=@fn71 id=ce6fcbbf466d6e95a777af5852c4274bf0935911b733a16d3c8da087f8a99b06
+  generated_callable gc5 function=@fn73 id=f0c878c57a1ce90d80978f56c751670d96450539ca7b04e73761ddb5e20e8b00
+  generated_callable gc6 function=@fn68 id=f5075c00899fe75d44ad90c2a09eeb7b2801e12d07a82945208bbdb60212c024
+  generated_callable gc7 function=@fn70 id=f77bbd79aa63f1e1f5c0b82a62906d1b109e0f5f8f1336c3ec12e35aa57ecc50
+  fun AccessBase.updateInherited @fn0(this: AccessBase, value: Int) -> Int
+    bb0 entry
+      call @fn1 direct
+        Type AccessBase
+        Local this
+        Type Int
+        Local value
+      return
+        Type Int
+        FieldAccess 0
+          Type AccessBase
+          Local this
+  fun AccessBase.$set$inherited @fn1(this: AccessBase, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type AccessBase
+        Local this
+        Type Int
+        Local value
+      return
+  fun DomainCases.inspect @fn2(this: DomainCases) -> Int
+    bb0 entry
+      call @fn4 direct
+        Type DomainCases
+        Local this
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      call @fn5 direct
+        Type DomainCases
+        Local this
+        Type Int
+        IntegerLiteral Int value=18 bits=0x00000012
+      call $dependency.receiver: Int = @fn3 direct
+        Type DomainCases
+        Local this
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 2
+          Type DomainCases
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      assign $new.1
+        Type DomainCases.InternalOwner
+        ClassAlloc DomainCases.InternalOwner
+      call @fn60 direct
+        Type DomainCases.InternalOwner
+        Local $new.1
+      val $receiver: DomainCases.InternalOwner
+        Type DomainCases.InternalOwner
+        Local $new.1
+      call $dependency.argument.0: Int = @fn12 direct
+        Type DomainCases.InternalOwner
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      assign $new.2
+        Type DomainCases.ProtectedOwner
+        ClassAlloc DomainCases.ProtectedOwner
+      call @fn62 direct
+        Type DomainCases.ProtectedOwner
+        Local $new.2
+      val $receiver: DomainCases.ProtectedOwner
+        Type DomainCases.ProtectedOwner
+        Local $new.2
+      call $dependency.argument.0: Int = @fn16 direct
+        Type DomainCases.ProtectedOwner
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun DomainCases.$get$visible @fn3(this: DomainCases) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type DomainCases
+          Local this
+  fun DomainCases.$set$visible @fn4(this: DomainCases, value: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type DomainCases
+        Local this
+        Type Int
+        Local value
+      return
+  fun DomainCases.$set$narrower @fn5(this: DomainCases, value: Int) -> Unit
+    bb0 entry
+      field_set 2
+        Type DomainCases
+        Local this
+        Type Int
+        Local value
+      return
+  fun Registry.inspect @fn6(this: Registry) -> Int
+    bb0 entry
+      call @fn8 direct
+        Type Registry
+        Local this
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      call $dependency.receiver: Int = @fn7 direct
+        Type Registry
+        Local this
+      val $receiver: Registry
+        Type Registry
+        Local this
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type AccessBase
+        Retype AccessBase
+          Type Registry
+          Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Registry.$get$visible @fn7(this: Registry) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Registry
+          Local this
+  fun Registry.$set$visible @fn8(this: Registry, value: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type Registry
+        Local this
+        Type Int
+        Local value
+      return
+  fun FileOwner.inspect @fn9(this: FileOwner) -> Int
+    bb0 entry
+      call @fn10 direct
+        Type FileOwner
+        Local this
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      return
+        Type Int
+        FieldAccess 0
+          Type FileOwner
+          Local this
+  fun FileOwner.$set$guarded @fn10(this: FileOwner, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type FileOwner
+        Local this
+        Type Int
+        Local value
+      return
+  fun FileHolder.inspect @fn11(this: FileHolder) -> Int
+    bb0 entry
+      val $receiver: FileOwner
+        Type FileOwner
+        FieldAccess 0
+          Type FileHolder
+          Local this
+      call $call.1: Int = @fn9 direct
+        Type FileOwner
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun DomainCases.InternalOwner.inspect @fn12(this: DomainCases.InternalOwner) -> Int
+    bb0 entry
+      call @fn13 direct
+        Type DomainCases.InternalOwner
+        Local this
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type DomainCases.InternalOwner
+          Local this
+      assign $new.1
+        Type DomainCases.InternalOwner.PrivateOwner
+        ClassAlloc DomainCases.InternalOwner.PrivateOwner
+      call @fn61 direct
+        Type DomainCases.InternalOwner.PrivateOwner
+        Local $new.1
+      val $receiver: DomainCases.InternalOwner.PrivateOwner
+        Type DomainCases.InternalOwner.PrivateOwner
+        Local $new.1
+      call $dependency.argument.0: Int = @fn14 direct
+        Type DomainCases.InternalOwner.PrivateOwner
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun DomainCases.InternalOwner.$set$guarded @fn13(this: DomainCases.InternalOwner, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type DomainCases.InternalOwner
+        Local this
+        Type Int
+        Local value
+      return
+  fun DomainCases.InternalOwner.PrivateOwner.inspect @fn14(this: DomainCases.InternalOwner.PrivateOwner) -> Int
+    bb0 entry
+      call @fn15 direct
+        Type DomainCases.InternalOwner.PrivateOwner
+        Local this
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      return
+        Type Int
+        FieldAccess 0
+          Type DomainCases.InternalOwner.PrivateOwner
+          Local this
+  fun DomainCases.InternalOwner.PrivateOwner.$set$guarded @fn15(this: DomainCases.InternalOwner.PrivateOwner, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type DomainCases.InternalOwner.PrivateOwner
+        Local this
+        Type Int
+        Local value
+      return
+  fun DomainCases.ProtectedOwner.inspect @fn16(this: DomainCases.ProtectedOwner) -> Int
+    bb0 entry
+      call @fn17 direct
+        Type DomainCases.ProtectedOwner
+        Local this
+        Type Int
+        IntegerLiteral Int value=15 bits=0x0000000f
+      return
+        Type Int
+        FieldAccess 0
+          Type DomainCases.ProtectedOwner
+          Local this
+  fun DomainCases.ProtectedOwner.$set$guarded @fn17(this: DomainCases.ProtectedOwner, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type DomainCases.ProtectedOwner
+        Local this
+        Type Int
+        Local value
+      return
+  fun integerOwner @fn18() -> GenericOwner<Int>
+    bb0 entry
+      assign $new.1
+        Type GenericOwner<Int>
+        ClassAlloc GenericOwner<Int>
+      call @fn63 direct
+        Type GenericOwner<Int>
+        Local $new.1
+      return
+        Type GenericOwner<Int>
+        Local $new.1
+  fun stringOwner @fn19() -> GenericOwner<String>
+    bb0 entry
+      assign $new.1
+        Type GenericOwner<String>
+        ClassAlloc GenericOwner<String>
+      call @fn64 direct
+        Type GenericOwner<String>
+        Local $new.1
+      return
+        Type GenericOwner<String>
+        Local $new.1
+  fun fileHolder @fn20() -> FileHolder
+    bb0 entry
+      assign $new.1
+        Type FileHolder
+        ClassAlloc FileHolder
+      call @fn59 direct
+        Type FileHolder
+        Local $new.1
+      return
+        Type FileHolder
+        Local $new.1
+  fun $init$body$0 @fn21() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Registry
+        ClassAlloc Registry
+      call @fn57 direct
+        Type Registry
+        Local $new.1
+      global_assign $singleton$Registry
+        Type Registry
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn22() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn21 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Registry
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Continuation.resume @fn23(this: Continuation<AccessBase>, value: AccessBase) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn24(this: Continuation<AccessBase>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn25(this: SuspendTask<AccessBase>, $completion: Continuation<AccessBase>) -> CoroutineStep<AccessBase>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<AccessBase>, continuation: Continuation<AccessBase>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn27(this: Continuation<DomainCases>, value: DomainCases) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn28(this: Continuation<DomainCases>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn29(this: SuspendTask<DomainCases>, $completion: Continuation<DomainCases>) -> CoroutineStep<DomainCases>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<DomainCases>, continuation: Continuation<DomainCases>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn31(this: Continuation<Registry>, value: Registry) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn32(this: Continuation<Registry>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn33(this: SuspendTask<Registry>, $completion: Continuation<Registry>) -> CoroutineStep<Registry>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn34(this: SuspendRegistration<Registry>, continuation: Continuation<Registry>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn35(this: Continuation<FileOwner>, value: FileOwner) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn36(this: Continuation<FileOwner>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn37(this: SuspendTask<FileOwner>, $completion: Continuation<FileOwner>) -> CoroutineStep<FileOwner>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn38(this: SuspendRegistration<FileOwner>, continuation: Continuation<FileOwner>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn39(this: Continuation<FileHolder>, value: FileHolder) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn40(this: Continuation<FileHolder>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn41(this: SuspendTask<FileHolder>, $completion: Continuation<FileHolder>) -> CoroutineStep<FileHolder>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn42(this: SuspendRegistration<FileHolder>, continuation: Continuation<FileHolder>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn43(this: Continuation<DomainCases.InternalOwner>, value: DomainCases.InternalOwner) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn44(this: Continuation<DomainCases.InternalOwner>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn45(this: SuspendTask<DomainCases.InternalOwner>, $completion: Continuation<DomainCases.InternalOwner>) -> CoroutineStep<DomainCases.InternalOwner>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn46(this: SuspendRegistration<DomainCases.InternalOwner>, continuation: Continuation<DomainCases.InternalOwner>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn47(this: Continuation<DomainCases.InternalOwner.PrivateOwner>, value: DomainCases.InternalOwner.PrivateOwner) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn48(this: Continuation<DomainCases.InternalOwner.PrivateOwner>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn49(this: SuspendTask<DomainCases.InternalOwner.PrivateOwner>, $completion: Continuation<DomainCases.InternalOwner.PrivateOwner>) -> CoroutineStep<DomainCases.InternalOwner.PrivateOwner>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn50(this: SuspendRegistration<DomainCases.InternalOwner.PrivateOwner>, continuation: Continuation<DomainCases.InternalOwner.PrivateOwner>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn51(this: Continuation<DomainCases.ProtectedOwner>, value: DomainCases.ProtectedOwner) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn52(this: Continuation<DomainCases.ProtectedOwner>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn53(this: SuspendTask<DomainCases.ProtectedOwner>, $completion: Continuation<DomainCases.ProtectedOwner>) -> CoroutineStep<DomainCases.ProtectedOwner>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn54(this: SuspendRegistration<DomainCases.ProtectedOwner>, continuation: Continuation<DomainCases.ProtectedOwner>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.AccessBase.$c0 @fn55(this: AccessBase) -> Unit
+    bb0 entry
+      field_set 0
+        Type AccessBase
+        Local this
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      return
+  fun init.DomainCases.$c1 @fn56(this: DomainCases) -> Unit
+    bb0 entry
+      call @fn55 direct
+        Type AccessBase
+        Retype AccessBase
+          Type DomainCases
+          Local this
+      field_set 1
+        Type DomainCases
+        Local this
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      field_set 2
+        Type DomainCases
+        Local this
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      return
+  fun init.Registry.$c9 @fn57(this: Registry) -> Unit
+    bb0 entry
+      call @fn55 direct
+        Type AccessBase
+        Retype AccessBase
+          Type Registry
+          Local this
+      field_set 1
+        Type Registry
+        Local this
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      return
+  fun init.FileOwner.$c4 @fn58(this: FileOwner) -> Unit
+    bb0 entry
+      field_set 0
+        Type FileOwner
+        Local this
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      return
+  fun init.FileHolder.$c5 @fn59(this: FileHolder) -> Unit
+    bb0 entry
+      assign $new.1
+        Type FileOwner
+        ClassAlloc FileOwner
+      call @fn58 direct
+        Type FileOwner
+        Local $new.1
+      field_set 0
+        Type FileHolder
+        Local this
+        Type FileOwner
+        Local $new.1
+      return
+  fun init.DomainCases.InternalOwner.$c6 @fn60(this: DomainCases.InternalOwner) -> Unit
+    bb0 entry
+      field_set 0
+        Type DomainCases.InternalOwner
+        Local this
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      return
+  fun init.DomainCases.InternalOwner.PrivateOwner.$c7 @fn61(this: DomainCases.InternalOwner.PrivateOwner) -> Unit
+    bb0 entry
+      field_set 0
+        Type DomainCases.InternalOwner.PrivateOwner
+        Local this
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      return
+  fun init.DomainCases.ProtectedOwner.$c8 @fn62(this: DomainCases.ProtectedOwner) -> Unit
+    bb0 entry
+      field_set 0
+        Type DomainCases.ProtectedOwner
+        Local this
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      return
+  fun init.GenericOwner.$c3 @fn63(this: GenericOwner<Int>) -> Unit
+    bb0 entry
+      call @fn65 direct
+        Type GenericBase<Int>
+        Retype GenericBase<Int>
+          Type GenericOwner<Int>
+          Local this
+      field_set 0
+        Type GenericOwner<Int>
+        Local this
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      return
+  fun init.GenericOwner.$c3 @fn64(this: GenericOwner<String>) -> Unit
+    bb0 entry
+      call @fn66 direct
+        Type GenericBase<String>
+        Retype GenericBase<String>
+          Type GenericOwner<String>
+          Local this
+      field_set 0
+        Type GenericOwner<String>
+        Local this
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      return
+  fun init.GenericBase.$c2 @fn65(this: GenericBase<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.GenericBase.$c2 @fn66(this: GenericBase<String>) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<DomainCases> @fn67(task: SuspendTask<DomainCases>, completion: Continuation<DomainCases>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn27 interface Continuation<DomainCases>[0]
+        Type Continuation<DomainCases>
+        Local completion
+        Type DomainCases
+        EnumField v0 f0
+          Type CoroutineStep<DomainCases>
+          Local $step
+      return
+    bb2 failed
+      call @fn28 interface Continuation<DomainCases>[1]
+        Type Continuation<DomainCases>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DomainCases> = @fn29 interface SuspendTask<DomainCases>[0]
+        Type SuspendTask<DomainCases>
+        Local task
+        Type Continuation<DomainCases>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DomainCases>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Registry> @fn68(task: SuspendTask<Registry>, completion: Continuation<Registry>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn31 interface Continuation<Registry>[0]
+        Type Continuation<Registry>
+        Local completion
+        Type Registry
+        EnumField v0 f0
+          Type CoroutineStep<Registry>
+          Local $step
+      return
+    bb2 failed
+      call @fn32 interface Continuation<Registry>[1]
+        Type Continuation<Registry>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Registry> = @fn33 interface SuspendTask<Registry>[0]
+        Type SuspendTask<Registry>
+        Local task
+        Type Continuation<Registry>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Registry>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<FileOwner> @fn69(task: SuspendTask<FileOwner>, completion: Continuation<FileOwner>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn35 interface Continuation<FileOwner>[0]
+        Type Continuation<FileOwner>
+        Local completion
+        Type FileOwner
+        EnumField v0 f0
+          Type CoroutineStep<FileOwner>
+          Local $step
+      return
+    bb2 failed
+      call @fn36 interface Continuation<FileOwner>[1]
+        Type Continuation<FileOwner>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<FileOwner> = @fn37 interface SuspendTask<FileOwner>[0]
+        Type SuspendTask<FileOwner>
+        Local task
+        Type Continuation<FileOwner>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<FileOwner>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<AccessBase> @fn70(task: SuspendTask<AccessBase>, completion: Continuation<AccessBase>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn23 interface Continuation<AccessBase>[0]
+        Type Continuation<AccessBase>
+        Local completion
+        Type AccessBase
+        EnumField v0 f0
+          Type CoroutineStep<AccessBase>
+          Local $step
+      return
+    bb2 failed
+      call @fn24 interface Continuation<AccessBase>[1]
+        Type Continuation<AccessBase>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<AccessBase> = @fn25 interface SuspendTask<AccessBase>[0]
+        Type SuspendTask<AccessBase>
+        Local task
+        Type Continuation<AccessBase>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<AccessBase>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DomainCases.InternalOwner> @fn71(task: SuspendTask<DomainCases.InternalOwner>, completion: Continuation<DomainCases.InternalOwner>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn43 interface Continuation<DomainCases.InternalOwner>[0]
+        Type Continuation<DomainCases.InternalOwner>
+        Local completion
+        Type DomainCases.InternalOwner
+        EnumField v0 f0
+          Type CoroutineStep<DomainCases.InternalOwner>
+          Local $step
+      return
+    bb2 failed
+      call @fn44 interface Continuation<DomainCases.InternalOwner>[1]
+        Type Continuation<DomainCases.InternalOwner>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DomainCases.InternalOwner> = @fn45 interface SuspendTask<DomainCases.InternalOwner>[0]
+        Type SuspendTask<DomainCases.InternalOwner>
+        Local task
+        Type Continuation<DomainCases.InternalOwner>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DomainCases.InternalOwner>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DomainCases.InternalOwner.PrivateOwner> @fn72(task: SuspendTask<DomainCases.InternalOwner.PrivateOwner>, completion: Continuation<DomainCases.InternalOwner.PrivateOwner>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn47 interface Continuation<DomainCases.InternalOwner.PrivateOwner>[0]
+        Type Continuation<DomainCases.InternalOwner.PrivateOwner>
+        Local completion
+        Type DomainCases.InternalOwner.PrivateOwner
+        EnumField v0 f0
+          Type CoroutineStep<DomainCases.InternalOwner.PrivateOwner>
+          Local $step
+      return
+    bb2 failed
+      call @fn48 interface Continuation<DomainCases.InternalOwner.PrivateOwner>[1]
+        Type Continuation<DomainCases.InternalOwner.PrivateOwner>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DomainCases.InternalOwner.PrivateOwner> = @fn49 interface SuspendTask<DomainCases.InternalOwner.PrivateOwner>[0]
+        Type SuspendTask<DomainCases.InternalOwner.PrivateOwner>
+        Local task
+        Type Continuation<DomainCases.InternalOwner.PrivateOwner>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DomainCases.InternalOwner.PrivateOwner>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DomainCases.ProtectedOwner> @fn73(task: SuspendTask<DomainCases.ProtectedOwner>, completion: Continuation<DomainCases.ProtectedOwner>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn51 interface Continuation<DomainCases.ProtectedOwner>[0]
+        Type Continuation<DomainCases.ProtectedOwner>
+        Local completion
+        Type DomainCases.ProtectedOwner
+        EnumField v0 f0
+          Type CoroutineStep<DomainCases.ProtectedOwner>
+          Local $step
+      return
+    bb2 failed
+      call @fn52 interface Continuation<DomainCases.ProtectedOwner>[1]
+        Type Continuation<DomainCases.ProtectedOwner>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DomainCases.ProtectedOwner> = @fn53 interface SuspendTask<DomainCases.ProtectedOwner>[0]
+        Type SuspendTask<DomainCases.ProtectedOwner>
+        Local task
+        Type Continuation<DomainCases.ProtectedOwner>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DomainCases.ProtectedOwner>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<FileHolder> @fn74(task: SuspendTask<FileHolder>, completion: Continuation<FileHolder>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn39 interface Continuation<FileHolder>[0]
+        Type Continuation<FileHolder>
+        Local completion
+        Type FileHolder
+        EnumField v0 f0
+          Type CoroutineStep<FileHolder>
+          Local $step
+      return
+    bb2 failed
+      call @fn40 interface Continuation<FileHolder>[1]
+        Type Continuation<FileHolder>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<FileHolder> = @fn41 interface SuspendTask<FileHolder>[0]
+        Type SuspendTask<FileHolder>
+        Local task
+        Type Continuation<FileHolder>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<FileHolder>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<DomainCases> result=DomainCases
+  coroutine_step cs1 CoroutineStep<Registry> result=Registry
+  coroutine_step cs2 CoroutineStep<FileOwner> result=FileOwner
+  coroutine_step cs3 CoroutineStep<AccessBase> result=AccessBase
+  coroutine_step cs4 CoroutineStep<DomainCases.InternalOwner> result=DomainCases.InternalOwner
+  coroutine_step cs5 CoroutineStep<DomainCases.InternalOwner.PrivateOwner> result=DomainCases.InternalOwner.PrivateOwner
+  coroutine_step cs6 CoroutineStep<DomainCases.ProtectedOwner> result=DomainCases.ProtectedOwner
+  coroutine_step cs7 CoroutineStep<FileHolder> result=FileHolder
+  coroutine_slot cl0 CoroutineSlot<DomainCases> value=DomainCases
+  coroutine_slot cl1 CoroutineSlot<Registry> value=Registry
+  coroutine_slot cl2 CoroutineSlot<FileOwner> value=FileOwner
+  coroutine_slot cl3 CoroutineSlot<AccessBase> value=AccessBase
+  coroutine_slot cl4 CoroutineSlot<DomainCases.InternalOwner> value=DomainCases.InternalOwner
+  coroutine_slot cl5 CoroutineSlot<DomainCases.InternalOwner.PrivateOwner> value=DomainCases.InternalOwner.PrivateOwner
+  coroutine_slot cl6 CoroutineSlot<DomainCases.ProtectedOwner> value=DomainCases.ProtectedOwner
+  coroutine_slot cl7 CoroutineSlot<FileHolder> value=FileHolder
+  coroutine_start ct0 result=DomainCases function=fn67
+  coroutine_start ct1 result=Registry function=fn68
+  coroutine_start ct2 result=FileOwner function=fn69
+  coroutine_start ct3 result=AccessBase function=fn70
+  coroutine_start ct4 result=DomainCases.InternalOwner function=fn71
+  coroutine_start ct5 result=DomainCases.InternalOwner.PrivateOwner function=fn72
+  coroutine_start ct6 result=DomainCases.ProtectedOwner function=fn73
+  coroutine_start ct7 result=FileHolder function=fn74
+  coroutine_fn cf0 @fn25 source_return=AccessBase step=cs3 immediate
+  coroutine_fn cf1 @fn29 source_return=DomainCases step=cs0 immediate
+  coroutine_fn cf2 @fn33 source_return=Registry step=cs1 immediate
+  coroutine_fn cf3 @fn37 source_return=FileOwner step=cs2 immediate
+  coroutine_fn cf4 @fn41 source_return=FileHolder step=cs7 immediate
+  coroutine_fn cf5 @fn45 source_return=DomainCases.InternalOwner step=cs4 immediate
+  coroutine_fn cf6 @fn49 source_return=DomainCases.InternalOwner.PrivateOwner step=cs5 immediate
+  coroutine_fn cf7 @fn53 source_return=DomainCases.ProtectedOwner step=cs6 immediate
+  instance mi0 function=@fn23 <- Continuation.resume
+  instance mi1 function=@fn24 <- Continuation.resumeWithException
+  instance mi2 function=@fn25 <- SuspendTask.run
+  instance mi3 function=@fn26 <- SuspendRegistration.register
+  instance mi4 function=@fn27 <- Continuation.resume
+  instance mi5 function=@fn28 <- Continuation.resumeWithException
+  instance mi6 function=@fn29 <- SuspendTask.run
+  instance mi7 function=@fn30 <- SuspendRegistration.register
+  instance mi8 function=@fn31 <- Continuation.resume
+  instance mi9 function=@fn32 <- Continuation.resumeWithException
+  instance mi10 function=@fn33 <- SuspendTask.run
+  instance mi11 function=@fn34 <- SuspendRegistration.register
+  instance mi12 function=@fn35 <- Continuation.resume
+  instance mi13 function=@fn36 <- Continuation.resumeWithException
+  instance mi14 function=@fn37 <- SuspendTask.run
+  instance mi15 function=@fn38 <- SuspendRegistration.register
+  instance mi16 function=@fn39 <- Continuation.resume
+  instance mi17 function=@fn40 <- Continuation.resumeWithException
+  instance mi18 function=@fn41 <- SuspendTask.run
+  instance mi19 function=@fn42 <- SuspendRegistration.register
+  instance mi20 function=@fn43 <- Continuation.resume
+  instance mi21 function=@fn44 <- Continuation.resumeWithException
+  instance mi22 function=@fn45 <- SuspendTask.run
+  instance mi23 function=@fn46 <- SuspendRegistration.register
+  instance mi24 function=@fn47 <- Continuation.resume
+  instance mi25 function=@fn48 <- Continuation.resumeWithException
+  instance mi26 function=@fn49 <- SuspendTask.run
+  instance mi27 function=@fn50 <- SuspendRegistration.register
+  instance mi28 function=@fn51 <- Continuation.resume
+  instance mi29 function=@fn52 <- Continuation.resumeWithException
+  instance mi30 function=@fn53 <- SuspendTask.run
+  instance mi31 function=@fn54 <- SuspendRegistration.register
+  output library

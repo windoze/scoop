@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m4-enum-errors-guard-not-boolean"
+root = "../../../m4-enum/errors/guard-not-boolean.scoop"
+inputs = ["../../../m4-enum/errors/guard-not-boolean.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m4-enum", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "guard-not-boolean.diagnostics.json"}

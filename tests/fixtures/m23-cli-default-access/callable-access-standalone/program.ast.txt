@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        Call callableDefault<Int>
+        IntLiteral 5
+    Call verifyDefault
+      Binary Eq
+        Call callableDefault<String>
+        IntLiteral 5
+    Call verifyDefault
+      Binary Eq
+        Call callableDefault<Int>
+          IntLiteral 9
+        IntLiteral 9

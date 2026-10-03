@@ -1,0 +1,18 @@
+public var superTrace: Long = 0
+public interface DefaultProperty {
+    public var value: Long
+        get() = 20
+        set(next) { superTrace = next }
+}
+public interface DefaultWide {
+    public fun value(marker: Token, input: Counter): WideValue =
+        WideValue(input.twice(), 0, 0)
+}
+public interface DefaultArguments {
+    public fun compute(marker: Token = Token(), input: Counter = Counter(10), extra: Long = 1): Long =
+        input.twice() + extra
+}
+public class DefaultOwner public constructor(): FirstChoice {
+    public override fun choose(): Long = 1000
+    public fun answer(value: Long = super<FirstChoice>.choose() + 1): Long = value
+}

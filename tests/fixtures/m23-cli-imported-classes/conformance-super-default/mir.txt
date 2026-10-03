@@ -1,0 +1,149 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LocalChoice>
+    Completed(value: LocalChoice)
+    Suspended()
+  enum CoroutineSlot<LocalChoice>
+    Empty()
+    Value(value: LocalChoice)
+  class LocalChoice vtable=0 itables=1
+  class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface FirstChoice
+  interface Continuation<LocalChoice>
+  interface SuspendTask<LocalChoice>
+  interface SuspendRegistration<LocalChoice>
+  generated_exact_type get0 location=enum1 nominal_id=3388a0b8b1b4f285cf2a46c9550550687e840bbbb77b916265af838a8941b95f exact_id=23a2e782697f33c7d07ebe149c8ad54376c8ae85db15f34d1c2cd307616f9073
+  generated_exact_type get1 location=enum2 nominal_id=b497e350b955db889ab17529a9d679bc0b75da1fcfd8c69102c0a5822668bf99 exact_id=6af8272574bff8a9bfa0ecb028a1e933335c9729701b19a7de4a417cffd8e4ef
+  generated_callable gc0 function=@fn8 id=9307fd1ec50d057518c5df640c30223ec5ef4d596b37e7cd2b6bb30a2922ae15
+  fun LocalChoice.choose @fn0(this: LocalChoice) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=1000 bits=0x00000000000003e8
+  fun LocalChoice.answer @fn1(this: LocalChoice, value: Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        Local value
+  fun primary @fn2() -> Counter
+    bb0 entry
+      assign $new.1
+        Type LocalChoice
+        ClassAlloc LocalChoice
+      call @fn7 direct
+        Type LocalChoice
+        Local $new.1
+      val $receiver: LocalChoice
+        Type LocalChoice
+        Local $new.1
+      val $dependency.receiver: FirstChoice
+        Type FirstChoice
+        Retype FirstChoice
+          Type LocalChoice
+          Local $receiver
+      call $dependency.receiver: Long = external0 direct
+        Type FirstChoice
+        Local $dependency.receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $parameter.value: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Long = @fn1 direct
+        Type LocalChoice
+        Local $receiver
+        Type Long
+        Local $parameter.value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun Continuation.resume @fn3(this: Continuation<LocalChoice>, value: LocalChoice) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<LocalChoice>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<LocalChoice>, $completion: Continuation<LocalChoice>) -> CoroutineStep<LocalChoice>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<LocalChoice>, continuation: Continuation<LocalChoice>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.LocalChoice.$c0 @fn7(this: LocalChoice) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<LocalChoice> @fn8(task: SuspendTask<LocalChoice>, completion: Continuation<LocalChoice>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<LocalChoice>[0]
+        Type Continuation<LocalChoice>
+        Local completion
+        Type LocalChoice
+        EnumField v0 f0
+          Type CoroutineStep<LocalChoice>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<LocalChoice>[1]
+        Type Continuation<LocalChoice>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalChoice> = @fn5 interface SuspendTask<LocalChoice>[0]
+        Type SuspendTask<LocalChoice>
+        Local task
+        Type Continuation<LocalChoice>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalChoice>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<LocalChoice> result=LocalChoice
+  coroutine_slot cl0 CoroutineSlot<LocalChoice> value=LocalChoice
+  coroutine_start ct0 result=LocalChoice function=fn8
+  coroutine_fn cf0 @fn5 source_return=LocalChoice step=cs0 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  output library

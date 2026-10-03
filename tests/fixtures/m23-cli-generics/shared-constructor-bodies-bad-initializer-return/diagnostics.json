@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`return` is not allowed in an initializer or constructor body",
+    "notes": [],
+    "origin": {
+      "cone": "600304ca1ef0bee89e158694dac6216a3fa9c5a080bd06f481bb34598ac5eb85",
+      "end": 92,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 86
+    },
+    "severity": "error"
+  }
+]

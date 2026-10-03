@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  fun main()
+    @Unsafe block
+      val box: Box<Int>
+        Call Box
+          IntLiteral 42
+      val alternate: Box<Int>
+        Call Box
+          IntLiteral 42
+          IntLiteral 2
+      val pair: Pair<Int>
+        Call Pair
+          IntLiteral 42
+      if
+        Binary Or
+          Binary Ne
+            FieldAccess value
+              Var pair
+            IntLiteral 42
+          Binary Ne
+            FieldAccess count
+              Var pair
+            IntLiteral 1
+        throw
+          Call IllegalStateException
+      val mixed: Mixed
+        Call Mixed
+          IntLiteral 42
+      @Safe block
+        val safe: Mixed
+          Call Mixed
+            BoolLiteral true
+    Call gcCollect

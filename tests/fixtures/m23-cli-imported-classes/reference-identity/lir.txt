@@ -1,0 +1,51 @@
+Module
+  fun @scoop$1$cb$6ed414a6af36e69fbe1f0a51f0818b739f44fd4fdd5c2782d15c0d6dbbb18f09() -> ptr<managed>
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.parameter.value: i64
+    local %2 value: ptr<managed>
+    local %3 alias: ptr<managed>
+    local %4 $dependency.receiver: ptr<managed>
+    local %5 $dependency.argument.0: i64
+    local %6 $dependency.parameter.value: i64
+    local %7 $dependency.argument.0: i64
+    local %8 $dependency.parameter.value: i64
+    local %9 $logic.1: i1
+    local %10 $new.2: ptr<managed>
+    local %11 $new.3: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000014) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i64) -> ptr<managed> external-fn1(local1)
+    store t0 -> local2
+    store local2 -> local3
+    t1 = Eq local3, local2 : i1
+    cbr t1 then @logic.rhs.1 else @logic.short.2
+  block logic.rhs.1
+    call no-gc-direct-target0 t2 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local2, external-td1)
+    store t2 -> local9
+    br @logic.merge.3
+  block logic.short.2
+    store false -> local9
+    br @logic.merge.3
+  block logic.merge.3
+    cbr local9 then @if.then.4 else @if.merge.5
+  block if.then.4
+    store local2 -> local4
+    call managed-direct-target1 sp<managed-call:3> live=[local4:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>) -> i64 external-fn2(local4)
+    store t3 -> local5
+    store local5 -> local6
+    call managed-direct-target2 sp<managed-call:4> live=[] t4 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    store t4 -> local10
+    call managed-void-target0 sp<managed-call:5> live=[local10:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn3(local10, local6)
+    t5 = aggregate () : {}
+    ret local10
+  block if.merge.5
+    store integer<Long>(0x0000000000000000) -> local7
+    store local7 -> local8
+    call managed-direct-target3 sp<managed-call:1> live=[] t6 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    store t6 -> local11
+    call managed-void-target1 sp<managed-call:2> live=[local11:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn3(local11, local8)
+    t7 = aggregate () : {}
+    ret local11
+  output library

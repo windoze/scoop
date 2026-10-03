@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function argument must be of type Array<Int>, found Array<String>",
+    "notes": [],
+    "origin": {
+      "cone": "c3d8160a2bafa1b3f2bc45f9b1a099cdb2cc2144f42b4f971630092e646c7043",
+      "end": 121,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 114
+    },
+    "severity": "error"
+  }
+]

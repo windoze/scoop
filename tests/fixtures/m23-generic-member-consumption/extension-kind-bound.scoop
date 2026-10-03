@@ -1,0 +1,7 @@
+package consumer.members
+
+import templates.members.*
+
+public class Reference(public val value: Int)
+
+public fun result(): Reference = Box<Reference>(Reference(42)).extensionValueOnly

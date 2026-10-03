@@ -50,7 +50,7 @@ fn method_overloads_resolve() {
     let module = lower_user(file).expect("method overloads must resolve");
 
     // `c.m("a")` picks the `String` overload.
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let callee = body
         .statements
         .iter()
@@ -65,7 +65,7 @@ fn method_overloads_resolve() {
         })
         .expect("expected a materialized method call");
     assert_eq!(
-        module.callable_function(*callee),
+        module.callable_function(crate::tests::local_method_callable(&module, *callee)),
         method_fn(&module, "C", "m", &["String"])
     );
 
@@ -81,7 +81,7 @@ fn method_overloads_resolve() {
         panic!("expected a method call")
     };
     assert_eq!(
-        module.callable_function(*callee),
+        module.callable_function(crate::tests::local_method_callable(&module, *callee)),
         method_fn(&module, "C", "m", &["Int"])
     );
     assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
@@ -123,7 +123,7 @@ fn member_layer_shadows_top_level() {
         )
     };
     assert_eq!(
-        module.callable_function(*callee),
+        module.callable_function(crate::tests::local_method_callable(&module, *callee)),
         method_fn(&module, "C", "value", &[])
     );
 }
@@ -156,9 +156,13 @@ fn inapplicable_local_layer_falls_through_to_top_level() {
         ),
     ]);
     let module = lower_user(file).expect("an inapplicable local layer must be skipped");
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let init = local_init(body, "result");
-    let hir::ExprKind::Call { callee, .. } = &init.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = &init.kind
+    else {
         panic!("the top-level layer must win")
     };
     assert_eq!(
@@ -206,7 +210,11 @@ fn inapplicable_member_layer_falls_through_to_top_level() {
     let probe = method_fn(&module, "Host", "probe", &[]);
     let body = body_of(&module, probe);
     let value = return_value(&body.statements);
-    let hir::ExprKind::Call { callee, .. } = &value.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = &value.kind
+    else {
         panic!("the top-level layer must win")
     };
     assert_eq!(
@@ -254,9 +262,14 @@ fn inapplicable_member_layer_falls_through_to_extension() {
         ),
     ]);
     let module = lower_user(file).expect("an applicable extension layer must be reached");
-    let body = body_of(&module, module.entry);
+    let body = body_of(&module, module.entry());
     let init = local_init(body, "result");
-    let hir::ExprKind::Call { callee, args } = &init.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        args,
+        ..
+    } = &init.kind
+    else {
         panic!("an extension is emitted as a direct call")
     };
     assert_eq!(
@@ -355,7 +368,11 @@ fn layering_is_relative_to_the_call_site_file() {
     let core_print = top_level_fn(&module, "print", &["T0"]);
     let body = body_of(&module, core_print);
     let value = expression_statement(body, 0);
-    let hir::ExprKind::Call { callee, .. } = &value.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = &value.kind
+    else {
         panic!("expected a call")
     };
     assert_eq!(module.callable_function(*callee), core_write);
@@ -370,7 +387,11 @@ fn layering_is_relative_to_the_call_site_file() {
         };
         Some(value)
     }) {
-        let hir::ExprKind::Call { callee, .. } = &value.kind else {
+        let hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } = &value.kind
+        else {
             panic!("expected a call")
         };
         assert_eq!(module.callable_function(*callee), core_write);

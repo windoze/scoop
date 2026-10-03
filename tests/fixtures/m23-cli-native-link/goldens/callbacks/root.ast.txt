@@ -1,0 +1,115 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_callbacks", name = "m23_callback_invoke")
+  fun invokeNative(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Int
+    @Extern(name = "scoop_rt_thread_debug_count")
+  fun threadCount(): ULong
+  fun main()
+    val marker
+      Binary Add
+        StringLiteral "callback-"
+        StringLiteral "alive"
+    @Unsafe block
+      val inner
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 0 suspend=false
+            param value: Int
+            Call gcCollect
+            Binary Add
+              Var value
+              IntLiteral 1
+          IntLiteral 1L
+          FieldAccess Reusable
+            Var ForeignCallbackMode
+      val outer
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 1 suspend=false
+            param value: Int
+            val live
+              Binary Add
+                Var marker
+                MethodCall toString
+                  Var value
+            var checked
+              Unary Neg
+                IntLiteral 1000
+            @Unsafe block
+              val result
+                Call invokeNative
+                  FieldAccess function
+                    Var inner
+                  FieldAccess context
+                    Var inner
+                  Var value
+              Call gcCollect
+              assign checked
+                IfExpression
+                  Binary Eq
+                    Var live
+                    Binary Add
+                      Var marker
+                      MethodCall toString
+                        Var value
+                  Binary Add
+                    Var result
+                    IntLiteral 1
+                  else
+                  Unary Neg
+                    IntLiteral 1000
+            Var checked
+          IntLiteral 1L
+          FieldAccess Reusable
+            Var ForeignCallbackMode
+      Call println
+        Call invokeNative
+          FieldAccess function
+            Var outer
+          FieldAccess context
+            Var outer
+          IntLiteral 40
+      Call println
+        WhenExpression
+          Call foreignCallbackState
+            Var outer
+          arm ForeignCallbackState.Registered()
+            BoolLiteral true
+          else
+            BoolLiteral false
+      Call releaseForeignCallback
+        Var outer
+      Call releaseForeignCallback
+        Var inner
+      val oneShot
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 2 suspend=false
+            param value: Int
+            Binary Add
+              Var value
+              IntLiteral 2
+          IntLiteral 1L
+          FieldAccess OneShot
+            Var ForeignCallbackMode
+      val observer
+        Call retainForeignCallback
+          Var oneShot
+      Call println
+        Call invokeNative
+          FieldAccess function
+            Var oneShot
+          FieldAccess context
+            Var oneShot
+          IntLiteral 40
+      Call println
+        WhenExpression
+          Call foreignCallbackState
+            Var observer
+          arm ForeignCallbackState.Completed()
+            BoolLiteral true
+          else
+            BoolLiteral false
+      Call releaseForeignCallback
+        Var observer
+      Call println
+        Call threadCount
+      Call println
+        Var marker

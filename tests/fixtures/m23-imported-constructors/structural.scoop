@@ -1,0 +1,24 @@
+package consumer.constructors
+
+import dependency.constructors.Token
+import dependency.constructors.Wide
+import dependency.constructors.TupleOps
+import dependency.constructors.TupleBox
+import dependency.constructors.TupleMarker
+import dependency.constructors.tupleChoiceSum
+import dependency.constructors.tupleIdentity
+import dependency.constructors.tupleDefault
+import dependency.constructors.tupleProjection
+
+@NoGC public fun token(): Token = Token()
+@NoGC public fun primary(): Wide {
+    val fields = tupleIdentity((-29, Token(), 53))
+    return Wide(TupleBox((fields._2, (17, fields._1, fields._3), Token())).elements)
+}
+@NoGC public fun secondary(): Wide {
+    val marker = TupleMarker((Token(), Token())).elements
+    val fields = TupleOps().nested((marker._1, (5, 8, 11), marker._2))
+    return Wide(fields)
+}
+@NoGC public fun defaults(): Long = tupleChoiceSum(tupleIdentity((3, Token(), 9))) + tupleDefault() + tupleProjection(TupleOps().pair) - 24
+@NoGC public fun republished(value: (Long, Token, Long) = tupleIdentity((1, Token(), 5))): Long = TupleOps().sum(value)

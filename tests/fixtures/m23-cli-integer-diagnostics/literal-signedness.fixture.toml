@@ -1,0 +1,15 @@
+schema = 1
+name = "integer-diagnostics-literal-signedness"
+inputs = ["literal-signedness.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["integer-diagnostics", "negative", "overloads"]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "${fixture}/literal-signedness.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "literal-signedness.diagnostics.json"}

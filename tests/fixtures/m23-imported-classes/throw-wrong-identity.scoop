@@ -1,0 +1,2 @@
+public class Throwable public constructor()
+public fun invalid() { throw Throwable() }

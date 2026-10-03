@@ -1,0 +1,51 @@
+SourceFile
+  RootPackage
+  public fun store(): Store
+    =
+      Call Store
+  public fun child(): Child
+    =
+      Call Child
+SourceFile
+  RootPackage
+  public interface View
+    public open val token: Int <computed>
+      get()
+        IntLiteral 3
+  public open class Store(), View
+    public fun observe
+    protected var state: Int = <expr>
+      IntLiteral 1
+    protected val readonly: Int <computed>
+      get()
+        Var state
+    protected var privateWriter: Int <computed>
+      get()
+        IntLiteral 2
+      private set(value)
+    public open var internalWriter: Int <computed>
+      get()
+        IntLiteral 3
+      internal set(value)
+    public var exposed: Int <computed>
+      get()
+        IntLiteral 4
+      protected set(value)
+    private val ignored: Int = <expr>
+      IntLiteral 9
+    public val unrelated: Int = <expr>
+      IntLiteral 8
+  public abstract class Abstract()
+    protected abstract val obligation: Int <abstract>
+  public class Child() : Store(<0 args>)
+    public final override var internalWriter: Int <computed>
+      get()
+        IntLiteral 5
+      internal set(value)
+  public struct Value : View
+    public final override val token: Int <computed>
+      get()
+        IntLiteral 6
+  public object Constants
+    public const val marker: Int <const> = <expr>
+      IntLiteral 7

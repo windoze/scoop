@@ -1,0 +1,125 @@
+Module
+  struct Holder (payload: Payload<Int>)
+  struct Payload<Int> (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Holder>
+    Completed(value: Holder)
+    Suspended()
+  enum CoroutineSlot<Holder>
+    Empty()
+    Value(value: Holder)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Holder> vtable=0 itables=0
+  interface Continuation<Holder>
+  interface SuspendTask<Holder>
+  interface SuspendRegistration<Holder>
+  generated_exact_type get0 location=class3 nominal_id=5787fb3fe6f73227e7c95f5ff854be86d2fd9ebd6fd26fc2163476481afc43a8 exact_id=8a6c671f555619b64651bdcce99523385dc469c0fe91882ceb81c1a35b8c84fd
+  generated_exact_type get1 location=enum2 nominal_id=63a5af0158c38316141e6c6459dd132b4752b18c8110961ba2005f9d99f835d2 exact_id=e46ec8087958fa2cc80d46815657c4a072eb8caf9adbc43840d637fb145cf048
+  generated_exact_type get2 location=enum1 nominal_id=a1eef0ef96ce980cf074820e7d13059f8e62f9dd586234982f308a954b0763d4 exact_id=f82443d723b62aec5f48fc060c50f3404d45ae800f83fd9adb5725c4d61b2a01
+  generated_callable gc0 function=@fn8 id=1c2925874c9da411a247dd1409721d4018f0fe12a18bfe88376deb1d47c4cfdc
+  fun Holder.equals @fn0(this: Holder, other: Holder) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn1 direct
+        Type Payload<Int>
+        FieldAccess 0
+          Type Holder
+          Local this
+        Type Payload<Int>
+        FieldAccess 0
+          Type Holder
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun Payload.equals @fn1(this: Payload<Int>, other: Payload<Int>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Payload<Int>
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Payload<Int>
+            Local other
+  fun keepPayload @fn2(value: Payload<Int>) -> Payload<Int> <no-gc>
+    bb0 entry
+      return
+        Type Payload<Int>
+        Local value
+  fun Continuation.resume @fn3(this: Continuation<Holder>, value: Holder) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<Holder>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<Holder>, $completion: Continuation<Holder>) -> CoroutineStep<Holder>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<Holder>, continuation: Continuation<Holder>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Holder.$c1 @fn7(payload: Payload<Int>) -> Holder <no-gc>
+    bb0 entry
+      return
+        Type Holder
+        StructInit Holder
+          Type Payload<Int>
+          Local payload
+  fun startCoroutine<Holder> @fn8(task: SuspendTask<Holder>, completion: Continuation<Holder>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<Holder>[0]
+        Type Continuation<Holder>
+        Local completion
+        Type Holder
+        EnumField v0 f0
+          Type CoroutineStep<Holder>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<Holder>[1]
+        Type Continuation<Holder>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Holder> = @fn5 interface SuspendTask<Holder>[0]
+        Type SuspendTask<Holder>
+        Local task
+        Type Continuation<Holder>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Holder>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Holder> result=Holder
+  coroutine_slot cl0 CoroutineSlot<Holder> value=Holder
+  coroutine_start ct0 result=Holder function=fn8
+  coroutine_fn cf0 @fn5 source_return=Holder step=cs0 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  output library

@@ -122,7 +122,8 @@ fn barrier_module() -> Module {
         instructions: vec![],
         terminator: Terminator::Br(header),
     };
-    Module {
+    let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -134,8 +135,9 @@ fn barrier_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            callable_body: callable_body_at(file!(), line!()),
+            safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![METADATA_PTR, MANAGED_PTR], LirType::Void),
             call_targets,
             locals: Arena::default(),
@@ -143,9 +145,13 @@ fn barrier_module() -> Module {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop_main".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta,
-    }
+    };
+    refresh_module_safepoints(&mut module);
+    module
 }
 
 #[test]
@@ -164,11 +170,20 @@ fn functions_carry_the_gc_strategy_and_poll_safepoints() {
 fn no_gc_functions_carry_neither_gc_strategy_nor_safepoint_polls() {
     let mut module = barrier_module();
     module.functions[0].gc_effect = GcEffect::NoGc;
+    module.output = scoop_lir::LirOutput::Executable {
+        entry: no_gc_function_ref(0),
+    };
     for (_, block) in module.functions[0].blocks.iter_mut() {
-        block
-            .instructions
-            .retain(|instruction| !matches!(instruction, Instruction::ManagedPoll { .. }));
+        block.instructions.retain(|instruction| {
+            !matches!(
+                instruction,
+                Instruction::ManagedPoll { .. }
+                    | Instruction::Call { .. }
+                    | Instruction::HeapStore { .. }
+            )
+        });
     }
+    refresh_test_safepoints(&mut module.functions[0]);
     let ir = ir_of(&module);
     assert!(
         !ir.contains("gc \"statepoint-example\""),

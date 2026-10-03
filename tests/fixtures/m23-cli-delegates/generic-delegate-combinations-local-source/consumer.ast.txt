@@ -1,0 +1,25 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportExact Local templates.delegateCombinations.Payload
+  private class LocalReceiver<T>(val value: T)
+  private class LocalSlot<T>(val payload: Payload)
+    public operator fun getValue
+    public operator fun setValue
+  private var <T>LocalReceiver<T>.shared: Int by <expr>
+  public fun exercise<T>(value: T): Int
+    val first
+      Call LocalReceiver<T>
+        Var value
+    compound-assign Add
+      Var first
+      IntLiteral 2
+    Call Payload
+      IntLiteral 0
+    return
+      FieldAccess shared
+        Call LocalReceiver<T>
+          Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

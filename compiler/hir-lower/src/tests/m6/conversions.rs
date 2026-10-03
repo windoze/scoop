@@ -82,14 +82,21 @@ fn class_to_interface_is_a_zero_cost_retype() {
     ]);
     let module = lower_user(file).expect("upcasts must lower");
 
-    // No Box: the local is retyped to the interface.
+    // The upcast preserves the source class without allocating a box.
     let up = returned(body_of(&module, "up"));
-    assert!(matches!(up.kind, hir::ExprKind::Local(_)));
+    let hir::ExprKind::ReferenceUpcast(source) = &up.kind else {
+        panic!("a reference upcast retains its source expression")
+    };
+    assert!(matches!(source.kind, hir::ExprKind::Local(_)));
+    assert!(matches!(module.types[source.ty], hir::Type::Class(..)));
     assert!(matches!(module.types[up.ty], hir::Type::Interface(..)));
 
     match &returned(body_of(&module, "mk")).kind {
         hir::ExprKind::ArrayLiteral(elements) => {
-            assert!(matches!(elements[0].kind, hir::ExprKind::Local(_)));
+            assert!(matches!(
+                elements[0].kind,
+                hir::ExprKind::ReferenceUpcast(_)
+            ));
             assert!(matches!(
                 module.types[elements[0].ty],
                 hir::Type::Interface(..)
@@ -171,7 +178,11 @@ fn is_cast_and_ref_eq() {
         hir::ExprKind::Cast { optional: true, .. } => match &module.types[down_opt.ty] {
             hir::Type::Enum(application) => {
                 let application = &module.enum_applications[*application];
-                assert_eq!(application.template, module.option_core.enumeration());
+                assert_eq!(
+                    application.template,
+                    module.nominal_identities[defined_export_core(&module).option.enumeration()]
+                        .declaration_id()
+                );
                 assert_eq!(application.arguments.len(), 1);
                 assert!(matches!(
                     module.types[application.arguments[0]],
@@ -228,7 +239,7 @@ fn smart_cast_narrows_value_types_with_unbox() {
                 hir::ExprKind::FieldAccess { receiver, field } => {
                     assert!(matches!(
                         field,
-                        hir::FieldRef::StructField(field) if field.local_index() == 0
+                        hir::FieldRef::StructField { field, .. } if module.field_identities.struct_declaration(*field).unwrap().local_index() == 0
                     ));
                     // The narrowed access unboxes the Any local.
                     assert!(matches!(receiver.kind, hir::ExprKind::Unbox(_)));
@@ -272,7 +283,10 @@ fn smart_cast_narrows_class_references_for_free() {
                     receiver, callee, ..
                 } => {
                     assert_eq!(
-                        module.functions[module.callable_function(*callee)].name,
+                        module.functions[module.callable_function(
+                            crate::tests::local_method_callable(&module, *callee)
+                        )]
+                        .name,
                         "Shape.describe"
                     );
                     // The receiver is the same local, retyped — no Unbox.

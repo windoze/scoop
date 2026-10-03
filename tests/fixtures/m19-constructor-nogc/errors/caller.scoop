@@ -1,0 +1,3 @@
+struct Bad() { constructor(flag: Boolean): this() {} }
+@NoGC fun make(): Bad = Bad(true)
+fun main() {}

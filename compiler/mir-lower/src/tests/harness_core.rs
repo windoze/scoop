@@ -24,33 +24,44 @@ impl Harness {
             owner: None,
             name: "Option".to_string(),
             access: hir::NominalAccess::public(),
-            self_application: option_self_application,
-            type_params: vec![type_param("T")],
-            gc_free_pointee_requirements: Vec::new(),
-            no_gc: false,
-            variants: vec![
-                hir::Variant {
-                    name: "Some".to_string(),
-                    fields: vec![hir::Field {
-                        name: "_1".to_string(),
-                        ty: t,
-                    }],
-                },
-                hir::Variant {
-                    name: "None".to_string(),
-                    fields: Vec::new(),
-                },
-            ],
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
             methods: Vec::new(),
             properties: Vec::new(),
             derived_equality: None,
             span: SPAN,
+
+            definition: hir::EnumDefinition {
+                self_application: option_self_application,
+                type_params: vec![type_param("T")],
+                variants: vec![
+                    hir::Variant {
+                        name: "Some".to_string(),
+                        style: hir::VariantStyle::Positional,
+                        fields: vec![hir::Field {
+                            name: "_1".to_string(),
+                            ty: t,
+                        }],
+                    },
+                    hir::Variant {
+                        name: "None".to_string(),
+                        style: hir::VariantStyle::Unit,
+                        fields: Vec::new(),
+                    },
+                ],
+                interfaces: Vec::new(),
+                interface_implementations: Vec::new(),
+
+                gc_free_pointee_requirements: Vec::new(),
+                no_gc: false,
+            },
         });
         let option_self_type = hir::TypeId::from_raw((types.len() as u32).into());
         let actual_option_self_application = enum_applications.alloc(hir::EnumApplication {
-            template: option_enum,
+            template: super::harness_nominals::test_source_nominal_identity(
+                "Option",
+                scoop_identity::SourceNominalKind::Enum,
+                1,
+            )
+            .declaration_id(),
             arguments: vec![t],
             canonical_type: option_self_type,
         });
@@ -61,6 +72,7 @@ impl Harness {
         enum_applications_by_key.insert((option_enum, vec![t]), actual_option_self_application);
         Harness {
             types,
+            function_types: Arena::new(),
             functions,
             extern_functions,
             generic_functions: Arena::new(),
@@ -99,7 +111,6 @@ impl Harness {
             boolean,
             string,
             option_enum,
-            needs_initialization_core: false,
             write: None,
             long_to_string: None,
             bool_to_string: None,
@@ -139,18 +150,19 @@ impl Harness {
             return_type: self.unit,
         });
         let id = self.functions.alloc(hir::Function {
-            name: "write".to_string(),
+            signature: hir::CallableSignature {
+                name: "write".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.unit,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.unit,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Extern(extern_id),
             method: None,
-            span: SPAN,
         });
         self.top_level.push(id);
         self.write = Some(id);
@@ -176,18 +188,19 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
-            name: "coreLongToString".to_string(),
+            signature: hir::CallableSignature {
+                name: "coreLongToString".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.string,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.string,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Extern(extern_id),
             method: None,
-            span: SPAN,
         });
         self.top_level.push(id);
         self.long_to_string = Some(id);
@@ -212,18 +225,19 @@ impl Harness {
             return_type: self.string,
         });
         let id = self.functions.alloc(hir::Function {
-            name: "coreBooleanToString".to_string(),
+            signature: hir::CallableSignature {
+                name: "coreBooleanToString".to_string(),
+                is_suspend: false,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty: self.string,
+                attributes: hir::FunctionAttributes::default(),
+                span: SPAN,
+            },
             access: hir::DeclarationAccess::public(),
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: false,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty: self.string,
-            attributes: hir::FunctionAttributes::default(),
             kind: hir::FunctionKind::Extern(extern_id),
             method: None,
-            span: SPAN,
         });
         self.top_level.push(id);
         self.bool_to_string = Some(id);
@@ -345,7 +359,13 @@ impl Harness {
                     expr_stmt(call_typed(write, vec![local_ref(message, string)], unit)),
                     expr_stmt(call_typed(
                         write,
-                        vec![expr(hir::ExprKind::StringLiteral("\n".to_string()), string)],
+                        vec![expr(
+                            hir::ExprKind::StringLiteral {
+                                value: "\n".to_string(),
+                                owner: hir::StringConstantOwner::CurrentDefinition,
+                            },
+                            string,
+                        )],
                         unit,
                     )),
                 ],

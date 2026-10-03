@@ -1,0 +1,55 @@
+SourceFile
+  RootPackage
+  class DefaultGate(var waiter: Continuation<Int>?)
+    fun complete
+  class DefaultRegistration(val gate: DefaultGate), SuspendRegistration<Int>
+    public fun register
+  suspend fun awaitDefault(gate: DefaultGate): Int
+    =
+      Call suspendCoroutine
+        Call DefaultRegistration
+          Var gate
+  fun afterResume(): Int
+    Call println
+      StringLiteral "after-resume"
+    return
+      IntLiteral 1
+  suspend fun calculate(gate: DefaultGate, value: Int = <expr>, tail: Int = <expr>): Int
+    Call println
+      StringLiteral "callee"
+    return
+      Binary Add
+        Var value
+        Var tail
+  class DefaultTask(val gate: DefaultGate), SuspendTask<Int>
+    public suspend fun run
+  class ExplicitTask(val gate: DefaultGate), SuspendTask<Int>
+    public suspend fun run
+  class NumberCompletion(val label: String), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val defaultGate
+      Call DefaultGate
+        Var None
+    val explicitGate
+      Call DefaultGate
+        Var None
+    Call startCoroutine
+      Call DefaultTask
+        Var defaultGate
+      Call NumberCompletion
+        StringLiteral "default-result"
+    Call startCoroutine
+      Call ExplicitTask
+        Var explicitGate
+      Call NumberCompletion
+        StringLiteral "explicit-result"
+    Call println
+      StringLiteral "returned"
+    MethodCall complete
+      Var defaultGate
+      IntLiteral 40
+    MethodCall complete
+      Var explicitGate
+      IntLiteral 41

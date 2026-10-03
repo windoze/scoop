@@ -1,0 +1,89 @@
+SourceFile
+  QualifiedPackage consumer.enums
+  ImportExact Local dependency.enums.Choice
+  ImportExact Local dependency.enums.Flag
+  ImportExact Local dependency.enums.Token
+  ImportExact Local dependency.enums.Marker
+  ImportExact Local dependency.enums.Draft
+  ImportExact Local dependency.enums.sum
+  public struct Carrier
+    field value: Choice
+    field markers: (Token, Token)
+  enum Wrapper
+    Empty
+    Value(Choice, (Token, Token), Draft)
+    @NoGC
+  public fun relay(value: Choice): Choice
+    =
+      Var value
+    @NoGC
+  public fun defaultScore(value: Choice = <expr>): Long
+    =
+      Call sum
+        Var value
+    @NoGC
+  public fun defaultFlag(value: Flag = <expr>): Long
+    =
+      WhenExpression
+        Var value
+        arm Off
+          IntLiteral 0
+        arm On
+          IntLiteral 1
+    @NoGC
+  public fun defaultMarker(value: Marker = <expr>): Long
+    =
+      WhenExpression
+        Var value
+        arm Only
+          IntLiteral 0
+    @NoGC
+  public fun test(): Long
+    val carrier
+      Call Carrier
+        Call Pair
+          Argument left=
+            IntLiteral 17
+          Argument marker=
+            Call Token
+          Argument right=
+            Unary Neg
+              IntLiteral 29
+        TupleLiteral
+          Call Token
+          Call Token
+    val wrapped
+      MethodCall Value
+        Var Wrapper
+        Call relay
+          FieldAccess value
+            Var carrier
+        FieldAccess markers
+          Var carrier
+        Call Defaults
+          IntLiteral 47
+    return
+      WhenExpression
+        Var wrapped
+        arm Empty
+          IntLiteral 0
+        arm Value(choice, _, draft)
+          Binary Add
+            Call sum
+              Var choice
+            WhenExpression
+              Var draft
+              arm Absent
+                IntLiteral 0
+              arm Position(left, _, right)
+                Binary Add
+                  Var left
+                  Var right
+              arm Named{left, right, ..}
+                Binary Add
+                  Var left
+                  Var right
+              arm Defaults{left, right, ..}
+                Binary Add
+                  Var left
+                  Var right

@@ -1,0 +1,61 @@
+SourceFile
+  RootPackage
+  interface Label
+    fun label
+  struct Point : ToString, Hash, Label
+    field x: Int
+    field y: Int
+    public fun toString
+    public fun hash
+    fun label
+  class User(val id: Int), ToString, Hash
+    public fun toString
+    public fun hash
+    operator fun equals
+  class RenderBox<T : ToString>(val value: T), ToString
+    public fun toString
+  struct RenderPair<T : ToString> : ToString
+    field first: T
+    field second: T
+    public fun toString
+  enum RenderState<T : ToString> : ToString
+    Value(T)
+    Empty
+  fun render<T>(value: T): String where T : ToString
+    =
+      MethodCall toString
+        Var value
+  fun main()
+    val point
+      Call Point
+        IntLiteral 20
+        IntLiteral 22
+    Call println
+      Var point
+    Call println
+      MethodCall hash
+        Var point
+    val first
+      Call User
+        IntLiteral 42
+    val second
+      Call User
+        IntLiteral 42
+    Call println
+      Binary Eq
+        Var first
+        Var second
+    Call println
+      Call RenderBox
+        Var point
+    Call println
+      Call RenderPair
+        Var point
+        Var point
+    Call println
+      MethodCall Value
+        Var RenderState
+        Var point
+    Call println
+      Call render
+        Var point

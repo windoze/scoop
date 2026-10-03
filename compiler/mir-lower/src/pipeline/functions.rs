@@ -1,32 +1,56 @@
 use super::*;
 
+mod native;
+
 impl Lowerer {
-    /// Lower one fully concrete user function.
+    /// Lower one fully concrete source implementation or abstract slot.
     pub(super) fn lower_user_function(
         &mut self,
         module: &hir::Module,
         hir_id: hir::FunctionId,
+        mir_id: mir::FunctionId,
+        string_owner: mir::ImmortalObjectOwner,
     ) -> (Vec<mir::Param>, mir::Type, smir::Body) {
         let function = &module.functions[hir_id];
-        let hir::FunctionKind::User(body) = &function.kind else {
-            unreachable!("only user functions have MIR bodies")
-        };
-        let current_local_capture_params = module
-            .local_functions
-            .iter()
-            .find(|(_, local)| local.function == hir_id)
-            .map(|(_, local)| {
-                local
-                    .captures
-                    .iter()
-                    .zip(function.params.iter())
-                    .map(|(capture, param)| (capture.binding, param.local))
-                    .collect()
-            })
-            .unwrap_or_default();
         let current_closure = self.closure_by_function.get(&hir_id).copied();
+        let mut lowerer = self.body_lowerer(module, mir_id, function.materialization, string_owner);
+        lowerer.current_local_capture_params = function
+            .capture_parameters
+            .iter()
+            .map(|capture| (capture.binding, capture.local))
+            .collect();
+        lowerer.current_closure = current_closure;
+        if let Some(callback) = module
+            .native_callback_signatures
+            .iter()
+            .find(|callback| callback.function == hir_id)
+        {
+            lowerer.ensure_callback_bridge(
+                hir::CallableTarget::Local(hir::Callable::Function(hir_id)),
+                callback.signature,
+                function.span,
+            );
+        }
+        lowerer.lower_function(hir_id, function)
+    }
+
+    pub(crate) fn body_lowerer<'a>(
+        &'a mut self,
+        module: &'a hir::Module,
+        function: mir::FunctionId,
+        materialization: hir::CallableMaterialization,
+        string_owner: mir::ImmortalObjectOwner,
+    ) -> BodyLowerer<'a> {
         BodyLowerer {
             module,
+            core_protocols: &self.core_protocols,
+            external_callables: &self.external_callables,
+            source_exact_types: &mut self.source_exact_types,
+            local_values: &mut self.local_values,
+            current_function: function,
+            current_materialization: materialization,
+            current_string_owner: string_owner,
+            next_string_ordinal: 0,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
             interfaces: &mut self.interfaces,
@@ -34,6 +58,8 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
+            imported_dependency_callable_map: &self.imported_dependency_callable_map,
+            imported_singleton_map: &self.imported_singleton_map,
             global_map: &self.global_map,
             singleton_root_map: &self.singleton_root_map,
             singleton_published_roots: &self.singleton_published_roots,
@@ -43,7 +69,7 @@ impl Lowerer {
             foreign_callback_families: &mut self.foreign_callback_families,
             foreign_callback_family_by_callback: &mut self.foreign_callback_family_by_callback,
             foreign_callback_bridges: &mut self.foreign_callback_bridges,
-            foreign_callback_by_registration: &mut self.foreign_callback_by_registration,
+            foreign_callback_by_application: &mut self.foreign_callback_by_application,
             ctors: &self.ctors,
             struct_ctors: &self.struct_ctors,
             strings: &mut self.strings,
@@ -68,18 +94,18 @@ impl Lowerer {
             reference_closures: &self.reference_closures,
             closure_classes: &mut self.closure_classes,
             closure_invokes: &mut self.closure_invokes,
-            closure_capture_indices: &mut self.closure_capture_indices,
+            closure_capture_indices: &self.closure_capture_indices,
+            closure_receiver_indices: &self.closure_receiver_indices,
             closure_adapters: &mut self.closure_adapters,
             closure_adapter_by_types: &mut self.closure_adapter_by_types,
             dynamic_closure_adapters: &mut self.dynamic_closure_adapters,
             dynamic_adapter_by_target: &mut self.dynamic_adapter_by_target,
             function_bridge_targets: &mut self.function_bridge_targets,
             suspend_sources: &mut self.suspend_sources,
-            current_closure,
+            current_closure: None,
             current_closure_local: None,
-            current_local_capture_params,
+            current_local_capture_params: HashMap::new(),
             contains_suspend_call: false,
         }
-        .lower_function(function, body)
     }
 }

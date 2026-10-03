@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency constructor `Pair` named-field variants require every argument to be named",
+    "notes": [],
+    "origin": {
+      "cone": "7b27dfa646207a3d40b3351b6022cebaa1aac32e1f1d2c10da9b13c4b8939d7f",
+      "end": 111,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  }
+]

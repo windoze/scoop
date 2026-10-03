@@ -1,0 +1,20 @@
+SourceFile
+  QualifiedPackage upstream.structs
+  public interface Readable<T>
+    fun get
+  public interface Reader<T> : Readable<T>
+    fun read
+  public struct RemoteCell<T> : Reader<T>
+    field value: T
+    field optional: T?
+    public fun get
+    @CLayout
+  public struct NativePair
+    field left: Int
+    field right: Int
+  public fun create<T>(value: T): RemoteCell<T>
+    =
+      Call RemoteCell
+        Var value
+        Call Some
+          Var value

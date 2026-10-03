@@ -1,0 +1,142 @@
+SourceFile
+  QualifiedPackage consumer.coroutines
+  ImportStar Local templates.coroutines.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val gate
+      Call Gate<T>
+    val cleanup
+      Call Gate<Unit>
+    val counter
+      Call Counter
+    val done
+      Call Completion<T>
+    Call startCoroutine
+      Call recoveringFunction
+        Var gate
+        Var cleanup
+        Var seed
+        Var counter
+      Var done
+    if
+      Binary Ne
+        FieldAccess calls
+          Var done
+        IntLiteral 0
+      return
+        IntLiteral 2
+    MethodCall fail
+      Var gate
+      Call UnwrapException
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var done
+          IntLiteral 0
+        Binary Ne
+          FieldAccess value
+            Var counter
+          IntLiteral 0
+      return
+        IntLiteral 3
+    MethodCall complete
+      Var cleanup
+      UnitLiteral
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess calls
+              Var done
+            IntLiteral 1
+          Binary Ne
+            FieldAccess value
+              Var counter
+            IntLiteral 1
+        Binary Ne
+          Call read
+            NullAssert
+              FieldAccess value
+                Var done
+          IntLiteral 42
+      return
+        IntLiteral 4
+    val failedGate
+      Call Gate<T>
+    val failedCleanup
+      Call Gate<Unit>
+    val failedCounter
+      Call Counter
+    val failed
+      Call Completion<T>
+    val task: suspend () -> T
+      Lambda 0 suspend=true
+        parameters omitted
+        Call delayedFinally
+          Var failedGate
+          Var failedCleanup
+          Var failedCounter
+    Call startCoroutine
+      Var task
+      Var failed
+    MethodCall fail
+      Var failedGate
+      Call UnwrapException
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess calls
+            Var failed
+          IntLiteral 0
+        Binary Ne
+          FieldAccess value
+            Var failedCounter
+          IntLiteral 0
+      return
+        IntLiteral 5
+    val retained
+      Call Counter
+    assign .value
+      Var retained
+      IntLiteral 42
+    MethodCall complete
+      Var failedCleanup
+      UnitLiteral
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess calls
+              Var failed
+            IntLiteral 1
+          Binary Ne
+            FieldAccess value
+              Var failedCounter
+            IntLiteral 1
+        Binary Ne
+          FieldAccess value
+            Var retained
+          IntLiteral 42
+      return
+        IntLiteral 6
+    if
+      Unary Not
+        Is UnwrapException false
+          NullAssert
+            FieldAccess failure
+              Var failed
+      return
+        IntLiteral 7
+    return
+      Call read
+        Var seed
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: Int
+          Var value
+  fun main()
+    Call println
+      Call result

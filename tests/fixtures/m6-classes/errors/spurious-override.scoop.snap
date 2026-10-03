@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m6-classes/errors/spurious-override.scoop:2:18: error: `f` is marked `override` but does not override any method

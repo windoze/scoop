@@ -28,27 +28,23 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
         type_arguments: Vec::new(),
         gc_free: true,
         variants: vec![
-            mir::VariantDef {
-                name: "Value".to_string(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            test_variant(
+                "Value".to_string(),
+                true,
+                vec![mir::Field {
                     name: "value".to_string(),
                     ty: mir::Type::Struct(outer),
                 }],
-            },
-            mir::VariantDef {
-                name: "Empty".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
-            mir::VariantDef {
-                name: "Number".to_string(),
-                gc_free: true,
-                fields: vec![mir::Field {
+            ),
+            test_variant("Empty".to_string(), true, Vec::new()),
+            test_variant(
+                "Number".to_string(),
+                true,
+                vec![mir::Field {
                     name: "value".to_string(),
                     ty: INT,
                 }],
-            },
+            ),
         ],
     });
     let outer_array = b.array("Array<Outer>", mir::Type::Struct(outer));
@@ -57,7 +53,15 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     locals.alloc(local("values", outer_array));
     locals.alloc(local("wrapped", wrapped_array));
     let main = b.main(locals, vec![]);
-    let module = lower(&b.finish(main));
+    let source = b.finish(main);
+    let outer_exact = source
+        .meta
+        .source_exact_types
+        .get(&mir::Type::Struct(outer))
+        .expect("C-layout struct has an exact identity")
+        .identity_record()
+        .id();
+    let module = lower(source);
 
     let inner_def = &module.structs[struct_def_id(inner)];
     assert_eq!((inner_def.size, inner_def.align), (8, 8));
@@ -77,6 +81,18 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
                 offset: 1,
                 access_align: 1,
             },
+        ]
+    );
+    assert_eq!(
+        inner_def
+            .c_fields()
+            .expect("Inner is a C-layout struct")
+            .iter()
+            .map(|field| field.identity)
+            .collect::<Vec<_>>(),
+        [
+            test_field_identity("Inner", "flag"),
+            test_field_identity("Inner", "value"),
         ]
     );
 
@@ -110,6 +126,19 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
             },
         ]
     );
+    assert_eq!(
+        outer_def
+            .c_fields()
+            .expect("Outer is a C-layout struct")
+            .iter()
+            .map(|field| field.identity)
+            .collect::<Vec<_>>(),
+        [
+            test_field_identity("Outer", "tag"),
+            test_field_identity("Outer", "inner"),
+            test_field_identity("Outer", "tail"),
+        ]
+    );
     assert!(outer_def.interior_mutable);
     assert_eq!(
         outer_def.c_layout(),
@@ -122,6 +151,15 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     let outer_layout = layout_values(&module)
         .find(|layout| layout.name == "Outer")
         .expect("Outer layout");
+    assert_eq!(
+        outer_layout.identity,
+        lir::LayoutIdentity::c_value(
+            outer_exact,
+            lir::LirTargetProfile::DARWIN_AARCH64,
+            lir::MaterializationRoot::cone_owned(),
+        )
+        .unwrap()
+    );
     assert_eq!((outer_layout.size, outer_layout.align), (16, 16));
     assert_eq!(
         outer_layout.fields,
@@ -135,7 +173,10 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     assert!(outer_layout.interior_mutable);
     let array_layout = array_metadata(&module, "Array<Outer>");
     assert_eq!(
-        (array_layout.element_size, array_layout.element_align),
+        (
+            array_layout.layout.instance().inline_size(),
+            array_layout.layout.instance().inline_alignment()
+        ),
         (16, 16)
     );
     let wrapped_layout = layout_values(&module)
@@ -144,7 +185,10 @@ fn c_layout_keeps_packing_alignment_offsets_and_identity() {
     assert_eq!((wrapped_layout.size, wrapped_layout.align), (32, 16));
     let wrapped_array = array_metadata(&module, "Array<Wrapped>");
     assert_eq!(
-        (wrapped_array.element_size, wrapped_array.element_align),
+        (
+            wrapped_array.layout.instance().inline_size(),
+            wrapped_array.layout.instance().inline_alignment()
+        ),
         (32, 16)
     );
     assert!(lir::dump(&module).contains(
@@ -161,18 +205,18 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
         type_arguments: Vec::new(),
         gc_free: false,
         variants: vec![
-            mir::VariantDef {
-                name: "Text".to_string(),
-                gc_free: false,
-                fields: vec![mir::Field {
+            test_variant(
+                "Text".to_string(),
+                false,
+                vec![mir::Field {
                     name: "value".to_string(),
                     ty: mir::Type::String,
                 }],
-            },
-            mir::VariantDef {
-                name: "Pair".to_string(),
-                gc_free: false,
-                fields: vec![
+            ),
+            test_variant(
+                "Pair".to_string(),
+                false,
+                vec![
                     mir::Field {
                         name: "flag".to_string(),
                         ty: mir::Type::Boolean,
@@ -182,17 +226,13 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
                         ty: mir::Type::String,
                     },
                 ],
-            },
-            mir::VariantDef {
-                name: "Empty".to_string(),
-                gc_free: true,
-                fields: Vec::new(),
-            },
+            ),
+            test_variant("Empty".to_string(), true, Vec::new()),
         ],
     });
     // A niche enum inside a struct: the value itself is the
     // reference.
-    let option_s = b.option_enum("Option$S", mir::Type::String);
+    let option_s = b.option_enum("Option<String>", mir::Type::String);
     let _s = b.strukt(
         "S",
         &[("o", mir::Type::Enum(option_s, vec![mir::Type::String]))],
@@ -222,7 +262,7 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     locals.alloc(local("messages", messages_array));
     locals.alloc(local("nestedValues", nested_array));
     let main = b.main(locals, Vec::new());
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let by_name = |name: &str| {
         layout_values(&module)
@@ -261,7 +301,7 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
 
     // The niche layout: the payload variant is the reference
     // itself; the unit variant has none.
-    let option_layout = by_name("Option$S");
+    let option_layout = by_name("Option<String>");
     assert_eq!((option_layout.size, option_layout.align), (8, 8));
     let lir::LayoutKind::Enum { scan } = &option_layout.kind else {
         panic!("an enum layout keeps fixed scan offsets")
@@ -284,20 +324,28 @@ fn recursive_scans_preserve_tagged_enums_in_aggregates_and_arrays() {
     );
 
     let holder_td = descriptor_values(&module)
-        .find(|td| td.name == "Holder")
+        .find(|td| td.diagnostic_name == "Holder")
         .expect("Holder TypeDescriptor");
-    assert_eq!((holder_td.size, holder_td.align), (64, 8));
+    assert_eq!(
+        (
+            holder_td.instance_shape.minimum_size(),
+            holder_td.instance_shape.instance_alignment()
+        ),
+        (64, 8)
+    );
     assert_eq!(
         *fixed_scan(holder_td),
         lir::RefScan::References(vec![16, 40, 56])
     );
 
     let array_scan = |name: &str| {
-        array_scan(descriptor(
-            &module,
-            array_metadata(&module, name).type_descriptor,
-        ))
-        .clone()
+        let array = array_metadata(&module, name);
+        assert_eq!(
+            *array.layout.instance().inline_scan(),
+            *array_scan(descriptor(&module, array.type_descriptor)),
+            "array metadata and its descriptor must carry one closed element scan"
+        );
+        array.layout.instance().inline_scan().clone()
     };
     assert_eq!(
         array_scan("Array<Msg>"),

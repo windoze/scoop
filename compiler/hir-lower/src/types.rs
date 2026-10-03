@@ -65,13 +65,19 @@ mod adaptation;
 mod arrays;
 mod constraints;
 mod display;
+mod fields;
 mod interning;
 mod invariance;
 mod kinds;
 mod layout_cycles;
+mod nominal;
+mod qualified;
 mod relations;
 mod resolution;
 mod substitution;
+mod variants;
+
+pub(crate) use qualified::ResolvedTypeName;
 
 fn type_value_equal(types: &Arena<Type>, a: TypeId, b: TypeId) -> bool {
     match (&types[a], &types[b]) {

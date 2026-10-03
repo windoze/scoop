@@ -23,101 +23,74 @@ fn llvm_lowering_consumes_the_profile_managed_address_space() {
 
 #[test]
 fn typed_intrinsic_string_supplies_the_only_descriptor_definition() {
-    let ir = ir_of(&values_module());
+    let module = values_module();
+    let string_symbol = type_descriptor_symbol(&module, "String");
+    let definition = format!("@\"{string_symbol}\" =");
+    let ir = ir_of(&module);
     assert_eq!(
-        ir.match_indices("@scoop_td_String =").count(),
+        ir.match_indices(&definition).count(),
         1,
         "String must have exactly one descriptor definition"
     );
-    assert!(ir.contains("@scoop_td_String ="));
+    assert!(ir.contains(&definition));
 }
 
 #[test]
-fn emits_complete_image_root_and_immortal_tables() {
+fn low_level_codegen_does_not_emit_legacy_image_tables() {
     let mut module = values_module();
+    let storage_identity = static_storage_identity("managedGlobal");
     module.globals.alloc(Global {
-        symbol: "scoop.global.managed".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
         init: GlobalInit::Storage {
+            identity: storage_identity,
+            layout: layout_identity(
+                "managedGlobal",
+                scoop_identity::RepresentationRole::ManagedValue,
+            )
+            .into(),
             ty: MANAGED_PTR,
             initial_state: LirStaticInitialState::EncodedStaticValue {
                 payload: LirConstantImage::NullPointer(PointerKind::Managed),
             },
-            thread_local: false,
         },
     });
 
     let ir = ir_of(&module);
-    assert!(
-        ir.contains(
-            "@scoop.global.managed.global_refs = private constant [2 x i64] [i64 1, i64 0]"
-        ),
-        "managed global scan is missing:\n{ir}"
-    );
-    assert!(
-        ir.contains("@scoop_image_managed_globals = constant [1 x { ptr, ptr }]")
-            && ir.contains("ptr @scoop.global.managed")
-            && ir.contains("ptr @scoop.global.managed.global_refs"),
-        "managed global descriptor table is incomplete:\n{ir}"
-    );
-    assert!(
-        ir.contains("@scoop_image_managed_global_count = constant i64 1"),
-        "managed global count is wrong:\n{ir}"
-    );
-    assert!(
-        ir.contains("@scoop_image_immortal_objects = constant [2 x { ptr, i64, ptr }]")
-            && ir.contains("ptr addrspacecast (ptr addrspace(1) @scoop.string.0 to ptr)")
-            && ir.contains("ptr addrspacecast (ptr addrspace(1) @scoop.string.1 to ptr)")
-            && ir.contains("ptr @scoop_td_String"),
-        "immortal object descriptor table is incomplete:\n{ir}"
-    );
-    assert!(
-        ir.contains("@scoop_image_immortal_object_count = constant i64 2"),
-        "immortal object count is wrong:\n{ir}"
-    );
+    assert!(!ir.contains("@scoop_image_managed_globals"), "{ir}");
+    assert!(!ir.contains("@scoop_image_managed_global_count"), "{ir}");
+    assert!(!ir.contains("@scoop_image_immortal_objects"), "{ir}");
+    assert!(!ir.contains("@scoop_image_immortal_object_count"), "{ir}");
 }
 
 #[test]
-fn emits_addressable_zero_count_image_tables() {
+fn empty_module_does_not_emit_legacy_image_sentinels() {
     let module = enum_module();
     let ir = ir_of(&module);
-    assert!(
-        ir.contains("@scoop_image_managed_globals = constant [1 x { ptr, ptr }] zeroinitializer")
-            && ir.contains("@scoop_image_managed_global_count = constant i64 0"),
-        "empty managed-global table lacks its sentinel/count:\n{ir}"
-    );
-    assert!(
-        ir.contains(
-            "@scoop_image_immortal_objects = constant [1 x { ptr, i64, ptr }] zeroinitializer"
-        ) && ir.contains("@scoop_image_immortal_object_count = constant i64 0"),
-        "empty immortal table lacks its sentinel/count:\n{ir}"
-    );
+    assert!(!ir.contains("@scoop_image_managed_globals"), "{ir}");
+    assert!(!ir.contains("@scoop_image_immortal_objects"), "{ir}");
 }
 
 #[test]
-fn managed_thread_local_global_is_rejected_at_codegen_boundary() {
+fn raw_thread_local_global_rejects_managed_references() {
     let mut module = values_module();
+    let identity = static_storage_identity("managedTls");
     module.globals.alloc(Global {
-        symbol: "scoop.tls.managed".to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::References(vec![0]),
-        init: GlobalInit::Storage {
+        init: GlobalInit::RawStorage {
+            identity,
             ty: MANAGED_PTR,
-            initial_state: LirStaticInitialState::EncodedStaticValue {
-                payload: LirConstantImage::NullPointer(PointerKind::Managed),
-            },
+            initializer: LirConstantImage::NullPointer(PointerKind::Managed),
             thread_local: true,
         },
     });
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
-        .expect_err("managed TLS requires per-thread image-root registration");
+        .expect_err("raw TLS cannot contain managed references");
     assert!(
-        error
-            .0
-            .contains("thread-local global `@scoop.tls.managed` contains managed references"),
+        error.0.contains("raw storage must be GC-free"),
         "unexpected error: {error}"
     );
 }
@@ -165,7 +138,7 @@ fn native_calls_publish_roots_transition_and_reload() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_wait".to_string(),
+        bridge: outbound_bridge(1),
         signature: scoop_lir::CFunctionType {
             params: Vec::new(),
             return_type: scoop_lir::CReturnType::Void,
@@ -208,8 +181,9 @@ fn native_calls_publish_roots_transition_and_reload() {
         },
     });
     let safe = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "safe_root".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: safe_targets,
         locals: Arena::default(),
@@ -219,10 +193,7 @@ fn native_calls_publish_roots_transition_and_reload() {
     };
 
     let mut borrowed_locals = Arena::default();
-    let result_root = borrowed_locals.alloc(Local {
-        name: "native_result_root".to_string(),
-        ty: MANAGED_PTR,
-    });
+    let result_root = borrowed_locals.alloc(test_local("native_result_root", MANAGED_PTR));
     let mut borrowed_temps = Arena::default();
     let result = borrowed_temps.alloc(Temp { ty: MANAGED_PTR });
     let mut borrowed_targets = CallTargets::default();
@@ -258,8 +229,9 @@ fn native_calls_publish_roots_transition_and_reload() {
         },
     });
     let borrowed_function = Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "borrowed_result".to_string(),
         signature: plain_scoop_signature(vec![MANAGED_PTR], MANAGED_PTR),
         call_targets: borrowed_targets,
         locals: borrowed_locals,
@@ -268,7 +240,8 @@ fn native_calls_publish_roots_transition_and_reload() {
         entry: borrowed_entry,
     };
 
-    let module = Module {
+    let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -280,9 +253,13 @@ fn native_calls_publish_roots_transition_and_reload() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![safe, borrowed_function],
-        entry_symbol: "safe_root".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     };
+    install_test_native_function_contract(&mut module, 1);
+    refresh_module_safepoints(&mut module);
 
     let ir = ir_of(&module);
     assert!(ir.contains("@scoop_rt_push_caller_roots"));
@@ -359,6 +336,7 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         },
     });
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -370,8 +348,9 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            callable_body: callable_body_at(file!(), line!()),
+            safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: "continuation_atomics".to_string(),
             signature: plain_scoop_signature(vec![MANAGED_PTR], state_ty),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
@@ -379,7 +358,9 @@ fn continuation_state_atomics_keep_their_llvm_orderings() {
             blocks,
             entry,
         }],
-        entry_symbol: "continuation_atomics".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     };
 

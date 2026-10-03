@@ -1,0 +1,27 @@
+Module
+  fun @scoop$1$cb$15c36b5b121a539e5b7a5180a08dc7f9d78ee19ddfbc55069f24250c611dfa3a(ptr<managed>) -> ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    ret param0
+  fun @scoop$1$cb$6fedf63215a0bed0833061f9ed84b7186443b5fb712fdc9d30a78d1069b1dc95() -> ptr<managed>
+    local %0 $dependency.parameter.value: ptr<managed>
+    local %1 message: ptr<managed>
+    local %2 $argument.0: ptr<managed>
+    local %3 $parameter.value: ptr<managed>
+    local %4 copy: ptr<managed>
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> external-fn0()
+    store t0 -> local0
+    call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>) -> ptr<managed> external-fn1(local0)
+    store t1 -> local1
+    store local1 -> local2
+    store local2 -> local3
+    call managed-direct-target2 sp<managed-call:2> live=[local3:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>) -> ptr<managed> local-fn0(local3)
+    store t2 -> local4
+    ret local4
+  fun @scoop$1$cb$105370264951022c5fbff5885a313b962c98f4be04967a8b3ac563fab16a8ad2(ptr<managed>) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret false
+  output library

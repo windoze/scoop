@@ -1,0 +1,43 @@
+public open class Outer {
+    protected open class Hidden {
+        public var state: Int = 1
+        public fun read(): Int = state
+        private fun helper(): Int = state
+        public fun call(): Int = helper()
+        protected fun secret(): Int = state
+        protected var guarded: Int = 2
+    }
+    protected interface View {
+        public fun read(): Int = helper()
+        private fun helper(): Int = 3
+    }
+    protected struct Value(val state: Int) {
+        public fun read(): Int = state
+    }
+    protected enum Flag {
+        Ready,
+        public fun read(): Int = 1
+    }
+    protected object Cache {
+        private var state: Int = 1
+        public fun read(): Int = state
+        public fun write() { state = 2 }
+    }
+    class NestedUse {
+        private fun read(target: Outer.Hidden): Int = target.read()
+        private fun write(target: Outer.Hidden) { target.state = 3 }
+    }
+}
+class Derived : Outer() {
+    private class Sub : Outer.Hidden() {
+        fun readOwn(): Int = secret()
+        fun writeOwn() { guarded = 3 }
+        fun readBase(target: Outer.Hidden): Int = target.state
+    }
+    private fun read(target: Outer.Hidden): Int = target.call()
+    private fun create(): Int = Outer.Hidden().read()
+    companion object {
+        private fun read(target: Outer.Hidden): Int = target.read()
+    }
+}
+fun main() {}

@@ -1,0 +1,197 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Derived>
+    Completed(value: Derived)
+    Suspended()
+  enum CoroutineSlot<Derived>
+    Empty()
+    Value(value: Derived)
+  class Derived vtable=3 itables=0
+  class AbstractParent vtable=3 itables=0
+  class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Derived>
+  interface SuspendTask<Derived>
+  interface SuspendRegistration<Derived>
+  generated_exact_type get0 location=enum2 nominal_id=506ba79845b2b6fe7f2555a687064fc465d07e0aedc44fda4e9bad9a3a48ec85 exact_id=374b65a72ae8c71e50a77fe5213c6ea20aada0495980833d235dce245fdaded5
+  generated_exact_type get1 location=enum1 nominal_id=81c68f9a336f22dc6f7a7251a2a32bee114544cc6c5b25705680d649b4a87c93 exact_id=a23a35a8a90403e28236b191909098fb28567b5775bfc73c141f45f808591072
+  generated_callable gc0 function=@fn9 id=e4da93c80b3e9c959cb275924bc044c008da973656272342a80a9db5dc0b9f12
+  fun Derived.read @fn0(this: Derived) -> Long
+    bb0 entry
+      call $dependency.receiver: Long = external5 direct
+        Type AbstractParent
+        Retype AbstractParent
+          Type Derived
+          Local this
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun Derived.$get$value @fn1(this: Derived) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 1
+          Type Derived
+          Local this
+  fun Derived.$set$value @fn2(this: Derived, value: Long) -> Unit
+    bb0 entry
+      field_set 1
+        Type Derived
+        Local this
+        Type Long
+        Local value
+      return
+  fun primary @fn3() -> Counter
+    bb0 entry
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call @fn8 direct
+        Type Derived
+        Local $new.1
+      val value: AbstractParent
+        Type AbstractParent
+        Retype AbstractParent
+          Type Derived
+          Local $new.1
+      val $dependency.receiver: AbstractParent
+        Type AbstractParent
+        Local value
+      call $dependency.receiver: Long = external0 virtual[0]
+        Type AbstractParent
+        Local $dependency.receiver
+      call $dependency.argument.0: Long = external1 virtual[1]
+        Type AbstractParent
+        Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external4 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun Continuation.resume @fn4(this: Continuation<Derived>, value: Derived) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Derived>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Derived>, $completion: Continuation<Derived>) -> CoroutineStep<Derived>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Derived>, continuation: Continuation<Derived>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Derived.$c0 @fn8(this: Derived) -> Unit
+    bb0 entry
+      val $dependency.parameter.seed: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      call external3 direct
+        Type AbstractParent
+        Retype AbstractParent
+          Type Derived
+          Local this
+        Type Long
+        Local $dependency.parameter.seed
+      field_set 1
+        Type Derived
+        Local this
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      return
+  fun startCoroutine<Derived> @fn9(task: SuspendTask<Derived>, completion: Continuation<Derived>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Derived>[0]
+        Type Continuation<Derived>
+        Local completion
+        Type Derived
+        EnumField v0 f0
+          Type CoroutineStep<Derived>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Derived>[1]
+        Type Continuation<Derived>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Derived> = @fn6 interface SuspendTask<Derived>[0]
+        Type SuspendTask<Derived>
+        Local task
+        Type Continuation<Derived>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Derived>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Derived> result=Derived
+  coroutine_slot cl0 CoroutineSlot<Derived> value=Derived
+  coroutine_start ct0 result=Derived function=fn9
+  coroutine_fn cf0 @fn6 source_return=Derived step=cs0 immediate
+  instance mi0 function=@fn4 <- Continuation.resume
+  instance mi1 function=@fn5 <- Continuation.resumeWithException
+  instance mi2 function=@fn6 <- SuspendTask.run
+  instance mi3 function=@fn7 <- SuspendRegistration.register
+  output library

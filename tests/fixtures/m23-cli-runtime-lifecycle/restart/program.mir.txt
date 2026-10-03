@@ -1,0 +1,11 @@
+Module
+  extern ef0 registerRestart @m23_register_restart() -> Unit <abi=c no-gc lib=m23_lifecycle>
+  fun registerRestart @fn0() -> Unit
+    bb0 entry
+      call extern0 @m23_register_restart direct
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call extern0 @m23_register_restart direct
+      return
+  output executable @fn1

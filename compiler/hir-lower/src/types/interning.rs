@@ -3,19 +3,16 @@ use super::*;
 impl Lowerer {
     /// Intern a type, so structurally equal types share a single
     /// `TypeId` (this makes instantiation dedup a plain id comparison).
-    /// On a dedup hit the fresh entry simply stays unreferenced
-    /// (nothing iterates the arena semantically).
+    /// Deduplication happens before allocation so the arena itself remains a
+    /// canonical set and every entry can receive one persistent identity.
     pub(crate) fn intern_type(&mut self, candidate: Type) -> TypeId {
         if let Type::Function(function) = &candidate {
             return self.function_types[*function].canonical_type;
         }
-        let id = self.types.alloc(candidate);
-        for (other, _) in self.types.iter() {
-            if other != id && type_value_equal(&self.types, other, id) {
-                return other;
-            }
+        if let Some((existing, _)) = self.types.iter().find(|(_, value)| *value == &candidate) {
+            return existing;
         }
-        id
+        self.types.alloc(candidate)
     }
 
     /// Intern one complete function signature and return its ordinary HIR
@@ -72,20 +69,26 @@ impl Lowerer {
         template: StructId,
         arguments: Vec<TypeId>,
     ) -> hir::StructApplicationId {
+        let template = self
+            .nominal_identity(crate::Owner::Struct(template))
+            .declaration_id();
+        self.intern_struct_application(template, arguments)
+    }
+
+    pub(crate) fn intern_struct_application(
+        &mut self,
+        template: hir::SourceNominalId,
+        arguments: Vec<TypeId>,
+    ) -> hir::StructApplicationId {
         let key = (template, arguments.clone());
         if let Some(&application) = self.struct_application_by_key.get(&key) {
             return application;
         }
-        let intrinsic = match self.structs[template].representation {
-            hir::StructRepresentation::Declared(_) => None,
-            hir::StructRepresentation::Intrinsic(intrinsic) => Some(intrinsic),
-        };
+        let intrinsic = self.nominal_intrinsic_kind(template);
         let representation = intrinsic.map_or(
             hir::StructApplicationRepresentation::Declared,
             |intrinsic| {
-                hir::StructApplicationRepresentation::Intrinsic(
-                    intrinsic.kind.application(&arguments),
-                )
+                hir::StructApplicationRepresentation::Intrinsic(intrinsic.application(&arguments))
             },
         );
         let deferred_fun_ptr = matches!(
@@ -119,7 +122,7 @@ impl Lowerer {
             }
         };
         let application = self.struct_applications.alloc(hir::StructApplication {
-            template,
+            template: key.0,
             arguments,
             canonical_type,
             representation,
@@ -150,13 +153,24 @@ impl Lowerer {
         template: hir::EnumId,
         arguments: Vec<TypeId>,
     ) -> hir::EnumApplicationId {
+        let template = self
+            .nominal_identity(crate::Owner::Enum(template))
+            .declaration_id();
+        self.intern_enum_application(template, arguments)
+    }
+
+    pub(crate) fn intern_enum_application(
+        &mut self,
+        template: hir::SourceNominalId,
+        arguments: Vec<TypeId>,
+    ) -> hir::EnumApplicationId {
         let key = (template, arguments.clone());
         if let Some(&application) = self.enum_application_by_key.get(&key) {
             return application;
         }
         let canonical_type = hir::TypeId::from_raw((self.types.len() as u32).into());
         let application = self.enum_applications.alloc(hir::EnumApplication {
-            template,
+            template: key.0,
             arguments,
             canonical_type,
         });
@@ -180,19 +194,25 @@ impl Lowerer {
         template: hir::ClassId,
         arguments: Vec<TypeId>,
     ) -> hir::ClassApplicationId {
+        let template = self
+            .nominal_identity(crate::Owner::Class(template))
+            .declaration_id();
+        self.intern_class_application(template, arguments)
+    }
+
+    pub(crate) fn intern_class_application(
+        &mut self,
+        template: hir::SourceNominalId,
+        arguments: Vec<TypeId>,
+    ) -> hir::ClassApplicationId {
         let key = (template, arguments.clone());
         if let Some(&application) = self.class_application_by_key.get(&key) {
             return application;
         }
-        let intrinsic = match self.classes[template].representation {
-            hir::ClassRepresentation::Declared => None,
-            hir::ClassRepresentation::Intrinsic(intrinsic) => Some(intrinsic),
-        };
+        let intrinsic = self.nominal_intrinsic_kind(template);
         let representation =
             intrinsic.map_or(hir::ClassApplicationRepresentation::Declared, |intrinsic| {
-                hir::ClassApplicationRepresentation::Intrinsic(
-                    intrinsic.kind.application(&arguments),
-                )
+                hir::ClassApplicationRepresentation::Intrinsic(intrinsic.application(&arguments))
             });
         let canonical_type = match &representation {
             hir::ClassApplicationRepresentation::Intrinsic(
@@ -210,7 +230,7 @@ impl Lowerer {
             }
         };
         let application = self.class_applications.alloc(hir::ClassApplication {
-            template,
+            template: key.0,
             arguments,
             canonical_type,
             representation,
@@ -240,17 +260,20 @@ impl Lowerer {
 
     pub(crate) fn class_constructor_application(
         &mut self,
-        constructor: hir::ClassConstructorId,
+        constructor: impl Into<hir::ClassConstructorDefinition>,
         owner: hir::ClassApplicationId,
     ) -> hir::ClassConstructorApplicationId {
+        let constructor = constructor.into();
         let key = (constructor, owner);
         if let Some(&application) = self.class_constructor_application_by_key.get(&key) {
             return application;
         }
-        debug_assert_eq!(
-            self.class_constructors[constructor].owner,
-            self.class_applications[owner].template
-        );
+        if let hir::ClassConstructorDefinition::Local(constructor) = constructor {
+            debug_assert_eq!(
+                self.class_constructors[constructor].owner,
+                self.class_id(self.class_applications[owner].template)
+            );
+        }
         let application = self
             .class_constructor_applications
             .alloc(hir::ClassConstructorApplication { constructor, owner });
@@ -261,17 +284,20 @@ impl Lowerer {
 
     pub(crate) fn struct_constructor_application(
         &mut self,
-        constructor: hir::StructConstructorId,
+        constructor: impl Into<hir::StructConstructorDefinition>,
         owner: hir::StructApplicationId,
     ) -> hir::StructConstructorApplicationId {
+        let constructor = constructor.into();
         let key = (constructor, owner);
         if let Some(&application) = self.struct_constructor_application_by_key.get(&key) {
             return application;
         }
-        debug_assert_eq!(
-            self.struct_constructors[constructor].owner,
-            self.struct_applications[owner].template
-        );
+        if let hir::StructConstructorDefinition::Local(constructor) = constructor {
+            debug_assert_eq!(
+                self.struct_constructors[constructor].owner,
+                self.struct_id(self.struct_applications[owner].template)
+            );
+        }
         let application = self
             .struct_constructor_applications
             .alloc(hir::StructConstructorApplication { constructor, owner });
@@ -285,6 +311,17 @@ impl Lowerer {
         template: hir::InterfaceId,
         arguments: Vec<TypeId>,
     ) -> hir::InterfaceApplicationId {
+        let template = self
+            .nominal_identity(crate::Owner::Interface(template))
+            .declaration_id();
+        self.intern_interface_application(template, arguments)
+    }
+
+    pub(crate) fn intern_interface_application(
+        &mut self,
+        template: hir::SourceNominalId,
+        arguments: Vec<TypeId>,
+    ) -> hir::InterfaceApplicationId {
         let key = (template, arguments.clone());
         if let Some(&application) = self.interface_application_by_key.get(&key) {
             return application;
@@ -293,7 +330,7 @@ impl Lowerer {
         let application = self
             .interface_applications
             .alloc(hir::InterfaceApplication {
-                template,
+                template: key.0,
                 arguments,
                 canonical_type,
             });
@@ -303,7 +340,7 @@ impl Lowerer {
         application
     }
 
-    pub(crate) fn intern_interface_application(
+    pub(crate) fn source_interface_type(
         &mut self,
         template: hir::InterfaceId,
         arguments: Vec<TypeId>,

@@ -1,5 +1,7 @@
 use super::*;
 
+mod declaration;
+
 #[derive(Clone, Copy)]
 pub(crate) enum ObjectSource<'a> {
     Object(&'a ast::ObjectDecl),
@@ -176,236 +178,12 @@ impl Lowerer {
             .then_some(companion)
     }
 
-    pub(crate) fn declare_object<'a>(
-        &mut self,
-        declaration: &'a ast::ObjectDecl,
-        pending: &mut Vec<(ObjectId, ObjectSource<'a>, usize)>,
-        pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
-        file: usize,
-        owner: Option<Owner>,
-    ) -> Option<ObjectId> {
-        self.declare_singleton(
-            ObjectSource::Object(declaration),
-            pending,
-            pending_methods,
-            file,
-            owner,
-        )
-    }
-
-    pub(crate) fn declare_companion<'a>(
-        &mut self,
-        declaration: &'a ast::CompanionObjectDecl,
-        pending: &mut Vec<(ObjectId, ObjectSource<'a>, usize)>,
-        pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
-        file: usize,
-        owner: Owner,
-    ) -> Option<ObjectId> {
-        self.declare_singleton(
-            ObjectSource::Companion(declaration),
-            pending,
-            pending_methods,
-            file,
-            Some(owner),
-        )
-    }
-
-    fn declare_singleton<'a>(
-        &mut self,
-        source: ObjectSource<'a>,
-        pending: &mut Vec<(ObjectId, ObjectSource<'a>, usize)>,
-        pending_methods: &mut Vec<(FunctionId, &'a ast::FunctionDecl, usize, Owner)>,
-        file: usize,
-        owner: Option<Owner>,
-    ) -> Option<ObjectId> {
-        let (name, name_span) = source.name();
-        self.reject_type_annotations(source.article_description(), source.annotations());
-        if matches!(source, ObjectSource::Companion(_))
-            && owner.is_some_and(|host| self.companion_by_host.contains_key(&host))
-        {
-            self.error(
-                source.span(),
-                "a nominal declaration may contain at most one companion object".to_string(),
-            );
-            return None;
-        }
-        let lookup_names = if matches!(source, ObjectSource::Companion(_)) && name != "Companion" {
-            vec![name, "Companion"]
-        } else {
-            vec![name]
-        };
-        if let Some((conflict, kind)) = lookup_names.iter().find_map(|lookup_name| {
-            self.type_namespace_conflict(owner, lookup_name)
-                .map(|kind| (*lookup_name, kind))
-        }) {
-            let message = if matches!(source, ObjectSource::Companion(_)) {
-                format!(
-                    "companion object name `{conflict}` conflicts with {kind} in the same owner"
-                )
-            } else if kind == "an object" {
-                format!("duplicate object `{name}`")
-            } else {
-                format!("duplicate type `{name}` (already declared as {kind})")
-            };
-            self.error(name_span, message);
-            return None;
-        }
-
-        let access = match owner {
-            Some(owner) => self.nested_nominal_access(
-                source.visibility(),
-                name_span,
-                source.description(),
-                owner,
-                file,
-            ),
-            None => self.nominal_access(source.visibility(), name_span, source.description(), file),
-        };
-        let object_id = ObjectId::from_raw((self.objects.len() as u32).into());
-        let object_type_id = hir::ObjectTypeId::from_raw((self.object_types.len() as u32).into());
-        let companion_relation_id = source.companion_name().map(|_| {
-            hir::CompanionRelationId::from_raw((self.companion_relations.len() as u32).into())
-        });
-        let singleton_value_id =
-            hir::SingletonValueId::from_raw((self.singleton_values.len() as u32).into());
-        let published_root_id = hir::SingletonPublishedRootId::from_raw(
-            (self.singleton_published_roots.len() as u32).into(),
-        );
-        let initialization_id =
-            hir::InitializationUnitId::from_raw((self.initialization_units.len() as u32).into());
-
-        let self_application =
-            hir::ClassApplicationId::from_raw((self.class_applications.len() as u32).into());
-        let backing_class = self.classes.alloc(ClassDecl {
-            modifier: hir::ClassModifier::Final,
-            name: name.to_string(),
-            owner: owner.map(Owner::as_nominal_owner),
-            access: access.clone(),
-            self_application,
-            type_params: Vec::new(),
-            gc_free_pointee_requirements: Vec::new(),
-            representation: hir::ClassRepresentation::Declared,
-            fields: Vec::new(),
-            properties: Vec::new(),
-            constructors: Vec::new(),
-            base_class: None,
-            interfaces: Vec::new(),
-            interface_implementations: Vec::new(),
-            methods: Vec::new(),
-            span: source.span(),
-        });
-        let canonical_type = self.class_application(backing_class, Vec::new());
-        assert_eq!(self.types[canonical_type], Type::Class(self_application));
-
-        let object = self.objects.alloc(hir::ObjectDecl {
-            name: name.to_string(),
-            owner: owner.map(Owner::as_nominal_owner),
-            access: access.clone(),
-            object_type: object_type_id,
-            singleton_value: singleton_value_id,
-            kind: companion_relation_id
-                .map_or(hir::ObjectKind::Standalone, hir::ObjectKind::Companion),
-            backing_class,
-            span: source.span(),
-        });
-        assert_eq!(object, object_id);
-        let object_type = self.object_types.alloc(hir::ObjectType {
-            declaration: object,
-            representation: self_application,
-            canonical_type,
-        });
-        assert_eq!(object_type, object_type_id);
-
-        if let (Some(relation), Some(host), Some(companion_name)) =
-            (companion_relation_id, owner, source.companion_name())
-        {
-            let allocated = self.companion_relations.alloc(hir::CompanionRelation {
-                host: host.as_nominal_owner(),
-                object,
-                name: companion_name,
-            });
-            assert_eq!(allocated, relation);
-            assert!(self.companion_by_host.insert(host, relation).is_none());
-        }
-
-        let qualified_name = Owner::Object(object).describe_name(self);
-        let stable_key = if matches!(source, ObjectSource::Companion(_)) {
-            format!("companion:{qualified_name}")
-        } else if access.declared == hir::DeclaredVisibility::Private && owner.is_none() {
-            let source = crate::globals::stable_source_identity(&self.intrinsic_sources[file].name);
-            format!("object-private:{source}:{qualified_name}")
-        } else {
-            format!("object:{qualified_name}")
-        };
-        let published_root = self
-            .singleton_published_roots
-            .alloc(hir::SingletonPublishedRoot {
-                value: singleton_value_id,
-                ty: canonical_type,
-                link_name: stable_key.clone(),
-            });
-        assert_eq!(published_root, published_root_id);
-        let failure_root =
-            self.initialization_failure_roots
-                .alloc(hir::InitializationFailureRoot {
-                    unit: initialization_id,
-                });
-        let (initializer, ensure) =
-            self.allocate_initialization_functions(initialization_id, source.span(), file);
-        let value = self.singleton_values.alloc(hir::SingletonValue {
-            declaration: object,
-            object_type,
-            published_root,
-            initialization: initialization_id,
-        });
-        assert_eq!(value, singleton_value_id);
-        let initialization = self.initialization_units.alloc(hir::InitializationUnit {
-            stable_key,
-            schedule: hir::InitializationSchedule::LazyAccess,
-            kind: hir::InitializationUnitKind::LazySingleton {
-                value,
-                published_root,
-            },
-            initializer,
-            ensure,
-            failure_root,
-            dependencies: Vec::new(),
-            span: source.span(),
-        });
-        assert_eq!(initialization, initialization_id);
-
-        match owner {
-            Some(owner) => {
-                for lookup_name in lookup_names {
-                    self.nested_nominals_by_owner.insert(
-                        (owner, lookup_name.to_string()),
-                        NominalTarget::Object(object),
-                    );
-                }
-            }
-            None => {
-                self.objects_by_name.insert(name.to_string(), object);
-            }
-        }
-        self.object_by_backing_class.insert(backing_class, object);
-        self.class_files.insert(backing_class, file);
-        self.object_files.insert(object, file);
-        for method in source.members().iter().filter_map(|member| match member {
-            ast::ClassMember::Function(function) => Some(function),
-            _ => None,
-        }) {
-            self.declare_method(method, Owner::Object(object), pending_methods, file);
-        }
-        pending.push((object, source, file));
-        Some(object)
-    }
-
     pub(crate) fn resolve_object(&mut self, object: ObjectId, source: ObjectSource<'_>) {
         let backing = self.objects[object].backing_class;
         self.type_params_in_scope.clear();
         let mut names = std::collections::HashSet::new();
         let mut fields = Vec::new();
-        for member in source.members() {
+        for (member_index, member) in source.members().iter().enumerate() {
             let ast::ClassMember::StoredProperty(property) = member else {
                 if let ast::ClassMember::SecondaryConstructor(constructor) = member {
                     self.error(
@@ -452,13 +230,24 @@ impl Lowerer {
                 self.current_file,
                 slot_access,
             );
-            if let Some(field) = self.allocate_object_property(object, property, ty, access) {
+            let import_source = self.imports.object_property_source(
+                object,
+                member_index,
+                !self.source_is_current_cone(self.current_file),
+            );
+            if let Some(field) =
+                self.allocate_object_property(object, property, ty, access, import_source)
+            {
                 fields.push(field);
             }
         }
         self.classes[backing].fields = fields;
+        let evaluation_context = self.next_class_constructor_context();
         let constructor = self.class_constructors.alloc(hir::ClassConstructor {
+            safety: hir::Safety::Safe,
+            no_gc_type_params: Vec::new(),
             owner: backing,
+            identity_kind: hir::ClassConstructorIdentityKind::Source,
             access: self.local_declaration_access(),
             parameters: Vec::new(),
             kind: hir::ClassConstructorKind::Primary {
@@ -468,6 +257,7 @@ impl Lowerer {
             },
             span: source.span(),
             origin: self.definition_origin(source.span()),
+            evaluation_context,
         });
         self.classes[backing].constructors.push(constructor);
         self.class_parameter_calling.insert(constructor, Vec::new());

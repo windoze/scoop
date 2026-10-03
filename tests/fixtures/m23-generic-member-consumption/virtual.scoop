@@ -1,0 +1,14 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val child = VirtualChild<Int>(20, 22)
+    val base: VirtualBox<Int> = child
+    return base.read() + child.inheritedRead()
+}
+
+public fun <T> make(value: T): T {
+    val base: VirtualBox<T> = VirtualChild<T>(value, value)
+    return base.read()
+}

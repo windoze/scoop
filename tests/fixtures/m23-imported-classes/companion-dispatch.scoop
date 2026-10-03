@@ -1,0 +1,8 @@
+import dependency.classes.Counter
+import dependency.classes.CompanionHost
+import dependency.classes.Readable
+
+public fun primary(): Counter {
+    val reader: Readable = CompanionHost.Companion
+    return Counter(reader.answer(1) - 1)
+}

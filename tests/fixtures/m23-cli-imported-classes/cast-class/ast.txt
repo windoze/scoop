@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.CounterAlias
+  public fun primary(): Counter
+    val value: Any
+      Call Counter
+        IntLiteral 21
+    return
+      Cast CounterAlias optional=false
+        Var value

@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native candidate ${work}/native/libm23_math.a: archive symbol table names _m23_bad absent from member 1 (a_long_native_member_name.o); requirement db3dcf42fa4d2363eddc5c56a0df56140b61934085593f5c3bcaf72307e37343; origins: dev.programlink:toc:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([68, 254, 29, 43, 7, 133, 189, 122, 114, 142, 61, 69, 183, 223, 196, 238, 23, 82, 178, 8, 118, 57, 56, 3, 35, 41, 127, 48, 81, 6, 34, 180])])",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

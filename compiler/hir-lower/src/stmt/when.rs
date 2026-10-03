@@ -34,6 +34,18 @@ fn value_arm_reachability(facts: &[ValueArmFlowFacts]) -> (Vec<bool>, bool) {
 }
 
 impl Lowerer {
+    fn check_pattern_subject(&mut self, ty: TypeId, span: Span) -> Option<()> {
+        if matches!(
+            self.types[ty],
+            Type::Enum(_) | Type::Tuple(_) | Type::Struct(_) | Type::Integer(_)
+        ) {
+            return Some(());
+        }
+        let found = self.type_name(ty);
+        self.error(span, format!("`when` subject must be an enum, tuple, struct or fixed-width integer, found {found}"));
+        None
+    }
+
     /// Statement-position pattern `when` (spec 5). The subject must be an
     /// enum, tuple, struct or fixed-width integer — the current
     /// pattern-matching subset has no
@@ -47,19 +59,7 @@ impl Lowerer {
     ) -> Option<hir::StatementKind> {
         let mut sink = Vec::new();
         let subject = self.lower_expr(&when.subject, &mut sink, None)?;
-        if !matches!(
-            self.types[subject.ty],
-            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..) | Type::Integer(_)
-        ) {
-            let found = self.type_name(subject.ty);
-            self.error(
-                when.subject.span(),
-                format!(
-                    "`when` subject must be an enum, tuple, struct or fixed-width integer, found {found}"
-                ),
-            );
-            return None;
-        }
+        self.check_pattern_subject(subject.ty, when.subject.span())?;
         // The subject is evaluated exactly once, right before the
         // `when`, so desugaring statements belong before it.
         out.extend(sink);
@@ -106,19 +106,7 @@ impl Lowerer {
     ) -> Option<hir::Expr> {
         let mut subject_sink = Vec::new();
         let subject = self.lower_expr(&when.subject, &mut subject_sink, None)?;
-        if !matches!(
-            self.types[subject.ty],
-            Type::Enum(..) | Type::Tuple(..) | Type::Struct(..) | Type::Integer(_)
-        ) {
-            let found = self.type_name(subject.ty);
-            self.error(
-                when.subject.span(),
-                format!(
-                    "`when` subject must be an enum, tuple, struct or fixed-width integer, found {found}"
-                ),
-            );
-            return None;
-        }
+        self.check_pattern_subject(subject.ty, when.subject.span())?;
 
         let probes: Vec<_> = when
             .arms

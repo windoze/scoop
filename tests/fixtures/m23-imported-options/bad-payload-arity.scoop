@@ -1,0 +1,3 @@
+package consumer.options
+
+public fun result(): Int? = Some(20, 22)

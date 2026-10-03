@@ -1,0 +1,2118 @@
+Module
+  global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$6f3e7e4d94c786bb127990fb658441f972988867c24a8dd6038eb7c8f737b7c7(i8) -> i32
+    local %0 $result.0: i32
+    local %1 $when.1: i8
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local1
+    t0 = integer_compare_Equal<Int8> local1, integer<Int8>(0x80) : i1
+    cbr t0 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store integer<Int>(0x00000000) -> local0
+    br @pattern.merge.3
+  block pattern.else.2
+    t1 = integer_compare_Equal<Int8> local1, integer<Int8>(0x81) : i1
+    cbr t1 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
+    ret local0
+  block pattern.pass.4
+    store integer<Int>(0x00000001) -> local0
+    br @pattern.merge.6
+  block pattern.else.5
+    t2 = integer_compare_Equal<Int8> local1, integer<Int8>(0x82) : i1
+    cbr t2 then @pattern.pass.7 else @pattern.else.8
+  block pattern.merge.6
+    br @pattern.merge.3
+  block pattern.pass.7
+    store integer<Int>(0x00000002) -> local0
+    br @pattern.merge.9
+  block pattern.else.8
+    t3 = integer_compare_Equal<Int8> local1, integer<Int8>(0x83) : i1
+    cbr t3 then @pattern.pass.10 else @pattern.else.11
+  block pattern.merge.9
+    br @pattern.merge.6
+  block pattern.pass.10
+    store integer<Int>(0x00000003) -> local0
+    br @pattern.merge.12
+  block pattern.else.11
+    t4 = integer_compare_Equal<Int8> local1, integer<Int8>(0x84) : i1
+    cbr t4 then @pattern.pass.13 else @pattern.else.14
+  block pattern.merge.12
+    br @pattern.merge.9
+  block pattern.pass.13
+    store integer<Int>(0x00000004) -> local0
+    br @pattern.merge.15
+  block pattern.else.14
+    t5 = integer_compare_Equal<Int8> local1, integer<Int8>(0x85) : i1
+    cbr t5 then @pattern.pass.16 else @pattern.else.17
+  block pattern.merge.15
+    br @pattern.merge.12
+  block pattern.pass.16
+    store integer<Int>(0x00000005) -> local0
+    br @pattern.merge.18
+  block pattern.else.17
+    t6 = integer_compare_Equal<Int8> local1, integer<Int8>(0x86) : i1
+    cbr t6 then @pattern.pass.19 else @pattern.else.20
+  block pattern.merge.18
+    br @pattern.merge.15
+  block pattern.pass.19
+    store integer<Int>(0x00000006) -> local0
+    br @pattern.merge.21
+  block pattern.else.20
+    t7 = integer_compare_Equal<Int8> local1, integer<Int8>(0x87) : i1
+    cbr t7 then @pattern.pass.22 else @pattern.else.23
+  block pattern.merge.21
+    br @pattern.merge.18
+  block pattern.pass.22
+    store integer<Int>(0x00000007) -> local0
+    br @pattern.merge.24
+  block pattern.else.23
+    t8 = integer_compare_Equal<Int8> local1, integer<Int8>(0x88) : i1
+    cbr t8 then @pattern.pass.25 else @pattern.else.26
+  block pattern.merge.24
+    br @pattern.merge.21
+  block pattern.pass.25
+    store integer<Int>(0x00000008) -> local0
+    br @pattern.merge.27
+  block pattern.else.26
+    t9 = integer_compare_Equal<Int8> local1, integer<Int8>(0x89) : i1
+    cbr t9 then @pattern.pass.28 else @pattern.else.29
+  block pattern.merge.27
+    br @pattern.merge.24
+  block pattern.pass.28
+    store integer<Int>(0x00000009) -> local0
+    br @pattern.merge.30
+  block pattern.else.29
+    t10 = integer_compare_Equal<Int8> local1, integer<Int8>(0x8a) : i1
+    cbr t10 then @pattern.pass.31 else @pattern.else.32
+  block pattern.merge.30
+    br @pattern.merge.27
+  block pattern.pass.31
+    store integer<Int>(0x0000000a) -> local0
+    br @pattern.merge.33
+  block pattern.else.32
+    t11 = integer_compare_Equal<Int8> local1, integer<Int8>(0x8b) : i1
+    cbr t11 then @pattern.pass.34 else @pattern.else.35
+  block pattern.merge.33
+    br @pattern.merge.30
+  block pattern.pass.34
+    store integer<Int>(0x0000000b) -> local0
+    br @pattern.merge.36
+  block pattern.else.35
+    t12 = integer_compare_Equal<Int8> local1, integer<Int8>(0x8c) : i1
+    cbr t12 then @pattern.pass.37 else @pattern.else.38
+  block pattern.merge.36
+    br @pattern.merge.33
+  block pattern.pass.37
+    store integer<Int>(0x0000000c) -> local0
+    br @pattern.merge.39
+  block pattern.else.38
+    t13 = integer_compare_Equal<Int8> local1, integer<Int8>(0x8d) : i1
+    cbr t13 then @pattern.pass.40 else @pattern.else.41
+  block pattern.merge.39
+    br @pattern.merge.36
+  block pattern.pass.40
+    store integer<Int>(0x0000000d) -> local0
+    br @pattern.merge.42
+  block pattern.else.41
+    t14 = integer_compare_Equal<Int8> local1, integer<Int8>(0x8e) : i1
+    cbr t14 then @pattern.pass.43 else @pattern.else.44
+  block pattern.merge.42
+    br @pattern.merge.39
+  block pattern.pass.43
+    store integer<Int>(0x0000000e) -> local0
+    br @pattern.merge.45
+  block pattern.else.44
+    t15 = integer_compare_Equal<Int8> local1, integer<Int8>(0x8f) : i1
+    cbr t15 then @pattern.pass.46 else @pattern.else.47
+  block pattern.merge.45
+    br @pattern.merge.42
+  block pattern.pass.46
+    store integer<Int>(0x0000000f) -> local0
+    br @pattern.merge.48
+  block pattern.else.47
+    t16 = integer_compare_Equal<Int8> local1, integer<Int8>(0x90) : i1
+    cbr t16 then @pattern.pass.49 else @pattern.else.50
+  block pattern.merge.48
+    br @pattern.merge.45
+  block pattern.pass.49
+    store integer<Int>(0x00000010) -> local0
+    br @pattern.merge.51
+  block pattern.else.50
+    t17 = integer_compare_Equal<Int8> local1, integer<Int8>(0x91) : i1
+    cbr t17 then @pattern.pass.52 else @pattern.else.53
+  block pattern.merge.51
+    br @pattern.merge.48
+  block pattern.pass.52
+    store integer<Int>(0x00000011) -> local0
+    br @pattern.merge.54
+  block pattern.else.53
+    t18 = integer_compare_Equal<Int8> local1, integer<Int8>(0x92) : i1
+    cbr t18 then @pattern.pass.55 else @pattern.else.56
+  block pattern.merge.54
+    br @pattern.merge.51
+  block pattern.pass.55
+    store integer<Int>(0x00000012) -> local0
+    br @pattern.merge.57
+  block pattern.else.56
+    t19 = integer_compare_Equal<Int8> local1, integer<Int8>(0x93) : i1
+    cbr t19 then @pattern.pass.58 else @pattern.else.59
+  block pattern.merge.57
+    br @pattern.merge.54
+  block pattern.pass.58
+    store integer<Int>(0x00000013) -> local0
+    br @pattern.merge.60
+  block pattern.else.59
+    t20 = integer_compare_Equal<Int8> local1, integer<Int8>(0x94) : i1
+    cbr t20 then @pattern.pass.61 else @pattern.else.62
+  block pattern.merge.60
+    br @pattern.merge.57
+  block pattern.pass.61
+    store integer<Int>(0x00000014) -> local0
+    br @pattern.merge.63
+  block pattern.else.62
+    t21 = integer_compare_Equal<Int8> local1, integer<Int8>(0x95) : i1
+    cbr t21 then @pattern.pass.64 else @pattern.else.65
+  block pattern.merge.63
+    br @pattern.merge.60
+  block pattern.pass.64
+    store integer<Int>(0x00000015) -> local0
+    br @pattern.merge.66
+  block pattern.else.65
+    t22 = integer_compare_Equal<Int8> local1, integer<Int8>(0x96) : i1
+    cbr t22 then @pattern.pass.67 else @pattern.else.68
+  block pattern.merge.66
+    br @pattern.merge.63
+  block pattern.pass.67
+    store integer<Int>(0x00000016) -> local0
+    br @pattern.merge.69
+  block pattern.else.68
+    t23 = integer_compare_Equal<Int8> local1, integer<Int8>(0x97) : i1
+    cbr t23 then @pattern.pass.70 else @pattern.else.71
+  block pattern.merge.69
+    br @pattern.merge.66
+  block pattern.pass.70
+    store integer<Int>(0x00000017) -> local0
+    br @pattern.merge.72
+  block pattern.else.71
+    t24 = integer_compare_Equal<Int8> local1, integer<Int8>(0x98) : i1
+    cbr t24 then @pattern.pass.73 else @pattern.else.74
+  block pattern.merge.72
+    br @pattern.merge.69
+  block pattern.pass.73
+    store integer<Int>(0x00000018) -> local0
+    br @pattern.merge.75
+  block pattern.else.74
+    t25 = integer_compare_Equal<Int8> local1, integer<Int8>(0x99) : i1
+    cbr t25 then @pattern.pass.76 else @pattern.else.77
+  block pattern.merge.75
+    br @pattern.merge.72
+  block pattern.pass.76
+    store integer<Int>(0x00000019) -> local0
+    br @pattern.merge.78
+  block pattern.else.77
+    t26 = integer_compare_Equal<Int8> local1, integer<Int8>(0x9a) : i1
+    cbr t26 then @pattern.pass.79 else @pattern.else.80
+  block pattern.merge.78
+    br @pattern.merge.75
+  block pattern.pass.79
+    store integer<Int>(0x0000001a) -> local0
+    br @pattern.merge.81
+  block pattern.else.80
+    t27 = integer_compare_Equal<Int8> local1, integer<Int8>(0x9b) : i1
+    cbr t27 then @pattern.pass.82 else @pattern.else.83
+  block pattern.merge.81
+    br @pattern.merge.78
+  block pattern.pass.82
+    store integer<Int>(0x0000001b) -> local0
+    br @pattern.merge.84
+  block pattern.else.83
+    t28 = integer_compare_Equal<Int8> local1, integer<Int8>(0x9c) : i1
+    cbr t28 then @pattern.pass.85 else @pattern.else.86
+  block pattern.merge.84
+    br @pattern.merge.81
+  block pattern.pass.85
+    store integer<Int>(0x0000001c) -> local0
+    br @pattern.merge.87
+  block pattern.else.86
+    t29 = integer_compare_Equal<Int8> local1, integer<Int8>(0x9d) : i1
+    cbr t29 then @pattern.pass.88 else @pattern.else.89
+  block pattern.merge.87
+    br @pattern.merge.84
+  block pattern.pass.88
+    store integer<Int>(0x0000001d) -> local0
+    br @pattern.merge.90
+  block pattern.else.89
+    t30 = integer_compare_Equal<Int8> local1, integer<Int8>(0x9e) : i1
+    cbr t30 then @pattern.pass.91 else @pattern.else.92
+  block pattern.merge.90
+    br @pattern.merge.87
+  block pattern.pass.91
+    store integer<Int>(0x0000001e) -> local0
+    br @pattern.merge.93
+  block pattern.else.92
+    t31 = integer_compare_Equal<Int8> local1, integer<Int8>(0x9f) : i1
+    cbr t31 then @pattern.pass.94 else @pattern.else.95
+  block pattern.merge.93
+    br @pattern.merge.90
+  block pattern.pass.94
+    store integer<Int>(0x0000001f) -> local0
+    br @pattern.merge.96
+  block pattern.else.95
+    t32 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa0) : i1
+    cbr t32 then @pattern.pass.97 else @pattern.else.98
+  block pattern.merge.96
+    br @pattern.merge.93
+  block pattern.pass.97
+    store integer<Int>(0x00000020) -> local0
+    br @pattern.merge.99
+  block pattern.else.98
+    t33 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa1) : i1
+    cbr t33 then @pattern.pass.100 else @pattern.else.101
+  block pattern.merge.99
+    br @pattern.merge.96
+  block pattern.pass.100
+    store integer<Int>(0x00000021) -> local0
+    br @pattern.merge.102
+  block pattern.else.101
+    t34 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa2) : i1
+    cbr t34 then @pattern.pass.103 else @pattern.else.104
+  block pattern.merge.102
+    br @pattern.merge.99
+  block pattern.pass.103
+    store integer<Int>(0x00000022) -> local0
+    br @pattern.merge.105
+  block pattern.else.104
+    t35 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa3) : i1
+    cbr t35 then @pattern.pass.106 else @pattern.else.107
+  block pattern.merge.105
+    br @pattern.merge.102
+  block pattern.pass.106
+    store integer<Int>(0x00000023) -> local0
+    br @pattern.merge.108
+  block pattern.else.107
+    t36 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa4) : i1
+    cbr t36 then @pattern.pass.109 else @pattern.else.110
+  block pattern.merge.108
+    br @pattern.merge.105
+  block pattern.pass.109
+    store integer<Int>(0x00000024) -> local0
+    br @pattern.merge.111
+  block pattern.else.110
+    t37 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa5) : i1
+    cbr t37 then @pattern.pass.112 else @pattern.else.113
+  block pattern.merge.111
+    br @pattern.merge.108
+  block pattern.pass.112
+    store integer<Int>(0x00000025) -> local0
+    br @pattern.merge.114
+  block pattern.else.113
+    t38 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa6) : i1
+    cbr t38 then @pattern.pass.115 else @pattern.else.116
+  block pattern.merge.114
+    br @pattern.merge.111
+  block pattern.pass.115
+    store integer<Int>(0x00000026) -> local0
+    br @pattern.merge.117
+  block pattern.else.116
+    t39 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa7) : i1
+    cbr t39 then @pattern.pass.118 else @pattern.else.119
+  block pattern.merge.117
+    br @pattern.merge.114
+  block pattern.pass.118
+    store integer<Int>(0x00000027) -> local0
+    br @pattern.merge.120
+  block pattern.else.119
+    t40 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa8) : i1
+    cbr t40 then @pattern.pass.121 else @pattern.else.122
+  block pattern.merge.120
+    br @pattern.merge.117
+  block pattern.pass.121
+    store integer<Int>(0x00000028) -> local0
+    br @pattern.merge.123
+  block pattern.else.122
+    t41 = integer_compare_Equal<Int8> local1, integer<Int8>(0xa9) : i1
+    cbr t41 then @pattern.pass.124 else @pattern.else.125
+  block pattern.merge.123
+    br @pattern.merge.120
+  block pattern.pass.124
+    store integer<Int>(0x00000029) -> local0
+    br @pattern.merge.126
+  block pattern.else.125
+    t42 = integer_compare_Equal<Int8> local1, integer<Int8>(0xaa) : i1
+    cbr t42 then @pattern.pass.127 else @pattern.else.128
+  block pattern.merge.126
+    br @pattern.merge.123
+  block pattern.pass.127
+    store integer<Int>(0x0000002a) -> local0
+    br @pattern.merge.129
+  block pattern.else.128
+    t43 = integer_compare_Equal<Int8> local1, integer<Int8>(0xab) : i1
+    cbr t43 then @pattern.pass.130 else @pattern.else.131
+  block pattern.merge.129
+    br @pattern.merge.126
+  block pattern.pass.130
+    store integer<Int>(0x0000002b) -> local0
+    br @pattern.merge.132
+  block pattern.else.131
+    t44 = integer_compare_Equal<Int8> local1, integer<Int8>(0xac) : i1
+    cbr t44 then @pattern.pass.133 else @pattern.else.134
+  block pattern.merge.132
+    br @pattern.merge.129
+  block pattern.pass.133
+    store integer<Int>(0x0000002c) -> local0
+    br @pattern.merge.135
+  block pattern.else.134
+    t45 = integer_compare_Equal<Int8> local1, integer<Int8>(0xad) : i1
+    cbr t45 then @pattern.pass.136 else @pattern.else.137
+  block pattern.merge.135
+    br @pattern.merge.132
+  block pattern.pass.136
+    store integer<Int>(0x0000002d) -> local0
+    br @pattern.merge.138
+  block pattern.else.137
+    t46 = integer_compare_Equal<Int8> local1, integer<Int8>(0xae) : i1
+    cbr t46 then @pattern.pass.139 else @pattern.else.140
+  block pattern.merge.138
+    br @pattern.merge.135
+  block pattern.pass.139
+    store integer<Int>(0x0000002e) -> local0
+    br @pattern.merge.141
+  block pattern.else.140
+    t47 = integer_compare_Equal<Int8> local1, integer<Int8>(0xaf) : i1
+    cbr t47 then @pattern.pass.142 else @pattern.else.143
+  block pattern.merge.141
+    br @pattern.merge.138
+  block pattern.pass.142
+    store integer<Int>(0x0000002f) -> local0
+    br @pattern.merge.144
+  block pattern.else.143
+    t48 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb0) : i1
+    cbr t48 then @pattern.pass.145 else @pattern.else.146
+  block pattern.merge.144
+    br @pattern.merge.141
+  block pattern.pass.145
+    store integer<Int>(0x00000030) -> local0
+    br @pattern.merge.147
+  block pattern.else.146
+    t49 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb1) : i1
+    cbr t49 then @pattern.pass.148 else @pattern.else.149
+  block pattern.merge.147
+    br @pattern.merge.144
+  block pattern.pass.148
+    store integer<Int>(0x00000031) -> local0
+    br @pattern.merge.150
+  block pattern.else.149
+    t50 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb2) : i1
+    cbr t50 then @pattern.pass.151 else @pattern.else.152
+  block pattern.merge.150
+    br @pattern.merge.147
+  block pattern.pass.151
+    store integer<Int>(0x00000032) -> local0
+    br @pattern.merge.153
+  block pattern.else.152
+    t51 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb3) : i1
+    cbr t51 then @pattern.pass.154 else @pattern.else.155
+  block pattern.merge.153
+    br @pattern.merge.150
+  block pattern.pass.154
+    store integer<Int>(0x00000033) -> local0
+    br @pattern.merge.156
+  block pattern.else.155
+    t52 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb4) : i1
+    cbr t52 then @pattern.pass.157 else @pattern.else.158
+  block pattern.merge.156
+    br @pattern.merge.153
+  block pattern.pass.157
+    store integer<Int>(0x00000034) -> local0
+    br @pattern.merge.159
+  block pattern.else.158
+    t53 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb5) : i1
+    cbr t53 then @pattern.pass.160 else @pattern.else.161
+  block pattern.merge.159
+    br @pattern.merge.156
+  block pattern.pass.160
+    store integer<Int>(0x00000035) -> local0
+    br @pattern.merge.162
+  block pattern.else.161
+    t54 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb6) : i1
+    cbr t54 then @pattern.pass.163 else @pattern.else.164
+  block pattern.merge.162
+    br @pattern.merge.159
+  block pattern.pass.163
+    store integer<Int>(0x00000036) -> local0
+    br @pattern.merge.165
+  block pattern.else.164
+    t55 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb7) : i1
+    cbr t55 then @pattern.pass.166 else @pattern.else.167
+  block pattern.merge.165
+    br @pattern.merge.162
+  block pattern.pass.166
+    store integer<Int>(0x00000037) -> local0
+    br @pattern.merge.168
+  block pattern.else.167
+    t56 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb8) : i1
+    cbr t56 then @pattern.pass.169 else @pattern.else.170
+  block pattern.merge.168
+    br @pattern.merge.165
+  block pattern.pass.169
+    store integer<Int>(0x00000038) -> local0
+    br @pattern.merge.171
+  block pattern.else.170
+    t57 = integer_compare_Equal<Int8> local1, integer<Int8>(0xb9) : i1
+    cbr t57 then @pattern.pass.172 else @pattern.else.173
+  block pattern.merge.171
+    br @pattern.merge.168
+  block pattern.pass.172
+    store integer<Int>(0x00000039) -> local0
+    br @pattern.merge.174
+  block pattern.else.173
+    t58 = integer_compare_Equal<Int8> local1, integer<Int8>(0xba) : i1
+    cbr t58 then @pattern.pass.175 else @pattern.else.176
+  block pattern.merge.174
+    br @pattern.merge.171
+  block pattern.pass.175
+    store integer<Int>(0x0000003a) -> local0
+    br @pattern.merge.177
+  block pattern.else.176
+    t59 = integer_compare_Equal<Int8> local1, integer<Int8>(0xbb) : i1
+    cbr t59 then @pattern.pass.178 else @pattern.else.179
+  block pattern.merge.177
+    br @pattern.merge.174
+  block pattern.pass.178
+    store integer<Int>(0x0000003b) -> local0
+    br @pattern.merge.180
+  block pattern.else.179
+    t60 = integer_compare_Equal<Int8> local1, integer<Int8>(0xbc) : i1
+    cbr t60 then @pattern.pass.181 else @pattern.else.182
+  block pattern.merge.180
+    br @pattern.merge.177
+  block pattern.pass.181
+    store integer<Int>(0x0000003c) -> local0
+    br @pattern.merge.183
+  block pattern.else.182
+    t61 = integer_compare_Equal<Int8> local1, integer<Int8>(0xbd) : i1
+    cbr t61 then @pattern.pass.184 else @pattern.else.185
+  block pattern.merge.183
+    br @pattern.merge.180
+  block pattern.pass.184
+    store integer<Int>(0x0000003d) -> local0
+    br @pattern.merge.186
+  block pattern.else.185
+    t62 = integer_compare_Equal<Int8> local1, integer<Int8>(0xbe) : i1
+    cbr t62 then @pattern.pass.187 else @pattern.else.188
+  block pattern.merge.186
+    br @pattern.merge.183
+  block pattern.pass.187
+    store integer<Int>(0x0000003e) -> local0
+    br @pattern.merge.189
+  block pattern.else.188
+    t63 = integer_compare_Equal<Int8> local1, integer<Int8>(0xbf) : i1
+    cbr t63 then @pattern.pass.190 else @pattern.else.191
+  block pattern.merge.189
+    br @pattern.merge.186
+  block pattern.pass.190
+    store integer<Int>(0x0000003f) -> local0
+    br @pattern.merge.192
+  block pattern.else.191
+    t64 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc0) : i1
+    cbr t64 then @pattern.pass.193 else @pattern.else.194
+  block pattern.merge.192
+    br @pattern.merge.189
+  block pattern.pass.193
+    store integer<Int>(0x00000040) -> local0
+    br @pattern.merge.195
+  block pattern.else.194
+    t65 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc1) : i1
+    cbr t65 then @pattern.pass.196 else @pattern.else.197
+  block pattern.merge.195
+    br @pattern.merge.192
+  block pattern.pass.196
+    store integer<Int>(0x00000041) -> local0
+    br @pattern.merge.198
+  block pattern.else.197
+    t66 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc2) : i1
+    cbr t66 then @pattern.pass.199 else @pattern.else.200
+  block pattern.merge.198
+    br @pattern.merge.195
+  block pattern.pass.199
+    store integer<Int>(0x00000042) -> local0
+    br @pattern.merge.201
+  block pattern.else.200
+    t67 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc3) : i1
+    cbr t67 then @pattern.pass.202 else @pattern.else.203
+  block pattern.merge.201
+    br @pattern.merge.198
+  block pattern.pass.202
+    store integer<Int>(0x00000043) -> local0
+    br @pattern.merge.204
+  block pattern.else.203
+    t68 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc4) : i1
+    cbr t68 then @pattern.pass.205 else @pattern.else.206
+  block pattern.merge.204
+    br @pattern.merge.201
+  block pattern.pass.205
+    store integer<Int>(0x00000044) -> local0
+    br @pattern.merge.207
+  block pattern.else.206
+    t69 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc5) : i1
+    cbr t69 then @pattern.pass.208 else @pattern.else.209
+  block pattern.merge.207
+    br @pattern.merge.204
+  block pattern.pass.208
+    store integer<Int>(0x00000045) -> local0
+    br @pattern.merge.210
+  block pattern.else.209
+    t70 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc6) : i1
+    cbr t70 then @pattern.pass.211 else @pattern.else.212
+  block pattern.merge.210
+    br @pattern.merge.207
+  block pattern.pass.211
+    store integer<Int>(0x00000046) -> local0
+    br @pattern.merge.213
+  block pattern.else.212
+    t71 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc7) : i1
+    cbr t71 then @pattern.pass.214 else @pattern.else.215
+  block pattern.merge.213
+    br @pattern.merge.210
+  block pattern.pass.214
+    store integer<Int>(0x00000047) -> local0
+    br @pattern.merge.216
+  block pattern.else.215
+    t72 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc8) : i1
+    cbr t72 then @pattern.pass.217 else @pattern.else.218
+  block pattern.merge.216
+    br @pattern.merge.213
+  block pattern.pass.217
+    store integer<Int>(0x00000048) -> local0
+    br @pattern.merge.219
+  block pattern.else.218
+    t73 = integer_compare_Equal<Int8> local1, integer<Int8>(0xc9) : i1
+    cbr t73 then @pattern.pass.220 else @pattern.else.221
+  block pattern.merge.219
+    br @pattern.merge.216
+  block pattern.pass.220
+    store integer<Int>(0x00000049) -> local0
+    br @pattern.merge.222
+  block pattern.else.221
+    t74 = integer_compare_Equal<Int8> local1, integer<Int8>(0xca) : i1
+    cbr t74 then @pattern.pass.223 else @pattern.else.224
+  block pattern.merge.222
+    br @pattern.merge.219
+  block pattern.pass.223
+    store integer<Int>(0x0000004a) -> local0
+    br @pattern.merge.225
+  block pattern.else.224
+    t75 = integer_compare_Equal<Int8> local1, integer<Int8>(0xcb) : i1
+    cbr t75 then @pattern.pass.226 else @pattern.else.227
+  block pattern.merge.225
+    br @pattern.merge.222
+  block pattern.pass.226
+    store integer<Int>(0x0000004b) -> local0
+    br @pattern.merge.228
+  block pattern.else.227
+    t76 = integer_compare_Equal<Int8> local1, integer<Int8>(0xcc) : i1
+    cbr t76 then @pattern.pass.229 else @pattern.else.230
+  block pattern.merge.228
+    br @pattern.merge.225
+  block pattern.pass.229
+    store integer<Int>(0x0000004c) -> local0
+    br @pattern.merge.231
+  block pattern.else.230
+    t77 = integer_compare_Equal<Int8> local1, integer<Int8>(0xcd) : i1
+    cbr t77 then @pattern.pass.232 else @pattern.else.233
+  block pattern.merge.231
+    br @pattern.merge.228
+  block pattern.pass.232
+    store integer<Int>(0x0000004d) -> local0
+    br @pattern.merge.234
+  block pattern.else.233
+    t78 = integer_compare_Equal<Int8> local1, integer<Int8>(0xce) : i1
+    cbr t78 then @pattern.pass.235 else @pattern.else.236
+  block pattern.merge.234
+    br @pattern.merge.231
+  block pattern.pass.235
+    store integer<Int>(0x0000004e) -> local0
+    br @pattern.merge.237
+  block pattern.else.236
+    t79 = integer_compare_Equal<Int8> local1, integer<Int8>(0xcf) : i1
+    cbr t79 then @pattern.pass.238 else @pattern.else.239
+  block pattern.merge.237
+    br @pattern.merge.234
+  block pattern.pass.238
+    store integer<Int>(0x0000004f) -> local0
+    br @pattern.merge.240
+  block pattern.else.239
+    t80 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd0) : i1
+    cbr t80 then @pattern.pass.241 else @pattern.else.242
+  block pattern.merge.240
+    br @pattern.merge.237
+  block pattern.pass.241
+    store integer<Int>(0x00000050) -> local0
+    br @pattern.merge.243
+  block pattern.else.242
+    t81 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd1) : i1
+    cbr t81 then @pattern.pass.244 else @pattern.else.245
+  block pattern.merge.243
+    br @pattern.merge.240
+  block pattern.pass.244
+    store integer<Int>(0x00000051) -> local0
+    br @pattern.merge.246
+  block pattern.else.245
+    t82 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd2) : i1
+    cbr t82 then @pattern.pass.247 else @pattern.else.248
+  block pattern.merge.246
+    br @pattern.merge.243
+  block pattern.pass.247
+    store integer<Int>(0x00000052) -> local0
+    br @pattern.merge.249
+  block pattern.else.248
+    t83 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd3) : i1
+    cbr t83 then @pattern.pass.250 else @pattern.else.251
+  block pattern.merge.249
+    br @pattern.merge.246
+  block pattern.pass.250
+    store integer<Int>(0x00000053) -> local0
+    br @pattern.merge.252
+  block pattern.else.251
+    t84 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd4) : i1
+    cbr t84 then @pattern.pass.253 else @pattern.else.254
+  block pattern.merge.252
+    br @pattern.merge.249
+  block pattern.pass.253
+    store integer<Int>(0x00000054) -> local0
+    br @pattern.merge.255
+  block pattern.else.254
+    t85 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd5) : i1
+    cbr t85 then @pattern.pass.256 else @pattern.else.257
+  block pattern.merge.255
+    br @pattern.merge.252
+  block pattern.pass.256
+    store integer<Int>(0x00000055) -> local0
+    br @pattern.merge.258
+  block pattern.else.257
+    t86 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd6) : i1
+    cbr t86 then @pattern.pass.259 else @pattern.else.260
+  block pattern.merge.258
+    br @pattern.merge.255
+  block pattern.pass.259
+    store integer<Int>(0x00000056) -> local0
+    br @pattern.merge.261
+  block pattern.else.260
+    t87 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd7) : i1
+    cbr t87 then @pattern.pass.262 else @pattern.else.263
+  block pattern.merge.261
+    br @pattern.merge.258
+  block pattern.pass.262
+    store integer<Int>(0x00000057) -> local0
+    br @pattern.merge.264
+  block pattern.else.263
+    t88 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd8) : i1
+    cbr t88 then @pattern.pass.265 else @pattern.else.266
+  block pattern.merge.264
+    br @pattern.merge.261
+  block pattern.pass.265
+    store integer<Int>(0x00000058) -> local0
+    br @pattern.merge.267
+  block pattern.else.266
+    t89 = integer_compare_Equal<Int8> local1, integer<Int8>(0xd9) : i1
+    cbr t89 then @pattern.pass.268 else @pattern.else.269
+  block pattern.merge.267
+    br @pattern.merge.264
+  block pattern.pass.268
+    store integer<Int>(0x00000059) -> local0
+    br @pattern.merge.270
+  block pattern.else.269
+    t90 = integer_compare_Equal<Int8> local1, integer<Int8>(0xda) : i1
+    cbr t90 then @pattern.pass.271 else @pattern.else.272
+  block pattern.merge.270
+    br @pattern.merge.267
+  block pattern.pass.271
+    store integer<Int>(0x0000005a) -> local0
+    br @pattern.merge.273
+  block pattern.else.272
+    t91 = integer_compare_Equal<Int8> local1, integer<Int8>(0xdb) : i1
+    cbr t91 then @pattern.pass.274 else @pattern.else.275
+  block pattern.merge.273
+    br @pattern.merge.270
+  block pattern.pass.274
+    store integer<Int>(0x0000005b) -> local0
+    br @pattern.merge.276
+  block pattern.else.275
+    t92 = integer_compare_Equal<Int8> local1, integer<Int8>(0xdc) : i1
+    cbr t92 then @pattern.pass.277 else @pattern.else.278
+  block pattern.merge.276
+    br @pattern.merge.273
+  block pattern.pass.277
+    store integer<Int>(0x0000005c) -> local0
+    br @pattern.merge.279
+  block pattern.else.278
+    t93 = integer_compare_Equal<Int8> local1, integer<Int8>(0xdd) : i1
+    cbr t93 then @pattern.pass.280 else @pattern.else.281
+  block pattern.merge.279
+    br @pattern.merge.276
+  block pattern.pass.280
+    store integer<Int>(0x0000005d) -> local0
+    br @pattern.merge.282
+  block pattern.else.281
+    t94 = integer_compare_Equal<Int8> local1, integer<Int8>(0xde) : i1
+    cbr t94 then @pattern.pass.283 else @pattern.else.284
+  block pattern.merge.282
+    br @pattern.merge.279
+  block pattern.pass.283
+    store integer<Int>(0x0000005e) -> local0
+    br @pattern.merge.285
+  block pattern.else.284
+    t95 = integer_compare_Equal<Int8> local1, integer<Int8>(0xdf) : i1
+    cbr t95 then @pattern.pass.286 else @pattern.else.287
+  block pattern.merge.285
+    br @pattern.merge.282
+  block pattern.pass.286
+    store integer<Int>(0x0000005f) -> local0
+    br @pattern.merge.288
+  block pattern.else.287
+    t96 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe0) : i1
+    cbr t96 then @pattern.pass.289 else @pattern.else.290
+  block pattern.merge.288
+    br @pattern.merge.285
+  block pattern.pass.289
+    store integer<Int>(0x00000060) -> local0
+    br @pattern.merge.291
+  block pattern.else.290
+    t97 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe1) : i1
+    cbr t97 then @pattern.pass.292 else @pattern.else.293
+  block pattern.merge.291
+    br @pattern.merge.288
+  block pattern.pass.292
+    store integer<Int>(0x00000061) -> local0
+    br @pattern.merge.294
+  block pattern.else.293
+    t98 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe2) : i1
+    cbr t98 then @pattern.pass.295 else @pattern.else.296
+  block pattern.merge.294
+    br @pattern.merge.291
+  block pattern.pass.295
+    store integer<Int>(0x00000062) -> local0
+    br @pattern.merge.297
+  block pattern.else.296
+    t99 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe3) : i1
+    cbr t99 then @pattern.pass.298 else @pattern.else.299
+  block pattern.merge.297
+    br @pattern.merge.294
+  block pattern.pass.298
+    store integer<Int>(0x00000063) -> local0
+    br @pattern.merge.300
+  block pattern.else.299
+    t100 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe4) : i1
+    cbr t100 then @pattern.pass.301 else @pattern.else.302
+  block pattern.merge.300
+    br @pattern.merge.297
+  block pattern.pass.301
+    store integer<Int>(0x00000064) -> local0
+    br @pattern.merge.303
+  block pattern.else.302
+    t101 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe5) : i1
+    cbr t101 then @pattern.pass.304 else @pattern.else.305
+  block pattern.merge.303
+    br @pattern.merge.300
+  block pattern.pass.304
+    store integer<Int>(0x00000065) -> local0
+    br @pattern.merge.306
+  block pattern.else.305
+    t102 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe6) : i1
+    cbr t102 then @pattern.pass.307 else @pattern.else.308
+  block pattern.merge.306
+    br @pattern.merge.303
+  block pattern.pass.307
+    store integer<Int>(0x00000066) -> local0
+    br @pattern.merge.309
+  block pattern.else.308
+    t103 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe7) : i1
+    cbr t103 then @pattern.pass.310 else @pattern.else.311
+  block pattern.merge.309
+    br @pattern.merge.306
+  block pattern.pass.310
+    store integer<Int>(0x00000067) -> local0
+    br @pattern.merge.312
+  block pattern.else.311
+    t104 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe8) : i1
+    cbr t104 then @pattern.pass.313 else @pattern.else.314
+  block pattern.merge.312
+    br @pattern.merge.309
+  block pattern.pass.313
+    store integer<Int>(0x00000068) -> local0
+    br @pattern.merge.315
+  block pattern.else.314
+    t105 = integer_compare_Equal<Int8> local1, integer<Int8>(0xe9) : i1
+    cbr t105 then @pattern.pass.316 else @pattern.else.317
+  block pattern.merge.315
+    br @pattern.merge.312
+  block pattern.pass.316
+    store integer<Int>(0x00000069) -> local0
+    br @pattern.merge.318
+  block pattern.else.317
+    t106 = integer_compare_Equal<Int8> local1, integer<Int8>(0xea) : i1
+    cbr t106 then @pattern.pass.319 else @pattern.else.320
+  block pattern.merge.318
+    br @pattern.merge.315
+  block pattern.pass.319
+    store integer<Int>(0x0000006a) -> local0
+    br @pattern.merge.321
+  block pattern.else.320
+    t107 = integer_compare_Equal<Int8> local1, integer<Int8>(0xeb) : i1
+    cbr t107 then @pattern.pass.322 else @pattern.else.323
+  block pattern.merge.321
+    br @pattern.merge.318
+  block pattern.pass.322
+    store integer<Int>(0x0000006b) -> local0
+    br @pattern.merge.324
+  block pattern.else.323
+    t108 = integer_compare_Equal<Int8> local1, integer<Int8>(0xec) : i1
+    cbr t108 then @pattern.pass.325 else @pattern.else.326
+  block pattern.merge.324
+    br @pattern.merge.321
+  block pattern.pass.325
+    store integer<Int>(0x0000006c) -> local0
+    br @pattern.merge.327
+  block pattern.else.326
+    t109 = integer_compare_Equal<Int8> local1, integer<Int8>(0xed) : i1
+    cbr t109 then @pattern.pass.328 else @pattern.else.329
+  block pattern.merge.327
+    br @pattern.merge.324
+  block pattern.pass.328
+    store integer<Int>(0x0000006d) -> local0
+    br @pattern.merge.330
+  block pattern.else.329
+    t110 = integer_compare_Equal<Int8> local1, integer<Int8>(0xee) : i1
+    cbr t110 then @pattern.pass.331 else @pattern.else.332
+  block pattern.merge.330
+    br @pattern.merge.327
+  block pattern.pass.331
+    store integer<Int>(0x0000006e) -> local0
+    br @pattern.merge.333
+  block pattern.else.332
+    t111 = integer_compare_Equal<Int8> local1, integer<Int8>(0xef) : i1
+    cbr t111 then @pattern.pass.334 else @pattern.else.335
+  block pattern.merge.333
+    br @pattern.merge.330
+  block pattern.pass.334
+    store integer<Int>(0x0000006f) -> local0
+    br @pattern.merge.336
+  block pattern.else.335
+    t112 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf0) : i1
+    cbr t112 then @pattern.pass.337 else @pattern.else.338
+  block pattern.merge.336
+    br @pattern.merge.333
+  block pattern.pass.337
+    store integer<Int>(0x00000070) -> local0
+    br @pattern.merge.339
+  block pattern.else.338
+    t113 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf1) : i1
+    cbr t113 then @pattern.pass.340 else @pattern.else.341
+  block pattern.merge.339
+    br @pattern.merge.336
+  block pattern.pass.340
+    store integer<Int>(0x00000071) -> local0
+    br @pattern.merge.342
+  block pattern.else.341
+    t114 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf2) : i1
+    cbr t114 then @pattern.pass.343 else @pattern.else.344
+  block pattern.merge.342
+    br @pattern.merge.339
+  block pattern.pass.343
+    store integer<Int>(0x00000072) -> local0
+    br @pattern.merge.345
+  block pattern.else.344
+    t115 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf3) : i1
+    cbr t115 then @pattern.pass.346 else @pattern.else.347
+  block pattern.merge.345
+    br @pattern.merge.342
+  block pattern.pass.346
+    store integer<Int>(0x00000073) -> local0
+    br @pattern.merge.348
+  block pattern.else.347
+    t116 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf4) : i1
+    cbr t116 then @pattern.pass.349 else @pattern.else.350
+  block pattern.merge.348
+    br @pattern.merge.345
+  block pattern.pass.349
+    store integer<Int>(0x00000074) -> local0
+    br @pattern.merge.351
+  block pattern.else.350
+    t117 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf5) : i1
+    cbr t117 then @pattern.pass.352 else @pattern.else.353
+  block pattern.merge.351
+    br @pattern.merge.348
+  block pattern.pass.352
+    store integer<Int>(0x00000075) -> local0
+    br @pattern.merge.354
+  block pattern.else.353
+    t118 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf6) : i1
+    cbr t118 then @pattern.pass.355 else @pattern.else.356
+  block pattern.merge.354
+    br @pattern.merge.351
+  block pattern.pass.355
+    store integer<Int>(0x00000076) -> local0
+    br @pattern.merge.357
+  block pattern.else.356
+    t119 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf7) : i1
+    cbr t119 then @pattern.pass.358 else @pattern.else.359
+  block pattern.merge.357
+    br @pattern.merge.354
+  block pattern.pass.358
+    store integer<Int>(0x00000077) -> local0
+    br @pattern.merge.360
+  block pattern.else.359
+    t120 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf8) : i1
+    cbr t120 then @pattern.pass.361 else @pattern.else.362
+  block pattern.merge.360
+    br @pattern.merge.357
+  block pattern.pass.361
+    store integer<Int>(0x00000078) -> local0
+    br @pattern.merge.363
+  block pattern.else.362
+    t121 = integer_compare_Equal<Int8> local1, integer<Int8>(0xf9) : i1
+    cbr t121 then @pattern.pass.364 else @pattern.else.365
+  block pattern.merge.363
+    br @pattern.merge.360
+  block pattern.pass.364
+    store integer<Int>(0x00000079) -> local0
+    br @pattern.merge.366
+  block pattern.else.365
+    t122 = integer_compare_Equal<Int8> local1, integer<Int8>(0xfa) : i1
+    cbr t122 then @pattern.pass.367 else @pattern.else.368
+  block pattern.merge.366
+    br @pattern.merge.363
+  block pattern.pass.367
+    store integer<Int>(0x0000007a) -> local0
+    br @pattern.merge.369
+  block pattern.else.368
+    t123 = integer_compare_Equal<Int8> local1, integer<Int8>(0xfb) : i1
+    cbr t123 then @pattern.pass.370 else @pattern.else.371
+  block pattern.merge.369
+    br @pattern.merge.366
+  block pattern.pass.370
+    store integer<Int>(0x0000007b) -> local0
+    br @pattern.merge.372
+  block pattern.else.371
+    t124 = integer_compare_Equal<Int8> local1, integer<Int8>(0xfc) : i1
+    cbr t124 then @pattern.pass.373 else @pattern.else.374
+  block pattern.merge.372
+    br @pattern.merge.369
+  block pattern.pass.373
+    store integer<Int>(0x0000007c) -> local0
+    br @pattern.merge.375
+  block pattern.else.374
+    t125 = integer_compare_Equal<Int8> local1, integer<Int8>(0xfd) : i1
+    cbr t125 then @pattern.pass.376 else @pattern.else.377
+  block pattern.merge.375
+    br @pattern.merge.372
+  block pattern.pass.376
+    store integer<Int>(0x0000007d) -> local0
+    br @pattern.merge.378
+  block pattern.else.377
+    t126 = integer_compare_Equal<Int8> local1, integer<Int8>(0xfe) : i1
+    cbr t126 then @pattern.pass.379 else @pattern.else.380
+  block pattern.merge.378
+    br @pattern.merge.375
+  block pattern.pass.379
+    store integer<Int>(0x0000007e) -> local0
+    br @pattern.merge.381
+  block pattern.else.380
+    t127 = integer_compare_Equal<Int8> local1, integer<Int8>(0xff) : i1
+    cbr t127 then @pattern.pass.382 else @pattern.else.383
+  block pattern.merge.381
+    br @pattern.merge.378
+  block pattern.pass.382
+    store integer<Int>(0x0000007f) -> local0
+    br @pattern.merge.384
+  block pattern.else.383
+    t128 = integer_compare_Equal<Int8> local1, integer<Int8>(0x00) : i1
+    cbr t128 then @pattern.pass.385 else @pattern.else.386
+  block pattern.merge.384
+    br @pattern.merge.381
+  block pattern.pass.385
+    store integer<Int>(0x00000080) -> local0
+    br @pattern.merge.387
+  block pattern.else.386
+    t129 = integer_compare_Equal<Int8> local1, integer<Int8>(0x01) : i1
+    cbr t129 then @pattern.pass.388 else @pattern.else.389
+  block pattern.merge.387
+    br @pattern.merge.384
+  block pattern.pass.388
+    store integer<Int>(0x00000081) -> local0
+    br @pattern.merge.390
+  block pattern.else.389
+    t130 = integer_compare_Equal<Int8> local1, integer<Int8>(0x02) : i1
+    cbr t130 then @pattern.pass.391 else @pattern.else.392
+  block pattern.merge.390
+    br @pattern.merge.387
+  block pattern.pass.391
+    store integer<Int>(0x00000082) -> local0
+    br @pattern.merge.393
+  block pattern.else.392
+    t131 = integer_compare_Equal<Int8> local1, integer<Int8>(0x03) : i1
+    cbr t131 then @pattern.pass.394 else @pattern.else.395
+  block pattern.merge.393
+    br @pattern.merge.390
+  block pattern.pass.394
+    store integer<Int>(0x00000083) -> local0
+    br @pattern.merge.396
+  block pattern.else.395
+    t132 = integer_compare_Equal<Int8> local1, integer<Int8>(0x04) : i1
+    cbr t132 then @pattern.pass.397 else @pattern.else.398
+  block pattern.merge.396
+    br @pattern.merge.393
+  block pattern.pass.397
+    store integer<Int>(0x00000084) -> local0
+    br @pattern.merge.399
+  block pattern.else.398
+    t133 = integer_compare_Equal<Int8> local1, integer<Int8>(0x05) : i1
+    cbr t133 then @pattern.pass.400 else @pattern.else.401
+  block pattern.merge.399
+    br @pattern.merge.396
+  block pattern.pass.400
+    store integer<Int>(0x00000085) -> local0
+    br @pattern.merge.402
+  block pattern.else.401
+    t134 = integer_compare_Equal<Int8> local1, integer<Int8>(0x06) : i1
+    cbr t134 then @pattern.pass.403 else @pattern.else.404
+  block pattern.merge.402
+    br @pattern.merge.399
+  block pattern.pass.403
+    store integer<Int>(0x00000086) -> local0
+    br @pattern.merge.405
+  block pattern.else.404
+    t135 = integer_compare_Equal<Int8> local1, integer<Int8>(0x07) : i1
+    cbr t135 then @pattern.pass.406 else @pattern.else.407
+  block pattern.merge.405
+    br @pattern.merge.402
+  block pattern.pass.406
+    store integer<Int>(0x00000087) -> local0
+    br @pattern.merge.408
+  block pattern.else.407
+    t136 = integer_compare_Equal<Int8> local1, integer<Int8>(0x08) : i1
+    cbr t136 then @pattern.pass.409 else @pattern.else.410
+  block pattern.merge.408
+    br @pattern.merge.405
+  block pattern.pass.409
+    store integer<Int>(0x00000088) -> local0
+    br @pattern.merge.411
+  block pattern.else.410
+    t137 = integer_compare_Equal<Int8> local1, integer<Int8>(0x09) : i1
+    cbr t137 then @pattern.pass.412 else @pattern.else.413
+  block pattern.merge.411
+    br @pattern.merge.408
+  block pattern.pass.412
+    store integer<Int>(0x00000089) -> local0
+    br @pattern.merge.414
+  block pattern.else.413
+    t138 = integer_compare_Equal<Int8> local1, integer<Int8>(0x0a) : i1
+    cbr t138 then @pattern.pass.415 else @pattern.else.416
+  block pattern.merge.414
+    br @pattern.merge.411
+  block pattern.pass.415
+    store integer<Int>(0x0000008a) -> local0
+    br @pattern.merge.417
+  block pattern.else.416
+    t139 = integer_compare_Equal<Int8> local1, integer<Int8>(0x0b) : i1
+    cbr t139 then @pattern.pass.418 else @pattern.else.419
+  block pattern.merge.417
+    br @pattern.merge.414
+  block pattern.pass.418
+    store integer<Int>(0x0000008b) -> local0
+    br @pattern.merge.420
+  block pattern.else.419
+    t140 = integer_compare_Equal<Int8> local1, integer<Int8>(0x0c) : i1
+    cbr t140 then @pattern.pass.421 else @pattern.else.422
+  block pattern.merge.420
+    br @pattern.merge.417
+  block pattern.pass.421
+    store integer<Int>(0x0000008c) -> local0
+    br @pattern.merge.423
+  block pattern.else.422
+    t141 = integer_compare_Equal<Int8> local1, integer<Int8>(0x0d) : i1
+    cbr t141 then @pattern.pass.424 else @pattern.else.425
+  block pattern.merge.423
+    br @pattern.merge.420
+  block pattern.pass.424
+    store integer<Int>(0x0000008d) -> local0
+    br @pattern.merge.426
+  block pattern.else.425
+    t142 = integer_compare_Equal<Int8> local1, integer<Int8>(0x0e) : i1
+    cbr t142 then @pattern.pass.427 else @pattern.else.428
+  block pattern.merge.426
+    br @pattern.merge.423
+  block pattern.pass.427
+    store integer<Int>(0x0000008e) -> local0
+    br @pattern.merge.429
+  block pattern.else.428
+    t143 = integer_compare_Equal<Int8> local1, integer<Int8>(0x0f) : i1
+    cbr t143 then @pattern.pass.430 else @pattern.else.431
+  block pattern.merge.429
+    br @pattern.merge.426
+  block pattern.pass.430
+    store integer<Int>(0x0000008f) -> local0
+    br @pattern.merge.432
+  block pattern.else.431
+    t144 = integer_compare_Equal<Int8> local1, integer<Int8>(0x10) : i1
+    cbr t144 then @pattern.pass.433 else @pattern.else.434
+  block pattern.merge.432
+    br @pattern.merge.429
+  block pattern.pass.433
+    store integer<Int>(0x00000090) -> local0
+    br @pattern.merge.435
+  block pattern.else.434
+    t145 = integer_compare_Equal<Int8> local1, integer<Int8>(0x11) : i1
+    cbr t145 then @pattern.pass.436 else @pattern.else.437
+  block pattern.merge.435
+    br @pattern.merge.432
+  block pattern.pass.436
+    store integer<Int>(0x00000091) -> local0
+    br @pattern.merge.438
+  block pattern.else.437
+    t146 = integer_compare_Equal<Int8> local1, integer<Int8>(0x12) : i1
+    cbr t146 then @pattern.pass.439 else @pattern.else.440
+  block pattern.merge.438
+    br @pattern.merge.435
+  block pattern.pass.439
+    store integer<Int>(0x00000092) -> local0
+    br @pattern.merge.441
+  block pattern.else.440
+    t147 = integer_compare_Equal<Int8> local1, integer<Int8>(0x13) : i1
+    cbr t147 then @pattern.pass.442 else @pattern.else.443
+  block pattern.merge.441
+    br @pattern.merge.438
+  block pattern.pass.442
+    store integer<Int>(0x00000093) -> local0
+    br @pattern.merge.444
+  block pattern.else.443
+    t148 = integer_compare_Equal<Int8> local1, integer<Int8>(0x14) : i1
+    cbr t148 then @pattern.pass.445 else @pattern.else.446
+  block pattern.merge.444
+    br @pattern.merge.441
+  block pattern.pass.445
+    store integer<Int>(0x00000094) -> local0
+    br @pattern.merge.447
+  block pattern.else.446
+    t149 = integer_compare_Equal<Int8> local1, integer<Int8>(0x15) : i1
+    cbr t149 then @pattern.pass.448 else @pattern.else.449
+  block pattern.merge.447
+    br @pattern.merge.444
+  block pattern.pass.448
+    store integer<Int>(0x00000095) -> local0
+    br @pattern.merge.450
+  block pattern.else.449
+    t150 = integer_compare_Equal<Int8> local1, integer<Int8>(0x16) : i1
+    cbr t150 then @pattern.pass.451 else @pattern.else.452
+  block pattern.merge.450
+    br @pattern.merge.447
+  block pattern.pass.451
+    store integer<Int>(0x00000096) -> local0
+    br @pattern.merge.453
+  block pattern.else.452
+    t151 = integer_compare_Equal<Int8> local1, integer<Int8>(0x17) : i1
+    cbr t151 then @pattern.pass.454 else @pattern.else.455
+  block pattern.merge.453
+    br @pattern.merge.450
+  block pattern.pass.454
+    store integer<Int>(0x00000097) -> local0
+    br @pattern.merge.456
+  block pattern.else.455
+    t152 = integer_compare_Equal<Int8> local1, integer<Int8>(0x18) : i1
+    cbr t152 then @pattern.pass.457 else @pattern.else.458
+  block pattern.merge.456
+    br @pattern.merge.453
+  block pattern.pass.457
+    store integer<Int>(0x00000098) -> local0
+    br @pattern.merge.459
+  block pattern.else.458
+    t153 = integer_compare_Equal<Int8> local1, integer<Int8>(0x19) : i1
+    cbr t153 then @pattern.pass.460 else @pattern.else.461
+  block pattern.merge.459
+    br @pattern.merge.456
+  block pattern.pass.460
+    store integer<Int>(0x00000099) -> local0
+    br @pattern.merge.462
+  block pattern.else.461
+    t154 = integer_compare_Equal<Int8> local1, integer<Int8>(0x1a) : i1
+    cbr t154 then @pattern.pass.463 else @pattern.else.464
+  block pattern.merge.462
+    br @pattern.merge.459
+  block pattern.pass.463
+    store integer<Int>(0x0000009a) -> local0
+    br @pattern.merge.465
+  block pattern.else.464
+    t155 = integer_compare_Equal<Int8> local1, integer<Int8>(0x1b) : i1
+    cbr t155 then @pattern.pass.466 else @pattern.else.467
+  block pattern.merge.465
+    br @pattern.merge.462
+  block pattern.pass.466
+    store integer<Int>(0x0000009b) -> local0
+    br @pattern.merge.468
+  block pattern.else.467
+    t156 = integer_compare_Equal<Int8> local1, integer<Int8>(0x1c) : i1
+    cbr t156 then @pattern.pass.469 else @pattern.else.470
+  block pattern.merge.468
+    br @pattern.merge.465
+  block pattern.pass.469
+    store integer<Int>(0x0000009c) -> local0
+    br @pattern.merge.471
+  block pattern.else.470
+    t157 = integer_compare_Equal<Int8> local1, integer<Int8>(0x1d) : i1
+    cbr t157 then @pattern.pass.472 else @pattern.else.473
+  block pattern.merge.471
+    br @pattern.merge.468
+  block pattern.pass.472
+    store integer<Int>(0x0000009d) -> local0
+    br @pattern.merge.474
+  block pattern.else.473
+    t158 = integer_compare_Equal<Int8> local1, integer<Int8>(0x1e) : i1
+    cbr t158 then @pattern.pass.475 else @pattern.else.476
+  block pattern.merge.474
+    br @pattern.merge.471
+  block pattern.pass.475
+    store integer<Int>(0x0000009e) -> local0
+    br @pattern.merge.477
+  block pattern.else.476
+    t159 = integer_compare_Equal<Int8> local1, integer<Int8>(0x1f) : i1
+    cbr t159 then @pattern.pass.478 else @pattern.else.479
+  block pattern.merge.477
+    br @pattern.merge.474
+  block pattern.pass.478
+    store integer<Int>(0x0000009f) -> local0
+    br @pattern.merge.480
+  block pattern.else.479
+    t160 = integer_compare_Equal<Int8> local1, integer<Int8>(0x20) : i1
+    cbr t160 then @pattern.pass.481 else @pattern.else.482
+  block pattern.merge.480
+    br @pattern.merge.477
+  block pattern.pass.481
+    store integer<Int>(0x000000a0) -> local0
+    br @pattern.merge.483
+  block pattern.else.482
+    t161 = integer_compare_Equal<Int8> local1, integer<Int8>(0x21) : i1
+    cbr t161 then @pattern.pass.484 else @pattern.else.485
+  block pattern.merge.483
+    br @pattern.merge.480
+  block pattern.pass.484
+    store integer<Int>(0x000000a1) -> local0
+    br @pattern.merge.486
+  block pattern.else.485
+    t162 = integer_compare_Equal<Int8> local1, integer<Int8>(0x22) : i1
+    cbr t162 then @pattern.pass.487 else @pattern.else.488
+  block pattern.merge.486
+    br @pattern.merge.483
+  block pattern.pass.487
+    store integer<Int>(0x000000a2) -> local0
+    br @pattern.merge.489
+  block pattern.else.488
+    t163 = integer_compare_Equal<Int8> local1, integer<Int8>(0x23) : i1
+    cbr t163 then @pattern.pass.490 else @pattern.else.491
+  block pattern.merge.489
+    br @pattern.merge.486
+  block pattern.pass.490
+    store integer<Int>(0x000000a3) -> local0
+    br @pattern.merge.492
+  block pattern.else.491
+    t164 = integer_compare_Equal<Int8> local1, integer<Int8>(0x24) : i1
+    cbr t164 then @pattern.pass.493 else @pattern.else.494
+  block pattern.merge.492
+    br @pattern.merge.489
+  block pattern.pass.493
+    store integer<Int>(0x000000a4) -> local0
+    br @pattern.merge.495
+  block pattern.else.494
+    t165 = integer_compare_Equal<Int8> local1, integer<Int8>(0x25) : i1
+    cbr t165 then @pattern.pass.496 else @pattern.else.497
+  block pattern.merge.495
+    br @pattern.merge.492
+  block pattern.pass.496
+    store integer<Int>(0x000000a5) -> local0
+    br @pattern.merge.498
+  block pattern.else.497
+    t166 = integer_compare_Equal<Int8> local1, integer<Int8>(0x26) : i1
+    cbr t166 then @pattern.pass.499 else @pattern.else.500
+  block pattern.merge.498
+    br @pattern.merge.495
+  block pattern.pass.499
+    store integer<Int>(0x000000a6) -> local0
+    br @pattern.merge.501
+  block pattern.else.500
+    t167 = integer_compare_Equal<Int8> local1, integer<Int8>(0x27) : i1
+    cbr t167 then @pattern.pass.502 else @pattern.else.503
+  block pattern.merge.501
+    br @pattern.merge.498
+  block pattern.pass.502
+    store integer<Int>(0x000000a7) -> local0
+    br @pattern.merge.504
+  block pattern.else.503
+    t168 = integer_compare_Equal<Int8> local1, integer<Int8>(0x28) : i1
+    cbr t168 then @pattern.pass.505 else @pattern.else.506
+  block pattern.merge.504
+    br @pattern.merge.501
+  block pattern.pass.505
+    store integer<Int>(0x000000a8) -> local0
+    br @pattern.merge.507
+  block pattern.else.506
+    t169 = integer_compare_Equal<Int8> local1, integer<Int8>(0x29) : i1
+    cbr t169 then @pattern.pass.508 else @pattern.else.509
+  block pattern.merge.507
+    br @pattern.merge.504
+  block pattern.pass.508
+    store integer<Int>(0x000000a9) -> local0
+    br @pattern.merge.510
+  block pattern.else.509
+    t170 = integer_compare_Equal<Int8> local1, integer<Int8>(0x2a) : i1
+    cbr t170 then @pattern.pass.511 else @pattern.else.512
+  block pattern.merge.510
+    br @pattern.merge.507
+  block pattern.pass.511
+    store integer<Int>(0x000000aa) -> local0
+    br @pattern.merge.513
+  block pattern.else.512
+    t171 = integer_compare_Equal<Int8> local1, integer<Int8>(0x2b) : i1
+    cbr t171 then @pattern.pass.514 else @pattern.else.515
+  block pattern.merge.513
+    br @pattern.merge.510
+  block pattern.pass.514
+    store integer<Int>(0x000000ab) -> local0
+    br @pattern.merge.516
+  block pattern.else.515
+    t172 = integer_compare_Equal<Int8> local1, integer<Int8>(0x2c) : i1
+    cbr t172 then @pattern.pass.517 else @pattern.else.518
+  block pattern.merge.516
+    br @pattern.merge.513
+  block pattern.pass.517
+    store integer<Int>(0x000000ac) -> local0
+    br @pattern.merge.519
+  block pattern.else.518
+    t173 = integer_compare_Equal<Int8> local1, integer<Int8>(0x2d) : i1
+    cbr t173 then @pattern.pass.520 else @pattern.else.521
+  block pattern.merge.519
+    br @pattern.merge.516
+  block pattern.pass.520
+    store integer<Int>(0x000000ad) -> local0
+    br @pattern.merge.522
+  block pattern.else.521
+    t174 = integer_compare_Equal<Int8> local1, integer<Int8>(0x2e) : i1
+    cbr t174 then @pattern.pass.523 else @pattern.else.524
+  block pattern.merge.522
+    br @pattern.merge.519
+  block pattern.pass.523
+    store integer<Int>(0x000000ae) -> local0
+    br @pattern.merge.525
+  block pattern.else.524
+    t175 = integer_compare_Equal<Int8> local1, integer<Int8>(0x2f) : i1
+    cbr t175 then @pattern.pass.526 else @pattern.else.527
+  block pattern.merge.525
+    br @pattern.merge.522
+  block pattern.pass.526
+    store integer<Int>(0x000000af) -> local0
+    br @pattern.merge.528
+  block pattern.else.527
+    t176 = integer_compare_Equal<Int8> local1, integer<Int8>(0x30) : i1
+    cbr t176 then @pattern.pass.529 else @pattern.else.530
+  block pattern.merge.528
+    br @pattern.merge.525
+  block pattern.pass.529
+    store integer<Int>(0x000000b0) -> local0
+    br @pattern.merge.531
+  block pattern.else.530
+    t177 = integer_compare_Equal<Int8> local1, integer<Int8>(0x31) : i1
+    cbr t177 then @pattern.pass.532 else @pattern.else.533
+  block pattern.merge.531
+    br @pattern.merge.528
+  block pattern.pass.532
+    store integer<Int>(0x000000b1) -> local0
+    br @pattern.merge.534
+  block pattern.else.533
+    t178 = integer_compare_Equal<Int8> local1, integer<Int8>(0x32) : i1
+    cbr t178 then @pattern.pass.535 else @pattern.else.536
+  block pattern.merge.534
+    br @pattern.merge.531
+  block pattern.pass.535
+    store integer<Int>(0x000000b2) -> local0
+    br @pattern.merge.537
+  block pattern.else.536
+    t179 = integer_compare_Equal<Int8> local1, integer<Int8>(0x33) : i1
+    cbr t179 then @pattern.pass.538 else @pattern.else.539
+  block pattern.merge.537
+    br @pattern.merge.534
+  block pattern.pass.538
+    store integer<Int>(0x000000b3) -> local0
+    br @pattern.merge.540
+  block pattern.else.539
+    t180 = integer_compare_Equal<Int8> local1, integer<Int8>(0x34) : i1
+    cbr t180 then @pattern.pass.541 else @pattern.else.542
+  block pattern.merge.540
+    br @pattern.merge.537
+  block pattern.pass.541
+    store integer<Int>(0x000000b4) -> local0
+    br @pattern.merge.543
+  block pattern.else.542
+    t181 = integer_compare_Equal<Int8> local1, integer<Int8>(0x35) : i1
+    cbr t181 then @pattern.pass.544 else @pattern.else.545
+  block pattern.merge.543
+    br @pattern.merge.540
+  block pattern.pass.544
+    store integer<Int>(0x000000b5) -> local0
+    br @pattern.merge.546
+  block pattern.else.545
+    t182 = integer_compare_Equal<Int8> local1, integer<Int8>(0x36) : i1
+    cbr t182 then @pattern.pass.547 else @pattern.else.548
+  block pattern.merge.546
+    br @pattern.merge.543
+  block pattern.pass.547
+    store integer<Int>(0x000000b6) -> local0
+    br @pattern.merge.549
+  block pattern.else.548
+    t183 = integer_compare_Equal<Int8> local1, integer<Int8>(0x37) : i1
+    cbr t183 then @pattern.pass.550 else @pattern.else.551
+  block pattern.merge.549
+    br @pattern.merge.546
+  block pattern.pass.550
+    store integer<Int>(0x000000b7) -> local0
+    br @pattern.merge.552
+  block pattern.else.551
+    t184 = integer_compare_Equal<Int8> local1, integer<Int8>(0x38) : i1
+    cbr t184 then @pattern.pass.553 else @pattern.else.554
+  block pattern.merge.552
+    br @pattern.merge.549
+  block pattern.pass.553
+    store integer<Int>(0x000000b8) -> local0
+    br @pattern.merge.555
+  block pattern.else.554
+    t185 = integer_compare_Equal<Int8> local1, integer<Int8>(0x39) : i1
+    cbr t185 then @pattern.pass.556 else @pattern.else.557
+  block pattern.merge.555
+    br @pattern.merge.552
+  block pattern.pass.556
+    store integer<Int>(0x000000b9) -> local0
+    br @pattern.merge.558
+  block pattern.else.557
+    t186 = integer_compare_Equal<Int8> local1, integer<Int8>(0x3a) : i1
+    cbr t186 then @pattern.pass.559 else @pattern.else.560
+  block pattern.merge.558
+    br @pattern.merge.555
+  block pattern.pass.559
+    store integer<Int>(0x000000ba) -> local0
+    br @pattern.merge.561
+  block pattern.else.560
+    t187 = integer_compare_Equal<Int8> local1, integer<Int8>(0x3b) : i1
+    cbr t187 then @pattern.pass.562 else @pattern.else.563
+  block pattern.merge.561
+    br @pattern.merge.558
+  block pattern.pass.562
+    store integer<Int>(0x000000bb) -> local0
+    br @pattern.merge.564
+  block pattern.else.563
+    t188 = integer_compare_Equal<Int8> local1, integer<Int8>(0x3c) : i1
+    cbr t188 then @pattern.pass.565 else @pattern.else.566
+  block pattern.merge.564
+    br @pattern.merge.561
+  block pattern.pass.565
+    store integer<Int>(0x000000bc) -> local0
+    br @pattern.merge.567
+  block pattern.else.566
+    t189 = integer_compare_Equal<Int8> local1, integer<Int8>(0x3d) : i1
+    cbr t189 then @pattern.pass.568 else @pattern.else.569
+  block pattern.merge.567
+    br @pattern.merge.564
+  block pattern.pass.568
+    store integer<Int>(0x000000bd) -> local0
+    br @pattern.merge.570
+  block pattern.else.569
+    t190 = integer_compare_Equal<Int8> local1, integer<Int8>(0x3e) : i1
+    cbr t190 then @pattern.pass.571 else @pattern.else.572
+  block pattern.merge.570
+    br @pattern.merge.567
+  block pattern.pass.571
+    store integer<Int>(0x000000be) -> local0
+    br @pattern.merge.573
+  block pattern.else.572
+    t191 = integer_compare_Equal<Int8> local1, integer<Int8>(0x3f) : i1
+    cbr t191 then @pattern.pass.574 else @pattern.else.575
+  block pattern.merge.573
+    br @pattern.merge.570
+  block pattern.pass.574
+    store integer<Int>(0x000000bf) -> local0
+    br @pattern.merge.576
+  block pattern.else.575
+    t192 = integer_compare_Equal<Int8> local1, integer<Int8>(0x40) : i1
+    cbr t192 then @pattern.pass.577 else @pattern.else.578
+  block pattern.merge.576
+    br @pattern.merge.573
+  block pattern.pass.577
+    store integer<Int>(0x000000c0) -> local0
+    br @pattern.merge.579
+  block pattern.else.578
+    t193 = integer_compare_Equal<Int8> local1, integer<Int8>(0x41) : i1
+    cbr t193 then @pattern.pass.580 else @pattern.else.581
+  block pattern.merge.579
+    br @pattern.merge.576
+  block pattern.pass.580
+    store integer<Int>(0x000000c1) -> local0
+    br @pattern.merge.582
+  block pattern.else.581
+    t194 = integer_compare_Equal<Int8> local1, integer<Int8>(0x42) : i1
+    cbr t194 then @pattern.pass.583 else @pattern.else.584
+  block pattern.merge.582
+    br @pattern.merge.579
+  block pattern.pass.583
+    store integer<Int>(0x000000c2) -> local0
+    br @pattern.merge.585
+  block pattern.else.584
+    t195 = integer_compare_Equal<Int8> local1, integer<Int8>(0x43) : i1
+    cbr t195 then @pattern.pass.586 else @pattern.else.587
+  block pattern.merge.585
+    br @pattern.merge.582
+  block pattern.pass.586
+    store integer<Int>(0x000000c3) -> local0
+    br @pattern.merge.588
+  block pattern.else.587
+    t196 = integer_compare_Equal<Int8> local1, integer<Int8>(0x44) : i1
+    cbr t196 then @pattern.pass.589 else @pattern.else.590
+  block pattern.merge.588
+    br @pattern.merge.585
+  block pattern.pass.589
+    store integer<Int>(0x000000c4) -> local0
+    br @pattern.merge.591
+  block pattern.else.590
+    t197 = integer_compare_Equal<Int8> local1, integer<Int8>(0x45) : i1
+    cbr t197 then @pattern.pass.592 else @pattern.else.593
+  block pattern.merge.591
+    br @pattern.merge.588
+  block pattern.pass.592
+    store integer<Int>(0x000000c5) -> local0
+    br @pattern.merge.594
+  block pattern.else.593
+    t198 = integer_compare_Equal<Int8> local1, integer<Int8>(0x46) : i1
+    cbr t198 then @pattern.pass.595 else @pattern.else.596
+  block pattern.merge.594
+    br @pattern.merge.591
+  block pattern.pass.595
+    store integer<Int>(0x000000c6) -> local0
+    br @pattern.merge.597
+  block pattern.else.596
+    t199 = integer_compare_Equal<Int8> local1, integer<Int8>(0x47) : i1
+    cbr t199 then @pattern.pass.598 else @pattern.else.599
+  block pattern.merge.597
+    br @pattern.merge.594
+  block pattern.pass.598
+    store integer<Int>(0x000000c7) -> local0
+    br @pattern.merge.600
+  block pattern.else.599
+    t200 = integer_compare_Equal<Int8> local1, integer<Int8>(0x48) : i1
+    cbr t200 then @pattern.pass.601 else @pattern.else.602
+  block pattern.merge.600
+    br @pattern.merge.597
+  block pattern.pass.601
+    store integer<Int>(0x000000c8) -> local0
+    br @pattern.merge.603
+  block pattern.else.602
+    t201 = integer_compare_Equal<Int8> local1, integer<Int8>(0x49) : i1
+    cbr t201 then @pattern.pass.604 else @pattern.else.605
+  block pattern.merge.603
+    br @pattern.merge.600
+  block pattern.pass.604
+    store integer<Int>(0x000000c9) -> local0
+    br @pattern.merge.606
+  block pattern.else.605
+    t202 = integer_compare_Equal<Int8> local1, integer<Int8>(0x4a) : i1
+    cbr t202 then @pattern.pass.607 else @pattern.else.608
+  block pattern.merge.606
+    br @pattern.merge.603
+  block pattern.pass.607
+    store integer<Int>(0x000000ca) -> local0
+    br @pattern.merge.609
+  block pattern.else.608
+    t203 = integer_compare_Equal<Int8> local1, integer<Int8>(0x4b) : i1
+    cbr t203 then @pattern.pass.610 else @pattern.else.611
+  block pattern.merge.609
+    br @pattern.merge.606
+  block pattern.pass.610
+    store integer<Int>(0x000000cb) -> local0
+    br @pattern.merge.612
+  block pattern.else.611
+    t204 = integer_compare_Equal<Int8> local1, integer<Int8>(0x4c) : i1
+    cbr t204 then @pattern.pass.613 else @pattern.else.614
+  block pattern.merge.612
+    br @pattern.merge.609
+  block pattern.pass.613
+    store integer<Int>(0x000000cc) -> local0
+    br @pattern.merge.615
+  block pattern.else.614
+    t205 = integer_compare_Equal<Int8> local1, integer<Int8>(0x4d) : i1
+    cbr t205 then @pattern.pass.616 else @pattern.else.617
+  block pattern.merge.615
+    br @pattern.merge.612
+  block pattern.pass.616
+    store integer<Int>(0x000000cd) -> local0
+    br @pattern.merge.618
+  block pattern.else.617
+    t206 = integer_compare_Equal<Int8> local1, integer<Int8>(0x4e) : i1
+    cbr t206 then @pattern.pass.619 else @pattern.else.620
+  block pattern.merge.618
+    br @pattern.merge.615
+  block pattern.pass.619
+    store integer<Int>(0x000000ce) -> local0
+    br @pattern.merge.621
+  block pattern.else.620
+    t207 = integer_compare_Equal<Int8> local1, integer<Int8>(0x4f) : i1
+    cbr t207 then @pattern.pass.622 else @pattern.else.623
+  block pattern.merge.621
+    br @pattern.merge.618
+  block pattern.pass.622
+    store integer<Int>(0x000000cf) -> local0
+    br @pattern.merge.624
+  block pattern.else.623
+    t208 = integer_compare_Equal<Int8> local1, integer<Int8>(0x50) : i1
+    cbr t208 then @pattern.pass.625 else @pattern.else.626
+  block pattern.merge.624
+    br @pattern.merge.621
+  block pattern.pass.625
+    store integer<Int>(0x000000d0) -> local0
+    br @pattern.merge.627
+  block pattern.else.626
+    t209 = integer_compare_Equal<Int8> local1, integer<Int8>(0x51) : i1
+    cbr t209 then @pattern.pass.628 else @pattern.else.629
+  block pattern.merge.627
+    br @pattern.merge.624
+  block pattern.pass.628
+    store integer<Int>(0x000000d1) -> local0
+    br @pattern.merge.630
+  block pattern.else.629
+    t210 = integer_compare_Equal<Int8> local1, integer<Int8>(0x52) : i1
+    cbr t210 then @pattern.pass.631 else @pattern.else.632
+  block pattern.merge.630
+    br @pattern.merge.627
+  block pattern.pass.631
+    store integer<Int>(0x000000d2) -> local0
+    br @pattern.merge.633
+  block pattern.else.632
+    t211 = integer_compare_Equal<Int8> local1, integer<Int8>(0x53) : i1
+    cbr t211 then @pattern.pass.634 else @pattern.else.635
+  block pattern.merge.633
+    br @pattern.merge.630
+  block pattern.pass.634
+    store integer<Int>(0x000000d3) -> local0
+    br @pattern.merge.636
+  block pattern.else.635
+    t212 = integer_compare_Equal<Int8> local1, integer<Int8>(0x54) : i1
+    cbr t212 then @pattern.pass.637 else @pattern.else.638
+  block pattern.merge.636
+    br @pattern.merge.633
+  block pattern.pass.637
+    store integer<Int>(0x000000d4) -> local0
+    br @pattern.merge.639
+  block pattern.else.638
+    t213 = integer_compare_Equal<Int8> local1, integer<Int8>(0x55) : i1
+    cbr t213 then @pattern.pass.640 else @pattern.else.641
+  block pattern.merge.639
+    br @pattern.merge.636
+  block pattern.pass.640
+    store integer<Int>(0x000000d5) -> local0
+    br @pattern.merge.642
+  block pattern.else.641
+    t214 = integer_compare_Equal<Int8> local1, integer<Int8>(0x56) : i1
+    cbr t214 then @pattern.pass.643 else @pattern.else.644
+  block pattern.merge.642
+    br @pattern.merge.639
+  block pattern.pass.643
+    store integer<Int>(0x000000d6) -> local0
+    br @pattern.merge.645
+  block pattern.else.644
+    t215 = integer_compare_Equal<Int8> local1, integer<Int8>(0x57) : i1
+    cbr t215 then @pattern.pass.646 else @pattern.else.647
+  block pattern.merge.645
+    br @pattern.merge.642
+  block pattern.pass.646
+    store integer<Int>(0x000000d7) -> local0
+    br @pattern.merge.648
+  block pattern.else.647
+    t216 = integer_compare_Equal<Int8> local1, integer<Int8>(0x58) : i1
+    cbr t216 then @pattern.pass.649 else @pattern.else.650
+  block pattern.merge.648
+    br @pattern.merge.645
+  block pattern.pass.649
+    store integer<Int>(0x000000d8) -> local0
+    br @pattern.merge.651
+  block pattern.else.650
+    t217 = integer_compare_Equal<Int8> local1, integer<Int8>(0x59) : i1
+    cbr t217 then @pattern.pass.652 else @pattern.else.653
+  block pattern.merge.651
+    br @pattern.merge.648
+  block pattern.pass.652
+    store integer<Int>(0x000000d9) -> local0
+    br @pattern.merge.654
+  block pattern.else.653
+    t218 = integer_compare_Equal<Int8> local1, integer<Int8>(0x5a) : i1
+    cbr t218 then @pattern.pass.655 else @pattern.else.656
+  block pattern.merge.654
+    br @pattern.merge.651
+  block pattern.pass.655
+    store integer<Int>(0x000000da) -> local0
+    br @pattern.merge.657
+  block pattern.else.656
+    t219 = integer_compare_Equal<Int8> local1, integer<Int8>(0x5b) : i1
+    cbr t219 then @pattern.pass.658 else @pattern.else.659
+  block pattern.merge.657
+    br @pattern.merge.654
+  block pattern.pass.658
+    store integer<Int>(0x000000db) -> local0
+    br @pattern.merge.660
+  block pattern.else.659
+    t220 = integer_compare_Equal<Int8> local1, integer<Int8>(0x5c) : i1
+    cbr t220 then @pattern.pass.661 else @pattern.else.662
+  block pattern.merge.660
+    br @pattern.merge.657
+  block pattern.pass.661
+    store integer<Int>(0x000000dc) -> local0
+    br @pattern.merge.663
+  block pattern.else.662
+    t221 = integer_compare_Equal<Int8> local1, integer<Int8>(0x5d) : i1
+    cbr t221 then @pattern.pass.664 else @pattern.else.665
+  block pattern.merge.663
+    br @pattern.merge.660
+  block pattern.pass.664
+    store integer<Int>(0x000000dd) -> local0
+    br @pattern.merge.666
+  block pattern.else.665
+    t222 = integer_compare_Equal<Int8> local1, integer<Int8>(0x5e) : i1
+    cbr t222 then @pattern.pass.667 else @pattern.else.668
+  block pattern.merge.666
+    br @pattern.merge.663
+  block pattern.pass.667
+    store integer<Int>(0x000000de) -> local0
+    br @pattern.merge.669
+  block pattern.else.668
+    t223 = integer_compare_Equal<Int8> local1, integer<Int8>(0x5f) : i1
+    cbr t223 then @pattern.pass.670 else @pattern.else.671
+  block pattern.merge.669
+    br @pattern.merge.666
+  block pattern.pass.670
+    store integer<Int>(0x000000df) -> local0
+    br @pattern.merge.672
+  block pattern.else.671
+    t224 = integer_compare_Equal<Int8> local1, integer<Int8>(0x60) : i1
+    cbr t224 then @pattern.pass.673 else @pattern.else.674
+  block pattern.merge.672
+    br @pattern.merge.669
+  block pattern.pass.673
+    store integer<Int>(0x000000e0) -> local0
+    br @pattern.merge.675
+  block pattern.else.674
+    t225 = integer_compare_Equal<Int8> local1, integer<Int8>(0x61) : i1
+    cbr t225 then @pattern.pass.676 else @pattern.else.677
+  block pattern.merge.675
+    br @pattern.merge.672
+  block pattern.pass.676
+    store integer<Int>(0x000000e1) -> local0
+    br @pattern.merge.678
+  block pattern.else.677
+    t226 = integer_compare_Equal<Int8> local1, integer<Int8>(0x62) : i1
+    cbr t226 then @pattern.pass.679 else @pattern.else.680
+  block pattern.merge.678
+    br @pattern.merge.675
+  block pattern.pass.679
+    store integer<Int>(0x000000e2) -> local0
+    br @pattern.merge.681
+  block pattern.else.680
+    t227 = integer_compare_Equal<Int8> local1, integer<Int8>(0x63) : i1
+    cbr t227 then @pattern.pass.682 else @pattern.else.683
+  block pattern.merge.681
+    br @pattern.merge.678
+  block pattern.pass.682
+    store integer<Int>(0x000000e3) -> local0
+    br @pattern.merge.684
+  block pattern.else.683
+    t228 = integer_compare_Equal<Int8> local1, integer<Int8>(0x64) : i1
+    cbr t228 then @pattern.pass.685 else @pattern.else.686
+  block pattern.merge.684
+    br @pattern.merge.681
+  block pattern.pass.685
+    store integer<Int>(0x000000e4) -> local0
+    br @pattern.merge.687
+  block pattern.else.686
+    t229 = integer_compare_Equal<Int8> local1, integer<Int8>(0x65) : i1
+    cbr t229 then @pattern.pass.688 else @pattern.else.689
+  block pattern.merge.687
+    br @pattern.merge.684
+  block pattern.pass.688
+    store integer<Int>(0x000000e5) -> local0
+    br @pattern.merge.690
+  block pattern.else.689
+    t230 = integer_compare_Equal<Int8> local1, integer<Int8>(0x66) : i1
+    cbr t230 then @pattern.pass.691 else @pattern.else.692
+  block pattern.merge.690
+    br @pattern.merge.687
+  block pattern.pass.691
+    store integer<Int>(0x000000e6) -> local0
+    br @pattern.merge.693
+  block pattern.else.692
+    t231 = integer_compare_Equal<Int8> local1, integer<Int8>(0x67) : i1
+    cbr t231 then @pattern.pass.694 else @pattern.else.695
+  block pattern.merge.693
+    br @pattern.merge.690
+  block pattern.pass.694
+    store integer<Int>(0x000000e7) -> local0
+    br @pattern.merge.696
+  block pattern.else.695
+    t232 = integer_compare_Equal<Int8> local1, integer<Int8>(0x68) : i1
+    cbr t232 then @pattern.pass.697 else @pattern.else.698
+  block pattern.merge.696
+    br @pattern.merge.693
+  block pattern.pass.697
+    store integer<Int>(0x000000e8) -> local0
+    br @pattern.merge.699
+  block pattern.else.698
+    t233 = integer_compare_Equal<Int8> local1, integer<Int8>(0x69) : i1
+    cbr t233 then @pattern.pass.700 else @pattern.else.701
+  block pattern.merge.699
+    br @pattern.merge.696
+  block pattern.pass.700
+    store integer<Int>(0x000000e9) -> local0
+    br @pattern.merge.702
+  block pattern.else.701
+    t234 = integer_compare_Equal<Int8> local1, integer<Int8>(0x6a) : i1
+    cbr t234 then @pattern.pass.703 else @pattern.else.704
+  block pattern.merge.702
+    br @pattern.merge.699
+  block pattern.pass.703
+    store integer<Int>(0x000000ea) -> local0
+    br @pattern.merge.705
+  block pattern.else.704
+    t235 = integer_compare_Equal<Int8> local1, integer<Int8>(0x6b) : i1
+    cbr t235 then @pattern.pass.706 else @pattern.else.707
+  block pattern.merge.705
+    br @pattern.merge.702
+  block pattern.pass.706
+    store integer<Int>(0x000000eb) -> local0
+    br @pattern.merge.708
+  block pattern.else.707
+    t236 = integer_compare_Equal<Int8> local1, integer<Int8>(0x6c) : i1
+    cbr t236 then @pattern.pass.709 else @pattern.else.710
+  block pattern.merge.708
+    br @pattern.merge.705
+  block pattern.pass.709
+    store integer<Int>(0x000000ec) -> local0
+    br @pattern.merge.711
+  block pattern.else.710
+    t237 = integer_compare_Equal<Int8> local1, integer<Int8>(0x6d) : i1
+    cbr t237 then @pattern.pass.712 else @pattern.else.713
+  block pattern.merge.711
+    br @pattern.merge.708
+  block pattern.pass.712
+    store integer<Int>(0x000000ed) -> local0
+    br @pattern.merge.714
+  block pattern.else.713
+    t238 = integer_compare_Equal<Int8> local1, integer<Int8>(0x6e) : i1
+    cbr t238 then @pattern.pass.715 else @pattern.else.716
+  block pattern.merge.714
+    br @pattern.merge.711
+  block pattern.pass.715
+    store integer<Int>(0x000000ee) -> local0
+    br @pattern.merge.717
+  block pattern.else.716
+    t239 = integer_compare_Equal<Int8> local1, integer<Int8>(0x6f) : i1
+    cbr t239 then @pattern.pass.718 else @pattern.else.719
+  block pattern.merge.717
+    br @pattern.merge.714
+  block pattern.pass.718
+    store integer<Int>(0x000000ef) -> local0
+    br @pattern.merge.720
+  block pattern.else.719
+    t240 = integer_compare_Equal<Int8> local1, integer<Int8>(0x70) : i1
+    cbr t240 then @pattern.pass.721 else @pattern.else.722
+  block pattern.merge.720
+    br @pattern.merge.717
+  block pattern.pass.721
+    store integer<Int>(0x000000f0) -> local0
+    br @pattern.merge.723
+  block pattern.else.722
+    t241 = integer_compare_Equal<Int8> local1, integer<Int8>(0x71) : i1
+    cbr t241 then @pattern.pass.724 else @pattern.else.725
+  block pattern.merge.723
+    br @pattern.merge.720
+  block pattern.pass.724
+    store integer<Int>(0x000000f1) -> local0
+    br @pattern.merge.726
+  block pattern.else.725
+    t242 = integer_compare_Equal<Int8> local1, integer<Int8>(0x72) : i1
+    cbr t242 then @pattern.pass.727 else @pattern.else.728
+  block pattern.merge.726
+    br @pattern.merge.723
+  block pattern.pass.727
+    store integer<Int>(0x000000f2) -> local0
+    br @pattern.merge.729
+  block pattern.else.728
+    t243 = integer_compare_Equal<Int8> local1, integer<Int8>(0x73) : i1
+    cbr t243 then @pattern.pass.730 else @pattern.else.731
+  block pattern.merge.729
+    br @pattern.merge.726
+  block pattern.pass.730
+    store integer<Int>(0x000000f3) -> local0
+    br @pattern.merge.732
+  block pattern.else.731
+    t244 = integer_compare_Equal<Int8> local1, integer<Int8>(0x74) : i1
+    cbr t244 then @pattern.pass.733 else @pattern.else.734
+  block pattern.merge.732
+    br @pattern.merge.729
+  block pattern.pass.733
+    store integer<Int>(0x000000f4) -> local0
+    br @pattern.merge.735
+  block pattern.else.734
+    t245 = integer_compare_Equal<Int8> local1, integer<Int8>(0x75) : i1
+    cbr t245 then @pattern.pass.736 else @pattern.else.737
+  block pattern.merge.735
+    br @pattern.merge.732
+  block pattern.pass.736
+    store integer<Int>(0x000000f5) -> local0
+    br @pattern.merge.738
+  block pattern.else.737
+    t246 = integer_compare_Equal<Int8> local1, integer<Int8>(0x76) : i1
+    cbr t246 then @pattern.pass.739 else @pattern.else.740
+  block pattern.merge.738
+    br @pattern.merge.735
+  block pattern.pass.739
+    store integer<Int>(0x000000f6) -> local0
+    br @pattern.merge.741
+  block pattern.else.740
+    t247 = integer_compare_Equal<Int8> local1, integer<Int8>(0x77) : i1
+    cbr t247 then @pattern.pass.742 else @pattern.else.743
+  block pattern.merge.741
+    br @pattern.merge.738
+  block pattern.pass.742
+    store integer<Int>(0x000000f7) -> local0
+    br @pattern.merge.744
+  block pattern.else.743
+    t248 = integer_compare_Equal<Int8> local1, integer<Int8>(0x78) : i1
+    cbr t248 then @pattern.pass.745 else @pattern.else.746
+  block pattern.merge.744
+    br @pattern.merge.741
+  block pattern.pass.745
+    store integer<Int>(0x000000f8) -> local0
+    br @pattern.merge.747
+  block pattern.else.746
+    t249 = integer_compare_Equal<Int8> local1, integer<Int8>(0x79) : i1
+    cbr t249 then @pattern.pass.748 else @pattern.else.749
+  block pattern.merge.747
+    br @pattern.merge.744
+  block pattern.pass.748
+    store integer<Int>(0x000000f9) -> local0
+    br @pattern.merge.750
+  block pattern.else.749
+    t250 = integer_compare_Equal<Int8> local1, integer<Int8>(0x7a) : i1
+    cbr t250 then @pattern.pass.751 else @pattern.else.752
+  block pattern.merge.750
+    br @pattern.merge.747
+  block pattern.pass.751
+    store integer<Int>(0x000000fa) -> local0
+    br @pattern.merge.753
+  block pattern.else.752
+    t251 = integer_compare_Equal<Int8> local1, integer<Int8>(0x7b) : i1
+    cbr t251 then @pattern.pass.754 else @pattern.else.755
+  block pattern.merge.753
+    br @pattern.merge.750
+  block pattern.pass.754
+    store integer<Int>(0x000000fb) -> local0
+    br @pattern.merge.756
+  block pattern.else.755
+    t252 = integer_compare_Equal<Int8> local1, integer<Int8>(0x7c) : i1
+    cbr t252 then @pattern.pass.757 else @pattern.else.758
+  block pattern.merge.756
+    br @pattern.merge.753
+  block pattern.pass.757
+    store integer<Int>(0x000000fc) -> local0
+    br @pattern.merge.759
+  block pattern.else.758
+    t253 = integer_compare_Equal<Int8> local1, integer<Int8>(0x7d) : i1
+    cbr t253 then @pattern.pass.760 else @pattern.else.761
+  block pattern.merge.759
+    br @pattern.merge.756
+  block pattern.pass.760
+    store integer<Int>(0x000000fd) -> local0
+    br @pattern.merge.762
+  block pattern.else.761
+    t254 = integer_compare_Equal<Int8> local1, integer<Int8>(0x7e) : i1
+    cbr t254 then @pattern.pass.763 else @pattern.else.764
+  block pattern.merge.762
+    br @pattern.merge.759
+  block pattern.pass.763
+    store integer<Int>(0x000000fe) -> local0
+    br @pattern.merge.765
+  block pattern.else.764
+    t255 = integer_compare_Equal<Int8> local1, integer<Int8>(0x7f) : i1
+    cbr t255 then @pattern.pass.766 else @pattern.else.767
+  block pattern.merge.765
+    br @pattern.merge.762
+  block pattern.pass.766
+    store integer<Int>(0x000000ff) -> local0
+    br @pattern.merge.768
+  block pattern.else.767
+    unreachable
+  block pattern.merge.768
+    br @pattern.merge.765
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+    local %0 $argument.0: i8
+    local %1 $parameter.value: i8
+    local %2 $dependency.argument.0: i32
+    local %3 $dependency.parameter.value: i32
+    local %4 $argument.0: i8
+    local %5 $parameter.value: i8
+    local %6 $dependency.argument.0: i32
+    local %7 $dependency.parameter.value: i32
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store integer<Int8>(0x80) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i8) -> i32 local-fn0(local1)
+    store t0 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i32) local-fn2(local3)
+    t1 = aggregate () : {}
+    store integer<Int8>(0x7f) -> local4
+    store local4 -> local5
+    call managed-direct-target1 sp<managed-call:2> live=[] t2 = sig=direct1 (i8) -> i32 local-fn0(local5)
+    store t2 -> local6
+    store local6 -> local7
+    call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i32) local-fn2(local7)
+    t3 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+    local %0 $dependency.local.1: i32
+    local %1 $dependency.local.2: ptr<managed>
+    local %2 $dependency.local.3: ptr<managed>
+    local %3 $dependency.local.4: ptr<managed>
+    local %4 $dependency.local.5: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> ptr<managed> external-fn0(local0)
+    store t0 -> local1
+    store local1 -> local2
+    call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn1(local2)
+    t1 = aggregate () : {}
+    store global0 -> local3
+    store local3 -> local4
+    call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
+    t2 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global1, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde

@@ -20,7 +20,10 @@ fn primary_constructor(h: &Harness, class: hir::ClassId) -> hir::ClassConstructo
     let constructor = h.classes[class].constructors[0];
     h.class_constructor_applications
         .iter()
-        .find_map(|(id, application)| (application.constructor == constructor).then_some(id))
+        .find_map(|(id, application)| {
+            (application.constructor == scoop_hir::ClassConstructorDefinition::Local(constructor))
+                .then_some(id)
+        })
         .expect("the exception shell has a primary constructor application")
 }
 
@@ -53,21 +56,34 @@ fn state_machine<'a>(
         frame,
         driver,
         resume_points,
+        ..
     } = &coroutine.lowering
     else {
         panic!("`{name}` must lower to a state machine")
     };
     let metadata = &module.meta.coroutine_frames[*frame];
     assert_eq!(metadata.owner(), owner);
-    (
-        *frame,
-        metadata,
-        &module.functions[*driver],
-        resume_points
-            .iter()
-            .map(|point| &module.meta.coroutine_resume_points[*point])
-            .collect(),
-    )
+    let points = resume_points
+        .iter()
+        .map(|point| &module.meta.coroutine_resume_points[*point])
+        .collect::<Vec<_>>();
+    let mut identity_ordinals = HashSet::new();
+    for point in &points {
+        let [segment] = point.identity().suspension_site().segments() else {
+            panic!("each continuation adapter has one coroutine-transform path segment")
+        };
+        assert_eq!(
+            segment.site_role(),
+            scoop_identity::StructuralDefinitionSiteRole::CoroutineTransform
+        );
+        assert!(identity_ordinals.insert(segment.ordinal()));
+        assert_eq!(point.identity().source(), coroutine.source);
+    }
+    assert_eq!(
+        identity_ordinals,
+        (0..u32::try_from(points.len()).unwrap()).collect::<HashSet<_>>()
+    );
+    (*frame, metadata, &module.functions[*driver], points)
 }
 
 fn assert_resume_leaves(

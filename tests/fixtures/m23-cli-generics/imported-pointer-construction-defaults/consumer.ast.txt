@@ -1,0 +1,62 @@
+SourceFile
+  QualifiedPackage consumer.construction
+  ImportExact Local dependency.construction.loadDefault
+  private class Counter(var calls: Int)
+    @Unsafe
+  private fun localDefault<P : value>(raw: ULong, pointer: Ptr<P> = <expr>): P
+    =
+      MethodCall load
+        Var pointer
+  public fun exercise<T>(value: T): Int
+    var number
+      IntLiteral 41
+    val counter
+      Call Counter
+        IntLiteral 0
+    @Unsafe block
+      val raw
+        MethodCall toULong
+          Call addressOf
+            Var number
+      fun next(): ULong
+        compound-assign Add
+          Var counter
+          IntLiteral 1
+        return
+          Var raw
+      val pointer
+        Call Ptr<Int>
+          Argument raw=
+            Call next
+      val first
+        Call loadDefault<Int>
+          Call next
+      val second
+        Call localDefault<Int>
+          Call next
+      if
+        Binary Or
+          Binary Or
+            Binary Ne
+              FieldAccess calls
+                Var counter
+              IntLiteral 3
+            Binary Ne
+              Var first
+              IntLiteral 41
+          Binary Ne
+            Var second
+            IntLiteral 41
+        return
+          IntLiteral 1
+      MethodCall store
+        Var pointer
+        Binary Add
+          Var first
+          IntLiteral 1
+      return
+        Var number
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

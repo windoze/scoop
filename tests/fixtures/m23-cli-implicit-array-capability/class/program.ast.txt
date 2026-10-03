@@ -1,0 +1,37 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val empty
+      Call Values
+    val values
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+    val items
+      Call Values
+        IntLiteral 3
+        Argument *
+          Var values
+        IntLiteral 4
+    val whole
+      Call Values
+        Argument values=
+          Var values
+    Call verifyType
+      Binary And
+        Binary And
+          Binary RefEq
+            Var empty
+            Var empty
+          Binary RefEq
+            Var items
+            Var items
+        Binary RefEq
+          Var whole
+          Var whole

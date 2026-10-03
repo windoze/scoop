@@ -1,0 +1,4 @@
+public struct SharedAliasValue()
+public typealias SharedAlias = SharedAliasValue
+public typealias SharedAliasAgain = SharedAlias
+public fun aliasValue(value: SharedAliasAgain): SharedAlias = value

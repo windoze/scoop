@@ -1,0 +1,443 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class Named<Int> vtable=0 itables=0
+  class Named<Later> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  generated_exact_type get0 location=enum2 nominal_id=dd2fa27e90b97d49ad0873438605e158d05e87dc3c0062e0c750a1ef5cb6797c exact_id=516509dbc7acfee0c5c83e5a9fcd0274065b6f39b793c55182b7682df020821d
+  generated_exact_type get1 location=enum1 nominal_id=8e2397614d3dea66cfc54d4cd0be6f89fe5750ad936e0602b9531560ba3294e8 exact_id=697fe9ad2680de0fbe226c1927385b856785b4fb3e24bc61b4cbfd2969c89517
+  generated_callable gc0 function=@fn12 id=683978a3d11df21e7c44e0f95ab1482aa16608beff6f6f6606541d2ebff17c8f
+  fun check @fn0() -> Int
+    bb0 entry
+      call value: String = external0 direct
+      call $call.1: String = external1 direct
+      branch bb1 bb2
+        Type Boolean
+        Binary RefNe
+          Type String
+          Local value
+          Type String
+          Local $call.1
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      call $call.2: String = external2 direct
+      branch bb3 bb4
+        Type Boolean
+        Binary RefEq
+          Type String
+          Local value
+          Type String
+          Local $call.2
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      call $call.3: String = external3 direct
+      call $call.4: String = external4 direct
+      branch bb5 bb6
+        Type Boolean
+        Binary RefNe
+          Type String
+          Local $call.3
+          Type String
+          Local $call.4
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      call $call.5: String = external5 direct
+      call $call.6: String = external6 direct
+      branch bb7 bb8
+        Type Boolean
+        Binary RefNe
+          Type String
+          Local $call.5
+          Type String
+          Local $call.6
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb8 if.merge.8
+      call $call.7: String = external7 direct
+      call $call.8: String = external8 direct
+      branch bb9 bb10
+        Type Boolean
+        Binary RefNe
+          Type String
+          Local $call.7
+          Type String
+          Local $call.8
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb10 if.merge.10
+      call $call.9: String = external3 direct
+      branch bb11 bb12
+        Type Boolean
+        Binary RefEq
+          Type String
+          Local value
+          Type String
+          Local $call.9
+    bb11 if.then.11
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb12 if.merge.12
+      call $call.10: String = external3 direct
+      call $call.11: String = external5 direct
+      branch bb13 bb14
+        Type Boolean
+        Binary RefEq
+          Type String
+          Local $call.10
+          Type String
+          Local $call.11
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+    bb14 if.merge.14
+      call $call.12: String = external7 direct
+      call $call.13: String = external5 direct
+      branch bb15 bb16
+        Type Boolean
+        Binary RefEq
+          Type String
+          Local $call.12
+          Type String
+          Local $call.13
+    bb15 if.then.15
+      return
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+    bb16 if.merge.16
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.14: String = @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $call.15: String = external3 direct
+      branch bb17 bb18
+        Type Boolean
+        Binary RefNe
+          Type String
+          Local $call.14
+          Type String
+          Local $call.15
+    bb17 if.then.17
+      return
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+    bb18 if.merge.18
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.16
+        Type Later
+        ClassAlloc Later
+      call @fn9 direct
+        Type Later
+        Local $new.16
+        Type Int
+        Local $parameter.value
+      val first: Later
+        Type Later
+        Local $new.16
+      val $dependency.argument.0: Later
+        Type Later
+        Local first
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call label: String = @fn2 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.17
+        Type Later
+        ClassAlloc Later
+      call @fn9 direct
+        Type Later
+        Local $new.17
+        Type Int
+        Local $parameter.value
+      val second: Later
+        Type Later
+        Local $new.17
+      val $dependency.argument.0: Later
+        Type Later
+        Local second
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call $call.18: String = @fn2 direct
+        Type Later
+        Local $dependency.parameter.value
+      branch bb19 bb20
+        Type Boolean
+        Binary RefNe
+          Type String
+          Local label
+          Type String
+          Local $call.18
+    bb19 if.then.19
+      return
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+    bb20 if.merge.20
+      call $call.19: String = external3 direct
+      branch bb21 bb22
+        Type Boolean
+        Binary RefEq
+          Type String
+          Local label
+          Type String
+          Local $call.19
+    bb21 if.then.21
+      return
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+    bb22 if.merge.22
+      val $dependency.receiver: String
+        Type String
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.20: Boolean = external9 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb23 bb24
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.20
+    bb23 if.then.23
+      return
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+    bb24 if.merge.24
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local first
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local second
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun forwarded @fn1(value: Int) -> String
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      assign $new.1
+        Type Named<Int>
+        ClassAlloc Named<Int>
+      call @fn10 direct
+        Type Named<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.3: Named<Int>
+        Type Named<Int>
+        Local $new.1
+      call $call.2: String = @fn3 direct
+        Type Named<Int>
+        Local $dependency.local.3
+      return
+        Type String
+        Local $call.2
+  fun forwarded @fn2(value: Later) -> String
+    bb0 entry
+      val $dependency.local.1: Later
+        Type Later
+        Local value
+      val $dependency.local.2: Later
+        Type Later
+        Local $dependency.local.1
+      assign $new.1
+        Type Named<Later>
+        ClassAlloc Named<Later>
+      call @fn11 direct
+        Type Named<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.2
+      val $dependency.local.3: Named<Later>
+        Type Named<Later>
+        Local $new.1
+      call $call.2: String = @fn4 direct
+        Type Named<Later>
+        Local $dependency.local.3
+      return
+        Type String
+        Local $call.2
+  fun text @fn3(this: Named<Int>) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str1
+  fun text @fn4(this: Named<Later>) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str2
+  fun Continuation.resume @fn5(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn9(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Named.$c0 @fn10(this: Named<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Named<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type Named<Int>
+        Local this
+        Type String
+        StringConst @str3
+      return
+  fun init.Named.$c0 @fn11(this: Named<Later>, value: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type Named<Later>
+        Local this
+        Type Later
+        Local value
+      field_set 1
+        Type Named<Later>
+        Local this
+        Type String
+        StringConst @str4
+      return
+  fun startCoroutine<Later> @fn12(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn7 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn12
+  coroutine_fn cf0 @fn7 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn1 <- forwarded
+  instance mi1 function=@fn2 <- forwarded
+  instance mi2 function=@fn3 <- text
+  instance mi3 function=@fn4 <- text
+  instance mi4 function=@fn5 <- Continuation.resume
+  instance mi5 function=@fn6 <- Continuation.resumeWithException
+  instance mi6 function=@fn7 <- SuspendTask.run
+  instance mi7 function=@fn8 <- SuspendRegistration.register
+  str @str0 "generic constant"
+  str @str1 "generic constant"
+  str @str2 "generic constant"
+  str @str3 "generic constant"
+  str @str4 "generic constant"
+  output library

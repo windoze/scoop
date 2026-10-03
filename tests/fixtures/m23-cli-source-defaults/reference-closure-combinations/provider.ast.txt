@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public fun closureNumber(): Int
+    =
+      IntLiteral 3
+  public class ClosureCombinationHost()
+    internal fun nested
+    internal fun conversion
+    internal fun suspended

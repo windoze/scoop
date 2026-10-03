@@ -1,0 +1,10 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    @Unsafe {
+    val value = Packet(17, 25L)
+    verifyType(value.value == 17 && value.extra == 25L)
+    verifyType(GenericCell(19).value == 19 && GenericCell("text").value == "text")
+    verifyType(Container.Plain(23).value == 23 && Container.observe() == 5)
+    }
+}

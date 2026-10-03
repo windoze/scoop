@@ -1,0 +1,23 @@
+SourceFile
+  QualifiedPackage schedule.join
+  ImportStar Local schedule.next.*
+  ImportStar Local schedule.peer.*
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  private fun initialize(): Long
+    @Unsafe block
+      Call trace
+        IntLiteral 40
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            Var next
+            IntLiteral 20L
+          Binary Eq
+            Var peer
+            StringLiteral "cpeer"
+        IntLiteral 40L
+        else
+        IntLiteral 0L
+  public val joined: Long = <expr>

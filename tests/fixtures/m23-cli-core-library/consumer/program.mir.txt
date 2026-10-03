@@ -1,0 +1,14 @@
+Module
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call value: Int = external0 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  output executable @fn0

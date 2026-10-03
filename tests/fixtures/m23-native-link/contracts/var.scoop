@@ -1,0 +1,3 @@
+@Global
+@Extern(lib = "m23_contract", name = "m23_contract")
+public var entry: Int

@@ -1,0 +1,7 @@
+package consumer.options
+
+import dependency.options.Holder
+
+private typealias IntHolder = Holder<Int>
+
+public fun result(): Any = IntHolder("wrong")

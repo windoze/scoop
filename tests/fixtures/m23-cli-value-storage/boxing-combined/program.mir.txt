@@ -1,0 +1,275 @@
+Module
+  struct Empty ()
+  struct References (first: String, nested: (String, Long), empty: Empty)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<References> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class3 nominal_id=d519211beacbc67294593691a73f94ff9fa99fd9cfb988b3dd533ee2e143d3e8 exact_id=d3ed47ad01fb6a74519b8c652f9ccba83159249baa3036624f6091bb5eae2c91
+  fun Empty.equals @fn0(this: Empty, other: Empty) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun payload @fn1() -> References
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.receiver: String
+        Type String
+        StringConst @str2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $argument.1: (String, Long)
+        Type (String, Long)
+        TupleLiteral
+          Type String
+          Local $call.1
+          Type Long
+          IntegerLiteral Long value=42 bits=0x000000000000002a
+      call $argument.2: Empty = @fn7 direct
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.nested: (String, Long)
+        Type (String, Long)
+        Local $argument.1
+      val $parameter.empty: Empty
+        Type Empty
+        Local $argument.2
+      call $call.2: References = @fn8 direct
+        Type String
+        Local $parameter.first
+        Type (String, Long)
+        Local $parameter.nested
+        Type Empty
+        Local $parameter.empty
+      return
+        Type References
+        Local $call.2
+  fun identity @fn2(value: References) -> References
+    bb0 entry
+      return
+        Type References
+        Local value
+  fun main @fn3() -> Unit
+    bb0 entry
+      call $argument.0: References = @fn1 direct
+      val $parameter.value: References
+        Type References
+        Local $argument.0
+      call $call.1: References = @fn2 direct
+        Type References
+        Local $parameter.value
+      val boxed: Any
+        Type Any
+        Box
+          Type References
+          Local $call.1
+      call @scoop_rt_gc_collect direct
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance References
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external4 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val $ub.2: References
+        Type References
+        Unbox
+          Type Any
+          Local $cast.1
+      val restored: References
+        Type References
+        Local $ub.2
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type References
+          Local restored
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type (String, Long)
+          FieldAccess 1
+            Type References
+            Local restored
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (String, Long)
+          FieldAccess 1
+            Type References
+            Local restored
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Long
+        Local $dependency.parameter.value
+      call $call.3: Empty = @fn7 direct
+      call $dependency.argument.0: Boolean = @fn0 direct
+        Type Empty
+        FieldAccess 2
+          Type References
+          Local restored
+        Type Empty
+        Local $call.3
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn5(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn6(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.Empty.$c0 @fn7() -> Empty <no-gc>
+    bb0 entry
+      return
+        Type Empty
+        StructInit Empty
+  fun ctor.References.$c1 @fn8(first: String, nested: (String, Long), empty: Empty) -> References <no-gc>
+    bb0 entry
+      return
+        Type References
+        StructInit References
+          Type String
+          Local first
+          Type (String, Long)
+          Local nested
+          Type Empty
+          Local empty
+  instance mi0 function=@fn4 <- println
+  instance mi1 function=@fn5 <- println
+  instance mi2 function=@fn6 <- println
+  str @str0 "le"
+  str @str1 "ft"
+  str @str2 "ri"
+  str @str3 "ght"
+  str @str4 "\n"
+  str @str5 "\n"
+  str @str6 "\n"
+  output executable @fn3

@@ -1,0 +1,63 @@
+SourceFile
+  RootPackage
+  ImportStar Local nativelink.callbacks.*
+  class CallbackError(val payload: String) : Exception(<1 args>)
+  fun main()
+    val caller
+      Binary Add
+        StringLiteral "caller-"
+        StringLiteral "alive"
+    @Unsafe block
+      val callback
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 0 suspend=false
+            param value: Int
+            val payload
+              Binary Add
+                StringLiteral "failure-"
+                MethodCall toString
+                  Var value
+            Call gcCollect
+            throw
+              Call CallbackError
+                Var payload
+          IntLiteral 1L
+          FieldAccess OneShot
+            Var ForeignCallbackMode
+      val observer
+        Call retainForeignCallback
+          Var callback
+      Call println
+        Call joinNative
+          FieldAccess function
+            Var callback
+          FieldAccess context
+            Var callback
+          IntLiteral 7
+      Call println
+        WhenExpression
+          Call foreignCallbackState
+            Var observer
+          arm ForeignCallbackState.Failed()
+            BoolLiteral true
+          else
+            BoolLiteral false
+      val failure
+        NullAssert
+          Call foreignCallbackFailure
+            Var observer
+      Call gcCollect
+      try
+        throw
+          Var failure
+      catch exception: CallbackError
+        Call println
+          FieldAccess payload
+            Var exception
+      finally
+        Call releaseForeignCallback
+          Var observer
+      Call println
+        Call threadCount
+      Call println
+        Var caller

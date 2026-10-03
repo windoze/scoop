@@ -1,0 +1,79 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<(Long, String)> vtable=0 itables=0
+  generated_exact_type get0 location=class3 nominal_id=78a227a0e71d7ecc142714fa0bf73506bf0853611f05ef7f2c1cc87e0720c3be exact_id=9f72187734698e55a84329a5685b0595bf525560ec04cf0ebd193a4a9d8b7969
+  fun check @fn0() -> Long
+    bb0 entry
+      val number: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.argument.0: Any
+        Type Any
+        Box
+          Type (Long, String)
+          TupleLiteral
+            Type Long
+            Local number
+            Type String
+            StringConst @str0
+      val $dependency.parameter.value: Any
+        Type Any
+        Local $dependency.argument.0
+      call boxed: Any = external0 direct
+        Type Any
+        Local $dependency.parameter.value
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance (Long, String)
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: (Long, String)
+        Type (Long, String)
+        Unbox
+          Type Any
+          Local $cast.1
+      val $binding.subject.0: (Long, String)
+        Type (Long, String)
+        Local $ub.2
+      val $binding.projection.1: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, String)
+          Local $binding.subject.0
+      val value: Long
+        Type Long
+        Local $binding.projection.1
+      val $binding.projection.2: String
+        Type String
+        FieldAccess 1
+          Type (Long, String)
+          Local $binding.subject.0
+      val text: String
+        Type String
+        Local $binding.projection.2
+      return
+        Type Long
+        Local value
+  str @str0 "tuple"
+  output library

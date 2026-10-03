@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "invalid cross-Cone semantic closure graph: InvalidProviderKind { identity: ConeIdentity([173, 36, 213, 233, 217, 21, 204, 45, 0, 213, 118, 183, 11, 104, 21, 18, 32, 211, 188, 191, 211, 207, 210, 185, 254, 68, 117, 201, 93, 240, 179, 101]), actual: Executable }",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "manifest:cone.kind",
+      "path": "${work}/artifacts/other.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

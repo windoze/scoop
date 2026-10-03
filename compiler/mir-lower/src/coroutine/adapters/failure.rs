@@ -12,10 +12,9 @@ pub(super) fn generate_failure_method(
     failure_slot: FrameSlot,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
-    outer_resume: mir::FunctionId,
-    outer_failure: mir::FunctionId,
+    outer_resume: &mir::CallTarget,
+    outer_failure: &mir::CallTarget,
     driver: mir::FunctionId,
-    source_symbol: &str,
     state: mir::CoroutineSuspendStateId,
     latch: Option<FrameSlot>,
 ) -> mir::FunctionId {
@@ -23,7 +22,7 @@ pub(super) fn generate_failure_method(
         .coroutines
         .step_metadata_for_type(outer_step)
         .completed();
-    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
+    let throwable = crate::coroutine_registry::throwable_type(module, &lowerer.class_map);
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Class(adapter)));
     let exception = locals.alloc(local("exception", throwable.clone()));
@@ -197,7 +196,6 @@ pub(super) fn generate_failure_method(
     let function = lowerer.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
         name: format!("CoroutineAdapter.resumeWithException${state}"),
-        symbol: format!("{source_symbol}$resume_exception${state}"),
         params: vec![
             mir::Param {
                 name: "this".to_string(),

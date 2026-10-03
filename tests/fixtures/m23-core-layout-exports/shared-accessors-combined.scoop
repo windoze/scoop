@@ -1,0 +1,36 @@
+public const val accessorMarker: Int = 9
+
+public interface AccessorView {
+    public var slot: Int
+    public val defaulted: Int
+        get() = 4
+}
+
+public open class AccessorBase(public var stored: Int) {
+    protected var protectedStorage: Int = 1
+    protected val protectedBody: Int
+        get() = protectedStorage
+    private val hidden: Int
+        get() = 3
+    public var mixed: Int = 2
+        private set(next) { field = next }
+}
+
+public class AccessorImpl : AccessorBase(0), AccessorView {
+    public override var slot: Int
+        get() = stored
+        set(next) { stored = next }
+}
+
+public object AccessorObject {
+    public var objectStorage: Int = 1
+    public val computed: Int
+        get() = objectStorage
+}
+
+public class AccessorBox<T>(public var content: T)
+
+public val <T> AccessorBox<T>.extension: T
+    get() = content
+
+public var accessorGlobal: Int = 4

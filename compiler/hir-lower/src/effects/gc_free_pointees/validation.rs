@@ -15,7 +15,9 @@ use super::occurrences::{
 use super::{PointeeApplicationOccurrence, PointeeRequirementCallSite, RequirementContext};
 
 impl Lowerer {
-    pub(crate) fn validate_gc_free_pointee_requirements(&mut self) {
+    pub(crate) fn validate_gc_free_pointee_requirements(
+        &mut self,
+    ) -> Vec<(hir::TypeId, usize, scoop_ast::Span)> {
         let default_occurrences = self.default_pointee_application_occurrences();
         let concrete_default_occurrences = self.default_concrete_pointee_application_occurrences();
         let call_sites = self.pointee_requirement_call_sites();
@@ -31,7 +33,7 @@ impl Lowerer {
         }
         self.validate_callable_gc_free_pointee_requirements(&call_sites);
         self.validate_pointer_type_uses();
-        self.validate_concrete_pointee_applications(concrete_default_occurrences);
+        self.validate_concrete_pointee_applications(concrete_default_occurrences)
     }
 
     fn validate_callable_gc_free_pointee_requirements(
@@ -40,7 +42,7 @@ impl Lowerer {
     ) {
         for call_site in call_sites {
             let requirements = self
-                .function_gc_free_pointee_requirements(call_site.callee)
+                .callable_gc_free_pointee_requirements(call_site.callee)
                 .to_vec();
             for requirement in requirements {
                 let argument = call_site.argument(requirement.type_param);
@@ -51,14 +53,13 @@ impl Lowerer {
                     continue;
                 }
                 self.current_file = call_site.file;
-                let callee = &self.functions[call_site.callee];
                 self.error(
                     call_site.span,
                     format!(
                         "generic function `{}` requires type argument {} for `{}` to be a GC-free `Ptr` pointee",
-                        callee.name,
+                        self.effect_callable_name(call_site.callee),
                         self.type_name(argument),
-                        callee.type_param(requirement.type_param).name
+                        self.effect_callable_parameter(call_site.callee, requirement.type_param).name
                     ),
                 );
             }
@@ -68,8 +69,12 @@ impl Lowerer {
     fn validate_concrete_pointee_applications(
         &mut self,
         mut occurrences: Vec<PointeeApplicationOccurrence>,
-    ) {
+    ) -> Vec<(hir::TypeId, usize, scoop_ast::Span)> {
         occurrences.extend(self.pointee_application_occurrences());
+        let type_sites = occurrences
+            .iter()
+            .map(|occurrence| (occurrence.ty, occurrence.file, occurrence.span))
+            .collect();
         let mut reported = HashSet::new();
         for PointeeApplicationOccurrence {
             ty,
@@ -122,6 +127,7 @@ impl Lowerer {
                 ),
             );
         }
+        type_sites
     }
 
     fn pointee_type_is_valid(&self, ty: hir::TypeId, visiting: &mut HashSet<hir::TypeId>) -> bool {
@@ -135,9 +141,10 @@ impl Lowerer {
             hir::Type::Ptr(pointee) => self.pointee_type_is_valid(*pointee, visiting),
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
+                let definition = self.struct_definition(application.template);
                 self.application_pointee_is_valid(
-                    &self.structs[application.template].type_params,
-                    &self.structs[application.template].gc_free_pointee_requirements,
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
                     &application.arguments,
                 ) && application
                     .arguments
@@ -146,9 +153,10 @@ impl Lowerer {
             }
             hir::Type::Class(application) => {
                 let application = &self.class_applications[*application];
+                let definition = self.class_definition(application.template);
                 self.application_pointee_is_valid(
-                    &self.classes[application.template].type_params,
-                    &self.classes[application.template].gc_free_pointee_requirements,
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
                     &application.arguments,
                 ) && application
                     .arguments
@@ -157,9 +165,10 @@ impl Lowerer {
             }
             hir::Type::Interface(application) => {
                 let application = &self.interface_applications[*application];
+                let definition = self.interface_definition(application.template);
                 self.application_pointee_is_valid(
-                    &self.interfaces[application.template].type_params,
-                    &self.interfaces[application.template].gc_free_pointee_requirements,
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
                     &application.arguments,
                 ) && application
                     .arguments
@@ -168,9 +177,10 @@ impl Lowerer {
             }
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
+                let definition = self.enum_definition(application.template);
                 self.application_pointee_is_valid(
-                    &self.enums[application.template].type_params,
-                    &self.enums[application.template].gc_free_pointee_requirements,
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
                     &application.arguments,
                 ) && application
                     .arguments
@@ -231,12 +241,16 @@ impl Lowerer {
                 }
                 crate::defaults::DefaultExprTemplateRef::Export(source) => {
                     let source = self.export_default_sources[source].clone();
-                    let body = self.export_default_exprs[source.expression].clone();
+                    let Some((expression, type_arguments)) = source.declared() else {
+                        // Imported parameter-free bodies have no local generic applications.
+                        continue;
+                    };
+                    let body = self.export_default_exprs[expression].clone();
                     let bindings = body
                         .type_parameters
                         .iter()
                         .copied()
-                        .zip(source.type_arguments)
+                        .zip(type_arguments.iter().copied())
                         .collect();
                     (body, bindings)
                 }
@@ -307,12 +321,16 @@ impl Lowerer {
                 }
                 crate::defaults::DefaultExprTemplateRef::Export(source) => {
                     let source = self.export_default_sources[source].clone();
-                    let body = self.export_default_exprs[source.expression].clone();
+                    let Some((expression, type_arguments)) = source.declared() else {
+                        // Imported parameter-free bodies have no local generic applications.
+                        continue;
+                    };
+                    let body = self.export_default_exprs[expression].clone();
                     let bindings = body
                         .type_parameters
                         .iter()
                         .copied()
-                        .zip(source.type_arguments)
+                        .zip(type_arguments.iter().copied())
                         .collect();
                     (body, bindings)
                 }
@@ -348,7 +366,7 @@ impl Lowerer {
                 .function_files
                 .get(&function)
                 .copied()
-                .unwrap_or(self.user_file_index);
+                .unwrap_or_else(|| self.primary_output_file());
             for parameter in &declaration.params {
                 out.push(PointeeApplicationOccurrence {
                     ty: parameter.ty,
@@ -462,7 +480,7 @@ impl Lowerer {
                     .fields
                     .iter()
                     .map(|field| PointeeApplicationOccurrence {
-                        ty: self.class_fields[*field].ty,
+                        ty: self.class_field_definition(*field).ty,
                         file,
                         span: declaration.span,
                         context,
@@ -514,7 +532,7 @@ impl Lowerer {
                     .parents
                     .iter()
                     .map(|parent| PointeeApplicationOccurrence {
-                        ty: self.interface_applications[*parent].canonical_type,
+                        ty: *parent,
                         file,
                         span: declaration.span,
                         context,
@@ -538,7 +556,7 @@ impl Lowerer {
                     .property_files
                     .get(&global.property)
                     .copied()
-                    .unwrap_or(self.user_file_index),
+                    .unwrap_or_else(|| self.primary_output_file()),
                 span: global.span,
                 context: RequirementContext::Closed,
             }

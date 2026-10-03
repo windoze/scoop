@@ -1,0 +1,2 @@
+public fun pass(value: DeferredStorage): DeferredStorage = value
+public fun passEnum(value: DeferredEnum): DeferredEnum = value

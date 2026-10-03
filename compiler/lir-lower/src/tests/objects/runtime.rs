@@ -9,7 +9,7 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
     // mir-lower registers the boxed class of every checked / boxed
     // value type.
     let boxed = b.class(
-        "box$D1_SX",
+        "box<S>",
         None,
         &[("value", mir::Type::Struct(s))],
         empty_vtable(),
@@ -55,57 +55,32 @@ fn box_unbox_and_is_instance_lower_to_runtime_calls() {
         ],
     );
     let mut mir_module = b.finish(main);
-    mir_module.meta.boxed_types.push(mir::BoxedType {
-        payload: mir::Type::Struct(s),
-        class: boxed,
-    });
-    let module = lower(&mir_module);
+    register_boxed_source_nominal(
+        &mut mir_module,
+        mir::Type::Struct(s),
+        boxed,
+        "S",
+        SourceNominalKind::Struct,
+    );
+    let module = lower(mir_module);
 
+    let descriptor_symbols = module
+        .meta
+        .type_descriptors
+        .iter()
+        .map(|(_, descriptor)| descriptor.identity.symbol())
+        .collect::<std::collections::BTreeSet<_>>();
     assert!(
         module
             .globals
             .iter()
-            .all(|(_, global)| !global.symbol.starts_with("scoop_td_")),
+            .all(|(_, global)| !descriptor_symbols.contains(global.symbol())),
         "TypeDescriptors must never be represented by ordinary globals"
     );
 
-    // Box → `scoop_rt_box(td, payload, size, scan)`; Unbox → the payload
-    // field behind the header; `is` → `scoop_rt_is_instance(obj,
-    // td)`. Both checks share one typed descriptor reference.
-    insta::assert_snapshot!(lir::dump(&module), @r###"
-Module
-  fun @scoop_main() -> void
-    local %0 a: ptr<managed>
-    local %1 v: struct0
-    local %2 chk: i1
-    local %3 $sc.1: struct0
-  block entry
-    poll managed-void-target0 sp2 live=[]
-    t0 = aggregate (integer<Int>(0x00000001)) : struct0
-    store t0 -> local3
-    t1 = local_address local3 : ptr
-    call managed-direct-target0 sp1 live=[] t2 = sig=direct0 (ptr<metadata>, ptr<raw>, machine<byte-size>, ptr<metadata>) -> ptr<managed> runtime @scoop_rt_box(td0, t1, machine<byte-size>(ByteSize(4)), root-scan0)
-    store t2 -> local0
-    t3 = heap_load local0 +16 : struct0
-    store t3 -> local1
-    call no-gc-direct-target0 t4 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local0, td0)
-    store t4 -> local2
-    ret
-  td td0 box$D1_SX @scoop_td_box$D1_SX type-id=2 size=24 parent=none vtable=[] itables=[]
-  layout String size=24 align=8 refs=[]
-  layout Int8 size=1 align=1 refs=[]
-  layout Int16 size=2 align=2 refs=[]
-  layout Int size=4 align=4 refs=[]
-  layout Long size=8 align=8 refs=[]
-  layout UInt8 size=1 align=1 refs=[]
-  layout UInt16 size=2 align=2 refs=[]
-  layout UInt size=4 align=4 refs=[]
-  layout ULong size=8 align=8 refs=[]
-  layout Boolean size=1 align=1 refs=[]
-  layout S size=4 align=4 refs=[]
-  layout box$D1_SX size=24 align=8 refs=[]
-  entry @scoop_main
-"###);
+    // Dedicated operations carry the same checked descriptor identity;
+    // unbox validates it before writing the typed destination local.
+    insta::assert_snapshot!(lir::dump(&module));
 }
 
 #[test]
@@ -116,8 +91,8 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
     // `releaseGcHandle` unwrap field 0 for the reverse call, and
     // the hooks are a void call / an i64 result.
     let mut b = Builder::new();
-    let pinned_ptr = b.strukt("PinnedPtr$S", &[("raw", ULONG)]);
-    let gc_handle = b.strukt("GcHandle$S", &[("raw", ULONG)]);
+    let pinned_ptr = b.strukt("PinnedPtr<String>", &[("raw", ULONG)]);
+    let gc_handle = b.strukt("GcHandle<String>", &[("raw", ULONG)]);
     let mut locals = Arena::new();
     let v = locals.alloc(local("v", mir::Type::String));
     let raw_pin = locals.alloc(local("$call.1", ULONG));
@@ -195,11 +170,12 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
             call_value(n, runtime_call(mir::RuntimeFn::GcStats, vec![])),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  fun @scoop_main() -> void
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 v: ptr<managed>
     local %1 $call.1: i64
     local %2 h: struct0
@@ -211,7 +187,7 @@ Module
     local %8 p2: ptr<managed>
     local %9 n: i64
   block entry
-    poll managed-void-target1 sp2 live=[local0:ptr<managed>@0]
+    poll managed-void-target1 sp<managed-poll:0> live=[local0:ptr<managed>@0]
     call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>) -> i64 runtime @scoop_rt_pin(local0)
     store t0 -> local1
     t1 = aggregate (local1) : struct0
@@ -228,11 +204,36 @@ Module
     call no-gc-direct-target3 t7 = sig=direct3 (i64) -> ptr<managed> runtime @scoop_rt_release_handle(t6)
     store t7 -> local7
     store local7 -> local8
-    call managed-void-target0 sp1 live=[] sig=void0 () runtime @scoop_rt_gc_collect()
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
     t8 = aggregate () : {}
     call no-gc-direct-target4 t9 = sig=direct4 () -> i64 runtime @scoop_rt_gc_stats()
     store t9 -> local9
     ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global0, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td1 GcHandle<String> @scoop$1$td$05c79b4b37c953c45e58822887717a10433301d3b6827935c370b4e5d8454aa6 type-id=3511904370696034429 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td2 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td7 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td8 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td9 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td10 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td11 PinnedPtr<String> @scoop$1$td$f3d51e63e79edcfed0b8e70e8e6866f3024b397dca5d7feb65f5b262cfa588e9 type-id=13273347026211627739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -243,8 +244,9 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
-  layout PinnedPtr$S size=8 align=8 refs=[]
-  layout GcHandle$S size=8 align=8 refs=[]
-  entry @scoop_main
+  layout PinnedPtr<String> size=8 align=8 refs=[]
+  layout GcHandle<String> size=8 align=8 refs=[]
+  layout String value size=8 align=8 refs=[0]
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }

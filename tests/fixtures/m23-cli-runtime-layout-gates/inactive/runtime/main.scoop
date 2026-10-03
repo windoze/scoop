@@ -1,0 +1,8 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(supplied("unused") == 7)
+    verifyType(withDefault(11) == 11)
+    verifyType(dormant<Int>(13) == 13)
+    verifyType(upcast("text") as String == "text")
+}

@@ -1,0 +1,42 @@
+schema = 1
+name = "legacy-m22-integers-ffi-fixed-width-ffi"
+root = "../../../m22-integers/ffi/fixed-width-ffi.scoop"
+inputs = ["../../../m22-integers/ffi/fixed-width-ffi.scoop", "../../../m22-integers/ffi/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-integers", "single-file", "run", "native"]
+
+[[steps]]
+name = "prepare_native"
+files = [{"mkdir" = {"path" = "${work}/native/objects"}}, {"mkdir" = {"path" = "${work}/native/lib"}}]
+
+[[steps]]
+name = "compile_native_0"
+argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-fno-omit-frame-pointer", "-I", "${runtime}/include", "-c", "${fixture}/../../../m22-integers/ffi/native.c", "-o", "${work}/native/objects/fixture_native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native_0"
+argv = ["${ar}", "rcs", "${work}/native/lib/libfixture_native.a", "${work}/native/objects/fixture_native.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native/lib", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "fixed-width-ffi.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "fixed-width-ffi.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "fixed-width-ffi.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "fixed-width-ffi.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "-128\n-32768\n-2147483648\n-9223372036854775808\n255\n65535\n4294967295\n18446744073709551615\n-7\n-32768\n-2147483648\n-9223372036854775808\n255\n65535\n4294967295\n18446744073709551615\n-17\n-1700\n-170000\n-17000000000\n17\n1700\n170000\n17000000000\n127\n32767\n2147483647\n9223372036854775807\n254\n65534\n4294967294\n18446744073709551614\n255\n126\n32766\n2147483646\n9223372036854775806\n253\n65533\n4294967293\n18446744073709551613\n255\n42\n255\n-2\n-4\n-6\n-8\n2\n4\n6\n8\n"
+stderr = ""

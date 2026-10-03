@@ -1,0 +1,512 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=1
+    bridge function_type1 -> @fn8 id=7303639cb432819475093e16d83733e0105d3f4654d9f476852e263c6743d2dd
+  closure cc1 $Closure$lambda2 type=function_type0 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn9 id=88e1c114d56ad6237e200f0e00d3d8529dd87030cc7eca7f4a95218c12a948c4
+  closure cc2 $Closure$lambda3 type=function_type0 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn10 id=07f7fdcee723cef7f16c0de416bdce9dcbd9d427831783263b88f977c26f597d
+  closure cc3 $Closure$anonymous0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn11 id=1c1981497dbe7c7bb50f1e66b202a3b00c125b312ac5b58e63bd91ad406ee49b
+  closure cc4 $Closure$reference0 type=function_type0 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn12 id=441e1802b0a47b72355687313eac5aac811c7261d05372cb7290ce5f04fc04a6
+  closure cc5 $Closure$reference1 type=function_type0 invoke=@fn7 captures=1
+    bridge function_type1 -> @fn13 id=bba9976e6d547c3f88c6bd2909885129e191735e19b4ff1b49ff484a76d2e2bb
+  generated_exact_type get0 location=closure3 nominal_id=1fd41c42b30a5033822c4c8c470fd55e713f951741c70fc32eb666cab13e55e8 exact_id=5269deeac81e204834c4d7155ee0d1d12f14f00ae0de1ae57a2bd8e250d75538
+  generated_exact_type get1 location=closure4 nominal_id=d898cd78e86d85457256c96758475ec785f4ecf44bb841df8d0031ef6c529d11 exact_id=81e6b5c15d2afa8b337811bf579500690eaea3f0776c0f4d718470122e3745f3
+  generated_exact_type get2 location=closure1 nominal_id=2affe7de5d5935aaf9d4c024f3e74c12fa1ed61b3500e6d121c3649fbaa30ea5 exact_id=9ab1b957bdd2b218bf15ec777a2b13d7febad81abb1701dc404279d048de3ccb
+  generated_exact_type get3 location=closure5 nominal_id=ff9ef4a4fe2e908e20ffd22da69a02cfaa2b755c965342cf5fad9739ebb73ece exact_id=b42becf9f4a6b00e1350fd1f54438707ae84e3b217f026a4081e76a69f347734
+  generated_exact_type get4 location=closure0 nominal_id=803c560f65e29605614ff79efa0c5ba91c184707c65575a6fb8de2b54c7d1225 exact_id=d187333fa4c545d9754098a90911fe2894b02f90d1c07895b3fee7c7565878e8
+  generated_exact_type get5 location=closure2 nominal_id=59be321ddaefefe24f8ed136816462c13b76525b4fa51053124fd66cdcb3793f exact_id=e56871e856c6d569d522a8a571ee305f8c0be79238ddf93e5fdebb59de9a9912
+  generated_exact_type get6 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn10 id=07f7fdcee723cef7f16c0de416bdce9dcbd9d427831783263b88f977c26f597d
+  generated_callable gc1 function=@fn11 id=1c1981497dbe7c7bb50f1e66b202a3b00c125b312ac5b58e63bd91ad406ee49b
+  generated_callable gc2 function=@fn12 id=441e1802b0a47b72355687313eac5aac811c7261d05372cb7290ce5f04fc04a6
+  generated_callable gc3 function=@fn8 id=7303639cb432819475093e16d83733e0105d3f4654d9f476852e263c6743d2dd
+  generated_callable gc4 function=@fn9 id=88e1c114d56ad6237e200f0e00d3d8529dd87030cc7eca7f4a95218c12a948c4
+  generated_callable gc5 function=@fn13 id=bba9976e6d547c3f88c6bd2909885129e191735e19b4ff1b49ff484a76d2e2bb
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.enabled: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      branch bb1 bb2
+        Type Boolean
+        Local $dependency.parameter.enabled
+    bb1 if.then.1
+      assign $default.local.3
+        Type () -> Int
+        ClosureAlloc cc4 $Closure$reference0
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.seed
+      goto bb3
+    bb2 if.else.2
+      val $default.local.2: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.seed
+      assign $default.local.3
+        Type () -> Int
+        Local $default.local.2
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        Local $default.local.3
+      call $call.1: () -> Int = external0 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type Boolean
+        Local $dependency.parameter.enabled
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb4 if.then.4
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.2
+    bb5 if.merge.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.enabled: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      branch bb6 bb7
+        Type Boolean
+        Local $dependency.parameter.enabled
+    bb6 if.then.6
+      assign $default.local.3
+        Type () -> Int
+        ClosureAlloc cc5 $Closure$reference1
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.seed
+      goto bb8
+    bb7 if.else.7
+      val $default.local.2: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.seed
+      assign $default.local.3
+        Type () -> Int
+        Local $default.local.2
+      goto bb8
+    bb8 if.merge.8
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        Local $default.local.3
+      call $call.3: () -> Int = external0 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type Boolean
+        Local $dependency.parameter.enabled
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb9 if.then.9
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.4
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.4
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.4
+    bb10 if.merge.10
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.argument.2: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda2
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.enabled: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        Local $dependency.argument.2
+      call $call.5: () -> Int = external0 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type Boolean
+        Local $dependency.parameter.enabled
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb11 if.then.11
+      val $default.local.0: String
+        Type String
+        StringConst @str2
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.6
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.6
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.6
+    bb12 if.merge.12
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$lambda3
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.seed
+      call $call.7: () -> Int = external2 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.7
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb13 bb14
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb13 if.then.13
+      val $default.local.0: String
+        Type String
+        StringConst @str3
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.8
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.8
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.8
+    bb14 if.merge.14
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$anonymous0
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.seed
+      call $call.9: () -> Int = external3 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type () -> Int
+        Local $dependency.parameter.value
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $call.9
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb15 if.then.15
+      val $default.local.0: String
+        Type String
+        StringConst @str4
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.10
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.10
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.10
+    bb16 if.merge.16
+      return
+  fun copy @fn1($capture.0: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.0
+  fun $lambda @fn2($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $argument.0
+  fun $lambda.0 @fn3($closure: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+  fun $lambda @fn4($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $argument.0
+  fun $anonymous @fn5($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $argument.0
+  fun $reference.0 @fn6($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type Int
+        ClosureCapture cc4 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn7($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type Int
+        ClosureCapture cc5 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn8($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn9($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.() -> Any @fn10($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn11($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn12($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn13($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  str @str0 "illegal state"
+  str @str1 "illegal state"
+  str @str2 "illegal state"
+  str @str3 "illegal state"
+  str @str4 "illegal state"
+  output executable @fn0

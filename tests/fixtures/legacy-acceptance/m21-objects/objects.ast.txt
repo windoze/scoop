@@ -1,0 +1,96 @@
+SourceFile
+  RootPackage
+  fun mark(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun baseSeed(): Int
+    =
+      Call mark
+        StringLiteral "base-argument"
+        IntLiteral 40
+  fun makeText(): String
+    Call println
+      StringLiteral "property-initializer"
+    return
+      StringLiteral "ready"
+  public open class Base(val seed: Int)
+    init
+      Call println
+        StringLiteral "base-initializer"
+  public interface Named
+    fun name
+  class ObjectDelegate(var value: Int)
+    operator fun provideDelegate
+    operator fun getValue
+    operator fun setValue
+  public object Registry
+    const val version: Int <const> = <expr>
+      IntLiteral 21
+    val text: String =
+      Call makeText
+    var count: Int =
+      IntLiteral 1
+    var delegated: Int by <expr>
+      Call ObjectDelegate
+        IntLiteral 10
+    init
+      Call gcCollect
+      assign count
+        Binary Add
+          Var count
+          IntLiteral 1
+      Call println
+        StringLiteral "object-initializer"
+    fun total
+    nested object Nested
+    nested class Token
+  val doubledVersion: Int <const> = <expr>
+  public fun choose(value: Registry = <expr>): Registry
+    =
+      Var value
+  fun readName(value: Named): String
+    =
+      MethodCall name
+        Var value
+  fun main()
+    Call println
+      Var doubledVersion
+    val token: Registry.Token
+      MethodCall Token
+        Var Registry
+        IntLiteral 9
+    Call println
+      FieldAccess value
+        Var token
+    Call println
+      MethodCall answer
+        FieldAccess Nested
+          Var Registry
+    Call println
+      StringLiteral "before-outer"
+    Call println
+      MethodCall total
+        Var Registry
+    Call println
+      FieldAccess text
+        Var Registry
+    assign .delegated
+      Var Registry
+      IntLiteral 11
+    Call println
+      MethodCall total
+        Var Registry
+    Call println
+      Call readName
+        Var Registry
+    Call println
+      Binary RefEq
+        Call choose
+        Var Registry
+    Call gcCollect
+    Call println
+      Binary RefEq
+        Var Registry
+        Var Registry

@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Token
+  public fun primary(): Counter
+    val value: Any
+      Call Token
+    val marker
+      Cast Token optional=false
+        Var value
+    return
+      Call Counter
+        Var marker
+        IntLiteral 21

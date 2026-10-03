@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "annotations are not allowed on typealias declarations",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 7,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 0
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_PARSE_ERROR",
+    "message": "only visibility modifiers are allowed on typealias declarations",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 39,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 35
+    },
+    "severity": "error"
+  }
+]

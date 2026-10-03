@@ -9,9 +9,17 @@ fn workspace_root() -> PathBuf {
         .to_path_buf()
 }
 
-fn compile_and_run(workspace: &Path, test_name: &str, test_source: &str) -> Output {
+fn compile_and_run(
+    workspace: &Path,
+    test_name: &str,
+    test_source: &str,
+    verify_metadata: bool,
+) -> Output {
     let binary = std::env::temp_dir().join(format!("scoop_{test_name}_{}", std::process::id()));
     let mut compile = Command::new("cc");
+    if verify_metadata {
+        compile.arg("-DSCOOP_VERIFY_METADATA=1");
+    }
     compile
         .args([
             "-std=c11",
@@ -25,6 +33,16 @@ fn compile_and_run(workspace: &Path, test_name: &str, test_source: &str) -> Outp
         .arg("-I")
         .arg(workspace.join("runtime/include"));
     for source in [
+        "runtime/src/image/lookup.c",
+        "runtime/src/image/active.c",
+        "runtime/tests/platform/image_fixture.c",
+        "runtime/tests/platform/stackmap_fixture.c",
+        "runtime/src/startup/failure.c",
+        "runtime/src/startup/gateway.c",
+        "runtime/src/boxing.c",
+        "runtime/src/arrays.c",
+        "runtime/src/value_shape.c",
+        "runtime/src/value_scan.c",
         "runtime/src/gc/allocation.c",
         "runtime/src/gc/collector.c",
         "runtime/src/gc/evacuation.c",
@@ -35,6 +53,8 @@ fn compile_and_run(workspace: &Path, test_name: &str, test_source: &str) -> Outp
         "runtime/src/gc/root_frames.c",
         "runtime/src/gc/roots.c",
         "runtime/src/gc/stackmap.c",
+        "runtime/src/gc/stackmap/parser.c",
+        "runtime/src/gc/stackmap/records.c",
         "runtime/src/gc/stack_roots.c",
         "runtime/src/thread.c",
         "runtime/src/thread/collection.c",
@@ -68,12 +88,32 @@ fn compile_and_run(workspace: &Path, test_name: &str, test_source: &str) -> Outp
 }
 
 #[test]
+fn every_gateway_handshakes_before_activating_its_first_frame() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "gateway_entry_test",
+        "runtime/tests/gateway_entry_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"gateway entry and GC handshake tests passed\n"
+    );
+}
+
+#[test]
 fn fake_platform_drives_the_real_moving_collector() {
     let workspace = workspace_root();
     let output = compile_and_run(
         &workspace,
         "moving_gc_test",
         "runtime/tests/moving_collector_test.c",
+        false,
     );
     assert!(
         output.status.success(),
@@ -94,6 +134,7 @@ fn moving_collector_updates_all_thread_protocol_roots() {
         &workspace,
         "moving_thread_protocol_test",
         "runtime/tests/moving_thread_protocol_test.c",
+        false,
     );
     assert!(
         output.status.success(),
@@ -104,6 +145,25 @@ fn moving_collector_updates_all_thread_protocol_roots() {
     assert_eq!(
         output.stdout,
         b"moving collector thread-protocol tests passed\n"
+    );
+}
+
+#[test]
+fn initialization_waiters_share_success_and_failure_across_moving_gc() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "initialization_gc_test",
+        "runtime/tests/initialization_gc_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"initialization waiters and moving GC tests passed\n"
     );
 }
 
@@ -169,6 +229,8 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
         "runtime/src/gc/root_frames.c",
         "runtime/src/gc/roots.c",
         "runtime/src/gc/stackmap.c",
+        "runtime/src/gc/stackmap/parser.c",
+        "runtime/src/gc/stackmap/records.c",
         "runtime/src/gc/stack_roots.c",
         "runtime/src/thread.c",
         "runtime/src/thread/collection.c",
@@ -194,4 +256,58 @@ fn generic_runtime_has_no_target_specific_vm_dependency() {
             );
         }
     }
+}
+
+#[test]
+fn descriptor_driven_boxing_and_arrays_preserve_zst_and_moving_gc() {
+    for verify_metadata in [false, true] {
+        let output = compile_and_run(
+            &workspace_root(),
+            "value_representation_test",
+            "runtime/tests/value_representation_test.c",
+            verify_metadata,
+        );
+        assert!(
+            output.status.success(),
+            "descriptor-driven representation test failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr),
+        );
+        assert_eq!(
+            output.stdout,
+            b"descriptor-driven representation tests passed\n"
+        );
+    }
+}
+
+#[test]
+fn runtime_scan_graphs_reuse_shared_children_and_reject_cycles() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "value_scan_test",
+        "runtime/tests/value_scan_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "reference scan graph test failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"reference scan graph tests passed\n");
+}
+
+#[test]
+fn startup_gateway_statuses_and_failure_reporting_preserve_published_roots() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "startup_gateway_test",
+        "runtime/tests/startup_gateway_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"startup gateway invariants passed\n");
 }

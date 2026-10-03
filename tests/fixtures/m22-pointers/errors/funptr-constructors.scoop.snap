@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-pointers/errors/funptr-constructors.scoop:4:37: error: intrinsic struct `FunPtr` has no source constructor
-m22-pointers/errors/funptr-constructors.scoop:5:43: error: intrinsic struct `FunPtr` has no source constructor

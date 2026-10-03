@@ -1,0 +1,12 @@
+package consumer.pointers
+
+public fun <T> exercise(value: T): Int {
+    var number = 0
+    @Unsafe {
+        val pointer = addressOf(number)
+        pointer.store(42)
+        return pointer.load() + number - 42
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)

@@ -99,18 +99,50 @@ mod class;
 mod concretize;
 mod constructor_resolution;
 mod core_contract;
+mod current_input;
+mod current_lowering;
+mod declaration_surface;
 mod declarations;
 mod defaults;
+mod definition_paths;
 mod derived;
 mod effects;
 mod expr;
 mod ffi;
 mod generic_entities;
 mod globals;
+mod imported_capabilities;
+mod imported_constructors;
+mod imported_core;
+mod imported_generics;
+mod imported_type_aliases;
+mod imports;
 mod lowering_context;
 mod model;
+mod namespace;
+mod output_kind;
 mod overload;
 mod patterns;
+mod persistent_accessors;
+mod persistent_aliases;
+mod persistent_callbacks;
+mod persistent_constructor_identities;
+mod persistent_definition_origins;
+mod persistent_dispatch;
+mod persistent_enum_members;
+mod persistent_export_bindings;
+mod persistent_fields;
+mod persistent_functions;
+mod persistent_initialization_units;
+mod persistent_local_bindings;
+mod persistent_native_boundary;
+mod persistent_native_contracts;
+mod persistent_nominals;
+mod persistent_object_values;
+mod persistent_properties;
+mod persistent_source_contexts;
+mod persistent_type_identities;
+mod persistent_types;
 mod pipeline;
 mod properties;
 mod scope;
@@ -121,11 +153,16 @@ mod tests;
 mod types;
 mod visibility;
 
+pub use current_input::*;
+pub use current_lowering::lower_current_cone;
+pub use output_kind::select_cone_output_kind;
+
 use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
 use scoop_ast as ast;
 use scoop_hir as hir;
+pub(crate) use scoop_hir::VariantStyle;
 
 use annotations::FunctionTarget;
 use ast::{Diagnostic, Span};
@@ -136,64 +173,147 @@ use hir::{
 use model::*;
 use scope::{LocalFunctionScopes, Scopes};
 
-/// Lower parsed source files to HIR.
-///
-/// `files[..len - 1]` are the `scoop.core` library sources and the
-/// last file is the user compilation unit (the driver's sysroot
-/// convention, milestone4 DESIGN.md 1.2): all files share a single
-/// declaration scope, so core declarations are visible to user code
-/// without imports. Diagnostics carry the index of the file they
-/// belong to (`Diagnostic::file`).
-///
-/// All semantic errors of the M5 subset are diagnosed here with spans;
-/// downstream stages (MIR, LIR) never fail.
-pub fn lower(files: &[ast::SourceFile]) -> Result<hir::Output, Vec<Diagnostic>> {
-    if files.is_empty() {
-        return Lowerer::new()
-            .run(files)
-            .map(|(export, warnings)| hir::Output {
-                local: concretize::lower(&export),
-                export,
-                warnings,
-            });
-    }
-    let core_provider = hir::IntrinsicProviderId::from_raw(0);
-    let user_provider = hir::IntrinsicProviderId::from_raw(1);
-    let unit = CompilationUnit {
-        core: files[..files.len() - 1]
-            .iter()
-            .map(|source| ProviderSource {
-                source,
-                provider: core_provider,
-                name: "<core>",
-                source_text: "",
-            })
-            .collect(),
-        user: ProviderSource {
-            source: &files[files.len() - 1],
-            provider: user_provider,
-            name: "<user>",
-            source_text: "",
-        },
-    };
-    lower_compilation_unit(&unit, IntrinsicDeclarationPolicy::CoreOnly)
-}
-
-/// One parsed source and the non-source identity of its provider. Multiple
-/// files of one Cone carry the same provider id.
-#[derive(Clone, Copy)]
-pub struct ProviderSource<'a> {
+/// One defined-world source used by lowerer unit tests.
+#[cfg(test)]
+#[derive(Clone)]
+pub(crate) struct ProviderSource<'a> {
     pub source: &'a ast::SourceFile,
+    pub identity: scoop_identity::SourceIdentity,
     pub provider: hir::IntrinsicProviderId,
     pub name: &'a str,
     pub source_text: &'a str,
 }
 
-/// Structurally complete single-Cone compilation input. Core and user sources
-/// cannot be confused by file position inside HIR lowering.
-pub struct CompilationUnit<'a> {
-    pub core: Vec<ProviderSource<'a>>,
-    pub user: ProviderSource<'a>,
+/// Test-only defined-world input. Production callers must use
+/// `CurrentConeSources`.
+#[cfg(test)]
+pub(crate) struct DefinedTestSources<'a> {
+    core: Vec<ProviderSource<'a>>,
+    user_provider: hir::IntrinsicProviderId,
+    user_sources: ast::AllParsedSources,
+    source_details: Vec<CurrentSourceDetails<'a>>,
+}
+
+/// Transient diagnostic and source-text data supplied separately from identity.
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub(crate) struct CurrentSourceDetails<'a> {
+    pub display_locator: &'a str,
+    pub source_text: &'a str,
+}
+
+#[derive(Clone)]
+enum CoreLoweringAuthority {
+    Defined,
+    Imported(std::sync::Arc<hir::ImportedCoreProtocols>),
+}
+
+struct LoweringCompletion {
+    dependencies: hir::ImportedDependencySelectionPlan,
+    binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
+}
+
+#[cfg(test)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum DefinedTestSourcesError {
+    DuplicateSourceIdentity {
+        first_index: usize,
+        duplicate_index: usize,
+        identity: scoop_identity::SourceIdentity,
+    },
+    MixedCurrentCones {
+        first: scoop_identity::ConeIdentity,
+        source_index: usize,
+        actual: scoop_identity::ConeIdentity,
+    },
+}
+
+#[cfg(test)]
+impl std::fmt::Display for DefinedTestSourcesError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DuplicateSourceIdentity {
+                first_index,
+                duplicate_index,
+                identity,
+            } => write!(
+                formatter,
+                "source {duplicate_index} duplicates source {first_index} identity {}/{}",
+                identity.cone(),
+                identity.logical_path()
+            ),
+            Self::MixedCurrentCones {
+                first,
+                source_index,
+                actual,
+            } => write!(
+                formatter,
+                "current source {source_index} belongs to Cone {actual}, expected {first}",
+            ),
+        }
+    }
+}
+
+#[cfg(test)]
+impl std::error::Error for DefinedTestSourcesError {}
+
+#[cfg(test)]
+impl<'a> DefinedTestSources<'a> {
+    /// Consume a validated parsed set. Details are requested by source identity,
+    /// never matched by display locator or source container position.
+    pub fn try_new(
+        core: Vec<ProviderSource<'a>>,
+        user_provider: hir::IntrinsicProviderId,
+        user_sources: ast::AllParsedSources,
+        mut source_details: impl FnMut(&scoop_identity::SourceIdentity) -> CurrentSourceDetails<'a>,
+    ) -> Result<Self, DefinedTestSourcesError> {
+        let first_cone = user_sources.sources().first().identity().cone();
+        for (source_index, source) in user_sources.sources().iter().enumerate().skip(1) {
+            let actual = source.identity().cone();
+            if actual != first_cone {
+                return Err(DefinedTestSourcesError::MixedCurrentCones {
+                    first: first_cone,
+                    source_index,
+                    actual,
+                });
+            }
+        }
+        let mut seen = Vec::with_capacity(core.len() + user_sources.sources().len());
+        for (index, identity) in core
+            .iter()
+            .map(|source| &source.identity)
+            .chain(
+                user_sources
+                    .sources()
+                    .iter()
+                    .map(|source| source.identity()),
+            )
+            .enumerate()
+        {
+            if let Some(first_index) = seen
+                .iter()
+                .position(|seen: &&scoop_identity::SourceIdentity| *seen == identity)
+            {
+                return Err(DefinedTestSourcesError::DuplicateSourceIdentity {
+                    first_index,
+                    duplicate_index: index,
+                    identity: identity.clone(),
+                });
+            }
+            seen.push(identity);
+        }
+        let source_details = user_sources
+            .sources()
+            .iter()
+            .map(|source| source_details(source.identity()))
+            .collect();
+        Ok(Self {
+            core,
+            user_provider,
+            user_sources,
+            source_details,
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -205,60 +325,209 @@ pub enum IntrinsicDeclarationPolicy {
     },
 }
 
-/// Lower a provider-typed compilation unit. The testing policy only grants
-/// source authority; registry target, signature, shape, uniqueness, and effect
-/// checks remain unchanged.
-pub fn lower_compilation_unit(
-    unit: &CompilationUnit<'_>,
+/// Lower a defined-world source set for unit tests. This is deliberately not
+/// compiled into the production crate API.
+#[cfg(test)]
+pub(crate) fn lower_defined_for_test(
+    requested: scoop_identity::RequestedConeKind,
+    input: &DefinedTestSources<'_>,
     policy: IntrinsicDeclarationPolicy,
 ) -> Result<hir::Output, Vec<Diagnostic>> {
-    let mut files = Vec::with_capacity(unit.core.len() + 1);
-    let mut sources = Vec::with_capacity(unit.core.len() + 1);
-    for input in &unit.core {
-        files.push(input.source.clone());
-        sources.push(SourceProvider {
-            provider: input.provider,
-            core: true,
-            name: input.name.to_string(),
-            source: input.source_text.to_string(),
-        });
-    }
-    files.push(unit.user.source.clone());
-    sources.push(SourceProvider {
-        provider: unit.user.provider,
-        core: false,
-        name: unit.user.name.to_string(),
-        source: unit.user.source_text.to_string(),
-    });
+    let (files, sources) = materialize_defined_test_sources(input);
     let (export, warnings) = Lowerer::new()
         .with_intrinsic_sources(sources, policy)
-        .run(&files)?;
-    let local = concretize::lower(&export);
-    Ok(hir::Output {
-        export,
-        local,
-        warnings,
+        .run_defined(&files)?;
+    let output_kind = select_cone_output_kind(&export, requested)?;
+    let world =
+        hir::ImportedSemanticWorld::from_dependencies(export.cone, Vec::new(), Vec::new()).unwrap();
+    finish_output(export, output_kind, warnings, &world, None)
+}
+
+/// Test fixture adapter using the same input and lowering as production.
+#[cfg(test)]
+pub(crate) fn lower_core_bootstrap(
+    input: &ast::CurrentConeParsedSources,
+) -> Result<hir::Output, Vec<Diagnostic>> {
+    let world = hir::ImportedSemanticWorld::from_dependencies(input.cone(), Vec::new(), Vec::new())
+        .unwrap();
+    let sources =
+        CurrentConeSources::try_new(input, CoreProtocolInput::CurrentDeclarations, &world).unwrap();
+    lower_current_cone(scoop_identity::RequestedConeKind::Library, &sources)
+        .map(|output| output.into_parts().0)
+}
+
+/// Projects complete HIR and dependency declarations into the type section.
+pub fn produce_cross_cone_type_semantics(
+    output: &hir::DependencyHirOutput,
+    metadata: hir::SharedTypeMetadataV1<'_>,
+    dependencies: &[hir::SharedTypeMetadataV1<'_>],
+) -> Result<hir::CrossConeTypeSemanticsSectionV1, hir::CrossConeTypeSemanticsProductionError> {
+    hir::CrossConeTypeSemanticsSectionV1::from_dependency_hir(output, metadata, dependencies)
+}
+
+fn finish_output(
+    export: hir::ExportHir,
+    output_kind: hir::ConeOutputKind,
+    warnings: Vec<Diagnostic>,
+    dependencies: &hir::ImportedSemanticWorld<'_>,
+    selected: Option<&hir::SelectedImportedDependencySet>,
+) -> Result<hir::Output, Vec<Diagnostic>> {
+    let mut export = match selected {
+        Some(selected) => {
+            hir::ExportHirOutput::try_new_with_dependencies(export, output_kind, selected)
+        }
+        None => hir::ExportHirOutput::try_new(export, output_kind),
+    }
+    .map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to seal Export HIR output: {error}"),
+        )]
+    })?;
+    let local = concretize::lower_output(&mut export, selected)?;
+    let native_boundary_types =
+        crate::persistent_native_boundary::build(export.module(), local.module(), dependencies)
+            .map_err(native_boundary_diagnostic)?;
+    hir::Output::try_new(export, local, native_boundary_types, warnings).map_err(|error| {
+        vec![Diagnostic::at(
+            Span { start: 0, end: 0 },
+            format!("failed to seal HIR output: {error}"),
+        )]
     })
+}
+
+fn native_boundary_diagnostic(
+    error: persistent_native_boundary::PersistentNativeBoundaryTypeError,
+) -> Vec<Diagnostic> {
+    vec![Diagnostic::at(Span { start: 0, end: 0 }, error.to_string())]
+}
+
+#[cfg(test)]
+fn materialize_defined_test_sources(
+    input: &DefinedTestSources<'_>,
+) -> (Vec<ast::SourceFile>, Vec<SourceProvider>) {
+    let source_count = input.core.len() + input.user_sources.sources().len();
+    let mut files = Vec::with_capacity(source_count);
+    let mut sources = Vec::with_capacity(source_count);
+    for source in &input.core {
+        files.push(source.source.clone());
+        sources.push(SourceProvider {
+            provider: source.provider,
+            kind: SourceKind::Core,
+            identity: source.identity.clone(),
+            name: source.name.to_string(),
+            source: source.source_text.to_string(),
+        });
+    }
+    for (source, details) in input
+        .user_sources
+        .sources()
+        .iter()
+        .zip(&input.source_details)
+    {
+        files.push(source.ast().clone());
+        sources.push(SourceProvider {
+            provider: input.user_provider,
+            kind: SourceKind::CurrentUnit,
+            identity: source.identity().clone(),
+            name: details.display_locator.to_string(),
+            source: details.source_text.to_string(),
+        });
+    }
+    (files, sources)
+}
+
+fn materialize_current_sources(
+    input: &ast::CurrentConeParsedSources,
+) -> (Vec<ast::SourceFile>, Vec<SourceProvider>) {
+    let mut files = Vec::with_capacity(input.sources().sources().len());
+    let mut sources = Vec::with_capacity(input.sources().sources().len());
+    for source in input.iter() {
+        files.push(source.source().ast().clone());
+        sources.push(SourceProvider {
+            provider: hir::IntrinsicProviderId::from_raw(0),
+            kind: if input.cone() == scoop_identity::ConeIdentity::CORE {
+                SourceKind::Core
+            } else {
+                SourceKind::CurrentUnit
+            },
+            identity: source.source().identity().clone(),
+            name: source.diagnostic().display_locator().display().to_string(),
+            source: source.text().text().to_owned(),
+        });
+    }
+    (files, sources)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SourceKind {
+    Core,
+    CurrentUnit,
 }
 
 #[derive(Debug, Clone)]
 struct SourceProvider {
     provider: hir::IntrinsicProviderId,
-    core: bool,
+    kind: SourceKind,
+    identity: scoop_identity::SourceIdentity,
     name: String,
     source: String,
+}
+
+/// Source spelling retained for every source FunctionId.
+/// Generated/accessor/initialization functions are deliberately absent.
+#[derive(Debug, Clone)]
+pub(crate) struct SourceFunctionDeclaration {
+    pub(crate) name: String,
 }
 
 /// Convert an already checked export-side graph into the local concrete graph.
 /// Kept public so stage-boundary tests can feed handcrafted checked HIR through
 /// the same fixed-point pass as the production pipeline.
-pub fn concretize_export(export: &hir::ExportHir) -> hir::LocalConcreteHir {
+pub fn concretize_export(
+    export: &hir::ExportHir,
+) -> Result<hir::LocalConcreteHir, Vec<ast::Diagnostic>> {
     concretize::lower(export)
+}
+
+/// Concretize a checked, output-sealed Export HIR graph while translating the
+/// output branch into the LocalConcrete HIR id domain.
+pub fn concretize_output(
+    export: &hir::ExportHirOutput,
+) -> Result<hir::LocalConcreteHirOutput, Vec<ast::Diagnostic>> {
+    concretize::lower_output(&mut export.clone(), None)
 }
 
 #[derive(Clone)]
 pub(crate) struct Lowerer {
+    core: CoreLoweringAuthority,
+    dependencies: Option<hir::ImportedDependencySelectionPlan>,
     pub(crate) source_contexts: Arena<hir::SourceContext>,
+    source_context_by_value: HashMap<hir::SourceContext, hir::SourceContextId>,
+    file_source_contexts: Vec<hir::SourceContextId>,
+    /// Role-local structural paths for the definition owner currently being
+    /// lowered. Nested callables replace this context and restore it on exit.
+    pub(crate) definition_paths: definition_paths::DefinitionPathContext,
+    /// Typed root of the active stable lexical traversal. It is present only
+    /// while lowering a function, constructor, or declaration-bound default.
+    pub(crate) definition_root: Option<hir::LexicalDefinitionRoot>,
+    /// Constructor expressions are lowered in several semantic passes. Their
+    /// owner-local counters persist between those regions so source-order
+    /// sites never fall back to a pass-local or arena-local ordinal.
+    pub(crate) constructor_definition_paths:
+        HashMap<class::ConstructorSource, definition_paths::DefinitionPathContext>,
+    pub(crate) imports: imports::CurrentUnitImports,
+    /// Published once after every source callable signature is resolved.
+    /// Rejected ids remain diagnostic-only and never enter body resolution.
+    pub(crate) declaration_surface: declaration_surface::DeclarationSurface,
+    /// Original identities established before each declaration's application.
+    pub(crate) nominal_declaration_identities: HashMap<Owner, hir::HirNominalIdentity>,
+    /// The arena-aligned projection completed after declaration collection.
+    pub(crate) nominal_identities: Option<hir::HirNominalIdentities>,
+    pub(crate) enum_member_identities: Option<hir::HirEnumMemberIdentities>,
+    pub(crate) nominal_owners: HashMap<hir::SourceNominalId, Owner>,
+    pub(crate) property_identity_records: HashMap<hir::PropertyId, hir::HirPropertyIdentity>,
+    pub(crate) field_identity_builder: hir::HirFieldIdentityBuilder,
     pub(crate) types: Arena<Type>,
     pub(crate) function_types: Arena<hir::FunctionType>,
     pub(crate) lambdas: Arena<hir::Lambda>,
@@ -272,6 +541,9 @@ pub(crate) struct Lowerer {
     pub(crate) next_type_param_identity: u32,
     /// Cone-wide source identity allocator for class virtual method families.
     pub(crate) next_virtual_method_identity: u32,
+    /// Declaration root captured when each virtual family is created.
+    pub(crate) virtual_method_roots:
+        HashMap<hir::VirtualMethodId, persistent_dispatch::VirtualMethodRoot>,
     pub(crate) next_constructor_parameter_identity: u32,
     /// Cone-wide identity allocator for structured loop occurrences. The
     /// active target stack below is callable-local, but identities remain
@@ -280,16 +552,27 @@ pub(crate) struct Lowerer {
     pub(crate) local_functions: Arena<hir::LocalFunction>,
     pub(crate) local_function_by_function: HashMap<FunctionId, hir::LocalFunctionId>,
     pub(crate) callable_references: Arena<hir::CallableReference>,
+    pub(crate) imported_derived_equalities: Arena<hir::ImportedDerivedEquality>,
+    pub(crate) imported_dependency_callables: Arena<hir::ImportedDependencyCallableUse>,
+    pub(crate) imported_constructor_templates: imported_constructors::ImportedConstructorTemplates,
+    pub(crate) imported_generic_templates: imported_generics::ImportedGenericTemplates,
+    pub(crate) imported_generic_delegate_templates: Arena<hir::ImportedGenericDelegateTemplate>,
+    pub(crate) imported_generic_applications: Arena<hir::ImportedGenericCallableApplication>,
+    pub(crate) retained_binding_witness_uses: Vec<hir::ExternalHirBindingWitnessUse>,
     pub(crate) bound_callable_refs: Arena<hir::BoundCallableRef>,
     pub(crate) function_coercions: Arena<hir::FunctionCoercion>,
     pub(crate) foreign_callback_registrations: Arena<hir::ForeignCallbackRegistration>,
     pub(crate) source_parameter_interfaces: Vec<hir::ExportParameterInterface>,
     pub(crate) export_default_exprs: Arena<hir::ExportDefaultExpr>,
+    pub(crate) default_local_value_scopes: Arena<defaults::PendingDefaultLocalScope>,
+    pub(crate) loaded_default_expressions:
+        HashMap<defaults::DefaultExpressionKey, std::sync::Arc<hir::DefaultExpression>>,
     pub(crate) export_default_sources: Arena<hir::ExportDefaultSource>,
     pub(crate) export_vararg_parameter_types: Arena<hir::ExportVarargParameterType>,
     pub(crate) local_default_exprs: Arena<defaults::LocalDefaultExpr>,
     pub(crate) default_templates:
         HashMap<(defaults::SourceParameterOwner, u32), defaults::DefaultExprTemplateRef>,
+    pub(crate) default_preparation: defaults::DefaultPreparation,
     /// True only while constructing a declaration-bound default template.
     /// Nested omissions remain definition-only until the outer template is
     /// instantiated at an actual call site.
@@ -297,33 +580,51 @@ pub(crate) struct Lowerer {
     pub(crate) function_coercion_by_types:
         HashMap<(hir::FunctionTypeId, hir::FunctionTypeId), hir::FunctionCoercionId>,
     pub(crate) structs: Arena<StructDecl>,
+    /// Source locations aligned with the checked source-field refs. Field
+    /// resolution may reject individual AST entries, so raw source ordinals
+    /// are not a valid substitute for this typed relation.
+    pub(crate) struct_field_spans: HashMap<hir::StructFieldRef, Span>,
     pub(crate) struct_constructors: Arena<hir::StructConstructor>,
     pub(crate) struct_constructor_applications: Arena<hir::StructConstructorApplication>,
     pub(crate) struct_constructor_application_by_key: HashMap<
-        (hir::StructConstructorId, hir::StructApplicationId),
+        (hir::StructConstructorDefinition, hir::StructApplicationId),
         hir::StructConstructorApplicationId,
     >,
     pub(crate) struct_applications: Arena<hir::StructApplication>,
     pub(crate) struct_application_by_key:
-        HashMap<(StructId, Vec<TypeId>), hir::StructApplicationId>,
+        HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::StructApplicationId>,
     pub(crate) enums: Arena<EnumDecl>,
+    pub(crate) loaded_enum_definitions: HashMap<hir::SourceNominalId, hir::LoadedEnumDefinition>,
+    pub(crate) loaded_struct_definitions:
+        HashMap<hir::SourceNominalId, hir::LoadedStructDefinition>,
+
+    pub(crate) loaded_class_definitions: HashMap<hir::SourceNominalId, hir::LoadedClassDefinition>,
+    pub(crate) loaded_interface_definitions:
+        HashMap<hir::SourceNominalId, hir::LoadedInterfaceDefinition>,
+    pub(crate) enum_variant_spans: HashMap<hir::EnumVariantRef, Span>,
+    pub(crate) enum_variant_field_spans: HashMap<hir::EnumVariantFieldRef, Span>,
     pub(crate) enum_applications: Arena<hir::EnumApplication>,
-    pub(crate) enum_application_by_key: HashMap<(EnumId, Vec<TypeId>), hir::EnumApplicationId>,
+    pub(crate) enum_application_by_key:
+        HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::EnumApplicationId>,
     pub(crate) classes: Arena<ClassDecl>,
     pub(crate) class_fields: Arena<hir::ClassField>,
     pub(crate) class_constructors: Arena<hir::ClassConstructor>,
     pub(crate) class_constructor_applications: Arena<hir::ClassConstructorApplication>,
     pub(crate) class_constructor_application_by_key: HashMap<
-        (hir::ClassConstructorId, hir::ClassApplicationId),
+        (hir::ClassConstructorDefinition, hir::ClassApplicationId),
         hir::ClassConstructorApplicationId,
     >,
     pub(crate) class_applications: Arena<hir::ClassApplication>,
-    pub(crate) class_application_by_key: HashMap<(ClassId, Vec<TypeId>), hir::ClassApplicationId>,
+    pub(crate) class_application_by_key:
+        HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::ClassApplicationId>,
     pub(crate) interfaces: Arena<InterfaceDecl>,
     pub(crate) interface_applications: Arena<hir::InterfaceApplication>,
     pub(crate) interface_application_by_key:
-        HashMap<(InterfaceId, Vec<TypeId>), hir::InterfaceApplicationId>,
+        HashMap<(hir::SourceNominalId, Vec<TypeId>), hir::InterfaceApplicationId>,
     pub(crate) functions: Arena<Function>,
+    /// Typed source-declaration provenance. Display names cannot substitute
+    /// for this relation because member and lifted-local names are decorated.
+    pub(crate) source_function_declarations: HashMap<FunctionId, SourceFunctionDeclaration>,
     /// Complete source relation for every validated intrinsic kind. Duplicate
     /// declarations are diagnosed at insertion; core contract validation reads
     /// this map directly and never scans functions or compares names.
@@ -331,6 +632,9 @@ pub(crate) struct Lowerer {
         HashMap<hir::IntrinsicFunctionKind, (FunctionId, hir::IntrinsicProviderId)>,
     intrinsic_type_owners:
         HashMap<hir::IntrinsicTypeKind, (IntrinsicTypeOwner, hir::IntrinsicProviderId)>,
+    imported_intrinsic_types:
+        std::collections::BTreeMap<hir::IntrinsicTypeKind, hir::ImportedIntrinsicType>,
+    imported_bound_interfaces: HashSet<hir::SourceNominalId>,
     pub(crate) extern_functions: Arena<hir::ExternFunction>,
     pub(crate) globals: Arena<hir::Global>,
     pub(crate) initialization_units: Arena<hir::InitializationUnit>,
@@ -346,10 +650,11 @@ pub(crate) struct Lowerer {
     pub(crate) property_getters: Arena<hir::PropertyGetter>,
     pub(crate) property_setters: Arena<hir::PropertySetter>,
     pub(crate) delegate_storages: Arena<hir::DelegateStorage>,
+    pub(crate) generic_delegate_templates: Arena<hir::GenericDelegateTemplate>,
     /// Resolver-only alias declarations. Their ids and resolution state never
     /// cross the Export HIR boundary.
     pub(crate) source_type_aliases: Arena<aliases::SourceTypeAlias>,
-    pub(crate) source_type_aliases_by_name: HashMap<String, aliases::SourceTypeAliasId>,
+    pub(crate) top_level_namespaces: namespace::TopLevelNamespaces,
     pub(crate) type_aliases: Arena<hir::TypeAliasDecl>,
     pub(crate) type_alias_resolution_stack: Vec<aliases::SourceTypeAliasId>,
     /// Generic definitions are separate HIR entities. Every function carries
@@ -382,14 +687,6 @@ pub(crate) struct Lowerer {
     pub(crate) string: TypeId,
     /// The built-in `Any` type (milestone6 DESIGN.md 5.5).
     pub(crate) any: TypeId,
-    /// Function namespace: name → overload candidates in declaration
-    /// order (M7). Struct and enum names live in separate namespaces:
-    /// a struct and a function may share a name.
-    pub(crate) functions_by_name: HashMap<String, Vec<FunctionId>>,
-    /// Top-level extension namespace. Extension declarations do not enter the
-    /// ordinary function layer: they are considered only with an explicit or
-    /// lexical receiver, except for `::name` callable references.
-    pub(crate) extensions_by_name: HashMap<String, Vec<FunctionId>>,
     /// Resolved extension receiver type for each extension function. The HIR
     /// body represents it structurally as the first immutable `this` param.
     pub(crate) extension_receivers: HashMap<FunctionId, TypeId>,
@@ -397,12 +694,6 @@ pub(crate) struct Lowerer {
     /// layering of overload resolution (user file → core implicit
     /// imports, milestone7 DESIGN.md 1.2).
     pub(crate) function_files: HashMap<FunctionId, usize>,
-    /// Property namespace in declaration order. Multiple entries are needed
-    /// because file-private top-level properties in different source files
-    /// own distinct namespaces.
-    pub(crate) properties_by_name: HashMap<String, Vec<hir::PropertyId>>,
-    /// Extension properties form their own receiver-applicable namespace.
-    pub(crate) extension_properties_by_name: HashMap<String, Vec<hir::PropertyId>>,
     /// Direct typed relation used after getter overload resolution; accessor
     /// function names are never parsed to recover a logical property.
     pub(crate) extension_property_by_getter: HashMap<FunctionId, hir::PropertyId>,
@@ -412,18 +703,6 @@ pub(crate) struct Lowerer {
     pub(crate) pending_runtime_initializers: Vec<globals::PendingRuntimeInitializer>,
     pub(crate) current_initialization_unit: Option<hir::InitializationUnitId>,
     pub(crate) local_delegate_plans: HashMap<hir::BindingId, properties::LocalDelegatePlan>,
-    /// Index of the user compilation unit (`files.len() - 1`); every
-    /// earlier file is implicitly imported `scoop.core`.
-    pub(crate) user_file_index: usize,
-    /// Struct namespace: name → (declaration, value type of the struct).
-    pub(crate) structs_by_name: HashMap<String, (StructId, TypeId)>,
-    /// Enum namespace.
-    pub(crate) enums_by_name: HashMap<String, EnumId>,
-    /// Class namespace: name → (declaration, reference type of the class).
-    pub(crate) classes_by_name: HashMap<String, (ClassId, TypeId)>,
-    /// Interface namespace: name → (declaration, interface type).
-    pub(crate) interfaces_by_name: HashMap<String, (InterfaceId, TypeId)>,
-    pub(crate) objects_by_name: HashMap<String, ObjectId>,
     /// Physical class representation -> semantic singleton declaration.
     /// The relation is typed and established when the object is declared;
     /// constructor/body lowering never recovers it from a generated name.
@@ -449,6 +728,7 @@ pub(crate) struct Lowerer {
     pub(crate) ffi_core: Option<hir::FfiCore>,
     pub(crate) foreign_callback_core: Option<hir::ForeignCallbackCore>,
     pub(crate) allow_deferred_fun_ptr: bool,
+    pub(crate) nominal_type_uses: Vec<(TypeId, usize, Span)>,
     pub(crate) pointer_type_uses: Vec<(TypeId, usize, Span)>,
     pub(crate) fun_ptr_type_uses: Vec<(TypeId, usize, Span)>,
     /// Interface member functions in declaration order. Class/struct/enum
@@ -460,11 +740,8 @@ pub(crate) struct Lowerer {
     pub(crate) interface_method_entities: Arena<hir::InterfaceMethod>,
     /// The owner of every member function.
     pub(crate) function_owner: HashMap<FunctionId, Owner>,
-    pub(crate) override_sources: HashMap<FunctionId, Vec<FunctionId>>,
-    /// Exact parent-parameter applications for every validated override edge.
-    /// The values are ordered like the parent signature's type parameters and
-    /// are expressed in the overriding declaration's type scope.
-    pub(crate) override_default_type_arguments: HashMap<(FunctionId, FunctionId), Vec<TypeId>>,
+    /// Actual overridden declarations and their default-parameter applications.
+    pub(crate) override_default_sources: HashMap<FunctionId, Vec<defaults::DefaultOverrideSource>>,
     /// Enums named `Option` declared in core files:
     /// (declaration, file index, span, type parameter count). Validated
     /// after pass 1 (`validate_option_enum`).
@@ -493,8 +770,6 @@ pub(crate) struct Lowerer {
     /// lowering-time lookup feeds the complete typed `CompilerExceptionCore`
     /// emitted after class representations and inheritance are resolved.
     pub(crate) throwable: Option<(ClassId, TypeId)>,
-    /// Surface form of every variant, for pattern shape checks.
-    pub(crate) variant_styles: HashMap<(EnumId, u32), VariantStyle>,
     /// Source-call protocols for nominal constructor parameters. Layout
     /// fields intentionally do not carry call syntax; these typed owner maps
     /// preserve it until complete Export HIR parameter entities are built.
@@ -516,7 +791,10 @@ pub(crate) struct Lowerer {
     /// Name of the function whose body is being lowered (diagnostics).
     pub(crate) current_fn_name: String,
     /// Typed lexical context attached to every expression origin.
-    pub(crate) current_source_context: hir::SourceContextId,
+    pub(crate) current_source_context: Option<hir::SourceContextId>,
+    /// The actual request location for a synthesized equality body, including
+    /// dependency definition and evaluation locations.
+    pub(crate) derived_expression_origin: Option<hir::ExpressionOrigin>,
     /// Explicit suspension-permission stack; it is never empty.
     pub(crate) suspension_contexts: Vec<SuspensionContext>,
     /// Lexical permission for unsafe operations; independent of suspension.
@@ -548,6 +826,12 @@ pub(crate) struct Lowerer {
     /// Index of the file currently being processed (diagnostics).
     pub(crate) current_file: usize,
     intrinsic_sources: Vec<SourceProvider>,
+    source_names: std::collections::BTreeMap<scoop_identity::ConeIdentity, String>,
+    /// Dependency sources referenced by instantiated defaults and bodies.
+    /// They are appended only after a winning candidate is committed and are
+    /// never traversed as parser inputs.
+    imported_source_files: Vec<hir::SourceFileMetadata>,
+    imported_source_indices: HashMap<scoop_identity::SourceIdentity, u32>,
     intrinsic_policy: IntrinsicDeclarationPolicy,
     /// Locals of the body currently being lowered (taken into the
     /// finished `hir::Body`).
@@ -613,3 +897,6 @@ impl GcIntrinsic {
         }
     }
 }
+
+#[cfg(test)]
+mod nominal_interface_fixture;

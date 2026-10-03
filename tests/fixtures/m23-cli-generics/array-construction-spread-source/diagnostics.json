@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `MutableArray` in nominal constructor candidate layer:\n  - class MutableArray<T>(source: Array<T>) — spread is only allowed for vararg parameter `source`",
+    "notes": [],
+    "origin": {
+      "cone": "feb2d17d445d1dc73a0aeb977c7a8f316b9deb24915a7549ab913d888322164e",
+      "end": 99,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 78
+    },
+    "severity": "error"
+  }
+]

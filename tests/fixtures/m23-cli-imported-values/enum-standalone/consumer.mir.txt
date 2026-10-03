@@ -1,0 +1,116 @@
+Module
+  callback cb0 @fn1 -> @fn2 function_type0 id=957e0229961a5a2ca3ff6e474d40c130a94f43ca4689356586ec5bad85ada6ae
+  struct Token ()
+  enum Choice
+    Empty()
+    Pair(left: Long, marker: Token, right: Long)
+  generated_callable gc0 function=@fn2 id=957e0229961a5a2ca3ff6e474d40c130a94f43ca4689356586ec5bad85ada6ae
+  fun relay @fn0(value: Choice) -> Choice <no-gc>
+    bb0 entry
+      return
+        Type Choice
+        Local value
+  fun test @fn1() -> Long <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=17 bits=0x0000000000000011
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=-29 bits=0xffffffffffffffe3
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.1
+      call $argument.0: Choice = external0 direct
+        Type Long
+        Local $dependency.parameter.left
+        Type Long
+        Local $dependency.parameter.right
+      val $parameter.value: Choice
+        Type Choice
+        Local $argument.0
+      call $dependency.argument.0: Choice = @fn0 direct
+        Type Choice
+        Local $parameter.value
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $dependency.receiver: Long = external1 direct
+        Type Choice
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=53 bits=0x0000000000000035
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.1
+      call $argument.0: Choice = external0 direct
+        Type Long
+        Local $dependency.parameter.left
+        Type Long
+        Local $dependency.parameter.right
+      val $parameter.value: Choice
+        Type Choice
+        Local $argument.0
+      call $dependency.argument.0: Choice = @fn0 direct
+        Type Choice
+        Local $parameter.value
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $dependency.argument.0: Long = external1 direct
+        Type Choice
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $argument.0: Choice = external2 direct
+      val $parameter.value: Choice
+        Type Choice
+        Local $argument.0
+      call $dependency.argument.0: Choice = @fn0 direct
+        Type Choice
+        Local $parameter.value
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      call $dependency.argument.0: Long = external1 direct
+        Type Choice
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun callback bridge for test @fn2($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn1 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
+  output library

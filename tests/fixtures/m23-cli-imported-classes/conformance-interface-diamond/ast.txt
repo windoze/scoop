@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.ChildReader
+  public interface LocalLeft : ChildReader
+  public interface LocalRight : ChildReader
+  public interface LocalReader : LocalLeft, LocalRight
+    fun child
+  public struct LocalValue : LocalReader
+  public fun localReader(): LocalReader
+    =
+      Call LocalValue
+  public fun primary(): Counter
+    =
+      Call Counter
+        Binary Add
+          MethodCall child
+            Call localReader
+          IntLiteral 2

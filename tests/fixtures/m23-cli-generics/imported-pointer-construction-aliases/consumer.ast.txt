@@ -1,0 +1,41 @@
+SourceFile
+  QualifiedPackage consumer.construction
+  ImportExact Local Ptr as Raw
+  ImportExact Local dependency.construction.IntPointer as External
+  private typealias Local = Raw<Int>
+  public fun exercise<T>(value: T): Int
+    var number
+      IntLiteral 40
+    @Unsafe block
+      val raw
+        MethodCall toULong
+          Call addressOf
+            Var number
+      val imported
+        Call External
+          Argument raw=
+            Var raw
+      val local
+        Call Local
+          Var raw
+      val renamed
+        Call Raw<Int>
+          Var raw
+      MethodCall store
+        Var imported
+        Binary Add
+          MethodCall load
+            Var local
+          IntLiteral 1
+      MethodCall store
+        Var renamed
+        Binary Add
+          MethodCall load
+            Var imported
+          IntLiteral 1
+      return
+        Var number
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

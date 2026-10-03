@@ -32,11 +32,11 @@ impl Harness {
                 let hir::Type::Class(application) = self.types[*base] else {
                     panic!("test harness class bases are class applications")
                 };
-                let base = self.class_applications[application].template;
+                let base = self.class_id(self.class_applications[application].template);
                 self.classes[base].interface_implementations.clone()
             })
             .unwrap_or_default();
-        for implementation in self.interface_implementation_shells(&interfaces) {
+        for implementation in self.initial_interface_implementations(&interfaces) {
             if let Some(existing) = interface_implementations
                 .iter_mut()
                 .find(|existing| existing.interface == implementation.interface)
@@ -56,6 +56,8 @@ impl Harness {
                 self.next_constructor_param += 1;
                 hir::ConstructorParameter {
                     id,
+                    binding: hir::BindingId::from_raw(0x4000_0000 + id.into_raw()),
+                    definition: definition_origin(),
                     name: name.to_string(),
                     ty: *ty,
                 }
@@ -74,7 +76,7 @@ impl Harness {
             let field = self.class_fields.alloc(hir::ClassField {
                 owner: class,
                 property,
-                ty: parameter.ty,
+                definition_index: fields.len(),
                 source: hir::ClassFieldSource::PrimaryParameter(parameter.id),
                 span: SPAN,
             });
@@ -85,7 +87,6 @@ impl Harness {
                 modifier: hir::MethodModifier::Final,
                 is_override: false,
                 overrides: Vec::new(),
-                override_access: Vec::new(),
                 ty: parameter.ty,
                 capability: hir::PropertyCapability::ReadOnly { getter },
                 representation: hir::PropertyRepresentation::Stored(hir::StoredProperty {
@@ -108,11 +109,11 @@ impl Harness {
                 let target =
                     self.class_constructor_applications
                         .alloc(hir::ClassConstructorApplication {
-                            constructor: target,
+                            constructor: target.into(),
                             owner,
                         });
                 hir::BaseInitialization::Super {
-                    target,
+                    target: hir::BaseInitializerTarget::Local(target),
                     arguments: hir::ConstructorArguments {
                         locals: Arena::new(),
                         statements: Vec::new(),
@@ -121,18 +122,66 @@ impl Harness {
                 }
             }
         };
-        let primary_stores = fields
+        let constructor_id =
+            hir::ClassConstructorId::from_raw((self.class_constructors.len() as u32).into());
+        let class = self.classes.alloc(hir::ClassDecl {
+            owner: None,
+            name: name.to_string(),
+            access: hir::NominalAccess::public(),
+            definition: hir::ClassDefinition {
+                modifier,
+                self_application,
+                type_params: Vec::new(),
+                representation: hir::ClassRepresentation::Declared,
+                fields: constructor
+                    .iter()
+                    .map(|(name, ty)| hir::Field {
+                        name: (*name).to_owned(),
+                        ty: *ty,
+                    })
+                    .collect(),
+                base_class: base_class.as_ref().map(|(ty, _, _)| *ty),
+                interfaces,
+                interface_implementations,
+
+                gc_free_pointee_requirements: Vec::new(),
+            },
+            fields,
+            properties,
+            constructors: vec![constructor_id],
+            methods: Vec::new(),
+            span: SPAN,
+        });
+        let actual = self.class_application(class, Vec::new());
+        assert_eq!(actual, self_application);
+        let primary_stores = self.classes[class]
+            .fields
             .iter()
             .copied()
             .zip(parameters.iter())
             .map(|(field, parameter)| hir::PrimaryFieldStore {
-                field,
+                field: {
+                    let hir::FieldRef::ClassField { owner, field } =
+                        self.class_field_ref(self_application, field)
+                    else {
+                        unreachable!("a test class field retains its owner")
+                    };
+                    hir::InitializingClassFieldRef { owner, field }
+                },
                 parameter: parameter.id,
                 span: SPAN,
             })
             .collect();
-        let constructor_id = self.class_constructors.alloc(hir::ClassConstructor {
+        let evaluation_context = hir::SourceContextId::from_raw(
+            u32::try_from(self.class_constructors.len() + 1)
+                .unwrap()
+                .into(),
+        );
+        let actual_constructor = self.class_constructors.alloc(hir::ClassConstructor {
+            safety: hir::Safety::Safe,
+            no_gc_type_params: Vec::new(),
             owner: class,
+            identity_kind: hir::ClassConstructorIdentityKind::Source,
             access: hir::DeclarationAccess::public(),
             parameters,
             kind: hir::ClassConstructorKind::Primary {
@@ -142,27 +191,9 @@ impl Harness {
             },
             span: SPAN,
             origin: definition_origin(),
+            evaluation_context,
         });
-        let class = self.classes.alloc(hir::ClassDecl {
-            owner: None,
-            modifier,
-            name: name.to_string(),
-            access: hir::NominalAccess::public(),
-            self_application,
-            type_params: Vec::new(),
-            gc_free_pointee_requirements: Vec::new(),
-            representation: hir::ClassRepresentation::Declared,
-            fields,
-            properties,
-            constructors: vec![constructor_id],
-            base_class: base_class.as_ref().map(|(ty, _, _)| *ty),
-            interfaces,
-            interface_implementations,
-            methods: Vec::new(),
-            span: SPAN,
-        });
-        let actual = self.class_application(class, Vec::new());
-        assert_eq!(actual, self_application);
+        assert_eq!(actual_constructor, constructor_id);
         class
     }
 
@@ -187,7 +218,7 @@ impl Harness {
             self.exception(name)
         } else {
             self.class(
-                &format!("${name}Protocol"),
+                &format!("_{name}Protocol"),
                 // LocalConcreteHir's exception contract always includes a
                 // real constructor callable. The protocol shell remains
                 // hidden from unrelated dump assertions by the test helper.
@@ -210,53 +241,23 @@ impl Harness {
         include: bool,
     ) -> hir::CompilerExceptionCore {
         let illegal_state_exception = self.exception_target("IllegalStateException", include);
-        let illegal_state_class = illegal_state_exception.constructor.class;
-        let zero_argument_constructor = illegal_state_exception.constructor.constructor;
-        // Focused lowering fixtures without initialization units never consume
-        // this capability. Keep their nominal graphs minimal; fixtures that
-        // exercise initialization use the exact core Option<String> contract.
-        let message_type = if self.needs_initialization_core {
-            self.option(self.string)
-        } else {
-            self.string
-        };
-        let parameter = hir::ConstructorParameter {
-            id: hir::ConstructorParamId::from_raw(self.next_constructor_param),
-            name: "message".to_string(),
-            ty: message_type,
-        };
-        self.next_constructor_param += 1;
-        let owner = self.classes[illegal_state_class].self_application;
-        let target = self
-            .class_constructor_applications
-            .alloc(hir::ClassConstructorApplication {
-                constructor: zero_argument_constructor,
-                owner,
-            });
-        let message_constructor = self.class_constructors.alloc(hir::ClassConstructor {
-            owner: illegal_state_class,
-            access: hir::DeclarationAccess::public(),
-            parameters: vec![parameter],
-            kind: hir::ClassConstructorKind::Secondary {
-                delegation: hir::ClassSecondaryDelegation::This {
-                    target,
-                    arguments: hir::ConstructorArguments {
-                        locals: Arena::new(),
-                        statements: Vec::new(),
-                        args: Vec::new(),
-                    },
-                },
-                body: hir::Body {
-                    locals: Arena::new(),
-                    statements: Vec::new(),
-                },
+        let mut locals = Arena::new();
+        let message = locals.alloc(local("message", self.string));
+        let initialization_cycle_thrower = self.user_fn_full(
+            "__scoopThrowInitializationCycle",
+            Vec::new(),
+            vec![hir::Param {
+                name: "message".to_string(),
+                ty: self.string,
+                local: message,
+            }],
+            self.unit,
+            hir::Body {
+                locals,
+                statements: Vec::new(),
             },
-            span: SPAN,
-            origin: definition_origin(),
-        });
-        self.classes[illegal_state_class]
-            .constructors
-            .push(message_constructor);
+        );
+        assert_eq!(self.top_level.pop(), Some(initialization_cycle_thrower));
         hir::CompilerExceptionCore {
             throwable: self.exception_target("Throwable", include),
             unwrap_exception: self.exception_target("UnwrapException", include),
@@ -265,10 +266,7 @@ impl Harness {
             index_out_of_bounds_exception: self
                 .exception_target("IndexOutOfBoundsException", include),
             illegal_state_exception,
-            illegal_state_message_constructor: hir::MessageClassConstructor {
-                class: illegal_state_class,
-                constructor: message_constructor,
-            },
+            initialization_cycle_thrower,
         }
     }
 }

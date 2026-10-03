@@ -1,0 +1,205 @@
+Module
+  struct Outer.Static (unit: Unit)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Outer.Static>
+    Completed(value: Outer.Static)
+    Suspended()
+  enum CoroutineSlot<Outer.Static>
+    Empty()
+    Value(value: Outer.Static)
+  enum CoroutineStep<Samples>
+    Completed(value: Samples)
+    Suspended()
+  enum CoroutineSlot<Samples>
+    Empty()
+    Value(value: Samples)
+  class Samples vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Outer.Static> vtable=0 itables=0
+  interface Continuation<Outer.Static>
+  interface SuspendTask<Outer.Static>
+  interface SuspendRegistration<Outer.Static>
+  interface Continuation<Samples>
+  interface SuspendTask<Samples>
+  interface SuspendRegistration<Samples>
+  generated_exact_type get0 location=class4 nominal_id=9b95094a9b246a9d563eabc12acd2ae6529cf107f051b8b1ddf4072e52e67043 exact_id=135c295bf7641fc7c17b9c0533f9b8bd330bbd143741e3efe3541392c1a6b087
+  generated_exact_type get1 location=enum1 nominal_id=b6b80b42c84ec97452c1b81a9c0e09c7b3ccd08755da37e6e0c19694f46ff861 exact_id=447aa619dc5509038dd76ada5325036ab45b3a0bc671749d30246b48f3d11a57
+  generated_exact_type get2 location=enum4 nominal_id=c2c40377f75f2d0161229016f7727c7ebde041768c884556fa6ec0fe1885e9aa exact_id=e10f13f876331bd4ee139f06adac652ca0ca6a76a92815b667598b0e3333e09d
+  generated_exact_type get3 location=enum3 nominal_id=83ab550a37438d0ab30166c4601613aba20afb7e744f48cc72df44422d1b6672 exact_id=e31404e14aa2fe25a688e986e21bbdd58c504f250159e28f45dc29256fb752ff
+  generated_exact_type get4 location=enum2 nominal_id=a0c9e2a29bf3b14219c45d599c3f4fb03f11151845b253eed6f6e8a4ec13fab1 exact_id=e3254b458d087cccdd8ae935f0cc9c675b0d0b0ae779a4647727cea33a7df58e
+  generated_callable gc0 function=@fn14 id=e71a87eafa6c05aa5734dc097f802c94829b55cfcccea145887f3b687dde4718
+  generated_callable gc1 function=@fn15 id=eb6cdb071cbc42fbd99b0c6dcdec583afd628481a2df9775247d6c6469e44a15
+  fun Outer.Static.equals @fn0(this: Outer.Static, other: Outer.Static) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn1 direct
+        Type Unit
+        FieldAccess 0
+          Type Outer.Static
+          Local this
+        Type Unit
+        FieldAccess 0
+          Type Outer.Static
+          Local other
+      return
+        Type Boolean
+        Local $call.1
+  fun $derived.equals.0 @fn1(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Samples.nested @fn2(this: Samples, value: Outer.Static) -> Outer.Static
+    bb0 entry
+      return
+        Type Outer.Static
+        Local value
+  fun defaultSamples @fn3() -> Samples
+    bb0 entry
+      assign $new.1
+        Type Samples
+        ClassAlloc Samples
+      call @fn12 direct
+        Type Samples
+        Local $new.1
+      return
+        Type Samples
+        Local $new.1
+  fun Continuation.resume @fn4(this: Continuation<Outer.Static>, value: Outer.Static) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Outer.Static>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Outer.Static>, $completion: Continuation<Outer.Static>) -> CoroutineStep<Outer.Static>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Outer.Static>, continuation: Continuation<Outer.Static>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn8(this: Continuation<Samples>, value: Samples) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<Samples>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<Samples>, $completion: Continuation<Samples>) -> CoroutineStep<Samples>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<Samples>, continuation: Continuation<Samples>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Samples.$c1 @fn12(this: Samples) -> Unit
+    bb0 entry
+      return
+  fun ctor.Outer.Static.$c1 @fn13(unit: Unit) -> Outer.Static <no-gc>
+    bb0 entry
+      return
+        Type Outer.Static
+        StructInit Outer.Static
+          Type Unit
+          Local unit
+  fun startCoroutine<Outer.Static> @fn14(task: SuspendTask<Outer.Static>, completion: Continuation<Outer.Static>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Outer.Static>[0]
+        Type Continuation<Outer.Static>
+        Local completion
+        Type Outer.Static
+        EnumField v0 f0
+          Type CoroutineStep<Outer.Static>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Outer.Static>[1]
+        Type Continuation<Outer.Static>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Outer.Static> = @fn6 interface SuspendTask<Outer.Static>[0]
+        Type SuspendTask<Outer.Static>
+        Local task
+        Type Continuation<Outer.Static>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Outer.Static>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Samples> @fn15(task: SuspendTask<Samples>, completion: Continuation<Samples>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn8 interface Continuation<Samples>[0]
+        Type Continuation<Samples>
+        Local completion
+        Type Samples
+        EnumField v0 f0
+          Type CoroutineStep<Samples>
+          Local $step
+      return
+    bb2 failed
+      call @fn9 interface Continuation<Samples>[1]
+        Type Continuation<Samples>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Samples> = @fn10 interface SuspendTask<Samples>[0]
+        Type SuspendTask<Samples>
+        Local task
+        Type Continuation<Samples>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Samples>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Outer.Static> result=Outer.Static
+  coroutine_step cs1 CoroutineStep<Samples> result=Samples
+  coroutine_slot cl0 CoroutineSlot<Outer.Static> value=Outer.Static
+  coroutine_slot cl1 CoroutineSlot<Samples> value=Samples
+  coroutine_start ct0 result=Outer.Static function=fn14
+  coroutine_start ct1 result=Samples function=fn15
+  coroutine_fn cf0 @fn6 source_return=Outer.Static step=cs0 immediate
+  coroutine_fn cf1 @fn10 source_return=Samples step=cs1 immediate
+  instance mi0 function=@fn4 <- Continuation.resume
+  instance mi1 function=@fn5 <- Continuation.resumeWithException
+  instance mi2 function=@fn6 <- SuspendTask.run
+  instance mi3 function=@fn7 <- SuspendRegistration.register
+  instance mi4 function=@fn8 <- Continuation.resume
+  instance mi5 function=@fn9 <- Continuation.resumeWithException
+  instance mi6 function=@fn10 <- SuspendTask.run
+  instance mi7 function=@fn11 <- SuspendRegistration.register
+  output library

@@ -1,0 +1,11 @@
+package dependency.paths
+
+public struct Local(val number: Int)
+
+public fun <T> exercise(value: T): Int {
+    val own: dependency.paths.Local = Local(40)
+    val foreign: dependency.paths.Point = Point(2)
+    return own.number + foreign.number
+}
+
+public fun result(): Int = exercise<Int>(0)

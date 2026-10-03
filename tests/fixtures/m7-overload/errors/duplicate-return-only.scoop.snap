@@ -1,9 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m7-overload/errors/duplicate-return-only.scoop:2:5: error: function `f` is already declared with the same signature
-m7-overload/errors/duplicate-return-only.scoop:5:13: error: call to `f` is ambiguous in current-unit top-level candidate layer:
-  - fun f(v: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commit: argument for `v` = Int
-  - fun f(v: Int): String — tied after pairwise declaration forwarding; requires integer literal exact commit: argument for `v` = Int

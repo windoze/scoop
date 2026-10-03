@@ -1,0 +1,599 @@
+Module
+  global0 $singleton$0483bdb7a7abf7a66bc3e84ae3e84be67f74a7a543a8fabea8e03e0f5007e9cb: Argument imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=2d526102cb95481b40624ea45cbbef651e0918d935a82a2739415744713c7c53
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Envelope vtable=0 itables=0
+  class Argument vtable=0 itables=1
+  class Box<Int> vtable=0 itables=0
+  class Box<String> vtable=0 itables=0
+  interface Bound
+  fun verifyNominal @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call value: Envelope = external1 direct
+      val $dependency.receiver: Envelope
+        Type Envelope
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      call external5 direct
+      val $dependency.argument.1: Argument
+        Type Argument
+        GlobalRead $singleton$0483bdb7a7abf7a66bc3e84ae3e84be67f74a7a543a8fabea8e03e0f5007e9cb
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.other: Argument
+        Type Argument
+        Local $dependency.argument.1
+      call $call.1: (Int, Int) = @fn2 direct
+        Type Envelope
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+        Type Argument
+        Local $dependency.parameter.other
+      call $argument.0: Boolean = @fn3 direct
+        Type (Int, Int)
+        Local $call.1
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=17 bits=0x00000011
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Envelope
+        Type Envelope
+        Local value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      call external5 direct
+      val $dependency.argument.1: Argument
+        Type Argument
+        GlobalRead $singleton$0483bdb7a7abf7a66bc3e84ae3e84be67f74a7a543a8fabea8e03e0f5007e9cb
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.other: Argument
+        Type Argument
+        Local $dependency.argument.1
+      call $call.2: (String, Int) = @fn4 direct
+        Type Envelope
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.value
+        Type Argument
+        Local $dependency.parameter.other
+      call $argument.0: Boolean = @fn5 direct
+        Type (String, Int)
+        Local $call.2
+        Type (String, Int)
+        TupleLiteral
+          Type String
+          StringConst @str2
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Envelope
+        Type Envelope
+        Local value
+      call $dependency.receiver: Int = external3 direct
+        Type Envelope
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Envelope
+        Type Envelope
+        Local value
+      call $dependency.receiver: Int = external4 direct
+        Type Envelope
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun exercise @fn2(this: Envelope, value: Int, other: Argument) -> (Int, Int)
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local value
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      assign $new.1
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn16 direct
+        Type Box<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.5: Box<Int>
+        Type Box<Int>
+        Local $new.1
+      val $dependency.local.6: Int
+        Type Int
+        Local value
+      val $dependency.local.7: Argument
+        Type Argument
+        Local other
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.9: Argument
+        Type Argument
+        Local $dependency.local.7
+      call $call.2: (Int, Int) = @fn6 direct
+        Type Box<Int>
+        Local $dependency.local.5
+        Type Int
+        Local $dependency.local.8
+        Type Argument
+        Local $dependency.local.9
+      return
+        Type (Int, Int)
+        Local $call.2
+  fun $derived.equals.0 @fn3(this: (Int, Int), other: (Int, Int)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun exercise @fn4(this: Envelope, value: String, other: Argument) -> (String, Int)
+    bb0 entry
+      val $dependency.local.3: String
+        Type String
+        Local value
+      val $dependency.local.4: String
+        Type String
+        Local $dependency.local.3
+      assign $new.1
+        Type Box<String>
+        ClassAlloc Box<String>
+      call @fn17 direct
+        Type Box<String>
+        Local $new.1
+        Type String
+        Local $dependency.local.4
+      val $dependency.local.5: Box<String>
+        Type Box<String>
+        Local $new.1
+      val $dependency.local.6: String
+        Type String
+        Local value
+      val $dependency.local.7: Argument
+        Type Argument
+        Local other
+      val $dependency.local.8: String
+        Type String
+        Local $dependency.local.6
+      val $dependency.local.9: Argument
+        Type Argument
+        Local $dependency.local.7
+      call $call.2: (String, Int) = @fn7 direct
+        Type Box<String>
+        Local $dependency.local.5
+        Type String
+        Local $dependency.local.8
+        Type Argument
+        Local $dependency.local.9
+      return
+        Type (String, Int)
+        Local $call.2
+  fun $derived.equals.1 @fn5(this: (String, Int), other: (String, Int)) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external2 direct
+        Type String
+        FieldAccess 0
+          Type (String, Int)
+          Local this
+        Type String
+        FieldAccess 0
+          Type (String, Int)
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (String, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (String, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun inspect @fn6(this: Box<Int>, value: Int, other: Argument) -> (Int, Int)
+    bb0 entry
+      val $dependency.local.6: Box<Int>
+        Type Box<Int>
+        Local this
+      val $dependency.local.3: Box<Int>
+        Type Box<Int>
+        Local this
+      val $dependency.local.4: Int
+        Type Int
+        Local value
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call $dependency.local.7: Int = @fn8 direct
+        Type Box<Int>
+        Local $dependency.local.3
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.8: Argument
+        Type Argument
+        Local other
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.10: Argument
+        Type Argument
+        Local $dependency.local.8
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.12: Box<Int>
+        Type Box<Int>
+        Local this
+      val $dependency.local.13: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      call $dependency.local.16: Int = @fn9 direct
+        Type Box<Int>
+        Local $dependency.local.12
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.14: Box<Int>
+        Type Box<Int>
+        Local this
+      val $dependency.local.15: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call $dependency.local.17: Int = @fn10 direct
+        Type Box<Int>
+        Local $dependency.local.14
+        Type Int
+        Local $dependency.local.15
+      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+      call $call.1: Int = @fn11 direct
+        Type Box<Int>
+        Local $dependency.local.6
+        Type Int
+        Local $dependency.local.9
+        Type Argument
+        Local $dependency.local.10
+        Type Int
+        Local $dependency.local.11
+      return
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Int
+          IntegerBinary add kind=Int
+            Type Int
+            Local $dependency.local.16
+            Type Int
+            Local $dependency.local.18
+  fun inspect @fn7(this: Box<String>, value: String, other: Argument) -> (String, Int)
+    bb0 entry
+      val $dependency.local.6: Box<String>
+        Type Box<String>
+        Local this
+      val $dependency.local.3: Box<String>
+        Type Box<String>
+        Local this
+      val $dependency.local.4: String
+        Type String
+        Local value
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call $dependency.local.7: String = @fn12 direct
+        Type Box<String>
+        Local $dependency.local.3
+        Type String
+        Local $dependency.local.5
+      val $dependency.local.8: Argument
+        Type Argument
+        Local other
+      val $dependency.local.9: String
+        Type String
+        Local $dependency.local.7
+      val $dependency.local.10: Argument
+        Type Argument
+        Local $dependency.local.8
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.12: Box<String>
+        Type Box<String>
+        Local this
+      val $dependency.local.13: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      call $dependency.local.16: Int = @fn13 direct
+        Type Box<String>
+        Local $dependency.local.12
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.14: Box<String>
+        Type Box<String>
+        Local this
+      val $dependency.local.15: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      call $dependency.local.17: Int = @fn14 direct
+        Type Box<String>
+        Local $dependency.local.14
+        Type Int
+        Local $dependency.local.15
+      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+      call $call.1: String = @fn15 direct
+        Type Box<String>
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.9
+        Type Argument
+        Local $dependency.local.10
+        Type Int
+        Local $dependency.local.11
+      return
+        Type (String, Int)
+        TupleLiteral
+          Type String
+          Local $call.1
+          Type Int
+          IntegerBinary add kind=Int
+            Type Int
+            Local $dependency.local.16
+            Type Int
+            Local $dependency.local.18
+  fun take @fn8(this: Box<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun hidden @fn9(this: Box<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun inherited @fn10(this: Box<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun combine @fn11(this: Box<Int>, value: Int, other: Argument, count: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun take @fn12(this: Box<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun hidden @fn13(this: Box<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun inherited @fn14(this: Box<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun combine @fn15(this: Box<String>, value: String, other: Argument, count: Int) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun init.Box.$c0 @fn16(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call @fn18 direct
+        Type Box<Int>
+        Local this
+        Type Int
+        Local $dependency.constructor.local.2
+        Type Int
+        Local $dependency.constructor.local.3
+      return
+  fun init.Box.$c0 @fn17(this: Box<String>, value: String) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: String
+        Type String
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.2: String
+        Type String
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call @fn19 direct
+        Type Box<String>
+        Local this
+        Type String
+        Local $dependency.constructor.local.2
+        Type Int
+        Local $dependency.constructor.local.3
+      return
+  fun init.Box.$c1 @fn18(this: Box<Int>, stored: Int, count: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local stored
+      return
+  fun init.Box.$c1 @fn19(this: Box<String>, stored: String, count: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<String>
+        Local this
+        Type String
+        Local stored
+      return
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- inspect
+  instance mi3 function=@fn7 <- inspect
+  instance mi4 function=@fn8 <- take
+  instance mi5 function=@fn9 <- hidden
+  instance mi6 function=@fn10 <- inherited
+  instance mi7 function=@fn11 <- combine
+  instance mi8 function=@fn12 <- take
+  instance mi9 function=@fn13 <- hidden
+  instance mi10 function=@fn14 <- inherited
+  instance mi11 function=@fn15 <- combine
+  str @str0 "illegal state"
+  str @str1 "parameters"
+  str @str2 "parameters"
+  output executable @fn1

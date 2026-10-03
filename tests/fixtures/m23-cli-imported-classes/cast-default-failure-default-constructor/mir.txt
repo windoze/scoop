@@ -1,0 +1,126 @@
+Module
+  class Counter vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Other vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb11 bb12
+        Type Boolean
+        IsInstance ClassCastException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      unreachable
+    bb8 try.body.8 unwind bb1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Other
+        ClassAlloc Other
+      call external0 direct
+        Type Other
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Any
+        Type Any
+        Retype Any
+          Type Other
+          Local $new.1
+      val $dependency.parameter.input: Any
+        Type Any
+        Local $dependency.argument.0
+      val $cast.1: Any
+        Type Any
+        Local $dependency.parameter.input
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Counter
+            Type Any
+            Local $cast.1
+    bb9 if.then.9 unwind bb1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.2
+      throw unwind bb1
+        Type ClassCastException
+        Local $new.2
+    bb10 if.merge.10 unwind bb1
+      val $dependency.parameter.value: Counter
+        Type Counter
+        Retype Counter
+          Type Any
+          Local $cast.1
+      call $call.3: Counter = external1 direct
+        Type Any
+        Local $dependency.parameter.input
+        Type Counter
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $call.3
+    bb11 try.catch.11
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: ClassCastException
+        Type ClassCastException
+        Retype ClassCastException
+          Type Any
+          Local $catch.4
+      goto bb13
+    bb12 try.next.12
+      rethrow unwind bb5
+    bb13 scope.13 unwind bb3
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.5
+        Type Counter
+        ClassAlloc Counter
+      call external2 direct
+        Type Counter
+        Local $new.5
+        Type Long
+        Local $dependency.parameter.value
+      val $return.6: Counter
+        Type Counter
+        Local $new.5
+      end_catch
+      goto bb14
+    bb14 scope.14
+      return
+        Type Counter
+        Local $return.6
+  output library

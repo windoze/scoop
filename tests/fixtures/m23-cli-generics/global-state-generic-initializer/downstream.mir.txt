@@ -1,0 +1,1805 @@
+Module
+  global0 extension:Receiver<T0>:shared$delegate: Slot<Later> managed initial=zeroed-for-runtime-unit
+  global1 extension:Receiver<T0>:broken$delegate: Slot<Later> managed initial=zeroed-for-runtime-unit
+  global2 extension:Receiver<T0>:shared$delegate: Slot<Int> managed initial=zeroed-for-runtime-unit
+  global3 extension:Receiver<T0>:broken$delegate: Slot<Int> managed initial=zeroed-for-runtime-unit
+  global4 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global5 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  global6 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
+  global7 $init$failure$3: Any managed initial=zeroed-for-runtime-unit
+  init0 extension:Receiver<T0>:shared generic-delegate lazy global0 initializer=@fn8 ensure=@fn9 failure=4 deps=[]
+  init1 extension:Receiver<T0>:broken generic-delegate lazy global1 initializer=@fn10 ensure=@fn11 failure=5 deps=[]
+  init2 extension:Receiver<T0>:shared generic-delegate lazy global2 initializer=@fn13 ensure=@fn14 failure=6 deps=[]
+  init3 extension:Receiver<T0>:broken generic-delegate lazy global3 initializer=@fn15 ensure=@fn16 failure=7 deps=[]
+  struct Slot<Later> (number: Int)
+  struct Slot<Int> (number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class Receiver<Later> vtable=0 itables=0
+  class Failed vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Receiver<Int> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  generated_exact_type get0 location=enum2 nominal_id=ffa724e70d8dee1ced225e5188b57f244f999e8413a4c3e57c59bd9fbecaa660 exact_id=6065c81b583230e3ed6c6b4f542f569ad8046318350c8c63b9adee53ad0f5861
+  generated_exact_type get1 location=enum1 nominal_id=f2047599d871ae9099c37d32167696dc170d4aa7426661b96c70326b015c8f2b exact_id=73a9ce9687834878139d377b34dd0896bd1113794450a30aae8c13b5781e69c6
+  generated_callable gc0 function=@fn26 id=48c55b42072a3847bb94d7c38c41215a1dc506c16022a90a930b3063c172da9c
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn21 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.number
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call answer: Int = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn21 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.number
+      val allocated: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb6 bb7
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb6 if.then.6
+      assign $result.1
+        Type Int
+        Local answer
+      goto bb8
+    bb7 if.else.7
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb8
+    bb8 if.merge.8
+      return
+        Type Int
+        Local $result.1
+  fun exercise @fn1(value: Later) -> Int
+    bb0 entry
+      val $dependency.local.9: Later
+        Type Later
+        Local value
+      val $dependency.local.10: Later
+        Type Later
+        Local $dependency.local.9
+      assign $new.1
+        Type Receiver<Later>
+        ClassAlloc Receiver<Later>
+      call @fn22 direct
+        Type Receiver<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.10
+      val $dependency.local.1: Receiver<Later>
+        Type Receiver<Later>
+        Local $new.1
+      call $dependency.local.2: Int = external1 direct
+      call $dependency.local.11: Int = @fn3 direct
+        Type Receiver<Later>
+        Local $dependency.local.1
+      val $dependency.local.12: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.12
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.11
+            Type Int
+            Local $dependency.local.13
+    bb1 if.then.1
+      val $dependency.local.19: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.14: Later
+        Type Later
+        Local value
+      val $dependency.local.15: Later
+        Type Later
+        Local $dependency.local.14
+      assign $new.2
+        Type Receiver<Later>
+        ClassAlloc Receiver<Later>
+      call @fn22 direct
+        Type Receiver<Later>
+        Local $new.2
+        Type Later
+        Local $dependency.local.15
+      call $dependency.local.16: Int = @fn3 direct
+        Type Receiver<Later>
+        Local $new.2
+      val $dependency.local.17: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+      val $dependency.local.19: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.16
+            Type Int
+            Local $dependency.local.18
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.19
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      call $dependency.local.3: Int = external1 direct
+      val $dependency.local.20: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.21: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.21
+      branch bb6 bb7
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.20
+            Type Int
+            Local $dependency.local.22
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb6 if.then.6
+      val $dependency.local.29: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      val $dependency.local.26: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.23: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.24: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.25: Int
+        Type Int
+        Local $dependency.local.24
+      val $dependency.local.27: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.23
+          Type Int
+          Local $dependency.local.25
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.27
+      val $dependency.local.29: Boolean
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.26
+            Type Int
+            Local $dependency.local.28
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $dependency.local.29
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      call $dependency.local.4: Int = external2 direct
+      var $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb18
+    bb11 try.unwind.11
+      landing_pad cleanup=false
+      goto bb12
+    bb12 try.dispatch.12
+      begin_catch
+      branch bb19 bb20
+        Type Boolean
+        IsInstance Failed
+          Type Any
+          CaughtException
+    bb13 try.handler_pad.13
+      landing_pad cleanup=true
+      goto bb14
+    bb14 try.handler_cleanup.14
+      end_catch
+      resume
+    bb15 try.exit_pad.15
+      landing_pad cleanup=true
+      goto bb16
+    bb16 try.exit_cleanup.16
+      end_catch
+      resume
+    bb17 try.end.17
+      call $dependency.local.7: Int = external2 direct
+      goto bb30
+    bb18 try.body.18 unwind bb11
+      call $call.3: Int = @fn4 direct
+        Type Receiver<Later>
+        Local $dependency.local.1
+      goto bb17
+    bb19 try.catch.19
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $dependency.local.6: Failed
+        Type Failed
+        Retype Failed
+          Type Any
+          Local $catch.4
+      goto bb21
+    bb20 try.next.20
+      rethrow unwind bb15
+    bb21 scope.21 unwind bb13
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.31: Int
+        Type Int
+        Local $dependency.local.30
+      val $dependency.local.32: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.33: Int
+        Type Int
+        Local $dependency.local.32
+      assign $dependency.local.5
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.31
+          Type Int
+          Local $dependency.local.33
+      end_catch
+      goto bb22
+    bb22 scope.22
+      goto bb17
+    bb23 try.unwind.23
+      landing_pad cleanup=false
+      goto bb24
+    bb24 try.dispatch.24
+      begin_catch
+      branch bb31 bb32
+        Type Boolean
+        IsInstance Failed
+          Type Any
+          CaughtException
+    bb25 try.handler_pad.25
+      landing_pad cleanup=true
+      goto bb26
+    bb26 try.handler_cleanup.26
+      end_catch
+      resume
+    bb27 try.exit_pad.27
+      landing_pad cleanup=true
+      goto bb28
+    bb28 try.exit_cleanup.28
+      end_catch
+      resume
+    bb29 try.end.29
+      val $dependency.local.40: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.41: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.42: Int
+        Type Int
+        Local $dependency.local.41
+      branch bb35 bb36
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.40
+            Type Int
+            Local $dependency.local.42
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb30 try.body.30 unwind bb23
+      val $dependency.local.34: Later
+        Type Later
+        Local value
+      val $dependency.local.35: Later
+        Type Later
+        Local $dependency.local.34
+      assign $new.5
+        Type Receiver<Later>
+        ClassAlloc Receiver<Later>
+      call @fn22 direct
+        Type Receiver<Later>
+        Local $new.5
+        Type Later
+        Local $dependency.local.35
+      call $call.6: Int = @fn4 direct
+        Type Receiver<Later>
+        Local $new.5
+      goto bb29
+    bb31 try.catch.31
+      call $catch.7: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $dependency.local.8: Failed
+        Type Failed
+        Retype Failed
+          Type Any
+          Local $catch.7
+      goto bb33
+    bb32 try.next.32
+      rethrow unwind bb27
+    bb33 scope.33 unwind bb25
+      val $dependency.local.36: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.36
+      val $dependency.local.38: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.39: Int
+        Type Int
+        Local $dependency.local.38
+      assign $dependency.local.5
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.37
+          Type Int
+          Local $dependency.local.39
+      end_catch
+      goto bb34
+    bb34 scope.34
+      goto bb29
+    bb35 if.then.35
+      val $dependency.local.49: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb37
+    bb36 if.else.36
+      val $dependency.local.46: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.43: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.44: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.45: Int
+        Type Int
+        Local $dependency.local.44
+      val $dependency.local.47: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.43
+          Type Int
+          Local $dependency.local.45
+      val $dependency.local.48: Int
+        Type Int
+        Local $dependency.local.47
+      val $dependency.local.49: Boolean
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.46
+            Type Int
+            Local $dependency.local.48
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb37
+    bb37 if.merge.37
+      branch bb38 bb39
+        Type Boolean
+        Local $dependency.local.49
+    bb38 if.then.38
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb39 if.merge.39
+      val $dependency.local.50: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.51: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.52: Int
+        Type Int
+        Local $dependency.local.51
+      branch bb40 bb41
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.50
+            Type Int
+            Local $dependency.local.52
+    bb40 if.then.40
+      val $dependency.local.56: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb42
+    bb41 if.else.41
+      call $dependency.local.53: Int = external2 direct
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.55: Int
+        Type Int
+        Local $dependency.local.54
+      val $dependency.local.56: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.53
+            Type Int
+            Local $dependency.local.55
+      goto bb42
+    bb42 if.merge.42
+      branch bb43 bb44
+        Type Boolean
+        Local $dependency.local.56
+    bb43 if.then.43
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb44 if.merge.44
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn2(value: Int) -> Int
+    bb0 entry
+      val $dependency.local.9: Int
+        Type Int
+        Local value
+      val $dependency.local.10: Int
+        Type Int
+        Local $dependency.local.9
+      assign $new.1
+        Type Receiver<Int>
+        ClassAlloc Receiver<Int>
+      call @fn23 direct
+        Type Receiver<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.1: Receiver<Int>
+        Type Receiver<Int>
+        Local $new.1
+      call $dependency.local.2: Int = external1 direct
+      call $dependency.local.11: Int = @fn5 direct
+        Type Receiver<Int>
+        Local $dependency.local.1
+      val $dependency.local.12: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.12
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.11
+            Type Int
+            Local $dependency.local.13
+    bb1 if.then.1
+      val $dependency.local.19: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.14: Int
+        Type Int
+        Local value
+      val $dependency.local.15: Int
+        Type Int
+        Local $dependency.local.14
+      assign $new.2
+        Type Receiver<Int>
+        ClassAlloc Receiver<Int>
+      call @fn23 direct
+        Type Receiver<Int>
+        Local $new.2
+        Type Int
+        Local $dependency.local.15
+      call $dependency.local.16: Int = @fn5 direct
+        Type Receiver<Int>
+        Local $new.2
+      val $dependency.local.17: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+      val $dependency.local.19: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.16
+            Type Int
+            Local $dependency.local.18
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.19
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      call $dependency.local.3: Int = external1 direct
+      val $dependency.local.20: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.21: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.21
+      branch bb6 bb7
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.20
+            Type Int
+            Local $dependency.local.22
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb6 if.then.6
+      val $dependency.local.29: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      val $dependency.local.26: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.23: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.24: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.25: Int
+        Type Int
+        Local $dependency.local.24
+      val $dependency.local.27: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.23
+          Type Int
+          Local $dependency.local.25
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.27
+      val $dependency.local.29: Boolean
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.26
+            Type Int
+            Local $dependency.local.28
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $dependency.local.29
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      call $dependency.local.4: Int = external2 direct
+      var $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb18
+    bb11 try.unwind.11
+      landing_pad cleanup=false
+      goto bb12
+    bb12 try.dispatch.12
+      begin_catch
+      branch bb19 bb20
+        Type Boolean
+        IsInstance Failed
+          Type Any
+          CaughtException
+    bb13 try.handler_pad.13
+      landing_pad cleanup=true
+      goto bb14
+    bb14 try.handler_cleanup.14
+      end_catch
+      resume
+    bb15 try.exit_pad.15
+      landing_pad cleanup=true
+      goto bb16
+    bb16 try.exit_cleanup.16
+      end_catch
+      resume
+    bb17 try.end.17
+      call $dependency.local.7: Int = external2 direct
+      goto bb30
+    bb18 try.body.18 unwind bb11
+      call $call.3: Int = @fn6 direct
+        Type Receiver<Int>
+        Local $dependency.local.1
+      goto bb17
+    bb19 try.catch.19
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $dependency.local.6: Failed
+        Type Failed
+        Retype Failed
+          Type Any
+          Local $catch.4
+      goto bb21
+    bb20 try.next.20
+      rethrow unwind bb15
+    bb21 scope.21 unwind bb13
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.31: Int
+        Type Int
+        Local $dependency.local.30
+      val $dependency.local.32: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.33: Int
+        Type Int
+        Local $dependency.local.32
+      assign $dependency.local.5
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.31
+          Type Int
+          Local $dependency.local.33
+      end_catch
+      goto bb22
+    bb22 scope.22
+      goto bb17
+    bb23 try.unwind.23
+      landing_pad cleanup=false
+      goto bb24
+    bb24 try.dispatch.24
+      begin_catch
+      branch bb31 bb32
+        Type Boolean
+        IsInstance Failed
+          Type Any
+          CaughtException
+    bb25 try.handler_pad.25
+      landing_pad cleanup=true
+      goto bb26
+    bb26 try.handler_cleanup.26
+      end_catch
+      resume
+    bb27 try.exit_pad.27
+      landing_pad cleanup=true
+      goto bb28
+    bb28 try.exit_cleanup.28
+      end_catch
+      resume
+    bb29 try.end.29
+      val $dependency.local.40: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.41: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.42: Int
+        Type Int
+        Local $dependency.local.41
+      branch bb35 bb36
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.40
+            Type Int
+            Local $dependency.local.42
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb30 try.body.30 unwind bb23
+      val $dependency.local.34: Int
+        Type Int
+        Local value
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      assign $new.5
+        Type Receiver<Int>
+        ClassAlloc Receiver<Int>
+      call @fn23 direct
+        Type Receiver<Int>
+        Local $new.5
+        Type Int
+        Local $dependency.local.35
+      call $call.6: Int = @fn6 direct
+        Type Receiver<Int>
+        Local $new.5
+      goto bb29
+    bb31 try.catch.31
+      call $catch.7: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $dependency.local.8: Failed
+        Type Failed
+        Retype Failed
+          Type Any
+          Local $catch.7
+      goto bb33
+    bb32 try.next.32
+      rethrow unwind bb27
+    bb33 scope.33 unwind bb25
+      val $dependency.local.36: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.36
+      val $dependency.local.38: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.39: Int
+        Type Int
+        Local $dependency.local.38
+      assign $dependency.local.5
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.37
+          Type Int
+          Local $dependency.local.39
+      end_catch
+      goto bb34
+    bb34 scope.34
+      goto bb29
+    bb35 if.then.35
+      val $dependency.local.49: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb37
+    bb36 if.else.36
+      val $dependency.local.46: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.43: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.44: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.45: Int
+        Type Int
+        Local $dependency.local.44
+      val $dependency.local.47: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.43
+          Type Int
+          Local $dependency.local.45
+      val $dependency.local.48: Int
+        Type Int
+        Local $dependency.local.47
+      val $dependency.local.49: Boolean
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.46
+            Type Int
+            Local $dependency.local.48
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb37
+    bb37 if.merge.37
+      branch bb38 bb39
+        Type Boolean
+        Local $dependency.local.49
+    bb38 if.then.38
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb39 if.merge.39
+      val $dependency.local.50: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.51: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.52: Int
+        Type Int
+        Local $dependency.local.51
+      branch bb40 bb41
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.50
+            Type Int
+            Local $dependency.local.52
+    bb40 if.then.40
+      val $dependency.local.56: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb42
+    bb41 if.else.41
+      call $dependency.local.53: Int = external2 direct
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.55: Int
+        Type Int
+        Local $dependency.local.54
+      val $dependency.local.56: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.53
+            Type Int
+            Local $dependency.local.55
+      goto bb42
+    bb42 if.merge.42
+      branch bb43 bb44
+        Type Boolean
+        Local $dependency.local.56
+    bb43 if.then.43
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb44 if.merge.44
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun $extension.shared @fn3(this: Receiver<Later>) -> Int
+    bb0 entry
+      call @fn9 direct
+      call $call.1: Int = @fn7 direct
+        Type Slot<Later>
+        GlobalRead extension:Receiver<T0>:shared$delegate
+        Type Receiver<Later>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $extension.broken @fn4(this: Receiver<Later>) -> Int
+    bb0 entry
+      call @fn11 direct
+      call $call.1: Int = @fn7 direct
+        Type Slot<Later>
+        GlobalRead extension:Receiver<T0>:broken$delegate
+        Type Receiver<Later>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $extension.shared @fn5(this: Receiver<Int>) -> Int
+    bb0 entry
+      call @fn14 direct
+      call $call.1: Int = @fn12 direct
+        Type Slot<Int>
+        GlobalRead extension:Receiver<T0>:shared$delegate
+        Type Receiver<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $extension.broken @fn6(this: Receiver<Int>) -> Int
+    bb0 entry
+      call @fn16 direct
+      call $call.1: Int = @fn12 direct
+        Type Slot<Int>
+        GlobalRead extension:Receiver<T0>:broken$delegate
+        Type Receiver<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun getValue @fn7(this: Slot<Later>, thisRef: Receiver<Later>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Slot<Later>
+          Local this
+  fun extension:Receiver<T0>:shared$initialize @fn8() -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      call $dependency.local.0: Int = external3 direct
+      val $dependency.local.1: Int
+        Type Int
+        Local $dependency.local.0
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call external4 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call $call.1: Slot<Later> = @fn24 direct
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.8
+        Type Slot<Later>
+        Local $call.1
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call $call.2: Slot<Later> = @fn24 direct
+        Type Int
+        Local $dependency.local.7
+      assign $dependency.local.8
+        Type Slot<Later>
+        Local $call.2
+      goto bb3
+    bb3 if.merge.3
+      global_assign extension:Receiver<T0>:shared$delegate
+        Type Slot<Later>
+        Local $dependency.local.8
+      return
+  fun extension:Receiver<T0>:shared$ensure @fn9() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:shared
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn8 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:shared
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:shared
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:shared
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:shared
+      call external8 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun extension:Receiver<T0>:broken$initialize @fn10() -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      call $dependency.local.0: Int = external5 direct
+      val $dependency.local.1: Int
+        Type Int
+        Local $dependency.local.0
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call external6 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      assign $new.1
+        Type Failed
+        ClassAlloc Failed
+      call external7 direct
+        Type Failed
+        Local $new.1
+      throw
+        Type Failed
+        Local $new.1
+    bb2 if.else.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call $call.2: Slot<Later> = @fn24 direct
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.6
+        Type Slot<Later>
+        Local $call.2
+      goto bb3
+    bb3 if.merge.3
+      global_assign extension:Receiver<T0>:broken$delegate
+        Type Slot<Later>
+        Local $dependency.local.6
+      return
+  fun extension:Receiver<T0>:broken$ensure @fn11() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:broken
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn10 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:broken
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:broken
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:broken
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:broken
+      call external8 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun getValue @fn12(this: Slot<Int>, thisRef: Receiver<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Slot<Int>
+          Local this
+  fun extension:Receiver<T0>:shared$initialize @fn13() -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      call $dependency.local.0: Int = external3 direct
+      val $dependency.local.1: Int
+        Type Int
+        Local $dependency.local.0
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call external4 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call $call.1: Slot<Int> = @fn25 direct
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.8
+        Type Slot<Int>
+        Local $call.1
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call $call.2: Slot<Int> = @fn25 direct
+        Type Int
+        Local $dependency.local.7
+      assign $dependency.local.8
+        Type Slot<Int>
+        Local $call.2
+      goto bb3
+    bb3 if.merge.3
+      global_assign extension:Receiver<T0>:shared$delegate
+        Type Slot<Int>
+        Local $dependency.local.8
+      return
+  fun extension:Receiver<T0>:shared$ensure @fn14() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 extension:Receiver<T0>:shared
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn13 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 extension:Receiver<T0>:shared
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 extension:Receiver<T0>:shared
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 extension:Receiver<T0>:shared
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 extension:Receiver<T0>:shared
+      call external8 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun extension:Receiver<T0>:broken$initialize @fn15() -> Unit
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      call $dependency.local.0: Int = external5 direct
+      val $dependency.local.1: Int
+        Type Int
+        Local $dependency.local.0
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call external6 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      assign $new.1
+        Type Failed
+        ClassAlloc Failed
+      call external7 direct
+        Type Failed
+        Local $new.1
+      throw
+        Type Failed
+        Local $new.1
+    bb2 if.else.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call $call.2: Slot<Int> = @fn25 direct
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.6
+        Type Slot<Int>
+        Local $call.2
+      goto bb3
+    bb3 if.merge.3
+      global_assign extension:Receiver<T0>:broken$delegate
+        Type Slot<Int>
+        Local $dependency.local.6
+      return
+  fun extension:Receiver<T0>:broken$ensure @fn16() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 extension:Receiver<T0>:broken
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn15 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 extension:Receiver<T0>:broken
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 extension:Receiver<T0>:broken
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 extension:Receiver<T0>:broken
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 extension:Receiver<T0>:broken
+      call external8 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Continuation.resume @fn17(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn21(this: Later, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local number
+      return
+  fun init.Receiver.$c0 @fn22(this: Receiver<Later>, value: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type Receiver<Later>
+        Local this
+        Type Later
+        Local value
+      return
+  fun init.Receiver.$c0 @fn23(this: Receiver<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Receiver<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Slot.$c1 @fn24(number: Int) -> Slot<Later> <no-gc>
+    bb0 entry
+      return
+        Type Slot<Later>
+        StructInit Slot<Later>
+          Type Int
+          Local number
+  fun ctor.Slot.$c1 @fn25(number: Int) -> Slot<Int> <no-gc>
+    bb0 entry
+      return
+        Type Slot<Int>
+        StructInit Slot<Int>
+          Type Int
+          Local number
+  fun startCoroutine<Later> @fn26(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn17 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn18 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn19 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn26
+  coroutine_fn cf0 @fn19 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- exercise
+  instance mi2 function=@fn3 <- $extension.shared
+  instance mi3 function=@fn4 <- $extension.broken
+  instance mi4 function=@fn5 <- $extension.shared
+  instance mi5 function=@fn6 <- $extension.broken
+  instance mi6 function=@fn7 <- getValue
+  instance mi7 function=@fn8 <- extension:Receiver<T0>:shared$initialize
+  instance mi8 function=@fn9 <- extension:Receiver<T0>:shared$ensure
+  instance mi9 function=@fn10 <- extension:Receiver<T0>:broken$initialize
+  instance mi10 function=@fn11 <- extension:Receiver<T0>:broken$ensure
+  instance mi11 function=@fn12 <- getValue
+  instance mi12 function=@fn13 <- extension:Receiver<T0>:shared$initialize
+  instance mi13 function=@fn14 <- extension:Receiver<T0>:shared$ensure
+  instance mi14 function=@fn15 <- extension:Receiver<T0>:broken$initialize
+  instance mi15 function=@fn16 <- extension:Receiver<T0>:broken$ensure
+  instance mi16 function=@fn17 <- Continuation.resume
+  instance mi17 function=@fn18 <- Continuation.resumeWithException
+  instance mi18 function=@fn19 <- SuspendTask.run
+  instance mi19 function=@fn20 <- SuspendRegistration.register
+  output library

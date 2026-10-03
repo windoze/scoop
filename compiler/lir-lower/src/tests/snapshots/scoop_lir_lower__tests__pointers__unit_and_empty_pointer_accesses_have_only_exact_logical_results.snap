@@ -1,0 +1,26 @@
+---
+source: compiler/lir-lower/src/tests/pointers.rs
+expression: body_dump(&lowered)
+---
+  block entry
+    t0 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t1 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
+    t2 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t3 = aggregate () : {}
+    t4 = aggregate () : {}
+    t5 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t6 = zst_value exact=1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc align 1 : {}
+    t7 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t8 = aggregate () : {}
+    t9 = aggregate () : {}
+    t10 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t11 = zst_value exact=f3d51e63e79edcfed0b8e70e8e6866f3024b397dca5d7feb65f5b262cfa588e9 align 1 : struct0
+    t12 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t13 = aggregate () : struct0
+    t14 = aggregate () : {}
+    t15 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t16 = zst_value exact=f3d51e63e79edcfed0b8e70e8e6866f3024b397dca5d7feb65f5b262cfa588e9 align 1 : struct0
+    t17 = ulong_to_ptr integer<ULong>(0x0000000000001000) : ptr
+    t18 = aggregate () : struct0
+    t19 = aggregate () : {}
+    ret

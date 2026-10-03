@@ -1,0 +1,5 @@
+package consumer.options
+
+private val missing: Int?
+
+public fun result(): Int = missing ?: 0

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "package `dependency.paths` has no accessible type `Hidden`",
+    "notes": [],
+    "origin": {
+      "cone": "1b84d95be310cc3dd929db364c05155b64d597463d5d30c1505b35d3713d72a6",
+      "end": 49,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 43
+    },
+    "severity": "error"
+  }
+]

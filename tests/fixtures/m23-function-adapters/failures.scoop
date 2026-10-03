@@ -1,0 +1,29 @@
+package consumer.adapters
+
+import templates.adapters.*
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val error = Failure(Payload(read(seed)))
+    val staticAction = failing<T>(error)
+    val erased: Any = staticAction
+    val dynamicAction = erased as (T) -> Any
+    var caught: Int = 0
+    var finalized: Int = 0
+    try {
+        staticAction(seed)
+    } catch (failure: Failure) {
+        if (failure.payload === error.payload && failure.payload.value == 42) { caught += 1 }
+    } finally {
+        finalized += 1
+    }
+    try {
+        dynamicAction(seed)
+    } catch (failure: Failure) {
+        if (failure.payload === error.payload && failure.payload.value == 42) { caught += 1 }
+    } finally {
+        finalized += 1
+    }
+    return if (caught == 2 && finalized == 2) { read(seed) } else { 100 + caught * 10 + finalized }
+}
+
+public fun result(): Int = exercise(42, { value: Int -> value })

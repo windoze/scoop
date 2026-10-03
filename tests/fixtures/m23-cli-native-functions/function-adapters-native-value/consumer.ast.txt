@@ -1,0 +1,57 @@
+SourceFile
+  QualifiedPackage consumer.adapters
+  ImportStar Local templates.adapters.*
+    @Extern(lib = "m23_native_calls", name = "m23_call_scalar")
+  private fun nativeCall(callback: FunPtr<(Long) -> Long>, value: Long): Long
+  public fun callScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
+    @Unsafe block
+      return
+        Call nativeCall
+          Var callback
+          Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val pointer: FunPtr<(Long) -> Long>
+      CallableReference 0 nativeIdentity
+    val exact
+      Call nativeSource
+        Var seed
+        Var read
+        Var pointer
+    val adapted: (FunPtr<(Long) -> Long>) -> Any
+      Var exact
+    val erased: Any
+      Var exact
+    val checked
+      Cast (FunPtr<(Long) -> Long>) -> Any optional=false
+        Var erased
+    val first
+      Cast FunPtr<(Long) -> Long> optional=false
+        Call adapted
+          Var pointer
+    val second
+      Cast FunPtr<(Long) -> Long> optional=false
+        Call checked
+          Var pointer
+    @Unsafe block
+      if
+        Binary Ne
+          Call callScalar
+            Var first
+            IntLiteral 41L
+          IntLiteral 41L
+        return
+          IntLiteral 1
+      return
+        MethodCall toInt32
+          Call callScalar
+            Var second
+            MethodCall toInt64
+              Call read
+                Var seed
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value

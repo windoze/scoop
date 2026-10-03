@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_BUILD_FAILED",
+    "message": "cannot canonicalize ${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib: No such file or directory (os error 2)",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib",
+      "start": null
+    },
+    "phase": "Locator",
+    "severity": "error"
+  }
+]

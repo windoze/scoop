@@ -1,0 +1,15 @@
+public struct LocationValue(val field: Int = 1)
+public enum LocationChoice { Item(val value: Int = 2) }
+public object LocationMarker {}
+public val locationSeed: Int = 7
+public fun locationFirst(): Int = 1
+public open class LocationHost protected constructor(seed: Int = 3) {
+    private fun local(seed: Int, value: Int = if (true) { val copy = seed; copy } else { seed }): Int = value
+    protected fun callback(seed: String, value: () -> String = { seed }): () -> String = value
+    private fun combined(value: (Int, Int, LocationMarker, Int) = (locationFirst(), locationSeed, LocationMarker, LocationValue(4).field)): (Int, Int, LocationMarker, Int) = value
+    internal fun <T> generic(seed: T, value: T = seed): T = value
+    protected open fun inherited(seed: Int, value: Int = seed): Int = value
+}
+public class LocationChild: LocationHost() {
+    protected final override fun inherited(seed: Int, value: Int): Int = value
+}

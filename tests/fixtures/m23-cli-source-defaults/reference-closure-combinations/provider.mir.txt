@@ -1,0 +1,156 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<ClosureCombinationHost>
+    Completed(value: ClosureCombinationHost)
+    Suspended()
+  enum CoroutineSlot<ClosureCombinationHost>
+    Empty()
+    Value(value: ClosureCombinationHost)
+  enum CoroutineStep<Int>
+    Completed(value: Int)
+    Suspended()
+  enum CoroutineStep<Any>
+    Completed(value: Any)
+    Suspended()
+  class ClosureCombinationHost vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Int>
+  interface SuspendTask<Int>
+  interface SuspendRegistration<Int>
+  interface Continuation<ClosureCombinationHost>
+  interface SuspendTask<ClosureCombinationHost>
+  interface SuspendRegistration<ClosureCombinationHost>
+  interface Continuation<Any>
+  interface SuspendTask<Any>
+  interface SuspendRegistration<Any>
+  generated_exact_type get0 location=enum2 nominal_id=feb6af89967ae5f030c308807aa68807a975f1f7e710208af06bb277049e1c72 exact_id=4256cbfba8d6c3dfd92c64b7e252b47c55e2f7761d9e330fd848f994277ef0cd
+  generated_exact_type get1 location=enum4 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
+  generated_exact_type get2 location=enum1 nominal_id=672d2a013efe349b85dd2f078785e5702a4f66b56814ff330ce8f1817a9e215b exact_id=a86e8543e7a964c4d94ea8acc018d4ccafd215f365c6e5130f2521d49b477664
+  generated_exact_type get3 location=enum3 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
+  generated_callable gc0 function=@fn17 id=ffdc3b416c0895f57979f5a15b8d94aa476caac96fa149d8264f5ef0de2bb89e
+  fun ClosureCombinationHost.nested @fn0(this: ClosureCombinationHost, seed: Int, fallback: () -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ClosureCombinationHost.conversion @fn1(this: ClosureCombinationHost, source: (Any) -> Int, value: (Int) -> Any) -> (Int) -> Any
+    bb0 entry
+      return
+        Type (Int) -> Any
+        Local value
+  fun ClosureCombinationHost.suspended @fn2(this: ClosureCombinationHost, value: suspend () -> Int) -> suspend () -> Int
+    bb0 entry
+      return
+        Type suspend () -> Int
+        Local value
+  fun closureNumber @fn3() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+  fun Continuation.resume @fn4(this: Continuation<Int>, value: Int) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Int>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Int>, continuation: Continuation<Int>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn8(this: Continuation<ClosureCombinationHost>, value: ClosureCombinationHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<ClosureCombinationHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<ClosureCombinationHost>, $completion: Continuation<ClosureCombinationHost>) -> CoroutineStep<ClosureCombinationHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<ClosureCombinationHost>, continuation: Continuation<ClosureCombinationHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn12(this: Continuation<Any>, value: Any) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn13(this: Continuation<Any>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn14(this: SuspendTask<Any>, $completion: Continuation<Any>) -> CoroutineStep<Any>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn15(this: SuspendRegistration<Any>, continuation: Continuation<Any>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ClosureCombinationHost.$c0 @fn16(this: ClosureCombinationHost) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<ClosureCombinationHost> @fn17(task: SuspendTask<ClosureCombinationHost>, completion: Continuation<ClosureCombinationHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn8 interface Continuation<ClosureCombinationHost>[0]
+        Type Continuation<ClosureCombinationHost>
+        Local completion
+        Type ClosureCombinationHost
+        EnumField v0 f0
+          Type CoroutineStep<ClosureCombinationHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn9 interface Continuation<ClosureCombinationHost>[1]
+        Type Continuation<ClosureCombinationHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ClosureCombinationHost> = @fn10 interface SuspendTask<ClosureCombinationHost>[0]
+        Type SuspendTask<ClosureCombinationHost>
+        Local task
+        Type Continuation<ClosureCombinationHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ClosureCombinationHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<ClosureCombinationHost> result=ClosureCombinationHost
+  coroutine_step cs1 CoroutineStep<Int> result=Int
+  coroutine_step cs2 CoroutineStep<Any> result=Any
+  coroutine_slot cl0 CoroutineSlot<ClosureCombinationHost> value=ClosureCombinationHost
+  coroutine_start ct0 result=ClosureCombinationHost function=fn17
+  coroutine_fn cf0 @fn6 source_return=Int step=cs1 immediate
+  coroutine_fn cf1 @fn10 source_return=ClosureCombinationHost step=cs0 immediate
+  coroutine_fn cf2 @fn14 source_return=Any step=cs2 immediate
+  instance mi0 function=@fn4 <- Continuation.resume
+  instance mi1 function=@fn5 <- Continuation.resumeWithException
+  instance mi2 function=@fn6 <- SuspendTask.run
+  instance mi3 function=@fn7 <- SuspendRegistration.register
+  instance mi4 function=@fn8 <- Continuation.resume
+  instance mi5 function=@fn9 <- Continuation.resumeWithException
+  instance mi6 function=@fn10 <- SuspendTask.run
+  instance mi7 function=@fn11 <- SuspendRegistration.register
+  instance mi8 function=@fn12 <- Continuation.resume
+  instance mi9 function=@fn13 <- Continuation.resumeWithException
+  instance mi10 function=@fn14 <- SuspendTask.run
+  instance mi11 function=@fn15 <- SuspendRegistration.register
+  output library

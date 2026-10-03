@@ -1,0 +1,169 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Combinations>
+    Completed(value: Combinations)
+    Suspended()
+  enum CoroutineSlot<Combinations>
+    Empty()
+    Value(value: Combinations)
+  enum CoroutineStep<Mimics>
+    Completed(value: Mimics)
+    Suspended()
+  enum CoroutineSlot<Mimics>
+    Empty()
+    Value(value: Mimics)
+  class Mimics vtable=0 itables=0
+  class Combinations vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Mimics>
+  interface SuspendTask<Mimics>
+  interface SuspendRegistration<Mimics>
+  interface Continuation<Combinations>
+  interface SuspendTask<Combinations>
+  interface SuspendRegistration<Combinations>
+  generated_exact_type get0 location=enum2 nominal_id=32bb3fa0a0be1e7a4be54d2f37be21449f9bd764d54c68ced50e1f1ae6a17db4 exact_id=a48f81b392e39db446c190f61a4e91baa753a333a57a9834a23f14d27f3c0c91
+  generated_exact_type get1 location=enum3 nominal_id=43b739d7388159d309b8e072981b002d932fc7ed66f0b96ae378dc697681176c exact_id=d0d78dc208a055d096f8f184fb4b5d2c5683a06d1a54fab3b06ae0bd7adf01dd
+  generated_exact_type get2 location=enum1 nominal_id=9e5cf809f0caaeb84121a8455d3897db4f39f5625c52ef5b727f268da3511e85 exact_id=f65609678ab64980f2db0ca7d90a47dd982211422e22cee853e4a892f7d7c96b
+  generated_exact_type get3 location=enum4 nominal_id=0aea7c9bad0a43dbb698656c667842dbf88d1cfccea0f9b5e232ce7ffda845f5 exact_id=f7f3f28690700f9fe8b7b6ad8143d4ab9e17055018a67ec1f077a335afd8c2fb
+  generated_callable gc0 function=@fn12 id=bb4621213be23b7100aa4b3b53930e88e61dd0a2344c774a80e293e0189d849f
+  generated_callable gc1 function=@fn11 id=beed58dccaf09fd58049d88195f8072dc774354071f34859e0045ac08f40eba5
+  fun Combinations.tuple @fn0(this: Combinations, seed: (Unit, Boolean), value: (Unit, Boolean)) -> (Unit, Boolean)
+    bb0 entry
+      return
+        Type (Unit, Boolean)
+        Local value
+  fun Continuation.resume @fn1(this: Continuation<Mimics>, value: Mimics) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn2(this: Continuation<Mimics>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn3(this: SuspendTask<Mimics>, $completion: Continuation<Mimics>) -> CoroutineStep<Mimics>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn4(this: SuspendRegistration<Mimics>, continuation: Continuation<Mimics>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn5(this: Continuation<Combinations>, value: Combinations) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Combinations>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Combinations>, $completion: Continuation<Combinations>) -> CoroutineStep<Combinations>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Combinations>, continuation: Continuation<Combinations>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Mimics.$c0 @fn9(this: Mimics) -> Unit
+    bb0 entry
+      return
+  fun init.Combinations.$c1 @fn10(this: Combinations) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<Combinations> @fn11(task: SuspendTask<Combinations>, completion: Continuation<Combinations>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Combinations>[0]
+        Type Continuation<Combinations>
+        Local completion
+        Type Combinations
+        EnumField v0 f0
+          Type CoroutineStep<Combinations>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Combinations>[1]
+        Type Continuation<Combinations>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Combinations> = @fn7 interface SuspendTask<Combinations>[0]
+        Type SuspendTask<Combinations>
+        Local task
+        Type Continuation<Combinations>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Combinations>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Mimics> @fn12(task: SuspendTask<Mimics>, completion: Continuation<Mimics>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn1 interface Continuation<Mimics>[0]
+        Type Continuation<Mimics>
+        Local completion
+        Type Mimics
+        EnumField v0 f0
+          Type CoroutineStep<Mimics>
+          Local $step
+      return
+    bb2 failed
+      call @fn2 interface Continuation<Mimics>[1]
+        Type Continuation<Mimics>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Mimics> = @fn3 interface SuspendTask<Mimics>[0]
+        Type SuspendTask<Mimics>
+        Local task
+        Type Continuation<Mimics>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Mimics>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Combinations> result=Combinations
+  coroutine_step cs1 CoroutineStep<Mimics> result=Mimics
+  coroutine_slot cl0 CoroutineSlot<Combinations> value=Combinations
+  coroutine_slot cl1 CoroutineSlot<Mimics> value=Mimics
+  coroutine_start ct0 result=Combinations function=fn11
+  coroutine_start ct1 result=Mimics function=fn12
+  coroutine_fn cf0 @fn3 source_return=Mimics step=cs1 immediate
+  coroutine_fn cf1 @fn7 source_return=Combinations step=cs0 immediate
+  instance mi0 function=@fn1 <- Continuation.resume
+  instance mi1 function=@fn2 <- Continuation.resumeWithException
+  instance mi2 function=@fn3 <- SuspendTask.run
+  instance mi3 function=@fn4 <- SuspendRegistration.register
+  instance mi4 function=@fn5 <- Continuation.resume
+  instance mi5 function=@fn6 <- Continuation.resumeWithException
+  instance mi6 function=@fn7 <- SuspendTask.run
+  instance mi7 function=@fn8 <- SuspendRegistration.register
+  output library

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `reencode` requires type argument Value for `T` to be a GC-free `Ptr` pointee",
+    "notes": [],
+    "origin": {
+      "cone": "8d46266e894cb7573d157588153bdbf7b852ce86e24bfdfdfe7beb7745f6a85e",
+      "end": 198,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 178
+    },
+    "severity": "error"
+  }
+]

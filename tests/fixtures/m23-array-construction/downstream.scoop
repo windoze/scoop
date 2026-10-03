@@ -1,0 +1,17 @@
+import consumer.arrayconstruction.result
+import consumer.arrayconstruction.exercise
+
+private class Later(public val number: Int)
+
+private fun readLater(value: Later): Int = value.number
+private fun readInt(value: Int): Int = value
+private fun readUnit(value: Unit): Int = 42
+
+public fun check(): Int {
+    val value = Later(result())
+    if (exercise<Later>(value, ::readLater) != 42) { return 1 }
+    if (exercise<Int>(42, ::readInt) != 42) { return 2 }
+    if (exercise<Unit>(Unit, ::readUnit) != 42) { return 3 }
+    val allocated = Later(0)
+    return if (allocated.number == 0) { value.number } else { 4 }
+}

@@ -38,11 +38,18 @@ fn struct_methods_and_bare_field_access() {
             let expected = hir::AppliedStructFieldRef::checked(
                 &module.structs,
                 &module.struct_applications,
+                &module.nominal_identities,
                 module.structs[struct_id].self_application,
                 0,
             )
             .expect("S.v is a checked applied struct field");
-            assert_eq!(*field, hir::FieldRef::StructField(expected));
+            assert_eq!(
+                *field,
+                hir::FieldRef::StructField {
+                    owner: module.struct_applications[expected.application()].canonical_type,
+                    field: module.field_identities[expected].id(),
+                }
+            );
             assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));
         }
         other => panic!("expected `this.v`, found {other:?}"),
@@ -50,7 +57,10 @@ fn struct_methods_and_bare_field_access() {
 
     match &returned(body_of(&module, "use_it")).kind {
         hir::ExprKind::MethodCall { callee, .. } => {
-            assert_eq!(module.callable_function(*callee), get);
+            assert_eq!(
+                module.callable_function(crate::tests::local_method_callable(&module, *callee)),
+                get
+            );
         }
         other => panic!("expected a method call, found {other:?}"),
     }
@@ -88,7 +98,9 @@ fn enum_methods_resolve_and_this_is_the_value() {
     match &returned(body_of(&module, "f")).kind {
         hir::ExprKind::MethodCall { callee, .. } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Color.code"
             );
         }
@@ -122,7 +134,9 @@ fn bare_method_calls_inside_a_class_mean_this() {
             receiver, callee, ..
         } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Shape.describe"
             );
             assert!(matches!(receiver.kind, hir::ExprKind::Local(_)));

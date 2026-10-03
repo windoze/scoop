@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  public fun referenceSeed(): String
+    =
+      StringLiteral "source"
+  public fun genericReference<T>(seed: T, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  public fun unusedReference<T>(value: () -> String = <expr>): () -> String
+    =
+      Var value
+  fun main()
+    Invoke
+      Call genericReference
+        IntLiteral 1
+    Invoke
+      Call genericReference
+        StringLiteral "other"
+    Invoke
+      Call unusedReference<Int>
+    Invoke
+      Call unusedReference<String>

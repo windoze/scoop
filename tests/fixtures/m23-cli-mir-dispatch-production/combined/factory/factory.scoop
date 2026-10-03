@@ -1,0 +1,10 @@
+public fun derived(): Derived = Derived()
+private class Complete: Pending() {
+    public override fun run(value: Token): Token = value
+    public override val token: Token get() = Token()
+}
+public fun pending(): Diamond = Complete()
+private class CompleteMutable: PendingMutable() {
+    public override var value: Token = Token()
+}
+public fun mutable(): Mutable = CompleteMutable()

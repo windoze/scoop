@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  public class Host()
+    private nested class Hidden
+    public nested class Child
+    private fun helper
+    internal fun internalValue
+    public fun echo
+    public val number: Int <computed>
+      get()
+        Call helper
+  public class Other()
+    public fun echo
+  public struct Pair
+    field first: Int
+    field second: Int
+  public enum Choice
+    Empty
+    Positional(Int, Int)
+    Named <named>
+      first: Int
+      second: Int

@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  private fun sourceSeed(value: Int = <expr>): Int
+    =
+      Var value
+  private val sourceBias: Int = <expr>
+  public class SourceContainer()
+    private fun hidden
+    public fun run
+  private fun unreachableLeft(value: Int = <expr>): Int
+    =
+      Var value
+  private fun unreachableRight(value: Int = <expr>): Int
+    =
+      Var value
+SourceFile
+  RootPackage
+  public fun sourceContainer(): SourceContainer
+    =
+      Call SourceContainer

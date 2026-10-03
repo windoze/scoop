@@ -1,0 +1,2 @@
+class Cycle(val value: Int = Cycle().value)
+fun main() {}

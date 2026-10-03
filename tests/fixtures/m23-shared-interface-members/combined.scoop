@@ -1,0 +1,16 @@
+package consumer.readers
+
+import dependency.readers.NumberReader
+import dependency.readers.Reader
+import dependency.readers.ValueReader
+
+public fun result(): Int {
+    val reader = NumberReader()
+    return if (reader.read(21) == 21 && reader.again() == 42) { reader.read() } else { 0 }
+}
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val reader = ValueReader<T>(value)
+    val protocol: Reader<T> = reader
+    return if (read(protocol.again()) == read(reader.read(value))) { read(reader.read()) } else { 0 }
+}

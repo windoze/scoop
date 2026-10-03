@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m10-coroutines/errors/duplicate-suspend-modifier.scoop:1:9: error: duplicate `suspend` modifier on top-level function

@@ -1,0 +1,41 @@
+package consumer.interfaceDefinitions
+import upstream.interfaceDefinitions.*
+
+private interface Restored<A, B>: Swap<B, A> {
+    public override fun choose(next: B): B = next
+}
+private interface Diamond<T>: Restored<Unit, T>, View<Unit, T> {}
+
+private class Local<T>(public override val second: T): Diamond<T> {
+    public override val first: Unit
+        get() = Unit
+}
+private struct Inline<T>(val value: T): Restored<Unit, T> {
+    public override val first: Unit
+        get() = Unit
+    public override val second: T
+        get() = this.value
+}
+
+private fun <T, I: View<Unit, T>> readBound(view: I, read: (T) -> Int): Int =
+    read(view.choose())
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val local: Diamond<T> = Local(value)
+    val restored: Restored<Unit, T> = local
+    if (read(restored.choose()) != 42) { return 1 }
+    if (readBound(local, read) != 42) { return 2 }
+    val peer = local.peer(reference(value))
+    if (read(peer.second) != 42) { return 3 }
+    val inline = Inline(value)
+    if (readBound(inline, read) != 42) { return 4 }
+    val boxed: Restored<Unit, T> = inline
+    return read(boxed.choose())
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    if (exercise<Pair<Int, Unit>>(Pair(42, Unit), { item -> item.first }) != 42) { return 3 }
+    return exercise<Int>(42, { item -> item })
+}

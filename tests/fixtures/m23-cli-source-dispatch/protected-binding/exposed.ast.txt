@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  public object Argument
+  public fun vault(): Container.Vault
+    =
+      MethodCall Vault
+        Var Container
+  public fun another(): Another
+    =
+      Call Another
+SourceFile
+  RootPackage
+  public interface Constraint
+  public class Container()
+    public nested class Vault
+  public class Another()
+    public fun observe
+    protected fun read

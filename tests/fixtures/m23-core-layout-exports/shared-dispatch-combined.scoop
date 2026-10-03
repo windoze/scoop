@@ -1,0 +1,40 @@
+public struct SharedDispatchToken()
+public interface SharedDispatchRoot {
+    public fun run(value: SharedDispatchToken): SharedDispatchToken
+    public val token: SharedDispatchToken
+    public fun echo(value: SharedDispatchToken): SharedDispatchToken = value
+}
+public interface SharedDispatchLeft: SharedDispatchRoot {
+    public override fun echo(value: SharedDispatchToken): SharedDispatchToken = value
+}
+public interface SharedDispatchRight: SharedDispatchRoot {}
+public interface SharedDispatchDiamond: SharedDispatchLeft, SharedDispatchRight {}
+public struct SharedDispatchValue(): SharedDispatchDiamond {
+    public final override fun run(value: SharedDispatchToken): SharedDispatchToken = value
+    public final override val token: SharedDispatchToken get() = SharedDispatchToken()
+    public fun spare(value: SharedDispatchToken): SharedDispatchToken = value
+}
+public interface SharedDispatchDefault {
+    public fun token(): SharedDispatchToken = SharedDispatchToken()
+}
+public enum SharedDispatchChoice: SharedDispatchDefault { One }
+public open class SharedDispatchBase: SharedDispatchRoot {
+    public override fun run(value: SharedDispatchToken): SharedDispatchToken = value
+    public override val token: SharedDispatchToken get() = SharedDispatchToken()
+}
+public class SharedDispatchDerived: SharedDispatchBase(), SharedDispatchDiamond
+public abstract class SharedDispatchPending: SharedDispatchDiamond
+public object SharedDispatchObject: SharedDispatchBase(), SharedDispatchDiamond {
+    public override fun run(value: SharedDispatchToken): SharedDispatchToken = value
+    public override val token: SharedDispatchToken get() = SharedDispatchToken()
+}
+public interface SharedDispatchMutable {
+    public var value: SharedDispatchToken
+}
+public abstract class SharedDispatchPendingMutable: SharedDispatchMutable
+public class SharedDispatchMutableImpl: SharedDispatchMutable {
+    public override var value: SharedDispatchToken
+        get() = SharedDispatchToken()
+        set(value) {}
+}
+public fun sharedDispatchRead(value: SharedDispatchBase): SharedDispatchToken = value.run(SharedDispatchToken())

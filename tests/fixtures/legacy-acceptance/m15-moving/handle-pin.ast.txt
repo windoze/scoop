@@ -1,0 +1,38 @@
+SourceFile
+  RootPackage
+  class MovingResource(val text: String)
+  fun main()
+    @Unsafe block
+      val handle
+        Call getGcHandle
+          Call MovingResource
+            Binary Add
+              StringLiteral "handle-"
+              StringLiteral "alive"
+      Call gcCollect
+      val fromHandle
+        Call releaseGcHandle
+          Var handle
+      Call println
+        FieldAccess text
+          Var fromHandle
+      val pinned
+        Call MovingResource
+          Binary Add
+            StringLiteral "pinned-"
+            StringLiteral "alive"
+      val pinnedPointer
+        Call pin
+          Var pinned
+      Call gcCollect
+      val unpinned
+        Call unpin
+          Var pinnedPointer
+      Call println
+        Binary RefEq
+          Var unpinned
+          Var pinned
+      Call gcCollect
+      Call println
+        FieldAccess text
+          Var unpinned

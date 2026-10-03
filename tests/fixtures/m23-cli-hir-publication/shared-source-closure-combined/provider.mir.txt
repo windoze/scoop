@@ -1,0 +1,441 @@
+Module
+  global0 sourceBias: Int managed initial=encoded(Int:0x4)
+  global1 $singleton$SourceRegistry: SourceRegistry managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object-private:dev.example:combined:0.1.0/src/main.scoop:SourceRegistry singleton lazy global1 initializer=@fn3 ensure=@fn4 failure=2 deps=[]
+  struct SourcePacket (value: Int)
+  enum SourceChoice
+    Present(value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<SourceRegistry>
+    Completed(value: SourceRegistry)
+    Suspended()
+  enum CoroutineSlot<SourceRegistry>
+    Empty()
+    Value(value: SourceRegistry)
+  enum CoroutineStep<SourcePacket>
+    Completed(value: SourcePacket)
+    Suspended()
+  enum CoroutineSlot<SourcePacket>
+    Empty()
+    Value(value: SourcePacket)
+  enum CoroutineStep<SourceChoice>
+    Completed(value: SourceChoice)
+    Suspended()
+  enum CoroutineSlot<SourceChoice>
+    Empty()
+    Value(value: SourceChoice)
+  class SourceRegistry vtable=0 itables=0
+  class SourceHost<Int> vtable=0 itables=0
+  class SourceHost<String> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<SourcePacket> vtable=0 itables=0
+  class box<SourceChoice> vtable=0 itables=0
+  interface Continuation<SourcePacket>
+  interface SuspendTask<SourcePacket>
+  interface SuspendRegistration<SourcePacket>
+  interface Continuation<SourceChoice>
+  interface SuspendTask<SourceChoice>
+  interface SuspendRegistration<SourceChoice>
+  interface Continuation<SourceRegistry>
+  interface SuspendTask<SourceRegistry>
+  interface SuspendRegistration<SourceRegistry>
+  generated_exact_type get0 location=class7 nominal_id=1f3c09cfc08ec61851662be11707b67cb818cefa5625b0507285eed725c35a49 exact_id=04843b9ee9b8d8e300c868a10aca8edc2d575724482f5187210dca289fa30210
+  generated_exact_type get1 location=enum3 nominal_id=6f5a884f3dd15a554390ef82918e72847fdbe643087aa126b685891bf398a51f exact_id=319c7fa23de96ab6819a78e46f46f4b424851aa6cf51cc9d8c680ad76a93a6cd
+  generated_exact_type get2 location=enum2 nominal_id=b6c6ba1f8eb609cf588dba1c9603768f8e2de7424ea16b715a6e52f0c8ca075a exact_id=672e529a80f004da21fd3bae15045e0543bad415387a5e72471a461a2ff6f3b3
+  generated_exact_type get3 location=enum4 nominal_id=351ff1cc0a4a00e09165ef2cdc05c6e9f4975c391b8adbbcc6115f9df026e837 exact_id=839198ce7f84c6fb052a05cc16640dbe392edb1dcfe8d107f109f6dcb775f274
+  generated_exact_type get4 location=enum7 nominal_id=c32efe1f1d9aebbf054370c4519227fd9ea63398f927af645331095f8358375c exact_id=ae35b96e1d994314caed7d24d2e17c94d0bc575463a62e616b02eb235328494c
+  generated_exact_type get5 location=class6 nominal_id=0dde153763e9c98e5d6c1feb44677b394fda004676dddf3ef6dec74e3cbd507b exact_id=b5e0de707b5196633fd0bea9cf68d94b90ed59e6f6ccc3b9fa241427f6a0b0f4
+  generated_exact_type get6 location=enum5 nominal_id=3b2f0774711df526f1f39f31e0549e17dc641d2e507338dfc61b878b0b6b5991 exact_id=c79a89ea481bceaf6fbbc7559fb273716ca8114480bc7129decadfe0596eeb5d
+  generated_exact_type get7 location=enum6 nominal_id=efb7bc75725b476a88e24c14485720649645a49a2eaa48a33123e9f4509232bb exact_id=d2f10658ed2f46b7bec791f2af60ecd4b477cc7edc1720bffe5b1496e88091dd
+  generated_callable gc0 function=@fn28 id=1c13864980a97a6c8ca05d292a9cf9132151502940a732a162a9f760dced9f2b
+  generated_callable gc1 function=@fn29 id=2cf6aeb8051fa2e34dda8a705c71e3c3c42d4247dd01d69e777e4252ebf056fd
+  generated_callable gc2 function=@fn27 id=a11a549882d86938844ef6dbc7176d88b0c09bdaa7b88ea88999376d60ef0032
+  fun SourceRegistry.read @fn0(this: SourceRegistry, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun sourceSeed @fn1(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $extension.sourceShift @fn2(this: Int, value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local this
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $init$body$0 @fn3() -> Unit
+    bb0 entry
+      assign $new.1
+        Type SourceRegistry
+        ClassAlloc SourceRegistry
+      call @fn23 direct
+        Type SourceRegistry
+        Local $new.1
+      global_assign $singleton$SourceRegistry
+        Type SourceRegistry
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn4() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:combined:0.1.0/src/main.scoop:SourceRegistry
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn3 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:combined:0.1.0/src/main.scoop:SourceRegistry
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:combined:0.1.0/src/main.scoop:SourceRegistry
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:combined:0.1.0/src/main.scoop:SourceRegistry
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object-private:dev.example:combined:0.1.0/src/main.scoop:SourceRegistry
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun unreachableLeft @fn5(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun unreachableRight @fn6(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun sourceHostInt @fn7() -> SourceHost<Int>
+    bb0 entry
+      assign $new.1
+        Type SourceHost<Int>
+        ClassAlloc SourceHost<Int>
+      call @fn24 direct
+        Type SourceHost<Int>
+        Local $new.1
+      return
+        Type SourceHost<Int>
+        Local $new.1
+  fun sourceHostString @fn8() -> SourceHost<String>
+    bb0 entry
+      assign $new.1
+        Type SourceHost<String>
+        ClassAlloc SourceHost<String>
+      call @fn25 direct
+        Type SourceHost<String>
+        Local $new.1
+      return
+        Type SourceHost<String>
+        Local $new.1
+  fun $get$sourceBias @fn9() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead sourceBias
+  fun $set$sourceBias @fn10(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign sourceBias
+        Type Int
+        Local value
+      return
+  fun Continuation.resume @fn11(this: Continuation<SourcePacket>, value: SourcePacket) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<SourcePacket>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<SourcePacket>, $completion: Continuation<SourcePacket>) -> CoroutineStep<SourcePacket>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<SourcePacket>, continuation: Continuation<SourcePacket>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<SourceChoice>, value: SourceChoice) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<SourceChoice>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<SourceChoice>, $completion: Continuation<SourceChoice>) -> CoroutineStep<SourceChoice>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<SourceChoice>, continuation: Continuation<SourceChoice>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<SourceRegistry>, value: SourceRegistry) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<SourceRegistry>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<SourceRegistry>, $completion: Continuation<SourceRegistry>) -> CoroutineStep<SourceRegistry>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<SourceRegistry>, continuation: Continuation<SourceRegistry>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.SourceRegistry.$c3 @fn23(this: SourceRegistry) -> Unit
+    bb0 entry
+      return
+  fun init.SourceHost.$c2 @fn24(this: SourceHost<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.SourceHost.$c2 @fn25(this: SourceHost<String>) -> Unit
+    bb0 entry
+      return
+  fun ctor.SourcePacket.$c0 @fn26(value: Int) -> SourcePacket <no-gc>
+    bb0 entry
+      return
+        Type SourcePacket
+        StructInit SourcePacket
+          Type Int
+          Local value
+  fun startCoroutine<SourceRegistry> @fn27(task: SuspendTask<SourceRegistry>, completion: Continuation<SourceRegistry>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<SourceRegistry>[0]
+        Type Continuation<SourceRegistry>
+        Local completion
+        Type SourceRegistry
+        EnumField v0 f0
+          Type CoroutineStep<SourceRegistry>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<SourceRegistry>[1]
+        Type Continuation<SourceRegistry>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<SourceRegistry> = @fn21 interface SuspendTask<SourceRegistry>[0]
+        Type SuspendTask<SourceRegistry>
+        Local task
+        Type Continuation<SourceRegistry>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<SourceRegistry>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<SourcePacket> @fn28(task: SuspendTask<SourcePacket>, completion: Continuation<SourcePacket>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<SourcePacket>[0]
+        Type Continuation<SourcePacket>
+        Local completion
+        Type SourcePacket
+        EnumField v0 f0
+          Type CoroutineStep<SourcePacket>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<SourcePacket>[1]
+        Type Continuation<SourcePacket>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<SourcePacket> = @fn13 interface SuspendTask<SourcePacket>[0]
+        Type SuspendTask<SourcePacket>
+        Local task
+        Type Continuation<SourcePacket>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<SourcePacket>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<SourceChoice> @fn29(task: SuspendTask<SourceChoice>, completion: Continuation<SourceChoice>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<SourceChoice>[0]
+        Type Continuation<SourceChoice>
+        Local completion
+        Type SourceChoice
+        EnumField v0 f0
+          Type CoroutineStep<SourceChoice>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<SourceChoice>[1]
+        Type Continuation<SourceChoice>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<SourceChoice> = @fn17 interface SuspendTask<SourceChoice>[0]
+        Type SuspendTask<SourceChoice>
+        Local task
+        Type Continuation<SourceChoice>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<SourceChoice>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<SourceRegistry> result=SourceRegistry
+  coroutine_step cs1 CoroutineStep<SourcePacket> result=SourcePacket
+  coroutine_step cs2 CoroutineStep<SourceChoice> result=SourceChoice
+  coroutine_slot cl0 CoroutineSlot<SourceRegistry> value=SourceRegistry
+  coroutine_slot cl1 CoroutineSlot<SourcePacket> value=SourcePacket
+  coroutine_slot cl2 CoroutineSlot<SourceChoice> value=SourceChoice
+  coroutine_start ct0 result=SourceRegistry function=fn27
+  coroutine_start ct1 result=SourcePacket function=fn28
+  coroutine_start ct2 result=SourceChoice function=fn29
+  coroutine_fn cf0 @fn13 source_return=SourcePacket step=cs1 immediate
+  coroutine_fn cf1 @fn17 source_return=SourceChoice step=cs2 immediate
+  coroutine_fn cf2 @fn21 source_return=SourceRegistry step=cs0 immediate
+  instance mi0 function=@fn11 <- Continuation.resume
+  instance mi1 function=@fn12 <- Continuation.resumeWithException
+  instance mi2 function=@fn13 <- SuspendTask.run
+  instance mi3 function=@fn14 <- SuspendRegistration.register
+  instance mi4 function=@fn15 <- Continuation.resume
+  instance mi5 function=@fn16 <- Continuation.resumeWithException
+  instance mi6 function=@fn17 <- SuspendTask.run
+  instance mi7 function=@fn18 <- SuspendRegistration.register
+  instance mi8 function=@fn19 <- Continuation.resume
+  instance mi9 function=@fn20 <- Continuation.resumeWithException
+  instance mi10 function=@fn21 <- SuspendTask.run
+  instance mi11 function=@fn22 <- SuspendRegistration.register
+  output library

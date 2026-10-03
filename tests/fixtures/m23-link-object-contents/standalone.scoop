@@ -1,0 +1,10 @@
+import dependency.api.runtimeValue
+
+@Extern(name = "scoop_test_identity")
+fun nativeIdentity(value: Int): Int
+
+public val localValue: Int = runtimeValue
+public fun outside(): Int = runtimeValue
+public fun nativeCall(value: Int): Int {
+    @Unsafe { return nativeIdentity(value) }
+}

@@ -1,7 +1,15 @@
 use super::*;
 
+mod arrays;
+mod boxing;
+mod c_storage;
 mod call;
 mod expression;
+mod expression_support;
+mod objects;
+mod places;
+mod pointers;
+mod scalars;
 mod statements;
 
 use call::LoweredCallDestination;
@@ -24,6 +32,7 @@ impl MappedLoopHeaderPollTarget {
 pub(super) struct LoweredFunction {
     pub(super) function: lir::Function,
     pub(super) loop_header_polls: Vec<MappedLoopHeaderPollTarget>,
+    pub(super) pending_safepoints: safepoints::PendingSafepointSites,
 }
 
 /// Map a primitive MIR binary operator onto its LIR opcode. Operand and result
@@ -86,24 +95,26 @@ fn integer_shift_op(operation: mir::IntegerShiftOperation) -> lir::IntegerShiftO
 #[allow(clippy::too_many_arguments)]
 pub(super) fn lower_function<'a>(
     context: &'a LoweringContext,
+    producer: scoop_identity::ConeIdentity,
     module: &'a mir::Module,
+    callable_body: lir::CallableBodyIdentity,
     function: &'a mir::Function,
     signature: &'a lir::ScoopAbiSignature,
     global_map: &HashMap<mir::StringConstId, lir::GlobalId>,
     storage_globals: &HashMap<mir::GlobalId, StorageGlobal>,
     globals: &mut Arena<lir::Global>,
-    cstr_count: &mut usize,
-    layout_types: &mut Vec<mir::Type>,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
     array_types: &'a HashMap<mir::ClassId, lir::ArrayTypeId>,
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
     function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
+    external_callables: &'a Arena<lir::ExternalCallable>,
+    external_callable_map: &'a HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
+    callback_map: &'a HashMap<mir::CallbackBridgeId, lir::CallbackBridgeId>,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
-    safepoint_ids: &'a mut safepoints::SafepointIds,
-) -> LoweredFunction {
+) -> StorageResult<LoweredFunction> {
     // Parameters stay SSA values unless `addressOf` requires stable storage.
     // Address-taken parameters are copied once into a method-local slot.
     let address_taken = locals::address_taken(function);
@@ -119,7 +130,6 @@ pub(super) fn lower_function<'a>(
         .zip(signature.arguments())
         .enumerate()
     {
-        record_layout_types(&param.ty, layout_types);
         assert_eq!(
             &lir_type(&param.ty),
             abi_argument.logical_storage_type(),
@@ -137,16 +147,18 @@ pub(super) fn lower_function<'a>(
         if local_map.contains_key(&mir_id) {
             continue; // a parameter
         }
-        record_layout_types(&local.ty, layout_types);
-        let lir_id = locals.alloc(lir::Local {
-            name: local.name.clone(),
-            ty: lir_type(&local.ty),
-        });
+        let lir_id = locals.alloc(places::source_local(
+            context,
+            module,
+            local,
+            address_taken.contains(&mir_id),
+            structs,
+            enums,
+        )?);
         local_map.insert(mir_id, LocalSlot::Slot(lir_id));
     }
 
     // Unit-returning functions are void at the LLVM level (DESIGN 2.4).
-    record_layout_types(&function.return_ty, layout_types);
     let returns_void = matches!(signature.result(), lir::AbiReturn::UnitVoid);
     assert_eq!(returns_void, function.return_ty == mir::Type::Unit);
     if let Some(storage_type) = signature.result().logical_storage_type() {
@@ -174,24 +186,29 @@ pub(super) fn lower_function<'a>(
         .iter()
         .map(|target| MappedLoopHeaderPollTarget::new(block_map[&target.header()]))
         .collect();
+    let mut pending_safepoints = safepoints::PendingSafepointSites::default();
     let mut lowerer = FunctionLowerer {
         context,
+        producer,
+        callable_body: &callable_body,
         module,
         mir_locals: &function.body.locals,
         global_map,
         storage_globals,
         globals,
-        cstr_count,
-        layout_types,
+        cstr_count: 0,
         structs,
         enums,
         array_types,
         type_descriptors,
         local_function_map,
         function_signatures,
+        external_callables,
+        external_callable_map,
+        callback_map,
         extern_functions,
         extern_function_refs,
-        safepoint_ids,
+        pending_safepoints: &mut pending_safepoints,
         local_map,
         locals,
         temps: Arena::new(),
@@ -204,6 +221,7 @@ pub(super) fn lower_function<'a>(
         returns_void,
         call_targets: lir::CallTargets::default(),
         trap_blocks: HashMap::new(),
+        trap_messages: HashMap::new(),
         current_sealed: false,
         exception_slots: None,
         caught_exception: None,
@@ -223,28 +241,30 @@ pub(super) fn lower_function<'a>(
         let lir_id = lowerer.block_map[&mir_id];
         lowerer.enter(lir_id);
         lowerer.current_unwind = block.unwind.map(|target| lowerer.block_map[&target]);
-        lowerer.lower_statements(&block.statements);
+        lowerer.lower_statements(&block.statements)?;
         if !lowerer.current_sealed {
-            lowerer.lower_terminator(&block.terminator);
+            lowerer.lower_terminator(&block.terminator)?;
         }
         assert!(lowerer.current_sealed, "every MIR block has a terminator");
     }
-    LoweredFunction {
+    Ok(LoweredFunction {
         function: lir::Function {
             gc_effect: match function.gc_effect {
                 mir::GcEffect::Managed => lir::GcEffect::Managed,
                 mir::GcEffect::NoGc => lir::GcEffect::NoGc,
             },
-            symbol: function.symbol.clone(),
             signature: signature.clone(),
             call_targets: lowerer.call_targets,
+            safepoints: lir::SafepointIdentities::default(),
             locals: lowerer.locals,
             temps: lowerer.temps,
             blocks: lowerer.blocks,
             entry,
+            callable_body,
         },
         loop_header_polls,
-    }
+        pending_safepoints,
+    })
 }
 
 // Safepoint placement and liveness live in safepoints.rs.
@@ -265,6 +285,8 @@ enum LocalSlot {
 /// structured control flow does not seal it again with a branch.
 struct FunctionLowerer<'a> {
     context: &'a LoweringContext,
+    producer: scoop_identity::ConeIdentity,
+    callable_body: &'a lir::CallableBodyIdentity,
     module: &'a mir::Module,
     /// Locals of the MIR function being lowered (for local storage and parameters).
     mir_locals: &'a Arena<mir::Local>,
@@ -272,13 +294,10 @@ struct FunctionLowerer<'a> {
     storage_globals: &'a HashMap<mir::GlobalId, StorageGlobal>,
     /// Sink for ordinary globals such as trap-message C strings.
     globals: &'a mut Arena<lir::Global>,
-    cstr_count: &'a mut usize,
-    /// Sink for tuple types encountered in value types (meta layouts).
-    layout_types: &'a mut Vec<mir::Type>,
+    cstr_count: u32,
     /// Complete value layouts used to classify return conventions and scans.
     structs: &'a lir::StructDefs,
-    /// Enum definitions with fixed representations (enum value
-    /// sizing, e.g. for `scoop_rt_box` payload sizes).
+    /// Enum definitions with complete fixed value representations.
     enums: &'a lir::EnumDefs,
     /// Complete class-application to array-metadata mapping produced before
     /// any function is lowered.
@@ -287,9 +306,12 @@ struct FunctionLowerer<'a> {
     type_descriptors: &'a TypeDescriptorRefs,
     local_function_map: &'a HashMap<mir::FunctionId, lir::LocalFunctionRef>,
     function_signatures: &'a HashMap<mir::FunctionId, lir::ScoopAbiSignature>,
+    external_callables: &'a Arena<lir::ExternalCallable>,
+    external_callable_map: &'a HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
+    callback_map: &'a HashMap<mir::CallbackBridgeId, lir::CallbackBridgeId>,
     extern_functions: &'a lir::ExternFunctions,
     extern_function_refs: &'a HashMap<mir::ExternFunctionId, LoweredExternFunctionRef>,
-    safepoint_ids: &'a mut safepoints::SafepointIds,
+    pending_safepoints: &'a mut safepoints::PendingSafepointSites,
     local_map: HashMap<mir::LocalId, LocalSlot>,
     locals: Arena<lir::Local>,
     temps: Arena<lir::Temp>,
@@ -305,6 +327,7 @@ struct FunctionLowerer<'a> {
     /// The shared trap blocks of this function, one per message,
     /// created on first use.
     trap_blocks: HashMap<String, lir::BlockId>,
+    trap_messages: HashMap<String, lir::GlobalId>,
     /// Whether the current block was already sealed.
     current_sealed: bool,
     /// Function-local spill slots shared by all landing pads. They
@@ -319,14 +342,10 @@ impl<'a> FunctionLowerer<'a> {
         self.array_types[&class]
     }
 
-    fn value_layout(&self, ty: &mir::Type) -> (u64, u64) {
+    fn value_layout(&self, ty: &mir::Type) -> StorageResult<(u64, u64)> {
         let enum_shape =
-            |id: mir::EnumId| repr_shape(self.context, &self.enums[enum_def_id(id)].repr);
+            |id: mir::EnumId| Ok(repr_shape(self.context, &self.enums[enum_def_id(id)].repr));
         size_align(self.context, self.module, &enum_shape, ty)
-    }
-
-    fn value_ref_scan(&self, ty: &mir::Type) -> lir::RefScan {
-        ref_scan(self.context, self.module, self.enums, ty, 0)
     }
 
     fn new_block(&mut self, base: &str) -> lir::BlockId {
@@ -358,29 +377,35 @@ impl<'a> FunctionLowerer<'a> {
         self.temps.alloc(lir::Temp { ty })
     }
 
-    fn next_safepoint(&mut self) -> lir::SafepointId {
-        self.safepoint_ids.allocate()
+    fn new_safepoint(&mut self, role: lir::SafepointSiteRole) -> lir::SafepointSiteRef {
+        self.pending_safepoints.allocate(role)
     }
 
     /// A fresh hidden slot carrying a short-circuit result across
     /// basic blocks (LIR has no phi nodes; mem2reg removes it).
-    fn new_hidden_local(&mut self, ty: lir::LirType) -> lir::LocalId {
+    fn new_hidden_local(&mut self, ty: lir::LirType) -> StorageResult<lir::LocalId> {
         self.hidden_count += 1;
-        self.locals.alloc(lir::Local {
-            name: format!("$sc.{}", self.hidden_count),
-            ty,
-        })
+        let value = match abi::classify_argument(self.context, ty, self.structs, self.enums)? {
+            lir::AbiArgument::Direct(value) | lir::AbiArgument::Indirect(value) => value,
+            lir::AbiArgument::ElidedZst(_) => {
+                unreachable!("hidden physical storage requires a nonzero ABI value")
+            }
+        };
+        Ok(self.locals.alloc(lir::Local::new(
+            format!("$sc.{}", self.hidden_count),
+            lir::LocalStorage::NonZero(value),
+        )))
     }
 
-    fn exception_slots(&mut self) -> (lir::LocalId, lir::LocalId) {
+    fn exception_slots(&mut self) -> StorageResult<(lir::LocalId, lir::LocalId)> {
         if let Some(slots) = self.exception_slots {
-            return slots;
+            return Ok(slots);
         }
-        let record = self.new_hidden_local(lir::LirType::ExceptionRecord);
-        let raw = self.new_hidden_local(lir::RAW_PTR);
+        let record = self.new_hidden_local(lir::LirType::ExceptionRecord)?;
+        let raw = self.new_hidden_local(lir::RAW_PTR)?;
         let slots = (record, raw);
         self.exception_slots = Some(slots);
-        slots
+        Ok(slots)
     }
 
     /// The value of a MIR local: a stack slot load, or the SSA
@@ -403,10 +428,8 @@ impl<'a> FunctionLowerer<'a> {
         }
     }
 
-    /// The LIR value type of a MIR type; tuple types are recorded for
-    /// the meta layouts on the way.
+    /// The transient physical LIR shape of a MIR value type.
     fn value_type(&mut self, ty: &mir::Type) -> lir::LirType {
-        record_layout_types(ty, self.layout_types);
         lir_type(ty)
     }
 }

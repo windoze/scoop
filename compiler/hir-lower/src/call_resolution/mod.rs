@@ -8,11 +8,14 @@ pub(crate) mod applicability;
 pub(crate) mod arguments;
 pub(crate) mod candidates;
 pub(crate) mod diagnostics;
+pub(crate) mod named;
+pub(crate) mod probe;
 // The resolver is landing dependency-first. These modules are exercised by
 // their solver tests now and become production-reachable as applicability and
 // specificity migrate in the following M16 slices.
 #[allow(dead_code)]
 pub(crate) mod constraints;
+pub(crate) mod contextual;
 #[allow(dead_code)]
 mod relations;
 #[allow(dead_code)]

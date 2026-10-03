@@ -1,0 +1,627 @@
+Module
+  struct Token ()
+  struct Wide (first: Long, second: Long, third: Long)
+  struct Managed (text: String, token: Token)
+  struct Nested (value: Wide, marker: Token)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Token>
+    Completed(value: Token)
+    Suspended()
+  enum CoroutineSlot<Token>
+    Empty()
+    Value(value: Token)
+  enum CoroutineStep<Wide>
+    Completed(value: Wide)
+    Suspended()
+  enum CoroutineSlot<Wide>
+    Empty()
+    Value(value: Wide)
+  enum CoroutineStep<Nested>
+    Completed(value: Nested)
+    Suspended()
+  enum CoroutineSlot<Nested>
+    Empty()
+    Value(value: Nested)
+  enum CoroutineStep<Managed>
+    Completed(value: Managed)
+    Suspended()
+  enum CoroutineSlot<Managed>
+    Empty()
+    Value(value: Managed)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Token> vtable=0 itables=0
+  class box<Wide> vtable=0 itables=0
+  class box<Nested> vtable=0 itables=0
+  class box<Managed> vtable=0 itables=0
+  interface Continuation<Token>
+  interface SuspendTask<Token>
+  interface SuspendRegistration<Token>
+  interface Continuation<Wide>
+  interface SuspendTask<Wide>
+  interface SuspendRegistration<Wide>
+  interface Continuation<Managed>
+  interface SuspendTask<Managed>
+  interface SuspendRegistration<Managed>
+  interface Continuation<Nested>
+  interface SuspendTask<Nested>
+  interface SuspendRegistration<Nested>
+  generated_exact_type get0 location=enum2 nominal_id=a213c86a00829cb4a9f19c09f49538cf07b64400951e465679bb4152d8a591bc exact_id=019ca91c6a83c88f4ceb3101dfb21a3b5573db5bdb7e8b0142b690160fc1183f
+  generated_exact_type get1 location=enum8 nominal_id=2bad807744f48e30073b3008f7d7177f7c97c57941b28aa801d264906235572e exact_id=15adcfda02e7576659556ced281bd3f71622953286f1c1ffa4f1922c6312da8e
+  generated_exact_type get2 location=class4 nominal_id=7c627d19c1b8d9046cddd3959f62f59212755c31358e836f660b85804667210e exact_id=1c4fecad36bce117d1631a6a31657e46dbf6ddce35e01e6fd0f8ca60709ff8c8
+  generated_exact_type get3 location=enum4 nominal_id=f3f547d74fcfe505eaff37b9a1ea76cecbb09b5d50f7d34e1b0b739cddd73bab exact_id=1d9d33dda7454ed3c24c67c8a7bc639fc19a965cbaa393f3dc1c3b1787d6b530
+  generated_exact_type get4 location=enum1 nominal_id=641352e3bb2a4e572c1426debdd706434f84a460afbdc02e2b8003619a5ef879 exact_id=2ed15cfca24f7d53a52d30b0bc90129349c46817b2d1acbe8d989ed27a05dc07
+  generated_exact_type get5 location=enum3 nominal_id=8824e1d170dd4c32b9dad196d553275d956009ffaf72cfcd46e4600de33c8e3d exact_id=447031f29b65ca8568975b5159f61e8aaf8a91dd8919a01a2ccf9e709274164f
+  generated_exact_type get6 location=enum7 nominal_id=603d5a0dd10d6fc017e8084802d340410eb952076ac634546da56cf1daf874ab exact_id=47ac85e91679dfde8c961e784919055569ba78e217ca134271dd7e65e9e3890d
+  generated_exact_type get7 location=enum6 nominal_id=7f2bfca90c2ef0e76a351d97cfde40e629fb944bfbfdd422b2938a02f9d0e646 exact_id=4a5da5fa9d79aaab258b4b97accfa91daf2158f0a19c8f4c35cbbf82c4f02c2d
+  generated_exact_type get8 location=class3 nominal_id=81239b80d1d4d6c6a653f39686ec31b455e1b6579b137960fd4f1d347971a69b exact_id=7ab9deeb358b50bda8566dc3f8702394d380282d23672b5b1e11c793bf06a680
+  generated_exact_type get9 location=enum5 nominal_id=ebfb3195f7bebf7af38bb8de31977a12d5e51993640f021a58784ee59873b47c exact_id=ce00774ccdbabbef9cc0f8a28826e4419475cf09b0fb8079818630ba3d749efa
+  generated_exact_type get10 location=class5 nominal_id=1091ccc6b3e59cecc03ac17d7beaa7315fee7ebc6463e9ed87adf6f1535d9f5e exact_id=fa5345aafbde376e3b4a7d4ce60ce941c36ad8e6d0f51b7f759c193f2ca47f04
+  generated_exact_type get11 location=class6 nominal_id=b8bd94676a3d2431d601d65037d1012d0c75db288505b77e689ade3beb379e09 exact_id=fc44adbab210b108cd7f2fe2fd016a0db6e326e3f8d5b5e4175461786d8ea67f
+  generated_callable gc0 function=@fn38 id=281fe258fd766fc7cfeb7dcfa3c0d04dbe32785d0651e25d9872876b154e2356
+  generated_callable gc1 function=@fn39 id=7a44aaf6c845dea4ea8c5b39811d585de17b991d23ed059e0b85d9de7a49fa71
+  generated_callable gc2 function=@fn36 id=a37f8a44f07952ec2e3adc81c0a8c77e9a9ea2f2c57b5a64011dea8055473fe2
+  generated_callable gc3 function=@fn37 id=e935080adb18673f35ce3ef040cea4e0014b669fdb001ee5db157363f5ca1839
+  fun Token.sameToken @fn0(this: Token, other: Token) -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        Local other
+  fun Token.equals @fn1(this: Token, other: Token) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Wide.copyWide @fn2(this: Wide, other: Wide) -> Wide <no-gc>
+    bb0 entry
+      return
+        Type Wide
+        Local other
+  fun Wide.total @fn3(this: Wide, delta: Long) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local this
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Wide
+          Local this
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Wide
+          Local this
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        Local delta
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun Wide.plus @fn4(this: Wide, other: Wide) -> Wide <no-gc>
+    bb0 entry
+      return
+        Type Wide
+        Local other
+  fun Wide.hidden @fn5(this: Wide) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local this
+  fun Wide.$get$calculated @fn6(this: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local this
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Wide
+          Local this
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Wide
+          Local this
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun Wide.$get$hiddenValue @fn7(this: Wide) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local this
+  fun Wide.equals @fn8(this: Wide, other: Wide) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 0
+            Type Wide
+            Local this
+          Type Long
+          FieldAccess 0
+            Type Wide
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type Wide
+            Local this
+          Type Long
+          FieldAccess 1
+            Type Wide
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 2
+            Type Wide
+            Local this
+          Type Long
+          FieldAccess 2
+            Type Wide
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.2
+  fun Managed.sameManaged @fn9(this: Managed, other: Managed) -> Managed
+    bb0 entry
+      return
+        Type Managed
+        Local other
+  fun Managed.equals @fn10(this: Managed, other: Managed) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external0 direct
+        Type String
+        FieldAccess 0
+          Type Managed
+          Local this
+        Type String
+        FieldAccess 0
+          Type Managed
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn1 direct
+        Type Token
+        FieldAccess 1
+          Type Managed
+          Local this
+        Type Token
+        FieldAccess 1
+          Type Managed
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun Nested.equals @fn11(this: Nested, other: Nested) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn8 direct
+        Type Wide
+        FieldAccess 0
+          Type Nested
+          Local this
+        Type Wide
+        FieldAccess 0
+          Type Nested
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn1 direct
+        Type Token
+        FieldAccess 1
+          Type Nested
+          Local this
+        Type Token
+        FieldAccess 1
+          Type Nested
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun defaultField @fn12(value: Wide, selected: Long) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        Local selected
+  fun defaultMember @fn13(value: Wide, selected: Long) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        Local selected
+  fun defaultProperty @fn14(value: Wide, selected: Long) -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        Local selected
+  fun defaultMarker @fn15(value: Nested, marker: Token) -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        Local marker
+  fun Continuation.resume @fn16(this: Continuation<Token>, value: Token) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Token>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Token>, $completion: Continuation<Token>) -> CoroutineStep<Token>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Token>, continuation: Continuation<Token>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn20(this: Continuation<Wide>, value: Wide) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<Wide>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<Wide>, $completion: Continuation<Wide>) -> CoroutineStep<Wide>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Wide>, continuation: Continuation<Wide>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn24(this: Continuation<Managed>, value: Managed) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn25(this: Continuation<Managed>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn26(this: SuspendTask<Managed>, $completion: Continuation<Managed>) -> CoroutineStep<Managed>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<Managed>, continuation: Continuation<Managed>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn28(this: Continuation<Nested>, value: Nested) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn29(this: Continuation<Nested>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn30(this: SuspendTask<Nested>, $completion: Continuation<Nested>) -> CoroutineStep<Nested>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn31(this: SuspendRegistration<Nested>, continuation: Continuation<Nested>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Token.$c0 @fn32() -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        StructInit Token
+  fun ctor.Wide.$c1 @fn33(first: Long, second: Long, third: Long) -> Wide <no-gc>
+    bb0 entry
+      return
+        Type Wide
+        StructInit Wide
+          Type Long
+          Local first
+          Type Long
+          Local second
+          Type Long
+          Local third
+  fun ctor.Managed.$c2 @fn34(text: String, token: Token) -> Managed <no-gc>
+    bb0 entry
+      return
+        Type Managed
+        StructInit Managed
+          Type String
+          Local text
+          Type Token
+          Local token
+  fun ctor.Nested.$c3 @fn35(value: Wide, marker: Token) -> Nested <no-gc>
+    bb0 entry
+      return
+        Type Nested
+        StructInit Nested
+          Type Wide
+          Local value
+          Type Token
+          Local marker
+  fun startCoroutine<Token> @fn36(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn16 interface Continuation<Token>[0]
+        Type Continuation<Token>
+        Local completion
+        Type Token
+        EnumField v0 f0
+          Type CoroutineStep<Token>
+          Local $step
+      return
+    bb2 failed
+      call @fn17 interface Continuation<Token>[1]
+        Type Continuation<Token>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Token> = @fn18 interface SuspendTask<Token>[0]
+        Type SuspendTask<Token>
+        Local task
+        Type Continuation<Token>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Token>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Wide> @fn37(task: SuspendTask<Wide>, completion: Continuation<Wide>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn20 interface Continuation<Wide>[0]
+        Type Continuation<Wide>
+        Local completion
+        Type Wide
+        EnumField v0 f0
+          Type CoroutineStep<Wide>
+          Local $step
+      return
+    bb2 failed
+      call @fn21 interface Continuation<Wide>[1]
+        Type Continuation<Wide>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Wide> = @fn22 interface SuspendTask<Wide>[0]
+        Type SuspendTask<Wide>
+        Local task
+        Type Continuation<Wide>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Wide>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Nested> @fn38(task: SuspendTask<Nested>, completion: Continuation<Nested>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn28 interface Continuation<Nested>[0]
+        Type Continuation<Nested>
+        Local completion
+        Type Nested
+        EnumField v0 f0
+          Type CoroutineStep<Nested>
+          Local $step
+      return
+    bb2 failed
+      call @fn29 interface Continuation<Nested>[1]
+        Type Continuation<Nested>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Nested> = @fn30 interface SuspendTask<Nested>[0]
+        Type SuspendTask<Nested>
+        Local task
+        Type Continuation<Nested>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Nested>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Managed> @fn39(task: SuspendTask<Managed>, completion: Continuation<Managed>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn24 interface Continuation<Managed>[0]
+        Type Continuation<Managed>
+        Local completion
+        Type Managed
+        EnumField v0 f0
+          Type CoroutineStep<Managed>
+          Local $step
+      return
+    bb2 failed
+      call @fn25 interface Continuation<Managed>[1]
+        Type Continuation<Managed>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Managed> = @fn26 interface SuspendTask<Managed>[0]
+        Type SuspendTask<Managed>
+        Local task
+        Type Continuation<Managed>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Managed>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Token> result=Token
+  coroutine_step cs1 CoroutineStep<Wide> result=Wide
+  coroutine_step cs2 CoroutineStep<Nested> result=Nested
+  coroutine_step cs3 CoroutineStep<Managed> result=Managed
+  coroutine_slot cl0 CoroutineSlot<Token> value=Token
+  coroutine_slot cl1 CoroutineSlot<Wide> value=Wide
+  coroutine_slot cl2 CoroutineSlot<Nested> value=Nested
+  coroutine_slot cl3 CoroutineSlot<Managed> value=Managed
+  coroutine_start ct0 result=Token function=fn36
+  coroutine_start ct1 result=Wide function=fn37
+  coroutine_start ct2 result=Nested function=fn38
+  coroutine_start ct3 result=Managed function=fn39
+  coroutine_fn cf0 @fn18 source_return=Token step=cs0 immediate
+  coroutine_fn cf1 @fn22 source_return=Wide step=cs1 immediate
+  coroutine_fn cf2 @fn26 source_return=Managed step=cs3 immediate
+  coroutine_fn cf3 @fn30 source_return=Nested step=cs2 immediate
+  instance mi0 function=@fn16 <- Continuation.resume
+  instance mi1 function=@fn17 <- Continuation.resumeWithException
+  instance mi2 function=@fn18 <- SuspendTask.run
+  instance mi3 function=@fn19 <- SuspendRegistration.register
+  instance mi4 function=@fn20 <- Continuation.resume
+  instance mi5 function=@fn21 <- Continuation.resumeWithException
+  instance mi6 function=@fn22 <- SuspendTask.run
+  instance mi7 function=@fn23 <- SuspendRegistration.register
+  instance mi8 function=@fn24 <- Continuation.resume
+  instance mi9 function=@fn25 <- Continuation.resumeWithException
+  instance mi10 function=@fn26 <- SuspendTask.run
+  instance mi11 function=@fn27 <- SuspendRegistration.register
+  instance mi12 function=@fn28 <- Continuation.resume
+  instance mi13 function=@fn29 <- Continuation.resumeWithException
+  instance mi14 function=@fn30 <- SuspendTask.run
+  instance mi15 function=@fn31 <- SuspendRegistration.register
+  output library

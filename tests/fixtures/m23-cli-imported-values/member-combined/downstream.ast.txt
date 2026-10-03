@@ -1,0 +1,30 @@
+SourceFile
+  QualifiedPackage downstream.members
+  ImportExact Local dependency.members.Token
+  ImportExact Local dependency.members.Wide
+  ImportExact Local consumer.members.keepToken
+  ImportExact Local consumer.members.keepWide
+  ImportExact Local consumer.members.total
+  ImportExact Local consumer.members.republished
+    @NoGC
+  public fun token(value: Token): Token
+    =
+      MethodCall sameToken
+        Call keepToken
+          Var value
+    @NoGC
+  public fun wide(value: Wide): Wide
+    =
+      MethodCall copyWide
+        Call keepWide
+          Var value
+    @NoGC
+  public fun sum(value: Wide): Long
+    =
+      Call total
+        Var value
+    @NoGC
+  public fun fromRepublished(value: Wide): Long
+    =
+      Call republished
+        Var value

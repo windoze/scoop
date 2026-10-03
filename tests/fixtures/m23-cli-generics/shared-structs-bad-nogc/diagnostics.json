@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` struct specialization `Invalid` is not GC-free because it directly or indirectly contains a ref type",
+    "notes": [],
+    "origin": {
+      "cone": "08a96be1c1c854065f1f40e01119a58165441cb2031374445c351b36a10ea4d9",
+      "end": 120,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 67
+    },
+    "severity": "error"
+  }
+]

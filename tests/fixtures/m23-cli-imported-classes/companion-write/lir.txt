@@ -1,0 +1,29 @@
+Module
+  imported_global @scoop$1$ss$c868344859bc1efa30728982fed34d918e59ee308f6bf0ab326183f6e7114413 : ptr<managed> provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a scan=refs[0]
+  fun @scoop$1$cb$39fa5ca99480386b0cfa4b09ed499d6dc6dcba0a77654469761d24a86365cc1f() -> ptr<managed>
+    local %0 $property_receiver.0: ptr<managed>
+    local %1 $dependency.argument.0: i64
+    local %2 $dependency.parameter.value: i64
+    local %3 $new.1: ptr<managed>
+    local %4 $call.2: ptr<managed>
+  block entry
+    poll managed-void-target4 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn5()
+    t0 = aggregate () : {}
+    t1 = global_load global0 : ptr<managed>
+    store t1 -> local0
+    store integer<Long>(0x0000000000000015) -> local1
+    store local1 -> local2
+    call managed-direct-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    store t2 -> local3
+    call managed-void-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local3:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn2(local3, local2)
+    t3 = aggregate () : {}
+    call managed-void-target2 sp<managed-call:3> live=[local0:ptr<managed>@0, local3:ptr<managed>@0] sig=void2 (ptr<managed>, ptr<managed>) external-fn3(local0, local3)
+    t4 = aggregate () : {}
+    call managed-void-target3 sp<managed-call:4> live=[] sig=void3 () external-fn5()
+    t5 = aggregate () : {}
+    t6 = global_load global0 : ptr<managed>
+    call managed-direct-target1 sp<managed-call:5> live=[t6:ptr<managed>@0] t7 = sig=direct1 (ptr<managed>) -> ptr<managed> external-fn4(t6)
+    store t7 -> local4
+    ret local4
+  output library

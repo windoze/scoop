@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Ne
+        Call probe
+        IntLiteral 42
+      throw
+        Call IllegalStateException

@@ -7,12 +7,10 @@ pub(super) fn lower_gc_effect(effect: hir::GcEffect) -> mir::GcEffect {
     }
 }
 
-/// Whether a function is an abstract class method. HIR carries this
+/// Whether a function is an abstract class or interface method. HIR carries this
 /// explicitly, including for `Unit`-returning methods.
 pub(super) fn is_abstract_bodiless(function: &hir::Function) -> bool {
-    function
-        .method
-        .is_some_and(|method| method.modifier == hir::MethodModifier::Abstract)
+    matches!(function.kind, hir::FunctionKind::Abstract { .. })
 }
 
 /// Class ids (HIR) ordered base-before-derived (single inheritance:
@@ -35,6 +33,7 @@ pub(super) fn clone_slots(slots: &[mir::TableSlot]) -> Vec<mir::TableSlot> {
         .iter()
         .map(|slot| match slot {
             mir::TableSlot::Function(id) => mir::TableSlot::Function(*id),
+            mir::TableSlot::External(id) => mir::TableSlot::External(*id),
             mir::TableSlot::Runtime(function) => mir::TableSlot::Runtime(*function),
         })
         .collect()

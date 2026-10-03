@@ -1,0 +1,240 @@
+schema = 1
+name = "imported-member-combined"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "../../m23-imported-members/provider.scoop", "member-provider", "../../m23-imported-members/combined.scoop", "members-combined", "../../m23-imported-members/downstream.scoop", "downstream-combined", "../../m23-imported-members/runtime.ll", "../support/member-main.scoop", "value-runtime-member-combined"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["imported-values", "member", "stage-golden"]
+
+[vars]
+symbol_f7 = "scoop$1$cb$a2d473aee514737b14e8a04764ed099dad6e53c9547c2077a681827f3c010481"
+symbol_f8 = "scoop$1$cb$17d17f39018aa4223240ce4e15da372ec230d606c52b028d5378830406e4624e"
+symbol_f9 = "scoop$1$cb$a7ac46fd0b26ad993510f71ae448729242a355361051dc3c533ed17af81a6340"
+symbol_f10 = "scoop$1$cb$8e175f3f0c511a58f6493efef96a4b8796c46c57d6d2b1f374a7d670df410a42"
+symbol_f11 = "scoop$1$cb$36f4a106b8160ac2cef18aea95ae69d6cdc70f54871afac6e4cbd255db471e77"
+symbol_f12 = "scoop$1$cb$7f5922a0f3565b922920e06e0becf9fae03fe470a81e2291d27f3e9862205bf6"
+symbol_f13 = "scoop$1$cb$e35f3d74a09d205fffbc2c953ad00fe3457e5b5ebc0c2825004ff7fb2890343d"
+symbol_f14 = "scoop$1$cb$ef2518b3213a2cc27f10d917f5b9f5ddb9bb42f589a7d02d8e983aaa94520517"
+symbol_f15 = "scoop$1$cb$d56eb664d32533c3675ac42116ad48775b4c3edc18298b615f62e05b2b2eb4f5"
+symbol_f16 = "scoop$1$cb$33af286b41cecfdcb485a54d114fbbdaa6869045689c91b5dddc82d5fda48e95"
+symbol_f17 = "scoop$1$cb$4f55e92f328b7722e1bb3793ff9ce844b324ca0fa1fa82462fd23f1bbe7d74cd"
+symbol_f18 = "scoop$1$cb$560db3acabbf0b40b1e397f6de0705b8afd14dd9ca5169ac377d966795376f44"
+symbol_f19 = "scoop$1$cb$8b71a1ac9c4cd2b98c816621900817f42f1ebd4e29df1040999f1e9873c13ebe"
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_member-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/member-provider", "to" = "${work}/sources/member-provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-members/provider.scoop", "to" = "${work}/sources/member-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/member-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/member-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${provider.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.lir.txt"},
+]
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/member-provider"}},
+]
+
+[[steps]]
+name = "prepare_members-combined"
+files = [
+  {"copy" = {"from" = "${fixture}/members-combined", "to" = "${work}/sources/members-combined"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-members/combined.scoop", "to" = "${work}/sources/members-combined/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/members-combined", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/members-combined/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "remove_consumer_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/members-combined"}},
+]
+
+[[steps]]
+name = "prepare_downstream-combined"
+files = [
+  {"copy" = {"from" = "${fixture}/downstream-combined", "to" = "${work}/sources/downstream-combined"}},
+  {"copy" = {"from" = "${fixture}/../../m23-imported-members/downstream.scoop", "to" = "${work}/sources/downstream-combined/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", "${work}/sources/downstream-combined", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/downstream-combined/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${downstream.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/ast.txt", "snapshot" = "downstream.ast.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/hir.txt", "snapshot" = "downstream.hir.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/mir.txt", "snapshot" = "downstream.mir.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/lir.txt", "snapshot" = "downstream.lir.txt"},
+]
+
+[[steps]]
+name = "remove_downstream_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/downstream-combined"}},
+]
+
+[[steps]]
+name = "prepare_native"
+files = [
+  {"copy" = {"from" = "${fixture}/../../m23-imported-members/runtime.ll", "to" = "${work}/native/abi.ll"}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f7(", "new" = "declare void @\"${symbol_f7}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f7(", "new" = "call void @\"${symbol_f7}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f8(", "new" = "declare void @\"${symbol_f8}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f8(", "new" = "call void @\"${symbol_f8}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f9(", "new" = "declare i64 @\"${symbol_f9}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f9(", "new" = "call i64 @\"${symbol_f9}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f10(", "new" = "declare i64 @\"${symbol_f10}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f10(", "new" = "call i64 @\"${symbol_f10}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f11(", "new" = "declare void @\"${symbol_f11}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f11(", "new" = "call void @\"${symbol_f11}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f12(", "new" = "declare i64 @\"${symbol_f12}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f12(", "new" = "call i64 @\"${symbol_f12}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f13(", "new" = "declare i64 @\"${symbol_f13}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f13(", "new" = "call i64 @\"${symbol_f13}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f14(", "new" = "declare i64 @\"${symbol_f14}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f14(", "new" = "call i64 @\"${symbol_f14}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f15(", "new" = "declare i64 @\"${symbol_f15}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f15(", "new" = "call i64 @\"${symbol_f15}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f16(", "new" = "declare i64 @\"${symbol_f16}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f16(", "new" = "call i64 @\"${symbol_f16}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f17(", "new" = "declare i64 @\"${symbol_f17}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f17(", "new" = "call i64 @\"${symbol_f17}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare void @f18(", "new" = "declare void @\"${symbol_f18}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call void @f18(", "new" = "call void @\"${symbol_f18}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "declare i64 @f19(", "new" = "declare i64 @\"${symbol_f19}\"("}},
+  {"replace" = {"path" = "${work}/native/abi.ll", "old" = "call i64 @f19(", "new" = "call i64 @\"${symbol_f19}\"("}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wno-override-module", "-c", "${work}/native/abi.ll", "-o", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm23_member_abi.a", "${work}/native/abi.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_native_source"
+files = [
+  {"remove" = {"path" = "${work}/native/abi.ll"}},
+  {"remove" = {"path" = "${work}/native/abi.o"}},
+]
+
+[[steps]]
+name = "prepare_value-runtime-member-combined"
+files = [
+  {"copy" = {"from" = "${fixture}/value-runtime-member-combined", "to" = "${work}/sources/value-runtime-member-combined"}},
+  {"copy" = {"from" = "${fixture}/../support/member-main.scoop", "to" = "${work}/sources/value-runtime-member-combined/src/main.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/value-runtime-member-combined", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "isolate"
+files = [
+  {"remove" = {"path" = "${work}/sources"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${program.result.root.path}", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--dump-plan", "--message-format", "json", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 4},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt"},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

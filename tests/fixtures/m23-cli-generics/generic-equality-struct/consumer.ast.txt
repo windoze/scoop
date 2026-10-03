@@ -1,0 +1,42 @@
+SourceFile
+  QualifiedPackage consumer.equality
+  ImportStar Local templates.equality.*
+  public fun exercise<T>(value: T): Int
+    val left
+      Call Counter<T>
+        IntLiteral 42
+    val same
+      Call Counter<T>
+        IntLiteral 42
+    val other
+      Call Counter<T>
+        IntLiteral 1
+    if
+      Unary Not
+        Call compareCounters
+          Var left
+          Var same
+      return
+        IntLiteral 1
+    if
+      Call compareCounters
+        Var left
+        Var other
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Var left
+          Var same
+        Binary Eq
+          Var left
+          Var other
+      return
+        IntLiteral 3
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

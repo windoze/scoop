@@ -1,0 +1,9 @@
+SourceFile
+  QualifiedPackage dependency.parents
+  public open class Base<T>(val value: T)
+    public fun read
+  public interface Reader<T>
+    fun read
+    fun again
+  public abstract class ReadingBase<T>(val value: T), Reader<T>
+    public fun read

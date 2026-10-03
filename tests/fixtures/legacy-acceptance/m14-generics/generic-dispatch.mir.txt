@@ -1,0 +1,273 @@
+Module
+  class Base<Int> vtable=1 itables=0
+  class Base<String> vtable=1 itables=0
+  class Derived<Int> vtable=1 itables=0
+  class Derived<String> vtable=1 itables=0
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.childValue: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Derived<Int>
+        ClassAlloc Derived<Int>
+      call @fn10 direct
+        Type Derived<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.childValue
+      val intBase: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type Derived<Int>
+          Local $new.1
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.childValue: String
+        Type String
+        Local $argument.0
+      assign $new.2
+        Type Derived<String>
+        ClassAlloc Derived<String>
+      call @fn11 direct
+        Type Derived<String>
+        Local $new.2
+        Type String
+        Local $parameter.childValue
+      val stringBase: Base<String>
+        Type Base<String>
+        Retype Base<String>
+          Type Derived<String>
+          Local $new.2
+      val $argument.0: Base<Int>
+        Type Base<Int>
+        Local intBase
+      val $parameter.base: Base<Int>
+        Type Base<Int>
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn5 direct
+        Type Base<Int>
+        Local $parameter.base
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Base<String>
+        Type Base<String>
+        Local stringBase
+      val $parameter.base: Base<String>
+        Type Base<String>
+        Local $argument.0
+      call $dependency.argument.0: String = @fn7 direct
+        Type Base<String>
+        Local $parameter.base
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $receiver: Base<Int>
+        Type Base<Int>
+        Local intBase
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.other: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: String = @fn9 direct
+        Type Base<Int>
+        Local $receiver
+        Type String
+        Local $parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun Base.get @fn1(this: Base<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base<Int>
+          Local this
+  fun Base.get @fn2(this: Base<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Base<String>
+          Local this
+  fun Derived.get @fn3(this: Derived<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Derived<Int>
+          Local this
+  fun Derived.get @fn4(this: Derived<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 1
+          Type Derived<String>
+          Local this
+  fun read @fn5(base: Base<Int>) -> Int
+    bb0 entry
+      val $receiver: Base<Int>
+        Type Base<Int>
+        Local base
+      call $call.1: Int = @fn1 virtual[0]
+        Type Base<Int>
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun println @fn6(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun read @fn7(base: Base<String>) -> String
+    bb0 entry
+      val $receiver: Base<String>
+        Type Base<String>
+        Local base
+      call $call.1: String = @fn2 virtual[0]
+        Type Base<String>
+        Local $receiver
+      return
+        Type String
+        Local $call.1
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Base.choose @fn9(this: Base<Int>, other: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local other
+  fun init.Derived.$c1 @fn10(this: Derived<Int>, childValue: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local childValue
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn12 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Derived<Int>
+          Local this
+        Type Int
+        Local $parameter.value
+      field_set 1
+        Type Derived<Int>
+        Local this
+        Type Int
+        Local childValue
+      return
+  fun init.Derived.$c1 @fn11(this: Derived<String>, childValue: String) -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        Local childValue
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call @fn13 direct
+        Type Base<String>
+        Retype Base<String>
+          Type Derived<String>
+          Local this
+        Type String
+        Local $parameter.value
+      field_set 1
+        Type Derived<String>
+        Local this
+        Type String
+        Local childValue
+      return
+  fun init.Base.$c0 @fn12(this: Base<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Base.$c0 @fn13(this: Base<String>, value: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<String>
+        Local this
+        Type String
+        Local value
+      return
+  instance mi0 function=@fn1 <- Base.get
+  instance mi1 function=@fn2 <- Base.get
+  instance mi2 function=@fn3 <- Derived.get
+  instance mi3 function=@fn4 <- Derived.get
+  instance mi4 function=@fn5 <- read
+  instance mi5 function=@fn6 <- println
+  instance mi6 function=@fn7 <- read
+  instance mi7 function=@fn8 <- println
+  instance mi8 function=@fn9 <- Base.choose
+  str @str0 "text"
+  str @str1 "direct"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn0

@@ -1,0 +1,72 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun gcFree<T>(value: T): T
+    =
+      Var value
+  class DeferredChoice<T>()
+    constructor(value: T, extra: Int)
+      Call gcFree
+        Var value
+    constructor(flag: Boolean)
+    init
+      fun local(): Int
+        IntLiteral 1
+      Call local
+  class DeferredChain<T>(val value: T)
+    constructor(value: T, flag: Boolean) : this(<1 args>)
+      Call makeChain
+        Var value
+  fun makeChain<T>(value: T): DeferredChain<T>
+    =
+      Call DeferredChain
+        Var value
+  struct DeferredBox<T>
+    field value: T
+    constructor(value: T, flag: Boolean) : this(<1 args>)
+      Call makeBox
+        Var value
+  fun makeBox<T>(value: T): DeferredBox<T>
+    =
+      Call DeferredBox
+        Var value
+  class DeferredRecursive<T>(val value: T)
+    init
+      if
+        BoolLiteral false
+        Call makeRecursive
+          Var value
+  fun makeRecursive<T>(value: T): DeferredRecursive<T>
+    =
+      Call DeferredRecursive
+        Var value
+  open class DeferredBase<T>(val value: T)
+    constructor(value: T, flag: Boolean) : this(<1 args>)
+  class DeferredDerived<T>(value: T) : DeferredBase<T>(<1 args>)
+  class DeferredFixed(value: Int) : DeferredBase<Int>(<1 args>)
+  class DeferredPlain()
+    constructor()
+    constructor(flag: Boolean)
+  fun main()
+    val choice: DeferredChoice<String>
+      Call DeferredChoice<String>
+        BoolLiteral true
+    val chain: DeferredChain<Int>
+      Call DeferredChain
+        IntLiteral 1
+        BoolLiteral true
+    val box: DeferredBox<Int>
+      Call DeferredBox
+        IntLiteral 1
+        BoolLiteral true
+    val recursive: DeferredRecursive<Int>
+      Call DeferredRecursive
+        IntLiteral 1
+    val derived: DeferredDerived<Int>
+      Call DeferredDerived
+        IntLiteral 1
+    val fixed: DeferredFixed
+      Call DeferredFixed
+        IntLiteral 1
+    val plain: DeferredPlain
+      Call DeferredPlain

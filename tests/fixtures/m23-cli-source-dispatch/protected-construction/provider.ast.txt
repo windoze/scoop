@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  public open class Factory()
+  public class Produced() : Factory(<0 args>)
+  public object Singleton

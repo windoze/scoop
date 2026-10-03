@@ -1,0 +1,240 @@
+SourceFile
+  RootPackage
+  fun markElement(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun markArray(label: String, values: Array<Int>): Array<Int>
+    Call println
+      Var label
+    return
+      Var values
+  fun collect(vararg values: Int): Array<Int>
+    =
+      Var values
+  fun collectDefault(vararg values: Int = <expr>): Array<Int>
+    =
+      Var values
+  fun fromSeed(seed: Int, vararg values: Int = <expr>): Array<Int>
+    =
+      Var values
+  fun pack<T>(vararg values: T): Array<T>
+    =
+      Var values
+  fun frame(prefix: String, vararg values: Int, suffix: String = <expr>): Long
+    =
+      FieldAccess size
+        Var values
+  fun prefer(value: Int): String
+    =
+      StringLiteral "regular"
+  fun prefer(vararg values: Int): String
+    =
+      StringLiteral "vararg"
+  struct Values
+    field vararg values: Int
+  class BoxedValues(val vararg values: Int)
+  enum Event
+    Batch <ctor>
+      vararg values: Int
+  class Token(val value: Int)
+  fun gather(vararg values: Token): Array<Token>
+    =
+      Var values
+  class MemberCollector()
+    fun count
+  fun Int.withValues(vararg values: Int): Long
+    =
+      Binary Add
+        MethodCall toInt64
+          This
+        FieldAccess size
+          Var values
+  fun localCount(): Long
+    fun count(values: Int): Long
+      FieldAccess size
+        Var values
+    return
+      Call count
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+  fun printInts(values: Array<Int>)
+    Call println
+      FieldAccess size
+        Var values
+    var index: Long
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        FieldAccess size
+          Var values
+      Call println
+        Index
+          Var values
+          Var index
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+  fun main()
+    val assembled
+      Call collect
+        Call markElement
+          StringLiteral "element-one"
+          IntLiteral 1
+        Argument *
+          Call markArray
+            StringLiteral "spread-two-three"
+            ArrayLiteral
+              IntLiteral 2
+              IntLiteral 3
+        Call markElement
+          StringLiteral "element-four"
+          IntLiteral 4
+        Argument *
+          Call markArray
+            StringLiteral "spread-five"
+            ArrayLiteral
+              IntLiteral 5
+    Call printInts
+      Var assembled
+    val original
+      ArrayLiteral
+        IntLiteral 7
+        IntLiteral 8
+    val copied
+      Call collect
+        Argument *
+          Var original
+    Call println
+      Binary RefEq
+        Var copied
+        Var original
+    Call printInts
+      Var copied
+    val whole
+      Call collect
+        Argument values=
+          Var original
+    Call println
+      Binary RefEq
+        Var whole
+        Var original
+    val spreadWhole
+      Call collect
+        Argument values=*
+          Var original
+    Call println
+      Binary RefEq
+        Var spreadWhole
+        Var original
+    Call println
+      FieldAccess size
+        Call collect
+    Call printInts
+      Call collectDefault
+    Call printInts
+      Call collectDefault
+        IntLiteral 11
+    Call printInts
+      Call fromSeed
+        IntLiteral 15
+    val inferred: Array<String>
+      Call pack
+    Call println
+      FieldAccess size
+        Var inferred
+    Call println
+      FieldAccess size
+        Call pack
+          StringLiteral "a"
+          StringLiteral "b"
+    Call println
+      Call frame
+        StringLiteral "["
+        IntLiteral 1
+        IntLiteral 2
+        Argument suffix=
+          StringLiteral "]"
+    Call println
+      Call prefer
+        IntLiteral 1
+    Call println
+      MethodCall count
+        Call MemberCollector
+        IntLiteral 1
+        Argument *
+          ArrayLiteral
+            IntLiteral 2
+            IntLiteral 3
+    Call println
+      MethodCall withValues
+        IntLiteral 10
+        IntLiteral 1
+        IntLiteral 2
+    Call println
+      Call localCount
+    val values
+      Call Values
+        IntLiteral 1
+        Argument *
+          ArrayLiteral
+            IntLiteral 2
+            IntLiteral 3
+    Call printInts
+      FieldAccess values
+        Var values
+    val boxed
+      Call BoxedValues
+        Argument *
+          ArrayLiteral
+            IntLiteral 4
+            IntLiteral 5
+    Call printInts
+      FieldAccess values
+        Var boxed
+    val event
+      MethodCall Batch
+        Var Event
+        IntLiteral 6
+        IntLiteral 7
+    when
+      Var event
+      arm Batch(items)
+        Call printInts
+          Var items
+    val complete: (Array<Int>) -> Array<Int>
+      CallableReference 0 collect
+    Call println
+      Binary RefEq
+        Call complete
+          Var original
+        Var original
+    val tokens
+      Call gather
+        Call Token
+          IntLiteral 12
+        Argument *
+          ArrayLiteral
+            Call Token
+              IntLiteral 13
+        Call Token
+          IntLiteral 14
+    Call println
+      FieldAccess value
+        Index
+          Var tokens
+          IntLiteral 0
+    Call println
+      FieldAccess value
+        Index
+          Var tokens
+          IntLiteral 1
+    Call println
+      FieldAccess value
+        Index
+          Var tokens
+          IntLiteral 2

@@ -1,0 +1,681 @@
+Module
+  global0 $singleton$Trace: Trace managed initial=zeroed-for-runtime-unit
+  global1 $singleton$TraceMore: TraceMore managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Trace singleton lazy global0 initializer=@fn12 ensure=@fn13 failure=2 deps=[]
+  init1 object:TraceMore singleton lazy global1 initializer=@fn14 ensure=@fn15 failure=3 deps=[]
+  struct Triple (first: Payload, second: Payload, third: Payload)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  enum CoroutineStep<TraceMore>
+    Completed(value: TraceMore)
+    Suspended()
+  enum CoroutineSlot<TraceMore>
+    Empty()
+    Value(value: TraceMore)
+  enum CoroutineStep<Triple>
+    Completed(value: Triple)
+    Suspended()
+  enum CoroutineSlot<Triple>
+    Empty()
+    Value(value: Triple)
+  enum CoroutineStep<Trace>
+    Completed(value: Trace)
+    Suspended()
+  enum CoroutineSlot<Trace>
+    Empty()
+    Value(value: Trace)
+  class Payload vtable=0 itables=0
+  class Trace vtable=0 itables=0
+  class TraceMore vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Triple> vtable=0 itables=0
+  interface Continuation<Triple>
+  interface SuspendTask<Triple>
+  interface SuspendRegistration<Triple>
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  interface Continuation<Trace>
+  interface SuspendTask<Trace>
+  interface SuspendRegistration<Trace>
+  interface Continuation<TraceMore>
+  interface SuspendTask<TraceMore>
+  interface SuspendRegistration<TraceMore>
+  generated_exact_type get0 location=enum6 nominal_id=08887220652d6231223c0ee75a7dc2ac9c898021e4fe636e0f54cc244478ad4b exact_id=027f26ed2b0d94df95303889e240d344439bbb8274ebdd10dad07210f5969142
+  generated_exact_type get1 location=enum2 nominal_id=ca9cbb0fb3d2ea8eadcc6d1217caea9c1dd974cc7cbf5ded7fcb176cc5026b86 exact_id=165af4ba87300ba18d191319489462de3e6a43abf7d19c2eacd3e3051f2369ec
+  generated_exact_type get2 location=enum3 nominal_id=f37170d67f54366c63d9f8f2f37793cc354cf0b44ab8f62d11b66a7504c4686d exact_id=3ec1db4fb507411f55cf056e21f9df65c0f7e4d91f2cab466af03cc57de9b132
+  generated_exact_type get3 location=enum5 nominal_id=c959374fca0c3e9c09d05bb618a58df8df5245cbb313c86e5c9886ca2542cde1 exact_id=41798836d4e393dc74234d3b56bba12ba27960669a4e50cf5f726e98ea8491ab
+  generated_exact_type get4 location=enum1 nominal_id=cb5a72e842639df055b446909498bf9ab49313dadd806c58f392c47301298cad exact_id=4862514e7236540d75e6a27b4bafa57da6abda7f9f81b0129557fd04bb26238b
+  generated_exact_type get5 location=enum4 nominal_id=82835dcdec2a5761aa82be78959d49868eb2479a7da534a88084832630d6a6a0 exact_id=9593280e5184039188d1f55afb8e1c34493bf8399339ccc0b1614c0bfa8a1842
+  generated_exact_type get6 location=class6 nominal_id=76fd53bb35b1aa0b24ab668128032e16b85564b94b74648dc396cc5971a2661d exact_id=9db336e35721191831b86151183ac889dad11e2163f3c05b548cb58ec9a7224d
+  generated_exact_type get7 location=enum7 nominal_id=591ac7ab3e77c19d34f507205dc085ab0c2e6f4cc2023ff47a02828977944aac exact_id=b98fe49cdbb1070cf8b7dea51ee9c570dbc7a190343d85f05850fa15abec8ee5
+  generated_exact_type get8 location=enum8 nominal_id=51ebb3f26a273bb7eb8f22368a7d2bd15cbe2dc329bd061e81c3d3373016fd47 exact_id=e940e1f03368188d6bbdd772faccd140b078930c67fd9ff0e2ef2f4a1fc61b92
+  generated_callable gc0 function=@fn38 id=506878eab899beea48c367c7cdd50f7849b9176be9f25478dc7bfc01d20e51a1
+  generated_callable gc1 function=@fn39 id=79bdcd4bc96f1288f4348f30257cce45872d70f3490a34b405cb6bdb17984630
+  generated_callable gc2 function=@fn37 id=ad5dba51e003b7da419b6d023bc42bd0ea5286542f448e7fc381be7e15847faf
+  generated_callable gc3 function=@fn40 id=b6ebb199e416e43c051d075fa1096e5c46d0815a1e6d7aca74922bcb8b8b7d15
+  fun Payload.$get$value @fn0(this: Payload) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Payload
+          Local this
+  fun Payload.$set$value @fn1(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun Trace.$get$initializerClosure @fn2(this: Trace) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Trace
+          Local this
+  fun Trace.$set$initializerClosure @fn3(this: Trace, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Trace
+        Local this
+        Type Int
+        Local value
+      return
+  fun Trace.$get$initializerCombined @fn4(this: Trace) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Trace
+          Local this
+  fun Trace.$set$initializerCombined @fn5(this: Trace, value: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type Trace
+        Local this
+        Type Int
+        Local value
+      return
+  fun TraceMore.$get$anonymous @fn6(this: TraceMore) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type TraceMore
+          Local this
+  fun TraceMore.$set$anonymous @fn7(this: TraceMore, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type TraceMore
+        Local this
+        Type Int
+        Local value
+      return
+  fun TraceMore.$get$values @fn8(this: TraceMore) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type TraceMore
+          Local this
+  fun TraceMore.$set$values @fn9(this: TraceMore, value: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type TraceMore
+        Local this
+        Type Int
+        Local value
+      return
+  fun TraceMore.$get$localClosure @fn10(this: TraceMore) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type TraceMore
+          Local this
+  fun TraceMore.$set$localClosure @fn11(this: TraceMore, value: Int) -> Unit
+    bb0 entry
+      field_set 2
+        Type TraceMore
+        Local this
+        Type Int
+        Local value
+      return
+  fun $init$body$0 @fn12() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Trace
+        ClassAlloc Trace
+      call @fn34 direct
+        Type Trace
+        Local $new.1
+      global_assign $singleton$Trace
+        Type Trace
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn13() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Trace
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn12 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Trace
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Trace
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Trace
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Trace
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $init$body$1 @fn14() -> Unit
+    bb0 entry
+      assign $new.1
+        Type TraceMore
+        ClassAlloc TraceMore
+      call @fn35 direct
+        Type TraceMore
+        Local $new.1
+      global_assign $singleton$TraceMore
+        Type TraceMore
+        Local $new.1
+      return
+  fun $init$ensure$1 @fn15() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:TraceMore
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn14 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:TraceMore
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:TraceMore
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:TraceMore
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:TraceMore
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun unitValue @fn16(value: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  fun Continuation.resume @fn17(this: Continuation<Triple>, value: Triple) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn18(this: Continuation<Triple>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn19(this: SuspendTask<Triple>, $completion: Continuation<Triple>) -> CoroutineStep<Triple>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn20(this: SuspendRegistration<Triple>, continuation: Continuation<Triple>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn21(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn22(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn23(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn24(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn25(this: Continuation<Trace>, value: Trace) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn26(this: Continuation<Trace>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn27(this: SuspendTask<Trace>, $completion: Continuation<Trace>) -> CoroutineStep<Trace>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn28(this: SuspendRegistration<Trace>, continuation: Continuation<Trace>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn29(this: Continuation<TraceMore>, value: TraceMore) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn30(this: Continuation<TraceMore>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn31(this: SuspendTask<TraceMore>, $completion: Continuation<TraceMore>) -> CoroutineStep<TraceMore>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn32(this: SuspendRegistration<TraceMore>, continuation: Continuation<TraceMore>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c1 @fn33(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Trace.$c3 @fn34(this: Trace) -> Unit
+    bb0 entry
+      field_set 0
+        Type Trace
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      field_set 1
+        Type Trace
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+  fun init.TraceMore.$c4 @fn35(this: TraceMore) -> Unit
+    bb0 entry
+      field_set 0
+        Type TraceMore
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      field_set 1
+        Type TraceMore
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      field_set 2
+        Type TraceMore
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+  fun ctor.Triple.$c0 @fn36(first: Payload, second: Payload, third: Payload) -> Triple <no-gc>
+    bb0 entry
+      return
+        Type Triple
+        StructInit Triple
+          Type Payload
+          Local first
+          Type Payload
+          Local second
+          Type Payload
+          Local third
+  fun startCoroutine<Payload> @fn37(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn21 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      return
+    bb2 failed
+      call @fn22 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Payload> = @fn23 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<TraceMore> @fn38(task: SuspendTask<TraceMore>, completion: Continuation<TraceMore>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn29 interface Continuation<TraceMore>[0]
+        Type Continuation<TraceMore>
+        Local completion
+        Type TraceMore
+        EnumField v0 f0
+          Type CoroutineStep<TraceMore>
+          Local $step
+      return
+    bb2 failed
+      call @fn30 interface Continuation<TraceMore>[1]
+        Type Continuation<TraceMore>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<TraceMore> = @fn31 interface SuspendTask<TraceMore>[0]
+        Type SuspendTask<TraceMore>
+        Local task
+        Type Continuation<TraceMore>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<TraceMore>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Triple> @fn39(task: SuspendTask<Triple>, completion: Continuation<Triple>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn17 interface Continuation<Triple>[0]
+        Type Continuation<Triple>
+        Local completion
+        Type Triple
+        EnumField v0 f0
+          Type CoroutineStep<Triple>
+          Local $step
+      return
+    bb2 failed
+      call @fn18 interface Continuation<Triple>[1]
+        Type Continuation<Triple>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Triple> = @fn19 interface SuspendTask<Triple>[0]
+        Type SuspendTask<Triple>
+        Local task
+        Type Continuation<Triple>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Triple>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Trace> @fn40(task: SuspendTask<Trace>, completion: Continuation<Trace>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn25 interface Continuation<Trace>[0]
+        Type Continuation<Trace>
+        Local completion
+        Type Trace
+        EnumField v0 f0
+          Type CoroutineStep<Trace>
+          Local $step
+      return
+    bb2 failed
+      call @fn26 interface Continuation<Trace>[1]
+        Type Continuation<Trace>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Trace> = @fn27 interface SuspendTask<Trace>[0]
+        Type SuspendTask<Trace>
+        Local task
+        Type Continuation<Trace>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Trace>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_step cs1 CoroutineStep<TraceMore> result=TraceMore
+  coroutine_step cs2 CoroutineStep<Triple> result=Triple
+  coroutine_step cs3 CoroutineStep<Trace> result=Trace
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_slot cl1 CoroutineSlot<TraceMore> value=TraceMore
+  coroutine_slot cl2 CoroutineSlot<Triple> value=Triple
+  coroutine_slot cl3 CoroutineSlot<Trace> value=Trace
+  coroutine_start ct0 result=Payload function=fn37
+  coroutine_start ct1 result=TraceMore function=fn38
+  coroutine_start ct2 result=Triple function=fn39
+  coroutine_start ct3 result=Trace function=fn40
+  coroutine_fn cf0 @fn19 source_return=Triple step=cs2 immediate
+  coroutine_fn cf1 @fn23 source_return=Payload step=cs0 immediate
+  coroutine_fn cf2 @fn27 source_return=Trace step=cs3 immediate
+  coroutine_fn cf3 @fn31 source_return=TraceMore step=cs1 immediate
+  instance mi0 function=@fn17 <- Continuation.resume
+  instance mi1 function=@fn18 <- Continuation.resumeWithException
+  instance mi2 function=@fn19 <- SuspendTask.run
+  instance mi3 function=@fn20 <- SuspendRegistration.register
+  instance mi4 function=@fn21 <- Continuation.resume
+  instance mi5 function=@fn22 <- Continuation.resumeWithException
+  instance mi6 function=@fn23 <- SuspendTask.run
+  instance mi7 function=@fn24 <- SuspendRegistration.register
+  instance mi8 function=@fn25 <- Continuation.resume
+  instance mi9 function=@fn26 <- Continuation.resumeWithException
+  instance mi10 function=@fn27 <- SuspendTask.run
+  instance mi11 function=@fn28 <- SuspendRegistration.register
+  instance mi12 function=@fn29 <- Continuation.resume
+  instance mi13 function=@fn30 <- Continuation.resumeWithException
+  instance mi14 function=@fn31 <- SuspendTask.run
+  instance mi15 function=@fn32 <- SuspendRegistration.register
+  output library

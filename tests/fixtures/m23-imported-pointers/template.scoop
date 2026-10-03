@@ -1,0 +1,20 @@
+package consumer.pointers
+
+import dependency.pointers.copy
+import dependency.pointers.replace
+import dependency.pointers.bytes
+import dependency.pointers.alignment
+import dependency.pointers.layoutDefault
+
+public fun <T> exercise(value: T): Int {
+    @Unsafe {
+        val number = copy<Int>(40)
+        if (bytes<Int>() != 4uL || alignment<Int>() != 4uL || layoutDefault<Int>() != 8uL) { return 1 }
+        return replace<Int>(0, number + 2)
+    }
+}
+
+public fun result(): Int = exercise<Int>(0)
+
+@Unsafe
+public fun <P: value> roundTrip(value: P): P = copy<P>(value)

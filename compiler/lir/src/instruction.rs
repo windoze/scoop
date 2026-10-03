@@ -53,6 +53,16 @@ pub enum Value {
 
 #[derive(Debug)]
 pub enum Instruction {
+    BoxValue {
+        out: TempId,
+        payload: BoxPayload,
+        safepoint: SafepointSiteRef,
+        live: StatepointLiveSet,
+    },
+    UnboxValue {
+        object: Value,
+        result: UnboxResult,
+    },
     /// Equality over Boolean, raw pointer-shaped values, or one internal
     /// machine scalar domain. Source integer operations use the typed variants
     /// below and cannot enter this generic path.
@@ -120,6 +130,11 @@ pub enum Instruction {
         target_kind: IntegerKind,
         operand: Value,
     },
+    /// A logical value whose complete storage contract has zero payload.
+    MakeZstValue {
+        out: TempId,
+        value: LogicalZstValue,
+    },
     /// Build an aggregate value (struct / tuple construction, or the
     /// Unit value with zero elements).
     MakeAggregate {
@@ -177,19 +192,19 @@ pub enum Instruction {
     NativeGlobalLoad {
         out: TempId,
         global: NativeGlobalId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         roots: NativeSafeRootSet,
     },
     NativeGlobalStore {
         global: NativeGlobalId,
         value: Value,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         roots: NativeSafeRootSet,
     },
     NativeGlobalAddress {
         out: TempId,
         global: NativeGlobalId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         roots: NativeSafeRootSet,
     },
     /// Store a typed value at the byte address `object + offset`.
@@ -230,7 +245,7 @@ pub enum Instruction {
     /// pointer. It is metadata, not a managed reference.
     FunctionAddress {
         out: TempId,
-        symbol: String,
+        target: FunctionAddressTarget,
     },
     ForeignCallbackRegister {
         out: TempId,
@@ -246,15 +261,17 @@ pub enum Instruction {
         out: TempId,
         value: Value,
     },
+    /// Read a payload whose complete storage contract is nonzero.
     RawLoad {
         out: TempId,
         pointer: Value,
-        align: u64,
+        pointee: AbiValue,
     },
+    /// Write a payload whose complete storage contract is nonzero.
     RawStore {
         pointer: Value,
         value: Value,
-        align: u64,
+        pointee: AbiValue,
     },
     /// Pointer displacement by `element_offset * element_size`.  The offset
     /// remains either a source pointer index or the compiler-owned
@@ -264,7 +281,7 @@ pub enum Instruction {
         out: TempId,
         pointer: Value,
         element_offset: Value,
-        element_size: u64,
+        element_size: std::num::NonZeroU64,
         subtract: bool,
     },
     LocalAddress {
@@ -325,7 +342,7 @@ pub enum Instruction {
         out: TempId,
         elements: Vec<Value>,
         array_type: ArrayTypeId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
     /// Allocate one fresh array and fill it from already evaluated element
@@ -333,8 +350,10 @@ pub enum Instruction {
     ArrayAssembly {
         out: TempId,
         parts: Vec<ArrayAssemblyPart>,
+        /// A callable-owned C string for checked allocation-size overflow.
+        overflow_message: GlobalId,
         array_type: ArrayTypeId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
     /// `array.size` (canonical source `Long`, represented by `I64`).
@@ -343,27 +362,29 @@ pub enum Instruction {
         operand: Value,
         array_type: ArrayTypeId,
     },
-    /// Bounds-checked element read (traps out of range).
+    /// Element read after MIR's language-level bounds check.
     ArrayGet {
         out: TempId,
         array: Value,
         index: Value,
         array_type: ArrayTypeId,
     },
-    /// Bounds-checked element write (traps out of range).
+    /// Element write after MIR's language-level bounds check.
     ArraySet {
         array: Value,
         index: Value,
         value: Value,
         array_type: ArrayTypeId,
     },
-    /// `Array(m)` / `MutableArray(a)` conversion (memcpy snapshot).
+    /// `Array(m)` / `MutableArray(a)` conversion with fresh reference identity.
     ArrayClone {
         out: TempId,
         operand: Value,
+        /// Exact source array application, checked before reading its payload.
+        source_type: ArrayTypeId,
         /// Target array application (`Array<T>` or `MutableArray<T>`).
         array_type: ArrayTypeId,
-        safepoint: SafepointId,
+        safepoint: SafepointSiteRef,
         live: StatepointLiveSet,
     },
     /// Enum operations. The representation (niche pointer or tagged
@@ -407,6 +428,47 @@ pub enum Instruction {
         operand: Value,
         field: LirVariantFieldRef,
     },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FunctionAddressTarget {
+    Local(LocalFunctionRef),
+    CallbackTrampoline(CallbackBridgeId),
+}
+
+impl Instruction {
+    /// Function-local safepoint reference and the semantic role fixed by this
+    /// instruction variant. NoGc instructions have no safepoint.
+    pub fn safepoint(&self) -> Option<(SafepointSiteRole, SafepointSiteRef)> {
+        match self {
+            Self::NativeGlobalLoad { safepoint, .. }
+            | Self::NativeGlobalStore { safepoint, .. }
+            | Self::NativeGlobalAddress { safepoint, .. } => {
+                Some((SafepointSiteRole::NativeSafeTransition, *safepoint))
+            }
+            Self::Call { site } => match site {
+                CallSite::Managed(site) => Some((SafepointSiteRole::ManagedCall, site.safepoint)),
+                CallSite::NativeSafe(site) => {
+                    Some((SafepointSiteRole::NativeSafeTransition, site.safepoint))
+                }
+                CallSite::NativeBorrowed(site) => {
+                    Some((SafepointSiteRole::NativeBorrowedTransition, site.safepoint))
+                }
+                CallSite::NoGc(_) => None,
+            },
+            Self::ManagedPoll { site } => Some((SafepointSiteRole::ManagedPoll, site.safepoint)),
+            Self::Invoke {
+                site: InvokeSite::Managed(site),
+            } => Some((SafepointSiteRole::ManagedInvoke, site.safepoint)),
+            Self::ArrayAlloc { safepoint, .. }
+            | Self::ArrayAssembly { safepoint, .. }
+            | Self::ArrayClone { safepoint, .. }
+            | Self::BoxValue { safepoint, .. } => {
+                Some((SafepointSiteRole::ManagedCall, *safepoint))
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

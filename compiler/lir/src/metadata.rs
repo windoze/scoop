@@ -1,7 +1,16 @@
+use std::num::NonZeroU64;
+
 use super::*;
+
+mod arrays;
+mod static_storage;
+pub use arrays::ArrayLayoutV1;
+pub use static_storage::StaticStorageLayout;
 
 #[derive(Debug)]
 pub struct StructDef {
+    /// Exact semantic identity, independent of this store's local index.
+    pub exact_type: scoop_identity::PersistentExactTypeId,
     pub name: String,
     pub size: u64,
     pub align: u64,
@@ -20,6 +29,7 @@ pub struct StructDefs {
 impl StructDefs {
     pub fn alloc_scoop(
         &mut self,
+        exact_type: scoop_identity::PersistentExactTypeId,
         name: String,
         size: u64,
         align: u64,
@@ -27,6 +37,7 @@ impl StructDefs {
         fields: Vec<StructField>,
     ) -> StructDefId {
         self.definitions.alloc(StructDef {
+            exact_type,
             name,
             size,
             align,
@@ -35,8 +46,10 @@ impl StructDefs {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn alloc_c(
         &mut self,
+        exact_type: scoop_identity::PersistentExactTypeId,
         name: String,
         size: u64,
         align: u64,
@@ -45,6 +58,7 @@ impl StructDefs {
         fields: Vec<CStructField>,
     ) -> CStructRef {
         let id = self.definitions.alloc(StructDef {
+            exact_type,
             name,
             size,
             align,
@@ -56,12 +70,14 @@ impl StructDefs {
 
     pub fn alloc_intrinsic(
         &mut self,
+        exact_type: scoop_identity::PersistentExactTypeId,
         name: String,
         size: u64,
         align: u64,
         representation: IntrinsicTypeRepresentation,
     ) -> StructDefId {
         self.definitions.alloc(StructDef {
+            exact_type,
             name,
             size,
             align,
@@ -126,6 +142,7 @@ pub struct StructField {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CStructField {
+    pub identity: scoop_identity::PersistentFieldId,
     pub ty: CType,
     pub layout: FieldLayout,
 }
@@ -242,11 +259,24 @@ pub struct LirCLayoutContract {
 /// Per-Cone LIR metadata (impl spec 2.4): type layouts.
 #[derive(Debug)]
 pub struct LirMeta {
+    /// Complete persistent exact-type identities for every locally
+    /// materialized source or generated nominal. Physical metadata keeps the
+    /// semantic key instead of exposing only its derived id.
+    pub exact_types: Vec<
+        scoop_identity::CborIdentityRecord<
+            scoop_identity::PersistentExactTypeId,
+            scoop_identity::ExactTypeKey,
+        >,
+    >,
     /// Complete target capabilities used to compute every physical layout in
     /// this metadata. Codegen must consume the matching full target profile.
     pub target_profile: LirTargetProfile,
+    /// Complete canonical C source-storage leaf records used by native
+    /// functions, globals, and callbacks in this module.
+    pub canonical_c_abi: CanonicalCAbiMetadata,
+    /// Complete target-normalized contracts for source extern declarations.
+    pub native_externals: NativeExternalMetadata,
     /// Non-optional identities selected from typed intrinsic declarations.
-    pub well_known_layouts: WellKnownLayouts,
     pub well_known_type_descriptors: WellKnownTypeDescriptors,
     /// Every fully specialized intrinsic `Array<T>` / `MutableArray<T>`
     /// application. Array instructions carry an `ArrayTypeId`; codegen never
@@ -258,13 +288,11 @@ pub struct LirMeta {
     pub type_descriptors: Arena<TypeDescriptor>,
     /// Cross-Cone descriptors are declared but not initialized by this Cone.
     pub external_type_descriptors: Arena<ExternalTypeDescriptor>,
-    /// Cross-Cone callables referenced from local dispatch tables.
+    /// External callables admitted by initialization protocols, the legacy
+    /// direct-call bridge, or the layout/ABI bridge used by dispatch tables.
+    /// They are external declarations and never enter local Strong ownership,
+    /// callable registrations, or image plans.
     pub external_callables: Arena<ExternalCallable>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct WellKnownLayouts {
-    pub string: LayoutId,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -279,14 +307,18 @@ pub enum ArrayKind {
 }
 
 /// Complete LIR metadata for one concrete intrinsic array application.
-/// `element_size` / `element_align` are fixed by lir-lower rather than
-/// recomputed from LLVM ABI queries in codegen.
+/// Element storage and offsets are fixed by lir-lower and checked together.
 #[derive(Debug)]
 pub struct ArrayType {
+    /// Persistent managed-object layout and array-element scan identities for
+    /// this exact intrinsic array application. Variable-size array layout
+    /// payload remains in this typed record instead of masquerading as a
+    /// fixed-size [`Layout`].
+    pub identity: LayoutIdentity,
     pub kind: ArrayKind,
+    pub element_exact: scoop_identity::PersistentExactTypeId,
     pub element: LirType,
-    pub element_size: u64,
-    pub element_align: u64,
+    pub layout: ArrayLayoutV1,
     /// The descriptor owns the recursive repeated-element scan program.
     pub type_descriptor: TypeDescriptorRef,
 }
@@ -297,23 +329,11 @@ pub enum TypeDescriptorRef {
     External(ExternalTypeDescriptorId),
 }
 
-#[derive(Debug)]
-pub struct ExternalTypeDescriptor {
-    /// Final linker spelling; never used as semantic identity.
-    pub symbol: String,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CallableRef {
     Local(LocalFunctionId),
     Runtime(RuntimeFunction),
     External(ExternalCallableId),
-}
-
-#[derive(Debug)]
-pub struct ExternalCallable {
-    /// Final linker spelling; the typed arena id is the semantic identity.
-    pub symbol: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -322,42 +342,280 @@ pub struct DispatchEntry {
 }
 
 /// Everything codegen needs to emit one `ScoopTypeDescriptor`
-/// global (see runtime/include/scoop_rt.h for the field order).
+/// global (see runtime/include/scoop_runtime_metadata_v1.h for the field order).
 #[derive(Debug)]
 pub struct TypeDescriptor {
-    /// Human-readable type name used in metadata dumps.
-    pub name: String,
-    /// Global symbol, e.g. `scoop_td_Point`.
-    pub symbol: String,
-    /// Runtime-visible identity selected by lir-lower. Codegen does not infer
-    /// it from arena position or descriptor category.
-    pub runtime_type_id: u64,
-    pub size: u64,
-    pub align: u64,
-    pub scan: TypeDescriptorScan,
+    /// Canonical exact-type UTF-8 used only for diagnostics.
+    pub diagnostic_name: String,
+    /// Complete persistent-to-runtime identity selected by lir-lower.
+    /// Codegen consumes the typed runtime id and foundation projection keeps
+    /// the full exact-type relation; neither infers it from arena position or
+    /// descriptor category.
+    pub identity: TypeDescriptorIdentity,
+    /// Persistent identity of the managed-instance layout promised by this
+    /// descriptor. This remains explicit even for `AbstractRef`, whose shape
+    /// has no allocatable byte extent, so registration production never has
+    /// to recover the relation from an unrelated layout arena.
+    pub instance_layout: LayoutIdentity,
+    pub instance_shape: TypeInstanceShapeV1,
+    /// Exact strong scan definition referenced by the inline-scan field, or
+    /// an explicit null branch when the inline scan is empty.
+    pub inline_scan: TypeDescriptorInlineScanV1,
     /// Classes reference their base descriptor; root/reference-key entities
     /// have no parent. The absence is emitted as a metadata-provenance null.
     pub parent: Option<TypeDescriptorRef>,
-    pub vtable: Vec<DispatchEntry>,
+    /// The exact-type-owned virtual dispatch table. Even a type with no
+    /// virtual slots has a typed empty table rather than an identity-less
+    /// vector.
+    pub vtable: VtableRecord,
     pub itables: Vec<ItableRecord>,
+    pub relations: crate::TypeDescriptorRelations<Option<TypeDescriptorRef>>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum TypeDescriptorScan {
-    /// Recursive GC scan program for a fixed-size object payload.
-    Fixed(RefScan),
-    /// Recursive scan for one inline array element, repeated at `stride`.
-    ArrayElement { stride: u64, scan: RefScan },
+/// Persistent runtime and materialization identity of one TypeDescriptor.
+/// Construction binds the ODR member, when present, to the same exact type
+/// that derives the runtime type id.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TypeDescriptorIdentity {
+    runtime_type: RuntimeTypeMappingRecord,
+    materialization: MaterializationIdentity,
+    symbol: MaterializedSymbol,
 }
 
+impl TypeDescriptorIdentity {
+    pub fn new(
+        runtime_type: RuntimeTypeMappingRecord,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let materialization = root.type_descriptor(runtime_type.exact_type())?;
+        let symbol = materialization
+            .symbol(scoop_identity::PersistentSymbolKey::TypeDescriptor(
+                runtime_type.exact_type(),
+            ))
+            .expect("type-descriptor symbols admit their materialization linkage");
+        Ok(Self {
+            runtime_type,
+            materialization,
+            symbol,
+        })
+    }
+
+    pub const fn runtime_type(&self) -> RuntimeTypeMappingRecord {
+        self.runtime_type
+    }
+
+    pub const fn exact_type(&self) -> scoop_identity::PersistentExactTypeId {
+        self.runtime_type.exact_type()
+    }
+
+    pub const fn symbol_request(&self) -> scoop_identity::PersistentSymbolRequest {
+        self.symbol.request()
+    }
+
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
+    }
+
+    fn dispatch_table(
+        &self,
+        table: scoop_identity::PersistentDispatchTableId,
+    ) -> Result<MaterializationIdentity, scoop_wire::HashError> {
+        self.materialization.dispatch_table(table)
+    }
+}
+
+/// One exact type's virtual dispatch table and its persistent identity.
+///
+/// The fields are private so callers cannot attach an itable identity to a
+/// vtable payload or replace the exact-type key independently of its slots.
+#[derive(Debug)]
+pub struct VtableRecord {
+    identity: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchTableId,
+        scoop_identity::DispatchTableKey,
+    >,
+    materialization: MaterializationIdentity,
+    slots: Vec<DispatchEntry>,
+}
+
+impl VtableRecord {
+    pub fn new(
+        owner: &TypeDescriptorIdentity,
+        slots: Vec<DispatchEntry>,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let identity = scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::DispatchTableKey::vtable(owner.exact_type()),
+        )?;
+        let materialization = owner.dispatch_table(identity.id())?;
+        Ok(Self {
+            identity,
+            materialization,
+            slots,
+        })
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchTableId,
+        scoop_identity::DispatchTableKey,
+    > {
+        &self.identity
+    }
+
+    pub fn belongs_to_exact_type(&self, exact_type: scoop_identity::PersistentExactTypeId) -> bool {
+        self.identity.key() == &scoop_identity::DispatchTableKey::vtable(exact_type)
+    }
+
+    pub fn slots(&self) -> &[DispatchEntry] {
+        &self.slots
+    }
+
+    pub fn slots_mut(&mut self) -> &mut Vec<DispatchEntry> {
+        &mut self.slots
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
+    }
+}
+
+/// One exact type's implementation table for one exact interface.
+///
+/// Construction binds the table role, owner and interface into one immutable
+/// identity/payload relation. The descriptor reference is retained solely for
+/// code generation of the runtime lookup key.
 #[derive(Debug)]
 pub struct ItableRecord {
-    pub interface: TypeDescriptorRef,
-    pub slots: Vec<DispatchEntry>,
+    identity: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchTableId,
+        scoop_identity::DispatchTableKey,
+    >,
+    materialization: MaterializationIdentity,
+    interface: TypeDescriptorRef,
+    slots: Vec<DispatchEntry>,
+}
+
+impl ItableRecord {
+    pub fn new(
+        owner: &TypeDescriptorIdentity,
+        interface_exact_type: scoop_identity::PersistentExactTypeId,
+        interface: TypeDescriptorRef,
+        slots: Vec<DispatchEntry>,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let identity = scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::DispatchTableKey::itable(owner.exact_type(), interface_exact_type),
+        )?;
+        let materialization = owner.dispatch_table(identity.id())?;
+        Ok(Self {
+            identity,
+            materialization,
+            interface,
+            slots,
+        })
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchTableId,
+        scoop_identity::DispatchTableKey,
+    > {
+        &self.identity
+    }
+
+    pub fn belongs_to_exact_type(&self, exact_type: scoop_identity::PersistentExactTypeId) -> bool {
+        self.identity.key().exact_type() == exact_type
+    }
+
+    pub fn belongs_to_interface_exact_type(
+        &self,
+        exact_type: scoop_identity::PersistentExactTypeId,
+    ) -> bool {
+        matches!(
+            self.identity.key().interface(),
+            scoop_identity::OptionalExactInterface::Present(interface) if interface == exact_type
+        )
+    }
+
+    pub const fn interface(&self) -> TypeDescriptorRef {
+        self.interface
+    }
+
+    pub fn slots(&self) -> &[DispatchEntry] {
+        &self.slots
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
+    }
 }
 
 #[derive(Debug)]
 pub struct Layout {
+    /// Persistent identity of this exact physical representation. The key
+    /// binds the semantic exact type, selected target profile and closed
+    /// representation role; consumers never reconstruct it from the display
+    /// name, arena position or coincidentally equal size/alignment.
+    pub identity: LayoutIdentity,
     pub name: String,
     pub size: u64,
     pub align: u64,
@@ -365,6 +623,202 @@ pub struct Layout {
     pub c_layout: Option<LirCLayoutContract>,
     pub interior_mutable: bool,
     pub kind: LayoutKind,
+}
+
+/// Complete persistent identity bundle for one physical layout and its
+/// top-level scan program. Constructors close the representation/scan-role
+/// matrix so a layout cannot carry a scan identity for another role.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct LayoutIdentity {
+    layout: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentLayoutId,
+        scoop_identity::LayoutKey,
+    >,
+    scan: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentScanId,
+        scoop_identity::ScanKey,
+    >,
+    layout_materialization: MaterializationIdentity,
+    scan_materialization: MaterializationIdentity,
+}
+
+impl LayoutIdentity {
+    pub(crate) fn new(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+        representation: scoop_identity::RepresentationRole,
+        scan_role: scoop_identity::ScanRole,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let layout = scoop_identity::CborIdentityRecord::from_key(scoop_identity::LayoutKey::new(
+            exact_type,
+            target_profile.wire_id(),
+            representation,
+        ))?;
+        let scan = scoop_identity::CborIdentityRecord::from_key(scoop_identity::ScanKey::new(
+            layout.id(),
+            scan_role,
+        ))?;
+        let layout_materialization = root.layout(layout.id())?;
+        let scan_materialization = root.scan(scan.id())?;
+        Ok(Self {
+            layout,
+            scan,
+            layout_materialization,
+            scan_materialization,
+        })
+    }
+
+    pub fn managed_value(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::ManagedValue,
+            scoop_identity::ScanRole::InlineValue,
+            root,
+        )
+    }
+
+    pub fn managed_object(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::ManagedObject,
+            scoop_identity::ScanRole::ManagedObject,
+            root,
+        )
+    }
+
+    pub fn c_value(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::CValue,
+            scoop_identity::ScanRole::InlineValue,
+            root,
+        )
+    }
+
+    pub fn native_function_pointer(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::NativeFunctionPointer,
+            scoop_identity::ScanRole::InlineValue,
+            root,
+        )
+    }
+
+    pub fn managed_array(
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            exact_type,
+            target_profile,
+            scoop_identity::RepresentationRole::ManagedObject,
+            scoop_identity::ScanRole::ArrayElement,
+            root,
+        )
+    }
+
+    pub fn is_managed_instance_of(
+        &self,
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> bool {
+        self.layout.key().exact_type() == exact_type
+            && self.layout.key().target_profile() == &target_profile.wire_id()
+            && self.layout.key().representation()
+                == scoop_identity::RepresentationRole::ManagedObject
+            && self.scan.key().layout() == self.layout.id()
+            && self.scan.key().role() == scoop_identity::ScanRole::ManagedObject
+    }
+
+    pub fn is_managed_value_of(
+        &self,
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> bool {
+        self.layout.key().exact_type() == exact_type
+            && self.layout.key().target_profile() == &target_profile.wire_id()
+            && self.layout.key().representation()
+                == scoop_identity::RepresentationRole::ManagedValue
+            && self.scan.key().layout() == self.layout.id()
+            && self.scan.key().role() == scoop_identity::ScanRole::InlineValue
+    }
+
+    pub fn is_managed_array_of(
+        &self,
+        exact_type: scoop_identity::PersistentExactTypeId,
+        target_profile: LirTargetProfile,
+    ) -> bool {
+        self.layout.key().exact_type() == exact_type
+            && self.layout.key().target_profile() == &target_profile.wire_id()
+            && self.layout.key().representation()
+                == scoop_identity::RepresentationRole::ManagedObject
+            && self.scan.key().layout() == self.layout.id()
+            && self.scan.key().role() == scoop_identity::ScanRole::ArrayElement
+    }
+
+    pub const fn layout_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentLayoutId,
+        scoop_identity::LayoutKey,
+    > {
+        &self.layout
+    }
+
+    pub const fn scan_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentScanId,
+        scoop_identity::ScanKey,
+    > {
+        &self.scan
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.layout_materialization.lir_odr_group_record()
+    }
+
+    pub fn odr_member_records(
+        &self,
+    ) -> impl Iterator<
+        Item = &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        [&self.layout_materialization, &self.scan_materialization]
+            .into_iter()
+            .filter_map(MaterializationIdentity::odr_member_record)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -436,6 +890,12 @@ pub enum RefScan {
     None,
     References(Vec<u64>),
     Sequence(Vec<RefScan>),
+    Array {
+        length_offset: u64,
+        first_element_offset: u64,
+        stride: NonZeroU64,
+        element: Box<NonEmptyRefScan>,
+    },
 }
 
 impl RefScan {
@@ -447,6 +907,16 @@ impl RefScan {
                 "seq({})",
                 parts.iter().map(Self::dump).collect::<Vec<_>>().join(", ")
             ),
+            Self::Array {
+                length_offset,
+                first_element_offset,
+                stride,
+                element,
+            } => format!(
+                "array(length@{length_offset}, first@{first_element_offset}, stride={}, {})",
+                stride.get(),
+                element.dump()
+            ),
         }
     }
 
@@ -455,6 +925,7 @@ impl RefScan {
             Self::None => false,
             Self::References(offsets) => !offsets.is_empty(),
             Self::Sequence(parts) => parts.iter().any(Self::contains_reference),
+            Self::Array { .. } => true,
         }
     }
 }
@@ -480,7 +951,6 @@ impl NonEmptyRefScan {
 
 #[derive(Debug)]
 pub struct Global {
-    pub symbol: String,
     /// Provenance of the address produced by `Value::Global`.
     pub address_kind: PointerKind,
     /// Complete recursive scan program for the writable global storage.
@@ -489,9 +959,107 @@ pub struct Global {
     pub init: GlobalInit,
 }
 
+/// Persistent owner and atom identity for one callable-local NUL-terminated
+/// diagnostic string.
+///
+/// The physical global uses the atom's start-boundary symbol directly. This
+/// keeps the support bytes attributable after object sharding and prevents a
+/// session-local global ordinal from becoming linker-visible authority.
+#[derive(Debug)]
+pub struct CallableCStringIdentity {
+    owner: scoop_identity::PersistentCallableBodyId,
+    path: scoop_identity::StructuralDefinitionPath,
+    atom: scoop_identity::CborIdentityRecord<
+        scoop_identity::ObjectDefinitionAtomId,
+        scoop_identity::ObjectDefinitionAtomKey,
+    >,
+    symbol: MaterializedSymbol,
+}
+
+impl CallableCStringIdentity {
+    pub fn new(
+        producer: scoop_identity::ConeIdentity,
+        owner: &crate::CallableBodyIdentity,
+        path: scoop_identity::StructuralDefinitionPath,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let plan_key = owner.definition_plan_key(producer);
+        let plan = scoop_identity::ObjectDefinitionPlanId::from_key(&plan_key)?;
+        let atom = scoop_identity::CborIdentityRecord::from_key(
+            scoop_identity::ObjectDefinitionAtomKey::new(
+                plan,
+                scoop_identity::DefinitionAtomRole::AddressTakenConstant,
+                scoop_identity::DefinitionAtomSubkey::StructuralPath(path.clone()),
+            ),
+        )?;
+        let symbol = MaterializedSymbol::new(
+            scoop_identity::PersistentSymbolKey::DefinitionBoundaryStart(atom.id()),
+            owner.symbol_request().linkage(),
+        )
+        .expect("a definition boundary inherits its body linkage");
+        Ok(Self {
+            owner: owner.id(),
+            path,
+            atom,
+            symbol,
+        })
+    }
+
+    pub const fn owner(&self) -> scoop_identity::PersistentCallableBodyId {
+        self.owner
+    }
+
+    pub const fn path(&self) -> &scoop_identity::StructuralDefinitionPath {
+        &self.path
+    }
+
+    pub const fn atom_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::ObjectDefinitionAtomId,
+        scoop_identity::ObjectDefinitionAtomKey,
+    > {
+        &self.atom
+    }
+
+    pub const fn symbol_request(&self) -> PersistentSymbolRequest {
+        self.symbol.request()
+    }
+
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
+    }
+}
+
+impl Global {
+    pub fn symbol(&self) -> &str {
+        match &self.init {
+            GlobalInit::StringConst { identity, .. } => identity.symbol(),
+            GlobalInit::CString { identity, .. } => identity.symbol(),
+            GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
+                identity.symbol()
+            }
+            GlobalInit::ImportedStorage { definition, .. } => definition.symbol(),
+        }
+    }
+
+    pub const fn persistent_symbol_request(
+        &self,
+    ) -> Option<scoop_identity::PersistentSymbolRequest> {
+        match &self.init {
+            GlobalInit::StringConst { identity, .. } => Some(identity.symbol_request()),
+            GlobalInit::Storage { identity, .. } | GlobalInit::RawStorage { identity, .. } => {
+                Some(identity.symbol_request())
+            }
+            GlobalInit::CString { .. } | GlobalInit::ImportedStorage { .. } => None,
+        }
+    }
+}
+
 /// An enum definition with its representation fixed by lir-lower.
 #[derive(Debug)]
 pub struct EnumDef {
+    /// Exact semantic identity, including generated and generic applications.
+    pub exact_type: scoop_identity::PersistentExactTypeId,
     pub name: String,
     pub repr: EnumRepr,
     /// Recursive scan program for one inline value of this enum type.
@@ -825,15 +1393,253 @@ pub struct EnumFieldRepr {
 
 #[derive(Debug)]
 pub enum GlobalInit {
-    /// A `ScoopString` constant: header points at `STRING_TD_SYMBOL`.
-    StringConst(String),
-    /// A NUL-terminated C string (e.g. trap messages).
-    CString(String),
-    Storage {
+    /// Storage defined and registered by an actual dependency provider.
+    ImportedStorage {
+        definition: Box<crate::ExternalShapeLinkImportV1>,
         ty: LirType,
-        initial_state: LirStaticInitialState,
+    },
+    /// A `ScoopString` constant whose header points at the typed String
+    /// descriptor selected by `WellKnownTypeDescriptors`.
+    StringConst {
+        identity: ImmortalObjectIdentity,
+        value: String,
+    },
+    /// A callable-owned NUL-terminated C string (e.g. trap messages).
+    CString {
+        identity: CallableCStringIdentity,
+        value: String,
+    },
+    /// Explicit GC-free raw global or TLS, initialized by the object loader.
+    RawStorage {
+        identity: StaticStorageIdentity,
+        ty: LirType,
+        initializer: LirConstantImage,
         thread_local: bool,
     },
+    Storage {
+        /// Persistent semantic identity of this compiler-owned writable
+        /// storage. Native extern globals are represented separately and do
+        /// not fabricate one.
+        identity: StaticStorageIdentity,
+        /// Canonical value layout and scan identities for this storage.
+        /// Registration production consumes these identities directly and
+        /// never reconstructs them from the lowered type or arena position.
+        layout: StaticStorageLayout,
+        ty: LirType,
+        initial_state: LirStaticInitialState,
+    },
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ImmortalObjectIdentity {
+    record: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentImmortalObjectId,
+        scoop_identity::ImmortalObjectKey,
+    >,
+    materialization: MaterializationIdentity,
+    symbol: MaterializedSymbol,
+}
+
+impl ImmortalObjectIdentity {
+    pub fn from_key(
+        key: scoop_identity::ImmortalObjectKey,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let record = scoop_identity::CborIdentityRecord::from_key(key)?;
+        let materialization = root.immortal_object(record.id())?;
+        let symbol = materialization
+            .symbol(scoop_identity::PersistentSymbolKey::ImmortalObject(
+                record.id(),
+            ))
+            .expect("immortal-object symbols admit their materialization linkage");
+        Ok(Self {
+            record,
+            materialization,
+            symbol,
+        })
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentImmortalObjectId,
+        scoop_identity::ImmortalObjectKey,
+    > {
+        &self.record
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
+    }
+
+    pub const fn symbol_request(&self) -> scoop_identity::PersistentSymbolRequest {
+        self.symbol.request()
+    }
+
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct StaticStorageIdentity {
+    record: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentStaticStorageId,
+        scoop_identity::StaticStorageKey,
+    >,
+    materialization: MaterializationIdentity,
+    symbol: MaterializedSymbol,
+}
+
+impl StaticStorageIdentity {
+    fn new(
+        key: scoop_identity::StaticStorageKey,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        let record = scoop_identity::CborIdentityRecord::from_key(key)?;
+        let materialization = root.static_storage(record.id())?;
+        let symbol = materialization
+            .symbol(scoop_identity::PersistentSymbolKey::StaticStorage(
+                record.id(),
+            ))
+            .expect("static-storage symbols admit their materialization linkage");
+        Ok(Self {
+            record,
+            materialization,
+            symbol,
+        })
+    }
+
+    pub fn property_backing(
+        owner: scoop_identity::PropertyOwner,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            scoop_identity::StaticStorageKey::property_backing(owner),
+            root,
+        )
+    }
+
+    pub fn property_delegate(
+        owner: scoop_identity::PropertyOwner,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            scoop_identity::StaticStorageKey::property_delegate(owner),
+            root,
+        )
+    }
+
+    pub fn delegated_application(
+        unit: &scoop_identity::InitializationUnitKey,
+        zero_sized: bool,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_identity::RuntimeIdentityError> {
+        let key = if zero_sized {
+            scoop_identity::StaticStorageKey::static_place_for_delegated_application(unit)?
+        } else {
+            scoop_identity::StaticStorageKey::delegated_application_delegate(unit)?
+        };
+        Self::new(key, root).map_err(scoop_identity::RuntimeIdentityError::Hash)
+    }
+
+    pub fn static_place_for_property(
+        owner: scoop_identity::PropertyOwner,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            scoop_identity::StaticStorageKey::static_place_for_property(owner),
+            root,
+        )
+    }
+
+    pub fn singleton_published_root(
+        owner: scoop_identity::PersistentTypeId,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            scoop_identity::StaticStorageKey::singleton_published_root(owner),
+            root,
+        )
+    }
+
+    pub fn initialization_failure_root(
+        unit: scoop_identity::PersistentInitializationUnitId,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            scoop_identity::StaticStorageKey::initialization_failure_root(unit),
+            root,
+        )
+    }
+
+    pub fn root_entry_failure_root(
+        root_cone: scoop_identity::ConeIdentity,
+        main: scoop_identity::MainCallableBodyId,
+        root: MaterializationRoot,
+    ) -> Result<Self, scoop_wire::HashError> {
+        Self::new(
+            scoop_identity::StaticStorageKey::root_entry_failure_root(root_cone, main),
+            root,
+        )
+    }
+
+    pub const fn identity_record(
+        &self,
+    ) -> &scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentStaticStorageId,
+        scoop_identity::StaticStorageKey,
+    > {
+        &self.record
+    }
+
+    pub const fn lir_odr_group_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrGroupId,
+            scoop_identity::SpecializationKey,
+        >,
+    > {
+        self.materialization.lir_odr_group_record()
+    }
+
+    pub const fn odr_member_record(
+        &self,
+    ) -> Option<
+        &scoop_identity::CborIdentityRecord<
+            scoop_identity::OdrMemberId,
+            scoop_identity::OdrMemberKey,
+        >,
+    > {
+        self.materialization.odr_member_record()
+    }
+
+    pub const fn symbol_request(&self) -> scoop_identity::PersistentSymbolRequest {
+        self.symbol.request()
+    }
+
+    pub fn symbol(&self) -> &str {
+        self.symbol.as_str()
+    }
 }
 
 #[derive(Debug)]

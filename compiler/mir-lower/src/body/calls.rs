@@ -72,7 +72,16 @@ impl BodyLowerer<'_> {
         let value = self.lower_expr(operand);
         let slot = self.new_hidden("opt", option_ty.clone(), false);
         let result = self.new_hidden("uw", payload_ty.clone(), false);
-        let throw = self.throw_builtin(self.module.exception_core.unwrap_exception, span);
+        let throw = match self.core_protocols {
+            hir::ConcreteCoreProtocols::Defined(protocols) => {
+                self.throw_builtin(protocols.exceptions.unwrap_exception, span)
+            }
+            hir::ConcreteCoreProtocols::Imported(protocols) => self.throw_imported_exception(
+                protocols.exceptions().unwrap_exception().persistent(),
+                protocols.exceptions().unwrap_exception_constructor(),
+                span,
+            ),
+        };
         self.prelude.push(smir::StatementKind::ValDecl {
             local: slot,
             init: value,
@@ -137,94 +146,15 @@ impl BodyLowerer<'_> {
     pub(super) fn lower_user_callee(&mut self, callable: hir::Callable) -> mir::Callee {
         let function = self.module.callable_function(callable);
         match &self.module.functions[function].kind {
-            hir::FunctionKind::User(_) => self.instances.get(function).map_or_else(
+            hir::FunctionKind::User(_)
+            | hir::FunctionKind::Abstract { .. }
+            | hir::FunctionKind::InitializationEnsure => self.instances.get(function).map_or_else(
                 || mir::Callee::User(self.function_map[&function]),
                 mir::Callee::Monomorphized,
             ),
             hir::FunctionKind::Extern(extern_id) => mir::Callee::Extern(self.extern_map[extern_id]),
             hir::FunctionKind::Intrinsic(_) => unreachable!("handled above"),
         }
-    }
-
-    pub(super) fn lower_coroutine_start(
-        &mut self,
-        protocol: hir::CoroutineProtocol,
-        args: &[hir::Expr],
-    ) -> smir::Expr {
-        let [task, completion] = args else {
-            unreachable!("hir-lower validates startCoroutine's two parameters")
-        };
-        let result = self.lower_type(protocol.result_type);
-        let task = self.lower_expr(task);
-        let completion = self.lower_expr(completion);
-        let task_interface = self.interfaces.mir_id(protocol.suspend_task);
-        let continuation_interface = self.interfaces.mir_id(protocol.continuation);
-        let (_, step_ty) = self
-            .coroutines
-            .step_for(&result, self.structs, self.enums, self.shell);
-        let run = self.instances.get(protocol.suspend_task_run).unwrap();
-        let resume = self.instances.get(protocol.continuation_resume).unwrap();
-        let failure = self
-            .instances
-            .get(protocol.continuation_resume_with_exception)
-            .unwrap();
-        let throwable =
-            mir::Type::Class(self.class_map[&self.module.exception_core.throwable.class()]);
-        let helper = self.coroutines.start_helper(
-            &result,
-            task_interface,
-            continuation_interface,
-            run,
-            resume,
-            failure,
-            &step_ty,
-            throwable,
-            self.functions,
-            self.top_level,
-            self.shell,
-        );
-        self.prelude.push(smir::StatementKind::Expr(smir::Expr::new(
-            mir::Type::Unit,
-            smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(helper),
-                },
-                args: vec![task, completion],
-                return_ty: mir::Type::Unit,
-            }),
-        )));
-        smir::Expr::unit()
-    }
-
-    pub(super) fn lower_coroutine_suspend(
-        &mut self,
-        protocol: hir::CoroutineProtocol,
-        args: &[hir::Expr],
-    ) -> smir::Expr {
-        let [registration] = args else {
-            unreachable!("hir-lower validates suspendCoroutine's one parameter")
-        };
-        let result = self.lower_type(protocol.result_type);
-        let registration_interface = self.interfaces.mir_id(protocol.suspend_registration);
-        let register = self
-            .instances
-            .get(protocol.suspend_registration_register)
-            .unwrap();
-        smir::Expr::new(
-            result.clone(),
-            smir::ExprKind::Call(smir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Interface {
-                        interface: registration_interface,
-                        slot: 0,
-                    },
-                    callee: mir::Callee::CoroutineSuspend { register },
-                },
-                args: vec![self.lower_expr(registration)],
-                return_ty: result,
-            }),
-        )
     }
 
     /// An `@Intrinsic` call: the typed intrinsic kind maps directly onto the
@@ -327,7 +257,8 @@ impl BodyLowerer<'_> {
             _ => None,
         };
         let dispatch = f
-            .method
+            .receiver
+            .method()
             .expect("a method call names method metadata")
             .dispatch;
         let kind = match dispatch {

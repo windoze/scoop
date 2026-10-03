@@ -1,0 +1,10 @@
+import dependency.classes.Counter
+import dependency.classes.Readable
+
+public interface LocalReader: Readable {
+    public override fun read(): Long = 20
+    public fun complete(): Long = answer()
+}
+public struct LocalValue(): LocalReader
+public fun localReader(): LocalReader = LocalValue()
+public fun primary(): Counter = Counter(localReader().complete())

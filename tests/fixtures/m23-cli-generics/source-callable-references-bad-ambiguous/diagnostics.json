@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "callable reference `::conflict` is ambiguous in dependency top-level candidate layer:\n  - fun conflict<T>(left: Int, right: T): Int — matches the expected function type\n  - fun conflict<T>(left: T, right: Int): Int — matches the expected function type",
+    "notes": [],
+    "origin": {
+      "cone": "e3d53dd864f0cbdd1e732908e3981c28c0db97835a879d38fc536065df087469",
+      "end": 109,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 99
+    },
+    "severity": "error"
+  }
+]

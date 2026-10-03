@@ -1,0 +1,13 @@
+package consumer.delegates
+
+import templates.delegates.*
+
+public fun result(): Int {
+    val first = Receiver<Int, Boolean>(1, true)
+    val second = Receiver<Int, Boolean>(2, false)
+    first.shared = 42
+    return second.shared
+}
+
+public fun otherFirst(): Int = Receiver<Boolean, Boolean>(true, false).shared
+public fun otherSecond(): Int = Receiver<Int, Int>(1, 2).shared

@@ -1,15 +1,13 @@
 use super::*;
 
+mod queries;
+
 #[derive(Debug, Clone)]
 pub struct InterfaceDecl {
     pub name: String,
     pub owner: Option<NominalOwner>,
     pub access: NominalAccess,
-    pub self_application: InterfaceApplicationId,
-    pub type_params: Vec<TypeParamDecl>,
-    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
-    /// Exact parent applications in declaration order.
-    pub parents: Vec<InterfaceApplicationId>,
+    pub definition: InterfaceDefinition,
     /// Methods declared directly by this interface, in itable order after
     /// inherited methods. Inheritance traversal follows `parents` and these
     /// typed ids; consumers never reconstruct ownership from function names.
@@ -21,9 +19,53 @@ pub struct InterfaceDecl {
     pub span: Span,
 }
 
+/// Checked parameters and direct parents in the original declaration's scope.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InterfaceDefinition {
+    pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
+    pub self_application: InterfaceApplicationId,
+    pub type_params: Vec<TypeParamDecl>,
+    pub parents: Vec<TypeId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadedInterfaceDefinition {
+    pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
+    pub definition: InterfaceDefinition,
+    pub methods: Vec<LoadedInterfaceMethod>,
+}
+
+impl std::ops::Deref for InterfaceDecl {
+    type Target = InterfaceDefinition;
+
+    fn deref(&self) -> &Self::Target {
+        &self.definition
+    }
+}
+
+impl std::ops::DerefMut for InterfaceDecl {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.definition
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadedInterfaceMethod {
+    pub slot: scoop_identity::CborIdentityRecord<
+        scoop_identity::PersistentDispatchSlotId,
+        scoop_identity::DispatchSlotKey,
+    >,
+    pub overrides: Vec<scoop_identity::PersistentDispatchSlotId>,
+    pub declaration: CallableDeclarationRecordV1,
+    pub name: String,
+    pub parameters: Vec<(String, TypeId)>,
+    pub return_type: TypeId,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceApplication {
-    pub template: InterfaceId,
+    pub template: SourceNominalId,
     pub arguments: Vec<TypeId>,
     pub canonical_type: TypeId,
 }
@@ -39,7 +81,7 @@ pub struct InterfaceMethod {
     pub implementation: InterfaceMemberImplementation,
     /// Interface slots shadowed by this declaration. The relation is typed
     /// and may contain every matching ancestor slot through a diamond.
-    pub overrides: Vec<InterfaceMethodId>,
+    pub overrides: Vec<InterfaceMethodReference>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,13 +104,24 @@ pub enum InterfaceMemberImplementation {
 /// closure, not only methods declared directly on `interface`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceImplementation {
-    pub interface: InterfaceApplicationId,
+    pub interface: TypeId,
     pub methods: Vec<InterfaceMethodImplementation>,
+}
+
+/// The declaration of a slot used by one conformance. Dependency slots retain
+/// their actual declaring interface and persistent identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum InterfaceMethodReference {
+    Local(InterfaceMethodId),
+    Imported {
+        owner: TypeId,
+        slot: scoop_identity::PersistentDispatchSlotId,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterfaceMethodImplementation {
-    pub member: InterfaceMethodId,
+    pub member: InterfaceMethodReference,
     pub target: InterfaceImplementationTarget,
 }
 
@@ -77,10 +130,12 @@ pub enum InterfaceImplementationTarget {
     /// Exact ordinary method application selected by HIR conformance
     /// checking. Generic methods cannot implement interface slots.
     Method(MethodApplicationId),
-    /// An abstract class may promise an interface while leaving a member for
-    /// a concrete subclass. Calls through such a specialization use the
-    /// interface application directly instead of guessing a class member.
-    Subclass,
+    Imported(ImportedDependencyCallableUseId),
+    ImportedAbstract(ImportedDependencyCallableUseId),
+    ImportedTemplate(ImportedGenericCallableApplicationId),
+    ImportedAbstractTemplate(ImportedGenericCallableApplicationId),
+    /// The actual abstract declaration retained for a derived implementation.
+    Abstract(MethodApplicationId),
 }
 
 /// Convenience signature record used by tests and by the fully concrete

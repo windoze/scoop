@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  fun recover(): String
+    =
+      TryExpression
+        throw
+          Call UnwrapException
+        catch e: UnwrapException
+          StringLiteral "caught"
+        finally
+          Call println
+            StringLiteral "finally"
+  fun main()
+    Call println
+      Call recover

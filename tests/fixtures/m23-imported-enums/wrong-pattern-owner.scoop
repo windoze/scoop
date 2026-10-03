@@ -1,0 +1,4 @@
+package consumer.enums
+import dependency.enums.Choice
+import dependency.enums.Other
+@NoGC public fun rejected(value: Choice): Long = when (value) { Other.Empty -> 0; else -> 1 }

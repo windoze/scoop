@@ -1,0 +1,82 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call item
+        IntLiteral 17
+    val reader: Reader
+      Var value
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall read
+            Var reader
+          StringLiteral "item"
+        Binary Eq
+          Call count
+            Var value
+          IntLiteral 17
+    val marker: Int8
+      IntLiteral 1
+    Call verifyType
+      Binary Eq
+        MethodCall observe
+          Var value
+          BoolLiteral true
+        TupleLiteral
+          Var marker
+          StringLiteral "base"
+    assign storage
+      StringLiteral "changed"
+    Call verifyType
+      Binary Eq
+        Var storage
+        StringLiteral "changed"
+    Call verifyType
+      Binary And
+        Call inspect
+          StringLiteral "text"
+        Unary Not
+          Call inspect
+            IntLiteral 17
+    Call verifyType
+      Binary Eq
+        MethodCall Text
+          Var Message
+          StringLiteral "text"
+        MethodCall Text
+          Var Message
+          StringLiteral "text"
+    Call verifyType
+      Binary Eq
+        MethodCall Marker
+          Var Message
+          IntLiteral 1
+        MethodCall Marker
+          Var Message
+          IntLiteral 1
+    Call verifyType
+      Binary Eq
+        FieldAccess value
+          FieldAccess value
+            Call Deferred
+              Call Generic
+                IntLiteral 19L
+        IntLiteral 19L
+    Call verifyType
+      Binary And
+        Binary Eq
+          Call dormant
+            IntLiteral 23
+          IntLiteral 23
+        Binary Eq
+          Call dormant
+            StringLiteral "value"
+            IntLiteral 2uL
+          StringLiteral "value"

@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  public fun read(): Boolean
+    =
+      Binary And
+        Binary And
+          Call expandedDefaults
+          Call testString
+            Call literalString
+        Binary Eq
+          Call smartInteger
+            Call boxInteger
+              IntLiteral 7
+          IntLiteral 7

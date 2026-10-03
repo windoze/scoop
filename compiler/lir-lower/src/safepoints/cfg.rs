@@ -1,24 +1,5 @@
 use super::*;
 
-pub(super) fn fold_constant_branches(function: &mut lir::Function) {
-    for block in function.blocks.values_mut() {
-        let target = match &block.terminator {
-            lir::Terminator::CondBr {
-                cond: lir::Value::BoolConst(true),
-                then_block,
-                ..
-            } => *then_block,
-            lir::Terminator::CondBr {
-                cond: lir::Value::BoolConst(false),
-                else_block,
-                ..
-            } => *else_block,
-            _ => continue,
-        };
-        block.terminator = lir::Terminator::Br(target);
-    }
-}
-
 /// Canonicalize the final LIR CFG before assigning any safepoint identity.
 /// MIR lowering can leave detached EH and coroutine continuation blocks after
 /// control-flow simplification. LLVM is allowed to delete those blocks, so
@@ -28,6 +9,7 @@ pub(super) fn prune_unreachable_blocks(lowered: &mut LoweredFunction) {
     let LoweredFunction {
         function,
         loop_header_polls,
+        ..
     } = lowered;
     let mut reachable = vec![false; function.blocks.len()];
     let mut worklist = vec![function.entry];
@@ -107,7 +89,7 @@ pub(super) fn remap_block_targets(block: &mut lir::BasicBlock, block_map: &[Opti
 pub(super) fn insert_polls(
     function: &mut lir::Function,
     loop_header_polls: &[MappedLoopHeaderPollTarget],
-    ids: &mut SafepointIds,
+    sites: &mut PendingSafepointSites,
 ) {
     if function.gc_effect == lir::GcEffect::NoGc {
         return;
@@ -147,7 +129,7 @@ pub(super) fn insert_polls(
             lir::Instruction::ManagedPoll {
                 site: lir::ManagedPollSite {
                     target: poll_target,
-                    safepoint: ids.allocate(),
+                    safepoint: sites.allocate(lir::SafepointSiteRole::ManagedPoll),
                     live: lir::StatepointLiveSet::default(),
                 },
             },

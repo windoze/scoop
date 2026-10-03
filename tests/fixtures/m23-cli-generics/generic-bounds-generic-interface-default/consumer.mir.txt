@@ -1,0 +1,189 @@
+Module
+  struct StoredHolder<Int> (payload: Int)
+  class box<StoredHolder<Int>> vtable=0 itables=3
+  class box<Int> vtable=0 itables=0
+  interface DefaultHolder<Int> : ChildHolder<Int>
+  interface ChildHolder<Int> : Holder<Int>
+  interface Holder<Int>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn12 id=1f73d7e499dceb53c1e3a38357a86499b259e22c9a31745960c3f87aa4cc5030
+  generated_exact_type get0 location=closure0 nominal_id=1c8b177570db8090fb1b6620d81dc258afd4c3b441094208fa4d8287232cfb03 exact_id=005cc33195317891628951c6b48189252a1aaf16d2fbb05e4b955ec5144ccb8e
+  generated_exact_type get1 location=class0 nominal_id=a6a4fc12509a01ca4dfe63f342559f4e72fef06b39e404d28b54e3b680729f8c exact_id=4c5b3d488b684ecd1e8165ab165285ac60f7fe5e6e8afde8835b8250cb6cc23f
+  generated_exact_type get2 location=class1 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn10 id=0bdec987a922bdd77cac9c7a28d783fc43b6e2bb80ad2145b2c2e83c229a7b53
+  generated_callable gc1 function=@fn11 id=1a3e59a8177ebedbe816469716ac7219531390274f8283c2437e7b06677e363b
+  generated_callable gc2 function=@fn12 id=1f73d7e499dceb53c1e3a38357a86499b259e22c9a31745960c3f87aa4cc5030
+  generated_callable gc3 function=@fn8 id=540fc488fa727495976d2d8567f80a6d95a2ad055e6531c6f2e1aba5fbf2d9f5
+  generated_callable gc4 function=@fn9 id=7c27d899402b3ffe1d98b474d028abc6b1a61d22d79b3b872a3c3ea6540cfbe0
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      call receiver: StoredHolder<Int> = @fn7 direct
+        Type Int
+        Local $dependency.parameter.payload
+      val $dependency.argument.0: StoredHolder<Int>
+        Type StoredHolder<Int>
+        Local receiver
+      val $dependency.parameter.value: StoredHolder<Int>
+        Type StoredHolder<Int>
+        Local $dependency.argument.0
+      call get: () -> Int = @fn3 direct
+        Type StoredHolder<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: StoredHolder<Int>
+        Type StoredHolder<Int>
+        Local receiver
+      val $dependency.parameter.value: StoredHolder<Int>
+        Type StoredHolder<Int>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn4 direct
+        Type StoredHolder<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local get
+      return
+        Type Int
+        Local $call.1
+  fun stored @fn1(this: StoredHolder<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type StoredHolder<Int>
+          Local this
+  fun get @fn2(this: DefaultHolder<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: DefaultHolder<Int>
+        Type DefaultHolder<Int>
+        Local this
+      call $call.1: Int = @fn5 interface DefaultHolder<Int>[0]
+        Type DefaultHolder<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun inheritedReference @fn3(value: StoredHolder<Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type DefaultHolder<Int>
+            Box
+              Type StoredHolder<Int>
+              Local value
+  fun genericInterfaceGet @fn4(value: StoredHolder<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: StoredHolder<Int>
+        Type StoredHolder<Int>
+        Local value
+      call $call.1: Int = @fn2 interface DefaultHolder<Int>[1]
+        Type DefaultHolder<Int>
+        Box
+          Type StoredHolder<Int>
+          Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun DefaultHolder.stored @fn5(this: DefaultHolder<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `DefaultHolder.stored`"
+  fun $reference.0 @fn6($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 interface DefaultHolder<Int>[1]
+        Type DefaultHolder<Int>
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun ctor.StoredHolder.$c0 @fn7(payload: Int) -> StoredHolder<Int> <no-gc>
+    bb0 entry
+      return
+        Type StoredHolder<Int>
+        StructInit StoredHolder<Int>
+          Type Int
+          Local payload
+  fun thunk<StoredHolder<Int>> DefaultHolder.stored() @fn8(this: DefaultHolder<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+        Type StoredHolder<Int>
+        Unbox
+          Type DefaultHolder<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<StoredHolder<Int>> DefaultHolder.get() @fn9(this: DefaultHolder<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type DefaultHolder<Int>
+        Retype DefaultHolder<Int>
+          Type DefaultHolder<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<StoredHolder<Int>> ChildHolder.get() @fn10(this: ChildHolder<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type DefaultHolder<Int>
+        Retype DefaultHolder<Int>
+          Type ChildHolder<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<StoredHolder<Int>> Holder.get() @fn11(this: Holder<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+        Type DefaultHolder<Int>
+        Retype DefaultHolder<Int>
+          Type Holder<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn12($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- stored
+  instance mi1 function=@fn2 <- get
+  instance mi2 function=@fn3 <- inheritedReference
+  instance mi3 function=@fn4 <- genericInterfaceGet
+  instance mi4 function=@fn5 <- DefaultHolder.stored
+  output library

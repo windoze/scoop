@@ -1,0 +1,40 @@
+SourceFile
+  QualifiedPackage dependency.union
+  public class Payload(val number: Int)
+  public class Other(val number: Int)
+  public interface Readable
+    fun read
+  public class Marker<T>(val value: T), Readable
+    public fun read
+  public fun first(value: Payload): (Any) -> Payload
+    =
+      Lambda 0 suspend=false
+        param ignored: Any
+        Var value
+  public fun second(value: Other): (Any) -> Other
+    =
+      Lambda 1 suspend=false
+        param ignored: Any
+        Var value
+  public fun guarded<T>(value: T, fail: Boolean): T
+    try
+      if
+        Var fail
+        throw
+          Call IllegalStateException
+      return
+        Var value
+    catch failure: Throwable
+      return
+        Var value
+    finally
+      val marker
+        Call Marker
+          Var value
+      if
+        Binary Ne
+          MethodCall read
+            Var marker
+          IntLiteral 42
+        throw
+          Call IllegalStateException

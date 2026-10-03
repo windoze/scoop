@@ -1,0 +1,558 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<InheritedLocalChild>
+    Completed(value: InheritedLocalChild)
+    Suspended()
+  enum CoroutineSlot<InheritedLocalChild>
+    Empty()
+    Value(value: InheritedLocalChild)
+  enum CoroutineStep<LocalChild>
+    Completed(value: LocalChild)
+    Suspended()
+  enum CoroutineSlot<LocalChild>
+    Empty()
+    Value(value: LocalChild)
+  enum CoroutineStep<Child>
+    Completed(value: Child)
+    Suspended()
+  enum CoroutineSlot<Child>
+    Empty()
+    Value(value: Child)
+  class Child vtable=1 itables=0
+  class Base<Int> vtable=1 itables=0
+  class LocalChild vtable=1 itables=0
+  class LocalBase<Int> vtable=1 itables=0
+  class InheritedLocalChild vtable=1 itables=0
+  class PrivateChild vtable=1 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Child>
+  interface SuspendTask<Child>
+  interface SuspendRegistration<Child>
+  interface Continuation<LocalChild>
+  interface SuspendTask<LocalChild>
+  interface SuspendRegistration<LocalChild>
+  interface Continuation<InheritedLocalChild>
+  interface SuspendTask<InheritedLocalChild>
+  interface SuspendRegistration<InheritedLocalChild>
+  generated_exact_type get0 location=enum1 nominal_id=3590fc25f64ddbf73ed8435bb19c76a5eaf174fe18fdd61adeacacfe8b376e8a exact_id=01e86ef9d307a0026b4ead341b851f1e42ab2ddf1e34635fbaef7e7000455afa
+  generated_exact_type get1 location=enum5 nominal_id=4f1d6134011e7f3e7bc65978d676439d98d7c7736f3673daab652d79167019f2 exact_id=160103701b6c66d06b3efa5ee94573fcb49974d5f5cbf5b3196b1a56a17e4eb4
+  generated_exact_type get2 location=enum3 nominal_id=02d8f031bd97f16fd6264ce55c9a0e3c2fa9fd18b75d79e009fa24d46d18efe5 exact_id=1f1b3a3b92ba981f75c72b30c46e1d004e4ad390b1db7c9101760f34dfa25c54
+  generated_exact_type get3 location=enum4 nominal_id=04b8443f35d84a70f03598410e0b7c52351954b49ba4edc84311114adf1df2e4 exact_id=863fc454a25aeb23495f476ee494a95c0cb8fdf60d4bcd4201f342c1e2056990
+  generated_exact_type get4 location=enum6 nominal_id=40a4483d41d9161892b6178ce64160d12196e49897e7b29896bfdacaf89c6cf1 exact_id=8e8312df4679d392c1134cfbac689d2ad4ebcbb55e0e2eb4bddb09fd34cc1738
+  generated_exact_type get5 location=enum2 nominal_id=073e0f3e896e25d0ece4b7a46fad05b36596fa1c8e8e55c982f01dbf078d255e exact_id=baefd068d6dd23463fb44062744bb616ad9fb8ff6914fbbbbcaf5c0c198ee04e
+  generated_callable gc0 function=@fn27 id=0e21de3a67ec5333bc9a9735fce89667f8a7f8ec478109fd88bf6de88e36d907
+  generated_callable gc1 function=@fn25 id=94b6d3b25b08c51ddb7daa95f91911e732c625ee20901b497293967d5ff9114c
+  generated_callable gc2 function=@fn26 id=ad8f001c0c4e57ff1e20877df27692f9fc6d0b9f317b4cdbeedd596bae5cba9b
+  fun read @fn0(this: Base<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type Base<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun Child.read @fn1(this: Child) -> Int
+    bb0 entry
+      val $dependency.receiver: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child
+          Local this
+      call $dependency.receiver: Int = @fn0 direct
+        Type Base<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun LocalBase.read @fn2(this: LocalBase<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn6 direct
+        Type LocalBase<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun LocalChild.read @fn3(this: LocalChild) -> Int
+    bb0 entry
+      val $receiver: LocalBase<Int>
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type LocalChild
+          Local this
+      call $dependency.receiver: Int = @fn2 direct
+        Type LocalBase<Int>
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun result @fn4() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type LocalChild
+        ClassAlloc LocalChild
+      call @fn20 direct
+        Type LocalChild
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val local: LocalBase<Int>
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type LocalChild
+          Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Child
+        ClassAlloc Child
+      call @fn19 direct
+        Type Child
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val external: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child
+          Local $new.2
+      val $receiver: LocalBase<Int>
+        Type LocalBase<Int>
+        Local local
+      call $dependency.receiver: Int = @fn2 virtual[0]
+        Type LocalBase<Int>
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Base<Int>
+        Type Base<Int>
+        Local external
+      call $dependency.receiver: Int = @fn0 virtual[0]
+        Type Base<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Child
+        ClassAlloc Child
+      call @fn19 direct
+        Type Child
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      call $dependency.receiver: Int = @fn5 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child
+          Local $new.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type PrivateChild
+        ClassAlloc PrivateChild
+      call @fn22 direct
+        Type PrivateChild
+        Local $new.4
+        Type Int
+        Local $parameter.value
+      val $dependency.receiver: Base<Int>
+        Type Base<Int>
+        Retype Base<Int>
+          Type PrivateChild
+          Local $new.4
+      call $call.5: Int = @fn0 virtual[0]
+        Type Base<Int>
+        Local $dependency.receiver
+      return
+        Type Int
+        Local $call.5
+  fun value @fn5(this: Base<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base<Int>
+          Local this
+  fun LocalBase.$get$value @fn6(this: LocalBase<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalBase<Int>
+          Local this
+  fun Continuation.resume @fn7(this: Continuation<Child>, value: Child) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Child>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Child>, $completion: Continuation<Child>) -> CoroutineStep<Child>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Child>, continuation: Continuation<Child>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<LocalChild>, value: LocalChild) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<LocalChild>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<LocalChild>, $completion: Continuation<LocalChild>) -> CoroutineStep<LocalChild>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<LocalChild>, continuation: Continuation<LocalChild>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<InheritedLocalChild>, value: InheritedLocalChild) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<InheritedLocalChild>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<InheritedLocalChild>, $completion: Continuation<InheritedLocalChild>) -> CoroutineStep<InheritedLocalChild>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<InheritedLocalChild>, continuation: Continuation<InheritedLocalChild>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Child.$c0 @fn19(this: Child, value: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun init.LocalChild.$c2 @fn20(this: LocalChild, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn24 direct
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type LocalChild
+          Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.InheritedLocalChild.$c3 @fn21(this: InheritedLocalChild, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn24 direct
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type InheritedLocalChild
+          Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.PrivateChild.$c4 @fn22(this: PrivateChild, value: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type PrivateChild
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun init.Base.$c0 @fn23(this: Base<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.LocalBase.$c1 @fn24(this: LocalBase<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalBase<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun startCoroutine<InheritedLocalChild> @fn25(task: SuspendTask<InheritedLocalChild>, completion: Continuation<InheritedLocalChild>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<InheritedLocalChild>[0]
+        Type Continuation<InheritedLocalChild>
+        Local completion
+        Type InheritedLocalChild
+        EnumField v0 f0
+          Type CoroutineStep<InheritedLocalChild>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<InheritedLocalChild>[1]
+        Type Continuation<InheritedLocalChild>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<InheritedLocalChild> = @fn17 interface SuspendTask<InheritedLocalChild>[0]
+        Type SuspendTask<InheritedLocalChild>
+        Local task
+        Type Continuation<InheritedLocalChild>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<InheritedLocalChild>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocalChild> @fn26(task: SuspendTask<LocalChild>, completion: Continuation<LocalChild>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<LocalChild>[0]
+        Type Continuation<LocalChild>
+        Local completion
+        Type LocalChild
+        EnumField v0 f0
+          Type CoroutineStep<LocalChild>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<LocalChild>[1]
+        Type Continuation<LocalChild>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalChild> = @fn13 interface SuspendTask<LocalChild>[0]
+        Type SuspendTask<LocalChild>
+        Local task
+        Type Continuation<LocalChild>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalChild>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Child> @fn27(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Child>[0]
+        Type Continuation<Child>
+        Local completion
+        Type Child
+        EnumField v0 f0
+          Type CoroutineStep<Child>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Child>[1]
+        Type Continuation<Child>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Child> = @fn9 interface SuspendTask<Child>[0]
+        Type SuspendTask<Child>
+        Local task
+        Type Continuation<Child>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Child>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<InheritedLocalChild> result=InheritedLocalChild
+  coroutine_step cs1 CoroutineStep<LocalChild> result=LocalChild
+  coroutine_step cs2 CoroutineStep<Child> result=Child
+  coroutine_slot cl0 CoroutineSlot<InheritedLocalChild> value=InheritedLocalChild
+  coroutine_slot cl1 CoroutineSlot<LocalChild> value=LocalChild
+  coroutine_slot cl2 CoroutineSlot<Child> value=Child
+  coroutine_start ct0 result=InheritedLocalChild function=fn25
+  coroutine_start ct1 result=LocalChild function=fn26
+  coroutine_start ct2 result=Child function=fn27
+  coroutine_fn cf0 @fn9 source_return=Child step=cs2 immediate
+  coroutine_fn cf1 @fn13 source_return=LocalChild step=cs1 immediate
+  coroutine_fn cf2 @fn17 source_return=InheritedLocalChild step=cs0 immediate
+  instance mi0 function=@fn0 <- read
+  instance mi1 function=@fn2 <- LocalBase.read
+  instance mi2 function=@fn5 <- value
+  instance mi3 function=@fn6 <- LocalBase.$get$value
+  instance mi4 function=@fn7 <- Continuation.resume
+  instance mi5 function=@fn8 <- Continuation.resumeWithException
+  instance mi6 function=@fn9 <- SuspendTask.run
+  instance mi7 function=@fn10 <- SuspendRegistration.register
+  instance mi8 function=@fn11 <- Continuation.resume
+  instance mi9 function=@fn12 <- Continuation.resumeWithException
+  instance mi10 function=@fn13 <- SuspendTask.run
+  instance mi11 function=@fn14 <- SuspendRegistration.register
+  instance mi12 function=@fn15 <- Continuation.resume
+  instance mi13 function=@fn16 <- Continuation.resumeWithException
+  instance mi14 function=@fn17 <- SuspendTask.run
+  instance mi15 function=@fn18 <- SuspendRegistration.register
+  output library

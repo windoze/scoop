@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  open class A()
+    fun s
+    fun s
+  class B() : A(<0 args>)
+    fun s
+  fun main()
+    val a: A
+      Call B
+    Call println
+      MethodCall s
+        Var a
+        IntLiteral 1
+    Call println
+      MethodCall s
+        Var a
+        StringLiteral "x"

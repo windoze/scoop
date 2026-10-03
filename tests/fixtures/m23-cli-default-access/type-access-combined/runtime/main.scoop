@@ -1,0 +1,8 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(accessCombined<Int>(7) == 7)
+    verifyDefault(accessCombined<String>("value") == "value")
+    verifyDefault(accessCombined<Int>(1, box = AccessBox(11)) == 11)
+}

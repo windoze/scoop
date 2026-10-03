@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-companions/errors/name-conflict.scoop:4:22: error: companion object name `Companion` conflicts with an object in the same owner

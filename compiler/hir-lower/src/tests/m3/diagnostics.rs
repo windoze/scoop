@@ -138,7 +138,15 @@ fn generic_main_is_an_error() {
     let file = file(vec![fun_sig("main", vec!["T"], vec![], None, vec![])]);
     let errors = lower_user(file).expect_err("generic main must fail");
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].message, "`main` must not be generic");
+    assert_eq!(
+        errors[0].message,
+        "missing executable entry: declare exactly one ordinary `fun main(): Unit`"
+    );
+    assert_eq!(errors[0].notes.len(), 1);
+    assert_eq!(
+        errors[0].notes[0].message,
+        "`main` is not eligible because it is generic"
+    );
 }
 
 // --- negative: generics ---
@@ -185,7 +193,7 @@ fn conflicting_type_arguments_are_an_error() {
     assert_eq!(errors.len(), 1);
     assert_eq!(
         errors[0].message,
-        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f<T>(a: T, b: T): T — conflicting types for `T`: Int and String"
+        "no applicable candidate for `f` in current-unit top-level candidate layer:\n  - fun f<T>(a: T, b: T): T — conflicting types for `T`: String and Int"
     );
 }
 
@@ -330,7 +338,7 @@ fn desugaring_in_while_condition_has_a_repeated_setup_region() {
         ],
     )]);
     let module = lower_user(file).expect("elvis setup must remain inside the loop condition");
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main has a user body")
     };
     let hir::StatementKind::While {

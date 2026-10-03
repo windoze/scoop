@@ -30,29 +30,19 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let builder = self.builder;
         let ptr = ptr_ty(context);
         let i64_ty = context.i64_type();
-        let call_index = self.native_call_index;
-        self.native_call_index += 1;
-
         let mut entries = Vec::with_capacity(roots.len() + usize::from(result_root.is_some()));
-        for (index, root) in roots.iter().enumerate() {
+        for root in roots {
             let storage = self.root_source_storage(root.source)?;
-            let descriptor = emit_ref_scan(
-                context,
-                self.llvm,
-                &format!("{}.native.{call_index}.root.{index}", self.function.symbol),
-                root.scan.as_ref_scan(),
-            )
-            .expect("LIR caller roots always carry a non-empty scan");
+            let descriptor = self
+                .runtime_scans
+                .emit(root.scan.as_ref_scan())?
+                .ok_or_else(|| CodegenError("caller root has an empty runtime scan".to_string()))?;
             entries.push((storage.pointer, descriptor));
         }
         if let Some((storage, scan)) = result_root {
-            let descriptor = emit_ref_scan(
-                context,
-                self.llvm,
-                &format!("{}.native.{call_index}.result", self.function.symbol),
-                scan,
-            )
-            .expect("a native result root always carries a non-empty scan");
+            let descriptor = self.runtime_scans.emit(scan)?.ok_or_else(|| {
+                CodegenError("native result root has an empty runtime scan".to_string())
+            })?;
             entries.push((storage, descriptor));
         }
 
@@ -104,7 +94,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_store(frame, frame_ty.const_zero())
             .map_err(|error| CodegenError(format!("zero caller-root frame: {error}")))?;
         let push = self.native_boundary_fn(
-            "scoop_rt_push_caller_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PushCallerRoots.logical_symbol(),
             context
                 .void_type()
                 .fn_type(&[ptr.into(), ptr.into(), i64_ty.into()], false),
@@ -148,8 +138,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_ptr_to_int(transition, i64_ty, "managed_stack_pointer")
             .map_err(|error| CodegenError(format!("managed stack pointer: {error}")))?;
         let enter_symbol = match kind {
-            NativeTransitionKind::Safe => "scoop_rt_enter_native_safe",
-            NativeTransitionKind::Borrowed => "scoop_rt_enter_native_borrowed",
+            NativeTransitionKind::Safe => {
+                scoop_lir::RuntimeAbiSymbolV1::EnterNativeSafe.logical_symbol()
+            }
+            NativeTransitionKind::Borrowed => {
+                scoop_lir::RuntimeAbiSymbolV1::EnterNativeBorrowed.logical_symbol()
+            }
         };
         let enter = self.native_boundary_fn(
             enter_symbol,
@@ -182,8 +176,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let context = self.context;
         let ptr = ptr_ty(context);
         let leave_symbol = match kind {
-            NativeTransitionKind::Safe => "scoop_rt_leave_native_safe",
-            NativeTransitionKind::Borrowed => "scoop_rt_leave_native_borrowed",
+            NativeTransitionKind::Safe => {
+                scoop_lir::RuntimeAbiSymbolV1::LeaveNativeSafe.logical_symbol()
+            }
+            NativeTransitionKind::Borrowed => {
+                scoop_lir::RuntimeAbiSymbolV1::LeaveNativeBorrowed.logical_symbol()
+            }
         };
         let leave = self.native_boundary_fn(
             leave_symbol,
@@ -203,7 +201,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let context = self.context;
         let ptr = ptr_ty(context);
         let pop = self.native_boundary_fn(
-            "scoop_rt_pop_caller_roots",
+            scoop_lir::RuntimeAbiSymbolV1::PopCallerRoots.logical_symbol(),
             context.void_type().fn_type(&[ptr.into()], false),
         );
         self.builder

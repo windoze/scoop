@@ -1,0 +1,13 @@
+Module
+  class Factory vtable=0 itables=1
+  class Counter vtable=0 itables=0
+  interface Readable
+  fun primary @fn0(value: Factory) -> Counter
+    bb0 entry
+      call $call.1: Counter = external2 direct
+        Type Factory
+        Local value
+      return
+        Type Counter
+        Local $call.1
+  output library

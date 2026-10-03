@@ -5,6 +5,7 @@ use super::{PendingConst, PendingOrdinary};
 use crate::Lowerer;
 
 mod dependencies;
+mod integer_authority;
 mod integer_calls;
 mod integer_intrinsics;
 mod integer_values;
@@ -80,7 +81,6 @@ impl Lowerer {
                 modifier: hir::MethodModifier::Final,
                 is_override: false,
                 overrides: Vec::new(),
-                override_access: Vec::new(),
                 ty: declaration.ty,
                 capability,
                 representation: hir::PropertyRepresentation::Const { value: value.value },
@@ -88,11 +88,12 @@ impl Lowerer {
             });
             assert_eq!(property, expected);
             match declaration.owner {
-                hir::PropertyOwner::TopLevel => self
-                    .properties_by_name
-                    .entry(declaration.declaration.name.text.clone())
-                    .or_default()
-                    .push(property),
+                hir::PropertyOwner::TopLevel => self.top_level_namespaces.register_property(
+                    declaration.file,
+                    declaration.declaration.name.text.clone(),
+                    property,
+                    false,
+                ),
                 hir::PropertyOwner::Object(object) => {
                     let backing = self.objects[object].backing_class;
                     self.classes[backing].properties.push(property);
@@ -100,6 +101,8 @@ impl Lowerer {
                 _ => unreachable!("the const worklist contains only top-level and object values"),
             }
             self.property_files.insert(property, declaration.file);
+            self.imports
+                .bind_property(declaration.import_source, property);
         }
         self.current_owner = None;
     }
@@ -214,14 +217,47 @@ impl Lowerer {
                 let Some(target) =
                     self.find_const_definition(declarations, current_owner, &name.text, file, true)
                 else {
-                    let message = if declarations
-                        .iter()
-                        .any(|candidate| candidate.declaration.name.text == name.text)
+                    let lookup = self.lookup_value_origin(&name.text);
+                    if let crate::imports::lookup::LookupResult::Unique(
+                        crate::imports::lookup::values::ValueOrigin::Dependency(binding),
+                    ) = &lookup
                     {
+                        let imported =
+                            self.select_imported_dependency_constant(binding, name.span)?;
+                        return Some(EvaluatedConst {
+                            value: imported.value,
+                            ty: imported.ty,
+                        });
+                    }
+                    if matches!(
+                        &lookup,
+                        crate::imports::lookup::LookupResult::Ambiguous { .. }
+                    ) {
+                        self.resolve_value_origin(name).ok()?;
+                    }
+                    let message = if matches!(
+                        &lookup,
+                        crate::imports::lookup::LookupResult::Unique(_)
+                    ) {
+                        format!(
+                            "const initializer may only reference const properties; `{}` is not const",
+                            name.text
+                        )
+                    } else if declarations.iter().any(|candidate| {
+                        candidate.declaration.name.text == name.text
+                            && (candidate.owner != hir::PropertyOwner::TopLevel
+                                || self
+                                    .top_level_namespaces
+                                    .source_lookup_rank(file, candidate.file)
+                                    .is_some())
+                    }) {
                         format!("const property `{}` is not accessible here", name.text)
-                    } else if self.properties_by_name.contains_key(&name.text)
+                    } else if self.has_top_level_property_candidate(&name.text)
                         || ordinary.iter().any(|candidate| {
-                            candidate.declaration.name.text == name.text
+                            self.top_level_namespaces
+                                .source_lookup_rank(file, candidate.file)
+                                .is_some()
+                                && candidate.declaration.name.text == name.text
                                 && (candidate.access.declared != hir::DeclaredVisibility::Private
                                     || candidate.file == file)
                         })
@@ -409,6 +445,45 @@ impl Lowerer {
         fallback_to_top_level: bool,
     ) -> Option<usize> {
         let find = |wanted_owner| {
+            if wanted_owner == hir::PropertyOwner::TopLevel {
+                match self.lookup_value_origin(name) {
+                    crate::imports::lookup::LookupResult::Unique(
+                        crate::imports::lookup::values::ValueOrigin::CurrentUnit(binding),
+                    ) => {
+                        let crate::imports::CurrentUnitTarget::SourceProperty(source) =
+                            self.imports.binding(binding).target
+                        else {
+                            return None;
+                        };
+                        return declarations.iter().position(|candidate| matches!(candidate.import_source, crate::imports::PropertyImportSource::CurrentUnit(id) if id == source));
+                    }
+                    crate::imports::lookup::LookupResult::Missing
+                    | crate::imports::lookup::LookupResult::Inaccessible(_)
+                    | crate::imports::lookup::LookupResult::Unique(
+                        crate::imports::lookup::values::ValueOrigin::Core(
+                            crate::imports::lookup::values::ValueTarget::Property(_),
+                        ),
+                    ) => {}
+                    _ => return None,
+                }
+                // Embedded prelude constants have no current-unit import ids and
+                // are evaluated before their ordinary prelude properties exist.
+                let candidates = declarations
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(index, candidate)| {
+                        (!self.source_is_current_cone(candidate.file)
+                            && candidate.owner == wanted_owner
+                            && candidate.declaration.name.text == name
+                            && self.access_domain_allows(&candidate.access.lookup.0))
+                        .then_some(index)
+                    })
+                    .collect::<Vec<_>>();
+                return match candidates.as_slice() {
+                    [one] => Some(*one),
+                    _ => None,
+                };
+            }
             declarations
                 .iter()
                 .enumerate()
@@ -417,7 +492,7 @@ impl Lowerer {
                         && candidate.declaration.name.text == name
                         && (candidate.access.declared != hir::DeclaredVisibility::Private
                             || candidate.file == file
-                            || self.access_domain_allows(&candidate.access.lookup.0, None)))
+                            || self.access_domain_allows(&candidate.access.lookup.0)))
                     .then_some(index)
                 })
         };
@@ -462,10 +537,9 @@ impl Lowerer {
                         unreachable!("the outer match selected an integer unary operator")
                     }
                 };
-                if self
-                    .registered_no_gc_integer_operation(kind, operation)
-                    .is_none()
-                {
+                if !self.const_integer_operation_available(
+                    hir::IntegerIntrinsicKind::NoGcOperation { kind, operation },
+                ) {
                     self.error(
                         span,
                         "const integer operator did not resolve to the exact typed core intrinsic"
@@ -561,15 +635,6 @@ impl Lowerer {
         }
 
         let equality = matches!(operator, ast::BinOp::Eq | ast::BinOp::Ne);
-        let source_name = match operator {
-            ast::BinOp::Add => Some("plus"),
-            ast::BinOp::Sub => Some("minus"),
-            ast::BinOp::Mul => Some("times"),
-            ast::BinOp::Div => Some("div"),
-            ast::BinOp::Rem => Some("rem"),
-            ast::BinOp::Lt | ast::BinOp::Le | ast::BinOp::Gt | ast::BinOp::Ge => Some("compareTo"),
-            _ => None,
-        };
         let operand_kind = if equality {
             self.select_const_equality_integer_kind(
                 lhs,
@@ -581,19 +646,16 @@ impl Lowerer {
                 stack,
             )
         } else {
-            source_name.and_then(|source_name| {
-                self.select_const_integer_literal_receiver_kind(
-                    lhs,
-                    Some(rhs),
-                    source_name,
-                    expected,
-                    false,
+            self.select_const_binary_literal_kind(operator, lhs, expected, |kind| {
+                self.probe_const_integer_kind(
+                    rhs,
+                    Some(kind),
                     file,
                     declarations,
                     ordinary,
                     states,
                     stack,
-                )
+                ) == Some(kind)
             })
         };
         let operand_expected = operand_kind.map(|kind| self.integer_type(kind));

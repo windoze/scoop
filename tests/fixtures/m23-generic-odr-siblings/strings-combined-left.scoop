@@ -1,0 +1,9 @@
+package sibling.left
+
+import dependency.odr.*
+
+public fun left(): String = Named<Int>(20).label
+public fun leftMethod(): String = Named<Int>(20).text()
+public fun leftExtension(): String = 20.constantText
+public fun leftNested(): String = nestedConstant<Int>(20)
+public fun <T> forwarded(value: T): String = Named<T>(value).text()

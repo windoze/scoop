@@ -1,0 +1,4 @@
+public struct Box<T>(val value: T)
+public enum Maybe<T> { Empty, Full(T) }
+public struct Marker()
+public struct Numbers(val one: Box<Int>, val nested: Maybe<Box<Marker>>)

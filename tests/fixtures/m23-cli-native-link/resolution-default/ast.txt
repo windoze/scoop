@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m23_math", name = "m23_add")
+  fun add(left: Int, right: Int): Int
+  fun main()
+    @Unsafe block
+      Call println
+        Call add
+          IntLiteral 20
+          IntLiteral 22

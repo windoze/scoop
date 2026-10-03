@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  fun main()
+    val message
+      StringLiteral "program-link"
+    val answer
+      Call stage3CoreAnswer
+    if
+      Binary Ne
+        Var answer
+        IntLiteral 42
+      throw
+        Call IllegalStateException

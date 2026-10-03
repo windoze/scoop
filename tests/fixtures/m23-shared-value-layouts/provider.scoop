@@ -1,0 +1,22 @@
+package upstream.valuelayouts
+
+public interface Readable<T> {
+    public fun get(): T
+}
+
+public struct Wrapper<T>(val value: T): Readable<T> {
+    public override fun get(): T = this.value
+}
+
+public struct Indirect<T>(val value: Wrapper<T>)
+
+public enum Choice<T> {
+    Empty,
+    Value(T)
+}
+
+public struct Phantom<T>()
+
+public class Link<T> public constructor(public val value: T)
+
+public struct Reference<T>(val link: Link<T>)

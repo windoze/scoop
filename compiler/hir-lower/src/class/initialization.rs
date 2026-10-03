@@ -2,6 +2,8 @@ use super::*;
 
 use crate::InitializingReceiver;
 
+mod fields;
+
 pub(crate) struct InitializingField {
     pub(crate) read: hir::Expr,
     pub(crate) write: Option<hir::AssignTarget>,
@@ -48,13 +50,14 @@ impl Lowerer {
         let mut initialized = self.inherited_fields(owner);
         let mut stores = Vec::new();
         if primary.is_some() {
-            for &field in &self.classes[owner].fields {
+            for field in self.classes[owner].fields.clone() {
                 let declaration = &self.class_fields[field];
                 if let hir::ClassFieldSource::PrimaryParameter(parameter) = declaration.source {
+                    let span = declaration.span;
                     stores.push(hir::PrimaryFieldStore {
-                        field,
+                        field: self.initializing_class_field_reference(application, field),
                         parameter,
-                        span: declaration.span,
+                        span,
                     });
                     initialized.insert(field);
                 }
@@ -133,6 +136,7 @@ impl Lowerer {
             let lowered = self.with_constructor_expression_context(
                 constructor,
                 "secondary constructor body",
+                self.class_constructors[constructor].safety,
                 |this, _| Some(this.lower_block(&source.body)),
             );
             if let Some(lowered) = lowered {
@@ -205,6 +209,7 @@ impl Lowerer {
                             self.with_constructor_expression_context(
                                 constructor,
                                 "stored property initializer",
+                                hir::Safety::Safe,
                                 |this, sink| {
                                     if !primary_parameters_visible {
                                         this.constructor_params_in_scope.clear();
@@ -252,8 +257,11 @@ impl Lowerer {
                         hir::ClassPropertyInitializer::PrimaryParameter(_) => None,
                     };
                     if let Some(initializer) = initializer {
-                        steps.push(hir::ClassInitializationStep::StoredProperty {
-                            field,
+                        steps.push(hir::ClassInitializationStep::Field {
+                            field: self.initializing_class_field_reference(
+                                self.classes[owner].self_application,
+                                field,
+                            ),
                             initializer,
                             span: property.span,
                         });
@@ -273,6 +281,7 @@ impl Lowerer {
                     let lowered = self.with_constructor_expression_context(
                         constructor,
                         "init block",
+                        hir::Safety::Safe,
                         |this, _| {
                             if !primary_parameters_visible {
                                 this.constructor_params_in_scope.clear();
@@ -382,6 +391,7 @@ impl Lowerer {
         let lowered = self.with_constructor_expression_context(
             constructor,
             "delegated property initializer",
+            hir::Safety::Safe,
             |this, sink| {
                 if !primary_parameters_visible {
                     this.constructor_params_in_scope.clear();
@@ -404,13 +414,16 @@ impl Lowerer {
         let lowered = lowered?;
 
         let effective_ty = lowered.value.ty;
-        let field = self.class_fields.alloc(hir::ClassField {
+        let field = self.allocate_class_field(
             owner,
-            property: property_id,
-            ty: effective_ty,
-            source: hir::ClassFieldSource::Body,
-            span: property.span,
-        });
+            property_id,
+            hir::Field {
+                name: property.name.text.clone(),
+                ty: effective_ty,
+            },
+            hir::ClassFieldSource::Body,
+            property.span,
+        );
         self.classes[owner].fields.push(field);
         let storage = self.delegate_storages.alloc(hir::DelegateStorage {
             property: property_id,
@@ -419,9 +432,9 @@ impl Lowerer {
         });
         self.properties[property_id].representation =
             hir::PropertyRepresentation::Delegated { storage };
-        let step = hir::ClassInitializationStep::DelegatedProperty {
-            storage,
-            field,
+        let step = hir::ClassInitializationStep::Field {
+            field: self
+                .initializing_class_field_reference(self.classes[owner].self_application, field),
             initializer: hir::ConstructorExpression {
                 locals: lowered.locals,
                 statements: lowered.statements,
@@ -477,6 +490,7 @@ impl Lowerer {
             let lowered = self.with_constructor_expression_context(
                 constructor,
                 "struct secondary constructor body",
+                self.struct_constructors[constructor].safety,
                 |this, _| Some(this.lower_block(&source.body)),
             );
             if let Some(lowered) = lowered {
@@ -525,133 +539,5 @@ impl Lowerer {
             .collect::<Vec<_>>()
             .join(", ");
         format!("{owner}({parameters})")
-    }
-
-    pub(crate) fn initializing_receiver_type(&self) -> Option<TypeId> {
-        match &self.initialization_context.as_ref()?.receiver {
-            InitializingReceiver::Class { application, .. } => {
-                Some(self.class_applications[*application].canonical_type)
-            }
-            InitializingReceiver::Struct { application } => {
-                Some(self.struct_applications[*application].canonical_type)
-            }
-        }
-    }
-
-    pub(crate) fn initializing_field(
-        &mut self,
-        name: &ast::Ident,
-        span: ast::Span,
-    ) -> Option<InitializingField> {
-        let context = self.initialization_context.clone()?;
-        if self.capture_contexts.len() > context.capture_depth {
-            self.error(
-                span,
-                "initializing receiver cannot escape before construction completes".into(),
-            );
-            return None;
-        }
-        match context.receiver {
-            InitializingReceiver::Class {
-                application,
-                initialized,
-            } => {
-                let class = self.class_applications[application].template;
-                let Some((declaring, field, ty, mutable)) =
-                    self.find_class_application_field(application, &name.text)
-                else {
-                    self.error(
-                        name.span,
-                        format!(
-                            "class `{}` has no field `{}`",
-                            self.classes[class].name, name.text
-                        ),
-                    );
-                    return None;
-                };
-                if !initialized.contains(&field) {
-                    self.error(
-                        name.span,
-                        format!(
-                            "field `{}` is not initialized during {}; initializing receiver cannot observe a field before its store completes",
-                            name.text, context.step
-                        ),
-                    );
-                    return None;
-                }
-                let read = hir::Expr {
-                    kind: hir::ExprKind::InitializingClassFieldAccess {
-                        application: declaring,
-                        field,
-                    },
-                    ty,
-                    span,
-                    origin: self.expression_origin(span),
-                };
-                let write = mutable.then_some(hir::AssignTarget::InitializingClassField {
-                    application: declaring,
-                    field,
-                    origin: self.expression_origin(span),
-                });
-                Some(InitializingField { read, write })
-            }
-            InitializingReceiver::Struct { application } => {
-                let application_value = self.struct_applications[application].clone();
-                let structure = application_value.template;
-                let fields = self.structs[structure].semantic_fields();
-                let Some(index) = fields.iter().position(|field| field.name == name.text) else {
-                    self.error(
-                        name.span,
-                        format!(
-                            "struct `{}` has no field `{}`",
-                            self.structs[structure].name, name.text
-                        ),
-                    );
-                    return None;
-                };
-                let ty = self.instantiate_ty(fields[index].ty, &application_value.arguments);
-                Some(InitializingField {
-                    read: hir::Expr {
-                        kind: hir::ExprKind::InitializingStructFieldAccess {
-                            application,
-                            index: index as u32,
-                        },
-                        ty,
-                        span,
-                        origin: self.expression_origin(span),
-                    },
-                    write: None,
-                })
-            }
-        }
-    }
-
-    pub(crate) fn initializing_receiver_has_field(&mut self, name: &str) -> bool {
-        let Some(context) = self.initialization_context.clone() else {
-            return false;
-        };
-        match context.receiver {
-            InitializingReceiver::Class { application, .. } => self
-                .find_class_application_field(application, name)
-                .is_some(),
-            InitializingReceiver::Struct { application } => {
-                let structure = self.struct_applications[application].template;
-                self.structs[structure]
-                    .semantic_fields()
-                    .iter()
-                    .any(|field| field.name == name)
-            }
-        }
-    }
-
-    pub(crate) fn reject_initializing_this(&mut self, span: ast::Span) -> bool {
-        if self.initialization_context.is_none() {
-            return false;
-        }
-        self.error(
-            span,
-            "initializing receiver cannot escape before construction completes".into(),
-        );
-        true
     }
 }

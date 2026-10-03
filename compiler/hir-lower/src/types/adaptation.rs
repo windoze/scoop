@@ -51,6 +51,21 @@ impl Lowerer {
         }
     }
 
+    pub(crate) fn function_coercion(
+        &mut self,
+        source: hir::FunctionTypeId,
+        target: hir::FunctionTypeId,
+    ) -> hir::FunctionCoercionId {
+        if let Some(&id) = self.function_coercion_by_types.get(&(source, target)) {
+            return id;
+        }
+        let id = self
+            .function_coercions
+            .alloc(hir::FunctionCoercion { source, target });
+        self.function_coercion_by_types.insert((source, target), id);
+        id
+    }
+
     /// Adapt an expression to a target type it is a subtype of (callers
     /// check `is_subtype` first and diagnose otherwise): a value type
     /// crossing into a reference target is boxed (`ExprKind::Box`,
@@ -61,22 +76,11 @@ impl Lowerer {
             return expr;
         }
         let span = expr.span;
+        self.retain_boxing_sources(expr.ty, target, span);
         if let (Type::Function(source), Type::Function(target_type)) =
             (self.types[expr.ty].clone(), self.types[target].clone())
         {
-            let key = (source, target_type);
-            let coercion = self
-                .function_coercion_by_types
-                .get(&key)
-                .copied()
-                .unwrap_or_else(|| {
-                    let id = self.function_coercions.alloc(hir::FunctionCoercion {
-                        source,
-                        target: target_type,
-                    });
-                    self.function_coercion_by_types.insert(key, id);
-                    id
-                });
+            let coercion = self.function_coercion(source, target_type);
             return hir::Expr {
                 kind: hir::ExprKind::FunctionCoercion {
                     source: Box::new(expr),
@@ -97,11 +101,41 @@ impl Lowerer {
             }
         } else {
             hir::Expr {
-                kind: expr.kind,
+                kind: hir::ExprKind::ReferenceUpcast(Box::new(expr)),
                 ty: target,
                 span,
                 origin: self.expression_origin(span),
             }
+        }
+    }
+
+    pub(crate) fn retain_boxing_sources(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        span: ast::Span,
+    ) {
+        if self.types_equal(source, target) {
+            return;
+        }
+        if let (Type::Function(source), Type::Function(target)) =
+            (self.types[source].clone(), self.types[target].clone())
+        {
+            let source = self.function_types[source].clone();
+            let target = self.function_types[target].clone();
+            for (source, target) in source
+                .parameter_types
+                .into_iter()
+                .zip(target.parameter_types)
+            {
+                self.retain_boxing_sources(target, source, span);
+            }
+            self.retain_boxing_sources(source.return_type, target.return_type, span);
+        } else if self.is_value_ty(source)
+            && self.is_ref_ty(target)
+            && let Err(error) = self.retain_imported_box_source(source)
+        {
+            self.error(span, error.diagnostic("boxed value type"));
         }
     }
 }

@@ -1,0 +1,190 @@
+schema = 1
+name = "program-link-artifact-corruption"
+inputs = ["cone", "../../m23-program-link/read-println.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["program-link", "diagnostic", "corruption", "moving-gc", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/root"}}, {"copy" = {"from" = "${fixture}/../../m23-program-link/read-println.scoop", "to" = "${work}/sources/root/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/root", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+
+[[steps]]
+name = "run_built"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "run_built_moving"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${build.result.root.path}", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program", "--dump-plan"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${build.result.link_plan_fingerprint}"}, {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan", "normalize" = ["paths"]}]
+
+[[steps]]
+name = "preserve"
+files = [{"copy" = {"from" = "${work}/program", "to" = "${work}/previous-program"}}, {"copy" = {"from" = "${work}/artifacts/root.slib", "to" = "${work}/original.slib"}}]
+checks = []
+
+[[steps]]
+name = "original_bytes"
+checks = [{"file" = "${work}/original.slib", "sha256" = "abc9706a2970e0c12deafb3f64bcd06a84b906fa104360066e4059fcddbf7702"}]
+
+[[steps]]
+name = "damage_member"
+files = [{"chmod" = {"path" = "${work}/artifacts/root.slib", "mode" = "600"}}, {"patch" = {"path" = "${work}/artifacts/root.slib", "offset" = 5928, "hex" = "ce"}}]
+checks = []
+
+[[steps]]
+name = "member_digest"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "member_digest.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "human_member"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "human", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = "${work}/artifacts/root.slib:member/22a719111daa11487d537a6348d7c872f449fb8abb0a93470b6f3b1f4c0380ab:$.8[slib-member:22a719111daa11487d537a6348d7c872f449fb8abb0a93470b6f3b1f4c0380ab]: error[SCOOP_LINK_FAILED]: archive member 22a719111daa11487d537a6348d7c872f449fb8abb0a93470b6f3b1f4c0380ab payload digest does not match its directory record\n"
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "restore_for_truncation"
+files = [{"remove" = {"path" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${work}/original.slib", "to" = "${work}/artifacts/root.slib"}}, {"chmod" = {"path" = "${work}/artifacts/root.slib", "mode" = "600"}}]
+checks = []
+
+[[steps]]
+name = "truncate"
+files = [{"truncate" = {"path" = "${work}/artifacts/root.slib", "size" = 120241}}]
+checks = []
+
+[[steps]]
+name = "truncated"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "truncated.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "restore_for_magic"
+files = [{"remove" = {"path" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${work}/original.slib", "to" = "${work}/artifacts/root.slib"}}, {"chmod" = {"path" = "${work}/artifacts/root.slib", "mode" = "600"}}]
+checks = []
+
+[[steps]]
+name = "damage_magic"
+files = [{"patch" = {"path" = "${work}/artifacts/root.slib", "offset" = 0, "hex" = "00"}}]
+checks = []
+
+[[steps]]
+name = "bad_magic"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "bad_magic.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "remove_root"
+files = [{"remove" = {"path" = "${work}/artifacts/root.slib"}}]
+checks = []
+
+[[steps]]
+name = "missing"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "missing.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "directory_root"
+files = [{"mkdir" = {"path" = "${work}/artifacts/root.slib"}}]
+checks = []
+
+[[steps]]
+name = "wrong_type"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "wrong_type.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "remove_directory"
+files = [{"remove" = {"path" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${work}/original.slib", "to" = "${work}/artifacts/root.slib"}}, {"chmod" = {"path" = "${work}/artifacts/0.slib", "mode" = "600"}}, {"patch" = {"path" = "${work}/artifacts/0.slib", "offset" = 0, "hex" = "00"}}]
+checks = []
+
+[[steps]]
+name = "dependency_magic"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "dependency_magic.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
+
+[[steps]]
+name = "run_preserved"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "run_preserved_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

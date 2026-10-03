@@ -7,6 +7,23 @@ struct SignatureValidation {
 }
 
 impl Lowerer {
+    fn struct_has_scalar_c_abi(&self, template: hir::SourceNominalId) -> bool {
+        if let Some(definition) = self.loaded_struct_definitions.get(&template) {
+            return matches!(
+                definition.declaration.c_abi,
+                hir::NativeBoundaryCAbiV1::UInt64Field { .. }
+            );
+        }
+        [self.ffi_pinned_ptr, self.ffi_gc_handle]
+            .into_iter()
+            .flatten()
+            .any(|id| {
+                self.nominal_identity(crate::Owner::Struct(id))
+                    .declaration_id()
+                    == template
+            })
+    }
+
     pub(super) fn classify_c_ffi_type(
         &mut self,
         ty: hir::TypeId,
@@ -95,56 +112,37 @@ impl Lowerer {
             hir::Type::Struct(application) => {
                 let application = self.struct_applications[application].clone();
                 let id = application.template;
-                if self.structs[id].attributes.c_layout.is_none() {
+                if self.struct_c_layout(id).is_none() && !self.struct_has_scalar_c_abi(id) {
                     return Err(CAbiError {
                         path,
                         reason: format!(
                             "ordinary struct `{}` has no stable C layout",
-                            self.structs[id].name
+                            self.nominal_template_name(id)
                         ),
                     });
                 }
-                if !visiting.insert(resolved) {
-                    return Err(CAbiError {
-                        path,
-                        reason: "recursive by-value C layout is not finite".to_string(),
-                    });
-                }
-                let fields = self.structs[id].semantic_fields().to_vec();
-                let mut deferred = false;
-                for field in fields {
-                    let field_ty = self.instantiate_ty(field.ty, &application.arguments);
-                    let mut field_path = path.clone();
-                    field_path.push(field.name);
-                    deferred |= self.classify_c_ffi_type_inner(
-                        field_ty,
-                        &[],
-                        false,
-                        field_path,
-                        visiting,
-                        signatures,
-                    )? == Classification::Deferred;
-                }
-                visiting.remove(&resolved);
-                Ok(if deferred {
-                    Classification::Deferred
-                } else {
-                    Classification::Safe
-                })
+                let fields = self.struct_definition(id).semantic_fields().to_vec();
+                let fields = fields
+                    .into_iter()
+                    .map(|field| {
+                        (
+                            field.name,
+                            self.instantiate_ty(field.ty, &application.arguments),
+                        )
+                    })
+                    .collect();
+                self.classify_c_struct_fields(resolved, fields, path, visiting, signatures)
             }
-            hir::Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                if Some(application.template) != self.option_enumeration()
-                    || application.arguments.len() != 1
-                {
+            hir::Type::Enum(_) => {
+                let Some(argument) = self.as_option(resolved) else {
                     return Err(CAbiError {
                         path,
                         reason: "enum types have no M12 C ABI representation".to_string(),
                     });
-                }
-                match self.types[application.arguments[0]] {
+                };
+                match self.types[argument] {
                     hir::Type::Ptr(_) | hir::Type::FunPtr(_) => self.classify_c_ffi_type_inner(
-                        application.arguments[0],
+                        argument,
                         substitution,
                         false,
                         path,
@@ -208,11 +206,7 @@ impl Lowerer {
 
         if let hir::Type::Struct(application) = self.types[pointee] {
             let application = &self.struct_applications[application];
-            if self.structs[application.template]
-                .attributes
-                .c_layout
-                .is_some()
-            {
+            if self.struct_c_layout(application.template).is_some() {
                 // A pointer edge names the refined C-layout object instead of
                 // recursively embedding its fields. This permits ordinary C
                 // self-reference while by-value cycles remain rejected.
@@ -220,6 +214,41 @@ impl Lowerer {
             }
         }
         self.classify_c_ffi_type_inner(pointee, substitution, false, path, visiting, signatures)
+    }
+
+    fn classify_c_struct_fields(
+        &mut self,
+        ty: hir::TypeId,
+        fields: Vec<(String, hir::TypeId)>,
+        path: Vec<String>,
+        visiting: &mut HashSet<hir::TypeId>,
+        signatures: &mut SignatureValidation,
+    ) -> Result<Classification, CAbiError> {
+        if !visiting.insert(ty) {
+            return Err(CAbiError {
+                path,
+                reason: "recursive by-value C layout is not finite".to_owned(),
+            });
+        }
+        let mut deferred = false;
+        for (name, field) in fields {
+            let mut field_path = path.clone();
+            field_path.push(name);
+            deferred |= self.classify_c_ffi_type_inner(
+                field,
+                &[],
+                false,
+                field_path,
+                visiting,
+                signatures,
+            )? == Classification::Deferred;
+        }
+        visiting.remove(&ty);
+        Ok(if deferred {
+            Classification::Deferred
+        } else {
+            Classification::Safe
+        })
     }
 
     fn is_zero_sized_type(
@@ -258,7 +287,8 @@ impl Lowerer {
                     return None;
                 }
                 let application = self.struct_applications[application].clone();
-                let fields = self.structs[application.template]
+                let fields = self
+                    .struct_definition(application.template)
                     .semantic_fields()
                     .to_vec();
                 for field in fields {

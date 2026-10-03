@@ -1,0 +1,11 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "generic-odr-strings-consumer"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:generic-odr-provider" = "0.1.0"
+"dev.example:generic-odr-strings-left" = "0.1.0"
+"dev.example:generic-odr-strings-right" = "0.1.0"

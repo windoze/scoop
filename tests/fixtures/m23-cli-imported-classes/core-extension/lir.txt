@@ -1,0 +1,77 @@
+Module
+  enum RebuiltFlag tagged size=8 align=8 variants=()@8+0 ()@8+0
+  fun @scoop$1$cb$07d2d26ade0364ef7ad3a51c32162d8935b6d1b3c5e899a26310151b47c360aa() -> ptr<managed>
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.parameter.value: i64
+    local %2 $dependency.receiver: ptr<managed>
+    local %3 value: i64
+    local %4 flag: enum0
+    local %5 $dependency.argument.0: i64
+    local %6 $dependency.parameter.value: i64
+    local %7 $dependency.receiver: ptr<managed>
+    local %8 $dependency.argument.0: i64
+    local %9 $dependency.parameter.value: i64
+    local %10 $dependency.argument.0: i64
+    local %11 $dependency.parameter.value: i64
+    local %12 $result.0: ptr<managed>
+    local %13 $when.1: enum0
+    local %14 $pattern.subject.2: enum0
+    local %15 $pattern.subject.3: enum0
+    local %16 $new.1: ptr<managed>
+    local %17 $new.2: ptr<managed>
+    local %18 $new.3: ptr<managed>
+    local %19 $new.4: ptr<managed>
+  block entry
+    poll managed-void-target4 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000015) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t0 -> local16
+    call managed-void-target0 sp<managed-call:1> live=[local16:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn1(local16, local1)
+    t1 = aggregate () : {}
+    store local16 -> local2
+    call managed-direct-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i64 external-fn0(local2)
+    store t2 -> local3
+    t3 = enum_wrap e0 v0 () : enum0
+    store t3 -> local4
+    store local4 -> local13
+    store local13 -> local14
+    t4 = variant_test e0 v0 local14 : i1
+    cbr t4 then @pattern.pass.1 else @pattern.else.2
+  block pattern.pass.1
+    store local3 -> local5
+    store local5 -> local6
+    call managed-direct-target2 sp<managed-call:5> live=[] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t5 -> local17
+    call managed-void-target1 sp<managed-call:6> live=[local17:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn1(local17, local6)
+    t6 = aggregate () : {}
+    store local17 -> local7
+    call managed-direct-target3 sp<managed-call:7> live=[local7:ptr<managed>@0] t7 = sig=direct3 (ptr<managed>) -> i64 external-fn0(local7)
+    store t7 -> local8
+    store local8 -> local9
+    call managed-direct-target4 sp<managed-call:8> live=[] t8 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    store t8 -> local18
+    call managed-void-target2 sp<managed-call:9> live=[local18:ptr<managed>@0] sig=void2 (ptr<managed>, i64) external-fn2(local18, local9)
+    t9 = aggregate () : {}
+    store local18 -> local12
+    br @pattern.merge.3
+  block pattern.else.2
+    store local13 -> local15
+    t10 = variant_test e0 v1 local15 : i1
+    cbr t10 then @pattern.pass.4 else @pattern.else.5
+  block pattern.merge.3
+    ret local12
+  block pattern.pass.4
+    store integer<Long>(0x0000000000000000) -> local10
+    store local10 -> local11
+    call managed-direct-target5 sp<managed-call:3> live=[] t11 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    store t11 -> local19
+    call managed-void-target3 sp<managed-call:4> live=[local19:ptr<managed>@0] sig=void3 (ptr<managed>, i64) external-fn2(local19, local11)
+    t12 = aggregate () : {}
+    store local19 -> local12
+    br @pattern.merge.6
+  block pattern.else.5
+    unreachable
+  block pattern.merge.6
+    br @pattern.merge.3
+  output library

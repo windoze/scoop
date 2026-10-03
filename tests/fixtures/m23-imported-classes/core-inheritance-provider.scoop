@@ -1,0 +1,4 @@
+
+public open class RebuiltParent public constructor(public val seed: Long = 21) {
+    public open fun read(): Long = seed + stage3CoreAnswer() - 43
+}

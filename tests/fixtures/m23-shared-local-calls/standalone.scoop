@@ -1,0 +1,49 @@
+package consumer.localcalls
+
+private class Trace(var value: Int)
+
+public fun <T, U> choose(seed: T, marker: U): T {
+    fun <V> pick(tag: V, depth: Int): T {
+        if (depth > 0) { return pick<V>(tag, depth - 1) }
+        return seed
+    }
+    fun recur(depth: Int): T {
+        if (depth > 0) { return recur(depth - 1) }
+        val self: (Int) -> T = ::recur
+        return pick<U>(marker, 0)
+    }
+    fun finish(value: T = recur(2)): T { return value }
+    return finish()
+}
+
+public fun <T> measure(seed: T, inspect: (T) -> Int): Int {
+    val base = inspect(seed) / 2
+    val trace = Trace(0)
+    fun step(value: Int): Int {
+        trace.value = trace.value * 10 + value
+        return value
+    }
+    fun combine(first: Int = base, second: Int = first): Int = first + second
+    fun sum(vararg values: Int): Int {
+        var result = 0
+        var index: Long = 0
+        while (index < values.size) {
+            result = result + values[index]
+            index = index + 1
+        }
+        return result
+    }
+    if (combine(second = step(2), first = step(1)) != 3 || trace.value != 21) { return 1 }
+    if (combine() != 42 || sum() != 0) { return 2 }
+    return sum(base, *[base])
+}
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val first = choose<T, Unit>(seed, Unit)
+    val second = choose<T, String>(seed, "complete")
+    fun read(value: T = second): T { return value }
+    if (inspect(first) != 42 || inspect(read()) != 42) { return 1 }
+    return measure<T>(seed, inspect)
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

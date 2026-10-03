@@ -1,0 +1,30 @@
+SourceFile
+  QualifiedPackage dependency.nominals
+  public enum Parcel<T>
+    Empty
+    Item(T)
+  public fun pack<T>(value: T): Parcel<T>
+    =
+      MethodCall Item
+        Var Parcel
+        Var value
+  public fun unpack<T>(value: Parcel<T>, fallback: T): T
+    =
+      WhenExpression
+        Var value
+        arm Empty
+          Var fallback
+        arm Item(item)
+          Var item
+  public fun relay<T>(value: Parcel<T>): Parcel<T>
+    =
+      Var value
+  public fun nested<T>(value: T): Parcel<Parcel<T>>
+    =
+      Call pack
+        Call pack
+          Var value
+  public enum ReferenceParcel<T : ref>
+    Item(T)
+  public enum ValueParcel<T : value>
+    Item(T)

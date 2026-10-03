@@ -1,0 +1,51 @@
+SourceFile
+  QualifiedPackage consumer.parents
+  ImportExact Local dependency.parents.Base
+  ImportExact Local dependency.parents.Reader
+  ImportExact Local dependency.parents.ReadingBase
+  public interface ClosedReader : Reader<Int>
+  public class Combined(value: Int) : ReadingBase<Int>(<1 args>), ClosedReader
+    public fun read
+  public struct Payload<T>
+    field value: T
+  public class Nested(value: Int) : Base<Payload<Int>>(<1 args>)
+  private class Hidden(val number: Int)
+  private class HiddenChild(value: Hidden) : Base<Hidden>(<1 args>)
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val reader: Reader<Int>
+      Call Combined
+        Binary Sub
+          Call read
+            Var seed
+          IntLiteral 1
+    return
+      MethodCall again
+        Var reader
+  public fun result(): Int
+    val nested: Base<Payload<Int>>
+      Call Nested
+        IntLiteral 42
+    if
+      Binary Ne
+        FieldAccess value
+          MethodCall read
+            Var nested
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val reader: ClosedReader
+      Call Combined
+        IntLiteral 41
+    if
+      Binary Ne
+        MethodCall again
+          Var reader
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      FieldAccess number
+        MethodCall read
+          Call HiddenChild
+            Call Hidden
+              IntLiteral 42

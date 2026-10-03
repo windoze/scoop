@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign value of type Counter to property `value` of type Long",
+    "notes": [],
+    "origin": {
+      "cone": "a2a86ed83a7d4109f69f38ee7b23dd2809df500f101aac2de25814e0dc731a09",
+      "end": 99,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 88
+    },
+    "severity": "error"
+  }
+]

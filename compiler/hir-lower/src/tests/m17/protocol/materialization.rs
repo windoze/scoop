@@ -130,50 +130,146 @@ fn every_source_callable_and_constructor_uses_explicit_temporaries() {
     }
 }
 
-#[test]
-fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
+fn callback_registration(mode: &str) -> ast::Expr {
+    callback_registration_with_value(mode, ty_named("Int"))
+}
+
+fn callback_registration_with_value(mode: &str, value_type: ast::TypeRef) -> ast::Expr {
     let native_signature = ty_function(
         false,
-        vec![ty_named("Int"), ty_generic("Ptr", vec![ty_named("Unit")])],
-        ty_named("Int"),
+        vec![
+            value_type.clone(),
+            ty_generic("Ptr", vec![ty_named("Unit")]),
+        ],
+        value_type.clone(),
     );
     let callback = ast::Expr::Lambda {
         id: ast::LambdaId(0),
         is_suspend: false,
         parameters: Some(vec![ast::LambdaParam {
             target: pat_bind("value"),
-            ty: Some(ty_named("Int")),
+            ty: Some(value_type),
             span: sp(),
         }]),
         body: block(vec![stmt(var("value"))]),
         span: sp(),
     };
-    let registration = typed_source_call(
+    typed_source_call(
         "foreignCallback",
         vec![native_signature],
         vec![
-            named_argument("mode", field(var("ForeignCallbackMode"), "Reusable")),
+            named_argument("mode", field(var("ForeignCallbackMode"), mode)),
             named_argument("callback", callback),
             named_argument("contextIndex", int_lit(1)),
         ],
-    );
-    let module = lower_user(file(vec![fun(
-        "main",
-        vec![unsafe_block(vec![val("registered", registration)])],
-    )]))
-    .expect("named callback arguments should survive explicit materialization");
+    )
+}
 
-    let (_, registration) = module
+fn callback_registration_source() -> ast::SourceFile {
+    file(vec![fun(
+        "main",
+        vec![unsafe_block(vec![val(
+            "registered",
+            callback_registration("Reusable"),
+        )])],
+    )])
+}
+
+fn rebuild_callback_identities(
+    module: &hir::Module,
+) -> Result<hir::HirCallbackRegistrationIdentities, hir::HirCallbackRegistrationIdentityError> {
+    hir::HirCallbackRegistrationIdentities::from_registrations(
+        hir::HirCallbackRegistrationIdentityInputs {
+            registrations: &module.foreign_callback_registrations,
+            functions: &module.functions,
+            lambdas: &module.lambdas,
+            anonymous_functions: &module.anonymous_functions,
+            local_functions: &module.local_functions,
+            class_constructors: &module.class_constructors,
+            struct_constructors: &module.struct_constructors,
+            function_identities: &module.function_identities,
+            property_accessor_identities: &module.property_accessor_identities,
+            constructor_identities: &module.constructor_identities,
+            enum_member_identities: &module.enum_member_identities,
+            type_inputs: hir::HirTypeIdentityInputs {
+                types: &module.types,
+                function_types: &module.function_types,
+                structs: &module.structs,
+                struct_applications: &module.struct_applications,
+                enums: &module.enums,
+                loaded_enum_definitions: &module.loaded_enum_definitions,
+                loaded_struct_definitions: &module.loaded_struct_definitions,
+                loaded_class_definitions: &module.loaded_class_definitions,
+                loaded_interface_definitions: &module.loaded_interface_definitions,
+                enum_applications: &module.enum_applications,
+                classes: &module.classes,
+                class_applications: &module.class_applications,
+                interfaces: &module.interfaces,
+                interface_applications: &module.interface_applications,
+                objects: &module.objects,
+                core_types: hir::HirCoreTypeIdentityAuthority::Defined(
+                    &defined_export_core(module).fundamental_types,
+                ),
+                nominal_identities: &module.nominal_identities,
+            },
+            unit: module.unit,
+        },
+    )
+}
+
+#[test]
+fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
+    let source = callback_registration_source();
+    let mut shifted_source = source.clone();
+    shifted_source
+        .declarations
+        .insert(0, fun("unrelated", vec![]));
+    let module = lower_user(source)
+        .expect("named callback arguments should survive explicit materialization");
+    let shifted = lower_user(shifted_source)
+        .expect("an unrelated declaration must not affect callback identity");
+
+    let (registration_id, registration) = module
         .foreign_callback_registrations
         .iter()
         .next()
         .expect("one callback registration");
-    assert_eq!(registration.context_index, 1);
     assert_eq!(
-        registration.mode,
-        module.foreign_callback_core.modes.reusable()
+        definition_path(&registration.definition_path),
+        vec![(
+            scoop_identity::StructuralDefinitionSiteRole::CallbackConversion,
+            0,
+        )]
     );
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    assert_eq!(registration.context_index, 1);
+    assert_eq!(registration.mode, scoop_identity::CallbackMode::Reusable);
+    let identity = &module.callback_registration_identities[registration_id];
+    let shifted_identity = shifted
+        .callback_registration_identities
+        .records()
+        .first()
+        .expect("the shifted module has one callback identity");
+    assert_eq!(identity, shifted_identity);
+    assert_eq!(module.callback_registration_identities.records().len(), 1);
+    assert_eq!(identity.key().context_index().get(), 1);
+    assert_eq!(
+        identity.key().mode(),
+        scoop_identity::CallbackMode::Reusable
+    );
+    assert_eq!(identity.key().source_signature().parameters().len(), 2);
+    assert!(matches!(
+        identity.key().source_signature().result(),
+        scoop_identity::SourceCAbiReturn::Value(_)
+    ));
+    assert_eq!(identity.key().managed_signature().parameters().len(), 1);
+    assert_eq!(
+        identity.key().parent(),
+        module.function_identities[module.entry()]
+            .source_identity()
+            .expect("main has a source identity")
+            .lexical_parent()
+    );
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main has a user body")
     };
     let dump = hir::dump(&module);
@@ -182,6 +278,122 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         local_init(main, "registered").kind,
         hir::ExprKind::ForeignCallbackRegister { .. }
     ));
+}
+
+#[test]
+fn callback_signature_adds_its_source_nominals_to_the_native_boundary_witness() {
+    let mut payload = struct_decl("CallbackPayload", vec![("value", ty_named("Int"))]);
+    let Decl::Struct(declaration) = &mut payload else {
+        unreachable!("struct_decl creates a struct")
+    };
+    declaration.annotations.push(ast::Annotation {
+        name: ident("CLayout"),
+        args: Vec::new(),
+        span: sp(),
+    });
+    let without_callback = lower_user_output(file(vec![payload.clone(), fun("main", vec![])]))
+        .expect("the unused callback payload lowers");
+    let with_callback = lower_user_output(file(vec![
+        payload,
+        fun(
+            "main",
+            vec![unsafe_block(vec![val(
+                "registered",
+                callback_registration_with_value("Reusable", ty_named("CallbackPayload")),
+            )])],
+        ),
+    ]))
+    .expect("the callback payload is C-safe and lowers");
+    let module = with_callback.export.module();
+    let payload = module
+        .structs
+        .iter()
+        .find_map(|(id, declaration)| (declaration.name == "CallbackPayload").then_some(id))
+        .expect("CallbackPayload declaration exists");
+    let owner = hir::NativeBoundaryNominalOwner::Concrete(
+        module.nominal_identities[payload]
+            .concrete_type_id()
+            .expect("CallbackPayload is a concrete source nominal"),
+    );
+
+    assert!(
+        without_callback
+            .native_boundary_types
+            .records()
+            .iter()
+            .all(|record| record.owner() != owner)
+    );
+    let record = with_callback
+        .native_boundary_types
+        .records()
+        .iter()
+        .find(|record| record.owner() == owner)
+        .expect("callback signature contributes its payload witness");
+    assert!(matches!(
+        record.shape(),
+        hir::NativeBoundaryNominalShape::Struct {
+            c_layout: hir::NativeBoundaryCLayoutPolicy::CLayout {
+                aligned: scoop_identity::CLayoutOverride::Natural,
+                packed: scoop_identity::CLayoutOverride::Natural,
+            },
+            fields,
+        } if fields.len() == 1
+    ));
+}
+
+#[test]
+fn callback_identity_relation_rejects_an_invalid_context_parameter() {
+    let mut module = lower_user(callback_registration_source())
+        .expect("the callback registration fixture lowers")
+        .into_module();
+    let (registration, _) = module
+        .foreign_callback_registrations
+        .iter()
+        .next()
+        .expect("one callback registration");
+    module.foreign_callback_registrations[registration].context_index = u32::MAX;
+
+    let error = rebuild_callback_identities(&module)
+        .expect_err("the context parameter must belong to the native signature");
+    assert!(error.to_string().contains("context index is out of bounds"));
+}
+
+#[test]
+fn callback_identity_uses_the_nearest_local_callable_parent() {
+    let local = local_fun_sig(
+        "install",
+        vec![],
+        vec![],
+        None,
+        vec![unsafe_block(vec![val(
+            "registered",
+            callback_registration("OneShot"),
+        )])],
+    );
+    let module = lower_user(file(vec![fun("main", vec![local])]))
+        .expect("a callback conversion inside a local function lowers");
+    let local_function = module
+        .functions
+        .iter()
+        .find_map(|(function, declaration)| {
+            declaration.name.ends_with(".install").then_some(function)
+        })
+        .expect("the local source function exists");
+    let (registration, _) = module
+        .foreign_callback_registrations
+        .iter()
+        .next()
+        .expect("one callback registration");
+    let identity = &module.callback_registration_identities[registration];
+
+    assert_eq!(
+        identity.key().parent(),
+        module.function_identities[local_function]
+            .source_identity()
+            .expect("the local function has a source identity")
+            .lexical_parent()
+    );
+    assert_eq!(identity.key().mode(), scoop_identity::CallbackMode::OneShot);
 }
 
 #[test]
@@ -216,10 +428,7 @@ fn local_default_uses_definition_binding_and_prior_parameter() {
     let dump = hir::dump(&module);
     assert!(dump.contains("Local base : Int"), "{dump}");
     assert!(dump.contains("Local $parameter.first : Int"), "{dump}");
-    assert!(
-        dump.contains("LocalFunctionCall local0 $local.0.choose"),
-        "{dump}"
-    );
+    assert!(dump.contains("Call $local.0.choose"), "{dump}");
 }
 
 #[test]

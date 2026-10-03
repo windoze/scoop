@@ -1,0 +1,10 @@
+public struct Marker() {}
+private struct Storage(val flag: Boolean)
+public struct Payload(val marker: Marker, val flag: Boolean)
+public class Box(val value: Payload) {
+    private val storage: Storage = Storage(true)
+}
+public enum Choice { Empty, Full(Payload) }
+
+public fun read(box: Box, label: String): Payload = box.value
+public fun pass(value: Choice, marker: Marker): Choice = value

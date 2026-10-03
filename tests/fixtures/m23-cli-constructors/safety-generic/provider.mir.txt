@@ -1,0 +1,241 @@
+Module
+  struct Pair<Int> (value: Int, count: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Mixed>
+    Completed(value: Mixed)
+    Suspended()
+  enum CoroutineSlot<Mixed>
+    Empty()
+    Value(value: Mixed)
+  class Mixed vtable=0 itables=0
+  class Box<Int> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Mixed>
+  interface SuspendTask<Mixed>
+  interface SuspendRegistration<Mixed>
+  generated_exact_type get0 location=enum1 nominal_id=883ce80e040003f7b6cdc2fde7a583eda93ba97876661aa8a0493e6f72b7a511 exact_id=2618106a979284e093d2dfc129c69f544e04452cef33595f91b93c14a337ca0c
+  generated_exact_type get1 location=enum2 nominal_id=ccaf83b4ed6bbc8e7d18602d7119c98c58fa05a030e7170484f7b4b97189df0f exact_id=763fd294573e3106fd9338468b940f5e75559a44fc31cd8b2a91dbb005343161
+  generated_callable gc0 function=@fn12 id=df06a79674238a23f54bb1698954b1be1152ef13d80ab94540acb2f93d106401
+  fun dangerous @fn0() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn8 direct
+        Type Box<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val box: Box<Int>
+        Type Box<Int>
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.count: Int
+        Type Int
+        Local $argument.1
+      assign $new.2
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn9 direct
+        Type Box<Int>
+        Local $new.2
+        Type Int
+        Local $parameter.value
+        Type Int
+        Local $parameter.count
+      val alternate: Box<Int>
+        Type Box<Int>
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call pair: Pair<Int> = @fn10 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Mixed
+        ClassAlloc Mixed
+      call @fn6 direct
+        Type Mixed
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val mixed: Mixed
+        Type Mixed
+        Local $new.3
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      assign $new.4
+        Type Mixed
+        ClassAlloc Mixed
+      call @fn7 direct
+        Type Mixed
+        Local $new.4
+        Type Boolean
+        Local $parameter.value
+      val safe: Mixed
+        Type Mixed
+        Local $new.4
+      return
+  fun Continuation.resume @fn2(this: Continuation<Mixed>, value: Mixed) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn3(this: Continuation<Mixed>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn4(this: SuspendTask<Mixed>, $completion: Continuation<Mixed>) -> CoroutineStep<Mixed>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn5(this: SuspendRegistration<Mixed>, continuation: Continuation<Mixed>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Mixed.$c2 @fn6(this: Mixed, value: Int) -> Unit
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+      call $call.2: Int = @fn0 direct
+      return
+  fun init.Mixed.$c3 @fn7(this: Mixed, value: Boolean) -> Unit
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+      return
+  fun init.Box.$c0 @fn8(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      call $call.1: Int = @fn0 direct
+      return
+  fun init.Box.$c1 @fn9(this: Box<Int>, value: Int, count: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn8 direct
+        Type Box<Int>
+        Local this
+        Type Int
+        Local $parameter.value
+      call $call.1: Int = @fn0 direct
+      return
+  fun ctor.Pair.$c1 @fn10(value: Int) -> Pair<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      call $argument.1: Int = @fn0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.count: Int
+        Type Int
+        Local $argument.1
+      call $this: Pair<Int> = @fn11 direct
+        Type Int
+        Local $parameter.value
+        Type Int
+        Local $parameter.count
+      call $call.1: Int = @fn0 direct
+      return
+        Type Pair<Int>
+        Local $this
+  fun ctor.Pair.$c0 @fn11(value: Int, count: Int) -> Pair<Int> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Int>
+        StructInit Pair<Int>
+          Type Int
+          Local value
+          Type Int
+          Local count
+  fun startCoroutine<Mixed> @fn12(task: SuspendTask<Mixed>, completion: Continuation<Mixed>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn2 interface Continuation<Mixed>[0]
+        Type Continuation<Mixed>
+        Local completion
+        Type Mixed
+        EnumField v0 f0
+          Type CoroutineStep<Mixed>
+          Local $step
+      return
+    bb2 failed
+      call @fn3 interface Continuation<Mixed>[1]
+        Type Continuation<Mixed>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Mixed> = @fn4 interface SuspendTask<Mixed>[0]
+        Type SuspendTask<Mixed>
+        Local task
+        Type Continuation<Mixed>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Mixed>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Mixed> result=Mixed
+  coroutine_slot cl0 CoroutineSlot<Mixed> value=Mixed
+  coroutine_start ct0 result=Mixed function=fn12
+  coroutine_fn cf0 @fn4 source_return=Mixed step=cs0 immediate
+  instance mi0 function=@fn2 <- Continuation.resume
+  instance mi1 function=@fn3 <- Continuation.resumeWithException
+  instance mi2 function=@fn4 <- SuspendTask.run
+  instance mi3 function=@fn5 <- SuspendRegistration.register
+  output library

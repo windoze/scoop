@@ -1,0 +1,9 @@
+package upstream.hostproperties
+
+public class Item<T> public constructor(public val value: T) {
+    public fun read(): T = value
+}
+
+public open class Base<T> public constructor(public val item: Item<T>)
+public class Host<T> public constructor(item: Item<T>, public val action: () -> T) : Base<T>(item)
+public class Hidden<T> public constructor(private val item: Item<T>)

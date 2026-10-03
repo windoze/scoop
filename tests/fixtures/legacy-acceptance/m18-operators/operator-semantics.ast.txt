@@ -1,0 +1,239 @@
+SourceFile
+  RootPackage
+  struct Score
+    field value: Int
+    operator fun unaryPlus
+    operator fun unaryMinus
+    operator fun inc
+    operator fun dec
+    operator fun plus
+    operator fun minus
+    operator fun times
+    operator fun div
+    operator fun rem
+    operator fun rangeTo
+    operator fun rangeUntil
+    operator fun compareTo
+  operator fun Score.times(scale: Int): Score
+    =
+      Call Score
+        Binary Mul
+          Var value
+          Var scale
+  infix fun Score.merge(other: Score): Score
+    =
+      Binary Add
+        This
+        Var other
+  class Bag(val expected: Int)
+    operator fun contains
+  class Cell(var value: Int)
+    operator fun get
+    operator fun set
+    operator fun plusAssign
+  class Coordinates(val x: Int, val y: Int)
+    operator fun component1
+    operator fun component2
+  fun markScore(label: String, value: Int): Score
+    Call println
+      Var label
+    return
+      Call Score
+        Var value
+  fun markBag(label: String, expected: Int): Bag
+    Call println
+      Var label
+    return
+      Call Bag
+        Var expected
+  fun makeCell(): Cell
+    Call println
+      StringLiteral "cell-receiver"
+    return
+      Call Cell
+        IntLiteral 0
+  fun markIndex(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  fun main()
+    val positive
+      Unary Plus
+        Call Score
+          IntLiteral 2
+    val negative
+      Unary Neg
+        Var positive
+    Call println
+      FieldAccess value
+        Var positive
+    Call println
+      FieldAccess value
+        Var negative
+    var updated
+      Call Score
+        IntLiteral 5
+    Call println
+      FieldAccess value
+        Update Postfix Increment
+          Place updated
+    Call println
+      FieldAccess value
+        Var updated
+    Call println
+      FieldAccess value
+        Update Prefix Increment
+          Place updated
+    Call println
+      FieldAccess value
+        Update Postfix Decrement
+          Place updated
+    Call println
+      FieldAccess value
+        Var updated
+    Call println
+      FieldAccess value
+        Binary Sub
+          Call Score
+            IntLiteral 9
+          Call Score
+            IntLiteral 4
+    Call println
+      FieldAccess value
+        Binary Mul
+          Call Score
+            IntLiteral 3
+          Call Score
+            IntLiteral 4
+    Call println
+      FieldAccess value
+        Binary Div
+          Call Score
+            IntLiteral 12
+          Call Score
+            IntLiteral 3
+    Call println
+      FieldAccess value
+        Binary Rem
+          Call Score
+            IntLiteral 14
+          Call Score
+            IntLiteral 4
+    Call println
+      FieldAccess value
+        Binary Mul
+          Call Score
+            IntLiteral 3
+          IntLiteral 5
+    Call println
+      FieldAccess value
+        Binary RangeTo
+          Call Score
+            IntLiteral 3
+          Call Score
+            IntLiteral 8
+    Call println
+      FieldAccess value
+        Binary RangeUntil
+          Call Score
+            IntLiteral 3
+          Call Score
+            IntLiteral 8
+    Call println
+      Binary Lt
+        Call Score
+          IntLiteral 2
+        Call Score
+          IntLiteral 3
+    Call println
+      Binary Ge
+        Call Score
+          IntLiteral 3
+        Call Score
+          IntLiteral 3
+    Call println
+      Binary Contains
+        Call Score
+          IntLiteral 7
+        Call Bag
+          IntLiteral 7
+    Call println
+      Binary NotContains
+        Call Score
+          IntLiteral 8
+        Call Bag
+          IntLiteral 7
+    Call println
+      FieldAccess value
+        InfixCall merge
+          InfixCall merge
+            Call Score
+              IntLiteral 1
+            Call Score
+              IntLiteral 2
+          Call Score
+            IntLiteral 3
+    Call println
+      FieldAccess value
+        Binary Add
+          Call markScore
+            StringLiteral "left"
+            IntLiteral 1
+          Call markScore
+            StringLiteral "right"
+            IntLiteral 2
+    Call println
+      Binary Contains
+        Call markScore
+          StringLiteral "item"
+          IntLiteral 7
+        Call markBag
+          StringLiteral "container"
+          IntLiteral 7
+    compound-assign Add
+      Call Score
+        IntLiteral 10
+    Call println
+      FieldAccess value
+        Var updated
+    val cell
+      Call Cell
+        IntLiteral 1
+    compound-assign Add
+      IntLiteral 4
+    assign []
+      Var cell
+      IntLiteral 1
+      IntLiteral 2
+      IntLiteral 10
+    Call println
+      Index
+        Var cell
+        IntLiteral 1
+    assign []
+      Call makeCell
+      Call markIndex
+        StringLiteral "row"
+        IntLiteral 1
+      Call markIndex
+        StringLiteral "column"
+        IntLiteral 2
+      Call markIndex
+        StringLiteral "set-value"
+        IntLiteral 10
+    val (x, y)
+      Call Coordinates
+        IntLiteral 20
+        IntLiteral 22
+    Call println
+      Binary Add
+        Var x
+        Var y
+    Call println
+      Binary Lt
+        StringLiteral "alpha"
+        StringLiteral "beta"
+    Call println
+      Unary Not
+        BoolLiteral false

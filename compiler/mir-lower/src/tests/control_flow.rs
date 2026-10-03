@@ -29,8 +29,7 @@ fn loop_header_poll_blocks(body: &mir::Body) -> Vec<mir::BlockId> {
 #[test]
 fn try_and_throw_become_explicit_cfg() {
     // try { throw MyError() } catch (e: MyError) { 1 } finally { 2 }
-    // — MIR keeps the structured form (DESIGN 3.3); the
-    // control-flow expansion is LIR's job.
+    // MIR expands handlers and cleanup into explicit control flow.
     let mut h = Harness::new();
     let my_error = h.exception("MyError");
     let error_ty = h.class_ty(my_error);
@@ -38,7 +37,11 @@ fn try_and_throw_become_explicit_cfg() {
         .class_constructor_applications
         .iter()
         .find_map(|(id, app)| {
-            (app.constructor == h.classes[my_error].constructors[0]).then_some(id)
+            (app.constructor
+                == scoop_hir::ClassConstructorDefinition::Local(
+                    h.classes[my_error].constructors[0],
+                ))
+            .then_some(id)
         })
         .expect("exception primary constructor application");
     let mut locals = Arena::new();
@@ -67,74 +70,7 @@ fn try_and_throw_become_explicit_cfg() {
     );
     let module = lower(&h.finish(main));
 
-    let expected = "\
-Module mangling=compact-v2
-  class MyError vtable=0 itables=0
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      goto bb8
-    bb1 try.unwind.1
-      landing_pad cleanup=false
-      goto bb2
-    bb2 try.dispatch.2
-      begin_catch
-      branch bb9 bb10
-        Type Boolean
-        IsInstance MyError
-          Type Any
-          CaughtException
-    bb3 try.handler_pad.3
-      landing_pad cleanup=true
-      goto bb4
-    bb4 try.handler_cleanup.4
-      end_catch
-      Type Int
-      IntegerLiteral Int value=2 bits=0x00000002
-      resume
-    bb5 try.exit_pad.5
-      landing_pad cleanup=true
-      goto bb6
-    bb6 try.exit_cleanup.6
-      end_catch
-      resume
-    bb7 try.end.7
-      return
-    bb8 try.body.8 unwind bb1
-      assign $new.1
-        Type MyError
-        ClassAlloc MyError
-      call @scoop.init.MyError.$c0 direct
-        Type MyError
-        Local $new.1
-      throw unwind bb1
-        Type MyError
-        Local $new.1
-    bb9 try.catch.9
-      val e: MyError
-        Type MyError
-        Retype MyError
-          Type Any
-          CaughtException
-      goto bb11
-    bb10 try.next.10 unwind bb5
-      Type Int
-      IntegerLiteral Int value=2 bits=0x00000002
-      rethrow unwind bb5
-    bb11 scope.11 unwind bb3
-      Type Int
-      IntegerLiteral Int value=1 bits=0x00000001
-      end_catch
-      goto bb12
-    bb12 scope.12
-      Type Int
-      IntegerLiteral Int value=2 bits=0x00000002
-      goto bb7
-  fun init.MyError.$c0 @scoop.init.MyError.$c0(this: MyError) -> Unit
-    bb0 entry
-      return
-  entry @scoop_main
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("try_and_throw_become_explicit_cfg", &module);
 }
 
 #[test]
@@ -165,7 +101,11 @@ fn typed_and_builtin_unary_operators_map_to_mir_unops() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let [integer, boolean] = entry_statements(body) else {
         panic!("expected the two unary expression statements")
     };
@@ -232,7 +172,11 @@ fn field_access_uses_zero_based_indices() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     for statement in entry_statements(body) {
         let mir::StatementKind::ValDecl { init, .. } = &statement.kind else {
             panic!("expected a val declaration")
@@ -269,7 +213,11 @@ fn control_flow_becomes_cfg_and_marks_the_loop_header_poll() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     assert!(matches!(
         body.blocks[body.entry].terminator,
         mir::Terminator::Branch { .. }
@@ -325,7 +273,11 @@ fn loop_header_poll_owns_while_condition_setup_and_the_backedge() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = body
         .blocks
         .iter()
@@ -416,7 +368,11 @@ fn terminating_while_still_marks_its_loop_header_poll() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     assert_eq!(
         body.blocks.len(),
@@ -471,7 +427,11 @@ fn direct_setup_break_preserves_the_loop_header_poll_and_exit_target() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = block_id_named(body, "while.cond");
     let exit = block_id_named(body, "while.exit");
 
@@ -524,7 +484,11 @@ fn loop_body_transfers_keep_one_loop_header_poll_target_without_merge_fallthroug
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = block_id_named(body, "while.cond");
     let exit = block_id_named(body, "while.exit");
     let then_block = block_named(body, "if.then");
@@ -579,7 +543,11 @@ fn outer_break_runs_finally_before_reaching_the_loop_exit() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let exit = block_id_named(body, "while.exit");
     let try_body = block_named(body, "try.body");
 
@@ -804,7 +772,11 @@ fn catch_break_ends_the_catch_once_then_runs_finally_before_loop_exit() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let exit = block_id_named(body, "while.exit");
     let catch = block_named(body, "try.catch");
     let mir::Terminator::Goto(catch_body) = &catch.terminator else {
@@ -905,7 +877,11 @@ fn transfer_from_cleanup_free_try_nested_in_catch_reaches_outer_cleanup() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let exit = block_id_named(body, "while.exit");
     let normal_outer_catch_exit = body
         .blocks
@@ -959,7 +935,11 @@ fn finally_return_overrides_a_pending_setup_break_without_opening_the_exit() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let exit = block_id_named(body, "while.exit");
 
     assert!(matches!(
@@ -1017,7 +997,11 @@ fn nested_finally_loops_mark_every_loop_header_poll_target() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let outer_exit = block_id_named(body, "while.exit");
     let inner_body = block_id_named(body, "while.body");
     let concrete_headers = body
@@ -1078,8 +1062,7 @@ fn pattern_decision_with_two_abrupt_arms_keeps_its_merge_unreachable() {
                             subject: local_ref(subject, option_boolean),
                             arms: vec![hir::WhenArm {
                                 pattern: hir::Pattern::Variant {
-                                    application: option_application,
-                                    variant: 0,
+                                    application: h.enum_variant_ref(option_application, 0),
                                     fields: vec![(0, hir::Pattern::Wildcard)],
                                 },
                                 guard: None,
@@ -1099,7 +1082,11 @@ fn pattern_decision_with_two_abrupt_arms_keeps_its_merge_unreachable() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = block_id_named(body, "while.cond");
     let exit = block_id_named(body, "while.exit");
     let pass = block_named(body, "pattern.pass");
@@ -1161,7 +1148,11 @@ fn while_condition_prelude_is_owned_by_the_header_and_reentered_by_the_backedge(
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let header = body
         .blocks
         .iter()

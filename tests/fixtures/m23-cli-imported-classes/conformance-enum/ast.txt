@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Readable
+  public enum LocalReader : Readable
+    Ready
+    Empty
+  public fun primary(): Counter
+    val reader: Readable
+      FieldAccess Ready
+        Var LocalReader
+    return
+      Call Counter
+        MethodCall answer
+          Var reader

@@ -30,8 +30,9 @@ impl Lowerer {
                     for constructor in &declaration.constructors {
                         let constructor = &self.struct_constructors[*constructor];
                         types.extend(constructor.parameters.iter().map(|parameter| parameter.ty));
-                        if let hir::StructConstructorKind::Secondary { delegation, body } =
-                            &constructor.kind
+                        if let hir::StructConstructorKind::Secondary {
+                            delegation, body, ..
+                        } = &constructor.kind
                         {
                             collect_constructor_arguments_types(
                                 self,
@@ -98,7 +99,7 @@ impl Lowerer {
                     let mut types = declaration
                         .fields
                         .iter()
-                        .map(|field| self.class_fields[*field].ty)
+                        .map(|field| self.class_field_definition(*field).ty)
                         .collect::<Vec<_>>();
                     types.extend(declaration.base_class);
                     types.extend(declaration.interfaces.iter().copied());
@@ -132,11 +133,7 @@ impl Lowerer {
                 .interfaces
                 .iter()
                 .map(|(id, declaration)| {
-                    let types = declaration
-                        .parents
-                        .iter()
-                        .map(|parent| self.interface_applications[*parent].canonical_type)
-                        .collect::<Vec<_>>();
+                    let types = declaration.parents.clone();
                     (
                         id,
                         types,
@@ -202,7 +199,7 @@ impl Lowerer {
         let mut nominal_additions = Vec::new();
         for call_site in call_sites {
             let requirements = self
-                .function_gc_free_pointee_requirements(call_site.callee)
+                .callable_gc_free_pointee_requirements(call_site.callee)
                 .to_vec();
             for requirement in requirements {
                 let argument = call_site.argument(requirement.type_param);

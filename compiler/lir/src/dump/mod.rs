@@ -1,32 +1,50 @@
 use super::*;
 
+mod boxing;
+mod initialization;
 mod instruction;
+mod metadata;
 mod names;
 
 use instruction::dump_instruction;
 use names::*;
+
+pub use initialization::dump_initialization_dependencies;
 
 /// Indented text dump for golden tests (`scoopc build --emit=lir`).
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
     for (_, global) in module.globals.iter() {
         match &global.init {
-            GlobalInit::StringConst(value) => {
-                out.push_str(&format!("  global @{} = {:?}\n", global.symbol, value));
+            GlobalInit::ImportedStorage { definition, ty } => out.push_str(&format!(
+                "  imported_global @{} : {} provider={} scan={}\n",
+                global.symbol(),
+                ty.dump(),
+                definition.provider(),
+                global.scan.dump()
+            )),
+            GlobalInit::StringConst { value, .. } => {
+                out.push_str(&format!("  global @{} = {:?}\n", global.symbol(), value));
             }
-            GlobalInit::CString(value) => {
-                out.push_str(&format!("  global @{} = c{:?}\n", global.symbol, value));
+            GlobalInit::CString { value, .. } => {
+                out.push_str(&format!("  global @{} = c{:?}\n", global.symbol(), value));
             }
-            GlobalInit::Storage {
+            GlobalInit::RawStorage {
                 ty, thread_local, ..
             } => out.push_str(&format!(
-                "  {} @{} : {} scan={}\n",
+                "  raw_{} @{} : {}\n",
                 if *thread_local {
                     "thread_local"
                 } else {
                     "global"
                 },
-                global.symbol,
+                global.symbol(),
+                ty.dump()
+            )),
+            GlobalInit::Storage { ty, .. } => out.push_str(&format!(
+                "  {} @{} : {} scan={}\n",
+                "global",
+                global.symbol(),
                 ty.dump(),
                 global.scan.dump()
             )),
@@ -34,8 +52,8 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, unit) in module.initialization_units.iter() {
         let initializer =
-            &module.functions[unit.initializer.declaration().into_u32() as usize].symbol;
-        let ensure = &module.functions[unit.ensure.declaration().into_u32() as usize].symbol;
+            module.functions[unit.initializer.declaration().into_u32() as usize].symbol();
+        let ensure = module.functions[unit.ensure.declaration().into_u32() as usize].symbol();
         let schedule = match unit.schedule {
             InitializationSchedule::EagerStartup => "",
             InitializationSchedule::LazyAccess => " lazy",
@@ -43,9 +61,9 @@ pub fn dump(module: &Module) -> String {
         out.push_str(&format!(
             "  init{} {}{schedule} storage=@{} failure=@{} initializer=@{} ensure=@{} deps=[{}]\n",
             id.into_raw().into_u32(),
-            unit.stable_key,
-            module.globals[unit.kind.storage()].symbol,
-            module.globals[unit.failure_root].symbol,
+            unit.display_name,
+            module.globals[unit.kind.storage()].symbol(),
+            module.globals[unit.failure_root].symbol(),
             initializer,
             ensure,
             unit.dependencies
@@ -149,10 +167,7 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, extern_) in module.extern_functions.iter() {
         let (params, return_type, kind) = match &extern_.kind {
-            ExternFunctionKind::C {
-                bridge_symbol,
-                signature,
-            } => (
+            ExternFunctionKind::C { bridge, signature } => (
                 signature
                     .storage_params()
                     .iter()
@@ -161,8 +176,9 @@ pub fn dump(module: &Module) -> String {
                     .join(", "),
                 signature.storage_return_type().dump(),
                 format!(
-                    "c exact={} bridge=@{bridge_symbol} gc-leaf nounwind",
-                    signature.dump()
+                    "c exact={} bridge=@{} gc-leaf nounwind",
+                    signature.dump(),
+                    bridge.symbol()
                 ),
             ),
             ExternFunctionKind::Scoop {
@@ -213,8 +229,17 @@ pub fn dump(module: &Module) -> String {
             "  callback cb{} {} @{} -> @{} c=({})->{}\n",
             id.into_raw(),
             callback.source_name,
-            callback.bridge_symbol,
-            callback.trampoline_symbol,
+            match callback.bridge {
+                StaticCallbackTarget::Local(bridge) => module.functions
+                    [bridge.declaration().into_u32() as usize]
+                    .symbol()
+                    .to_string(),
+                StaticCallbackTarget::External(bridge) => module.meta.external_callables[bridge]
+                    .expected_symbol()
+                    .symbol()
+                    .to_string(),
+            },
+            callback.trampoline.entry().symbol(),
             params,
             callback.return_type.dump(),
         ));
@@ -251,9 +276,9 @@ pub fn dump(module: &Module) -> String {
             "  foreign_callback_bridge fcb{} family=fcf{} @{} -> @{} signature=@{} context={} mode={} c=({})->{}\n",
             id.into_raw(),
             bridge.family.into_raw(),
-            bridge.adapter_symbol,
-            bridge.trampoline_symbol,
-            bridge.signature_symbol,
+            module.functions[bridge.adapter.declaration().into_u32() as usize].symbol(),
+            bridge.trampoline.entry().symbol(),
+            bridge.trampoline.signature_descriptor_symbol(),
             bridge.context_index,
             mode,
             params,
@@ -269,7 +294,7 @@ pub fn dump(module: &Module) -> String {
             .collect::<Vec<_>>();
         out.push_str(&format!(
             "  fun @{}({}) -> {}{}\n",
-            function.symbol,
+            function.symbol(),
             params.join(", "),
             abi_return_name(function.signature.result()),
             if function.gc_effect == GcEffect::NoGc {
@@ -279,18 +304,28 @@ pub fn dump(module: &Module) -> String {
             }
         ));
         for (id, local) in function.locals.iter() {
+            let storage = match local.storage() {
+                LocalStorage::LogicalZst(value) => format!(" <logical-zst {}>", value.exact()),
+                LocalStorage::AddressableZst(place) => format!(
+                    " <zst-token {} align={} lifetime=function>",
+                    place.value().exact(),
+                    place.value().representation().layout().alignment(),
+                ),
+                LocalStorage::NonZero(_) => String::new(),
+            };
             out.push_str(&format!(
-                "    local %{} {}: {}\n",
+                "    local %{} {}: {}{}\n",
                 id.into_raw(),
                 local.name,
-                local.ty.dump()
+                local.ty().dump(),
+                storage,
             ));
         }
         for (block_id, block) in function.blocks.iter() {
             let _ = block_id;
             out.push_str(&format!("  block {}\n", block.name));
             for instruction in &block.instructions {
-                dump_instruction(function, instruction, &mut out);
+                dump_instruction(module, function, instruction, &mut out);
             }
             match &block.terminator {
                 Terminator::Br(target) => {
@@ -317,186 +352,13 @@ pub fn dump(module: &Module) -> String {
             }
         }
     }
-    for (id, td) in module.meta.type_descriptors.iter() {
-        let reference = TypeDescriptorRef::Local(id);
-        if reference == module.meta.well_known_type_descriptors.string
-            || module
-                .meta
-                .arrays
-                .iter()
-                .any(|(_, array)| array.type_descriptor == reference)
-        {
-            continue;
-        }
-        let parent = td
-            .parent
-            .map(type_descriptor_ref_name)
-            .unwrap_or_else(|| "none".to_string());
-        let vtable = td
-            .vtable
-            .iter()
-            .map(|entry| callable_ref_name(entry.callable))
-            .collect::<Vec<_>>()
-            .join(", ");
-        let itables = td
-            .itables
-            .iter()
-            .map(|record| {
-                let slots = record
-                    .slots
-                    .iter()
-                    .map(|entry| callable_ref_name(entry.callable))
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                format!("{}:[{slots}]", type_descriptor_ref_name(record.interface))
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
-        out.push_str(&format!(
-            "  td td{} {} @{} type-id={} size={} parent={} vtable=[{}] itables=[{}]\n",
-            id.into_raw(),
-            td.name,
-            td.symbol,
-            td.runtime_type_id,
-            td.size,
-            parent,
-            vtable,
-            itables,
-        ));
-    }
-    for (id, array) in module.meta.arrays.iter() {
-        let TypeDescriptorRef::Local(descriptor_id) = array.type_descriptor else {
-            unreachable!("a local array application owns a local descriptor")
-        };
-        let descriptor = &module.meta.type_descriptors[descriptor_id];
-        let TypeDescriptorScan::ArrayElement { scan, .. } = &descriptor.scan else {
-            unreachable!("an array descriptor owns an element scan")
-        };
-        out.push_str(&format!(
-            "  array-type array{} {} kind={} element={} size={} align={} scan={} td={}\n",
-            id.into_raw(),
-            descriptor.name,
-            match array.kind {
-                ArrayKind::Immutable => "immutable",
-                ArrayKind::Mutable => "mutable",
-            },
-            array.element.dump(),
-            array.element_size,
-            array.element_align,
-            scan.dump(),
-            type_descriptor_ref_name(array.type_descriptor),
-        ));
-    }
-    // String remains first, followed by every exact source integer layout in
-    // arena order, Boolean, and ordinary layouts.
-    let string_layout = module.meta.well_known_layouts.string;
-    for (_layout_id, layout) in
-        std::iter::once((string_layout, &module.meta.layouts[string_layout]))
-            .chain(module.meta.layouts.iter().filter(|(_, layout)| {
-                matches!(
-                    layout.kind,
-                    LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Integer(_))
-                )
-            }))
-            .chain(module.meta.layouts.iter().filter(|(_, layout)| {
-                matches!(
-                    layout.kind,
-                    LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Boolean)
-                )
-            }))
-            .chain(module.meta.layouts.iter().filter(|(_, layout)| {
-                !matches!(
-                    layout.kind,
-                    LayoutKind::Intrinsic(
-                        IntrinsicTypeRepresentation::Integer(_)
-                            | IntrinsicTypeRepresentation::Boolean
-                            | IntrinsicTypeRepresentation::String
-                    )
-                )
-            }))
-    {
-        match &layout.kind {
-            LayoutKind::Plain { scan } => match scan {
-                RefScan::None => out.push_str(&format!(
-                    "  layout {} size={} align={} refs=[]\n",
-                    layout.name, layout.size, layout.align
-                )),
-                RefScan::References(offsets) => out.push_str(&format!(
-                    "  layout {} size={} align={} refs={offsets:?}\n",
-                    layout.name, layout.size, layout.align
-                )),
-                _ => out.push_str(&format!(
-                    "  layout {} size={} align={} scan={}\n",
-                    layout.name,
-                    layout.size,
-                    layout.align,
-                    scan.dump()
-                )),
-            },
-            LayoutKind::Enum { scan } => out.push_str(&format!(
-                "  layout {} size={} align={} enum-scan={}\n",
-                layout.name,
-                layout.size,
-                layout.align,
-                scan.dump()
-            )),
-            LayoutKind::Intrinsic(
-                IntrinsicTypeRepresentation::Integer(_)
-                | IntrinsicTypeRepresentation::Boolean
-                | IntrinsicTypeRepresentation::String,
-            ) => out.push_str(&format!(
-                "  layout {} size={} align={} refs=[]\n",
-                layout.name, layout.size, layout.align
-            )),
-            LayoutKind::Intrinsic(IntrinsicTypeRepresentation::Ptr { pointee }) => {
-                let pointee = match pointee {
-                    LirDataPointee::OpaqueVoid => "void".to_string(),
-                    LirDataPointee::Value(ty) => ty.dump(),
-                };
-                out.push_str(&format!(
-                    "  layout {} size={} align={} intrinsic=ptr<{}> refs=[]\n",
-                    layout.name, layout.size, layout.align, pointee
-                ));
-            }
-            LayoutKind::Intrinsic(IntrinsicTypeRepresentation::FunPtr { signature }) => {
-                let params = signature
-                    .params
-                    .iter()
-                    .map(LirType::dump)
-                    .collect::<Vec<_>>()
-                    .join(",");
-                let result = match &signature.return_type {
-                    LirReturnType::Void => "void".to_string(),
-                    LirReturnType::Value(ty) => ty.dump(),
-                };
-                out.push_str(&format!(
-                    "  layout {} size={} align={} intrinsic=funptr<({})->{}> refs=[]\n",
-                    layout.name, layout.size, layout.align, params, result
-                ));
-            }
-        }
-        if let Some(c_layout) = layout.c_layout {
-            let fields = layout
-                .fields
-                .iter()
-                .map(|field| format!("{}@{}", field.offset, field.access_align))
-                .collect::<Vec<_>>()
-                .join(",");
-            out.push_str(&format!(
-                "  layout-meta {} c-layout(aligned={},packed={}) fields=[{}] interior-mutable={}\n",
-                layout.name,
-                c_layout.aligned.bytes().unwrap_or(0),
-                c_layout.packed.bytes().unwrap_or(0),
-                fields,
-                layout.interior_mutable
-            ));
-        } else if layout.interior_mutable {
-            out.push_str(&format!(
-                "  layout-meta {} interior-mutable=true\n",
-                layout.name
-            ));
+    metadata::dump_metadata(module, &mut out);
+    match module.output {
+        LirOutput::Library => out.push_str("  output library\n"),
+        LirOutput::Executable { entry } => {
+            let entry = &module.functions[entry.declaration().into_u32() as usize];
+            out.push_str(&format!("  output executable @{}\n", entry.symbol()));
         }
     }
-    out.push_str(&format!("  entry @{}\n", module.entry_symbol));
     out
 }

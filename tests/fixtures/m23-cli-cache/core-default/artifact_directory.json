@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_LOCATOR_WRONG_TYPE",
+    "message": "artifact ${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib is not a regular file",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib",
+      "start": null
+    },
+    "phase": "Locator",
+    "severity": "error"
+  }
+]

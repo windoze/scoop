@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val token
+      Call Token
+    Call verifyType
+      Binary And
+        Binary And
+          Binary Eq
+            Call pass
+              Var token
+            Var token
+          Call same
+            Var token
+            Call Token
+        Call ready

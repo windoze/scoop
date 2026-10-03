@@ -102,27 +102,48 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
             .any(|application| application.method_arguments.to_vec() == [output.export.string])
     );
 
-    let concrete_origin =
-        hir::concrete::GenericMethodOriginId::from_raw(definition.into_raw().into_u32());
     let concrete_methods = output
         .local
         .functions
         .iter()
-        .filter_map(|(_, function)| match &function.origin {
-            hir::concrete::FunctionOrigin::Method(hir::concrete::MethodOrigin {
-                owner: hir::concrete::MethodOwner::Class(owner),
-                specialization:
-                    hir::concrete::MethodSpecialization::Generic {
-                        origin,
-                        method_arguments,
-                        ..
-                    },
-            }) if *origin == concrete_origin => Some((*owner, method_arguments.to_vec())),
-            _ => None,
+        .filter_map(|(_, function)| {
+            if function.name != "Box.choose" {
+                return None;
+            }
+            let method = function.receiver.method()?;
+            let hir::concrete::TypeKind::Class(owner) = output.local.types[method.owner].kind
+            else {
+                panic!("Box.choose has an exact class owner")
+            };
+            let hir::concrete::CallableMaterializationContext::Application(application) =
+                function.materialization.context()
+            else {
+                panic!("Box.choose carries its persistent application")
+            };
+            assert!(matches!(
+                function.materialization.template(),
+                hir::concrete::CallableTemplateOwner::GenericFunction(_)
+            ));
+            let record = output
+                .local
+                .callable_applications
+                .get(application)
+                .expect("the method application is present in the canonical table");
+            let scoop_identity::CallableArguments::Arguments(arguments) =
+                record.key().callable_arguments()
+            else {
+                panic!("generic method arguments remain a non-empty typed group")
+            };
+            Some((
+                owner,
+                method.owner,
+                arguments.as_slice().to_vec(),
+                application,
+            ))
         })
         .collect::<Vec<_>>();
     assert_eq!(concrete_methods.len(), 2);
-    for (owner, _) in &concrete_methods {
+    for (owner, owner_type, arguments, application) in &concrete_methods {
         assert_eq!(
             output.local.classes[*owner].type_arguments,
             vec![output.local.string]
@@ -131,24 +152,41 @@ fn generic_method_applications_keep_owner_and_method_arguments_separate() {
             output.local.classes[*owner]
                 .methods
                 .iter()
-                .all(|method| output.local.functions[*method].name != "Box.choose"),
+                .all(|method| match method {
+                    hir::concrete::ClassMethod::Local(function) =>
+                        output.local.functions[*function].name != "Box.choose",
+                    hir::concrete::ClassMethod::Imported { .. } => true,
+                }),
             "generic methods are direct applications and never dispatch-table members"
         );
+        let record = output
+            .local
+            .callable_applications
+            .get(*application)
+            .expect("the method application is present in the canonical table");
+        assert_eq!(
+            record.key().instantiation_owner(),
+            scoop_identity::CallableInstantiationOwner::ExactNominalOwner(
+                output.local.exact_type_identities[*owner_type].id()
+            )
+        );
+        let scoop_identity::CallableArguments::Arguments(exact_arguments) =
+            record.key().callable_arguments()
+        else {
+            panic!("generic method arguments remain a non-empty typed group")
+        };
+        assert_eq!(exact_arguments.as_slice(), arguments.as_slice());
     }
-    assert!(
-        concrete_methods
-            .iter()
-            .any(|(_, arguments)| arguments == &[concrete_int_type(&output.local)])
-    );
-    assert!(
-        concrete_methods
-            .iter()
-            .any(|(_, arguments)| arguments == &[output.local.string])
-    );
+    assert!(concrete_methods.iter().any(|(_, _, arguments, _)| {
+        arguments == &[output.local.exact_type_identities[concrete_int_type(&output.local)].id()]
+    }));
+    assert!(concrete_methods.iter().any(|(_, _, arguments, _)| {
+        arguments == &[output.local.exact_type_identities[output.local.string].id()]
+    }));
 }
 
 #[test]
-fn parameterized_method_families_use_one_source_identity_domain_for_symbols() {
+fn parameterized_method_families_keep_distinct_typed_materializations() {
     let ordinary = method_expr(
         "keep",
         vec![("value", ty_named("T"))],
@@ -184,7 +222,7 @@ fn parameterized_method_families_use_one_source_identity_domain_for_symbols() {
     ]))
     .expect("both parameterized method families have exact concrete identities");
 
-    let symbols = output
+    let materializations = output
         .local
         .functions
         .iter()
@@ -192,27 +230,21 @@ fn parameterized_method_families_use_one_source_identity_domain_for_symbols() {
             if function.name != "Host.keep" {
                 return None;
             }
-            let hir::concrete::FunctionOrigin::Method(origin) = &function.origin else {
+            if !matches!(
+                function.materialization.context(),
+                hir::concrete::CallableMaterializationContext::Application(_)
+            ) {
                 return None;
-            };
-            match &origin.specialization {
-                hir::concrete::MethodSpecialization::OwnerParameterized { symbol, .. }
-                | hir::concrete::MethodSpecialization::Generic { symbol, .. } => Some(*symbol),
-                hir::concrete::MethodSpecialization::Plain => None,
             }
+            Some(function.materialization)
         })
         .collect::<Vec<_>>();
-    assert_eq!(symbols.len(), 2);
-    let discriminators = symbols
-        .iter()
-        .map(|symbol| match symbol {
-            hir::concrete::InstanceSymbol::Overloaded { discriminator } => *discriminator,
-            hir::concrete::InstanceSymbol::Unique => {
-                panic!("same-name parameterized declarations require explicit symbol identities")
-            }
-        })
-        .collect::<Vec<_>>();
-    assert_ne!(discriminators[0], discriminators[1]);
+    assert_eq!(materializations.len(), 2);
+    assert_ne!(materializations[0], materializations[1]);
+    assert_ne!(
+        materializations[0].template(),
+        materializations[1].template()
+    );
 }
 
 #[test]

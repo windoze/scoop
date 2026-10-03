@@ -7,6 +7,29 @@ use crate::Lowerer;
 use super::{PointeeApplicationOccurrence, RequirementContext};
 
 impl Lowerer {
+    pub(super) fn callable_gc_free_pointee_requirements(
+        &self,
+        callable: super::super::no_gc_generics::GenericCallable,
+    ) -> &[hir::RequiresGcFreePointee] {
+        use super::super::no_gc_generics::GenericCallable;
+        match callable {
+            GenericCallable::Function(id) => self.function_gc_free_pointee_requirements(id),
+            GenericCallable::ImportedConstructor(id) => {
+                &self.imported_constructor_templates[id]
+                    .signature
+                    .gc_free_pointee_requirements
+            }
+            GenericCallable::Imported(id) => {
+                &self.imported_generic_templates[id].gc_free_pointee_requirements
+            }
+            GenericCallable::ClassConstructor(id) => {
+                &self.classes[self.class_constructors[id].owner].gc_free_pointee_requirements
+            }
+            GenericCallable::StructConstructor(id) => {
+                &self.structs[self.struct_constructors[id].owner].gc_free_pointee_requirements
+            }
+        }
+    }
     pub(super) fn pointee_parameters_in_types(
         &self,
         types: &[hir::TypeId],
@@ -38,9 +61,10 @@ impl Lowerer {
             }
             hir::Type::Struct(application) => {
                 let application = &self.struct_applications[*application];
+                let definition = self.struct_definition(application.template);
                 self.collect_application_pointee_parameters(
-                    &self.structs[application.template].type_params,
-                    &self.structs[application.template].gc_free_pointee_requirements,
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
                     &application.arguments,
                     out,
                 );
@@ -50,9 +74,10 @@ impl Lowerer {
             }
             hir::Type::Class(application) => {
                 let application = &self.class_applications[*application];
+                let definition = self.class_definition(application.template);
                 self.collect_application_pointee_parameters(
-                    &self.classes[application.template].type_params,
-                    &self.classes[application.template].gc_free_pointee_requirements,
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
                     &application.arguments,
                     out,
                 );
@@ -62,9 +87,10 @@ impl Lowerer {
             }
             hir::Type::Interface(application) => {
                 let application = &self.interface_applications[*application];
+                let definition = self.interface_definition(application.template);
                 self.collect_application_pointee_parameters(
-                    &self.interfaces[application.template].type_params,
-                    &self.interfaces[application.template].gc_free_pointee_requirements,
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
                     &application.arguments,
                     out,
                 );
@@ -74,9 +100,10 @@ impl Lowerer {
             }
             hir::Type::Enum(application) => {
                 let application = &self.enum_applications[*application];
+                let definition = self.enum_definition(application.template);
                 self.collect_application_pointee_parameters(
-                    &self.enums[application.template].type_params,
-                    &self.enums[application.template].gc_free_pointee_requirements,
+                    &definition.type_params,
+                    &definition.gc_free_pointee_requirements,
                     &application.arguments,
                     out,
                 );

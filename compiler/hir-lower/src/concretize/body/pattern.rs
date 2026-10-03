@@ -20,17 +20,12 @@ impl Concretizer<'_> {
             } => concrete::Pattern::Literal {
                 value: self.lower_expr(value, substitution, locals),
                 equality: match *equality {
-                    export::LiteralPatternEquality::Integer { kind, target } => {
-                        concrete::LiteralPatternEquality::Integer {
-                            kind,
-                            target: concrete::NoGcCallableRef::map_from_export(target, |source| {
-                                self.lower_integer_callable(kind, source)
-                            }),
-                        }
+                    export::LiteralPatternEquality::Integer { kind } => {
+                        concrete::LiteralPatternEquality::Integer { kind }
                     }
                     export::LiteralPatternEquality::Ordinary { equals } => {
                         concrete::LiteralPatternEquality::Ordinary {
-                            equals: self.lower_callable(equals, substitution),
+                            equals: self.lower_callable_target(equals, substitution),
                         }
                     }
                 },
@@ -38,36 +33,16 @@ impl Concretizer<'_> {
             },
             export::Pattern::Variant {
                 application,
-                variant,
                 fields,
             } => {
-                let concrete_enum = self.lower_enum_application(*application, substitution);
-                assert_eq!(
-                    self.types[expected].kind,
-                    concrete::TypeKind::Enum(concrete_enum),
-                    "the checked pattern application must match its subject"
-                );
-                let variant_id = concrete::VariantId::from_raw(*variant);
-                let definition = self.enums[concrete_enum].variants[*variant as usize].clone();
-                let fields = fields
-                    .iter()
-                    .map(|(field, pattern)| {
-                        (
-                            *field,
-                            self.lower_pattern(
-                                pattern,
-                                definition.fields[*field as usize].ty,
-                                substitution,
-                                locals,
-                            ),
-                        )
-                    })
-                    .collect();
-                concrete::Pattern::Variant {
-                    enum_id: concrete_enum,
-                    variant: variant_id,
+                let variant = self.lower_enum_variant(*application, substitution);
+                self.lower_enum_pattern(
+                    variant.enumeration(),
+                    variant.variant().into_raw(),
                     fields,
-                }
+                    substitution,
+                    locals,
+                )
             }
             export::Pattern::Tuple(patterns) => {
                 let concrete::TypeKind::Tuple(elements) = self.types[expected].kind.clone() else {
@@ -83,16 +58,11 @@ impl Concretizer<'_> {
                         .collect(),
                 )
             }
-            export::Pattern::Struct {
-                application,
-                fields,
-            } => {
-                let concrete_struct = self.lower_struct_application(*application, substitution);
-                assert_eq!(
-                    self.types[expected].kind,
-                    concrete::TypeKind::Struct(concrete_struct),
-                    "the checked pattern application must match its subject"
-                );
+            export::Pattern::Struct { owner, fields } => {
+                let owner = self.lower_type(*owner, substitution);
+                let concrete::TypeKind::Struct(concrete_struct) = self.types[owner].kind else {
+                    unreachable!("a checked struct pattern has a concrete struct subject")
+                };
                 let definition = self.structs[concrete_struct].declared_fields().to_vec();
                 concrete::Pattern::Struct {
                     struct_id: concrete_struct,
@@ -112,6 +82,36 @@ impl Concretizer<'_> {
                         .collect(),
                 }
             }
+        }
+    }
+
+    fn lower_enum_pattern(
+        &mut self,
+        enumeration: concrete::EnumId,
+        index: u32,
+        fields: &[(u32, export::Pattern)],
+        substitution: &[concrete::TypeId],
+        locals: &[concrete::LocalId],
+    ) -> concrete::Pattern {
+        let definition = self.enums[enumeration].variants[index as usize].clone();
+        let fields = fields
+            .iter()
+            .map(|(field, pattern)| {
+                (
+                    *field,
+                    self.lower_pattern(
+                        pattern,
+                        definition.fields[*field as usize].ty,
+                        substitution,
+                        locals,
+                    ),
+                )
+            })
+            .collect();
+        concrete::Pattern::Variant {
+            enum_id: enumeration,
+            variant: concrete::VariantId::from_raw(index),
+            fields,
         }
     }
 }

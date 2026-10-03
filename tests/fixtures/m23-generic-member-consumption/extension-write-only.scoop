@@ -1,0 +1,15 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val holder = PropertyItem<Int>(20)
+    holder.extensionState = 42
+    return holder.value
+}
+
+public fun <T> make(value: T): T {
+    val holder = PropertyItem<T>(value)
+    holder.extensionState = value
+    return holder.value
+}

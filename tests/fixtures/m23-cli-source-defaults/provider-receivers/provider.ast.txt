@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public open class ProviderBase()
+    protected fun pick
+  public class ProviderChild() : ProviderBase(<0 args>)
+    protected fun pick
+  public open class ProviderGeneric<T>()
+    protected fun pick
+    protected fun copy
+    protected nested class Static
+  public class ProviderApplied<U>() : ProviderGeneric<(U, U)>(<0 args>)
+    protected fun pick

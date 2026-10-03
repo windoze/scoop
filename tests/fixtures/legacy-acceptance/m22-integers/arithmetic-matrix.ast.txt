@@ -1,0 +1,1989 @@
+SourceFile
+  RootPackage
+  val I8_ZERO: Int8 <const> = <expr>
+  val I8_ONE: Int8 <const> = <expr>
+  val I8_MINUS_ONE: Int8 <const> = <expr>
+  val I8_MIN: Int8 <const> = <expr>
+  val I8_MAX: Int8 <const> = <expr>
+  val I8_ADD: Int8 <const> = <expr>
+  val I8_SUB: Int8 <const> = <expr>
+  val I8_MUL: Int8 <const> = <expr>
+  val I8_NEG: Int8 <const> = <expr>
+  val I8_PLUS: Int8 <const> = <expr>
+  val I8_INC_EXPECTED: Int8 <const> = <expr>
+  val I8_DEC_EXPECTED: Int8 <const> = <expr>
+  val I8_AND: Int8 <const> = <expr>
+  val I8_OR: Int8 <const> = <expr>
+  val I8_XOR: Int8 <const> = <expr>
+  val I8_INV: Int8 <const> = <expr>
+  val I8_SHL: Int8 <const> = <expr>
+  val I8_SHR: Int8 <const> = <expr>
+  val I8_USHR: Int8 <const> = <expr>
+  val I8_COMPARE: Boolean <const> = <expr>
+  val I8_COMPARE_TO: Long <const> = <expr>
+  val I8_EQUALS: Boolean <const> = <expr>
+  val I8_EQUALS_FALSE: Boolean <const> = <expr>
+  val I8_DIVIDEND: Int8 <const> = <expr>
+  val I8_DIVISOR: Int8 <const> = <expr>
+  val I8_DIV: Int8 <const> = <expr>
+  val I8_REM: Int8 <const> = <expr>
+  val I8_MIN_DIV: Int8 <const> = <expr>
+  val I8_MIN_REM: Int8 <const> = <expr>
+  val I16_ZERO: Int16 <const> = <expr>
+  val I16_ONE: Int16 <const> = <expr>
+  val I16_MINUS_ONE: Int16 <const> = <expr>
+  val I16_MIN: Int16 <const> = <expr>
+  val I16_MAX: Int16 <const> = <expr>
+  val I16_ADD: Int16 <const> = <expr>
+  val I16_SUB: Int16 <const> = <expr>
+  val I16_MUL: Int16 <const> = <expr>
+  val I16_NEG: Int16 <const> = <expr>
+  val I16_PLUS: Int16 <const> = <expr>
+  val I16_INC_EXPECTED: Int16 <const> = <expr>
+  val I16_DEC_EXPECTED: Int16 <const> = <expr>
+  val I16_AND: Int16 <const> = <expr>
+  val I16_OR: Int16 <const> = <expr>
+  val I16_XOR: Int16 <const> = <expr>
+  val I16_INV: Int16 <const> = <expr>
+  val I16_SHL: Int16 <const> = <expr>
+  val I16_SHR: Int16 <const> = <expr>
+  val I16_USHR: Int16 <const> = <expr>
+  val I16_COMPARE: Boolean <const> = <expr>
+  val I16_COMPARE_TO: Long <const> = <expr>
+  val I16_EQUALS: Boolean <const> = <expr>
+  val I16_EQUALS_FALSE: Boolean <const> = <expr>
+  val I16_DIVIDEND: Int16 <const> = <expr>
+  val I16_DIVISOR: Int16 <const> = <expr>
+  val I16_DIV: Int16 <const> = <expr>
+  val I16_REM: Int16 <const> = <expr>
+  val I16_MIN_DIV: Int16 <const> = <expr>
+  val I16_MIN_REM: Int16 <const> = <expr>
+  val I32_ZERO: Int <const> = <expr>
+  val I32_ONE: Int <const> = <expr>
+  val I32_MINUS_ONE: Int <const> = <expr>
+  val I32_MIN: Int <const> = <expr>
+  val I32_MAX: Int <const> = <expr>
+  val I32_ADD: Int <const> = <expr>
+  val I32_SUB: Int <const> = <expr>
+  val I32_MUL: Int <const> = <expr>
+  val I32_NEG: Int <const> = <expr>
+  val I32_PLUS: Int <const> = <expr>
+  val I32_INC_EXPECTED: Int <const> = <expr>
+  val I32_DEC_EXPECTED: Int <const> = <expr>
+  val I32_AND: Int <const> = <expr>
+  val I32_OR: Int <const> = <expr>
+  val I32_XOR: Int <const> = <expr>
+  val I32_INV: Int <const> = <expr>
+  val I32_SHL: Int <const> = <expr>
+  val I32_SHR: Int <const> = <expr>
+  val I32_USHR: Int <const> = <expr>
+  val I32_COMPARE: Boolean <const> = <expr>
+  val I32_COMPARE_TO: Long <const> = <expr>
+  val I32_EQUALS: Boolean <const> = <expr>
+  val I32_EQUALS_FALSE: Boolean <const> = <expr>
+  val I32_DIVIDEND: Int <const> = <expr>
+  val I32_DIVISOR: Int <const> = <expr>
+  val I32_DIV: Int <const> = <expr>
+  val I32_REM: Int <const> = <expr>
+  val I32_MIN_DIV: Int <const> = <expr>
+  val I32_MIN_REM: Int <const> = <expr>
+  val I64_ZERO: Long <const> = <expr>
+  val I64_ONE: Long <const> = <expr>
+  val I64_MINUS_ONE: Long <const> = <expr>
+  val I64_MIN: Long <const> = <expr>
+  val I64_MAX: Long <const> = <expr>
+  val I64_ADD: Long <const> = <expr>
+  val I64_SUB: Long <const> = <expr>
+  val I64_MUL: Long <const> = <expr>
+  val I64_NEG: Long <const> = <expr>
+  val I64_PLUS: Long <const> = <expr>
+  val I64_INC_EXPECTED: Long <const> = <expr>
+  val I64_DEC_EXPECTED: Long <const> = <expr>
+  val I64_AND: Long <const> = <expr>
+  val I64_OR: Long <const> = <expr>
+  val I64_XOR: Long <const> = <expr>
+  val I64_INV: Long <const> = <expr>
+  val I64_SHL: Long <const> = <expr>
+  val I64_SHR: Long <const> = <expr>
+  val I64_USHR: Long <const> = <expr>
+  val I64_COMPARE: Boolean <const> = <expr>
+  val I64_COMPARE_TO: Long <const> = <expr>
+  val I64_EQUALS: Boolean <const> = <expr>
+  val I64_EQUALS_FALSE: Boolean <const> = <expr>
+  val I64_DIVIDEND: Long <const> = <expr>
+  val I64_DIVISOR: Long <const> = <expr>
+  val I64_DIV: Long <const> = <expr>
+  val I64_REM: Long <const> = <expr>
+  val I64_MIN_DIV: Long <const> = <expr>
+  val I64_MIN_REM: Long <const> = <expr>
+  val U8_ZERO: UInt8 <const> = <expr>
+  val U8_ONE: UInt8 <const> = <expr>
+  val U8_MAX: UInt8 <const> = <expr>
+  val U8_ADD: UInt8 <const> = <expr>
+  val U8_SUB: UInt8 <const> = <expr>
+  val U8_MUL: UInt8 <const> = <expr>
+  val U8_NEG: UInt8 <const> = <expr>
+  val U8_PLUS: UInt8 <const> = <expr>
+  val U8_INC_EXPECTED: UInt8 <const> = <expr>
+  val U8_DEC_EXPECTED: UInt8 <const> = <expr>
+  val U8_AND: UInt8 <const> = <expr>
+  val U8_OR: UInt8 <const> = <expr>
+  val U8_XOR: UInt8 <const> = <expr>
+  val U8_INV: UInt8 <const> = <expr>
+  val U8_SHL: UInt8 <const> = <expr>
+  val U8_SHR: UInt8 <const> = <expr>
+  val U8_COMPARE: Boolean <const> = <expr>
+  val U8_COMPARE_TO: Long <const> = <expr>
+  val U8_EQUALS: Boolean <const> = <expr>
+  val U8_EQUALS_FALSE: Boolean <const> = <expr>
+  val U8_DIVIDEND: UInt8 <const> = <expr>
+  val U8_DIVISOR: UInt8 <const> = <expr>
+  val U8_DIV: UInt8 <const> = <expr>
+  val U8_REM: UInt8 <const> = <expr>
+  val U16_ZERO: UInt16 <const> = <expr>
+  val U16_ONE: UInt16 <const> = <expr>
+  val U16_MAX: UInt16 <const> = <expr>
+  val U16_ADD: UInt16 <const> = <expr>
+  val U16_SUB: UInt16 <const> = <expr>
+  val U16_MUL: UInt16 <const> = <expr>
+  val U16_NEG: UInt16 <const> = <expr>
+  val U16_PLUS: UInt16 <const> = <expr>
+  val U16_INC_EXPECTED: UInt16 <const> = <expr>
+  val U16_DEC_EXPECTED: UInt16 <const> = <expr>
+  val U16_AND: UInt16 <const> = <expr>
+  val U16_OR: UInt16 <const> = <expr>
+  val U16_XOR: UInt16 <const> = <expr>
+  val U16_INV: UInt16 <const> = <expr>
+  val U16_SHL: UInt16 <const> = <expr>
+  val U16_SHR: UInt16 <const> = <expr>
+  val U16_COMPARE: Boolean <const> = <expr>
+  val U16_COMPARE_TO: Long <const> = <expr>
+  val U16_EQUALS: Boolean <const> = <expr>
+  val U16_EQUALS_FALSE: Boolean <const> = <expr>
+  val U16_DIVIDEND: UInt16 <const> = <expr>
+  val U16_DIVISOR: UInt16 <const> = <expr>
+  val U16_DIV: UInt16 <const> = <expr>
+  val U16_REM: UInt16 <const> = <expr>
+  val U32_ZERO: UInt <const> = <expr>
+  val U32_ONE: UInt <const> = <expr>
+  val U32_MAX: UInt <const> = <expr>
+  val U32_ADD: UInt <const> = <expr>
+  val U32_SUB: UInt <const> = <expr>
+  val U32_MUL: UInt <const> = <expr>
+  val U32_NEG: UInt <const> = <expr>
+  val U32_PLUS: UInt <const> = <expr>
+  val U32_INC_EXPECTED: UInt <const> = <expr>
+  val U32_DEC_EXPECTED: UInt <const> = <expr>
+  val U32_AND: UInt <const> = <expr>
+  val U32_OR: UInt <const> = <expr>
+  val U32_XOR: UInt <const> = <expr>
+  val U32_INV: UInt <const> = <expr>
+  val U32_SHL: UInt <const> = <expr>
+  val U32_SHR: UInt <const> = <expr>
+  val U32_COMPARE: Boolean <const> = <expr>
+  val U32_COMPARE_TO: Long <const> = <expr>
+  val U32_EQUALS: Boolean <const> = <expr>
+  val U32_EQUALS_FALSE: Boolean <const> = <expr>
+  val U32_DIVIDEND: UInt <const> = <expr>
+  val U32_DIVISOR: UInt <const> = <expr>
+  val U32_DIV: UInt <const> = <expr>
+  val U32_REM: UInt <const> = <expr>
+  val U64_ZERO: ULong <const> = <expr>
+  val U64_ONE: ULong <const> = <expr>
+  val U64_MAX: ULong <const> = <expr>
+  val U64_ADD: ULong <const> = <expr>
+  val U64_SUB: ULong <const> = <expr>
+  val U64_MUL: ULong <const> = <expr>
+  val U64_NEG: ULong <const> = <expr>
+  val U64_PLUS: ULong <const> = <expr>
+  val U64_INC_EXPECTED: ULong <const> = <expr>
+  val U64_DEC_EXPECTED: ULong <const> = <expr>
+  val U64_AND: ULong <const> = <expr>
+  val U64_OR: ULong <const> = <expr>
+  val U64_XOR: ULong <const> = <expr>
+  val U64_INV: ULong <const> = <expr>
+  val U64_SHL: ULong <const> = <expr>
+  val U64_SHR: ULong <const> = <expr>
+  val U64_COMPARE: Boolean <const> = <expr>
+  val U64_COMPARE_TO: Long <const> = <expr>
+  val U64_EQUALS: Boolean <const> = <expr>
+  val U64_EQUALS_FALSE: Boolean <const> = <expr>
+  val U64_DIVIDEND: ULong <const> = <expr>
+  val U64_DIVISOR: ULong <const> = <expr>
+  val U64_DIV: ULong <const> = <expr>
+  val U64_REM: ULong <const> = <expr>
+  fun checkInt8()
+    Call println
+      StringLiteral "Int8"
+    val zero: Int8
+      IntLiteral 0
+    val one: Int8
+      IntLiteral 1
+    val minusOne: Int8
+      Unary Neg
+        IntLiteral 1
+    val minimum: Int8
+      Unary Neg
+        IntLiteral 128
+    val maximum: Int8
+      IntLiteral 127
+    val maskLeft: Int8
+      IntLiteral 0x5a
+    val maskRight: Int8
+      IntLiteral 0x3c
+    val dividend: Int8
+      Unary Neg
+        IntLiteral 7
+    val divisor: Int8
+      IntLiteral 3
+    Call println
+      Binary Eq
+        Binary Add
+          Var maximum
+          Var one
+        Var I8_ADD
+    Call println
+      Binary Eq
+        Binary Sub
+          Var minimum
+          Var one
+        Var I8_SUB
+    Call println
+      Binary Eq
+        Binary Mul
+          Var maximum
+          IntLiteral 2
+        Var I8_MUL
+    Call println
+      Binary Eq
+        Unary Neg
+          Var minimum
+        Var I8_NEG
+    Call println
+      Binary Eq
+        Unary Plus
+          Var one
+        Var I8_PLUS
+    Call println
+      Binary Eq
+        Var I8_ADD
+        Unary Neg
+          IntLiteral 128
+    Call println
+      Binary Eq
+        Var I8_SUB
+        IntLiteral 127
+    Call println
+      Binary Eq
+        Var I8_MUL
+        Unary Neg
+          IntLiteral 2
+    Call println
+      Binary Eq
+        Var I8_NEG
+        Unary Neg
+          IntLiteral 128
+    var incremented
+      Var maximum
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Binary Eq
+        Var incremented
+        Var I8_INC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeIncrement
+        Var maximum
+    var decremented
+      Var minimum
+    val beforeDecrement
+      Update Postfix Decrement
+        Place decremented
+    Call println
+      Binary Eq
+        Var decremented
+        Var I8_DEC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeDecrement
+        Var minimum
+    Call println
+      Binary Eq
+        InfixCall and
+          Var maskLeft
+          Var maskRight
+        Var I8_AND
+    Call println
+      Binary Eq
+        InfixCall or
+          Var maskLeft
+          Var maskRight
+        Var I8_OR
+    Call println
+      Binary Eq
+        InfixCall xor
+          Var maskLeft
+          Var maskRight
+        Var I8_XOR
+    Call println
+      Binary Eq
+        MethodCall inv
+          Var zero
+        Var I8_INV
+    Call println
+      Binary Eq
+        InfixCall shl
+          Var one
+          IntLiteral 9L
+        Var I8_SHL
+    Call println
+      Binary Eq
+        InfixCall shr
+          Var minimum
+          IntLiteral 9L
+        Var I8_SHR
+    Call println
+      Binary Eq
+        InfixCall ushr
+          Var minimum
+          IntLiteral 9L
+        Var I8_USHR
+    Call println
+      Binary Eq
+        Var I8_SHR
+        Unary Neg
+          IntLiteral 64
+    Call println
+      Binary Eq
+        Var I8_USHR
+        IntLiteral 64
+    Call println
+      Binary Eq
+        Binary Lt
+          Var minimum
+          Var maximum
+        Var I8_COMPARE
+    Call println
+      Binary Eq
+        MethodCall compareTo
+          Var minimum
+          Var maximum
+        Var I8_COMPARE_TO
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var minimum
+          Var minimum
+        Var I8_EQUALS
+    Call println
+      Var I8_COMPARE
+    Call println
+      Binary Eq
+        Var I8_COMPARE_TO
+        Unary Neg
+          IntLiteral 1L
+    Call println
+      Var I8_EQUALS
+    Call println
+      Binary Eq
+        Var I8_EQUALS_FALSE
+        BoolLiteral false
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var minimum
+          Var maximum
+        BoolLiteral false
+    Call println
+      Binary Eq
+        Binary Div
+          Var dividend
+          Var divisor
+        Var I8_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Var dividend
+          Var divisor
+        Var I8_REM
+    Call println
+      Binary Eq
+        Binary Div
+          Var minimum
+          Var minusOne
+        Var I8_MIN_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Var minimum
+          Var minusOne
+        Var I8_MIN_REM
+    Call println
+      Binary Eq
+        MethodCall div
+          Var dividend
+          Var divisor
+        Unary Neg
+          IntLiteral 2
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var dividend
+          Var divisor
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Binary Eq
+        MethodCall div
+          Var minimum
+          Var minusOne
+        Unary Neg
+          IntLiteral 128
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var minimum
+          Var minusOne
+        IntLiteral 0
+    try
+      Call println
+        Binary Div
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "Int8/div-zero"
+    try
+      Call println
+        Binary Rem
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "Int8/rem-zero"
+  fun checkInt16()
+    Call println
+      StringLiteral "Int16"
+    val zero: Int16
+      IntLiteral 0
+    val one: Int16
+      IntLiteral 1
+    val minusOne: Int16
+      Unary Neg
+        IntLiteral 1
+    val minimum: Int16
+      Unary Neg
+        IntLiteral 32768
+    val maximum: Int16
+      IntLiteral 32767
+    val maskLeft: Int16
+      IntLiteral 0x5aa5
+    val maskRight: Int16
+      IntLiteral 0xff0
+    val dividend: Int16
+      Unary Neg
+        IntLiteral 7
+    val divisor: Int16
+      IntLiteral 3
+    Call println
+      Binary Eq
+        Binary Add
+          Var maximum
+          Var one
+        Var I16_ADD
+    Call println
+      Binary Eq
+        Binary Sub
+          Var minimum
+          Var one
+        Var I16_SUB
+    Call println
+      Binary Eq
+        Binary Mul
+          Var maximum
+          IntLiteral 2
+        Var I16_MUL
+    Call println
+      Binary Eq
+        Unary Neg
+          Var minimum
+        Var I16_NEG
+    Call println
+      Binary Eq
+        Unary Plus
+          Var one
+        Var I16_PLUS
+    Call println
+      Binary Eq
+        Var I16_ADD
+        Unary Neg
+          IntLiteral 32768
+    Call println
+      Binary Eq
+        Var I16_SUB
+        IntLiteral 32767
+    Call println
+      Binary Eq
+        Var I16_MUL
+        Unary Neg
+          IntLiteral 2
+    Call println
+      Binary Eq
+        Var I16_NEG
+        Unary Neg
+          IntLiteral 32768
+    var incremented
+      Var maximum
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Binary Eq
+        Var incremented
+        Var I16_INC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeIncrement
+        Var maximum
+    var decremented
+      Var minimum
+    val beforeDecrement
+      Update Postfix Decrement
+        Place decremented
+    Call println
+      Binary Eq
+        Var decremented
+        Var I16_DEC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeDecrement
+        Var minimum
+    Call println
+      Binary Eq
+        InfixCall and
+          Var maskLeft
+          Var maskRight
+        Var I16_AND
+    Call println
+      Binary Eq
+        InfixCall or
+          Var maskLeft
+          Var maskRight
+        Var I16_OR
+    Call println
+      Binary Eq
+        InfixCall xor
+          Var maskLeft
+          Var maskRight
+        Var I16_XOR
+    Call println
+      Binary Eq
+        MethodCall inv
+          Var zero
+        Var I16_INV
+    Call println
+      Binary Eq
+        InfixCall shl
+          Var one
+          IntLiteral 17L
+        Var I16_SHL
+    Call println
+      Binary Eq
+        InfixCall shr
+          Var minimum
+          IntLiteral 17L
+        Var I16_SHR
+    Call println
+      Binary Eq
+        InfixCall ushr
+          Var minimum
+          IntLiteral 17L
+        Var I16_USHR
+    Call println
+      Binary Eq
+        Var I16_SHR
+        Unary Neg
+          IntLiteral 16384
+    Call println
+      Binary Eq
+        Var I16_USHR
+        IntLiteral 16384
+    Call println
+      Binary Eq
+        Binary Lt
+          Var minimum
+          Var maximum
+        Var I16_COMPARE
+    Call println
+      Binary Eq
+        MethodCall compareTo
+          Var minimum
+          Var maximum
+        Var I16_COMPARE_TO
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var minimum
+          Var minimum
+        Var I16_EQUALS
+    Call println
+      Var I16_COMPARE
+    Call println
+      Binary Eq
+        Var I16_COMPARE_TO
+        Unary Neg
+          IntLiteral 1L
+    Call println
+      Var I16_EQUALS
+    Call println
+      Binary Eq
+        Var I16_EQUALS_FALSE
+        BoolLiteral false
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var minimum
+          Var maximum
+        BoolLiteral false
+    Call println
+      Binary Eq
+        Binary Div
+          Var dividend
+          Var divisor
+        Var I16_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Var dividend
+          Var divisor
+        Var I16_REM
+    Call println
+      Binary Eq
+        Binary Div
+          Var minimum
+          Var minusOne
+        Var I16_MIN_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Var minimum
+          Var minusOne
+        Var I16_MIN_REM
+    Call println
+      Binary Eq
+        MethodCall div
+          Var dividend
+          Var divisor
+        Unary Neg
+          IntLiteral 2
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var dividend
+          Var divisor
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Binary Eq
+        MethodCall div
+          Var minimum
+          Var minusOne
+        Unary Neg
+          IntLiteral 32768
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var minimum
+          Var minusOne
+        IntLiteral 0
+    try
+      Call println
+        Binary Div
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "Int16/div-zero"
+    try
+      Call println
+        Binary Rem
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "Int16/rem-zero"
+  fun checkInt32()
+    Call println
+      StringLiteral "Int"
+    val zero: Int
+      IntLiteral 0
+    val one: Int
+      IntLiteral 1
+    val minusOne: Int
+      Unary Neg
+        IntLiteral 1
+    val minimum: Int
+      Unary Neg
+        IntLiteral 2147483648
+    val maximum: Int
+      IntLiteral 2147483647
+    Call println
+      Binary Eq
+        Binary Add
+          Var maximum
+          Var one
+        Var I32_ADD
+    Call println
+      Binary Eq
+        Binary Sub
+          Var minimum
+          Var one
+        Var I32_SUB
+    Call println
+      Binary Eq
+        Binary Mul
+          Var maximum
+          IntLiteral 2
+        Var I32_MUL
+    Call println
+      Binary Eq
+        Unary Neg
+          Var minimum
+        Var I32_NEG
+    Call println
+      Binary Eq
+        Unary Plus
+          Var one
+        Var I32_PLUS
+    Call println
+      Binary Eq
+        Var I32_ADD
+        Unary Neg
+          IntLiteral 2147483648
+    Call println
+      Binary Eq
+        Var I32_SUB
+        IntLiteral 2147483647
+    Call println
+      Binary Eq
+        Var I32_MUL
+        Unary Neg
+          IntLiteral 2
+    Call println
+      Binary Eq
+        Var I32_NEG
+        Unary Neg
+          IntLiteral 2147483648
+    var incremented
+      Var maximum
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Binary Eq
+        Var incremented
+        Var I32_INC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeIncrement
+        Var maximum
+    var decremented
+      Var minimum
+    val beforeDecrement
+      Update Postfix Decrement
+        Place decremented
+    Call println
+      Binary Eq
+        Var decremented
+        Var I32_DEC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeDecrement
+        Var minimum
+    Call println
+      Binary Eq
+        InfixCall and
+          IntLiteral 0x5aa5aa55
+          IntLiteral 0xff00ff0
+        Var I32_AND
+    Call println
+      Binary Eq
+        InfixCall or
+          IntLiteral 0x5aa5aa55
+          IntLiteral 0xff00ff0
+        Var I32_OR
+    Call println
+      Binary Eq
+        InfixCall xor
+          IntLiteral 0x5aa5aa55
+          IntLiteral 0xff00ff0
+        Var I32_XOR
+    Call println
+      Binary Eq
+        MethodCall inv
+          Var zero
+        Var I32_INV
+    Call println
+      Binary Eq
+        InfixCall shl
+          Var one
+          IntLiteral 33L
+        Var I32_SHL
+    Call println
+      Binary Eq
+        InfixCall shr
+          Var minimum
+          IntLiteral 33L
+        Var I32_SHR
+    Call println
+      Binary Eq
+        InfixCall ushr
+          Var minimum
+          IntLiteral 33L
+        Var I32_USHR
+    Call println
+      Binary Eq
+        Var I32_SHR
+        Unary Neg
+          IntLiteral 1073741824
+    Call println
+      Binary Eq
+        Var I32_USHR
+        IntLiteral 1073741824
+    Call println
+      Binary Eq
+        Binary Lt
+          Var minimum
+          Var maximum
+        Var I32_COMPARE
+    Call println
+      Binary Eq
+        MethodCall compareTo
+          Var minimum
+          Var maximum
+        Var I32_COMPARE_TO
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var minimum
+          Var minimum
+        Var I32_EQUALS
+    Call println
+      Var I32_COMPARE
+    Call println
+      Binary Eq
+        Var I32_COMPARE_TO
+        Unary Neg
+          IntLiteral 1L
+    Call println
+      Var I32_EQUALS
+    Call println
+      Binary Eq
+        Var I32_EQUALS_FALSE
+        BoolLiteral false
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var minimum
+          Var maximum
+        BoolLiteral false
+    Call println
+      Binary Eq
+        Binary Div
+          Unary Neg
+            IntLiteral 7
+          IntLiteral 3
+        Var I32_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Unary Neg
+            IntLiteral 7
+          IntLiteral 3
+        Var I32_REM
+    Call println
+      Binary Eq
+        Binary Div
+          Var minimum
+          Var minusOne
+        Var I32_MIN_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Var minimum
+          Var minusOne
+        Var I32_MIN_REM
+    Call println
+      Binary Eq
+        MethodCall div
+          Var I32_DIVIDEND
+          Var I32_DIVISOR
+        Unary Neg
+          IntLiteral 2
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var I32_DIVIDEND
+          Var I32_DIVISOR
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Binary Eq
+        MethodCall div
+          Var minimum
+          Var minusOne
+        Unary Neg
+          IntLiteral 2147483648
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var minimum
+          Var minusOne
+        IntLiteral 0
+    try
+      Call println
+        Binary Div
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "Int/div-zero"
+    try
+      Call println
+        Binary Rem
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "Int/rem-zero"
+  fun checkInt64()
+    Call println
+      StringLiteral "Long"
+    val zero: Long
+      IntLiteral 0L
+    val one: Long
+      IntLiteral 1L
+    val minusOne: Long
+      Unary Neg
+        IntLiteral 1L
+    val minimum: Long
+      Unary Neg
+        IntLiteral 9223372036854775808L
+    val maximum: Long
+      IntLiteral 9223372036854775807L
+    Call println
+      Binary Eq
+        Binary Add
+          Var maximum
+          Var one
+        Var I64_ADD
+    Call println
+      Binary Eq
+        Binary Sub
+          Var minimum
+          Var one
+        Var I64_SUB
+    Call println
+      Binary Eq
+        Binary Mul
+          Var maximum
+          IntLiteral 2L
+        Var I64_MUL
+    Call println
+      Binary Eq
+        Unary Neg
+          Var minimum
+        Var I64_NEG
+    Call println
+      Binary Eq
+        Unary Plus
+          Var one
+        Var I64_PLUS
+    Call println
+      Binary Eq
+        Var I64_ADD
+        Unary Neg
+          IntLiteral 9223372036854775808L
+    Call println
+      Binary Eq
+        Var I64_SUB
+        IntLiteral 9223372036854775807L
+    Call println
+      Binary Eq
+        Var I64_MUL
+        Unary Neg
+          IntLiteral 2L
+    Call println
+      Binary Eq
+        Var I64_NEG
+        Unary Neg
+          IntLiteral 9223372036854775808L
+    var incremented
+      Var maximum
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Binary Eq
+        Var incremented
+        Var I64_INC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeIncrement
+        Var maximum
+    var decremented
+      Var minimum
+    val beforeDecrement
+      Update Postfix Decrement
+        Place decremented
+    Call println
+      Binary Eq
+        Var decremented
+        Var I64_DEC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeDecrement
+        Var minimum
+    Call println
+      Binary Eq
+        InfixCall and
+          IntLiteral 0x5aa5aa555aa5aa55L
+          IntLiteral 0xff00ff00ff00ff0L
+        Var I64_AND
+    Call println
+      Binary Eq
+        InfixCall or
+          IntLiteral 0x5aa5aa555aa5aa55L
+          IntLiteral 0xff00ff00ff00ff0L
+        Var I64_OR
+    Call println
+      Binary Eq
+        InfixCall xor
+          IntLiteral 0x5aa5aa555aa5aa55L
+          IntLiteral 0xff00ff00ff00ff0L
+        Var I64_XOR
+    Call println
+      Binary Eq
+        MethodCall inv
+          Var zero
+        Var I64_INV
+    Call println
+      Binary Eq
+        InfixCall shl
+          Var one
+          IntLiteral 65L
+        Var I64_SHL
+    Call println
+      Binary Eq
+        InfixCall shr
+          Var minimum
+          IntLiteral 65L
+        Var I64_SHR
+    Call println
+      Binary Eq
+        InfixCall ushr
+          Var minimum
+          IntLiteral 65L
+        Var I64_USHR
+    Call println
+      Binary Eq
+        Var I64_SHR
+        Unary Neg
+          IntLiteral 4611686018427387904L
+    Call println
+      Binary Eq
+        Var I64_USHR
+        IntLiteral 4611686018427387904L
+    Call println
+      Binary Eq
+        Binary Lt
+          Var minimum
+          Var maximum
+        Var I64_COMPARE
+    Call println
+      Binary Eq
+        MethodCall compareTo
+          Var minimum
+          Var maximum
+        Var I64_COMPARE_TO
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var minimum
+          Var minimum
+        Var I64_EQUALS
+    Call println
+      Var I64_COMPARE
+    Call println
+      Binary Eq
+        Var I64_COMPARE_TO
+        Unary Neg
+          IntLiteral 1L
+    Call println
+      Var I64_EQUALS
+    Call println
+      Binary Eq
+        Var I64_EQUALS_FALSE
+        BoolLiteral false
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var minimum
+          Var maximum
+        BoolLiteral false
+    Call println
+      Binary Eq
+        Binary Div
+          Unary Neg
+            IntLiteral 7L
+          IntLiteral 3L
+        Var I64_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Unary Neg
+            IntLiteral 7L
+          IntLiteral 3L
+        Var I64_REM
+    Call println
+      Binary Eq
+        Binary Div
+          Var minimum
+          Var minusOne
+        Var I64_MIN_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Var minimum
+          Var minusOne
+        Var I64_MIN_REM
+    Call println
+      Binary Eq
+        MethodCall div
+          Var I64_DIVIDEND
+          Var I64_DIVISOR
+        Unary Neg
+          IntLiteral 2L
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var I64_DIVIDEND
+          Var I64_DIVISOR
+        Unary Neg
+          IntLiteral 1L
+    Call println
+      Binary Eq
+        MethodCall div
+          Var minimum
+          Var minusOne
+        Unary Neg
+          IntLiteral 9223372036854775808L
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var minimum
+          Var minusOne
+        IntLiteral 0L
+    try
+      Call println
+        Binary Div
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "Long/div-zero"
+    try
+      Call println
+        Binary Rem
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "Long/rem-zero"
+  fun checkUInt8()
+    Call println
+      StringLiteral "UInt8"
+    val zero: UInt8
+      IntLiteral 0u
+    val one: UInt8
+      IntLiteral 1u
+    val maximum: UInt8
+      IntLiteral 255u
+    val maskLeft: UInt8
+      IntLiteral 0xa5u
+    val maskRight: UInt8
+      IntLiteral 0x3cu
+    val dividend: UInt8
+      IntLiteral 250u
+    val divisor: UInt8
+      IntLiteral 7u
+    Call println
+      Binary Eq
+        Binary Add
+          Var maximum
+          Var one
+        Var U8_ADD
+    Call println
+      Binary Eq
+        Binary Sub
+          Var zero
+          Var one
+        Var U8_SUB
+    Call println
+      Binary Eq
+        Binary Mul
+          Var maximum
+          IntLiteral 2u
+        Var U8_MUL
+    Call println
+      Binary Eq
+        Unary Neg
+          Var one
+        Var U8_NEG
+    Call println
+      Binary Eq
+        Unary Plus
+          Var one
+        Var U8_PLUS
+    Call println
+      Binary Eq
+        Var U8_ADD
+        IntLiteral 0u
+    Call println
+      Binary Eq
+        Var U8_SUB
+        IntLiteral 255u
+    Call println
+      Binary Eq
+        Var U8_MUL
+        IntLiteral 254u
+    Call println
+      Binary Eq
+        Var U8_NEG
+        IntLiteral 255u
+    var incremented
+      Var maximum
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Binary Eq
+        Var incremented
+        Var U8_INC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeIncrement
+        Var maximum
+    var decremented
+      Var zero
+    val beforeDecrement
+      Update Postfix Decrement
+        Place decremented
+    Call println
+      Binary Eq
+        Var decremented
+        Var U8_DEC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeDecrement
+        Var zero
+    Call println
+      Binary Eq
+        InfixCall and
+          Var maskLeft
+          Var maskRight
+        Var U8_AND
+    Call println
+      Binary Eq
+        InfixCall or
+          Var maskLeft
+          Var maskRight
+        Var U8_OR
+    Call println
+      Binary Eq
+        InfixCall xor
+          Var maskLeft
+          Var maskRight
+        Var U8_XOR
+    Call println
+      Binary Eq
+        MethodCall inv
+          Var zero
+        Var U8_INV
+    Call println
+      Binary Eq
+        InfixCall shl
+          Var one
+          IntLiteral 9L
+        Var U8_SHL
+    Call println
+      Binary Eq
+        InfixCall shr
+          Var maximum
+          IntLiteral 9L
+        Var U8_SHR
+    Call println
+      Binary Eq
+        Binary Gt
+          Var maximum
+          Var zero
+        Var U8_COMPARE
+    Call println
+      Binary Eq
+        MethodCall compareTo
+          Var maximum
+          Var zero
+        Var U8_COMPARE_TO
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var maximum
+          Var maximum
+        Var U8_EQUALS
+    Call println
+      Var U8_COMPARE
+    Call println
+      Binary Eq
+        Var U8_COMPARE_TO
+        IntLiteral 1L
+    Call println
+      Var U8_EQUALS
+    Call println
+      Binary Eq
+        Var U8_EQUALS_FALSE
+        BoolLiteral false
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var maximum
+          Var zero
+        BoolLiteral false
+    Call println
+      Binary Eq
+        Binary Div
+          Var dividend
+          Var divisor
+        Var U8_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Var dividend
+          Var divisor
+        Var U8_REM
+    Call println
+      Binary Eq
+        MethodCall div
+          Var dividend
+          Var divisor
+        IntLiteral 35u
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var dividend
+          Var divisor
+        IntLiteral 5u
+    try
+      Call println
+        Binary Div
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "UInt8/div-zero"
+    try
+      Call println
+        Binary Rem
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "UInt8/rem-zero"
+  fun checkUInt16()
+    Call println
+      StringLiteral "UInt16"
+    val zero: UInt16
+      IntLiteral 0u
+    val one: UInt16
+      IntLiteral 1u
+    val maximum: UInt16
+      IntLiteral 65535u
+    val maskLeft: UInt16
+      IntLiteral 0xa5a5u
+    val maskRight: UInt16
+      IntLiteral 0x3c3cu
+    val dividend: UInt16
+      IntLiteral 65000u
+    val divisor: UInt16
+      IntLiteral 7u
+    Call println
+      Binary Eq
+        Binary Add
+          Var maximum
+          Var one
+        Var U16_ADD
+    Call println
+      Binary Eq
+        Binary Sub
+          Var zero
+          Var one
+        Var U16_SUB
+    Call println
+      Binary Eq
+        Binary Mul
+          Var maximum
+          IntLiteral 2u
+        Var U16_MUL
+    Call println
+      Binary Eq
+        Unary Neg
+          Var one
+        Var U16_NEG
+    Call println
+      Binary Eq
+        Unary Plus
+          Var one
+        Var U16_PLUS
+    Call println
+      Binary Eq
+        Var U16_ADD
+        IntLiteral 0u
+    Call println
+      Binary Eq
+        Var U16_SUB
+        IntLiteral 65535u
+    Call println
+      Binary Eq
+        Var U16_MUL
+        IntLiteral 65534u
+    Call println
+      Binary Eq
+        Var U16_NEG
+        IntLiteral 65535u
+    var incremented
+      Var maximum
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Binary Eq
+        Var incremented
+        Var U16_INC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeIncrement
+        Var maximum
+    var decremented
+      Var zero
+    val beforeDecrement
+      Update Postfix Decrement
+        Place decremented
+    Call println
+      Binary Eq
+        Var decremented
+        Var U16_DEC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeDecrement
+        Var zero
+    Call println
+      Binary Eq
+        InfixCall and
+          Var maskLeft
+          Var maskRight
+        Var U16_AND
+    Call println
+      Binary Eq
+        InfixCall or
+          Var maskLeft
+          Var maskRight
+        Var U16_OR
+    Call println
+      Binary Eq
+        InfixCall xor
+          Var maskLeft
+          Var maskRight
+        Var U16_XOR
+    Call println
+      Binary Eq
+        MethodCall inv
+          Var zero
+        Var U16_INV
+    Call println
+      Binary Eq
+        InfixCall shl
+          Var one
+          IntLiteral 17L
+        Var U16_SHL
+    Call println
+      Binary Eq
+        InfixCall shr
+          Var maximum
+          IntLiteral 17L
+        Var U16_SHR
+    Call println
+      Binary Eq
+        Binary Gt
+          Var maximum
+          Var zero
+        Var U16_COMPARE
+    Call println
+      Binary Eq
+        MethodCall compareTo
+          Var maximum
+          Var zero
+        Var U16_COMPARE_TO
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var maximum
+          Var maximum
+        Var U16_EQUALS
+    Call println
+      Var U16_COMPARE
+    Call println
+      Binary Eq
+        Var U16_COMPARE_TO
+        IntLiteral 1L
+    Call println
+      Var U16_EQUALS
+    Call println
+      Binary Eq
+        Var U16_EQUALS_FALSE
+        BoolLiteral false
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var maximum
+          Var zero
+        BoolLiteral false
+    Call println
+      Binary Eq
+        Binary Div
+          Var dividend
+          Var divisor
+        Var U16_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          Var dividend
+          Var divisor
+        Var U16_REM
+    Call println
+      Binary Eq
+        MethodCall div
+          Var dividend
+          Var divisor
+        IntLiteral 9285u
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var dividend
+          Var divisor
+        IntLiteral 5u
+    try
+      Call println
+        Binary Div
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "UInt16/div-zero"
+    try
+      Call println
+        Binary Rem
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "UInt16/rem-zero"
+  fun checkUInt32()
+    Call println
+      StringLiteral "UInt"
+    val zero: UInt
+      IntLiteral 0u
+    val one: UInt
+      IntLiteral 1u
+    val maximum: UInt
+      IntLiteral 4294967295u
+    Call println
+      Binary Eq
+        Binary Add
+          Var maximum
+          Var one
+        Var U32_ADD
+    Call println
+      Binary Eq
+        Binary Sub
+          Var zero
+          Var one
+        Var U32_SUB
+    Call println
+      Binary Eq
+        Binary Mul
+          Var maximum
+          IntLiteral 2u
+        Var U32_MUL
+    Call println
+      Binary Eq
+        Unary Neg
+          Var one
+        Var U32_NEG
+    Call println
+      Binary Eq
+        Unary Plus
+          Var one
+        Var U32_PLUS
+    Call println
+      Binary Eq
+        Var U32_ADD
+        IntLiteral 0u
+    Call println
+      Binary Eq
+        Var U32_SUB
+        IntLiteral 4294967295u
+    Call println
+      Binary Eq
+        Var U32_MUL
+        IntLiteral 4294967294u
+    Call println
+      Binary Eq
+        Var U32_NEG
+        IntLiteral 4294967295u
+    var incremented
+      Var maximum
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Binary Eq
+        Var incremented
+        Var U32_INC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeIncrement
+        Var maximum
+    var decremented
+      Var zero
+    val beforeDecrement
+      Update Postfix Decrement
+        Place decremented
+    Call println
+      Binary Eq
+        Var decremented
+        Var U32_DEC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeDecrement
+        Var zero
+    Call println
+      Binary Eq
+        InfixCall and
+          IntLiteral 0xa5a5a5a5u
+          IntLiteral 0x3c3c3c3cu
+        Var U32_AND
+    Call println
+      Binary Eq
+        InfixCall or
+          IntLiteral 0xa5a5a5a5u
+          IntLiteral 0x3c3c3c3cu
+        Var U32_OR
+    Call println
+      Binary Eq
+        InfixCall xor
+          IntLiteral 0xa5a5a5a5u
+          IntLiteral 0x3c3c3c3cu
+        Var U32_XOR
+    Call println
+      Binary Eq
+        MethodCall inv
+          Var zero
+        Var U32_INV
+    Call println
+      Binary Eq
+        InfixCall shl
+          Var one
+          IntLiteral 33L
+        Var U32_SHL
+    Call println
+      Binary Eq
+        InfixCall shr
+          Var maximum
+          IntLiteral 33L
+        Var U32_SHR
+    Call println
+      Binary Eq
+        Binary Gt
+          Var maximum
+          Var zero
+        Var U32_COMPARE
+    Call println
+      Binary Eq
+        MethodCall compareTo
+          Var maximum
+          Var zero
+        Var U32_COMPARE_TO
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var maximum
+          Var maximum
+        Var U32_EQUALS
+    Call println
+      Var U32_COMPARE
+    Call println
+      Binary Eq
+        Var U32_COMPARE_TO
+        IntLiteral 1L
+    Call println
+      Var U32_EQUALS
+    Call println
+      Binary Eq
+        Var U32_EQUALS_FALSE
+        BoolLiteral false
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var maximum
+          Var zero
+        BoolLiteral false
+    Call println
+      Binary Eq
+        Binary Div
+          IntLiteral 4000000000u
+          IntLiteral 7u
+        Var U32_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          IntLiteral 4000000000u
+          IntLiteral 7u
+        Var U32_REM
+    Call println
+      Binary Eq
+        MethodCall div
+          Var U32_DIVIDEND
+          Var U32_DIVISOR
+        IntLiteral 571428571u
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var U32_DIVIDEND
+          Var U32_DIVISOR
+        IntLiteral 3u
+    try
+      Call println
+        Binary Div
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "UInt/div-zero"
+    try
+      Call println
+        Binary Rem
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "UInt/rem-zero"
+  fun checkUInt64()
+    Call println
+      StringLiteral "ULong"
+    val zero: ULong
+      IntLiteral 0uL
+    val one: ULong
+      IntLiteral 1uL
+    val maximum: ULong
+      IntLiteral 18446744073709551615uL
+    Call println
+      Binary Eq
+        Binary Add
+          Var maximum
+          Var one
+        Var U64_ADD
+    Call println
+      Binary Eq
+        Binary Sub
+          Var zero
+          Var one
+        Var U64_SUB
+    Call println
+      Binary Eq
+        Binary Mul
+          Var maximum
+          IntLiteral 2uL
+        Var U64_MUL
+    Call println
+      Binary Eq
+        Unary Neg
+          Var one
+        Var U64_NEG
+    Call println
+      Binary Eq
+        Unary Plus
+          Var one
+        Var U64_PLUS
+    Call println
+      Binary Eq
+        Var U64_ADD
+        IntLiteral 0uL
+    Call println
+      Binary Eq
+        Var U64_SUB
+        IntLiteral 18446744073709551615uL
+    Call println
+      Binary Eq
+        Var U64_MUL
+        IntLiteral 18446744073709551614uL
+    Call println
+      Binary Eq
+        Var U64_NEG
+        IntLiteral 18446744073709551615uL
+    var incremented
+      Var maximum
+    val beforeIncrement
+      Update Postfix Increment
+        Place incremented
+    Call println
+      Binary Eq
+        Var incremented
+        Var U64_INC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeIncrement
+        Var maximum
+    var decremented
+      Var zero
+    val beforeDecrement
+      Update Postfix Decrement
+        Place decremented
+    Call println
+      Binary Eq
+        Var decremented
+        Var U64_DEC_EXPECTED
+    Call println
+      Binary Eq
+        Var beforeDecrement
+        Var zero
+    Call println
+      Binary Eq
+        InfixCall and
+          IntLiteral 0xa5a5a5a5a5a5a5a5uL
+          IntLiteral 0x3c3c3c3c3c3c3c3cuL
+        Var U64_AND
+    Call println
+      Binary Eq
+        InfixCall or
+          IntLiteral 0xa5a5a5a5a5a5a5a5uL
+          IntLiteral 0x3c3c3c3c3c3c3c3cuL
+        Var U64_OR
+    Call println
+      Binary Eq
+        InfixCall xor
+          IntLiteral 0xa5a5a5a5a5a5a5a5uL
+          IntLiteral 0x3c3c3c3c3c3c3c3cuL
+        Var U64_XOR
+    Call println
+      Binary Eq
+        MethodCall inv
+          Var zero
+        Var U64_INV
+    Call println
+      Binary Eq
+        InfixCall shl
+          Var one
+          IntLiteral 65L
+        Var U64_SHL
+    Call println
+      Binary Eq
+        InfixCall shr
+          Var maximum
+          IntLiteral 65L
+        Var U64_SHR
+    Call println
+      Binary Eq
+        Binary Gt
+          Var maximum
+          Var zero
+        Var U64_COMPARE
+    Call println
+      Binary Eq
+        MethodCall compareTo
+          Var maximum
+          Var zero
+        Var U64_COMPARE_TO
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var maximum
+          Var maximum
+        Var U64_EQUALS
+    Call println
+      Var U64_COMPARE
+    Call println
+      Binary Eq
+        Var U64_COMPARE_TO
+        IntLiteral 1L
+    Call println
+      Var U64_EQUALS
+    Call println
+      Binary Eq
+        Var U64_EQUALS_FALSE
+        BoolLiteral false
+    Call println
+      Binary Eq
+        MethodCall equals
+          Var maximum
+          Var zero
+        BoolLiteral false
+    Call println
+      Binary Eq
+        Binary Div
+          IntLiteral 18000000000000000000uL
+          IntLiteral 7uL
+        Var U64_DIV
+    Call println
+      Binary Eq
+        Binary Rem
+          IntLiteral 18000000000000000000uL
+          IntLiteral 7uL
+        Var U64_REM
+    Call println
+      Binary Eq
+        MethodCall div
+          Var U64_DIVIDEND
+          Var U64_DIVISOR
+        IntLiteral 2571428571428571428uL
+    Call println
+      Binary Eq
+        MethodCall rem
+          Var U64_DIVIDEND
+          Var U64_DIVISOR
+        IntLiteral 4uL
+    try
+      Call println
+        Binary Div
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "ULong/div-zero"
+    try
+      Call println
+        Binary Rem
+          Var one
+          Var zero
+    catch error: ArithmeticException
+      Call println
+        StringLiteral "ULong/rem-zero"
+  fun main()
+    Call checkInt8
+    Call checkInt16
+    Call checkInt32
+    Call checkInt64
+    Call checkUInt8
+    Call checkUInt16
+    Call checkUInt32
+    Call checkUInt64

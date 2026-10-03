@@ -1,75 +1,119 @@
-//! Declaration-site validation of concrete `@NoGC` type applications.
+//! Validate concrete NoGC applications with their actual use-site locations.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 
+use scoop_ast::Span;
 use scoop_hir as hir;
 
 use crate::Lowerer;
 
 impl Lowerer {
-    pub(crate) fn check_no_gc_types(&mut self) {
-        let mut seen = HashSet::new();
-        let concrete_enums = self
-            .enums
-            .iter()
-            .filter(|(_, declaration)| declaration.no_gc && declaration.type_params.is_empty())
-            .map(|(_, declaration)| {
-                (
-                    declaration.name.clone(),
-                    declaration.span,
-                    declaration.variants.iter().all(|variant| {
-                        variant.fields.iter().all(|field| self.is_gc_free(field.ty))
-                    }),
-                )
-            })
-            .collect::<Vec<_>>();
-        for (name, span, gc_free) in concrete_enums {
-            if !gc_free {
-                self.error(
-                    span,
-                    format!(
-                        "`@NoGC` enum specialization `{name}` is not GC-free because it directly or indirectly contains a ref type"
-                    ),
-                );
-            }
+    pub(crate) fn check_no_gc_types(&mut self, type_sites: Vec<(hir::TypeId, usize, Span)>) {
+        let mut sites = HashMap::new();
+        for (ty, file, span) in self.nominal_type_uses.iter().copied().chain(type_sites) {
+            self.record_nominal_type_sites(ty, file, span, &mut sites);
         }
-        let types =
-            self.types
-                .iter()
-                .filter_map(|(ty, kind)| match kind {
+        let types = self
+            .types
+            .iter()
+            .filter_map(|(ty, kind)| {
+                let (kind, source) = match *kind {
                     hir::Type::Struct(application) => {
-                        let id = self.struct_applications[*application].template;
-                        self.structs[id].attributes.no_gc.then_some((
-                            ty,
-                            "struct",
-                            id.into_raw().into_u32(),
-                            self.structs[id].span,
-                        ))
+                        let application = &self.struct_applications[application];
+                        if !self
+                            .struct_definition(application.template)
+                            .attributes
+                            .no_gc
+                        {
+                            return None;
+                        }
+                        let source = self
+                            .source_struct_id(application.template)
+                            .map(|id| (self.struct_files[&id], self.structs[id].span));
+                        ("struct", source)
                     }
                     hir::Type::Enum(application) => {
-                        let id = self.enum_applications[*application].template;
-                        (self.enums[id].no_gc && !self.enums[id].type_params.is_empty())
-                            .then_some((ty, "enum", id.into_raw().into_u32(), self.enums[id].span))
+                        let application = &self.enum_applications[application];
+                        if !self.enum_definition(application.template).no_gc {
+                            return None;
+                        }
+                        let source = self
+                            .source_enum_id(application.template)
+                            .map(|id| (self.enum_files[&id], self.enums[id].span));
+                        ("enum", source)
                     }
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-        for (ty, kind, raw_id, span) in types {
-            if self.type_contains_param(ty) {
+                    _ => return None,
+                };
+                if self.type_contains_param(ty) {
+                    return None;
+                }
+                let (file, span) = source.or_else(|| sites.get(&ty).copied())?;
+                Some((ty, kind, file, span))
+            })
+            .collect::<Vec<_>>();
+        for (ty, kind, file, span) in types {
+            if self.is_gc_free(ty) {
                 continue;
             }
-            let name = self.type_name(ty);
-            if !seen.insert((kind, raw_id, name.clone())) {
-                continue;
+            self.current_file = file;
+            self.error(span, format!(
+                "`@NoGC` {kind} specialization `{}` is not GC-free because it directly or indirectly contains a ref type",
+                self.type_name(ty),
+            ));
+        }
+    }
+
+    fn record_nominal_type_sites(
+        &self,
+        ty: hir::TypeId,
+        file: usize,
+        span: Span,
+        sites: &mut HashMap<hir::TypeId, (usize, Span)>,
+    ) {
+        if sites.contains_key(&ty) {
+            return;
+        }
+        sites.insert(ty, (file, span));
+        match &self.types[ty] {
+            hir::Type::Struct(application) => {
+                for &argument in &self.struct_applications[*application].arguments {
+                    self.record_nominal_type_sites(argument, file, span, sites);
+                }
             }
-            if !self.is_gc_free(ty) {
-                self.error(
-                    span,
-                    format!(
-                        "`@NoGC` {kind} specialization `{name}` is not GC-free because it directly or indirectly contains a ref type"
-                    ),
-                );
+            hir::Type::Enum(application) => {
+                for &argument in &self.enum_applications[*application].arguments {
+                    self.record_nominal_type_sites(argument, file, span, sites);
+                }
             }
+            hir::Type::Class(application) => {
+                for &argument in &self.class_applications[*application].arguments {
+                    self.record_nominal_type_sites(argument, file, span, sites);
+                }
+            }
+            hir::Type::Interface(application) => {
+                for &argument in &self.interface_applications[*application].arguments {
+                    self.record_nominal_type_sites(argument, file, span, sites);
+                }
+            }
+            hir::Type::Tuple(elements) => {
+                for &element in elements {
+                    self.record_nominal_type_sites(element, file, span, sites);
+                }
+            }
+            hir::Type::Ptr(pointee) => self.record_nominal_type_sites(*pointee, file, span, sites),
+            hir::Type::Function(function) | hir::Type::FunPtr(function) => {
+                let function = &self.function_types[*function];
+                for &parameter in &function.parameter_types {
+                    self.record_nominal_type_sites(parameter, file, span, sites);
+                }
+                self.record_nominal_type_sites(function.return_type, file, span, sites);
+            }
+            hir::Type::Unit
+            | hir::Type::Integer(_)
+            | hir::Type::Boolean
+            | hir::Type::String
+            | hir::Type::Any
+            | hir::Type::Param(_) => {}
         }
     }
 }

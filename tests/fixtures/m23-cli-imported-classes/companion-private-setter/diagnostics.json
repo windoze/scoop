@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "setter of property `guarded` is not accessible",
+    "notes": [],
+    "origin": {
+      "cone": "6390710d190eb8431d3d5bc5aa081392d24cdb9c60a1bafd88f79abf11fc326c",
+      "end": 84,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 77
+    },
+    "severity": "error"
+  }
+]

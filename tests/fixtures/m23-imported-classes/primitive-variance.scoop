@@ -1,0 +1,7 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    val source: (Any) -> Long = { value -> value as Long }
+    val adapted: (Long) -> Any = source
+    return Counter(adapted(21) as Long)
+}

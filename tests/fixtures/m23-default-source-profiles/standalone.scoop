@@ -1,0 +1,10 @@
+public class Plain {
+    public fun <T> own(seed: T, value: T = seed): T = value
+    public fun literal(value: Int = 1): Int = value
+}
+public class Generic<T> {
+    public fun fromOwner(seed: T, value: T = seed): T = value
+    public class Static {
+        public fun fromStatic(value: Int = 2): Int = value
+    }
+}

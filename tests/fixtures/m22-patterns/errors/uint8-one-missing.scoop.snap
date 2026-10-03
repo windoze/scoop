@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-patterns/errors/uint8-one-missing.scoop:3:35: error: non-exhaustive when: missing pattern 137u

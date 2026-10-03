@@ -1,0 +1,25 @@
+SourceFile
+  RootPackage
+  struct Stamp
+  enum Envelope<T>
+    Absent
+    Present <ctor>
+      payload: T
+      revision: Int = <expr>
+  enum Bundle
+    Empty
+    Record <named>
+      data: Envelope<Int>
+      stamp: Stamp
+    Text(Envelope<String>)
+  fun inspect(value: Bundle, first: Envelope<Int>, second: Envelope<String>)
+  fun main()
+    Call inspect
+      FieldAccess Empty
+        Var Bundle
+      MethodCall Present
+        Var Envelope
+        IntLiteral 3
+      MethodCall Present
+        Var Envelope
+        StringLiteral "text"

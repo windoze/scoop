@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  public fun observe(): Boolean
+    val value: SourceOnly<Long>
+      Call Deferred
+    return
+      Binary And
+        Call flag
+        Is SourceOnly<Long> false
+          Var value
+  public fun observedFlag(value: Boolean): Boolean
+    =
+      Call flag
+        Var value
+SourceFile
+  RootPackage
+  fun unexpanded<T>(value: String): Boolean
+    =
+      BoolLiteral true
+  fun flag(value: Boolean = <expr>): Boolean
+    =
+      Var value
+  public interface SourceOnly<T>
+  public class Deferred(), SourceOnly<Long>

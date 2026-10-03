@@ -1,0 +1,15 @@
+public fun implementation(): Impl = Impl()
+private class CompletePartial: Partial() {
+    public override fun get(value: Token): Token = value
+    public override val token: Token get() = Token()
+}
+public fun partial(): SubContract = CompletePartial()
+private class CompleteAgain: Again() {
+    public override fun pass(value: Token): Token = value
+    protected override val abstractValue: Token get() = Token()
+}
+public fun again(): Base = CompleteAgain()
+private class CompleteAbstract: Abstract() {
+    public override fun run(value: Token): Token = value
+}
+public fun abstractTask(): Abstract = CompleteAbstract()

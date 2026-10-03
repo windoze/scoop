@@ -1,4 +1,4 @@
-//! MIR stage: concrete-HIR lowering, name mangling, call-kind annotation,
+//! MIR stage: concrete-HIR lowering, callable materialization, call-kind annotation,
 //! vtable/itable construction, suspend-to-state-machine lowering.
 //!
 //! See `docs/specs/SCOOP-IMPL-SPEC.md` section 2.3 and
@@ -15,8 +15,8 @@
 //! all errors were already reported by hir-lower.
 //!
 //! M3: generic templates are monomorphized by HIR lowering. MIR receives
-//! only local-concrete functions and records their source type arguments
-//! for metadata and stable symbol mangling; no generic template or
+//! only local-concrete functions and records their typed source identities
+//! for metadata; no generic template or
 //! unresolved type parameter can enter this stage.
 //!
 //! M4: enums and pattern matching. Every concrete enum application has
@@ -44,20 +44,14 @@
 //! a plain call to the generated constructor function (M6). LocalConcrete
 //! HIR supplies the complete typed exception/constructor identities; MIR
 //! performs no class-arena name lookup or missing-core fallback.
-//! `RuntimeFn::Trap` keeps exactly one generation path: the
-//! abstract-method stub (a cannot-happen pure-virtual trap).
+//! `Terminator::Trap` keeps exactly one generation path: the
+//! abstract-method stub, whose native diagnostic is not a managed String.
 //!
 //! M7/M14: print/println and primitive formatting/equality are ordinary core
 //! functions. Their representation-level helpers are ordinary Scoop-ABI
 //! extern declarations, so no formatting/equality runtime kind exists in the
-//! compiler. Mangling is overload-aware: a name shared by
-//! several plainly-mangled functions gets the parameter encoding
-//! appended (`scoop.show.I`, `scoop.println.S`; the receiver is not
-//! part of a method's overload signature), while unique names keep the
-//! plain `scoop.<name>` form and instances keep `$` (`scoop.show$I`),
-//! so overload and instance symbols never collide. Dispatch is keyed
-//! by signature the same way: vtable / itable slots and call-kind
-//! annotation use `name(<param encoding>)`, so each overload gets its
+//! compiler. Dispatch is keyed by typed source identity: vtable / itable
+//! slots and call-kind annotation use the resolved virtual family, so each overload gets its
 //! own slot and an override replaces the base slot with the matching
 //! signature in place. `toString`, hashing, and equality are ordinary
 //! Scoop declarations; this stage has no capability-specific channels.
@@ -79,11 +73,11 @@
 //! interface gets an itable record whose slots follow the interface's
 //! method declaration order. Method calls are annotated by the
 //! receiver's static type: class receiver → `Virtual`, interface
-//! receiver → `Interface`, value type → `Direct`; member functions
-//! are mangled qualified (`scoop.Point.describe`) so same-named
-//! methods never collide. A direct `super` call carries a distinct HIR proof
+//! receiver → `Interface`, value type → `Direct`; distinct source callables
+//! retain distinct typed identities even when their display names match. A direct
+//! `super` call carries a distinct HIR proof
 //! and always becomes `CallKind::Direct`. Every value type that reaches `Any` / an
-//! interface (`Box`, `is`, `as`) gets a boxed `ClassDef` (`box$<ty>`):
+//! interface (`Box`, `is`, `as`) gets a boxed `ClassDef` (`box<type>`):
 //! its vtable contains only ordinary virtual methods, and its itable
 //! slots point at adjust thunks that either unbox `this` for a value method or
 //! retype the box for an interface default body. The boxed itables cover the value
@@ -100,43 +94,131 @@
 use std::collections::{HashMap, HashSet};
 
 use la_arena::Arena;
-use scoop_ast::Span;
 use scoop_hir::concrete as hir;
+use scoop_hir::concrete::Span;
 use scoop_mir as mir;
+
+fn source_span(span: Span) -> mir::SourceSpan {
+    mir::SourceSpan::new(u64::from(span.start), u64::from(span.end))
+        .expect("concrete HIR source spans are ordered")
+}
 
 mod cfg;
 mod closures;
+mod context;
 mod coroutine;
 mod coroutine_registry;
+mod cross_cone_bridge;
+mod cross_cone_callables;
+pub use cross_cone_callables::{SourceMirCallableProductionError, lower_source_callable_bindings};
+mod cross_cone_constructors;
+mod cross_cone_dispatch;
+mod cross_cone_equality;
+mod cross_cone_exports;
+pub use cross_cone_constructors::{
+    SourceMirConstructorProductionError, lower_constructor_bindings,
+};
+pub use cross_cone_dispatch::{SourceMirDispatchProductionError, lower_dispatch_schemas};
+pub use cross_cone_equality::{SourceMirEqualityProductionError, lower_derived_equality_bindings};
+pub use cross_cone_exports::{
+    MirTypeBridgeDependencyTablesV1, MirTypeBridgeExportInputV1,
+    MirTypeBridgeExportProductionError, MirTypeBridgeUseLoweringError,
+    lower_type_bridge_dependencies, lower_type_bridge_exports,
+    lower_type_bridge_initialization_units,
+};
+mod cross_cone_types;
+pub use cross_cone_types::{
+    SourceMirTypeProductionError, lower_source_type_exports, lower_type_exports,
+};
+mod current;
 mod dispatch;
+mod dynamic_adapters;
 mod globals;
 mod initialization;
 mod instances;
+mod local_values;
 mod lowering_support;
 mod members;
 mod nominals;
 mod pipeline;
+mod production;
 mod singletons;
+mod source_callables;
+mod strings;
 mod structured;
-mod symbols;
 mod types;
 
+pub use cross_cone_bridge::{CrossConeMirBridgeLoweringError, lower_cross_cone_bridge_section};
+pub use current::{CurrentConeMirLoweringError, lower_current_cone};
+pub use production::{MirProductionLoweringError, lower_production_section};
+
+use context::*;
+use dynamic_adapters::{DynamicAdapterDefinitions, request_dynamic_adapter};
 use globals::*;
+use local_values::*;
 use lowering_support::*;
-use symbols::*;
+use source_callables::*;
+use strings::StringRegistry;
 
 use coroutine_registry::{CoroutineRegistry, SuspendSource};
-use instances::{InstanceRegistry, function_instance};
+use instances::InstanceRegistry;
 use structured as smir;
 use types::{
-    BoxedRegistry, EnumRegistry, InterfaceRegistry, StructRegistry, Types, is_boxable,
-    is_reference_mir, lower_integer_constant, lower_integer_kind, mir_type_gc_free,
-    raise_integer_kind, remap_idx,
+    BoxedRegistry, EnumRegistry, InterfaceRegistry, SourceExactTypeRegistry, StructRegistry, Types,
+    exact_function_identity, is_boxable, is_reference_mir, lower_integer_constant,
+    lower_integer_kind, mir_type_gc_free, remap_idx,
 };
 
-/// Lower HIR to MIR.
-pub fn lower(module: &hir::Module) -> mir::Module {
+/// Lower one output-sealed LocalConcrete HIR graph whose compiler protocols
+/// are defined by declarations in that graph.
+pub fn lower(
+    output: &scoop_hir::LocalConcreteHirOutput,
+) -> Result<mir::Module, DefinedCoreMirLoweringError> {
+    assert!(
+        output.module().imported_dependency_callables.is_empty()
+            && output.module().imported_derived_equalities.is_empty(),
+        "an imported HIR graph requires lower_current_cone"
+    );
+    let hir::ConcreteCoreProtocols::Defined(_) = &output.module().core_protocols else {
+        return Err(DefinedCoreMirLoweringError::ImportedProtocols);
+    };
+    Ok(lower_with_dependencies(
+        output,
+        Arena::new(),
+        HashMap::new(),
+        Vec::new(),
+        &[],
+    ))
+}
+
+#[derive(Clone)]
+struct ImportedCallableTarget {
+    callable: mir::ExternalCallableUseId,
+    lowering_role: mir::MirCallableLoweringRoleV1,
+    signature: scoop_identity::ExactCallableSignature,
+    semantic_signature: scoop_identity::ExactCallableSignature,
+}
+
+type ImportedCallableMap = HashMap<hir::ImportedDependencyCallableUseId, ImportedCallableTarget>;
+
+fn lower_with_dependencies(
+    output: &scoop_hir::LocalConcreteHirOutput,
+    external_callables: Arena<mir::ExternalCallableUse>,
+    imported_dependency_callable_map: ImportedCallableMap,
+    imported_singletons: Vec<(mir::ParamFreeMirObjectValueV1, mir::ExternalCallableUseId)>,
+    external_signature_types: &[hir::TypeId],
+) -> mir::Module {
+    let module = output.module();
+    let shape_support = output.materialization().roots();
+    let output = match output.output_kind() {
+        scoop_hir::LocalConeOutputKind::Library => LoweringOutput::Library,
+        scoop_hir::LocalConeOutputKind::Executable { local_entry } => {
+            LoweringOutput::Executable(local_entry.local_function().function())
+        }
+    };
     Lowerer {
+        output,
+        core_protocols: module.core_protocols.clone(),
         functions: Arena::new(),
         extern_functions: Arena::new(),
         extern_map: HashMap::new(),
@@ -149,15 +231,17 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         singleton_values: Arena::new(),
         singleton_published_roots: Arena::new(),
         singleton_root_map: HashMap::new(),
+        imported_singletons,
+        imported_singleton_map: HashMap::new(),
         callback_bridges: Arena::new(),
         callback_by_target: HashMap::new(),
         foreign_callback_adapters: Arena::new(),
         foreign_callback_families: Arena::new(),
         foreign_callback_family_by_callback: HashMap::new(),
         foreign_callback_bridges: Arena::new(),
-        foreign_callback_by_registration: HashMap::new(),
+        foreign_callback_by_application: HashMap::new(),
         top_level: Vec::new(),
-        strings: Arena::new(),
+        strings: StringRegistry::default(),
         structs: StructRegistry::default(),
         struct_map: HashMap::new(),
         classes: Arena::new(),
@@ -170,8 +254,16 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         boxed: BoxedRegistry::default(),
         ctors: HashMap::new(),
         struct_ctors: HashMap::new(),
-        shell: mangling_shell(&Arena::new(), &Arena::new(), &Arena::new(), &Arena::new()),
-        overloaded: overloaded_names(module),
+        shell: type_context(
+            module.cone,
+            &Arena::new(),
+            &Arena::new(),
+            &Arena::new(),
+            &Arena::new(),
+        ),
+        source_exact_types: SourceExactTypeRegistry::default(),
+        source_callables: SourceCallableRegistry::default(),
+        local_values: LocalValueRegistry::default(),
         coroutines: CoroutineRegistry::default(),
         suspend_sources: Vec::new(),
         closure_classes: Arena::new(),
@@ -181,17 +273,46 @@ pub fn lower(module: &hir::Module) -> mir::Module {
         reference_closures: HashMap::new(),
         closure_by_function: HashMap::new(),
         closure_capture_indices: HashMap::new(),
+        closure_receiver_indices: HashMap::new(),
+        closure_environments: Vec::new(),
+        function_bridges: Vec::new(),
         closure_adapters: Arena::new(),
         closure_adapter_by_types: HashMap::new(),
         dynamic_closure_adapters: Arena::new(),
         dynamic_adapter_by_target: HashMap::new(),
         function_bridge_targets: Vec::new(),
         finalized_function_bridges: HashSet::new(),
+        boxing_adjusts: Vec::new(),
+        external_callables,
+        imported_dependency_callable_map,
     }
-    .run(module)
+    .run(module, shape_support, external_signature_types)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DefinedCoreMirLoweringError {
+    ImportedProtocols,
+}
+
+impl std::fmt::Display for DefinedCoreMirLoweringError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("defined-core MIR lowering cannot consume imported core protocols")
+    }
+}
+
+impl std::error::Error for DefinedCoreMirLoweringError {}
+
+fn defined_protocols(protocols: &hir::ConcreteCoreProtocols) -> &hir::DefinedConcreteCoreProtocols {
+    let hir::ConcreteCoreProtocols::Defined(protocols) = protocols else {
+        panic!("this operation requires concrete local protocol types");
+    };
+    protocols
 }
 
 struct Lowerer {
+    output: LoweringOutput,
+    /// Complete typed protocol declarations retained from the HIR input.
+    core_protocols: hir::ConcreteCoreProtocols,
     functions: Arena<mir::Function>,
     extern_functions: Arena<mir::ExternFunction>,
     extern_map: HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
@@ -204,17 +325,22 @@ struct Lowerer {
     singleton_values: Arena<mir::SingletonValue>,
     singleton_published_roots: Arena<mir::SingletonPublishedRoot>,
     singleton_root_map: HashMap<hir::SingletonPublishedRootId, mir::SingletonPublishedRootId>,
+    imported_singletons: Vec<(mir::ParamFreeMirObjectValueV1, mir::ExternalCallableUseId)>,
+    imported_singleton_map: HashMap<
+        scoop_identity::PersistentObjectValueId,
+        (mir::ExternalCallableUseId, mir::GlobalId),
+    >,
     callback_bridges: Arena<mir::CallbackBridge>,
     callback_by_target: HashMap<(mir::FunctionId, mir::FunctionTypeId), mir::CallbackBridgeId>,
     foreign_callback_adapters: Arena<mir::ForeignCallbackAdapter>,
     foreign_callback_families: Arena<mir::ForeignCallbackFamily>,
     foreign_callback_family_by_callback: HashMap<mir::StructId, mir::ForeignCallbackFamilyId>,
     foreign_callback_bridges: Arena<mir::ForeignCallbackBridge>,
-    foreign_callback_by_registration:
-        HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
+    foreign_callback_by_application:
+        HashMap<hir::PersistentCallbackApplicationId, mir::ForeignCallbackBridgeId>,
     /// User functions in declaration order (intrinsics have no MIR body).
     top_level: Vec<mir::FunctionId>,
-    strings: Arena<mir::StringConst>,
+    strings: StringRegistry,
     /// MIR struct definitions transposed from local-concrete HIR.
     structs: StructRegistry,
     /// Local-concrete HIR struct -> MIR struct.
@@ -237,14 +363,14 @@ struct Lowerer {
     ctors: HashMap<hir::ClassConstructorId, mir::FunctionId>,
     /// Local-concrete value constructor -> MIR hidden callable.
     struct_ctors: HashMap<hir::StructConstructorId, mir::FunctionId>,
-    /// Mangling shell: the struct / enum / class / interface names
-    /// `mir::encode_type` reads, kept in sync with the real arenas
-    /// (same ids).
+    /// Type context kept in arena lockstep with definitions while lowering.
     shell: mir::Module,
-    /// Names shared by more than one plainly-mangled function (M7
-    /// overloads): each of them gets the parameter encoding appended
-    /// to its symbol (see `declare_symbol`).
-    overloaded: HashSet<String>,
+    /// Exact HIR type relations registered as types cross into MIR.
+    source_exact_types: SourceExactTypeRegistry,
+    /// Typed MIR locations of callables transposed from LocalConcrete HIR.
+    source_callables: SourceCallableRegistry,
+    /// Typed MIR locations of transposed and MIR-generated semantic values.
+    local_values: LocalValueRegistry,
     /// Declaration indices of `Option`'s `Some` / `None` variants.
     coroutines: CoroutineRegistry,
     suspend_sources: Vec<SuspendSource>,
@@ -257,6 +383,12 @@ struct Lowerer {
     closure_by_function: HashMap<hir::FunctionId, mir::ClosureClassId>,
     /// HIR lexical binding -> concrete inline field index for one closure.
     closure_capture_indices: HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    /// Bound callable-reference receiver -> persistent-id-ordered field index.
+    closure_receiver_indices: HashMap<mir::ClosureClassId, u32>,
+    /// Persistent generated type and field identities for source closures.
+    closure_environments: Vec<mir::ClosureEnvironment>,
+    /// Persistent identities for generated closure forwarding entries.
+    function_bridges: Vec<mir::FunctionBridgeMaterialization>,
     closure_adapters: Arena<mir::ClosureAdapter>,
     closure_adapter_by_types:
         HashMap<(mir::FunctionTypeId, mir::FunctionTypeId), mir::ClosureAdapterId>,
@@ -264,6 +396,66 @@ struct Lowerer {
     dynamic_adapter_by_target: HashMap<mir::FunctionTypeId, mir::DynamicClosureAdapterId>,
     function_bridge_targets: Vec<mir::FunctionTypeId>,
     finalized_function_bridges: HashSet<(mir::ClosureClassId, mir::FunctionTypeId)>,
+    /// Persistent identity and exact physical itable location of every box
+    /// adjust thunk.
+    boxing_adjusts: Vec<mir::BoxingAdjust>,
+    external_callables: Arena<mir::ExternalCallableUse>,
+    imported_dependency_callable_map: ImportedCallableMap,
+}
+
+#[derive(Clone, Copy)]
+enum LoweringOutput {
+    Library,
+    Executable(hir::FunctionId),
+}
+
+fn materialization_odr_group(
+    module: &hir::Module,
+    materialization: hir::CallableMaterialization,
+) -> Option<hir::OdrGroupId> {
+    match materialization.context() {
+        hir::CallableMaterializationContext::NoSubstitution => None,
+        hir::CallableMaterializationContext::Application(application) => Some(
+            module
+                .callable_applications
+                .odr(application)
+                .expect("a callable materialization references its application")
+                .group(),
+        ),
+        hir::CallableMaterializationContext::InitializationApplication(unit) => {
+            let unit = module
+                .initialization_units
+                .iter()
+                .find_map(|(_, candidate)| (candidate.identity.id() == unit).then_some(candidate))
+                .expect("an initialization materialization references its unit");
+            let hir::InitializationUnitKey::GenericDelegatedExtensionApplication {
+                property,
+                receiver_arguments,
+            } = unit.identity.key()
+            else {
+                panic!("an initialization materialization belongs to a generic delegated extension")
+            };
+            Some(
+                hir::OdrGroupId::from_key(&hir::SpecializationKey::DelegatedProperty {
+                    origin: *property,
+                    receiver_arguments: receiver_arguments.clone(),
+                })
+                .expect("a delegated-property ODR group identity is hashable"),
+            )
+        }
+    }
+}
+
+fn finish_cfg_body(
+    local_values: &mut LocalValueRegistry,
+    coroutines: &mut CoroutineRegistry,
+    function: mir::FunctionId,
+    owner: hir::CallableMaterialization,
+    lowered: cfg::LoweredBody,
+) -> mir::Body {
+    local_values.record_generated(function, owner, &lowered.generated_values);
+    coroutines.record_call_sites(function, lowered.call_sites);
+    lowered.body
 }
 
 mod body;

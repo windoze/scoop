@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `broken` must be of type (FunPtr<(Long) -> Long>) -> Any, found (FunPtr<(Int) -> Int>) -> Int",
+    "notes": [],
+    "origin": {
+      "cone": "7b54252994f4b0bcbd8651b52c77b4bd0883f3935cf616ebfa8258726b4aa483",
+      "end": 127,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 121
+    },
+    "severity": "error"
+  }
+]

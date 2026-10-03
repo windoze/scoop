@@ -1,0 +1,8 @@
+import dependency.classes.Counter
+import dependency.classes.ChildReader
+
+public struct LocalReader(): ChildReader
+public fun primary(): Counter {
+    val reader: ChildReader = LocalReader()
+    return Counter(reader.child())
+}

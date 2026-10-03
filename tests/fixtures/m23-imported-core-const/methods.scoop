@@ -1,0 +1,7 @@
+public const val compared: Long = 7.compareTo(other = 3)
+public const val quotient: Int = 17.div(other = 3)
+public const val remainder: Int = 17.rem(other = 3)
+public const val converted: UInt16 = quotient.toUInt16()
+public const val inverted: Int8 = (0).inv()
+public const val shifted: UInt = 3u shl 2L
+public var staticValue: Long = 7.compareTo(other = 3)

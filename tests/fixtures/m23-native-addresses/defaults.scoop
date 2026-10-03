@@ -1,0 +1,16 @@
+package consumer.nativeAddresses
+
+import dependency.nativeAddresses.selected
+import dependency.nativeAddresses.privateAddress
+
+@Extern(lib = "m23_native_calls", name = "m23_call_scalar")
+private fun nativeScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long
+
+public fun callScalar(callback: FunPtr<(Long) -> Long>, value: Long): Long {
+    @Unsafe { return nativeScalar(callback, value) }
+}
+
+public fun <T> exercise(value: T): Long {
+    @Unsafe { return callScalar(selected<T>(value), 20) + callScalar(privateAddress<T>(value), 20) }
+}
+public fun result(): Long = exercise<Int>(0)

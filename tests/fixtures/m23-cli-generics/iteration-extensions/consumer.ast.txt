@@ -1,0 +1,64 @@
+SourceFile
+  QualifiedPackage consumer.iteration
+  ImportStar Local upstream.iteration.*
+  ImportExact Local upstream.iteration.exercise as providerExercise
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    Call resetCalls
+    var sum
+      IntLiteral 0
+    for value
+      Call Items<Int>
+        ArrayLiteral
+          IntLiteral 20
+          IntLiteral 22
+      assign sum
+        Binary Add
+          Var sum
+          Var value
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var sum
+            IntLiteral 42
+          Binary Ne
+            Var iteratorCalls
+            IntLiteral 1
+        Binary Ne
+          Var nextCalls
+          IntLiteral 3
+      return
+        IntLiteral 1
+    Call resetCalls
+    assign sum
+      IntLiteral 0
+    for value
+      Call ValueItems<Int>
+        ArrayLiteral
+          IntLiteral 20
+          IntLiteral 22
+      assign sum
+        Binary Add
+          Var sum
+          Var value
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary Eq
+              Var sum
+              IntLiteral 42
+            Binary Eq
+              Var iteratorCalls
+              IntLiteral 1
+          Binary Eq
+            Var nextCalls
+            IntLiteral 3
+        IntLiteral 42
+        else
+        IntLiteral 2

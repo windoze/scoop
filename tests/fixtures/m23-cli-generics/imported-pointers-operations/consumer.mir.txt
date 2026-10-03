@@ -1,0 +1,232 @@
+Module
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      var number: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val pointer: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf number : Ptr<Int>
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.receiver: Ptr<Boolean>
+        Type Ptr<Boolean>
+        PtrCast Boolean
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val changed: Ptr<Int>
+        Type Ptr<Int>
+        PtrCast Int
+          Type Ptr<Boolean>
+          Local $dependency.receiver
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val inferred: Ptr<Int>
+        Type Ptr<Int>
+        PtrCast Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.parameter.pointer: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.argument.0
+      call $equality.lhs: ULong = @fn2 direct
+        Type Ptr<Int>
+        Local $dependency.parameter.pointer
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local inferred
+      val $dependency.receiver: ULong
+        Type ULong
+        Local $equality.lhs
+      val $dependency.argument.0: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb2 if.merge.2
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local changed
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.offset
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local changed
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val forward: Ptr<Int>
+        Type Ptr<Int>
+        PtrOffset Int subtract=false
+          Type Ptr<Int>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local forward
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val backward: Ptr<Int>
+        Type Ptr<Int>
+        PtrOffset Int subtract=true
+          Type Ptr<Int>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local backward
+      val $equality.lhs: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.receiver: ULong
+        Type ULong
+        Local $equality.lhs
+      val $dependency.argument.0: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb4 if.merge.4
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local backward
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.offset: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.offset
+      val $dependency.argument.0: Int
+        Type Int
+        Local number
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun typeAddress @fn2(pointer: Ptr<Int>) -> ULong
+    bb0 entry
+      val $dependency.local.1: Ptr<Int>
+        Type Ptr<Int>
+        Local pointer
+      val $dependency.local.2: Ptr<Int>
+        Type Ptr<Int>
+        PtrCast Int
+          Type Ptr<Int>
+          Local $dependency.local.1
+      return
+        Type ULong
+        PtrToULong
+          Type Ptr<Int>
+          Local $dependency.local.2
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- typeAddress
+  output library

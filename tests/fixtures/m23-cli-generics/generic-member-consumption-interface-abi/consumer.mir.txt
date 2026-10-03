@@ -1,0 +1,494 @@
+Module
+  struct Large (first: Reference, second: Reference, third: Reference)
+  struct InterfaceCell<Unit> (value: Unit)
+  struct InterfaceCell<Large> (value: Large)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Large>
+    Completed(value: Large)
+    Suspended()
+  enum CoroutineSlot<Large>
+    Empty()
+    Value(value: Large)
+  enum CoroutineStep<Reference>
+    Completed(value: Reference)
+    Suspended()
+  enum CoroutineSlot<Reference>
+    Empty()
+    Value(value: Reference)
+  class Reference vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<InterfaceCell<Unit>> vtable=0 itables=2
+  class box<InterfaceCell<Large>> vtable=0 itables=2
+  class box<Large> vtable=0 itables=0
+  interface Reader<Unit> : Readable<Unit>
+  interface Readable<Unit>
+  interface Reader<Large> : Readable<Large>
+  interface Readable<Large>
+  interface Continuation<Large>
+  interface SuspendTask<Large>
+  interface SuspendRegistration<Large>
+  interface Continuation<Reference>
+  interface SuspendTask<Reference>
+  interface SuspendRegistration<Reference>
+  generated_exact_type get0 location=enum1 nominal_id=601db9629faad6625746f3ca444076aab26172012aa07e00d940287696623d92 exact_id=2657d8d213e71e6844c25ff6971bd11cc1c583f79f1313bac86a167c4b7e62a2
+  generated_exact_type get1 location=enum2 nominal_id=66d7d7b5b1eefa2de746d2b185ff185c822a65f03bb63f9e50f45d32fc1dfde9 exact_id=2fd7256aaec5a01dd8796729ae4570a754a51e831b55ed18742cc098d7214764
+  generated_exact_type get2 location=enum4 nominal_id=fd4ffd594b4ba103d064c4039f14d63d8ced09a55290d833fbcee0c17cdb6825 exact_id=7db9b5d7eaf48e4da120dcc2037f7bfdcb88c15b498e951548ed4d5f26fa5f9b
+  generated_exact_type get3 location=class5 nominal_id=223b1c661c8b8ef8c48aa82180d2dd27900aa584c5f216b07a823c2bad75e8d5 exact_id=aeb3a738a683533b72715d1161262df0971bda8e5bee3f1cee04813215550bbe
+  generated_exact_type get4 location=enum3 nominal_id=d8306c4d2fc22beafc6ed3cb04681448c3064891e9f920b9a6e397ecee7e0ff3 exact_id=d2792a519ca33e7609bc26acc8e4c394393903a7938503b474015046118ab28a
+  generated_exact_type get5 location=class4 nominal_id=ce94328b3fe6776c6bce6d0c488f62ba060f0266e34a281108388beaab197a63 exact_id=d4b715ce7916f1f54a6285e37ce0f56b23faa24be536b842c75b9ad0fcf15c7b
+  generated_exact_type get6 location=class6 nominal_id=610fdc98ad95d6f9efa5d67a403d2f22a7d4f1eabc11b4e55e32bded9065c314 exact_id=dbd3cc1bd0a4786fa3b1d2bb238e173b2b7083a91f01f734d77873341390bc9d
+  generated_callable gc0 function=@fn22 id=3cdf086e35c43ce9389d3ceaf0e0b03eab65e9ac4d6b1f14715bf1c26cc02770
+  generated_callable gc1 function=@fn20 id=59f6d9dc5968697bf1ee92474f8dbefc419aa41bcbd3391b44a284ebb29bf22e
+  generated_callable gc2 function=@fn23 id=6bd7b39afcab5cadf0cf0b6b639e9c5fb944b00229b09f7c578bcadf381035f0
+  generated_callable gc3 function=@fn24 id=79b0c7e194cb5799828f9669b9544c8fc29c81dc8934e7e5cb5317e6ff630f0e
+  generated_callable gc4 function=@fn25 id=8760f937f006ed2c3166e0191d0948f5c67236510738dbdddc318bbe508fa2df
+  generated_callable gc5 function=@fn26 id=983a444941989b1a78e6c37489762a5944e1707a0f4160c9b0f94587d1f41e26
+  generated_callable gc6 function=@fn21 id=cbcc6cf512ad7a257099a0d44633f22d795659a94fd36fc3c146b57e74f1ec23
+  generated_callable gc7 function=@fn19 id=fd059de55a2289edbb4d9d10cfa712beb91676e6f44cc004dbf1a19391f67ac5
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call $call.1: InterfaceCell<Unit> = @fn17 direct
+        Type Unit
+        Local $dependency.parameter.value
+      val empty: Reader<Unit>
+        Type Reader<Unit>
+        Box
+          Type InterfaceCell<Unit>
+          Local $call.1
+      val $dependency.receiver: Reader<Unit>
+        Type Reader<Unit>
+        Local empty
+      call @fn2 interface Reader<Unit>[1]
+        Type Reader<Unit>
+        Local $dependency.receiver
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Reference
+        ClassAlloc Reference
+      call @fn15 direct
+        Type Reference
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $argument.0: Reference
+        Type Reference
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Reference
+        ClassAlloc Reference
+      call @fn15 direct
+        Type Reference
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val $argument.1: Reference
+        Type Reference
+        Local $new.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type Reference
+        ClassAlloc Reference
+      call @fn15 direct
+        Type Reference
+        Local $new.4
+        Type Int
+        Local $parameter.value
+      val $argument.2: Reference
+        Type Reference
+        Local $new.4
+      val $parameter.first: Reference
+        Type Reference
+        Local $argument.0
+      val $parameter.second: Reference
+        Type Reference
+        Local $argument.1
+      val $parameter.third: Reference
+        Type Reference
+        Local $argument.2
+      call $dependency.argument.0: Large = @fn16 direct
+        Type Reference
+        Local $parameter.first
+        Type Reference
+        Local $parameter.second
+        Type Reference
+        Local $parameter.third
+      val $dependency.parameter.value: Large
+        Type Large
+        Local $dependency.argument.0
+      call $call.5: InterfaceCell<Large> = @fn18 direct
+        Type Large
+        Local $dependency.parameter.value
+      val reader: Reader<Large>
+        Type Reader<Large>
+        Box
+          Type InterfaceCell<Large>
+          Local $call.5
+      val $dependency.receiver: Reader<Large>
+        Type Reader<Large>
+        Local reader
+      call value: Large = @fn4 interface Reader<Large>[1]
+        Type Reader<Large>
+        Local $dependency.receiver
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.6
+        Type Reference
+        ClassAlloc Reference
+      call @fn15 direct
+        Type Reference
+        Local $new.6
+        Type Int
+        Local $parameter.value
+      val first: Reference
+        Type Reference
+        Local $new.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.7
+        Type Reference
+        ClassAlloc Reference
+      call @fn15 direct
+        Type Reference
+        Local $new.7
+        Type Int
+        Local $parameter.value
+      val second: Reference
+        Type Reference
+        Local $new.7
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 0
+            Type Large
+            Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 1
+            Type Large
+            Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 2
+            Type Large
+            Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun get @fn1(this: InterfaceCell<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type InterfaceCell<Unit>
+        Local this
+      return
+  fun read @fn2(this: Reader<Unit>) -> Unit
+    bb0 entry
+      val $dependency.local.1: Reader<Unit>
+        Type Reader<Unit>
+        Local this
+      call @fn5 interface Readable<Unit>[0]
+        Type Readable<Unit>
+        Retype Readable<Unit>
+          Type Reader<Unit>
+          Local $dependency.local.1
+      return
+  fun get @fn3(this: InterfaceCell<Large>) -> Large
+    bb0 entry
+      return
+        Type Large
+        FieldAccess 0
+          Type InterfaceCell<Large>
+          Local this
+  fun read @fn4(this: Reader<Large>) -> Large
+    bb0 entry
+      val $dependency.local.1: Reader<Large>
+        Type Reader<Large>
+        Local this
+      call $call.1: Large = @fn6 interface Readable<Large>[0]
+        Type Readable<Large>
+        Retype Readable<Large>
+          Type Reader<Large>
+          Local $dependency.local.1
+      return
+        Type Large
+        Local $call.1
+  fun Readable.get @fn5(this: Readable<Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Readable.get`"
+  fun Readable.get @fn6(this: Readable<Large>) -> Large
+    bb0 entry
+      trap "call to abstract method `Readable.get`"
+  fun Continuation.resume @fn7(this: Continuation<Large>, value: Large) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Large>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Large>, $completion: Continuation<Large>) -> CoroutineStep<Large>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Large>, continuation: Continuation<Large>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<Reference>, value: Reference) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Reference>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Reference>, $completion: Continuation<Reference>) -> CoroutineStep<Reference>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Reference>, continuation: Continuation<Reference>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Reference.$c0 @fn15(this: Reference, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Reference
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Large.$c0 @fn16(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
+    bb0 entry
+      return
+        Type Large
+        StructInit Large
+          Type Reference
+          Local first
+          Type Reference
+          Local second
+          Type Reference
+          Local third
+  fun ctor.InterfaceCell.$c0 @fn17(value: Unit) -> InterfaceCell<Unit> <no-gc>
+    bb0 entry
+      return
+        Type InterfaceCell<Unit>
+        StructInit InterfaceCell<Unit>
+          Type Unit
+          Local value
+  fun ctor.InterfaceCell.$c0 @fn18(value: Large) -> InterfaceCell<Large> <no-gc>
+    bb0 entry
+      return
+        Type InterfaceCell<Large>
+        StructInit InterfaceCell<Large>
+          Type Large
+          Local value
+  fun startCoroutine<Large> @fn19(task: SuspendTask<Large>, completion: Continuation<Large>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Large>[0]
+        Type Continuation<Large>
+        Local completion
+        Type Large
+        EnumField v0 f0
+          Type CoroutineStep<Large>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Large>[1]
+        Type Continuation<Large>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Large> = @fn9 interface SuspendTask<Large>[0]
+        Type SuspendTask<Large>
+        Local task
+        Type Continuation<Large>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Large>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Reference> @fn20(task: SuspendTask<Reference>, completion: Continuation<Reference>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Reference>[0]
+        Type Continuation<Reference>
+        Local completion
+        Type Reference
+        EnumField v0 f0
+          Type CoroutineStep<Reference>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Reference>[1]
+        Type Continuation<Reference>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Reference> = @fn13 interface SuspendTask<Reference>[0]
+        Type SuspendTask<Reference>
+        Local task
+        Type Continuation<Reference>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Reference>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<InterfaceCell<Unit>> Reader.get() @fn21(this: Reader<Unit>) -> Unit
+    bb0 entry
+      call @fn1 direct
+        Type InterfaceCell<Unit>
+        Unbox
+          Type Reader<Unit>
+          Local this
+      return
+  fun thunk<InterfaceCell<Unit>> Reader.read() @fn22(this: Reader<Unit>) -> Unit
+    bb0 entry
+      call @fn2 direct
+        Type Reader<Unit>
+        Retype Reader<Unit>
+          Type Reader<Unit>
+          Local this
+      return
+  fun thunk<InterfaceCell<Unit>> Readable.get() @fn23(this: Readable<Unit>) -> Unit
+    bb0 entry
+      call @fn1 direct
+        Type InterfaceCell<Unit>
+        Unbox
+          Type Readable<Unit>
+          Local this
+      return
+  fun thunk<InterfaceCell<Large>> Reader.get() @fn24(this: Reader<Large>) -> Large
+    bb0 entry
+      call $call.1: Large = @fn3 direct
+        Type InterfaceCell<Large>
+        Unbox
+          Type Reader<Large>
+          Local this
+      return
+        Type Large
+        Local $call.1
+  fun thunk<InterfaceCell<Large>> Reader.read() @fn25(this: Reader<Large>) -> Large
+    bb0 entry
+      call $call.1: Large = @fn4 direct
+        Type Reader<Large>
+        Retype Reader<Large>
+          Type Reader<Large>
+          Local this
+      return
+        Type Large
+        Local $call.1
+  fun thunk<InterfaceCell<Large>> Readable.get() @fn26(this: Readable<Large>) -> Large
+    bb0 entry
+      call $call.1: Large = @fn3 direct
+        Type InterfaceCell<Large>
+        Unbox
+          Type Readable<Large>
+          Local this
+      return
+        Type Large
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Large> result=Large
+  coroutine_step cs1 CoroutineStep<Reference> result=Reference
+  coroutine_slot cl0 CoroutineSlot<Large> value=Large
+  coroutine_slot cl1 CoroutineSlot<Reference> value=Reference
+  coroutine_start ct0 result=Large function=fn19
+  coroutine_start ct1 result=Reference function=fn20
+  coroutine_fn cf0 @fn9 source_return=Large step=cs0 immediate
+  coroutine_fn cf1 @fn13 source_return=Reference step=cs1 immediate
+  instance mi0 function=@fn1 <- get
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- get
+  instance mi3 function=@fn4 <- read
+  instance mi4 function=@fn5 <- Readable.get
+  instance mi5 function=@fn6 <- Readable.get
+  instance mi6 function=@fn7 <- Continuation.resume
+  instance mi7 function=@fn8 <- Continuation.resumeWithException
+  instance mi8 function=@fn9 <- SuspendTask.run
+  instance mi9 function=@fn10 <- SuspendRegistration.register
+  instance mi10 function=@fn11 <- Continuation.resume
+  instance mi11 function=@fn12 <- Continuation.resumeWithException
+  instance mi12 function=@fn13 <- SuspendTask.run
+  instance mi13 function=@fn14 <- SuspendRegistration.register
+  output library

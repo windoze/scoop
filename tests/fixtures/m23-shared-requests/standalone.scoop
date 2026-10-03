@@ -1,0 +1,14 @@
+package consumer.requests
+import upstream.requests.identity as first
+import upstream.requests.identity as second
+
+public fun <T> local(value: T): T = value
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = read(first<T>(second<T>(local<T>(seed))))
+
+public fun result(): Int {
+    if (first<String>("value") != second<String>("value")) { return 1 }
+    first<Unit>(Unit)
+    second<Unit>(Unit)
+    val number = first<Int>(40) + second<Int>(2)
+    return exercise<Int>(number, { value -> value })
+}

@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.DefaultArguments
+  public class LocalArguments(), DefaultArguments
+    public fun answer
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall answer
+          Call LocalArguments

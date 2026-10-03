@@ -1,0 +1,83 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  public fun primary(): Counter
+    val s8: Int8
+      IntLiteral 21
+    val s16: Int16
+      IntLiteral 21
+    val s32: Int
+      IntLiteral 21
+    val s64: Long
+      IntLiteral 21
+    val u8: UInt8
+      IntLiteral 21u
+    val u16: UInt16
+      IntLiteral 21u
+    val u32: UInt
+      IntLiteral 21u
+    val u64: ULong
+      IntLiteral 21u
+    val b8: Any
+      Var s8
+    val b16: Any
+      Var s16
+    val b32: Any
+      Var s32
+    val b64: Any
+      Var s64
+    val c8: Any
+      Var u8
+    val c16: Any
+      Var u16
+    val c32: Any
+      Var u32
+    val c64: Any
+      Var u64
+    val correct
+      Binary And
+        Binary And
+          Binary And
+            Binary And
+              Binary And
+                Binary And
+                  Binary And
+                    Binary Eq
+                      Cast Int8 optional=false
+                        Var b8
+                      IntLiteral 21
+                    Binary Eq
+                      Cast Int16 optional=false
+                        Var b16
+                      IntLiteral 21
+                  Binary Eq
+                    Cast Int optional=false
+                      Var b32
+                    IntLiteral 21
+                Binary Eq
+                  Cast Long optional=false
+                    Var b64
+                  IntLiteral 21
+              Binary Eq
+                Cast UInt8 optional=false
+                  Var c8
+                IntLiteral 21u
+            Binary Eq
+              Cast UInt16 optional=false
+                Var c16
+              IntLiteral 21u
+          Binary Eq
+            Cast UInt optional=false
+              Var c32
+            IntLiteral 21u
+        Binary Eq
+          Cast ULong optional=false
+            Var c64
+          IntLiteral 21u
+    return
+      Call Counter
+        IfExpression
+          Var correct
+          IntLiteral 21
+          else
+          IntLiteral 0

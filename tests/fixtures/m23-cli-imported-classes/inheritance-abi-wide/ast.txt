@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Token
+  ImportExact Local dependency.classes.WideParent
+  ImportExact Local dependency.classes.WideValue
+  public open class Derived() : WideParent(<1 args>)
+    public fun transform
+  public fun primary(): Counter
+    val value: WideParent
+      Call Derived
+    val result
+      MethodCall transform
+        Var value
+        Call WideValue
+          IntLiteral 0
+          IntLiteral 0
+          IntLiteral 0
+        Call Token
+    return
+      Call Counter
+        Binary Add
+          Binary Add
+            FieldAccess first
+              Var result
+            FieldAccess second
+              Var result
+          FieldAccess third
+            Var result

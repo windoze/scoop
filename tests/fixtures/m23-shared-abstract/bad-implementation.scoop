@@ -1,0 +1,5 @@
+import dependency.abstracts.BaseReader
+
+public class Incomplete public constructor(): BaseReader<Int>() {
+    protected override fun stored(): Int = 42
+}

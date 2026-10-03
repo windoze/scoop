@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.equality"
+name = "reexport"
+version = "0.1.0"
+kind = "executable"
+
+[dependencies]
+"dev.equality:facade" = {version = "0.1.0", path = "../facade"}

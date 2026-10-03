@@ -1,0 +1,29 @@
+package dependency.generics
+
+public fun <T> identity(value: T): T = value
+
+private fun <T> helper(value: T): T = identity(value)
+
+public fun <T> choose(first: T, second: T): T = helper(first)
+
+public fun <T : value> valueOnly(value: T): T = value
+
+public fun <T> T.echo(): T = identity(this)
+
+public fun <T> defaulted(first: T, second: T = identity(first)): T = second
+
+@NoGC
+public fun <T> nativeIdentity(value: T): T = value
+
+public fun <T> recursive(value: T, again: Boolean): T {
+    if (again) { return recursive<T>(value, false) }
+    return value
+}
+
+public fun <T : value> pointerIdentity(pointer: Ptr<T>): Ptr<T> = pointer
+
+public fun <T> select(value: T): Int = 1
+public fun <T, U> select(value: (T, U)): Int = 2
+
+public fun <T> conflict(left: T, right: Int): Int = 1
+public fun <T> conflict(left: Int, right: T): Int = 2

@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.MutableValue
+  public class LocalValue(initial: Long), MutableValue
+    public open override var value: Long = <expr>
+      Var initial
+      get()
+        Binary Add
+          Var field
+          IntLiteral 1
+      set(next)
+        assign field
+          Binary Sub
+            Var next
+            IntLiteral 1
+  public fun primary(): Counter
+    val concrete
+      Call LocalValue
+        IntLiteral 19
+    val view: MutableValue
+      Var concrete
+    compound-assign Add
+      Var view
+      IntLiteral 1
+    return
+      Call Counter
+        FieldAccess value
+          Var concrete

@@ -1,0 +1,45 @@
+SourceFile
+  RootPackage
+  private fun sourceSeed(value: Int = <expr>): Int
+    =
+      Var value
+  private var sourceBias: Int = <expr>
+  private fun Int.sourceShift(value: Int = <expr>): Int
+    =
+      Binary Add
+        This
+        Var value
+  private struct SourcePacket
+    field value: Int = <expr>
+  private enum SourceChoice
+    Present <ctor>
+      value: Int = <expr>
+  private object SourceRegistry
+    public fun read
+  public open class SourceBase<T>()
+    protected fun inherited
+  public class SourceChild<U>() : SourceBase<(U, U)>(<0 args>)
+    protected fun inherited
+  public class SourceHost<T>()
+    private fun packet
+    private fun choice
+    private fun singleton
+    private fun extension
+    private fun reference
+    private fun local
+    private fun keep
+    public fun run
+  private fun unreachableLeft(value: Int = <expr>): Int
+    =
+      Var value
+  private fun unreachableRight(value: Int = <expr>): Int
+    =
+      Var value
+SourceFile
+  RootPackage
+  public fun sourceHostInt(): SourceHost<Int>
+    =
+      Call SourceHost<Int>
+  public fun sourceHostString(): SourceHost<String>
+    =
+      Call SourceHost<String>

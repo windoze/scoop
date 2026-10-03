@@ -1,0 +1,71 @@
+SourceFile
+  QualifiedPackage consumer.arrayconstruction
+  ImportExact Local Array as Choose
+  ImportExact Local dependency.arrayconstruction.selected as Choose
+  ImportExact Local Array as Narrow
+  ImportExact Local dependency.arrayconstruction.broad as Narrow
+  ImportExact Local dependency.arrayconstruction.IntSnapshot as Fixed
+  ImportExact Local dependency.arrayconstruction.genericCopy as Fixed
+  ImportExact Local dependency.arrayconstruction.exercise as providerExercise
+  ImportExact Local dependency.arrayconstruction.trace
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val source: MutableArray<Int>
+      ArrayLiteral
+        IntLiteral 42
+    if
+      Binary Ne
+        Index
+          Call Choose
+            Var source
+          IntLiteral 0L
+        IntLiteral 43
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Index
+          Call Choose<Int>
+            Var source
+          IntLiteral 0L
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Index
+          Call Narrow
+            Var source
+          IntLiteral 0L
+        IntLiteral 42
+      return
+        IntLiteral 3
+    assign trace
+      IntLiteral 0
+    val fixed
+      Call Fixed
+        Var source
+    if
+      Binary Or
+        Binary Ne
+          Var trace
+          IntLiteral 0
+        Binary Ne
+          Index
+            Var fixed
+            IntLiteral 0L
+          IntLiteral 42
+      return
+        IntLiteral 4
+    assign []
+      Var source
+      IntLiteral 0L
+      IntLiteral 7
+    return
+      Index
+        Var fixed
+        IntLiteral 0L

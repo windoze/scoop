@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "anonymous-function return type is Int, but the expected type is T",
+    "notes": [],
+    "origin": {
+      "cone": "2932d8fad52835789765cd4f545563dbfd812f22cdedc4646c0a3444b09db805",
+      "end": 126,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 123
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown function `read`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "2932d8fad52835789765cd4f545563dbfd812f22cdedc4646c0a3444b09db805",
+      "end": 156,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 152
+    },
+    "severity": "error"
+  }
+]

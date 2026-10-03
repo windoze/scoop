@@ -1,0 +1,17 @@
+package consumer.pointers
+
+import dependency.pointers.bytes
+import dependency.pointers.alignment
+import dependency.pointers.layoutDefault
+
+private struct Managed(val text: String, val number: Int)
+
+public fun <T> exercise(value: T): Int {
+    if (sizeOf<Unit>() != 0uL || alignOf<Unit>() != 1uL) { return 1 }
+    if (bytes<UInt8>() != 1uL || bytes<Long>() != 8uL) { return 2 }
+    if (bytes<Managed>() != 16uL || alignment<Managed>() != 8uL) { return 3 }
+    if (layoutDefault<Managed>() != 24uL) { return 4 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(0)

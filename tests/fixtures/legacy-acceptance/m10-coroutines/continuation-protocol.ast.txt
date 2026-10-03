@@ -1,0 +1,66 @@
+SourceFile
+  RootPackage
+  class Holder(var waiter: Continuation<Int>?)
+    fun resumeTwice
+    fun resumeInvalidated
+    fun failThenResume
+  class SavingRegistration(val holder: Holder), SuspendRegistration<Int>
+    public fun register
+  class ResumeThenThrowRegistration(), SuspendRegistration<Int>
+    public fun register
+  class SaveThenThrowRegistration(val holder: Holder), SuspendRegistration<Int>
+    public fun register
+  class SynchronousFailureRegistration(), SuspendRegistration<Int>
+    public fun register
+  class WaitingTask(val holder: Holder), SuspendTask<Int>
+    public suspend fun run
+  class ResumeThenThrowTask(), SuspendTask<Int>
+    public suspend fun run
+  class SaveThenThrowTask(val holder: Holder), SuspendTask<Int>
+    public suspend fun run
+  class SynchronousFailureTask(), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun launch(task: SuspendTask<Int>, completion: Continuation<Int>)
+    Call startCoroutine
+      Var task
+      Var completion
+  fun main()
+    val duplicate
+      Call Holder
+        Var None
+    Call launch
+      Call WaitingTask
+        Var duplicate
+      Call RecordingCompletion
+    MethodCall resumeTwice
+      Var duplicate
+      IntLiteral 41
+    Call launch
+      Call ResumeThenThrowTask
+      Call RecordingCompletion
+    Call launch
+      Call SynchronousFailureTask
+      Call RecordingCompletion
+    val invalidated
+      Call Holder
+        Var None
+    Call launch
+      Call SaveThenThrowTask
+        Var invalidated
+      Call RecordingCompletion
+    MethodCall resumeInvalidated
+      Var invalidated
+      IntLiteral 44
+    val failed
+      Call Holder
+        Var None
+    Call launch
+      Call WaitingTask
+        Var failed
+      Call RecordingCompletion
+    MethodCall failThenResume
+      Var failed
+      IntLiteral 45

@@ -65,25 +65,37 @@ impl Lowerer {
         let attributes = self
             .check_function_annotations(decl, crate::FunctionTarget::Local)
             .attributes;
-        let local_number = self.local_functions.len();
+        let definition_path = self
+            .definition_paths
+            .next(scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration);
+        let local_number = self.local_function_by_function.len();
         let access = self.local_declaration_access();
         let function = self.functions.alloc(hir::Function {
-            name: format!("$local.{local_number}.{}", decl.name.text),
+            signature: hir::CallableSignature {
+                name: format!("$local.{local_number}.{}", decl.name.text),
+                is_suspend: decl.is_suspend,
+                modifiers: hir::CallableModifiers::default(),
+                params: Vec::new(),
+                return_ty,
+                attributes,
+                span: decl.span,
+            },
+
             access,
-            override_access: Vec::new(),
             genericity: hir::FunctionGenericity::Plain,
-            is_suspend: decl.is_suspend,
-            modifiers: hir::CallableModifiers::default(),
-            params: Vec::new(),
-            return_ty,
-            attributes,
             kind: hir::FunctionKind::User(hir::Body {
                 locals: la_arena::Arena::new(),
                 statements: Vec::new(),
             }),
             method: None,
-            span: decl.span,
         });
+        self.source_function_declarations.insert(
+            function,
+            crate::SourceFunctionDeclaration {
+                name: decl.name.text.clone(),
+            },
+        );
+        self.function_files.insert(function, self.current_file);
         self.signatures.insert(
             function,
             FnSig {
@@ -100,10 +112,16 @@ impl Lowerer {
             self.register_generic(function, type_params.clone());
         }
         let local = self.local_functions.alloc(hir::LocalFunction {
-            function,
+            definition: hir::LexicalFunctionDefinition::Source {
+                function,
+                root: self.current_definition_root(),
+            },
+            definition_path: definition_path.clone(),
+            declaration_function_type: function_type,
             function_type,
             captures: Vec::new(),
             owner_type_param_count,
+            origin: self.definition_origin(decl.span),
             span: decl.span,
         });
         self.local_function_by_function.insert(function, local);
@@ -112,7 +130,7 @@ impl Lowerer {
             .local_function_scopes
             .current(&decl.name.text)
             .into_iter()
-            .map(|candidate| self.local_functions[candidate].function)
+            .map(|candidate| self.local_functions[candidate].source_function())
             .any(|candidate| self.same_parameter_signature(function, candidate));
         if duplicate {
             self.error(
@@ -130,9 +148,14 @@ impl Lowerer {
                 .declare(decl.name.text.clone(), local);
         }
 
-        self.lower_local_parameter_interface(function);
+        let outer_definition_paths = std::mem::replace(
+            &mut self.definition_paths,
+            crate::definition_paths::DefinitionPathContext::nested(&definition_path),
+        );
+        self.lower_local_parameter_interface(function, &decl.name.text);
 
         let capture_environment = self.capture_environment();
+        let declaration_origin = self.expression_origin(decl.span);
         let outer_locals = std::mem::take(&mut self.locals);
         let outer_scopes = std::mem::replace(&mut self.scopes, Scopes::new());
         let outer_return_ty = self.current_return_ty;
@@ -149,7 +172,7 @@ impl Lowerer {
         });
         self.current_return_ty = return_ty;
         self.current_fn_name = self.functions[function].name.clone();
-        self.set_source_context(decl.name.text.clone());
+        self.set_source_context(hir::SourceContextSubject::Function(function));
         self.push_suspension_context(if decl.is_suspend {
             SuspensionContext::SuspendFunction
         } else {
@@ -161,7 +184,7 @@ impl Lowerer {
 
         let lowered = {
             let mut params = Vec::with_capacity(sig_params.len());
-            for param in &sig_params {
+            for (index, param) in sig_params.iter().enumerate() {
                 if self.scopes.is_declared_here(&param.name.text) {
                     self.error(
                         param.name.span,
@@ -169,7 +192,12 @@ impl Lowerer {
                     );
                     continue;
                 }
-                let local = self.alloc_local(param.name.text.clone(), param.ty, false);
+                let local = self.alloc_parameter_local(
+                    param.name.text.clone(),
+                    param.ty,
+                    index,
+                    param.name.span,
+                );
                 self.scopes.declare(param.name.text.clone(), local);
                 params.push(hir::Param {
                     name: param.name.text.clone(),
@@ -228,12 +256,16 @@ impl Lowerer {
                     Vec::new()
                 }
             };
-            let captures = self.finish_current_captures();
-            patch_local_function_calls(&mut statements, local, &captures);
+            let captures = self.finish_current_captures(declaration_origin);
+            patch_local_function_calls(self, &mut statements, local, &captures);
             let mut abi_params = Vec::with_capacity(captures.len() + params.len());
             for capture in &captures {
-                let capture_local =
-                    self.alloc_local(format!("$capture.{}", capture.name), capture.ty, false);
+                let capture_local = self.alloc_synthetic_local(
+                    format!("$capture.{}", capture.name),
+                    capture.ty,
+                    false,
+                    scoop_identity::SyntheticLocalRole::Temporary,
+                );
                 abi_params.push(hir::Param {
                     name: format!("$capture.{}", capture.name),
                     ty: capture.ty,
@@ -256,6 +288,7 @@ impl Lowerer {
         self.return_inference = outer_return_inference;
         self.current_fn_name = outer_fn_name;
         self.current_source_context = outer_source_context;
+        self.definition_paths = outer_definition_paths;
         self.current_this = outer_this;
         self.smart_casts = outer_smart_casts;
         debug_assert!(self.loop_targets.is_empty());

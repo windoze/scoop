@@ -1,0 +1,10 @@
+import dependency.classes.Counter
+import dependency.classes.ChildReader
+import dependency.classes.ZeroReader
+
+public fun primary(): Counter {
+    val first: ChildReader = ZeroReader()
+    val second: Any = ZeroReader()
+    if (first === second) { return Counter(0) }
+    return Counter(first.child())
+}

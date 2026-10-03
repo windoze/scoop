@@ -62,10 +62,7 @@ impl Lowerer {
             return Some(hir::ExhaustivenessProof::IrrefutableArm { subject_ty });
         }
         match self.types[subject_ty] {
-            Type::Enum(application) => Some(hir::ExhaustivenessProof::EnumPatternMatrix {
-                subject_ty,
-                application,
-            }),
+            Type::Enum(_) => Some(hir::ExhaustivenessProof::EnumPatternMatrix { subject_ty }),
             Type::Tuple(_) | Type::Struct(_) | Type::Integer(_) => {
                 Some(hir::ExhaustivenessProof::PatternMatrix { subject_ty })
             }
@@ -200,54 +197,41 @@ impl Lowerer {
 
     fn constructor_space(&mut self, ty: hir::TypeId, matrix: &Matrix) -> ConstructorSpace {
         match self.types[ty].clone() {
-            Type::Enum(application) => {
-                let application_value = self.enum_applications[application].clone();
-                let enum_id = application_value.template;
-                let variants = self.enums[enum_id].variants.clone();
-                ConstructorSpace::Closed(
-                    variants
-                        .into_iter()
-                        .enumerate()
-                        .map(|(index, variant)| Constructor::EnumVariant {
-                            variant: index as u32,
-                            name: variant.name,
-                            style: self.variant_styles[&(enum_id, index as u32)],
-                            field_names: variant
-                                .fields
-                                .iter()
-                                .map(|field| field.name.clone())
-                                .collect(),
-                            field_types: self.variant_field_types(
-                                enum_id,
-                                index as u32,
-                                &application_value.arguments,
-                            ),
-                        })
+            Type::Struct(_) => {
+                let structure = self
+                    .struct_fields(ty)
+                    .expect("a struct subject has complete fields");
+                ConstructorSpace::Closed(vec![Constructor::Struct {
+                    name: structure.name,
+                    field_names: structure
+                        .fields
+                        .iter()
+                        .map(|field| field.name.clone())
                         .collect(),
-                )
+                    field_types: structure.fields.iter().map(|field| field.ty).collect(),
+                }])
             }
+            Type::Enum(_) => ConstructorSpace::Closed(
+                self.enum_variants(ty)
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, variant)| Constructor::EnumVariant {
+                        variant: index as u32,
+                        name: variant.name,
+                        style: variant.style,
+                        field_names: variant
+                            .fields
+                            .iter()
+                            .map(|(name, _)| name.clone())
+                            .collect(),
+                        field_types: variant.fields.into_iter().map(|(_, ty)| ty).collect(),
+                    })
+                    .collect(),
+            ),
             Type::Tuple(field_types) => {
                 ConstructorSpace::Closed(vec![Constructor::Tuple { field_types }])
             }
-            Type::Struct(application) => {
-                let application_value = self.struct_applications[application].clone();
-                let declaration = self.structs[application_value.template].clone();
-                let field_names = declaration
-                    .semantic_fields()
-                    .iter()
-                    .map(|field| field.name.clone())
-                    .collect();
-                let field_types = declaration
-                    .semantic_fields()
-                    .iter()
-                    .map(|field| self.instantiate_ty(field.ty, &application_value.arguments))
-                    .collect();
-                ConstructorSpace::Closed(vec![Constructor::Struct {
-                    name: declaration.name,
-                    field_names,
-                    field_types,
-                }])
-            }
+
             Type::Boolean => ConstructorSpace::Closed(vec![
                 Constructor::Boolean(false),
                 Constructor::Boolean(true),
@@ -339,11 +323,12 @@ impl Lowerer {
                     ..
                 },
                 hir::Pattern::Variant {
-                    variant: pattern_variant,
+                    application,
                     fields,
-                    ..
                 },
-            ) if variant == pattern_variant => Some(normalize_fields(field_types.len(), fields)),
+            ) if *variant == self.enum_variant_index(*application) => {
+                Some(normalize_fields(field_types.len(), fields))
+            }
             (Constructor::Tuple { field_types }, hir::Pattern::Tuple(elements)) => {
                 debug_assert_eq!(elements.len(), field_types.len());
                 Some(elements.clone())
@@ -399,7 +384,7 @@ fn string_pattern_value(pattern: &hir::Pattern) -> Option<&str> {
     let hir::Pattern::Literal { value, .. } = pattern else {
         return None;
     };
-    let hir::ExprKind::StringLiteral(value) = &value.kind else {
+    let hir::ExprKind::StringLiteral { value, .. } = &value.kind else {
         return None;
     };
     Some(value)
@@ -413,7 +398,7 @@ fn literal_matches_type(pattern: &hir::Pattern, ty: &Type) -> bool {
         (&value.kind, ty),
         (hir::ExprKind::BoolLiteral(_), Type::Boolean)
             | (hir::ExprKind::UnitLiteral, Type::Unit)
-            | (hir::ExprKind::StringLiteral(_), Type::String)
+            | (hir::ExprKind::StringLiteral { .. }, Type::String)
             | (hir::ExprKind::IntegerLiteral(_), Type::Integer(_))
     )
 }

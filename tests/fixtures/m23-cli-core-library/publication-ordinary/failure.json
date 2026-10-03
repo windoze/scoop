@@ -1,0 +1,25 @@
+[
+  {
+    "code": "SCOOPC_COMPILER_WARNING",
+    "message": "`Raedy` is a catch-all binding because `Signal` has no variant named `Raedy`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
+    "notes": [],
+    "origin": {
+      "cone": "55939c178ad52bb5d975d0ddd7e0ef3b9a5700b5bd5303ec1328e2a92df2235d",
+      "end": 113,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 108
+    },
+    "severity": "warning"
+  },
+  {
+    "code": "SCOOP_OUTPUT_WRITE",
+    "message": "existing output is not a regular file",
+    "phase": "Publication",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "pattern does not list all fields of struct `Pair`; add `..` to ignore the rest",
+    "notes": [],
+    "origin": {
+      "cone": "6957eea7d2c676b1e2ec2b90b8889558dea05d442adc4c74942808f1e2e56069",
+      "end": 84,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 64
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "6957eea7d2c676b1e2ec2b90b8889558dea05d442adc4c74942808f1e2e56069",
+      "end": 120,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 115
+    },
+    "severity": "error"
+  }
+]

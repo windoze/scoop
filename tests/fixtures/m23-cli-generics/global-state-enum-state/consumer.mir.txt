@@ -1,0 +1,293 @@
+Module
+  global0 stored: State<Cell> managed initial=encoded(State<Cell>::v0)
+  enum State<Cell>
+    Empty()
+    Item(_1: Cell)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Cell>
+    Completed(value: Cell)
+    Suspended()
+  enum CoroutineSlot<Cell>
+    Empty()
+    Value(value: Cell)
+  class Cell vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Cell>
+  interface SuspendTask<Cell>
+  interface SuspendRegistration<Cell>
+  generated_exact_type get0 location=enum3 nominal_id=68f653a3ca0780585be92eae4fd2d4c062c8cfc37f4ef22642b8ab763101fe4f exact_id=56e32b8e1fc74305e1830c048d055b48a625f67d9b60cc4ae4c25e3831769c1a
+  generated_exact_type get1 location=enum2 nominal_id=b20caf3835266b17acd1278e3a7c26ef6ea3287e215008073b42b28d8d284192 exact_id=f0a315b5cfd4e40a8fedd2ebebcf998d3b553f4e512634a84776e86031cfcd2a
+  generated_callable gc0 function=@fn9 id=5e9a2ba55cf6f0c874a60ed0ee235982f43a1cdb425892da5766a13af359a016
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn3 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun $get$stored @fn1() -> State<Cell>
+    bb0 entry
+      return
+        Type State<Cell>
+        GlobalRead stored
+  fun $set$stored @fn2(value: State<Cell>) -> Unit
+    bb0 entry
+      global_assign stored
+        Type State<Cell>
+        Local value
+      return
+  fun exercise @fn3(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      call @fn8 direct
+        Type Cell
+        Local $new.1
+        Type Int
+        Local $parameter.number
+      val $argument.0: Cell
+        Type Cell
+        Local $new.1
+      val $parameter._1: Cell
+        Type Cell
+        Local $argument.0
+      call @fn2 direct
+        Type State<Cell>
+        VariantConstruct State<Cell> v1
+          Type Cell
+          Local $parameter._1
+      call saved: State<Cell> = @fn1 direct
+      call @fn2 direct
+        Type State<Cell>
+        VariantConstruct State<Cell> v0
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Cell
+        ClassAlloc Cell
+      call @fn8 direct
+        Type Cell
+        Local $new.2
+        Type Int
+        Local $parameter.number
+      val allocated: Cell
+        Type Cell
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      call $when.1: State<Cell> = @fn1 direct
+      val $pattern.subject.2: State<Cell>
+        Type State<Cell>
+        Local $when.1
+      branch bb3 bb4
+        Type Boolean
+        VariantTest State<Cell> v0
+          Type State<Cell>
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      assign $result.0
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb4 pattern.else.4
+      val $pattern.subject.3: State<Cell>
+        Type State<Cell>
+        Local $when.1
+      branch bb6 bb7
+        Type Boolean
+        VariantTest State<Cell> v1
+          Type State<Cell>
+          Local $pattern.subject.3
+    bb5 pattern.merge.5
+      val cleared: Boolean
+        Type Boolean
+        Local $result.0
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local cleared
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb6 pattern.pass.6
+      val cell: Cell
+        Type Cell
+        VariantPayloadProject State<Cell> v1 f0
+          Type State<Cell>
+          Local $pattern.subject.3
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb8
+    bb7 pattern.else.7
+      unreachable
+    bb8 pattern.merge.8
+      goto bb5
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      val $when.4: State<Cell>
+        Type State<Cell>
+        Local saved
+      val $pattern.subject.5: State<Cell>
+        Type State<Cell>
+        Local $when.4
+      branch bb11 bb12
+        Type Boolean
+        VariantTest State<Cell> v1
+          Type State<Cell>
+          Local $pattern.subject.5
+    bb11 pattern.pass.11
+      val cell: Cell
+        Type Cell
+        VariantPayloadProject State<Cell> v1 f0
+          Type State<Cell>
+          Local $pattern.subject.5
+      assign $result.1
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local cell
+      goto bb13
+    bb12 pattern.else.12
+      val $pattern.subject.6: State<Cell>
+        Type State<Cell>
+        Local $when.4
+      branch bb14 bb15
+        Type Boolean
+        VariantTest State<Cell> v0
+          Type State<Cell>
+          Local $pattern.subject.6
+    bb13 pattern.merge.13
+      return
+        Type Int
+        Local $result.1
+    bb14 pattern.pass.14
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb16
+    bb15 pattern.else.15
+      unreachable
+    bb16 pattern.merge.16
+      goto bb13
+  fun Continuation.resume @fn4(this: Continuation<Cell>, value: Cell) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Cell>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Cell>, $completion: Continuation<Cell>) -> CoroutineStep<Cell>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Cell>, continuation: Continuation<Cell>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Cell.$c0 @fn8(this: Cell, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell
+        Local this
+        Type Int
+        Local number
+      return
+  fun startCoroutine<Cell> @fn9(task: SuspendTask<Cell>, completion: Continuation<Cell>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Cell>[0]
+        Type Continuation<Cell>
+        Local completion
+        Type Cell
+        EnumField v0 f0
+          Type CoroutineStep<Cell>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Cell>[1]
+        Type Continuation<Cell>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Cell> = @fn6 interface SuspendTask<Cell>[0]
+        Type SuspendTask<Cell>
+        Local task
+        Type Continuation<Cell>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Cell>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Cell> result=Cell
+  coroutine_slot cl0 CoroutineSlot<Cell> value=Cell
+  coroutine_start ct0 result=Cell function=fn9
+  coroutine_fn cf0 @fn6 source_return=Cell step=cs0 immediate
+  instance mi0 function=@fn3 <- exercise
+  instance mi1 function=@fn4 <- Continuation.resume
+  instance mi2 function=@fn5 <- Continuation.resumeWithException
+  instance mi3 function=@fn6 <- SuspendTask.run
+  instance mi4 function=@fn7 <- SuspendRegistration.register
+  output library

@@ -1,0 +1,53 @@
+SourceFile
+  QualifiedPackage consumer.enums
+  ImportStar Local upstream.enums.*
+  public enum Carrier<T>
+    Vacant
+    Wrapped(Choice<T>, T?)
+  public fun selected<T>(value: Carrier<T>, fallback: T, result: T = <expr>): T
+    =
+      Var result
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val choice: Choice<T>
+      MethodCall Defaults
+        Var Choice
+        Var seed
+    val value: Carrier<T>
+      MethodCall Wrapped
+        Var Carrier
+        Var choice
+        Call Some
+          Var seed
+    if
+      Binary Ne
+        Call read
+          Call selected<T>
+            Var value
+            Var seed
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      WhenExpression
+        Var value
+        arm Vacant
+          IntLiteral 2
+        arm Wrapped(Defaults{payload, amount}, Some(extra)) if <guard>
+          if
+            Binary Ne
+              Call read
+                Var extra
+              IntLiteral 42
+            return
+              IntLiteral 3
+          Call read
+            Var payload
+        arm Wrapped(_, _)
+          IntLiteral 4
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

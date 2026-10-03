@@ -1,0 +1,33 @@
+SourceFile
+  RootPackage
+  public fun defaultSamples(): Samples
+    =
+      Call Samples
+SourceFile
+  RootPackage
+  public struct Packet
+    field number: Int
+    field flag: Boolean
+    field unit: Unit
+  public struct Empty
+  public enum Choice
+    Missing
+    Pair <ctor>
+      number: Int
+      flag: Boolean
+  public enum Other
+    Missing
+    Pair <ctor>
+      number: Int
+      flag: Boolean
+  public object Cache
+  public class Box()
+  public interface Marker
+  public class Samples()
+    public fun packet
+    public fun empty
+    public fun choice
+    public fun other
+    public fun cache
+    public fun box
+    public fun marker

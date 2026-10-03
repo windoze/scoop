@@ -1,90 +1,196 @@
 use super::*;
 
-/// Translate `module` to LLVM IR and emit an object file at `output` using the
-/// complete target profile selected by the driver.
-pub fn emit_object(
-    module: &Module,
-    output: &Path,
-    profile: TargetProfile,
-) -> Result<(), CodegenError> {
-    validation::validate_module(module)?;
-    profile.validate_lir_target_profile(module.meta.target_profile)?;
-    let expected_safepoints = statepoint::expectations(module)?;
-    let expected_eh = artifact::eh_expectations(module)?;
-    let machine = profile.create_target_machine()?;
-    let context = Context::create();
-    let llvm = prepare_llvm_module(&context, module, &machine, profile, &expected_safepoints)?;
+mod objects;
+mod storage;
+pub use objects::*;
 
+fn prepare_non_callable_strong_llvm_module<
+    'ctx,
+    D: scoop_lir::StrongDescriptorReference,
+    C: Clone,
+    I: Clone,
+>(
+    context: &'ctx Context,
+    module: &Module,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
+    machine: &TargetMachine,
+    profile: ValidatedBackendProfile,
+    expected_safepoints: &statepoint::ExpectedSafepoints,
+) -> Result<(LlvmModule<'ctx>, EmittedStrongRuntimeMetadataV1), CodegenError> {
+    let (llvm, runtime_metadata) = emit_llvm_module_with_surface(
+        context,
+        module,
+        production.canonical_definitions(),
+        machine,
+        profile,
+        StrongObjectEmissionSelection::NonCallable,
+        |context, llvm, target_data, bounds_message, array_size_message| {
+            let runtime_metadata = runtime_metadata_v1::emit_strong_runtime_metadata_v1(
+                context,
+                llvm,
+                target_data,
+                profile,
+                production,
+                bounds_message,
+                array_size_message,
+            )?;
+            let (runtime_metadata, emitted_initialization_units) = runtime_metadata.into_parts();
+            let initialization_units =
+                initialization_unit_globals(module, &emitted_initialization_units)?;
+            Ok((runtime_metadata, initialization_units))
+        },
+    )?;
+
+    verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
+    Ok((llvm, runtime_metadata))
+}
+
+fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
+    context: &'ctx Context,
+    module: &Module,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
+    machine: &TargetMachine,
+    profile: ValidatedBackendProfile,
+    expected_safepoints: &statepoint::ExpectedSafepoints,
+    body: scoop_lir::PersistentCallableBodyId,
+) -> Result<LlvmModule<'ctx>, CodegenError> {
+    let (llvm, ()) = emit_llvm_module_with_surface(
+        context,
+        module,
+        production.canonical_definitions(),
+        machine,
+        profile,
+        StrongObjectEmissionSelection::CallableBody(body),
+        |context, llvm, _, _, _| {
+            Ok((
+                (),
+                declare_initialization_unit_globals(context, llvm, module, production)?,
+            ))
+        },
+    )?;
+    verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
+    Ok(llvm)
+}
+
+fn write_object(
+    machine: &TargetMachine,
+    llvm: &LlvmModule<'_>,
+    output: &Path,
+) -> Result<(), CodegenError> {
     machine
-        .write_to_file(&llvm, FileType::Object, output)
-        .map_err(|e| CodegenError(format!("failed to write {}: {e}", output.display())))?;
-    if let Err(error) = profile.verify_object(output, &expected_safepoints, &expected_eh) {
-        if let Err(remove_error) = std::fs::remove_file(output) {
-            return Err(CodegenError(format!(
-                "{error}; also failed to discard invalid object {}: {remove_error}",
-                output.display()
-            )));
-        }
-        return Err(error);
+        .write_to_file(llvm, FileType::Object, output)
+        .map_err(|error| CodegenError(format!("failed to write {}: {error}", output.display())))
+}
+
+fn verify_and_seal_object(
+    output: &Path,
+    profile: ValidatedBackendProfile,
+    expected_safepoints: &statepoint::ExpectedSafepoints,
+    expected_eh: &artifact::ExpectedEh,
+) -> Result<(), CodegenError> {
+    if let Err(error) = profile.verify_object(output, expected_safepoints, expected_eh) {
+        return Err(discard_invalid_object(output, error));
     }
+    let mut permissions = std::fs::metadata(output)
+        .map_err(|error| {
+            CodegenError(format!(
+                "cannot inspect verified object {}: {error}",
+                output.display()
+            ))
+        })?
+        .permissions();
+    permissions.set_readonly(true);
+    std::fs::set_permissions(output, permissions).map_err(|error| {
+        CodegenError(format!(
+            "cannot seal verified object {} read-only: {error}",
+            output.display()
+        ))
+    })?;
     Ok(())
 }
 
-/// Translate typed LIR to verified LLVM IR text without writing an artifact.
-///
-/// This is the same mechanical target-specific translation and statepoint
-/// rewrite used by [`emit_object`]. Source-language and upstream IR semantics
-/// must already be explicit in `module`.
-pub fn render_llvm_ir(module: &Module, profile: TargetProfile) -> Result<String, CodegenError> {
-    validation::validate_module(module)?;
-    profile.validate_lir_target_profile(module.meta.target_profile)?;
-    let expected_safepoints = statepoint::expectations(module)?;
-    let machine = profile.create_target_machine()?;
-    let context = Context::create();
-    let llvm = prepare_llvm_module(&context, module, &machine, profile, &expected_safepoints)?;
-    Ok(llvm.print_to_string().to_string())
+fn discard_invalid_object(output: &Path, error: CodegenError) -> CodegenError {
+    match std::fs::remove_file(output) {
+        Ok(()) => error,
+        Err(remove_error) => CodegenError(format!(
+            "{error}; also failed to discard invalid object {}: {remove_error}",
+            output.display()
+        )),
+    }
 }
 
-fn prepare_llvm_module<'ctx>(
-    context: &'ctx Context,
-    module: &Module,
+fn verify_and_rewrite_module(
+    llvm: &LlvmModule<'_>,
     machine: &TargetMachine,
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
-) -> Result<LlvmModule<'ctx>, CodegenError> {
-    let llvm = emit_llvm_module(context, module, machine, profile)?;
-
+) -> Result<(), CodegenError> {
+    crate::metadata_sections::place_immutable_metadata(llvm, profile);
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid LLVM module: {e}")))?;
 
     // M9 (milestone9 DESIGN 3.1, M0 spike): rewrite every call and
     // invoke in the GC-strategy functions into a `gc.statepoint`; the
     // object file's `__llvm_stackmaps` section is produced from them.
-    // Both object emission and IR rendering consume this verified form.
-    statepoint::rewrite(&llvm, machine)?;
+    statepoint::rewrite(llvm, machine)?;
     llvm.verify()
         .map_err(|e| CodegenError(format!("invalid post-RS4GC LLVM module: {e}")))?;
-    statepoint::verify_rewritten(&llvm, expected_safepoints, profile)?;
-    Ok(llvm)
+    statepoint::verify_rewritten(llvm, expected_safepoints, profile)
 }
 
 /// Test helper for constructing the one supported host profile. Production
 /// code receives a profile selected by the driver.
 #[cfg(test)]
 pub(crate) fn host_target_machine() -> Result<TargetMachine, CodegenError> {
-    TargetProfile::resolve_host()?.create_target_machine()
+    ValidatedBackendProfile::darwin_aarch64_for_test().create_target_machine()
 }
 
 /// Translate `module` to an (unverified) LLVM module: globals,
 /// TypeDescriptors, and every function.
-pub(crate) fn emit_llvm_module<'ctx>(
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StrongObjectEmissionSelection {
+    #[cfg(test)]
+    CompleteTestModule,
+    NonCallable,
+    CallableBody(scoop_lir::PersistentCallableBodyId),
+}
+
+impl StrongObjectEmissionSelection {
+    fn defines_non_callable(self) -> bool {
+        match self {
+            #[cfg(test)]
+            Self::CompleteTestModule => true,
+            Self::NonCallable => true,
+            Self::CallableBody(_) => false,
+        }
+    }
+
+    fn defines_callable(self, body: scoop_lir::PersistentCallableBodyId) -> bool {
+        match self {
+            #[cfg(test)]
+            Self::CompleteTestModule => true,
+            Self::NonCallable => false,
+            Self::CallableBody(selected) => selected == body,
+        }
+    }
+}
+
+// Every caller has checked this immutable module at its emission entry.
+fn emit_llvm_module_with_surface<'ctx, R>(
     context: &'ctx Context,
     module: &Module,
+    surface: &scoop_lir::ObjectSymbolSurfaceV1,
     machine: &TargetMachine,
-    profile: TargetProfile,
-) -> Result<LlvmModule<'ctx>, CodegenError> {
-    profile.validate_lir_target_profile(module.meta.target_profile)?;
-    validation::validate_module(module)?;
+    profile: ValidatedBackendProfile,
+    selection: StrongObjectEmissionSelection,
+    emit_runtime_metadata: impl FnOnce(
+        &'ctx Context,
+        &LlvmModule<'ctx>,
+        &inkwell::targets::TargetData,
+        GlobalValue<'ctx>,
+        GlobalValue<'ctx>,
+    ) -> Result<(R, Vec<GlobalValue<'ctx>>), CodegenError>,
+) -> Result<(LlvmModule<'ctx>, R), CodegenError> {
     let managed_address_space = profile.managed_address_space_contract();
     let llvm = context.create_module("scoop");
     let builder = context.create_builder();
@@ -96,23 +202,8 @@ pub(crate) fn emit_llvm_module<'ctx>(
     let i8_ty = context.i8_type();
     let i64_ty = context.i64_type();
 
-    // ScoopTypeDescriptor (runtime spec 2.2, full M6 form):
-    // { i64 type_id, i64 size, i64 align, ptr ref_offsets, ptr parent,
-    //   ptr vtable, ptr itables, i64 itable_count, ptr name }.
-    let td_ty = context.struct_type(
-        &[
-            i64_ty.into(),
-            i64_ty.into(),
-            i64_ty.into(),
-            ptr_ty.into(),
-            ptr_ty.into(),
-            ptr_ty.into(),
-            ptr_ty.into(),
-            i64_ty.into(),
-            ptr_ty.into(),
-        ],
-        false,
-    );
+    let metadata_types = runtime_metadata_v1::RuntimeMetadataV1Types::new(context);
+    let td_ty = metadata_types.type_descriptor();
     // Declare every local and external descriptor before building any
     // initializer. Semantic edges resolve through typed ids; symbols are read
     // only from the selected entity at final emission.
@@ -120,62 +211,112 @@ pub(crate) fn emit_llvm_module<'ctx>(
         .meta
         .type_descriptors
         .iter()
-        .map(|(_, descriptor)| llvm.add_global(td_ty, None, &descriptor.symbol))
-        .collect();
+        .map(|(_, descriptor)| {
+            let concrete_td = metadata_types.type_descriptor_storage(
+                u32::try_from(descriptor.relations.related_types().len())
+                    .expect("function arity fits its metadata count"),
+            );
+            let global = llvm.add_global(concrete_td, None, descriptor.identity.symbol());
+            apply_persistent_linkage(
+                &global,
+                descriptor.identity.symbol_request(),
+                selection.defines_non_callable(),
+            )?;
+            global.set_constant(true);
+            Ok(global)
+        })
+        .collect::<Result<_, CodegenError>>()?;
     let external_type_tds: Vec<GlobalValue> = module
         .meta
         .external_type_descriptors
         .iter()
         .map(|(_, descriptor)| {
-            let global = llvm.add_global(td_ty, None, &descriptor.symbol);
+            let symbol = descriptor.expected_symbol().symbol();
+            let global = llvm.add_global(td_ty, None, symbol.as_str());
             global.set_linkage(inkwell::module::Linkage::External);
             global
         })
         .collect();
+    let type_descriptor_globals = TypeDescriptorGlobals {
+        local: &type_tds,
+        external: &external_type_tds,
+    };
     let string_td = type_descriptor_global(
         module.meta.well_known_type_descriptors.string,
-        &type_tds,
-        &external_type_tds,
+        type_descriptor_globals,
     )?;
     let array_tds: Vec<GlobalValue> = module
         .meta
         .arrays
         .iter()
-        .map(|(_, array)| {
-            type_descriptor_global(array.type_descriptor, &type_tds, &external_type_tds)
-        })
+        .map(|(_, array)| type_descriptor_global(array.type_descriptor, type_descriptor_globals))
         .collect::<Result<_, _>>()?;
 
-    // Shared "array index out of bounds" message (only when the module
-    // performs a checked array access); trap blocks reference it.
-    let bounds_message = if module_uses_bounds_checks(module) {
-        let bytes = b"array index out of bounds";
-        let ty = i8_ty.array_type(bytes.len() as u32 + 1);
-        let global = llvm.add_global(ty, None, "scoop.trap.bounds");
-        global.set_constant(true);
-        global.set_linkage(inkwell::module::Linkage::Private);
-        global.set_initializer(&context.const_string(bytes, true));
-        Some(global)
-    } else {
-        None
-    };
-    let array_size_message = if module_uses_array_assembly(module) {
-        let bytes = b"array size overflow";
-        let ty = i8_ty.array_type(bytes.len() as u32 + 1);
-        let global = llvm.add_global(ty, None, "scoop.trap.array_size");
-        global.set_constant(true);
-        global.set_linkage(inkwell::module::Linkage::Private);
-        global.set_initializer(&context.const_string(bytes, true));
-        Some(global)
-    } else {
-        None
-    };
+    let bounds_message = emit_cone_trap_message(
+        context,
+        &llvm,
+        &target_data,
+        surface,
+        module.cone,
+        (
+            scoop_lir::ConeImageSupportRole::ArrayBoundsMessage,
+            b"array index out of bounds",
+        ),
+        selection.defines_non_callable(),
+    )?;
+    let array_size_message = emit_cone_trap_message(
+        context,
+        &llvm,
+        &target_data,
+        surface,
+        module.cone,
+        (
+            scoop_lir::ConeImageSupportRole::ArraySizeOverflowMessage,
+            b"array size overflow",
+        ),
+        selection.defines_non_callable(),
+    )?;
 
     // Ordinary globals are disjoint from descriptor identities.
     let mut globals: Vec<Option<GlobalValue>> = Vec::with_capacity(module.globals.len());
     for (_, global) in module.globals.iter() {
         match &global.init {
-            GlobalInit::StringConst(value) => {
+            GlobalInit::ImportedStorage { definition, ty } => {
+                let scoop_lir::ShapeLinkContractV1::StaticStorage { storage_projection } =
+                    definition.contract()
+                else {
+                    return Err(CodegenError(format!(
+                        "imported storage `{}` has a non-storage contract",
+                        definition.symbol()
+                    )));
+                };
+                let logical_ty = basic_ty(
+                    context,
+                    &module.structs,
+                    &module.enums,
+                    managed_address_space,
+                    ty,
+                )?;
+                let logical_size = target_data.get_store_size(&logical_ty);
+                let logical_alignment = target_data.get_abi_alignment(&logical_ty);
+                if logical_size != storage_projection.byte_size()
+                    || u64::from(logical_alignment) != storage_projection.required_alignment()
+                {
+                    return Err(CodegenError(format!(
+                        "imported storage `{}` disagrees with its value layout",
+                        definition.symbol()
+                    )));
+                }
+                let storage_ty = if logical_size == 0 {
+                    i8_ty.into()
+                } else {
+                    logical_ty
+                };
+                let llvm_global = llvm.add_global(storage_ty, None, definition.symbol());
+                llvm_global.set_alignment(logical_alignment);
+                globals.push(Some(llvm_global));
+            }
+            GlobalInit::StringConst { identity, value } => {
                 // { ptr td, i64 gc_word, i64 len, [N x i8] data }
                 // (runtime spec 2.4; the 16-byte header is M9).
                 let bytes = value.as_bytes();
@@ -189,70 +330,79 @@ pub(crate) fn emit_llvm_module<'ctx>(
                     false,
                 );
                 let llvm_global =
-                    llvm.add_global(ty, Some(managed_address_space.inkwell()), &global.symbol);
+                    llvm.add_global(ty, Some(managed_address_space.inkwell()), global.symbol());
                 llvm_global.set_constant(true);
-                llvm_global.set_initializer(&context.const_struct(
-                    &[
-                        string_td.as_pointer_value().into(),
-                        i64_ty.const_zero().into(),
-                        i64_ty.const_int(bytes.len() as u64, false).into(),
-                        context.const_string(bytes, false).into(),
-                    ],
-                    false,
-                ));
+                if selection.defines_non_callable() {
+                    llvm_global.set_initializer(&context.const_struct(
+                        &[
+                            string_td.as_pointer_value().into(),
+                            i64_ty.const_zero().into(),
+                            i64_ty.const_int(bytes.len() as u64, false).into(),
+                            context.const_string(bytes, false).into(),
+                        ],
+                        false,
+                    ));
+                }
+                apply_persistent_linkage(
+                    &llvm_global,
+                    identity.symbol_request(),
+                    selection.defines_non_callable(),
+                )?;
                 globals.push(Some(llvm_global));
             }
-            GlobalInit::CString(value) => {
-                // [N+1 x i8] c"...\00" (e.g. trap messages); private,
-                // only referenced from within the module.
+            GlobalInit::CString { identity, value } => {
+                // [N+1 x i8] c"...\00" (e.g. trap messages), emitted as a
+                // callable-owned support atom with a stable boundary symbol.
                 let bytes = value.as_bytes();
                 let ty = i8_ty.array_type(bytes.len() as u32 + 1);
-                let llvm_global = llvm.add_global(ty, None, &global.symbol);
+                let llvm_global = llvm.add_global(ty, None, global.symbol());
                 llvm_global.set_constant(true);
-                llvm_global.set_linkage(inkwell::module::Linkage::Private);
-                llvm_global.set_initializer(&context.const_string(bytes, true));
+                apply_persistent_linkage(
+                    &llvm_global,
+                    identity.symbol_request(),
+                    selection.defines_callable(identity.owner()),
+                )?;
+                if selection.defines_callable(identity.owner()) {
+                    llvm_global.set_initializer(&context.const_string(bytes, true));
+                }
                 globals.push(Some(llvm_global));
             }
-            GlobalInit::Storage {
-                ty: lir_ty,
-                initial_state,
-                thread_local,
-            } => {
-                let ty = basic_ty(
+            GlobalInit::Storage { .. } | GlobalInit::RawStorage { .. } => {
+                let emitter = storage::StorageEmitter {
                     context,
-                    &module.structs,
-                    &module.enums,
+                    llvm: &llvm,
+                    module,
+                    target_data: &target_data,
                     managed_address_space,
-                    lir_ty,
-                )?;
-                let value = match initial_state {
-                    LirStaticInitialState::ZeroedForRuntimeUnit => ty.const_zero(),
-                    LirStaticInitialState::EncodedStaticValue { payload } => llvm_constant(
-                        context,
-                        &module.structs,
-                        &module.enums,
-                        &globals,
-                        managed_address_space,
-                        lir_ty,
-                        payload,
-                    )?,
+                    globals: &globals,
+                    surface,
+                    profile,
+                    define: selection.defines_non_callable(),
                 };
-                let llvm_global = llvm.add_global(ty, None, &global.symbol);
-                llvm_global.set_initializer(&value);
-                llvm_global.set_thread_local(*thread_local);
-                globals.push(Some(llvm_global));
+                globals.push(Some(emitter.emit(global)?));
             }
         }
     }
-    image_roots::emit(
-        context,
+    atom_boundaries::emit_global_atom_boundaries_v1(
         &llvm,
         &target_data,
-        &module.globals,
-        &globals,
-        string_td,
+        surface,
+        module.globals.iter().filter_map(|(_, global)| {
+            let GlobalInit::CString { identity, .. } = &global.init else {
+                return None;
+            };
+            if !selection.defines_callable(identity.owner()) {
+                return None;
+            }
+            let owner = llvm
+                .get_global(identity.symbol())
+                .expect("the callable C string was emitted above");
+            Some(atom_boundaries::GlobalAtomMaterializationV1::new(
+                identity.atom_record().id(),
+                owner,
+            ))
+        }),
     )?;
-
     // Two passes: declare every function first so call sites never
     // create shadow extern declarations (a forward call would
     // otherwise declare the symbol as extern, and the later definition
@@ -265,30 +415,19 @@ pub(crate) fn emit_llvm_module<'ctx>(
             &module.enums,
             profile,
             function,
+            selection.defines_callable(function.callable_body.id()),
         )?;
     }
-    let initialization_units = initialization::emit(context, &llvm, module, &globals)?;
-    let module_ctx = ModuleCtx {
-        managed_address_space,
-        functions: &module.functions,
-        structs: &module.structs,
-        enums: &module.enums,
-        extern_functions: &module.extern_functions,
-        native_globals: &module.native_globals,
-        native_global_bridges: &module.native_global_bridges,
-        foreign_callback_families: &module.foreign_callback_families,
-        foreign_callback_bridges: &module.foreign_callback_bridges,
-        globals_arena: &module.globals,
-        globals: &globals,
-        initialization_units: &initialization_units,
-        arrays: &module.meta.arrays,
-        array_tds: &array_tds,
-        type_tds: &type_tds,
-        external_type_tds: &external_type_tds,
-        target_data: &target_data,
-        bounds_message,
-        array_size_message,
-    };
+    for (_, callable) in module.meta.external_callables.iter() {
+        declare_external_callable(
+            context,
+            &llvm,
+            &module.structs,
+            &module.enums,
+            managed_address_space,
+            callable,
+        )?;
+    }
     for (_, callback) in module.callback_bridges.iter() {
         declare_callback_trampoline(
             context,
@@ -301,7 +440,7 @@ pub(crate) fn emit_llvm_module<'ctx>(
     }
     let mut declared_foreign_trampolines = HashSet::new();
     for (_, callback) in module.foreign_callback_bridges.iter() {
-        if !declared_foreign_trampolines.insert(callback.trampoline_symbol.as_str()) {
+        if !declared_foreign_trampolines.insert(callback.trampoline.entry().symbol()) {
             continue;
         }
         declare_foreign_callback_trampoline(
@@ -312,14 +451,287 @@ pub(crate) fn emit_llvm_module<'ctx>(
             managed_address_space,
             callback,
         )?;
-        let descriptor = llvm.add_global(context.i8_type(), None, &callback.signature_symbol);
+        let descriptor = llvm.add_global(
+            context.i8_type(),
+            None,
+            callback.trampoline.signature_descriptor_symbol(),
+        );
         descriptor.set_linkage(inkwell::module::Linkage::External);
     }
-    // Meta TypeDescriptors reference module functions (vtable / itable
-    // slots), so they are emitted after the declare pass.
-    emit_type_descriptors(context, &llvm, &type_tds, &external_type_tds, module)?;
-    for function in &module.functions {
-        emit_function(context, &llvm, &builder, &module_ctx, function)?;
+    // Runtime records require only declarations of callable bodies and type
+    // descriptors. Emitting them before function bodies exposes the exact
+    // typed initialization registration definitions used by LIR values.
+    let (runtime_metadata, initialization_units) = emit_runtime_metadata(
+        context,
+        &llvm,
+        &target_data,
+        bounds_message,
+        array_size_message,
+    )?;
+
+    if selection.defines_non_callable() {
+        shape_definitions::emit_strong_shape_definitions_v1(
+            context,
+            &llvm,
+            &target_data,
+            surface,
+            module,
+            type_descriptor_globals,
+        )?;
     }
-    Ok(llvm)
+    let module_ctx = ModuleCtx {
+        managed_address_space,
+        functions: &module.functions,
+        structs: &module.structs,
+        enums: &module.enums,
+        extern_functions: &module.extern_functions,
+        external_callables: &module.meta.external_callables,
+        native_globals: &module.native_globals,
+        native_global_bridges: &module.native_global_bridges,
+        callback_bridges: &module.callback_bridges,
+        foreign_callback_families: &module.foreign_callback_families,
+        foreign_callback_bridges: &module.foreign_callback_bridges,
+        globals_arena: &module.globals,
+        globals: &globals,
+        initialization_units: &initialization_units,
+        arrays: &module.meta.arrays,
+        array_tds: &array_tds,
+        type_tds: &type_tds,
+        external_type_tds: &external_type_tds,
+        target_data: &target_data,
+    };
+    let runtime_scan_plans = scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(module)
+        .map_err(|error| CodegenError(format!("callable runtime scan planning failed: {error}")))?;
+    for function in &module.functions {
+        if selection.defines_callable(function.callable_body.id()) {
+            let runtime_scan_plan = runtime_scan_plans
+                .callable(function.callable_body.id())
+                .expect("runtime scan planning covers every function");
+            emit_function(
+                context,
+                &llvm,
+                &builder,
+                &module_ctx,
+                function,
+                surface,
+                runtime_scan_plan,
+            )?;
+        }
+    }
+    Ok((llvm, runtime_metadata))
+}
+
+pub(crate) fn emit_cone_trap_message<'ctx>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    target_data: &inkwell::targets::TargetData,
+    surface: &scoop_lir::ObjectSymbolSurfaceV1,
+    producer: scoop_lir::ConeIdentity,
+    message: (scoop_lir::ConeImageSupportRole, &[u8]),
+    define: bool,
+) -> Result<GlobalValue<'ctx>, CodegenError> {
+    let (support, bytes) = message;
+    let plan_key = scoop_lir::ObjectDefinitionPlanKey::strong(
+        producer,
+        scoop_lir::StrongDefinitionEntity::cone_image(producer),
+        scoop_lir::StrongDefinitionRole::ImageDescriptor,
+    )
+    .map_err(|error| CodegenError(format!("cannot derive Cone image plan: {error}")))?;
+    let plan = scoop_lir::ObjectDefinitionPlanId::from_key(&plan_key)
+        .map_err(|error| CodegenError(format!("cannot derive Cone image plan id: {error}")))?;
+    let atom =
+        scoop_lir::ObjectDefinitionAtomId::from_key(&scoop_lir::ObjectDefinitionAtomKey::new(
+            plan,
+            scoop_lir::DefinitionAtomRole::AddressTakenConstant,
+            scoop_lir::DefinitionAtomSubkey::ConeImageSupport(support),
+        ))
+        .map_err(|error| CodegenError(format!("cannot derive Cone trap-message atom: {error}")))?;
+    let boundary = surface
+        .plan(plan)
+        .and_then(|plan| {
+            plan.atom_boundaries()
+                .iter()
+                .find(|boundary| boundary.atom() == atom)
+        })
+        .copied()
+        .ok_or_else(|| CodegenError(format!("Cone trap-message atom {atom} is unplanned")))?;
+    let symbol = boundary.start().symbol();
+    if llvm.get_global(symbol.as_str()).is_some() {
+        return Err(CodegenError(format!(
+            "Cone trap-message symbol `{symbol}` is already declared"
+        )));
+    }
+    let ty = context.i8_type().array_type(bytes.len() as u32 + 1);
+    let global = llvm.add_global(ty, None, symbol.as_str());
+    global.set_constant(true);
+    apply_persistent_linkage(&global, boundary.start(), define)?;
+    if define {
+        global.set_initializer(&context.const_string(bytes, true));
+        atom_boundaries::emit_global_atom_boundaries_v1(
+            llvm,
+            target_data,
+            surface,
+            [atom_boundaries::GlobalAtomMaterializationV1::new(
+                atom, global,
+            )],
+        )?;
+    }
+    Ok(global)
+}
+
+#[cfg(test)]
+pub(crate) fn emit_llvm_module<'ctx>(
+    context: &'ctx Context,
+    module: &Module,
+    machine: &TargetMachine,
+    profile: ValidatedBackendProfile,
+) -> Result<LlvmModule<'ctx>, CodegenError> {
+    validation::validate_module(module)?;
+    profile.validate_lir_target_profile(module.meta.target_profile)?;
+    if !module.initialization_units.is_empty() {
+        return Err(CodegenError(
+            "initialization units require a sealed strong production section".to_string(),
+        ));
+    }
+    let foundation = scoop_lir::ConeLirFoundation::from_module(module)
+        .map_err(|error| CodegenError(format!("strong LIR projection failed: {error}")))?;
+    let surface = scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation)
+        .map_err(|error| CodegenError(format!("strong symbol projection failed: {error}")))?;
+    emit_llvm_module_with_surface(
+        context,
+        module,
+        &surface,
+        machine,
+        profile,
+        StrongObjectEmissionSelection::CompleteTestModule,
+        |_, _, _, _, _| Ok(((), Vec::new())),
+    )
+    .map(|(llvm, ())| llvm)
+}
+
+fn initialization_unit_globals<'ctx>(
+    module: &Module,
+    emitted: &EmittedStrongInitializationUnitRegistrationSetV1<'ctx>,
+) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
+    initialization_unit_globals_from_pairs(
+        module,
+        emitted
+            .registrations()
+            .iter()
+            .map(|registration| (registration.unit(), registration.registration_descriptor())),
+    )
+}
+
+fn declare_initialization_unit_globals<'ctx, D, C, I>(
+    context: &'ctx Context,
+    llvm: &LlvmModule<'ctx>,
+    module: &Module,
+    production: &scoop_lir::ConeProductionSection<D, C, I>,
+) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
+    let plans = production
+        .registration_production()
+        .initialization_units()
+        .registrations()
+        .iter()
+        .map(|plan| (plan.semantic().unit(), plan))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let ty =
+        runtime_metadata_v1::RuntimeMetadataV1Types::new(context).initialization_unit_descriptor();
+    let globals = module
+        .initialization_units
+        .iter()
+        .map(|(_, unit)| {
+            let id = unit.identity.id();
+            let plan = plans.get(&id).ok_or_else(|| {
+                CodegenError(format!(
+                    "initialization unit {id} has no strong production plan"
+                ))
+            })?;
+            let request = plan.registration_symbol();
+            let symbol = request.symbol();
+            if llvm.get_global(symbol.as_str()).is_some()
+                || llvm.get_function(symbol.as_str()).is_some()
+            {
+                return Err(CodegenError(format!(
+                    "initialization registration declaration `{symbol}` collides with an LLVM value"
+                )));
+            }
+            let global = llvm.add_global(ty, None, symbol.as_str());
+            global.set_constant(true);
+            apply_persistent_linkage(&global, request, false)?;
+            Ok(global)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if globals.len() != plans.len() {
+        return Err(CodegenError(format!(
+            "strong initialization declaration coverage mismatch: LIR {}, planned {}",
+            globals.len(),
+            plans.len()
+        )));
+    }
+    Ok(globals)
+}
+
+pub(crate) fn initialization_unit_globals_from_pairs<'ctx>(
+    module: &Module,
+    emitted: impl IntoIterator<Item = (scoop_lir::PersistentInitializationUnitId, GlobalValue<'ctx>)>,
+) -> Result<Vec<GlobalValue<'ctx>>, CodegenError> {
+    let mut by_unit = std::collections::BTreeMap::new();
+    for (unit, descriptor) in emitted {
+        if by_unit.insert(unit, descriptor).is_some() {
+            return Err(CodegenError(
+                "strong initialization emission contains duplicate unit ids".to_string(),
+            ));
+        }
+    }
+    let globals = module
+        .initialization_units
+        .iter()
+        .map(|(_, unit)| {
+            by_unit.get(&unit.identity.id()).copied().ok_or_else(|| {
+                CodegenError(format!(
+                    "initialization unit {} has no emitted initialization registration",
+                    unit.identity.id()
+                ))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if globals.len() != by_unit.len() {
+        return Err(CodegenError(format!(
+            "strong initialization coverage mismatch: LIR {}, emitted {}",
+            globals.len(),
+            by_unit.len()
+        )));
+    }
+    Ok(globals)
+}
+
+pub(crate) fn apply_persistent_linkage(
+    global: &GlobalValue<'_>,
+    request: scoop_lir::PersistentSymbolRequest,
+    definition: bool,
+) -> Result<(), CodegenError> {
+    use inkwell::GlobalVisibility;
+    use inkwell::module::Linkage;
+    use scoop_lir::LinkageClass;
+
+    match request.linkage() {
+        LinkageClass::ConeStrong => global.set_linkage(Linkage::External),
+        LinkageClass::TemplateSupportHidden => {
+            global.set_linkage(Linkage::External);
+            global.set_visibility(GlobalVisibility::Hidden);
+        }
+        LinkageClass::OdrWeak => global.set_linkage(if definition {
+            Linkage::WeakODR
+        } else {
+            Linkage::External
+        }),
+        LinkageClass::RuntimeAbi => {
+            return Err(CodegenError(format!(
+                "persistent symbol `{}` cannot use runtime ABI linkage",
+                request.symbol()
+            )));
+        }
+    }
+    Ok(())
 }

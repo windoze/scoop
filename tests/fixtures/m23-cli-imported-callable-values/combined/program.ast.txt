@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  ImportExact Local callbacks.selected as chosen
+  ImportStar Local callbacks.*
+  fun main()
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Call chosen
+                Call mark
+              IntLiteral 42
+            Binary Ne
+              Var trace
+              IntLiteral 12
+          Binary Ne
+            Call operation
+              IntLiteral 40
+            IntLiteral 42
+        Binary Ne
+          Call Singleton
+            IntLiteral 40
+          IntLiteral 42
+      throw
+        Call IllegalStateException

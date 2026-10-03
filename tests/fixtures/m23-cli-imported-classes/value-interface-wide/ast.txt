@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.Readable
+  ImportExact Local dependency.classes.WideReader
+  public fun primary(): Counter
+    val value: Readable
+      Call WideReader
+        IntLiteral 10
+        IntLiteral 10
+        IntLiteral 1
+    val copy
+      Cast WideReader optional=false
+        Var value
+    return
+      Call Counter
+        Binary Sub
+          Binary Add
+            MethodCall read
+              Var value
+            FieldAccess third
+              Var copy
+          IntLiteral 1

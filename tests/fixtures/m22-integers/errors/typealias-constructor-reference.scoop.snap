@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/typealias-constructor-reference.scoop:6:23: error: constructor reference `::Alias` is not supported; construct the value in a lambda

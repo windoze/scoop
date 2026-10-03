@@ -55,19 +55,6 @@ pub(crate) enum FnVarargOmission {
     Default { expression: ast::Expr },
 }
 
-/// How a variant was declared (spec 4.2). `hir::Variant` normalizes
-/// the four surface forms into a field list, so the lowerer keeps the
-/// form on the side: patterns must use the matching shape (positional
-/// patterns for positional variants, field patterns for named ones;
-/// constructor-style variants accept both).
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) enum VariantStyle {
-    Unit,
-    Positional,
-    Named,
-    Constructor,
-}
-
 #[derive(Clone, Default)]
 pub(crate) struct CorePreludeVariantBindings {
     by_name: HashMap<String, Vec<hir::EnumVariantRef>>,
@@ -163,51 +150,22 @@ pub(crate) struct CallableCandidate {
     pub(crate) function: FunctionId,
     pub(crate) owner: CallableCandidateOwner,
     pub(crate) source: CallableCandidateSource,
-    pub(crate) access: CallableCandidateAccess,
-}
-
-#[derive(Clone)]
-pub(crate) enum CallableCandidateAccess {
-    Lookup(hir::LookupAccessWitness),
-    Inheritance,
-    CompilerGenerated,
 }
 
 impl CallableCandidate {
-    pub(crate) fn function(
-        function: FunctionId,
-        owner_arguments: Vec<TypeId>,
-        access: hir::LookupAccessWitness,
-    ) -> Self {
+    pub(crate) fn function(function: FunctionId, owner_arguments: Vec<TypeId>) -> Self {
         Self {
             function,
             owner: CallableCandidateOwner::Function { owner_arguments },
             source: CallableCandidateSource::Direct,
-            access: CallableCandidateAccess::Lookup(access),
         }
     }
 
-    pub(crate) fn inheritance_method(
-        function: FunctionId,
-        owner: hir::MethodOwnerApplication,
-    ) -> Self {
+    pub(crate) fn method(function: FunctionId, owner: hir::MethodOwnerApplication) -> Self {
         Self {
             function,
             owner: CallableCandidateOwner::Method(owner),
             source: CallableCandidateSource::Direct,
-            access: CallableCandidateAccess::Inheritance,
-        }
-    }
-
-    pub(crate) fn compiler_generated_method(
-        function: FunctionId,
-        owner: hir::MethodOwnerApplication,
-    ) -> Self {
-        Self {
-            function,
-            owner: CallableCandidateOwner::Method(owner),
-            source: CallableCandidateSource::Direct,
-            access: CallableCandidateAccess::CompilerGenerated,
         }
     }
 }

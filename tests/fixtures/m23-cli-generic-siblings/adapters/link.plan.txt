@@ -1,0 +1,53 @@
+program-link v2
+cone scoop:scoop.core:0.1.0 kind=Library objects=271
+cone dev.example:generic-odr-provider:0.1.0 kind=Library objects=27
+cone dev.example:generic-odr-adapters-left:0.1.0 kind=Library objects=7
+cone dev.example:generic-odr-adapters-right:0.1.0 kind=Library objects=10
+cone dev.example:generic-odr-adapters-consumer:0.1.0 kind=Library objects=2
+cone dev.example:runtime-fixture:0.1.0 kind=Executable objects=7
+runtime objects=54
+images=6 root=_scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
+alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
+link inputs: startup, cone/member order, runtime/object order, libSystem
+native library m23_union requirement=025ccd79fb2599aedec1b8632f4421d12913937783140e012a375acb65bcf5e9 input=4fb07300446848a3d7287cbd8aa93cd2f2e1b22656369d46b81ac5460743c8fa origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([248, 123, 196, 235, 119, 117, 147, 228, 60, 137, 62, 251, 229, 116, 208, 252, 4, 218, 232, 143, 135, 29, 99, 203, 108, 157, 59, 66, 147, 210, 188, 192])])
+native library m23_class_gc requirement=9ede61f3579eac4299a31d76fa89c5b213db378df8eade8779290638fe092d16 input=3baee1a3f79788fb8bcda1801e3ddc213f56be488b345383cbf607cc98fbe1df origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
+native archive 4fb07300446848a3d7287cbd8aa93cd2f2e1b22656369d46b81ac5460743c8fa members=1
+  member 0 header=8 payload=68..2052 name="addresses.o" digest=0e5ed3fb881f634ab934f7e4eec51bebc0c6f816343a2c5b81f45b1521af97bc selected=true
+native archive 3baee1a3f79788fb8bcda1801e3ddc213f56be488b345383cbf607cc98fbe1df members=1
+  member 0 header=8 payload=68..924 name="gc.o" digest=2e92b02784e14922ad56b19b68874d04550dd831b08648a904d151eb84c2af68 selected=true
+startup object references:
+  _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d
+  _scoop$1$im$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
+  _scoop$1$im$886aebb73cad82d3d4c0ab3ef4424f610cf3bfe4a53f078836fc7b95af39cbdf
+  _scoop$1$im$a60774203416dde17b0b0c68c5f973899ded36ead0dfd032c95e1f3b012fc958
+  _scoop$1$im$b120deb7f15e0e70546afef881116f6bfab20268671357c0e4658db2076b15d1
+  _scoop$1$im$bfed6a62324108915d980641a64cc1df962c2c92f6b9cdf623ea8730ebc8485d
+  _scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
+  _scoop_rt_run_program
+#include <stdint.h>
+
+typedef struct ScoopImageDescriptorV1 ScoopImageDescriptorV1;
+typedef struct ScoopRootEntryDescriptorV1 ScoopRootEntryDescriptorV1;
+
+extern const ScoopImageDescriptorV1 image_0 __asm__("_scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d");
+extern const ScoopImageDescriptorV1 image_1 __asm__("_scoop$1$im$bfed6a62324108915d980641a64cc1df962c2c92f6b9cdf623ea8730ebc8485d");
+extern const ScoopImageDescriptorV1 image_2 __asm__("_scoop$1$im$b120deb7f15e0e70546afef881116f6bfab20268671357c0e4658db2076b15d1");
+extern const ScoopImageDescriptorV1 image_3 __asm__("_scoop$1$im$886aebb73cad82d3d4c0ab3ef4424f610cf3bfe4a53f078836fc7b95af39cbdf");
+extern const ScoopImageDescriptorV1 image_4 __asm__("_scoop$1$im$a60774203416dde17b0b0c68c5f973899ded36ead0dfd032c95e1f3b012fc958");
+extern const ScoopImageDescriptorV1 image_5 __asm__("_scoop$1$im$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7");
+extern const ScoopRootEntryDescriptorV1 root_entry __asm__("_scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7");
+extern int scoop_rt_run_program(const ScoopImageDescriptorV1 *const *, uint64_t, const ScoopRootEntryDescriptorV1 *);
+
+__attribute__((used, section("__DATA_CONST,__const")))
+static const ScoopImageDescriptorV1 *const scoop_program_images[] = {
+    &image_0,
+    &image_1,
+    &image_2,
+    &image_3,
+    &image_4,
+    &image_5,
+};
+
+int main(void) {
+    return scoop_rt_run_program(scoop_program_images, sizeof(scoop_program_images) / sizeof(scoop_program_images[0]), &root_entry);
+}

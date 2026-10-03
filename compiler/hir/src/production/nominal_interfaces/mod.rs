@@ -1,0 +1,373 @@
+//! Projection of the complete public HIR nominal surface.
+
+use std::collections::{BTreeMap, HashSet};
+
+use scoop_identity::{DefinitionOwnerAtom, NominalDeclarationOwner};
+
+use super::signatures::HirInterfaceSignatureProjector;
+use crate::{
+    CanonicalNominalInterfacesV1, ExportHir, HirSignatureBinder, NominalInterfaceRecordV1,
+};
+
+mod constructors;
+mod errors;
+mod identity;
+mod members;
+mod nested_bindings;
+pub(in crate::production) mod owner_resolution;
+mod root_declarations;
+mod source_contracts;
+pub(in crate::production) use source_contracts::SharedSourceRoots;
+mod source_shape;
+
+pub use errors::{
+    NominalArenaKind, NominalConstructorProjectionError, NominalInterfaceBuildError,
+    NominalMemberProjectionError, NominalNestedBindingProjectionError,
+    NominalSourceProjectionError,
+};
+
+struct NominalProjection<'a> {
+    export: &'a ExportHir,
+    declarations: &'a BTreeMap<crate::SourceNominalId, NominalInterfaceRecordV1>,
+    signatures: HirInterfaceSignatureProjector<'a>,
+    public_functions: HashSet<crate::FunctionId>,
+    public_properties: HashSet<crate::PropertyId>,
+    public_struct_constructors: HashSet<crate::StructConstructorId>,
+    public_class_constructors: HashSet<crate::ClassConstructorId>,
+}
+
+struct ProjectedNominalHeader {
+    declaration: NominalDeclarationOwner,
+    type_parameters: crate::CanonicalBinderListV1,
+    binders: Vec<HirSignatureBinder>,
+}
+
+use identity::{LocalNominalId, source_nominal_id};
+
+impl CanonicalNominalInterfacesV1 {
+    /// Projects exactly the current Cone's foreign-public nominal lookup
+    /// surface. Member and nested relations remain attached to their typed
+    /// source owner instead of being recovered from names.
+    pub fn from_export_hir(export: &ExportHir) -> Result<Self, NominalInterfaceBuildError> {
+        let roots = SharedSourceRoots::from_export_hir(export)?;
+        Self::from_export_hir_with_source_roots(export, &roots)
+    }
+
+    pub(in crate::production) fn from_export_hir_with_source_roots(
+        export: &ExportHir,
+        roots: &SharedSourceRoots,
+    ) -> Result<Self, NominalInterfaceBuildError> {
+        let declarations = source_contracts::project_required_declarations(export, &roots.nominals)
+            .map_err(|error| match error {
+                crate::CrossConeTypeSemanticsProductionError::SourceInventory(
+                    crate::SourceInventoryError::Resource(error),
+                ) => NominalInterfaceBuildError::Resource(error),
+                other => NominalInterfaceBuildError::Declarations(other.to_string()),
+            })?;
+        let projection = NominalProjection::new(export, &declarations);
+        let mut records = Vec::with_capacity(
+            export.public_surface.classes.len()
+                + export.public_surface.interfaces.len()
+                + export.public_surface.structs.len()
+                + export.public_surface.enums.len()
+                + export.public_surface.objects.len(),
+        );
+        for &id in &export.public_surface.classes {
+            records.push(projection.project_class(id)?);
+        }
+        for &id in &export.public_surface.interfaces {
+            records.push(projection.project_interface(id)?);
+        }
+        for &id in &export.public_surface.structs {
+            records.push(projection.project_struct(id)?);
+        }
+        for &id in &export.public_surface.enums {
+            records.push(projection.project_enum(id)?);
+        }
+        for &id in &export.public_surface.objects {
+            records.push(projection.project_object(id)?);
+        }
+        let public = records
+            .iter()
+            .map(NominalInterfaceRecordV1::declaration)
+            .collect::<HashSet<_>>();
+        let support = declarations
+            .into_iter()
+            .filter_map(|(owner, record)| (!public.contains(&owner)).then_some(record))
+            .collect();
+        Self::with_support(records, support).map_err(NominalInterfaceBuildError::Table)
+    }
+}
+
+impl<'a> NominalProjection<'a> {
+    fn new(
+        export: &'a ExportHir,
+        declarations: &'a BTreeMap<crate::SourceNominalId, NominalInterfaceRecordV1>,
+    ) -> Self {
+        Self {
+            export,
+            declarations,
+            signatures: HirInterfaceSignatureProjector::new(export),
+            public_functions: export.public_surface.functions.iter().copied().collect(),
+            public_properties: export.public_surface.properties.iter().copied().collect(),
+            public_struct_constructors: export
+                .public_surface
+                .struct_constructors
+                .iter()
+                .copied()
+                .collect(),
+            public_class_constructors: export
+                .public_surface
+                .class_constructors
+                .iter()
+                .copied()
+                .collect(),
+        }
+    }
+
+    fn project_class(
+        &self,
+        id: crate::ClassId,
+    ) -> Result<NominalInterfaceRecordV1, NominalInterfaceBuildError> {
+        let declaration = arena_get(&self.export.classes, id)
+            .ok_or_else(|| self.unknown_public(LocalNominalId::Class(id)))?;
+        let header = self.project_header(
+            LocalNominalId::Class(id),
+            &declaration.name,
+            declaration.owner,
+            &declaration.access,
+            &declaration.type_params,
+        )?;
+        let exact_supertypes = source_shape::class_supertypes(
+            &source_shape::SourceShapeProjection::new(self.export),
+            header.declaration,
+            declaration,
+            &header.binders,
+        )?;
+        let owner = header.declaration;
+        let source_shape = source_shape::class_shape(
+            &source_shape::SourceShapeProjection::new(self.export),
+            declaration,
+            &header.binders,
+            owner,
+        )?;
+        self.finish_record(
+            LocalNominalId::Class(id),
+            header,
+            exact_supertypes,
+            constructors::from_class(self, id, declaration, owner)?,
+            members::ordinary(self, owner, &declaration.methods, &declaration.properties)?,
+            source_shape,
+        )
+    }
+
+    fn project_interface(
+        &self,
+        id: crate::InterfaceId,
+    ) -> Result<NominalInterfaceRecordV1, NominalInterfaceBuildError> {
+        let declaration = arena_get(&self.export.interfaces, id)
+            .ok_or_else(|| self.unknown_public(LocalNominalId::Interface(id)))?;
+        let header = self.project_header(
+            LocalNominalId::Interface(id),
+            &declaration.name,
+            declaration.owner,
+            &declaration.access,
+            &declaration.type_params,
+        )?;
+        let exact_supertypes = source_shape::interface_supertypes(
+            &source_shape::SourceShapeProjection::new(self.export),
+            header.declaration,
+            declaration,
+            &header.binders,
+        )?;
+        let owner = header.declaration;
+        self.finish_record(
+            LocalNominalId::Interface(id),
+            header,
+            exact_supertypes,
+            constructors::none(),
+            members::interface(self, id, declaration, owner)?,
+            crate::NominalSourceShapeV1::Interface,
+        )
+    }
+
+    fn project_struct(
+        &self,
+        id: crate::StructId,
+    ) -> Result<NominalInterfaceRecordV1, NominalInterfaceBuildError> {
+        let declaration = arena_get(&self.export.structs, id)
+            .ok_or_else(|| self.unknown_public(LocalNominalId::Struct(id)))?;
+        let header = self.project_header(
+            LocalNominalId::Struct(id),
+            &declaration.name,
+            declaration.owner,
+            &declaration.access,
+            &declaration.type_params,
+        )?;
+        let exact_supertypes = source_shape::direct_supertypes(
+            &source_shape::SourceShapeProjection::new(self.export),
+            header.declaration,
+            &declaration.interfaces,
+            &header.binders,
+        )?;
+        let shape = source_shape::struct_shape(
+            &source_shape::SourceShapeProjection::new(self.export),
+            id,
+            declaration,
+            &header.binders,
+            header.declaration,
+        )?;
+        let owner = header.declaration;
+        self.finish_record(
+            LocalNominalId::Struct(id),
+            header,
+            exact_supertypes,
+            constructors::from_struct(self, id, declaration, owner)?,
+            members::ordinary(self, owner, &declaration.methods, &declaration.properties)?,
+            shape,
+        )
+    }
+
+    fn project_enum(
+        &self,
+        id: crate::EnumId,
+    ) -> Result<NominalInterfaceRecordV1, NominalInterfaceBuildError> {
+        let declaration = arena_get(&self.export.enums, id)
+            .ok_or_else(|| self.unknown_public(LocalNominalId::Enum(id)))?;
+        let header = self.project_header(
+            LocalNominalId::Enum(id),
+            &declaration.name,
+            declaration.owner,
+            &declaration.access,
+            &declaration.type_params,
+        )?;
+        let exact_supertypes = source_shape::direct_supertypes(
+            &source_shape::SourceShapeProjection::new(self.export),
+            header.declaration,
+            &declaration.interfaces,
+            &header.binders,
+        )?;
+        let shape = source_shape::enum_shape(
+            &source_shape::SourceShapeProjection::new(self.export),
+            id,
+            declaration,
+            &header.binders,
+            header.declaration,
+        )?;
+        let owner = header.declaration;
+        self.finish_record(
+            LocalNominalId::Enum(id),
+            header,
+            exact_supertypes,
+            constructors::none(),
+            members::ordinary(self, owner, &declaration.methods, &declaration.properties)?,
+            shape,
+        )
+    }
+
+    fn project_object(
+        &self,
+        id: crate::ObjectId,
+    ) -> Result<NominalInterfaceRecordV1, NominalInterfaceBuildError> {
+        let declaration = arena_get(&self.export.objects, id)
+            .ok_or_else(|| self.unknown_public(LocalNominalId::Object(id)))?;
+        let header = self.project_header(
+            LocalNominalId::Object(id),
+            &declaration.name,
+            declaration.owner,
+            &declaration.access,
+            &[],
+        )?;
+        let backing = arena_get(&self.export.classes, declaration.backing_class).ok_or(
+            NominalInterfaceBuildError::UnknownLexicalOwner {
+                declaration: header.declaration,
+                owner: NominalArenaKind::Class,
+                index: raw_index(declaration.backing_class),
+            },
+        )?;
+        let exact_supertypes = source_shape::object_supertypes(
+            &source_shape::SourceShapeProjection::new(self.export),
+            header.declaration,
+            backing,
+            &header.binders,
+        )?;
+        let members = members::ordinary(
+            self,
+            header.declaration,
+            &backing.methods,
+            &backing.properties,
+        )?;
+        let shape = source_shape::object_shape(
+            &source_shape::SourceShapeProjection::new(self.export),
+            id,
+            declaration,
+            header.declaration,
+        )?;
+        self.finish_record(
+            LocalNominalId::Object(id),
+            header,
+            exact_supertypes,
+            constructors::none(),
+            members,
+            shape,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn finish_record(
+        &self,
+        local: LocalNominalId,
+        header: ProjectedNominalHeader,
+        exact_supertypes: crate::CanonicalSignatureTypesV1,
+        constructors: crate::CanonicalPersistentIdsV1<scoop_identity::PersistentConstructorId>,
+        members: crate::CanonicalPublicMemberRefsV1,
+        source_shape: crate::NominalSourceShapeV1,
+    ) -> Result<NominalInterfaceRecordV1, NominalInterfaceBuildError> {
+        let nested_bindings = nested_bindings::project(self, local, header.declaration)?;
+        let details = self
+            .declarations
+            .get(&header.declaration)
+            .ok_or_else(|| {
+                NominalInterfaceBuildError::Declarations(
+                    "public nominal has no shared declaration".into(),
+                )
+            })?
+            .declaration_details()
+            .clone();
+        NominalInterfaceRecordV1::try_new(
+            header.declaration,
+            local.kind(),
+            header.type_parameters,
+            exact_supertypes,
+            constructors,
+            members,
+            nested_bindings,
+            source_shape,
+            details,
+        )
+        .map_err(|source| NominalInterfaceBuildError::Record {
+            declaration: header.declaration,
+            source,
+        })
+    }
+
+    fn unknown_public(&self, local: LocalNominalId) -> NominalInterfaceBuildError {
+        let (kind, index) = local.location();
+        NominalInterfaceBuildError::UnknownPublicNominal { kind, index }
+    }
+}
+
+fn owner_atom(owner: NominalDeclarationOwner) -> DefinitionOwnerAtom {
+    match owner {
+        NominalDeclarationOwner::Concrete(id) => DefinitionOwnerAtom::Type(id),
+        NominalDeclarationOwner::GenericTemplate(id) => DefinitionOwnerAtom::GenericType(id),
+    }
+}
+
+fn arena_get<T>(arena: &la_arena::Arena<T>, id: la_arena::Idx<T>) -> Option<&T> {
+    ((raw_index(id) as usize) < arena.len()).then(|| &arena[id])
+}
+
+fn raw_index<T>(id: la_arena::Idx<T>) -> u32 {
+    id.into_raw().into_u32()
+}

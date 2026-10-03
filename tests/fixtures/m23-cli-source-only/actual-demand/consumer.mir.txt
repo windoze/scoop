@@ -1,0 +1,16 @@
+Module
+  fun result @fn0() -> Int
+    bb0 entry
+      call $dependency.receiver: Int = external0 direct
+      call $dependency.argument.0: Int = external1 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  output library

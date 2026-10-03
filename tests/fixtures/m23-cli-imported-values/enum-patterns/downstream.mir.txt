@@ -1,0 +1,117 @@
+Module
+  callback cb0 @fn0 -> @fn1 function_type0 id=5750c480faf719338a1668cb414e6f604ad9367ef5e86cdd9c91d07f5e2b7b8e
+  struct Token ()
+  enum Choice
+    Empty()
+    Pair(left: Long, marker: Token, right: Long)
+  generated_callable gc0 function=@fn1 id=5750c480faf719338a1668cb414e6f604ad9367ef5e86cdd9c91d07f5e2b7b8e
+  fun check @fn0() -> Long <no-gc>
+    bb0 entry
+      call $dependency.receiver: Long = external0 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=-5 bits=0xfffffffffffffffb
+      val $dependency.parameter.left: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Long
+        Type Long
+        Local $dependency.argument.1
+      call $dependency.argument.0: Choice = external1 direct
+        Type Long
+        Local $dependency.parameter.left
+        Type Long
+        Local $dependency.parameter.right
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      val $when.1: Choice
+        Type Choice
+        Local $dependency.parameter.value
+      val $pattern.subject.2: Choice
+        Type Choice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $default.local.6
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Choice
+        Type Choice
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val $dependency.parameter.result: Long
+        Type Long
+        Local $default.local.6
+      call $dependency.argument.0: Long = external2 direct
+        Type Choice
+        Local $dependency.parameter.value
+        Type Long
+        Local $dependency.parameter.result
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb4 pattern.pass.4
+      val $default.local.1: Long
+        Type Long
+        VariantPayloadProject Choice v1 f0
+          Type Choice
+          Local $pattern.subject.3
+      val $default.local.2: Long
+        Type Long
+        VariantPayloadProject Choice v1 f2
+          Type Choice
+          Local $pattern.subject.3
+      val $default.local.3: Long
+        Type Long
+        Local $default.local.1
+      val $default.local.4: Long
+        Type Long
+        Local $default.local.2
+      val $default.local.5: Long
+        Type Long
+        Local $default.local.4
+      assign $default.local.6
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $default.local.3
+          Type Long
+          Local $default.local.5
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun callback bridge for check @fn1($result: Ptr<Long>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Long = @fn0 direct
+      Type Unit
+      PtrStore Long
+        Type Ptr<Long>
+        Local $result
+        Type Long
+        Local $value
+      return
+  output library

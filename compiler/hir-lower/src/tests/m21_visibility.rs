@@ -1,4 +1,9 @@
 use super::*;
+mod objects;
+mod private_accessors;
+mod property_slots;
+mod protected_scopes;
+mod support;
 
 fn visibility(value: ast::DeclaredVisibility) -> ast::VisibilitySyntax {
     ast::VisibilitySyntax::Explicit {
@@ -118,14 +123,16 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
     ]))
     .expect("explicit public declarations and an internal main must lower");
 
-    let main = module.entry;
+    let main = module.entry();
     assert_eq!(
         module.functions[main].access.declared,
         hir::DeclaredVisibility::Internal
     );
     assert_eq!(
         module.functions[main].access.lookup.0.constraints(),
-        &[hir::AccessConstraint::Cone(module.source_files[1].provider)]
+        &[hir::AccessConstraint::Cone(
+            module.source_files[1].identity.cone()
+        )]
     );
     assert!(!module.public_surface.functions.contains(&main));
 
@@ -140,7 +147,7 @@ fn omission_normalizes_to_internal_and_export_surface_is_explicit() {
     let (answer, _) = module
         .globals
         .iter()
-        .find(|(_, global)| global.name == "answer")
+        .find(|(_, global)| module.properties[global.property].name == "answer")
         .expect("exported property");
     let answer = module.globals[answer].property;
     assert!(module.public_surface.properties.contains(&answer));
@@ -314,8 +321,7 @@ fn public_override_in_internal_owner_preserves_public_slot_contract() {
         Vec::new(),
         vec![override_method],
     );
-    let module = lower_user(file(vec![base, derived, fun("main", Vec::new())]))
-        .expect("an internal class may explicitly implement a public slot");
+    let module = lower_core_with_additional_declarations(vec![base, derived]);
     let (derived_method, function) = module
         .functions
         .iter()
@@ -329,8 +335,20 @@ fn public_override_in_internal_owner_preserves_public_slot_contract() {
             .as_ref()
             .is_some_and(|slot| slot.0.is_universal())
     );
-    assert_eq!(function.override_access.len(), 1);
-    assert!(module.public_surface.functions.contains(&derived_method));
+    assert!(!module.public_surface.functions.contains(&derived_method));
+    let callables = hir::CanonicalCallableInterfacesV1::from_export_hir(&module).unwrap();
+    let hir::HirFunctionIdentity::Source(hir::HirSourceFunctionIdentity::Plain(identity)) =
+        &module.function_identities[derived_method]
+    else {
+        panic!("the override has a source function identity")
+    };
+    assert!(
+        callables
+            .get(scoop_identity::CallableTemplateOrigin::Function(
+                identity.id()
+            ))
+            .is_none()
+    );
 }
 
 #[test]
@@ -475,7 +493,7 @@ fn file_private_functions_and_properties_have_distinct_file_namespaces() {
         module
             .globals
             .iter()
-            .filter(|(_, global)| global.name == "privateValue")
+            .filter(|(_, global)| module.properties[global.property].name == "privateValue")
             .count(),
         2
     );
@@ -483,7 +501,7 @@ fn file_private_functions_and_properties_have_distinct_file_namespaces() {
         module
             .globals
             .iter()
-            .filter(|(_, global)| global.name == "privateValue")
+            .filter(|(_, global)| module.properties[global.property].name == "privateValue")
             .all(|(_, global)| !module.public_surface.properties.contains(&global.property))
     );
 }

@@ -1,0 +1,172 @@
+Module
+  struct Marker ()
+  struct Payload (marker: Marker, flag: Boolean)
+  struct Storage (flag: Boolean)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Choice
+    Empty()
+    Full(_0: Payload)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Box vtable=0 itables=0
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.argument.0: Marker = external1 direct
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.marker: Marker
+        Type Marker
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      call payload: Payload = external2 direct
+        Type Marker
+        Local $dependency.parameter.marker
+        Type Boolean
+        Local $dependency.parameter.flag
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local payload
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      call $dependency.argument.0: Box = external3 direct
+        Type Payload
+        Local $dependency.parameter.value
+      val $dependency.argument.1: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.box: Box
+        Type Box
+        Local $dependency.argument.0
+      val $dependency.parameter.label: String
+        Type String
+        Local $dependency.argument.1
+      call $call.1: Payload = external4 direct
+        Type Box
+        Local $dependency.parameter.box
+        Type String
+        Local $dependency.parameter.label
+      call $argument.0: Boolean = external6 direct
+        Type Payload
+        Local $call.1
+        Type Payload
+        Local payload
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local payload
+      val $dependency.parameter._1: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Payload
+          Local $dependency.parameter._1
+      call $dependency.argument.1: Marker = external1 direct
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      val $dependency.parameter.marker: Marker
+        Type Marker
+        Local $dependency.argument.1
+      call $equality.lhs: Choice = external5 direct
+        Type Choice
+        Local $dependency.parameter.value
+        Type Marker
+        Local $dependency.parameter.marker
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local payload
+      val $dependency.parameter._1: Payload
+        Type Payload
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external7 direct
+        Type Choice
+        Local $equality.lhs
+        Type Choice
+        VariantConstruct Choice v1
+          Type Payload
+          Local $dependency.parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v0
+      call $dependency.argument.1: Marker = external1 direct
+      val $dependency.parameter.value: Choice
+        Type Choice
+        Local $dependency.argument.0
+      val $dependency.parameter.marker: Marker
+        Type Marker
+        Local $dependency.argument.1
+      call $call.2: Choice = external5 direct
+        Type Choice
+        Local $dependency.parameter.value
+        Type Marker
+        Local $dependency.parameter.marker
+      call $argument.0: Boolean = external7 direct
+        Type Choice
+        Local $call.2
+        Type Choice
+        VariantConstruct Choice v0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  str @str1 "label"
+  output executable @fn1

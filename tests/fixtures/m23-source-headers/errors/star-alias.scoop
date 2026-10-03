@@ -1,0 +1,7 @@
+// EXPECT-DIAGNOSTICS
+
+package demo.app
+
+import demo.app.* as everything
+
+fun main() {}

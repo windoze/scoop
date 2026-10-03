@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  public fun base(): Base
+    =
+      Call Base
+  public fun derived(): Derived
+    =
+      Call Derived
+SourceFile
+  RootPackage
+  public open class Base()
+    public fun inspect
+    public fun zeta
+    public fun alpha
+    public fun direct
+    protected open var value: Int <computed>
+      get()
+        IntLiteral 4
+      set(value)
+  public open class Derived() : Base(<0 args>)
+    public fun zeta
+    public fun middle
+  public object Singleton

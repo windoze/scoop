@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public fun answer(): Int
+    =
+      Call userCoreOffset
+        IntLiteral 41

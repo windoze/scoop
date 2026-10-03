@@ -1,0 +1,13 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val chooser: Chooser<Int> = InterfaceChooser<Int>()
+    return chooser.choose(42)
+}
+
+public fun <T> make(value: T): T {
+    val chooser: RequiredChooser<T> = InterfaceChooser<T>()
+    return chooser.choose(value)
+}

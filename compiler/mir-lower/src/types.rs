@@ -6,8 +6,58 @@ use la_arena::Arena;
 use scoop_hir::concrete as hir;
 use scoop_mir as mir;
 
+mod source_origin;
+
+pub(super) use source_origin::{SourceExactTypeRegistry, owned_builtin_types};
+
 pub(super) fn remap_idx<S, T>(id: la_arena::Idx<S>) -> la_arena::Idx<T> {
     la_arena::Idx::from_raw(id.into_raw())
+}
+
+pub(super) fn exact_function_identity(
+    module: &hir::Module,
+    function: mir::FunctionTypeId,
+) -> (hir::ExactCallableSignature, hir::PersistentExactTypeId) {
+    let source_id = remap_idx(function);
+    let source = &module.function_types[source_id];
+    let effect = if source.is_suspend {
+        hir::Effect::Suspend
+    } else {
+        hir::Effect::Ordinary
+    };
+    let signature = hir::ExactCallableSignature::new(
+        effect,
+        None,
+        source
+            .parameter_types
+            .iter()
+            .map(|parameter| module.exact_type_identities[*parameter].id())
+            .collect(),
+        module.exact_type_identities[source.return_type].id(),
+    );
+    let exact_type = module.exact_type_identities[source.canonical_type].id();
+    (signature, exact_type)
+}
+
+pub(crate) fn dynamic_function_type(
+    module: &hir::Module,
+    source: mir::FunctionTypeId,
+) -> mir::FunctionTypeId {
+    let source = &module.function_types[remap_idx(source)];
+    let (id, _) = module
+        .function_types
+        .iter()
+        .find(|(_, candidate)| {
+            candidate.is_suspend == source.is_suspend
+                && candidate.parameter_types.len() == source.parameter_types.len()
+                && candidate
+                    .parameter_types
+                    .iter()
+                    .chain([&candidate.return_type])
+                    .all(|ty| matches!(module.types[*ty].kind, hir::TypeKind::Any))
+        })
+        .expect("concrete function types include their complete dynamic call signature");
+    remap_idx(id)
 }
 
 pub(super) const fn lower_integer_kind(kind: hir::IntegerKind) -> mir::IntegerKind {
@@ -22,20 +72,6 @@ pub(super) const fn lower_integer_kind(kind: hir::IntegerKind) -> mir::IntegerKi
         hir::IntegerWidth::W64 => mir::IntegerWidth::W64,
     };
     mir::IntegerKind::new(signedness, width)
-}
-
-pub(super) const fn raise_integer_kind(kind: mir::IntegerKind) -> hir::IntegerKind {
-    let signedness = match kind.signedness() {
-        mir::IntegerSignedness::Signed => hir::IntegerSignedness::Signed,
-        mir::IntegerSignedness::Unsigned => hir::IntegerSignedness::Unsigned,
-    };
-    let width = match kind.width() {
-        mir::IntegerWidth::W8 => hir::IntegerWidth::W8,
-        mir::IntegerWidth::W16 => hir::IntegerWidth::W16,
-        mir::IntegerWidth::W32 => hir::IntegerWidth::W32,
-        mir::IntegerWidth::W64 => hir::IntegerWidth::W64,
-    };
-    hir::IntegerKind::new(signedness, width)
 }
 
 pub(super) const fn lower_integer_constant(
@@ -77,10 +113,14 @@ impl InterfaceRegistry {
         let name = decl.name.clone();
         let id = self.defs.alloc(mir::InterfaceDef {
             name: name.clone(),
+            type_arguments: args.clone(),
+            parents: Vec::new(),
             methods: Vec::new(),
         });
         shell.interfaces.alloc(mir::InterfaceDef {
             name: name.clone(),
+            type_arguments: args.clone(),
+            parents: Vec::new(),
             methods: Vec::new(),
         });
         self.instances.insert(id, (hir_id, args));
@@ -116,12 +156,13 @@ impl Types<'_> {
     pub(super) fn lower(
         &self,
         ty: hir::TypeId,
+        exact_types: &mut SourceExactTypeRegistry,
         enums: &mut EnumRegistry,
         structs: &mut StructRegistry,
         interfaces: &mut InterfaceRegistry,
         shell: &mut mir::Module,
     ) -> mir::Type {
-        match &self.module.types[ty].kind {
+        let lowered = match &self.module.types[ty].kind {
             hir::TypeKind::Unit => mir::Type::Unit,
             hir::TypeKind::Integer(kind) => mir::Type::Integer(lower_integer_kind(*kind)),
             hir::TypeKind::Boolean => mir::Type::Boolean,
@@ -132,7 +173,7 @@ impl Types<'_> {
                 let args = self.module.interfaces[*id]
                     .type_arguments
                     .iter()
-                    .map(|&arg| self.lower(arg, enums, structs, interfaces, shell))
+                    .map(|&arg| self.lower(arg, exact_types, enums, structs, interfaces, shell))
                     .collect();
                 mir::Type::Interface(interfaces.get_or_create(self.module, shell, *id, args))
             }
@@ -140,29 +181,42 @@ impl Types<'_> {
             hir::TypeKind::Tuple(elements) => mir::Type::Tuple(
                 elements
                     .iter()
-                    .map(|&element| self.lower(element, enums, structs, interfaces, shell))
+                    .map(|&element| {
+                        self.lower(element, exact_types, enums, structs, interfaces, shell)
+                    })
                     .collect(),
             ),
             hir::TypeKind::Function(id) => mir::Type::Function(remap_idx(*id)),
-            hir::TypeKind::Ptr(pointee) => mir::Type::Ptr(Box::new(
-                self.lower(*pointee, enums, structs, interfaces, shell),
-            )),
+            hir::TypeKind::Ptr(pointee) => mir::Type::Ptr(Box::new(self.lower(
+                *pointee,
+                exact_types,
+                enums,
+                structs,
+                interfaces,
+                shell,
+            ))),
             hir::TypeKind::FunPtr(id) => mir::Type::FunPtr(remap_idx(*id)),
             hir::TypeKind::Enum(id) => {
                 let args = self.module.enums[*id]
                     .type_arguments
                     .iter()
-                    .map(|argument| self.lower(*argument, enums, structs, interfaces, shell))
+                    .map(|argument| {
+                        self.lower(*argument, exact_types, enums, structs, interfaces, shell)
+                    })
                     .collect::<Vec<_>>();
-                let enum_id = enums.get_or_create(self, structs, interfaces, shell, *id);
+                let enum_id =
+                    enums.get_or_create(self, exact_types, structs, interfaces, shell, *id);
                 mir::Type::Enum(enum_id, args)
             }
-        }
+        };
+        exact_types.record(self.module, ty, lowered.clone());
+        lowered
     }
 }
 
 /// Concrete enum definitions, transposed once from distinct local-concrete
-/// HIR identities (`Option$I`, or a plain non-generic name).
+/// HIR identities. Generic applications remain distinct through their typed
+/// arguments; the declaration name is display-only.
 #[derive(Default)]
 pub(super) struct EnumRegistry {
     pub(super) defs: Arena<mir::EnumDef>,
@@ -206,6 +260,7 @@ impl EnumRegistry {
     pub(super) fn get_or_create(
         &mut self,
         types: &Types,
+        exact_types: &mut SourceExactTypeRegistry,
         structs: &mut StructRegistry,
         interfaces: &mut InterfaceRegistry,
         shell: &mut mir::Module,
@@ -233,7 +288,7 @@ impl EnumRegistry {
         let type_arguments = decl
             .type_arguments
             .iter()
-            .map(|argument| types.lower(*argument, self, structs, interfaces, shell))
+            .map(|argument| types.lower(*argument, exact_types, self, structs, interfaces, shell))
             .collect::<Vec<_>>();
         self.defs[id].type_arguments.clone_from(&type_arguments);
         shell.enums[id].type_arguments = type_arguments;
@@ -241,14 +296,16 @@ impl EnumRegistry {
             .variants
             .iter()
             .map(|variant| mir::VariantDef {
+                identity: variant.identity,
                 name: variant.name.clone(),
                 gc_free: variant.gc_free,
                 fields: variant
                     .fields
                     .iter()
-                    .map(|field| mir::Field {
+                    .map(|field| mir::VariantField {
+                        identity: field.identity,
                         name: field.name.clone(),
-                        ty: types.lower(field.ty, self, structs, interfaces, shell),
+                        ty: types.lower(field.ty, exact_types, self, structs, interfaces, shell),
                     })
                     .collect(),
             })
@@ -318,8 +375,14 @@ pub(super) fn mir_type_gc_free(
 /// itables are finalized after body lowering discovers all boxing sites.
 #[derive(Default)]
 pub(super) struct BoxedRegistry {
-    pub(super) by_type: Vec<(mir::Type, mir::ClassId)>,
+    pub(super) entries: Vec<BoxedEntry>,
     pub(super) order: Vec<mir::ClassId>,
+}
+
+pub(super) struct BoxedEntry {
+    pub(super) payload: mir::Type,
+    pub(super) class: mir::ClassId,
+    pub(super) payload_identity: hir::PersistentExactTypeId,
 }
 
 impl BoxedRegistry {
@@ -328,16 +391,28 @@ impl BoxedRegistry {
         classes: &mut Arena<mir::ClassDef>,
         shell: &mut mir::Module,
         payload: &mir::Type,
+        payload_identity: hir::PersistentExactTypeId,
     ) -> mir::ClassId {
-        if let Some((_, id)) = self.by_type.iter().find(|(found, _)| found == payload) {
-            return *id;
+        if let Some(entry) = self
+            .entries
+            .iter()
+            .find(|entry| entry.payload_identity == payload_identity)
+        {
+            assert_eq!(
+                &entry.payload, payload,
+                "one exact type identity must lower to one MIR type"
+            );
+            return entry.class;
         }
-        let encoded = mir::encode_type(shell, payload)
-            .expect("box payloads always use source-level MIR types");
-        let name = format!("box${encoded}");
+        assert!(
+            self.entries.iter().all(|entry| entry.payload != *payload),
+            "one MIR source type must retain one exact type identity"
+        );
+        let name = format!("box<{}>", mir::type_name(shell, payload));
         let id = classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
             name: name.clone(),
+            type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Declared {
                 fields: vec![mir::Field {
                     name: "value".to_string(),
@@ -352,6 +427,7 @@ impl BoxedRegistry {
         shell.classes.alloc(mir::ClassDef {
             modifier: mir::ClassModifier::Final,
             name,
+            type_arguments: Vec::new(),
             representation: mir::ClassRepresentation::Declared {
                 fields: Vec::new(),
                 base_class: None,
@@ -360,7 +436,11 @@ impl BoxedRegistry {
             vtable: Vec::new(),
             itables: Vec::new(),
         });
-        self.by_type.push((payload.clone(), id));
+        self.entries.push(BoxedEntry {
+            payload: payload.clone(),
+            class: id,
+            payload_identity,
+        });
         self.order.push(id);
         id
     }
@@ -376,6 +456,8 @@ pub(super) fn is_boxable(ty: &mir::Type) -> bool {
             | mir::Type::Integer(_)
             | mir::Type::Boolean
             | mir::Type::Unit
+            | mir::Type::Ptr(_)
+            | mir::Type::FunPtr(_)
     )
 }
 

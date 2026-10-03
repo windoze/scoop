@@ -30,13 +30,11 @@ impl Lowerer {
                     lowered.kind,
                     hir::ExprKind::Call { .. }
                         | hir::ExprKind::MethodCall { .. }
-                        | hir::ExprKind::LocalFunctionCall { .. }
+                        | hir::ExprKind::DirectSuperMethodCall { .. }
                         | hir::ExprKind::CallableCall { .. }
                         | hir::ExprKind::PtrStore { .. }
-                        | hir::ExprKind::ForeignCallbackOperation {
-                            operation: hir::ForeignCallbackOperation::Release,
-                            ..
-                        }
+                        | hir::ExprKind::ForeignCallbackRegister { .. }
+                        | hir::ExprKind::ForeignCallbackOperation { .. }
                 ) {
                     out.extend(sink);
                     hir::StatementKind::Expr(lowered)
@@ -55,7 +53,11 @@ impl Lowerer {
                 hir::StatementKind::LocalFunction(local)
             }
             ast::StatementKind::Return { value } => {
-                if self.initialization_context.is_some() {
+                if self
+                    .initialization_context
+                    .as_ref()
+                    .is_some_and(|context| context.capture_depth == self.capture_contexts.len())
+                {
                     self.error(
                         statement.span,
                         "`return` is not allowed in an initializer or constructor body".into(),
@@ -212,10 +214,10 @@ impl Lowerer {
                 }
             }
             ast::StatementKind::For(for_) => {
-                let Some(plan) = self.lower_for(for_) else {
-                    return;
-                };
-                hir::StatementKind::For(Box::new(plan))
+                if let Some(statements) = self.lower_for(for_) {
+                    out.extend(statements);
+                }
+                return;
             }
             ast::StatementKind::Break => {
                 let Some(&target) = self.loop_targets.last() else {
@@ -327,9 +329,9 @@ impl Lowerer {
             });
         } else {
             let plan =
-                self.lower_irrefutable_binding_plan(&decl.target, init, decl.mutable, decl.span)?;
+                self.lower_irrefutable_binding(&decl.target, init, decl.mutable, decl.span)?;
             out.extend(sink);
-            out.extend(plan.into_statements());
+            out.extend(plan);
         }
         Some(())
     }

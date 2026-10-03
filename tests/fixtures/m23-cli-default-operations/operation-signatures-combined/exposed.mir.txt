@@ -1,0 +1,298 @@
+Module
+  global0 $singleton$Static: Outer.Static managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Outer.Static singleton lazy global0 initializer=@fn3 ensure=@fn4 failure=1 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Outer.Static>
+    Completed(value: Outer.Static)
+    Suspended()
+  enum CoroutineSlot<Outer.Static>
+    Empty()
+    Value(value: Outer.Static)
+  enum CoroutineStep<Samples>
+    Completed(value: Samples)
+    Suspended()
+  enum CoroutineSlot<Samples>
+    Empty()
+    Value(value: Samples)
+  class Samples vtable=0 itables=0
+  class Outer.Static vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Samples>
+  interface SuspendTask<Samples>
+  interface SuspendRegistration<Samples>
+  interface Continuation<Outer.Static>
+  interface SuspendTask<Outer.Static>
+  interface SuspendRegistration<Outer.Static>
+  generated_exact_type get0 location=enum2 nominal_id=b991cbf03b8a135357d98ad6de84640f190f638bcc497a63179a74171cee6d20 exact_id=2b10d8692b99dde22c24b0a5c5623379ff974ce940a8bc279522d60f14dafcf7
+  generated_exact_type get1 location=enum1 nominal_id=c3a9f88b6830dc8d3a255714fcbdaa363e952a6be26b95c298b50452c207b37b exact_id=a65627274e1f5444001068e1a44ed858d65f191afb27c81205dd1876bba85c10
+  generated_exact_type get2 location=enum4 nominal_id=c2c40377f75f2d0161229016f7727c7ebde041768c884556fa6ec0fe1885e9aa exact_id=e10f13f876331bd4ee139f06adac652ca0ca6a76a92815b667598b0e3333e09d
+  generated_exact_type get3 location=enum3 nominal_id=83ab550a37438d0ab30166c4601613aba20afb7e744f48cc72df44422d1b6672 exact_id=e31404e14aa2fe25a688e986e21bbdd58c504f250159e28f45dc29256fb752ff
+  generated_callable gc0 function=@fn15 id=c821d6047afc3894658d1e491a986c37fd0e2ba0615b24076d75da39cc7813aa
+  generated_callable gc1 function=@fn16 id=eb6cdb071cbc42fbd99b0c6dcdec583afd628481a2df9775247d6c6469e44a15
+  fun Samples.nested @fn0(this: Samples, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Outer.Static.take @fn1(this: Outer.Static, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun defaultSamples @fn2() -> Samples
+    bb0 entry
+      assign $new.1
+        Type Samples
+        ClassAlloc Samples
+      call @fn13 direct
+        Type Samples
+        Local $new.1
+      return
+        Type Samples
+        Local $new.1
+  fun $init$body$0 @fn3() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Outer.Static
+        ClassAlloc Outer.Static
+      call @fn14 direct
+        Type Outer.Static
+        Local $new.1
+      global_assign $singleton$Static
+        Type Outer.Static
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn4() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Outer.Static
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn3 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Outer.Static
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Outer.Static
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Outer.Static
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Outer.Static
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Continuation.resume @fn5(this: Continuation<Samples>, value: Samples) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Samples>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Samples>, $completion: Continuation<Samples>) -> CoroutineStep<Samples>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Samples>, continuation: Continuation<Samples>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn9(this: Continuation<Outer.Static>, value: Outer.Static) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Outer.Static>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Outer.Static>, $completion: Continuation<Outer.Static>) -> CoroutineStep<Outer.Static>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Outer.Static>, continuation: Continuation<Outer.Static>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Samples.$c2 @fn13(this: Samples) -> Unit
+    bb0 entry
+      return
+  fun init.Outer.Static.$c3 @fn14(this: Outer.Static) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<Outer.Static> @fn15(task: SuspendTask<Outer.Static>, completion: Continuation<Outer.Static>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<Outer.Static>[0]
+        Type Continuation<Outer.Static>
+        Local completion
+        Type Outer.Static
+        EnumField v0 f0
+          Type CoroutineStep<Outer.Static>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<Outer.Static>[1]
+        Type Continuation<Outer.Static>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Outer.Static> = @fn11 interface SuspendTask<Outer.Static>[0]
+        Type SuspendTask<Outer.Static>
+        Local task
+        Type Continuation<Outer.Static>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Outer.Static>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Samples> @fn16(task: SuspendTask<Samples>, completion: Continuation<Samples>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Samples>[0]
+        Type Continuation<Samples>
+        Local completion
+        Type Samples
+        EnumField v0 f0
+          Type CoroutineStep<Samples>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Samples>[1]
+        Type Continuation<Samples>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Samples> = @fn7 interface SuspendTask<Samples>[0]
+        Type SuspendTask<Samples>
+        Local task
+        Type Continuation<Samples>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Samples>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Outer.Static> result=Outer.Static
+  coroutine_step cs1 CoroutineStep<Samples> result=Samples
+  coroutine_slot cl0 CoroutineSlot<Outer.Static> value=Outer.Static
+  coroutine_slot cl1 CoroutineSlot<Samples> value=Samples
+  coroutine_start ct0 result=Outer.Static function=fn15
+  coroutine_start ct1 result=Samples function=fn16
+  coroutine_fn cf0 @fn7 source_return=Samples step=cs1 immediate
+  coroutine_fn cf1 @fn11 source_return=Outer.Static step=cs0 immediate
+  instance mi0 function=@fn5 <- Continuation.resume
+  instance mi1 function=@fn6 <- Continuation.resumeWithException
+  instance mi2 function=@fn7 <- SuspendTask.run
+  instance mi3 function=@fn8 <- SuspendRegistration.register
+  instance mi4 function=@fn9 <- Continuation.resume
+  instance mi5 function=@fn10 <- Continuation.resumeWithException
+  instance mi6 function=@fn11 <- SuspendTask.run
+  instance mi7 function=@fn12 <- SuspendRegistration.register
+  output library

@@ -1,0 +1,10 @@
+fun main() {
+    @Unsafe {
+        val base: Base = Base()
+        val child: Child = Child()
+        val secondary: Secondary = Secondary()
+        if (Value().value != 1) { throw IllegalStateException() }
+    }
+    val safe: Secondary = Secondary(true)
+    gcCollect()
+}

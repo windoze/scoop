@@ -1,0 +1,11 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val cell = Cell<Int>(20)
+    val choice = emptyChoice<String>()
+    return cell.read() + choice.choose<Int>(cell.choose<_>(22))
+}
+
+public fun <T> make(value: T): T = Cell<Int>(1).choose<T>(value)

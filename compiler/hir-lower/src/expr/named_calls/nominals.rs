@@ -1,0 +1,357 @@
+use super::*;
+use crate::constructor_resolution::NominalConstructorCall;
+
+mod imported;
+mod plans;
+mod pointers;
+
+struct NominalPlan {
+    view: NominalConstructorView,
+    expected: Option<TypeId>,
+    fixed_alias: bool,
+}
+
+enum PreparedNominalPlans {
+    Nominal(
+        Vec<NominalPlan>,
+        Option<(hir::StructId, Option<TypeId>, bool)>,
+    ),
+    Imported {
+        owner: hir::SourceNominalId,
+        expected: Option<TypeId>,
+        fixed_alias: bool,
+    },
+}
+
+impl Lowerer {
+    pub(in crate::expr) fn lower_named_function_partition(
+        &mut self,
+        targets: &[NamedCallBinding],
+        kind: ImportLookupLayer,
+        call: &ast::CallExpr,
+        sink: &mut Vec<hir::Statement>,
+        expected: Option<TypeId>,
+    ) -> Result<Option<hir::Expr>, ()> {
+        let mut plans = Vec::new();
+        let diagnostics_before = self.diagnostics.len();
+        let mut failures = Vec::new();
+        let mut intrinsics = Vec::new();
+        let mut imported = Vec::new();
+        for binding in targets {
+            let mut preparation = self.clone();
+            match preparation.named_nominal_plans(binding, call, expected) {
+                Ok(PreparedNominalPlans::Nominal(mut prepared, intrinsic)) => {
+                    *self = preparation;
+                    plans.append(&mut prepared);
+                    if let Some(intrinsic) = intrinsic {
+                        intrinsics.push(intrinsic);
+                    }
+                }
+                Ok(PreparedNominalPlans::Imported {
+                    owner,
+                    expected,
+                    fixed_alias,
+                }) => {
+                    imported.push((preparation, owner, expected, fixed_alias));
+                }
+                Err(()) => {
+                    failures.push(Box::new(preparation));
+                }
+            }
+        }
+        let explicit = self.resolve_call_type_args(&call.type_args).ok_or(())?;
+        let overload = OverloadCall {
+            explicit_type_args: &explicit,
+            arg_exprs: &call.args,
+            span: call.span,
+            expected_result: expected,
+            argument_protocol: CallArgumentProtocol::Ordinary,
+        };
+        let functions = targets
+            .iter()
+            .filter_map(|binding| match binding.target {
+                NamedCallTarget::Function(id) => Some(id),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if plans.is_empty()
+            && intrinsics.is_empty()
+            && !functions.is_empty()
+            && functions.len() == targets.len()
+            && functions.iter().all(|id| {
+                !self.extension_receivers.contains_key(id) && !self.function_owner.contains_key(id)
+            })
+        {
+            return match self.resolve_overload_outcome(
+                &call.callee.text,
+                &functions,
+                &[],
+                overload,
+                sink,
+            ) {
+                crate::overload::OverloadResolutionOutcome::NoApplicable => Ok(None),
+                crate::overload::OverloadResolutionOutcome::Blocked => Ok(None),
+                crate::overload::OverloadResolutionOutcome::Failed => Err(()),
+                crate::overload::OverloadResolutionOutcome::Resolved(resolved) => self
+                    .finish_resolved_top_level_function_call(call, *resolved, sink)
+                    .map(Some)
+                    .ok_or(()),
+            };
+        }
+        let mut applicable = Vec::new();
+        for binding in targets {
+            let NamedCallTarget::Function(function) = binding.target else {
+                continue;
+            };
+            let mut state = self.clone();
+            let (candidate, receiver, commit) = if self.extension_receivers.contains_key(&function)
+            {
+                if self.current_this_ty().is_none() {
+                    continue;
+                }
+                let Some(receiver) = state.lower_current_this(call.callee.span) else {
+                    continue;
+                };
+                (
+                    crate::CallableCandidate::function(function, Vec::new()),
+                    NamedCallReceiver::Extension(receiver),
+                    NamedFunctionCommit::TopLevel,
+                )
+            } else if let Some(crate::Owner::Object(object)) =
+                self.function_owner.get(&function).copied()
+            {
+                let Some(receiver) = state.lower_singleton_value(object, call.callee.span) else {
+                    continue;
+                };
+                let candidate = crate::CallableCandidate {
+                    function,
+                    owner: crate::CallableCandidateOwner::Method(
+                        state.method_owner_application(crate::Owner::Object(object), Vec::new()),
+                    ),
+                    source: crate::CallableCandidateSource::Direct,
+                };
+                (
+                    candidate,
+                    NamedCallReceiver::Member(receiver),
+                    NamedFunctionCommit::Member,
+                )
+            } else {
+                (
+                    crate::CallableCandidate::function(function, Vec::new()),
+                    NamedCallReceiver::None,
+                    NamedFunctionCommit::TopLevel,
+                )
+            };
+            match state.probe_named_callable(&call.callee.text, candidate, receiver, overload) {
+                Ok(probe) => applicable.push(NamedApplicable {
+                    probe: NamedFunctionLikeProbe::Callable(Box::new(probe)),
+                    commit,
+                }),
+                Err(failure) => {
+                    failures.push(failure);
+                }
+            }
+        }
+        for binding in targets {
+            if !matches!(
+                binding.target,
+                NamedCallTarget::ImportedDependency(
+                    hir::ImportedTarget::Function(_)
+                        | hir::ImportedTarget::GenericFunction(_)
+                        | hir::ImportedTarget::EnumVariant(_)
+                )
+            ) {
+                continue;
+            }
+            let crate::imports::lookup::calls::NamedCallOrigin::Dependency(binding) =
+                &binding.origin
+            else {
+                unreachable!("an ordinary dependency target retains its dependency binding")
+            };
+            match self.probe_imported_dependency_callable(binding, call, expected) {
+                Ok(probe) => applicable.push(NamedApplicable {
+                    probe: NamedFunctionLikeProbe::ImportedDependency(Box::new(probe)),
+                    commit: NamedFunctionCommit::ImportedDependency,
+                }),
+                Err(failure) => failures.push(failure),
+            }
+        }
+        for (state, owner, expected, fixed_alias) in imported {
+            state.collect_imported_constructor_probes(
+                owner,
+                call,
+                expected,
+                fixed_alias,
+                &mut applicable,
+                &mut failures,
+            );
+        }
+        for plan in plans {
+            let arguments = self
+                .named_nominal_expected_arguments(plan.view.signature.return_type, plan.expected);
+            match self.probe_named_nominal(
+                plan.view,
+                NominalConstructorCall {
+                    explicit_type_args: &explicit,
+                    expected_type_args: arguments.as_deref(),
+                    arguments: &call.args,
+                    span: call.span,
+                },
+            ) {
+                Ok(mut probe) => {
+                    if plan.fixed_alias {
+                        probe.fix_forwarding_parameters(
+                            self,
+                            arguments
+                                .as_deref()
+                                .expect("a fixed nominal alias supplies its complete application"),
+                        );
+                    }
+                    applicable.push(NamedApplicable {
+                        probe: NamedFunctionLikeProbe::Nominal(Box::new(probe)),
+                        commit: NamedFunctionCommit::Nominal,
+                    });
+                }
+                Err(failure) => {
+                    failures.push(failure);
+                }
+            }
+        }
+        for (structure, fixed, fixed_alias) in intrinsics {
+            self.clone().collect_pointer_construction_probe(
+                crate::call_resolution::named::NamedIntrinsicStructOrigin::Current(structure),
+                call,
+                fixed,
+                fixed_alias,
+                &mut applicable,
+                &mut failures,
+            );
+        }
+        if applicable.is_empty() {
+            if let Some(blocked) = failures
+                .iter()
+                .position(|failure| failure.diagnostics.len() == diagnostics_before)
+            {
+                // An argument can be blocked by a previously rejected
+                // declaration. Do not relabel that failure as an unknown name.
+                self.commit_layer_diagnostics(*failures.swap_remove(blocked));
+                return Err(());
+            }
+            let functions = targets
+                .iter()
+                .filter_map(|binding| match binding.target {
+                    NamedCallTarget::Function(id)
+                        if !self.extension_receivers.contains_key(&id)
+                            && !self.function_owner.contains_key(&id) =>
+                    {
+                        Some(id)
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if functions.len() > 1
+                && targets
+                    .iter()
+                    .all(|binding| matches!(binding.target, NamedCallTarget::Function(_)))
+            {
+                return Ok(self.lower_top_level_function_layer(
+                    &call.callee.text,
+                    &functions,
+                    call,
+                    sink,
+                    expected,
+                ));
+            }
+            if failures.len() == 1 {
+                self.commit_layer_diagnostics(*failures.pop().expect("one failed candidate"));
+            } else if !failures.is_empty() {
+                let mut traces = failures
+                    .iter()
+                    .map(|failure| {
+                        failure.diagnostics[diagnostics_before..]
+                            .iter()
+                            .map(|diagnostic| diagnostic.message.as_str())
+                            .collect::<Vec<_>>()
+                            .join("; ")
+                    })
+                    .collect::<Vec<_>>();
+                traces.sort();
+                self.error(
+                    call.span,
+                    format!(
+                        "no applicable candidate for `{}` in {} layer:\n{}",
+                        call.callee.text,
+                        kind.call_name(),
+                        traces
+                            .iter()
+                            .map(|trace| format!("  - {trace}"))
+                            .collect::<Vec<_>>()
+                            .join("\n")
+                    ),
+                );
+            }
+            return Ok(None);
+        }
+        let (probes, mut commits): (Vec<_>, Vec<_>) = applicable
+            .into_iter()
+            .map(|applicable| (applicable.probe, applicable.commit))
+            .unzip();
+        let diagnostics_before = self.diagnostics.len();
+        let Some(winner) = self.select_named_function_like(
+            &call.callee.text,
+            kind.call_name(),
+            &probes,
+            &call.args,
+            call.span,
+        ) else {
+            let variants = targets
+                .iter()
+                .filter_map(|binding| match binding.target {
+                    NamedCallTarget::Value(ValueTarget::Variant(target)) => Some(target),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            if kind == ImportLookupLayer::CorePrelude && variants.len() == targets.len() {
+                self.diagnostics.truncate(diagnostics_before);
+                self.ambiguous_prelude_variant(&call.callee, &variants);
+            }
+            return Err(());
+        };
+        let mut probes = probes;
+        let probe = probes.swap_remove(winner);
+        let commit = commits.swap_remove(winner);
+        let expression = match (probe, commit) {
+            (NamedFunctionLikeProbe::Callable(probe), NamedFunctionCommit::TopLevel) => {
+                let resolved = self.commit_named_callable(*probe, sink).ok_or(())?;
+                self.finish_resolved_top_level_function_call(call, resolved, sink)
+            }
+            (NamedFunctionLikeProbe::Callable(probe), NamedFunctionCommit::Member) => {
+                let resolved = self.commit_named_callable(*probe, sink).ok_or(())?;
+                self.finish_resolved_method_call(resolved, call.span)
+            }
+            (
+                NamedFunctionLikeProbe::ImportedDependency(probe),
+                NamedFunctionCommit::ImportedDependency,
+            ) => return Ok(self.commit_imported_dependency_callable(*probe, sink)),
+            (NamedFunctionLikeProbe::Nominal(probe), NamedFunctionCommit::Nominal) => {
+                let resolved = self
+                    .commit_named_nominal(*probe, call.span, sink)
+                    .ok_or(())?;
+                Some(self.finish_named_nominal(resolved, call.span))
+            }
+            (NamedFunctionLikeProbe::IntrinsicStruct(_), NamedFunctionCommit::Intrinsic(layer)) => {
+                if layer.state.diagnostics[diagnostics_before..]
+                    .iter()
+                    .any(|diagnostic| diagnostic.severity == ast::DiagnosticSeverity::Error)
+                {
+                    self.commit_layer_diagnostics(*layer.state);
+                    None
+                } else {
+                    Some(self.commit_expr_layer(layer, sink))
+                }
+            }
+            _ => unreachable!("each typed probe retains its matching commit protocol"),
+        };
+        expression.map(Some).ok_or(())
+    }
+}

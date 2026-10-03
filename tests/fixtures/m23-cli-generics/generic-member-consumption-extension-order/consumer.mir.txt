@@ -1,0 +1,646 @@
+Module
+  class ExtensionTrace<Int> vtable=0 itables=0
+  fun receiver @fn0(cell: ExtensionTrace<Int>) -> ExtensionTrace<Int>
+    bb0 entry
+      val $place.0: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      call $dependency.receiver: Int = @fn3 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type ExtensionTrace<Int>
+        Local $place.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+        Type ExtensionTrace<Int>
+        Local cell
+  fun rhs @fn1(cell: ExtensionTrace<Int>) -> Int
+    bb0 entry
+      val $place.1: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      call $dependency.receiver: Int = @fn3 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type ExtensionTrace<Int>
+        Local $place.1
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+  fun result @fn2() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.order: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.1
+        Type ExtensionTrace<Int>
+        ClassAlloc ExtensionTrace<Int>
+      call @fn9 direct
+        Type ExtensionTrace<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.order
+      val cell: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local $new.1
+      val $argument.0: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      val $parameter.cell: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local $argument.0
+      val $argument.0: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      val $parameter.cell: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local $argument.0
+      call $call.2: ExtensionTrace<Int> = @fn0 direct
+        Type ExtensionTrace<Int>
+        Local $parameter.cell
+      call $call.3: Int = @fn1 direct
+        Type ExtensionTrace<Int>
+        Local $parameter.cell
+      call @fn5 direct
+        Type ExtensionTrace<Int>
+        Local $call.2
+        Type Int
+        Local $call.3
+      call $dependency.receiver: Int = @fn3 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=134 bits=0x00000086
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.receiver: Int = @fn6 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.2
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $place.3: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      call @fn4 direct
+        Type ExtensionTrace<Int>
+        Local $place.3
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      val $parameter.cell: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local $argument.0
+      call $place.4: ExtensionTrace<Int> = @fn0 direct
+        Type ExtensionTrace<Int>
+        Local $parameter.cell
+      call $old.5: Int = @fn7 direct
+        Type ExtensionTrace<Int>
+        Local $place.4
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.5
+      val $argument.0: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      val $parameter.cell: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type ExtensionTrace<Int>
+        Local $parameter.cell
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type ExtensionTrace<Int>
+        Local $place.4
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.receiver: Int = @fn3 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1234 bits=0x000004d2
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb6 if.then.6
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      call $dependency.receiver: Int = @fn6 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $shortCircuit.6
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      val $place.7: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      call @fn4 direct
+        Type ExtensionTrace<Int>
+        Local $place.7
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      val $parameter.cell: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local $argument.0
+      call $place.8: ExtensionTrace<Int> = @fn0 direct
+        Type ExtensionTrace<Int>
+        Local $parameter.cell
+      call $old.9: Int = @fn7 direct
+        Type ExtensionTrace<Int>
+        Local $place.8
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.9
+      val $new.10: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      call @fn5 direct
+        Type ExtensionTrace<Int>
+        Local $place.8
+        Type Int
+        Local $new.10
+      val previous: Int
+        Type Int
+        Local $old.9
+      call $dependency.receiver: Int = @fn3 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=124 bits=0x0000007c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb11 if.then.11
+      val $shortCircuit.11: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      val $dependency.receiver: Int
+        Type Int
+        Local previous
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.11: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb13
+    bb13 if.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $shortCircuit.11
+    bb14 if.then.14
+      val $shortCircuit.12: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb16
+    bb15 if.else.15
+      call $dependency.receiver: Int = @fn6 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.12: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb16
+    bb16 if.merge.16
+      branch bb17 bb18
+        Type Boolean
+        Local $shortCircuit.12
+    bb17 if.then.17
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb18 if.merge.18
+      val $place.13: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      call @fn4 direct
+        Type ExtensionTrace<Int>
+        Local $place.13
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local cell
+      val $parameter.cell: ExtensionTrace<Int>
+        Type ExtensionTrace<Int>
+        Local $argument.0
+      call $place.14: ExtensionTrace<Int> = @fn0 direct
+        Type ExtensionTrace<Int>
+        Local $parameter.cell
+      call $old.15: Int = @fn7 direct
+        Type ExtensionTrace<Int>
+        Local $place.14
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.15
+      val $new.16: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      call @fn5 direct
+        Type ExtensionTrace<Int>
+        Local $place.14
+        Type Int
+        Local $new.16
+      val current: Int
+        Type Int
+        Local $new.16
+      call $dependency.receiver: Int = @fn3 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=124 bits=0x0000007c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb19 bb20
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb19 if.then.19
+      val $shortCircuit.17: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb21
+    bb20 if.else.20
+      val $dependency.receiver: Int
+        Type Int
+        Local current
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.17: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb21
+    bb21 if.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $shortCircuit.17
+    bb22 if.then.22
+      val $shortCircuit.18: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb24
+    bb23 if.else.23
+      call $dependency.receiver: Int = @fn6 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.18: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb24
+    bb24 if.merge.24
+      branch bb25 bb26
+        Type Boolean
+        Local $shortCircuit.18
+    bb25 if.then.25
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb26 if.merge.26
+      call $call.4: Int = @fn6 direct
+        Type ExtensionTrace<Int>
+        Local cell
+      return
+        Type Int
+        Local $call.4
+  fun order @fn3(this: ExtensionTrace<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type ExtensionTrace<Int>
+          Local this
+  fun order @fn4(this: ExtensionTrace<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 1
+        Type ExtensionTrace<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun $extension.extensionTracked @fn5(this: ExtensionTrace<Int>, next: Int) -> Unit
+    bb0 entry
+      call $dependency.local.2: Int = @fn3 direct
+        Type ExtensionTrace<Int>
+        Local this
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call @fn4 direct
+        Type ExtensionTrace<Int>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      call @fn8 direct
+        Type ExtensionTrace<Int>
+        Local this
+        Type Int
+        Local next
+      return
+  fun value @fn6(this: ExtensionTrace<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type ExtensionTrace<Int>
+          Local this
+  fun $extension.extensionTracked @fn7(this: ExtensionTrace<Int>) -> Int
+    bb0 entry
+      call $dependency.local.1: Int = @fn3 direct
+        Type ExtensionTrace<Int>
+        Local this
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      call @fn4 direct
+        Type ExtensionTrace<Int>
+        Local this
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      call $call.1: Int = @fn6 direct
+        Type ExtensionTrace<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun value @fn8(this: ExtensionTrace<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ExtensionTrace<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.ExtensionTrace.$c0 @fn9(this: ExtensionTrace<Int>, value: Int, order: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type ExtensionTrace<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type ExtensionTrace<Int>
+        Local this
+        Type Int
+        Local order
+      return
+  instance mi0 function=@fn3 <- order
+  instance mi1 function=@fn4 <- order
+  instance mi2 function=@fn5 <- $extension.extensionTracked
+  instance mi3 function=@fn6 <- value
+  instance mi4 function=@fn7 <- $extension.extensionTracked
+  instance mi5 function=@fn8 <- value
+  output library

@@ -1,0 +1,141 @@
+SourceFile
+  QualifiedPackage consumer.closures
+  ImportStar Local upstream.closures.*
+  private fun readers<T, U>(seed: T, marker: U, inspect: (T) -> Int): () -> Int
+    val first: () -> T
+      Lambda 0 suspend=false
+        parameters omitted
+        Var seed
+    val second: () -> T
+      AnonymousFunction 0 suspend=false return=T
+        return
+          Var seed
+    return
+      Lambda 1 suspend=false
+        parameters omitted
+        Binary Sub
+          Binary Add
+            Call inspect
+              Call first
+            Call inspect
+              Call second
+          Call inspect
+            Var seed
+  private fun defaultLambda<T, U>(seed: T, marker: U, read: () -> T = <expr>): T
+    =
+      Call read
+  private fun defaultAnonymous<T, U>(seed: T, marker: U, read: () -> T = <expr>): T
+    =
+      Call read
+  private fun nested<T, U>(seed: T, marker: U): () -> () -> T
+    return
+      Lambda 3 suspend=false
+        parameters omitted
+        AnonymousFunction 2 suspend=false return=T
+          return
+            Var seed
+  private fun nestedDefault<T, U>(seed: T, marker: U, read: () -> () -> T = <expr>): T
+    val inner
+      Call read
+    return
+      Call inner
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val expected
+      Call inspect
+        Var seed
+    val first
+      Call readers<T, Int>
+        Var seed
+        IntLiteral 0
+        Var inspect
+    val repeated
+      Call readers<T, Unit>
+        Var seed
+        UnitLiteral
+        Var inspect
+    val different
+      Call readers<Int, T>
+        IntLiteral 43
+        Var seed
+        Lambda 5 suspend=false
+          param value: _
+          Var value
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call first
+            Var expected
+          Binary Ne
+            Call repeated
+            Var expected
+        Binary Ne
+          Call different
+          IntLiteral 43
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call inspect
+          Call defaultLambda<T, Unit>
+            Var seed
+            UnitLiteral
+        Var expected
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call inspect
+          Call defaultAnonymous<T, Int>
+            Var seed
+            IntLiteral 0
+        Var expected
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call defaultAnonymous<Int, Unit>
+          IntLiteral 42
+          UnitLiteral
+        IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Ne
+        Call defaultAnonymous<Int, Unit>
+          IntLiteral 43
+          UnitLiteral
+        IntLiteral 43
+      return
+        IntLiteral 5
+    val outer
+      Call nested<T, Unit>
+        Var seed
+        UnitLiteral
+    val inner
+      Call outer
+    if
+      Binary Ne
+        Call inspect
+          Call inner
+        Var expected
+      return
+        IntLiteral 6
+    if
+      Binary Ne
+        Call inspect
+          Call nestedDefault<T, Int>
+            Var seed
+            IntLiteral 0
+        Var expected
+      return
+        IntLiteral 7
+    return
+      Call first
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 6 suspend=false
+          param value: _
+          Var value

@@ -1,0 +1,296 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Parcel<Number>
+    Empty()
+    Item(_0: Number)
+  enum CoroutineStep<Number>
+    Completed(value: Number)
+    Suspended()
+  enum CoroutineSlot<Number>
+    Empty()
+    Value(value: Number)
+  class Number vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Number>
+  interface SuspendTask<Number>
+  interface SuspendRegistration<Number>
+  generated_exact_type get0 location=enum3 nominal_id=1b486b03573b362b1bb0b876fcb1936ab6fd5dc9117566e5fae39b338960ddcd exact_id=143bd5192bc9e913035bb5451a48d4d8087de3ebc84f21afee7ac1ab1b785471
+  generated_exact_type get1 location=enum2 nominal_id=e95e11887bda08118484ece7a5ed303c0a4a55a427535d916b189b8ff7f81b89 exact_id=fc3dac40eb195cb068c49e0e19cb0a346abafce2f21770dc9ed9c24c8bd52ccf
+  generated_callable gc0 function=@fn9 id=af9ddd5fda6c5d82e6dc0842ebd78a8e8b928aac1f4c5c4d89a6e9e04c18781d
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Number
+        ClassAlloc Number
+      call @fn8 direct
+        Type Number
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Number
+        Type Number
+        Local $new.1
+      val $dependency.parameter.value: Number
+        Type Number
+        Local $dependency.argument.0
+      call $dependency.argument.0: Parcel<Number> = @fn1 direct
+        Type Number
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Parcel<Number>
+        Type Parcel<Number>
+        Local $dependency.argument.0
+      call first: Parcel<Number> = @fn2 direct
+        Type Parcel<Number>
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Number
+        ClassAlloc Number
+      call @fn8 direct
+        Type Number
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Number
+        Type Number
+        Local $new.2
+      val $dependency.parameter.value: Number
+        Type Number
+        Local $dependency.argument.0
+      call second: Parcel<Number> = @fn1 direct
+        Type Number
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Parcel<Number>
+        Type Parcel<Number>
+        Local first
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Number
+        ClassAlloc Number
+      call @fn8 direct
+        Type Number
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.1: Number
+        Type Number
+        Local $new.3
+      val $dependency.parameter.value: Parcel<Number>
+        Type Parcel<Number>
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Number
+        Type Number
+        Local $dependency.argument.1
+      call $call.4: Number = @fn3 direct
+        Type Parcel<Number>
+        Local $dependency.parameter.value
+        Type Number
+        Local $dependency.parameter.fallback
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.4
+      val $dependency.argument.0: Parcel<Number>
+        Type Parcel<Number>
+        Local second
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.5
+        Type Number
+        ClassAlloc Number
+      call @fn8 direct
+        Type Number
+        Local $new.5
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.1: Number
+        Type Number
+        Local $new.5
+      val $dependency.parameter.value: Parcel<Number>
+        Type Parcel<Number>
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Number
+        Type Number
+        Local $dependency.argument.1
+      call $call.6: Number = @fn3 direct
+        Type Parcel<Number>
+        Local $dependency.parameter.value
+        Type Number
+        Local $dependency.parameter.fallback
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Number
+          Local $call.6
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun pack @fn1(value: Number) -> Parcel<Number>
+    bb0 entry
+      val $dependency.local.1: Number
+        Type Number
+        Local value
+      val $dependency.local.2: Number
+        Type Number
+        Local $dependency.local.1
+      return
+        Type Parcel<Number>
+        VariantConstruct Parcel<Number> v1
+          Type Number
+          Local $dependency.local.2
+  fun relay @fn2(value: Parcel<Number>) -> Parcel<Number>
+    bb0 entry
+      return
+        Type Parcel<Number>
+        Local value
+  fun unpack @fn3(value: Parcel<Number>, fallback: Number) -> Number
+    bb0 entry
+      val $when.1: Parcel<Number>
+        Type Parcel<Number>
+        Local value
+      val $pattern.subject.2: Parcel<Number>
+        Type Parcel<Number>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Parcel<Number> v0
+          Type Parcel<Number>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.3
+        Type Number
+        Local fallback
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Parcel<Number>
+        Type Parcel<Number>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Parcel<Number> v1
+          Type Parcel<Number>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Number
+        Local $dependency.local.3
+    bb4 pattern.pass.4
+      val $dependency.local.2: Number
+        Type Number
+        VariantPayloadProject Parcel<Number> v1 f0
+          Type Parcel<Number>
+          Local $pattern.subject.3
+      assign $dependency.local.3
+        Type Number
+        Local $dependency.local.2
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Continuation.resume @fn4(this: Continuation<Number>, value: Number) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Number>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Number>, $completion: Continuation<Number>) -> CoroutineStep<Number>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Number>, continuation: Continuation<Number>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Number.$c0 @fn8(this: Number, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Number
+        Local this
+        Type Int
+        Local value
+      return
+  fun startCoroutine<Number> @fn9(task: SuspendTask<Number>, completion: Continuation<Number>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Number>[0]
+        Type Continuation<Number>
+        Local completion
+        Type Number
+        EnumField v0 f0
+          Type CoroutineStep<Number>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Number>[1]
+        Type Continuation<Number>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Number> = @fn6 interface SuspendTask<Number>[0]
+        Type SuspendTask<Number>
+        Local task
+        Type Continuation<Number>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Number>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Number> result=Number
+  coroutine_slot cl0 CoroutineSlot<Number> value=Number
+  coroutine_start ct0 result=Number function=fn9
+  coroutine_fn cf0 @fn6 source_return=Number step=cs0 immediate
+  instance mi0 function=@fn1 <- pack
+  instance mi1 function=@fn2 <- relay
+  instance mi2 function=@fn3 <- unpack
+  instance mi3 function=@fn4 <- Continuation.resume
+  instance mi4 function=@fn5 <- Continuation.resumeWithException
+  instance mi5 function=@fn6 <- SuspendTask.run
+  instance mi6 function=@fn7 <- SuspendRegistration.register
+  output library

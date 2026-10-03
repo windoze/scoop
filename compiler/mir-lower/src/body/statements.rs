@@ -20,10 +20,7 @@ impl BodyLowerer<'_> {
         let span = statement.span;
         let kind = match &statement.kind {
             hir::StatementKind::LocalFunction(_) => return,
-            hir::StatementKind::InitializationEnsure {
-                unit,
-                cycle_exception: _,
-            } => {
+            hir::StatementKind::InitializationEnsure(unit) => {
                 let function = self.module.initialization_units[*unit].ensure;
                 smir::StatementKind::Expr(smir::Expr::new(
                     mir::Type::Unit,
@@ -195,32 +192,6 @@ impl BodyLowerer<'_> {
         }
     }
 
-    /// Construct and throw one compiler-known exception. The zero-argument
-    /// constructor target is complete in LocalConcrete HIR, so this operation
-    /// only transposes typed identities.
-    pub(super) fn throw_builtin(
-        &mut self,
-        exception: hir::CompilerException,
-        span: Span,
-    ) -> smir::Statement {
-        let constructor = &self.module.class_constructors[exception.callable()];
-        debug_assert!(constructor.parameters.is_empty());
-        let ctor = self.ctors[&exception.callable()];
-        let class_id = self.class_map[&constructor.class];
-        let exception_ty = mir::Type::Class(class_id);
-        smir::Statement {
-            kind: smir::StatementKind::Throw(smir::Expr::new(
-                exception_ty.clone(),
-                smir::ExprKind::ClassNew {
-                    class_id,
-                    initializer: ctor,
-                    args: Vec::new(),
-                },
-            )),
-            span,
-        }
-    }
-
     /// The M8 array bounds check (DESIGN section 1), shared by
     /// `ArrayGet` and `ArraySet`:
     /// `if (index < 0 || index >= array.size) throw IndexOutOfBoundsException()`.
@@ -259,10 +230,21 @@ impl BodyLowerer<'_> {
                 ),
             ),
         );
-        let throw = self.throw_builtin(
-            self.module.exception_core.index_out_of_bounds_exception,
-            span,
-        );
+        let throw = match self.core_protocols {
+            hir::ConcreteCoreProtocols::Defined(protocols) => {
+                self.throw_builtin(protocols.exceptions.index_out_of_bounds_exception, span)
+            }
+            hir::ConcreteCoreProtocols::Imported(protocols) => self.throw_imported_exception(
+                protocols
+                    .exceptions()
+                    .index_out_of_bounds_exception()
+                    .persistent(),
+                protocols
+                    .exceptions()
+                    .index_out_of_bounds_exception_constructor(),
+                span,
+            ),
+        };
         self.prelude.push(smir::StatementKind::If {
             cond: out_of_bounds,
             then_body: vec![throw],

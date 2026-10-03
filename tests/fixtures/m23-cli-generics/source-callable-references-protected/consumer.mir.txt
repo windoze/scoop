@@ -1,0 +1,175 @@
+Module
+  class LocalChild<Int> vtable=0 itables=0
+  class Protected<Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn9 id=48f86bce9ee14114ddf7074a1795abe5cd542ae04a5df72d183d83b628a49ade
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn10 id=f156278135483dc71784aa60c92b0a21201a24d0fef2d5f5608161554823b97f
+  generated_exact_type get0 location=closure1 nominal_id=a71e36e851af0932127047dd8764bd0f62fcce8b97e44d7f41f3c8b483695638 exact_id=08f9567a11b9a3ddc2314d0a331bcd55f5b308de68bc7f4daf6291310373f87c
+  generated_exact_type get1 location=closure0 nominal_id=32022211852fca6e63b3770d04a7dc502f8aa59780d74b5815b48969f52ea57c exact_id=d0031f31e257749df37abe18667f81203c9509b26d7f4f5fee421a8a20293e75
+  generated_exact_type get2 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn9 id=48f86bce9ee14114ddf7074a1795abe5cd542ae04a5df72d183d83b628a49ade
+  generated_callable gc1 function=@fn10 id=f156278135483dc71784aa60c92b0a21201a24d0fef2d5f5608161554823b97f
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type LocalChild<Int>
+        ClassAlloc LocalChild<Int>
+      call @fn7 direct
+        Type LocalChild<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val child: LocalChild<Int>
+        Type LocalChild<Int>
+        Local $new.1
+      val $receiver: LocalChild<Int>
+        Type LocalChild<Int>
+        Local child
+      call read: () -> Int = @fn2 direct
+        Type LocalChild<Int>
+        Local $receiver
+      val $receiver: LocalChild<Int>
+        Type LocalChild<Int>
+        Local child
+      val $parameter.read: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Protected<Int>
+            Retype Protected<Int>
+              Type LocalChild<Int>
+              Local $receiver
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      call $call.3: Int = @fn4 direct
+        Type LocalChild<Int>
+        Local $receiver
+        Type () -> Int
+        Local $parameter.read
+      val values: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.2
+          Type Int
+          Local $call.3
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun LocalChild.reference @fn2(this: LocalChild<Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$reference1
+          CaptureInit field=0
+            Type Protected<Int>
+            Retype Protected<Int>
+              Type LocalChild<Int>
+              Local this
+  fun read @fn3(this: Protected<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Protected<Int>
+          Local this
+  fun LocalChild.chosen @fn4(this: LocalChild<Int>, read: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn5($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type Protected<Int>
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn6($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type Protected<Int>
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.LocalChild.$c0 @fn7(this: LocalChild<Int>, value: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Protected<Int>
+        Retype Protected<Int>
+          Type LocalChild<Int>
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun init.Protected.$c0 @fn8(this: Protected<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Protected<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun function_bridge.$Closure$reference0.() -> Any @fn9($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn10($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- LocalChild.reference
+  instance mi2 function=@fn3 <- read
+  instance mi3 function=@fn4 <- LocalChild.chosen
+  output library

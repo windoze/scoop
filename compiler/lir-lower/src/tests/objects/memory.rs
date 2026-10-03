@@ -28,7 +28,7 @@ fn class_field_reads_are_heap_loads() {
             ),
         )],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // The String field follows the 16-byte header and Int field,
     // so its natural byte offset is 24.
@@ -60,7 +60,6 @@ fn class_allocation_and_initializer_store_fields() {
     let s = ctor_locals.alloc(local("s", mir::Type::String));
     let ctor = b.user_fn_body(
         "init.Point.$c0",
-        "scoop.init.Point.$c0",
         vec![
             param("this", mir::Type::Class(point), this),
             param("x", INT, x),
@@ -110,30 +109,54 @@ fn class_allocation_and_initializer_store_fields() {
             }),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     // `scoop_rt_alloc(td, size)` with the class layout size (16
     // header + Int @16 + String @24 = 32), then the fields at
     // those byte offsets.
     insta::assert_snapshot!(lir::dump(&module), @r###"
 Module
-  global @scoop.str.0 = "x"
-  fun @scoop.init.Point.$c0(ptr<managed>, i32, ptr<managed>) -> void
+  global @scoop$1$io$628de209327518e6dd1b8cb671b0800d34d8c4a09fd4dafae1ff244dfb49e582 = "x"
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$f7aa0e16d7e2d04ad4b1959f084e8eb868250c67e42ec11715a06a727f8ef34e(ptr<managed>, i32, ptr<managed>) -> void
   block entry
-    poll managed-void-target0 sp3 live=[param0:ptr<managed>@0, param2:ptr<managed>@0]
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param2:ptr<managed>@0]
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
-  fun @scoop_main() -> void
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
     local %0 p: ptr<managed>
   block entry
-    poll managed-void-target1 sp4 live=[]
-    call managed-direct-target0 sp1 live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(32)))
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(32)))
     store t0 -> local0
-    call managed-void-target0 sp2 live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i32, ptr<managed>) local-fn0(local0, integer<Int>(0x00000001), global0)
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>, i32, ptr<managed>) local-fn0(local0, integer<Int>(0x00000001), global0)
     t1 = aggregate () : {}
     ret
-  td td0 Point @scoop_td_Point type-id=2 size=32 parent=none vtable=[] itables=[]
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global1, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td0 Point @scoop$1$td$eb205ad260a812589e9f030260657692c3e8a971a60e730337a3c28f28bc6cc9 type-id=1930812111026443540 shape=FixedObject minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td2 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td7 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td8 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td9 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td10 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout String size=24 align=8 refs=[]
   layout Int8 size=1 align=1 refs=[]
   layout Int16 size=2 align=2 refs=[]
@@ -144,8 +167,10 @@ Module
   layout UInt size=4 align=4 refs=[]
   layout ULong size=8 align=8 refs=[]
   layout Boolean size=1 align=1 refs=[]
+  layout Point value size=8 align=8 refs=[0]
   layout Point size=32 align=8 refs=[24]
-  entry @scoop_main
+  layout String value size=8 align=8 refs=[0]
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
 "###);
 }
 
@@ -165,7 +190,7 @@ fn field_set_lowers_to_a_heap_store() {
             value: int_expr(3),
         })],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
@@ -221,7 +246,7 @@ fn machine_state_fields_use_the_closed_heap_instruction_family() {
             ),
         ],
     );
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     let instructions = instructions_without_polls(&function.blocks[function.entry]);
@@ -282,33 +307,31 @@ fn retype_rejects_machine_scalar_to_source_integer() {
         )],
     );
 
-    let _ = lower(&b.finish(main));
+    let _ = lower(b.finish(main));
 }
 
 #[test]
 fn a_trap_only_body_seals_the_function() {
-    // mir-lower's abstract-method stub is a single trap call: the
+    // mir-lower's abstract-method stub is a single trap terminator: the
     // block is sealed by the trap branch, so the "non-Unit
     // functions must end with `return`" check must not fire (it
     // applies to hir-lower-produced bodies that fall off the end,
     // not to noreturn bodies like this one).
     let mut b = Builder::new();
-    let message = b.string("call to abstract method `Base.id`");
     let mut locals = Arena::new();
     let this = locals.alloc(local("this", mir::Type::Any));
-    let _stub = b.user_fn_full(
+    let mut body = mir::Body::unreachable(locals);
+    body.blocks[body.entry].terminator = mir::Terminator::Trap {
+        message: String::from("call to abstract method `Base.id`"),
+    };
+    let _stub = b.user_fn_body(
         "Base.id",
-        "scoop.Base.id",
         vec![param("this", mir::Type::Any, this)],
         INT,
-        locals,
-        vec![call_stmt(runtime_call(
-            mir::RuntimeFn::Trap,
-            vec![string_expr(message)],
-        ))],
+        body,
     );
     let main = b.main(Arena::new(), vec![]);
-    let module = lower(&b.finish(main));
+    let module = lower(b.finish(main));
 
     let function = &module.functions[0];
     assert!(matches!(

@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object 83daa52d6abb16417a10fb5f5cdca86ded4f6d0d401fde9600abf8160eb3c906 selected by direct input (${work}/native/m23_final.o): Invalid Mach-O relocations offset or number",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

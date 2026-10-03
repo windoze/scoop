@@ -1,0 +1,14 @@
+private struct HiddenValue(val number: Int)
+
+private struct UnusedValue(val number: Int)
+
+private fun seed(): HiddenValue = HiddenValue(41)
+
+public fun <T> withHiddenValue(value: T): T {
+    val direct = HiddenValue(2)
+    val supplied = seed()
+    if (direct.number + supplied.number == 43) {
+        return value
+    }
+    return value
+}

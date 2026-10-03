@@ -1,0 +1,35 @@
+SourceFile
+  RootPackage
+  val NARROW: Int8 <const> = <expr>
+  val WIDE: Long <const> = <expr>
+  val LITERAL_NARROW: Boolean <const> = <expr>
+  val NARROW_LITERAL: Boolean <const> = <expr>
+  val LITERAL_WIDE: Boolean <const> = <expr>
+  val WIDE_LITERAL: Boolean <const> = <expr>
+  val COMPARE_NARROW: Long <const> = <expr>
+  val EQUALS_WIDE: Boolean <const> = <expr>
+  val DIV_NARROW: Int8 <const> = <expr>
+  val REM_WIDE: Long <const> = <expr>
+  fun Int8.plus(other: Long): Int8
+    =
+      This
+  val EXTENSION_FALLBACK: Int8 = <expr>
+  fun main()
+    Call println
+      Var LITERAL_NARROW
+    Call println
+      Var NARROW_LITERAL
+    Call println
+      Var LITERAL_WIDE
+    Call println
+      Var WIDE_LITERAL
+    Call println
+      Var COMPARE_NARROW
+    Call println
+      Var EQUALS_WIDE
+    Call println
+      Var DIV_NARROW
+    Call println
+      Var REM_WIDE
+    Call println
+      Var EXTENSION_FALLBACK

@@ -1,0 +1,3 @@
+package templates.constructors
+
+public open class DefaultBase<T> public constructor(public val count: Int = 40)

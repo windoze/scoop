@@ -11,9 +11,6 @@ pub struct Function {
     /// Whether this body participates in managed GC instrumentation.
     pub gc_effect: GcEffect,
     pub name: String,
-    /// Mangled symbol; `scoop.<name>`, `scoop.<name>$<args>` for
-    /// monomorphized instances, or `scoop_main` for the entry.
-    pub symbol: String,
     pub params: Vec<Param>,
     pub return_ty: Type,
     pub body: Body,
@@ -21,6 +18,7 @@ pub struct Function {
 
 #[derive(Debug)]
 pub struct ExternFunction {
+    pub source_contract: SourceNativeExternalContractRecord,
     pub source_name: String,
     pub native_symbol: String,
     pub library: String,
@@ -201,7 +199,7 @@ pub struct BasicBlock {
 #[derive(Debug)]
 pub struct Statement {
     pub kind: StatementKind,
-    pub span: Span,
+    pub span: SourceSpan,
 }
 
 #[derive(Debug)]
@@ -288,8 +286,9 @@ pub enum Terminator {
     /// Continue native unwinding with the exception record captured by the
     /// nearest landing/cleanup pad.
     Resume,
+    /// A native fatal diagnostic, not a managed String value.
     Trap {
-        message: StringConstId,
+        message: String,
     },
     Unreachable,
 }
@@ -664,7 +663,9 @@ pub enum ExprKind {
     },
     ClosureAlloc {
         class: ClosureClassId,
-        captures: Vec<Expr>,
+        /// Initializers remain in language evaluation order. Each entry
+        /// names its independently identity-ordered physical field.
+        captures: Vec<ClosureCaptureInit>,
     },
     /// Read one inline capture field from a concrete closure object.
     ClosureCapture {
@@ -868,6 +869,30 @@ pub enum ExprKind {
         operand: Box<Expr>,
         field: MirVariantFieldRef,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct ClosureCaptureInit {
+    field: u32,
+    value: Expr,
+}
+
+impl ClosureCaptureInit {
+    pub const fn new(field: u32, value: Expr) -> Self {
+        Self { field, value }
+    }
+
+    pub const fn field(&self) -> u32 {
+        self.field
+    }
+
+    pub const fn value(&self) -> &Expr {
+        &self.value
+    }
+
+    pub const fn value_mut(&mut self) -> &mut Expr {
+        &mut self.value
+    }
 }
 
 #[derive(Debug, Clone)]

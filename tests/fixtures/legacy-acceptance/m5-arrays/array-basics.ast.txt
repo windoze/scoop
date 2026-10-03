@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  fun main()
+    val a
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    Call println
+      Binary Add
+        MethodCall toInt64
+          Index
+            Var a
+            IntLiteral 0
+        FieldAccess size
+          Var a
+    val m: MutableArray<Int>
+      ArrayLiteral
+        IntLiteral 4
+        IntLiteral 5
+    assign []
+      Var m
+      IntLiteral 0
+      IntLiteral 40
+    Call println
+      Index
+        Var m
+        IntLiteral 0
+    val b
+      Call Array
+        Var m
+    assign []
+      Var m
+      IntLiteral 0
+      IntLiteral 99
+    Call println
+      Index
+        Var b
+        IntLiteral 0
+    val e: Array<Int>
+      ArrayLiteral
+    Call println
+      FieldAccess size
+        Var e

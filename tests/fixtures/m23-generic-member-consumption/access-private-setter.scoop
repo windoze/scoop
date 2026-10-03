@@ -1,0 +1,5 @@
+import templates.members.*
+
+public class Derived<T> public constructor(value: T): ProtectedBox<T>(value) {
+    public fun invalid(value: T): Unit { this.restricted = value }
+}

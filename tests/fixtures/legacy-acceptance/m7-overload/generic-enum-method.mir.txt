@@ -1,0 +1,141 @@
+Module
+  enum Box<Int>
+    Full(_1: Int)
+    Empty()
+  enum Box<String>
+    Full(_1: String)
+    Empty()
+  interface ToString
+  interface Hash
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val i: Box<Int>
+        Type Box<Int>
+        VariantConstruct Box<Int> v0
+          Type Int
+          Local $parameter._1
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter._1: String
+        Type String
+        Local $argument.0
+      val s: Box<String>
+        Type Box<String>
+        VariantConstruct Box<String> v0
+          Type String
+          Local $parameter._1
+      val $receiver: Box<Int>
+        Type Box<Int>
+        Local i
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Box<Int>
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $receiver: Box<String>
+        Type Box<String>
+        Local s
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call $dependency.argument.0: String = @fn3 direct
+        Type Box<String>
+        Local $receiver
+        Type String
+        Local $parameter.value
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun Box.echo @fn1(this: Box<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun println @fn2(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Box.echo @fn3(this: Box<String>, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn1 <- Box.echo
+  instance mi1 function=@fn2 <- println
+  instance mi2 function=@fn3 <- Box.echo
+  instance mi3 function=@fn4 <- println
+  str @str0 "s"
+  str @str1 "ok"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn0

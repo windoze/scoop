@@ -1,0 +1,27 @@
+package tls.consumer
+import tls.facade.*
+
+@Extern(lib = "fixture_native", name = "run_tls_workers")
+fun runWorkers(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>): Int
+
+fun main() {
+    println(step())
+    @Unsafe {
+        val callback = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+            { value: Int ->
+                val count = zeroStep()
+                val expected = if (value % 2 == 1) { 0 } else { 1 }
+                if (count != expected) { throw IllegalStateException(Some("TLS zero state leaked")) }
+                step(value)
+            },
+            1,
+            ForeignCallbackMode.Reusable
+        )
+        println(runWorkers(callback.function, callback.context))
+        println(foreignCallbackState(callback) == ForeignCallbackState.Registered)
+        releaseForeignCallback(callback)
+    }
+    println(step(43))
+    println(zeroStep())
+    println(zeroStep())
+}

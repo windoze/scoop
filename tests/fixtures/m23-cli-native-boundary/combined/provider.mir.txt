@@ -1,0 +1,55 @@
+Module
+  extern ef0 nativeMixed @native_mixed(Wrapper, Int8, Int16, Int, Long, UInt8, UInt16, UInt, ULong) -> Unit <abi=scoop managed>
+  struct Wrapper (choice: Choice)
+  struct Packed (value: Int8, flag: Boolean) <c-layout aligned=8 packed=1>
+  struct Unused (ignored: ULong)
+  enum Choice
+    Data(_1: Packed)
+    Text(_1: String)
+    Empty()
+  fun nativeMixed @fn0(arg0: Wrapper, arg1: Int8, arg2: Int16, arg3: Int, arg4: Long, arg5: UInt8, arg6: UInt16, arg7: UInt, arg8: ULong) -> Unit
+    bb0 entry
+      call extern0 @native_mixed direct
+        Type Wrapper
+        Local arg0
+        Type Int8
+        Local arg1
+        Type Int16
+        Local arg2
+        Type Int
+        Local arg3
+        Type Long
+        Local arg4
+        Type UInt8
+        Local arg5
+        Type UInt16
+        Local arg6
+        Type UInt
+        Local arg7
+        Type ULong
+        Local arg8
+      return
+  fun ctor.Packed.$c0 @fn1(value: Int8, flag: Boolean) -> Packed <no-gc>
+    bb0 entry
+      return
+        Type Packed
+        StructInit Packed
+          Type Int8
+          Local value
+          Type Boolean
+          Local flag
+  fun ctor.Wrapper.$c1 @fn2(choice: Choice) -> Wrapper <no-gc>
+    bb0 entry
+      return
+        Type Wrapper
+        StructInit Wrapper
+          Type Choice
+          Local choice
+  fun ctor.Unused.$c2 @fn3(ignored: ULong) -> Unused <no-gc>
+    bb0 entry
+      return
+        Type Unused
+        StructInit Unused
+          Type ULong
+          Local ignored
+  output library

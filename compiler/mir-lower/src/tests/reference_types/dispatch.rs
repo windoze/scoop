@@ -9,9 +9,7 @@ fn method_calls_are_annotated_by_the_receiver_static_type() {
     let class_ty = h.class_ty(class);
     let class_describe = empty_method(&mut h, "C", "describe", class_ty);
     let _class_label = empty_method(&mut h, "C", "label", class_ty);
-    // Interface method shells, as hir-lower materializes them.
-    let _iface_describe = empty_method(&mut h, "Describable", "describe", iface_ty);
-    let iface_label = empty_method(&mut h, "Describable", "label", iface_ty);
+    let iface_label = h.interface_methods[h.interfaces[iface].methods[1]].function;
     // A value type method.
     let int = h.int;
     let s = h.strukt("S", &[("x", int)]);
@@ -30,7 +28,7 @@ fn method_calls_are_annotated_by_the_receiver_static_type() {
         expr(
             hir::ExprKind::MethodCall {
                 receiver: Box::new(receiver),
-                callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                callee: hir::MethodCallee::Callable(hir::Callable::Method(application).into()),
                 args: Vec::new(),
             },
             unit,
@@ -49,7 +47,11 @@ fn method_calls_are_annotated_by_the_receiver_static_type() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let call_kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
         // The receiver becomes argument 0 (`this`).
@@ -66,6 +68,33 @@ fn method_calls_are_annotated_by_the_receiver_static_type() {
     ));
     // Value type receiver: direct.
     assert!(matches!(call_kind(2), mir::CallKind::Direct));
+
+    let (method_id, method) = module
+        .functions
+        .iter()
+        .find(|(_, function)| function.name == "C.describe")
+        .expect("the class method is lowered");
+    let source = module
+        .meta
+        .source_callable_materializations
+        .get(method_id)
+        .expect("the class method has one source callable identity");
+    let receiver = module
+        .meta
+        .source_exact_types
+        .get(&method.params[0].ty)
+        .expect("the concrete class receiver has one exact identity")
+        .identity_record()
+        .id();
+    let signature = source.signature_record().signature();
+    assert_eq!(
+        signature.receiver(),
+        scoop_identity::OptionalExactOwner::Present(receiver)
+    );
+    assert!(
+        signature.parameters().is_empty(),
+        "the physical receiver must not be duplicated in logical parameters"
+    );
 }
 
 #[test]
@@ -124,7 +153,7 @@ fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
         expr(
             hir::ExprKind::MethodCall {
                 receiver: Box::new(receiver),
-                callee: hir::MethodCallee::Callable(hir::Callable::Method(application)),
+                callee: hir::MethodCallee::Callable(hir::Callable::Method(application).into()),
                 args: Vec::new(),
             },
             unit,
@@ -145,15 +174,16 @@ fn final_methods_are_direct_while_final_overrides_keep_the_base_slot() {
 
     let base_vtable = &module.classes[class_index(0)].vtable;
     assert_eq!(base_vtable.len(), 1);
-    assert_eq!(slot_fn(&module, &base_vtable[0]), "scoop.Base.openMethod");
+    assert_eq!(slot_fn(&module, &base_vtable[0]), "Base.openMethod");
     let derived_vtable = &module.classes[class_index(1)].vtable;
     assert_eq!(derived_vtable.len(), 1);
-    assert_eq!(
-        slot_fn(&module, &derived_vtable[0]),
-        "scoop.Derived.openMethod"
-    );
+    assert_eq!(slot_fn(&module, &derived_vtable[0]), "Derived.openMethod");
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let kind = |index: usize| {
         let (call, _) = statement_call(&entry_statements(body)[index]);
         &call.target.kind

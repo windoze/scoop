@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-copy-update/errors/rest.scoop:7:27: error: copy update field list does not allow rest entries

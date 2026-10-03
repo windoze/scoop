@@ -1,0 +1,746 @@
+Module
+  global0 $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2: Singleton imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=1ed09dc134578776f6d2e382973eb480035371f925b629bf52db57c6670c89ae
+  struct Packet (number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Choice
+    Empty()
+    Positional(_0: Int)
+    Named(value: Int)
+    Constructed(value: Int)
+  enum GenericChoice<Int>
+    Empty()
+    Positional(_0: Int)
+    Named(value: Int)
+    Constructed(value: Int)
+  enum GenericChoice<String>
+    Empty()
+    Positional(_0: String)
+    Named(value: String)
+    Constructed(value: String)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Base vtable=4 itables=1
+  class Singleton vtable=0 itables=1
+  class Derived vtable=4 itables=1
+  interface Marker
+  fun verifyNominal @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $call.1: Derived = external6 direct
+      val $dependency.receiver: Base
+        Type Base
+        Retype Base
+          Type Derived
+          Local $call.1
+      call $dependency.receiver: Int = external2 virtual[1]
+        Type Base
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Marker = external7 direct
+      call $dependency.receiver: Int = external8 interface Marker[0]
+        Type Marker
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call external14 direct
+      val $dependency.receiver: Singleton
+        Type Singleton
+        GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+      call $dependency.receiver: Int = external9 direct
+        Type Singleton
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $equality.lhs: Packet = external10 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.2: Packet = external10 direct
+        Type Int
+        Local $dependency.parameter.number
+      call $argument.0: Boolean = external12 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        Local $call.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $argument.0: Boolean = external13 direct
+        Type Choice
+        VariantConstruct Choice v0
+        Type Choice
+        VariantConstruct Choice v0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $equality.lhs: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Int
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external13 direct
+        Type Choice
+        Local $equality.lhs
+        Type Choice
+        VariantConstruct Choice v1
+          Type Int
+          Local $dependency.parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $equality.lhs: Choice
+        Type Choice
+        VariantConstruct Choice v2
+          Type Int
+          Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external13 direct
+        Type Choice
+        Local $equality.lhs
+        Type Choice
+        VariantConstruct Choice v2
+          Type Int
+          Local $dependency.parameter.value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $equality.lhs: Choice
+        Type Choice
+        VariantConstruct Choice v3
+          Type Int
+          Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external13 direct
+        Type Choice
+        Local $equality.lhs
+        Type Choice
+        VariantConstruct Choice v3
+          Type Int
+          Local $dependency.parameter.value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val empty: GenericChoice<Int>
+        Type GenericChoice<Int>
+        VariantConstruct GenericChoice<Int> v0
+      call $argument.0: Boolean = @fn2 direct
+        Type GenericChoice<Int>
+        Local empty
+        Type GenericChoice<Int>
+        VariantConstruct GenericChoice<Int> v0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      val $equality.lhs: GenericChoice<String>
+        Type GenericChoice<String>
+        VariantConstruct GenericChoice<String> v1
+          Type String
+          Local $dependency.parameter._1
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter._1: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = @fn3 direct
+        Type GenericChoice<String>
+        Local $equality.lhs
+        Type GenericChoice<String>
+        VariantConstruct GenericChoice<String> v1
+          Type String
+          Local $dependency.parameter._1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $equality.lhs: GenericChoice<Int>
+        Type GenericChoice<Int>
+        VariantConstruct GenericChoice<Int> v2
+          Type Int
+          Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $argument.0: Boolean = @fn2 direct
+        Type GenericChoice<Int>
+        Local $equality.lhs
+        Type GenericChoice<Int>
+        VariantConstruct GenericChoice<Int> v2
+          Type Int
+          Local $dependency.parameter.value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      val $equality.lhs: GenericChoice<String>
+        Type GenericChoice<String>
+        VariantConstruct GenericChoice<String> v3
+          Type String
+          Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = @fn3 direct
+        Type GenericChoice<String>
+        Local $equality.lhs
+        Type GenericChoice<String>
+        VariantConstruct GenericChoice<String> v3
+          Type String
+          Local $dependency.parameter.value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $derived.equals.0 @fn2(this: GenericChoice<Int>, other: GenericChoice<Int>) -> Boolean
+    bb0 entry
+      val $when.1: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local this
+      val $pattern.subject.2: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest GenericChoice<Int> v0
+          Type GenericChoice<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local other
+      val $pattern.subject.4: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest GenericChoice<Int> v0
+          Type GenericChoice<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest GenericChoice<Int> v1
+          Type GenericChoice<Int>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Int
+        Type Int
+        VariantPayloadProject GenericChoice<Int> v1 f0
+          Type GenericChoice<Int>
+          Local $pattern.subject.5
+      val $when.6: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local other
+      val $pattern.subject.7: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest GenericChoice<Int> v1
+          Type GenericChoice<Int>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest GenericChoice<Int> v2
+          Type GenericChoice<Int>
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Int
+        Type Int
+        VariantPayloadProject GenericChoice<Int> v1 f0
+          Type GenericChoice<Int>
+          Local $pattern.subject.7
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.1.0
+          Type Int
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $left.2.0: Int
+        Type Int
+        VariantPayloadProject GenericChoice<Int> v2 f0
+          Type GenericChoice<Int>
+          Local $pattern.subject.8
+      val $when.9: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local other
+      val $pattern.subject.10: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest GenericChoice<Int> v2
+          Type GenericChoice<Int>
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      val $pattern.subject.11: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local $when.1
+      branch bb19 bb20
+        Type Boolean
+        VariantTest GenericChoice<Int> v3
+          Type GenericChoice<Int>
+          Local $pattern.subject.11
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      val $right.2.0: Int
+        Type Int
+        VariantPayloadProject GenericChoice<Int> v2 f0
+          Type GenericChoice<Int>
+          Local $pattern.subject.10
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.2.0
+          Type Int
+          Local $right.2.0
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+    bb19 pattern.pass.19
+      val $left.3.0: Int
+        Type Int
+        VariantPayloadProject GenericChoice<Int> v3 f0
+          Type GenericChoice<Int>
+          Local $pattern.subject.11
+      val $when.12: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local other
+      val $pattern.subject.13: GenericChoice<Int>
+        Type GenericChoice<Int>
+        Local $when.12
+      branch bb22 bb23
+        Type Boolean
+        VariantTest GenericChoice<Int> v3
+          Type GenericChoice<Int>
+          Local $pattern.subject.13
+    bb20 pattern.else.20
+      unreachable
+    bb21 pattern.merge.21
+      unreachable
+    bb22 pattern.pass.22
+      val $right.3.0: Int
+        Type Int
+        VariantPayloadProject GenericChoice<Int> v3 f0
+          Type GenericChoice<Int>
+          Local $pattern.subject.13
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.3.0
+          Type Int
+          Local $right.3.0
+    bb23 pattern.else.23
+      return
+        Type Boolean
+        BoolLiteral false
+    bb24 pattern.merge.24
+      unreachable
+  fun $derived.equals.1 @fn3(this: GenericChoice<String>, other: GenericChoice<String>) -> Boolean
+    bb0 entry
+      val $when.1: GenericChoice<String>
+        Type GenericChoice<String>
+        Local this
+      val $pattern.subject.2: GenericChoice<String>
+        Type GenericChoice<String>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest GenericChoice<String> v0
+          Type GenericChoice<String>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: GenericChoice<String>
+        Type GenericChoice<String>
+        Local other
+      val $pattern.subject.4: GenericChoice<String>
+        Type GenericChoice<String>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest GenericChoice<String> v0
+          Type GenericChoice<String>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: GenericChoice<String>
+        Type GenericChoice<String>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest GenericChoice<String> v1
+          Type GenericChoice<String>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: String
+        Type String
+        VariantPayloadProject GenericChoice<String> v1 f0
+          Type GenericChoice<String>
+          Local $pattern.subject.5
+      val $when.6: GenericChoice<String>
+        Type GenericChoice<String>
+        Local other
+      val $pattern.subject.7: GenericChoice<String>
+        Type GenericChoice<String>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest GenericChoice<String> v1
+          Type GenericChoice<String>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: GenericChoice<String>
+        Type GenericChoice<String>
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest GenericChoice<String> v2
+          Type GenericChoice<String>
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: String
+        Type String
+        VariantPayloadProject GenericChoice<String> v1 f0
+          Type GenericChoice<String>
+          Local $pattern.subject.7
+      call $call.1: Boolean = external11 direct
+        Type String
+        Local $left.1.0
+        Type String
+        Local $right.1.0
+      return
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $left.2.0: String
+        Type String
+        VariantPayloadProject GenericChoice<String> v2 f0
+          Type GenericChoice<String>
+          Local $pattern.subject.8
+      val $when.9: GenericChoice<String>
+        Type GenericChoice<String>
+        Local other
+      val $pattern.subject.10: GenericChoice<String>
+        Type GenericChoice<String>
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest GenericChoice<String> v2
+          Type GenericChoice<String>
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      val $pattern.subject.11: GenericChoice<String>
+        Type GenericChoice<String>
+        Local $when.1
+      branch bb19 bb20
+        Type Boolean
+        VariantTest GenericChoice<String> v3
+          Type GenericChoice<String>
+          Local $pattern.subject.11
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      val $right.2.0: String
+        Type String
+        VariantPayloadProject GenericChoice<String> v2 f0
+          Type GenericChoice<String>
+          Local $pattern.subject.10
+      call $call.2: Boolean = external11 direct
+        Type String
+        Local $left.2.0
+        Type String
+        Local $right.2.0
+      return
+        Type Boolean
+        Local $call.2
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+    bb19 pattern.pass.19
+      val $left.3.0: String
+        Type String
+        VariantPayloadProject GenericChoice<String> v3 f0
+          Type GenericChoice<String>
+          Local $pattern.subject.11
+      val $when.12: GenericChoice<String>
+        Type GenericChoice<String>
+        Local other
+      val $pattern.subject.13: GenericChoice<String>
+        Type GenericChoice<String>
+        Local $when.12
+      branch bb22 bb23
+        Type Boolean
+        VariantTest GenericChoice<String> v3
+          Type GenericChoice<String>
+          Local $pattern.subject.13
+    bb20 pattern.else.20
+      unreachable
+    bb21 pattern.merge.21
+      unreachable
+    bb22 pattern.pass.22
+      val $right.3.0: String
+        Type String
+        VariantPayloadProject GenericChoice<String> v3 f0
+          Type GenericChoice<String>
+          Local $pattern.subject.13
+      call $call.3: Boolean = external11 direct
+        Type String
+        Local $left.3.0
+        Type String
+        Local $right.3.0
+      return
+        Type Boolean
+        Local $call.3
+    bb23 pattern.else.23
+      return
+        Type Boolean
+        BoolLiteral false
+    bb24 pattern.merge.24
+      unreachable
+  str @str0 "illegal state"
+  str @str1 "positional"
+  str @str2 "positional"
+  str @str3 "constructed"
+  str @str4 "constructed"
+  output executable @fn1

@@ -1,0 +1,34 @@
+package consumer.argumentmaterialization
+import upstream.argumentmaterialization.*
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val tape = Tape()
+    if (gather<T>(tape, seed, second = tape.mark(2), first = tape.mark(1), parts = [tape.mark(5), tape.mark(6)]) != 14 || tape.log != 2156) { return 1 }
+    tape.reset()
+    if (gather<T>(tape, seed) != 10 || tape.log != 34) { return 2 }
+    tape.reset()
+    if (gather<T>(tape, seed, tape.mark(1), tape.mark(2), tape.mark(5), *[tape.mark(6)]) != 14 || tape.log != 1256) { return 3 }
+    tape.reset()
+    val calculator = Calculator<T>(seed, tape, second = tape.mark(2))
+    if (calculator.first + calculator.second != 5 || tape.log != 23 || inspect(calculator.value) != 42) { return 4 }
+    tape.reset()
+    if (receiver<T>(tape, calculator).run(second = tape.mark(2)) != 5 || tape.log != 123) { return 5 }
+    tape.reset()
+    if (calculator(second = tape.mark(2)) != 7 || tape.log != 25) { return 6 }
+    tape.reset()
+    val extension = ExtensionCalculator<T>(seed, tape)
+    if (extension(second = tape.mark(2)) != 9 || tape.log != 27) { return 9 }
+    tape.reset()
+    val packet = Packet.Item(tape, second = tape.mark(2))
+    val packed = when (packet) {
+        Item(_, first, second, parts) -> if (parts.size == 0) { first + second } else { 0 }
+    }
+    if (packed != 5 || tape.log != 23) { return 7 }
+    tape.reset()
+    var iterations = 0
+    while (more(tape)) { iterations = iterations + 1 }
+    if (iterations != 2 || tape.calls != 3 || tape.log != 111) { return 8 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

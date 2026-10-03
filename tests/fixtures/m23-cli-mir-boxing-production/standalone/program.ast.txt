@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val token
+      Call Token
+    val contract: Contract
+      Var token
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall apply
+            Var contract
+            Var token
+          Var token
+        Binary Eq
+          FieldAccess token
+            Var contract
+          Var token
+    val hidden
+      Call hiddenContract
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall apply
+            Var hidden
+            Var token
+          Var token
+        Binary Eq
+          FieldAccess token
+            Var hidden
+          Var token
+    val erased: Any
+      Var token
+    Call verifyType
+      Binary Eq
+        Cast Token optional=false
+          Var erased
+        Var token

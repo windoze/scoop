@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/shift-count-requires-long.scoop:6:34: error: no applicable candidate for `shl` in member candidate layer:
-  - fun Int.shl(count: Long): Int — argument for `count` has type Int, which is not a subtype of Long; primitive integer operands require one exact type; convert this operand explicitly with `toInt64()`

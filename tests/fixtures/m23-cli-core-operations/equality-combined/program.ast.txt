@@ -1,0 +1,180 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun equalInt8(value: Int8): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalInt16(value: Int16): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalInt(value: Int): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalLong(value: Long): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalUInt8(value: UInt8): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun equalUInt16(value: UInt16): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun equalUInt(value: UInt): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun equalULong(value: ULong): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+  fun literalEquality(): Boolean
+    =
+      Binary Eq
+        IntLiteral 7
+        IntLiteral 3
+  fun contextualLeft(value: Int8): Boolean
+    =
+      Binary Eq
+        IntLiteral 1
+        Var value
+  fun leftOperand(): Int
+    =
+      IntLiteral 1
+  fun middleOperand(): Int
+    =
+      IntLiteral 2
+  fun rightOperand(value: Int): Int
+    =
+      Var value
+  fun singleEvaluation(): Boolean
+    =
+      Binary Eq
+        Call leftOperand
+        Call rightOperand
+          Call middleOperand
+  typealias Octet = UInt8
+  fun patternInt8(value: Int8): Int
+    =
+      WhenExpression
+        Var value
+        arm -128
+          IntLiteral 1
+        else
+          IntLiteral 0
+  fun patternInt16(value: Int16): Int
+    =
+      WhenExpression
+        Var value
+        arm 32767
+          IntLiteral 1
+        else
+          IntLiteral 0
+  fun patternInt(value: Int): Int
+    =
+      WhenExpression
+        Var value
+        arm 2147483647
+          IntLiteral 1
+        else
+          IntLiteral 0
+  fun patternLong(value: Long): Int
+    =
+      WhenExpression
+        Var value
+        arm 9223372036854775807L
+          IntLiteral 1
+        else
+          IntLiteral 0
+  fun patternUInt8(value: UInt8): Int
+    =
+      WhenExpression
+        Var value
+        arm 255u
+          IntLiteral 1
+        else
+          IntLiteral 0
+  fun patternUInt16(value: UInt16): Int
+    =
+      WhenExpression
+        Var value
+        arm 65535u
+          IntLiteral 1
+        else
+          IntLiteral 0
+  fun patternUInt(value: UInt): Int
+    =
+      WhenExpression
+        Var value
+        arm 4294967295u
+          IntLiteral 1
+        else
+          IntLiteral 0
+  fun patternULong(value: ULong): Int
+    =
+      WhenExpression
+        Var value
+        arm 18446744073709551615uL
+          IntLiteral 1
+        else
+          IntLiteral 0
+    @NoGC
+  fun combinedEquality(value: Octet): Boolean
+    =
+      WhenExpression
+        Var value
+        arm -1u
+          Binary Ne
+            Var value
+            IntLiteral 0u
+        else
+          Binary Eq
+            MethodCall inc
+              Var value
+            IntLiteral 2u
+  fun nestedPattern(value: (Int, Int8)): Int
+    =
+      WhenExpression
+        Var value
+        arm (1, 2)
+          IntLiteral 1
+        else
+          IntLiteral 0
+  fun main()
+    val left
+      Call equalInt
+        Call userCoreOffset
+          IntLiteral 0
+    val right
+      Call combinedEquality
+        IntLiteral 255u
+    val selected
+      Call patternInt8
+        IntLiteral 127
+    val nested
+      Call nestedPattern
+        TupleLiteral
+          IntLiteral 1
+          IntLiteral 2
+    val once
+      Call singleEvaluation

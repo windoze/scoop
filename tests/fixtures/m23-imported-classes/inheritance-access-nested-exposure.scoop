@@ -1,0 +1,5 @@
+import dependency.classes.Outer
+
+public class Derived public constructor(): Outer() {
+    public fun leak(): Outer.Hidden.Exposed = Outer.Hidden.Exposed()
+}

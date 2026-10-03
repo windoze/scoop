@@ -1,4 +1,5 @@
 use super::*;
+use scoop_wire::WirePath;
 
 fn c_nullable_option_kind(module: &mir::Module, id: mir::EnumId) -> Option<lir::NichePointerKind> {
     let option = module.option_core(id)?;
@@ -25,17 +26,29 @@ fn c_nullable_option_kind(module: &mir::Module, id: mir::EnumId) -> Option<lir::
 }
 
 /// Fix the representation of every MIR enum definition (spec 7.4).
-pub(crate) fn lower_enums(context: &LoweringContext, module: &mir::Module) -> lir::EnumDefs {
+pub(crate) fn lower_enums(
+    context: &LoweringContext,
+    module: &mir::Module,
+) -> StorageResult<lir::EnumDefs> {
     let mut reprs: Vec<Option<lir::EnumRepr>> = Vec::new();
     reprs.resize_with(module.enums.len(), || None);
+    let mut visiting = std::collections::HashSet::new();
+
     for (id, _) in module.enums.iter() {
-        compute_repr(context, module, &mut reprs, id);
+        compute_repr(context, module, &mut reprs, &mut visiting, id)?;
     }
     let mut enums = lir::EnumDefs::default();
     for ((mir_id, def), repr) in module.enums.iter().zip(reprs) {
         let definition = lir::EnumDef {
+            exact_type: exact_type_record(
+                module,
+                &mir::Type::Enum(mir_id, def.type_arguments.clone()),
+            )
+            .id(),
             name: def.name.clone(),
-            repr: repr.expect("compute_repr fills every entry"),
+            repr: repr.ok_or(StorageLoweringError::InvalidRepresentation(
+                "enum representation is incomplete",
+            ))?,
             scan: lir::RefScan::None,
         };
         let lir_id = match c_nullable_option_kind(module, mir_id) {
@@ -57,10 +70,12 @@ pub(crate) fn lower_enums(context: &LoweringContext, module: &mir::Module) -> li
         );
     }
     for (id, _) in module.enums.iter() {
-        let scan = ref_scan(context, module, &enums, &mir::Type::Enum(id, Vec::new()), 0);
+        let scan = ref_scan(context, module, &enums, &mir::Type::Enum(id, Vec::new()), 0)?;
+        let (size, alignment) = repr_shape(context, &enums[enum_def_id(id)].repr);
+        value_storage(context, size, alignment, scan.clone())?;
         enums.set_scan(enum_def_id(id), scan);
     }
-    enums
+    Ok(enums)
 }
 
 /// Every enum type nested inside `ty` (through tuple elements and
@@ -131,11 +146,17 @@ pub(crate) fn compute_repr(
     context: &LoweringContext,
     module: &mir::Module,
     reprs: &mut Vec<Option<lir::EnumRepr>>,
+    visiting: &mut std::collections::HashSet<mir::EnumId>,
     id: mir::EnumId,
-) {
+) -> StorageResult<()> {
     let index = id.into_raw().into_u32() as usize;
     if reprs[index].is_some() {
-        return;
+        return Ok(());
+    }
+    if !visiting.insert(id) {
+        return Err(StorageLoweringError::InvalidRepresentation(
+            "by-value enum cycle",
+        ));
     }
     let def = &module.enums[id];
     let mut nested = Vec::new();
@@ -147,8 +168,7 @@ pub(crate) fn compute_repr(
     for nested_id in nested {
         // A by-value recursive enum is infinitely sized; hir-lower
         // rejects it before this stage.
-        assert!(nested_id != id, "a by-value recursive enum is unsized");
-        compute_repr(context, module, reprs, nested_id);
+        compute_repr(context, module, reprs, visiting, nested_id)?;
     }
 
     // This is a semantic whitelist, not merely an LLVM pointer-shape
@@ -167,7 +187,8 @@ pub(crate) fn compute_repr(
                     kind: niche_pointer_kind(&payload_variant.fields[0].ty),
                     payload_variant: payload_index as u32,
                 });
-                return;
+                visiting.remove(&id);
+                return Ok(());
             }
         }
     }
@@ -175,109 +196,74 @@ pub(crate) fn compute_repr(
     // First compute each variant's natural field layout independent of
     // its eventual slot assignment.
     let enum_shape = |id: mir::EnumId| {
-        repr_shape(
-            context,
-            reprs[id.into_raw().into_u32() as usize]
-                .as_ref()
-                .expect("nested enum representations are computed first"),
-        )
+        let repr = reprs[id.into_raw().into_u32() as usize].as_ref().ok_or(
+            StorageLoweringError::InvalidRepresentation("nested enum representation is incomplete"),
+        )?;
+        Ok(repr_shape(context, repr))
     };
-    struct PendingField {
-        ty: lir::LirType,
-        relative_offset: u64,
-    }
+    reprs[index] = Some(tagged_repr(context, module, &enum_shape, def)?);
+    visiting.remove(&id);
+    Ok(())
+}
 
-    struct PendingVariant {
-        fields: Vec<PendingField>,
-        size: u64,
-        align: u64,
-        gc_free: bool,
+fn tagged_repr(
+    context: &LoweringContext,
+    module: &mir::Module,
+    enum_shape: &dyn Fn(mir::EnumId) -> StorageResult<(u64, u64)>,
+    definition: &mir::EnumDef,
+) -> StorageResult<lir::EnumRepr> {
+    let mut field_geometries = reserve(definition.variants.len())?;
+    for variant in &definition.variants {
+        let mut fields = reserve(variant.fields.len())?;
+        for field in &variant.fields {
+            let (size, alignment) = size_align(context, module, enum_shape, &field.ty)?;
+            fields.push(lir::StorageGeometryV1::new(
+                context.target_profile(),
+                size,
+                alignment,
+            )?);
+        }
+        field_geometries.push(fields);
     }
-
-    let mut pending = Vec::new();
-    for variant in &def.variants {
-        let fields: Vec<lir::LirType> = variant
-            .fields
-            .iter()
-            .map(|field| lir_type(&field.ty))
-            .collect();
-        let field_types: Vec<mir::Type> = variant
-            .fields
-            .iter()
-            .map(|field| field.ty.clone())
-            .collect();
-        let (field_offsets, size, align) =
-            aggregate_shape(context, module, &enum_shape, &field_types);
-        assert_eq!(
-            fields.len(),
-            field_offsets.len(),
-            "aggregate layout returns one offset per enum field"
-        );
-        pending.push(PendingVariant {
-            fields: fields
-                .into_iter()
-                .zip(field_offsets)
-                .map(|(ty, relative_offset)| PendingField {
-                    ty,
-                    relative_offset,
-                })
-                .collect(),
-            size,
-            align,
+    let mut inputs = reserve(definition.variants.len())?;
+    for (variant, fields) in definition.variants.iter().zip(&field_geometries) {
+        inputs.push(lir::EnumVariantGeometryInputV1 {
+            fields,
             gc_free: variant.gc_free,
         });
     }
-
-    // Pure-value variants all reuse this one region. Empty variants need
-    // no bytes but retain the same offset in the structural metadata.
-    let pure_size = pending
-        .iter()
-        .filter(|variant| variant.gc_free)
-        .map(|variant| variant.size)
-        .max()
-        .unwrap_or(0);
-    let pure_align = pending
-        .iter()
-        .filter(|variant| variant.gc_free)
-        .map(|variant| variant.align)
-        .max()
-        .unwrap_or(1);
-    let tag_layout = context.machine_scalar_layout();
-    let pure_offset = tag_layout.size.next_multiple_of(pure_align);
-    let mut cursor = pure_offset + pure_size;
-    let mut align = tag_layout.align.max(pure_align);
-    let mut variants = Vec::with_capacity(pending.len());
-    for variant in pending {
-        let slot_offset = if !variant.gc_free {
-            cursor = cursor.next_multiple_of(variant.align);
-            let offset = cursor;
-            cursor += variant.size;
-            offset
-        } else {
-            pure_offset
-        };
-        align = align.max(variant.align);
+    let geometry = lir::EnumStorageGeometryV1::tagged(context.target_profile(), &inputs)?;
+    let mut variants = reserve(definition.variants.len())?;
+    for (source, variant) in definition.variants.iter().zip(geometry.variants()) {
+        let mut fields = reserve(source.fields.len())?;
+        for (source, field) in source.fields.iter().zip(variant.fields()) {
+            fields.push(lir::EnumFieldRepr {
+                ty: lir_type(&source.ty),
+                offset: field.offset(),
+            });
+        }
         variants.push(lir::EnumVariantRepr {
-            fields: variant
-                .fields
-                .into_iter()
-                .map(|field| lir::EnumFieldRepr {
-                    ty: field.ty,
-                    offset: slot_offset + field.relative_offset,
-                })
-                .collect(),
-            slot_offset,
-            slot_size: variant.size,
-            slot_align: variant.align,
-            gc_free: variant.gc_free,
+            fields,
+            slot_offset: variant.slot().region().offset(),
+            slot_size: variant.storage().size(),
+            slot_align: variant.storage().alignment().get(),
+            gc_free: source.gc_free,
         });
     }
-    let size = cursor.next_multiple_of(align);
-    reprs[index] = Some(lir::EnumRepr::Tagged {
+    Ok(lir::EnumRepr::Tagged {
         variants,
-        size,
-        align,
-    });
+        size: geometry.storage().size(),
+        align: geometry.storage().alignment().get(),
+    })
+}
+
+fn reserve<T>(length: usize) -> StorageResult<Vec<T>> {
+    let mut values = Vec::new();
+    let path = WirePath::root();
+
+    scoop_wire::allocation::try_reserve(&mut values, length, &path)
+        .map_err(lir::EnumStorageGeometryErrorV1::Resource)?;
+    Ok(values)
 }
 
 /// Size and alignment of an enum value from its representation: the

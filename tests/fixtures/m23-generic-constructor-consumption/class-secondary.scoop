@@ -1,0 +1,10 @@
+package consumer.constructors
+
+import templates.constructors.*
+
+public fun result(): Int {
+    val box = Box<Int>(37, 3)
+    return box.echoed + box.count
+}
+
+public fun <T> make(value: T): Box<T> = Box<T>(value)

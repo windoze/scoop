@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  public class Box<T>(val item: T)
+    public fun read
+    public fun choose
+  public fun T.echo<T>(): T
+    =
+      This
+  public fun captured<T>(value: T): () -> T
+    fun local(): T
+      Var value
+    return
+      Lambda 0 suspend=false
+        parameters omitted
+        Call local
+  public fun nested<T>(value: T): () -> () -> T
+    =
+      Lambda 2 suspend=false
+        parameters omitted
+        Lambda 1 suspend=false
+          parameters omitted
+          Var value

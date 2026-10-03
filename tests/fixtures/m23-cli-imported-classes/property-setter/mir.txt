@@ -1,0 +1,48 @@
+Module
+  class MutableCell vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type MutableCell
+        ClassAlloc MutableCell
+      call external0 direct
+        Type MutableCell
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val cell: MutableCell
+        Type MutableCell
+        Local $new.1
+      val $place.0: MutableCell
+        Type MutableCell
+        Local cell
+      call external1 direct
+        Type MutableCell
+        Local $place.0
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      call $dependency.argument.0: Long = external2 direct
+        Type MutableCell
+        Local cell
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external3 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

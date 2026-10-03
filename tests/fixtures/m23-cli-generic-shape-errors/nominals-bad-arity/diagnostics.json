@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Parcel` takes 1 type argument(s), but 2 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "d3fee3bb19ba8d6295ab733b9e017ac2c50e57069d35a41475f992743381fcd2",
+      "end": 67,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 61
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,6 @@
+import startup.recovery.recovered
+private fun trace(value: Long) { println(value) }
+fun main() {
+    if (recovered() != 42L || recovered() != 42L) { throw IllegalStateException() }
+    @Unsafe { trace(42L) }
+}

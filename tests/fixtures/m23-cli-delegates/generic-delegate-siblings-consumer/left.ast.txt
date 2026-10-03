@@ -1,0 +1,25 @@
+SourceFile
+  QualifiedPackage siblings.delegates.left
+  ImportStar Local templates.delegateSiblings.*
+  public fun write(): Int
+    val receiver
+      Call Receiver<Int, Boolean>
+        IntLiteral 1
+        BoolLiteral true
+    assign .shared
+      Var receiver
+      IntLiteral 42
+    return
+      FieldAccess shared
+        Var receiver
+  public fun failure(): Failure
+    try
+      FieldAccess broken
+        Call Receiver<Int, Boolean>
+          IntLiteral 1
+          BoolLiteral true
+    catch error: Failure
+      return
+        Var error
+    throw
+      Call IllegalStateException

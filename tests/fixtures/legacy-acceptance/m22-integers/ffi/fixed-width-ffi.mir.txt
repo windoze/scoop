@@ -1,0 +1,1090 @@
+Module
+  global0 nativeSigned8: Int8 extern native_signed8
+  global1 nativeSigned16: Int16 extern native_signed16
+  global2 nativeSigned32: Int extern native_signed32
+  global3 nativeSigned64: Long extern native_signed64
+  global4 nativeUnsigned8: UInt8 extern native_unsigned8
+  global5 nativeUnsigned16: UInt16 extern native_unsigned16
+  global6 nativeUnsigned32: UInt extern native_unsigned32
+  global7 nativeUnsigned64: ULong extern native_unsigned64
+  global8 nativeTlsSigned8: Int8 extern native_tls_signed8 thread_local
+  global9 nativeTlsSigned16: Int16 extern native_tls_signed16 thread_local
+  global10 nativeTlsSigned32: Int extern native_tls_signed32 thread_local
+  global11 nativeTlsSigned64: Long extern native_tls_signed64 thread_local
+  global12 nativeTlsUnsigned8: UInt8 extern native_tls_unsigned8 thread_local
+  global13 nativeTlsUnsigned16: UInt16 extern native_tls_unsigned16 thread_local
+  global14 nativeTlsUnsigned32: UInt extern native_tls_unsigned32 thread_local
+  global15 nativeTlsUnsigned64: ULong extern native_tls_unsigned64 thread_local
+  extern ef0 roundI8 @round_i8(Int8) -> Int8 <abi=c no-gc lib=fixture_native>
+  extern ef1 roundI16 @round_i16(Int16) -> Int16 <abi=c no-gc lib=fixture_native>
+  extern ef2 roundI32 @round_i32(Int) -> Int <abi=c no-gc lib=fixture_native>
+  extern ef3 roundI64 @round_i64(Long) -> Long <abi=c no-gc lib=fixture_native>
+  extern ef4 roundU8 @round_u8(UInt8) -> UInt8 <abi=c no-gc lib=fixture_native>
+  extern ef5 roundU16 @round_u16(UInt16) -> UInt16 <abi=c no-gc lib=fixture_native>
+  extern ef6 roundU32 @round_u32(UInt) -> UInt <abi=c no-gc lib=fixture_native>
+  extern ef7 roundU64 @round_u64(ULong) -> ULong <abi=c no-gc lib=fixture_native>
+  extern ef8 transformWidths @transform_widths(FixedWidths) -> FixedWidths <abi=c no-gc lib=fixture_native>
+  extern ef9 verifyWrittenGlobals @verify_written_globals() -> UInt8 <abi=c no-gc lib=fixture_native>
+  extern ef10 verifyWrittenTls @verify_written_tls() -> UInt8 <abi=c no-gc lib=fixture_native>
+  extern ef11 applyU16 @apply_u16(UInt16, FunPtr<(UInt16) -> UInt16>) -> UInt16 <abi=c no-gc lib=fixture_native>
+  extern ef12 verifyWidthsCallback @verify_widths_callback(FunPtr<(FixedWidths) -> FixedWidths>) -> UInt8 <abi=c no-gc lib=fixture_native>
+  callback cb0 @fn13 -> @fn25 function_type0 id=c158899ce91a5d7cffd2632c2949039a027d669586637609bd2766c5d5a1d684
+  callback cb1 @fn14 -> @fn26 function_type2 id=26900b96ce5bed54a1ed2f5e8fc0a6545e3e62a21591ef82d6a116de1b92b7d5
+  struct FixedWidths (signed8: Int8, signed16: Int16, signed32: Int, signed64: Long, unsigned8: UInt8, unsigned16: UInt16, unsigned32: UInt, unsigned64: ULong) <c-layout aligned=natural packed=natural>
+  interface ToString
+  interface Hash
+  generated_callable gc0 function=@fn26 id=26900b96ce5bed54a1ed2f5e8fc0a6545e3e62a21591ef82d6a116de1b92b7d5
+  generated_callable gc1 function=@fn25 id=c158899ce91a5d7cffd2632c2949039a027d669586637609bd2766c5d5a1d684
+  fun roundI8 @fn0(arg0: Int8) -> Int8
+    bb0 entry
+      call $call.1: Int8 = extern0 @round_i8 direct
+        Type Int8
+        Local arg0
+      return
+        Type Int8
+        Local $call.1
+  fun roundI16 @fn1(arg0: Int16) -> Int16
+    bb0 entry
+      call $call.1: Int16 = extern1 @round_i16 direct
+        Type Int16
+        Local arg0
+      return
+        Type Int16
+        Local $call.1
+  fun roundI32 @fn2(arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern2 @round_i32 direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun roundI64 @fn3(arg0: Long) -> Long
+    bb0 entry
+      call $call.1: Long = extern3 @round_i64 direct
+        Type Long
+        Local arg0
+      return
+        Type Long
+        Local $call.1
+  fun roundU8 @fn4(arg0: UInt8) -> UInt8
+    bb0 entry
+      call $call.1: UInt8 = extern4 @round_u8 direct
+        Type UInt8
+        Local arg0
+      return
+        Type UInt8
+        Local $call.1
+  fun roundU16 @fn5(arg0: UInt16) -> UInt16
+    bb0 entry
+      call $call.1: UInt16 = extern5 @round_u16 direct
+        Type UInt16
+        Local arg0
+      return
+        Type UInt16
+        Local $call.1
+  fun roundU32 @fn6(arg0: UInt) -> UInt
+    bb0 entry
+      call $call.1: UInt = extern6 @round_u32 direct
+        Type UInt
+        Local arg0
+      return
+        Type UInt
+        Local $call.1
+  fun roundU64 @fn7(arg0: ULong) -> ULong
+    bb0 entry
+      call $call.1: ULong = extern7 @round_u64 direct
+        Type ULong
+        Local arg0
+      return
+        Type ULong
+        Local $call.1
+  fun transformWidths @fn8(arg0: FixedWidths) -> FixedWidths
+    bb0 entry
+      call $call.1: FixedWidths = extern8 @transform_widths direct
+        Type FixedWidths
+        Local arg0
+      return
+        Type FixedWidths
+        Local $call.1
+  fun verifyWrittenGlobals @fn9() -> UInt8
+    bb0 entry
+      call $call.1: UInt8 = extern9 @verify_written_globals direct
+      return
+        Type UInt8
+        Local $call.1
+  fun verifyWrittenTls @fn10() -> UInt8
+    bb0 entry
+      call $call.1: UInt8 = extern10 @verify_written_tls direct
+      return
+        Type UInt8
+        Local $call.1
+  fun applyU16 @fn11(arg0: UInt16, arg1: FunPtr<(UInt16) -> UInt16>) -> UInt16
+    bb0 entry
+      call $call.1: UInt16 = extern11 @apply_u16 direct
+        Type UInt16
+        Local arg0
+        Type FunPtr<(UInt16) -> UInt16>
+        Local arg1
+      return
+        Type UInt16
+        Local $call.1
+  fun verifyWidthsCallback @fn12(arg0: FunPtr<(FixedWidths) -> FixedWidths>) -> UInt8
+    bb0 entry
+      call $call.1: UInt8 = extern12 @verify_widths_callback direct
+        Type FunPtr<(FixedWidths) -> FixedWidths>
+        Local arg0
+      return
+        Type UInt8
+        Local $call.1
+  fun incrementU16 @fn13(value: UInt16) -> UInt16 <no-gc>
+    bb0 entry
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local value
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=1 bits=0x0001
+      val $dependency.parameter.other: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      return
+        Type UInt16
+        IntegerBinary add kind=UInt16
+          Type UInt16
+          Local $dependency.receiver
+          Type UInt16
+          Local $dependency.parameter.other
+  fun roundTripWidths @fn14(value: FixedWidths) -> FixedWidths <no-gc>
+    bb0 entry
+      return
+        Type FixedWidths
+        Local value
+  fun main @fn15() -> Unit
+    bb0 entry
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      val $parameter.value: Int8
+        Type Int8
+        Local $argument.0
+      call $dependency.argument.0: Int8 = extern0 @round_i8 direct
+        Type Int8
+        Local $parameter.value
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn16 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-32768 bits=0x8000
+      val $parameter.value: Int16
+        Type Int16
+        Local $argument.0
+      call $dependency.argument.0: Int16 = extern1 @round_i16 direct
+        Type Int16
+        Local $parameter.value
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = extern2 @round_i32 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call $dependency.argument.0: Long = extern3 @round_i64 direct
+        Type Long
+        Local $parameter.value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=255 bits=0xff
+      val $parameter.value: UInt8
+        Type UInt8
+        Local $argument.0
+      call $dependency.argument.0: UInt8 = extern4 @round_u8 direct
+        Type UInt8
+        Local $parameter.value
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=65535 bits=0xffff
+      val $parameter.value: UInt16
+        Type UInt16
+        Local $argument.0
+      call $dependency.argument.0: UInt16 = extern5 @round_u16 direct
+        Type UInt16
+        Local $parameter.value
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=4294967295 bits=0xffffffff
+      val $parameter.value: UInt
+        Type UInt
+        Local $argument.0
+      call $dependency.argument.0: UInt = extern6 @round_u32 direct
+        Type UInt
+        Local $parameter.value
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn22 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551615 bits=0xffffffffffffffff
+      val $parameter.value: ULong
+        Type ULong
+        Local $argument.0
+      call $dependency.argument.0: ULong = extern7 @round_u64 direct
+        Type ULong
+        Local $parameter.value
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int8
+        Type Int8
+        GlobalRead nativeSigned8
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn16 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int16
+        Type Int16
+        GlobalRead nativeSigned16
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        GlobalRead nativeSigned32
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        GlobalRead nativeSigned64
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        GlobalRead nativeUnsigned8
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        GlobalRead nativeUnsigned16
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt
+        Type UInt
+        GlobalRead nativeUnsigned32
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn22 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        GlobalRead nativeUnsigned64
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type ULong
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int8
+        Type Int8
+        GlobalRead nativeTlsSigned8
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn16 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int16
+        Type Int16
+        GlobalRead nativeTlsSigned16
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        GlobalRead nativeTlsSigned32
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        GlobalRead nativeTlsSigned64
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        GlobalRead nativeTlsUnsigned8
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        GlobalRead nativeTlsUnsigned16
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt
+        Type UInt
+        GlobalRead nativeTlsUnsigned32
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn22 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        GlobalRead nativeTlsUnsigned64
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type ULong
+        Local $dependency.parameter.value
+      global_assign nativeSigned8
+        Type Int8
+        IntegerLiteral Int8 value=127 bits=0x7f
+      global_assign nativeSigned16
+        Type Int16
+        IntegerLiteral Int16 value=32767 bits=0x7fff
+      global_assign nativeSigned32
+        Type Int
+        IntegerLiteral Int value=2147483647 bits=0x7fffffff
+      global_assign nativeSigned64
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      global_assign nativeUnsigned8
+        Type UInt8
+        IntegerLiteral UInt8 value=254 bits=0xfe
+      global_assign nativeUnsigned16
+        Type UInt16
+        IntegerLiteral UInt16 value=65534 bits=0xfffe
+      global_assign nativeUnsigned32
+        Type UInt
+        IntegerLiteral UInt value=4294967294 bits=0xfffffffe
+      global_assign nativeUnsigned64
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551614 bits=0xfffffffffffffffe
+      global_assign nativeTlsSigned8
+        Type Int8
+        IntegerLiteral Int8 value=126 bits=0x7e
+      global_assign nativeTlsSigned16
+        Type Int16
+        IntegerLiteral Int16 value=32766 bits=0x7ffe
+      global_assign nativeTlsSigned32
+        Type Int
+        IntegerLiteral Int value=2147483646 bits=0x7ffffffe
+      global_assign nativeTlsSigned64
+        Type Long
+        IntegerLiteral Long value=9223372036854775806 bits=0x7ffffffffffffffe
+      global_assign nativeTlsUnsigned8
+        Type UInt8
+        IntegerLiteral UInt8 value=253 bits=0xfd
+      global_assign nativeTlsUnsigned16
+        Type UInt16
+        IntegerLiteral UInt16 value=65533 bits=0xfffd
+      global_assign nativeTlsUnsigned32
+        Type UInt
+        IntegerLiteral UInt value=4294967293 bits=0xfffffffd
+      global_assign nativeTlsUnsigned64
+        Type ULong
+        IntegerLiteral ULong value=18446744073709551613 bits=0xfffffffffffffffd
+      val $dependency.argument.0: Int8
+        Type Int8
+        GlobalRead nativeSigned8
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn16 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int16
+        Type Int16
+        GlobalRead nativeSigned16
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        GlobalRead nativeSigned32
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        GlobalRead nativeSigned64
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        GlobalRead nativeUnsigned8
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        GlobalRead nativeUnsigned16
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt
+        Type UInt
+        GlobalRead nativeUnsigned32
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn22 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        GlobalRead nativeUnsigned64
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type ULong
+        Local $dependency.parameter.value
+      call $dependency.argument.0: UInt8 = extern9 @verify_written_globals direct
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int8
+        Type Int8
+        GlobalRead nativeTlsSigned8
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn16 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int16
+        Type Int16
+        GlobalRead nativeTlsSigned16
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        GlobalRead nativeTlsSigned32
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        GlobalRead nativeTlsSigned64
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        GlobalRead nativeTlsUnsigned8
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        GlobalRead nativeTlsUnsigned16
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt
+        Type UInt
+        GlobalRead nativeTlsUnsigned32
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn22 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        GlobalRead nativeTlsUnsigned64
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type ULong
+        Local $dependency.parameter.value
+      call $dependency.argument.0: UInt8 = extern10 @verify_written_tls direct
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=41 bits=0x0029
+      val $argument.1: FunPtr<(UInt16) -> UInt16>
+        Type FunPtr<(UInt16) -> UInt16>
+        FunctionAddress cb0
+      val $parameter.value: UInt16
+        Type UInt16
+        Local $argument.0
+      val $parameter.callback: FunPtr<(UInt16) -> UInt16>
+        Type FunPtr<(UInt16) -> UInt16>
+        Local $argument.1
+      call $dependency.argument.0: UInt16 = extern11 @apply_u16 direct
+        Type UInt16
+        Local $parameter.value
+        Type FunPtr<(UInt16) -> UInt16>
+        Local $parameter.callback
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $argument.0: FunPtr<(FixedWidths) -> FixedWidths>
+        Type FunPtr<(FixedWidths) -> FixedWidths>
+        FunctionAddress cb1
+      val $parameter.callback: FunPtr<(FixedWidths) -> FixedWidths>
+        Type FunPtr<(FixedWidths) -> FixedWidths>
+        Local $argument.0
+      call $dependency.argument.0: UInt8 = extern12 @verify_widths_callback direct
+        Type FunPtr<(FixedWidths) -> FixedWidths>
+        Local $parameter.callback
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-1 bits=0xff
+      val $argument.1: Int16
+        Type Int16
+        IntegerLiteral Int16 value=-2 bits=0xfffe
+      val $argument.2: Int
+        Type Int
+        IntegerLiteral Int value=-3 bits=0xfffffffd
+      val $argument.3: Long
+        Type Long
+        IntegerLiteral Long value=-4 bits=0xfffffffffffffffc
+      val $argument.4: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=1 bits=0x01
+      val $argument.5: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=2 bits=0x0002
+      val $argument.6: UInt
+        Type UInt
+        IntegerLiteral UInt value=3 bits=0x00000003
+      val $argument.7: ULong
+        Type ULong
+        IntegerLiteral ULong value=4 bits=0x0000000000000004
+      val $parameter.signed8: Int8
+        Type Int8
+        Local $argument.0
+      val $parameter.signed16: Int16
+        Type Int16
+        Local $argument.1
+      val $parameter.signed32: Int
+        Type Int
+        Local $argument.2
+      val $parameter.signed64: Long
+        Type Long
+        Local $argument.3
+      val $parameter.unsigned8: UInt8
+        Type UInt8
+        Local $argument.4
+      val $parameter.unsigned16: UInt16
+        Type UInt16
+        Local $argument.5
+      val $parameter.unsigned32: UInt
+        Type UInt
+        Local $argument.6
+      val $parameter.unsigned64: ULong
+        Type ULong
+        Local $argument.7
+      call $argument.0: FixedWidths = @fn24 direct
+        Type Int8
+        Local $parameter.signed8
+        Type Int16
+        Local $parameter.signed16
+        Type Int
+        Local $parameter.signed32
+        Type Long
+        Local $parameter.signed64
+        Type UInt8
+        Local $parameter.unsigned8
+        Type UInt16
+        Local $parameter.unsigned16
+        Type UInt
+        Local $parameter.unsigned32
+        Type ULong
+        Local $parameter.unsigned64
+      val $parameter.value: FixedWidths
+        Type FixedWidths
+        Local $argument.0
+      call transformed: FixedWidths = extern8 @transform_widths direct
+        Type FixedWidths
+        Local $parameter.value
+      val $dependency.argument.0: Int8
+        Type Int8
+        FieldAccess 0
+          Type FixedWidths
+          Local transformed
+      val $dependency.parameter.value: Int8
+        Type Int8
+        Local $dependency.argument.0
+      call @fn16 direct
+        Type Int8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int16
+        Type Int16
+        FieldAccess 1
+          Type FixedWidths
+          Local transformed
+      val $dependency.parameter.value: Int16
+        Type Int16
+        Local $dependency.argument.0
+      call @fn17 direct
+        Type Int16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 2
+          Type FixedWidths
+          Local transformed
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn18 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 3
+          Type FixedWidths
+          Local transformed
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn19 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        FieldAccess 4
+          Type FixedWidths
+          Local transformed
+      val $dependency.parameter.value: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type UInt8
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        FieldAccess 5
+          Type FixedWidths
+          Local transformed
+      val $dependency.parameter.value: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type UInt16
+        Local $dependency.parameter.value
+      val $dependency.argument.0: UInt
+        Type UInt
+        FieldAccess 6
+          Type FixedWidths
+          Local transformed
+      val $dependency.parameter.value: UInt
+        Type UInt
+        Local $dependency.argument.0
+      call @fn22 direct
+        Type UInt
+        Local $dependency.parameter.value
+      val $dependency.argument.0: ULong
+        Type ULong
+        FieldAccess 7
+          Type FixedWidths
+          Local transformed
+      val $dependency.parameter.value: ULong
+        Type ULong
+        Local $dependency.argument.0
+      call @fn23 direct
+        Type ULong
+        Local $dependency.parameter.value
+      return
+  fun println @fn16(value: Int8) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int8
+        Type Int8
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int8
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn17(value: Int16) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int16
+        Type Int16
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int16
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn18(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn19(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn20(value: UInt8) -> Unit
+    bb0 entry
+      val $dependency.local.1: UInt8
+        Type UInt8
+        Local value
+      call $dependency.local.2: String = external4 direct
+        Type UInt8
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn21(value: UInt16) -> Unit
+    bb0 entry
+      val $dependency.local.1: UInt16
+        Type UInt16
+        Local value
+      call $dependency.local.2: String = external5 direct
+        Type UInt16
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn22(value: UInt) -> Unit
+    bb0 entry
+      val $dependency.local.1: UInt
+        Type UInt
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type UInt
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str6
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn23(value: ULong) -> Unit
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type ULong
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str7
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.FixedWidths.$c0 @fn24(signed8: Int8, signed16: Int16, signed32: Int, signed64: Long, unsigned8: UInt8, unsigned16: UInt16, unsigned32: UInt, unsigned64: ULong) -> FixedWidths <no-gc>
+    bb0 entry
+      return
+        Type FixedWidths
+        StructInit FixedWidths
+          Type Int8
+          Local signed8
+          Type Int16
+          Local signed16
+          Type Int
+          Local signed32
+          Type Long
+          Local signed64
+          Type UInt8
+          Local unsigned8
+          Type UInt16
+          Local unsigned16
+          Type UInt
+          Local unsigned32
+          Type ULong
+          Local unsigned64
+  fun callback bridge for incrementU16 @fn25($result: Ptr<UInt16>, $arg0: Ptr<UInt16>) -> Unit <no-gc>
+    bb0 entry
+      call $value: UInt16 = @fn13 direct
+        Type UInt16
+        PtrLoad UInt16
+          Type Ptr<UInt16>
+          Local $arg0
+      Type Unit
+      PtrStore UInt16
+        Type Ptr<UInt16>
+        Local $result
+        Type UInt16
+        Local $value
+      return
+  fun callback bridge for roundTripWidths @fn26($result: Ptr<FixedWidths>, $arg0: Ptr<FixedWidths>) -> Unit <no-gc>
+    bb0 entry
+      call $value: FixedWidths = @fn14 direct
+        Type FixedWidths
+        PtrLoad FixedWidths
+          Type Ptr<FixedWidths>
+          Local $arg0
+      Type Unit
+      PtrStore FixedWidths
+        Type Ptr<FixedWidths>
+        Local $result
+        Type FixedWidths
+        Local $value
+      return
+  instance mi0 function=@fn16 <- println
+  instance mi1 function=@fn17 <- println
+  instance mi2 function=@fn18 <- println
+  instance mi3 function=@fn19 <- println
+  instance mi4 function=@fn20 <- println
+  instance mi5 function=@fn21 <- println
+  instance mi6 function=@fn22 <- println
+  instance mi7 function=@fn23 <- println
+  str @str0 "\n"
+  str @str1 "\n"
+  str @str2 "\n"
+  str @str3 "\n"
+  str @str4 "\n"
+  str @str5 "\n"
+  str @str6 "\n"
+  str @str7 "\n"
+  output executable @fn15

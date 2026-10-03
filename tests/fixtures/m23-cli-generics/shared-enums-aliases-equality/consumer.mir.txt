@@ -1,0 +1,664 @@
+Module
+  enum Choice<Int>
+    Empty()
+    Item(_0: Int)
+    Named(payload: Int, amount: Int)
+    Defaults(payload: Int, amount: Int)
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=0
+    bridge function_type1 -> @fn6 id=ff9281605e7239f4da8391d42e46168f0ccd52a4d0c5fc4c5bb711289d240b39
+  generated_exact_type get0 location=closure0 nominal_id=02fafd4fdc0833f054d8a36fe80e62f2bf9559d803bf002e4a7fbcc9d3124440 exact_id=66fbe98bc8ba709642663cc560879fae0be34ea2724f3493af64932a2f226bed
+  generated_exact_type get1 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn6 id=ff9281605e7239f4da8391d42e46168f0ccd52a4d0c5fc4c5bb711289d240b39
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.amount: Int
+        Type Int
+        Local $dependency.argument.1
+      val left: Choice<Int>
+        Type Choice<Int>
+        VariantConstruct Choice<Int> v2
+          Type Int
+          Local $dependency.parameter.payload
+          Type Int
+          Local $dependency.parameter.amount
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.amount: Int
+        Type Int
+        Local $dependency.argument.0
+      val right: Choice<Int>
+        Type Choice<Int>
+        VariantConstruct Choice<Int> v2
+          Type Int
+          Local $dependency.parameter.payload
+          Type Int
+          Local $dependency.parameter.amount
+      call $call.1: Boolean = @fn1 direct
+        Type Choice<Int>
+        Local left
+        Type Choice<Int>
+        Local right
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $equality.lhs: Choice<Int>
+        Type Choice<Int>
+        Local left
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.2: Boolean = @fn1 direct
+        Type Choice<Int>
+        Local $equality.lhs
+        Type Choice<Int>
+        VariantConstruct Choice<Int> v1
+          Type Int
+          Local $dependency.parameter._1
+      branch bb3 bb4
+        Type Boolean
+        Local $call.2
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $when.1: Choice<Int>
+        Type Choice<Int>
+        Local left
+      val $pattern.subject.2: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb5 bb6
+        Type Boolean
+        VariantTest Choice<Int> v0
+          Type Choice<Int>
+          Local $pattern.subject.2
+    bb5 pattern.pass.5
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      goto bb7
+    bb6 pattern.else.6
+      val $pattern.subject.3: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb8 bb9
+        Type Boolean
+        VariantTest Choice<Int> v1
+          Type Choice<Int>
+          Local $pattern.subject.3
+    bb7 pattern.merge.7
+      val score: Int
+        Type Int
+        Local $result.0
+      val $argument.0: Int
+        Type Int
+        Local score
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.3: Int = @fn3 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.3
+    bb8 pattern.pass.8
+      val payload: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v1 f0
+          Type Choice<Int>
+          Local $pattern.subject.3
+      assign $result.0
+        Type Int
+        Local payload
+      goto bb10
+    bb9 pattern.else.9
+      val $pattern.subject.4: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb11 bb12
+        Type Boolean
+        VariantTest Choice<Int> v2
+          Type Choice<Int>
+          Local $pattern.subject.4
+    bb10 pattern.merge.10
+      goto bb7
+    bb11 pattern.pass.11
+      val payload: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v2 f0
+          Type Choice<Int>
+          Local $pattern.subject.4
+      val amount: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v2 f1
+          Type Choice<Int>
+          Local $pattern.subject.4
+      val $dependency.receiver: Int
+        Type Int
+        Local payload
+      val $dependency.argument.0: Int
+        Type Int
+        Local amount
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb13
+    bb12 pattern.else.12
+      val $pattern.subject.5: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb14 bb15
+        Type Boolean
+        VariantTest Choice<Int> v3
+          Type Choice<Int>
+          Local $pattern.subject.5
+    bb13 pattern.merge.13
+      goto bb10
+    bb14 pattern.pass.14
+      val payload: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v3 f0
+          Type Choice<Int>
+          Local $pattern.subject.5
+      val amount: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v3 f1
+          Type Choice<Int>
+          Local $pattern.subject.5
+      val $dependency.receiver: Int
+        Type Int
+        Local payload
+      val $dependency.argument.0: Int
+        Type Int
+        Local amount
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $result.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb16
+    bb15 pattern.else.15
+      unreachable
+    bb16 pattern.merge.16
+      goto bb13
+  fun $derived.equals.0 @fn1(this: Choice<Int>, other: Choice<Int>) -> Boolean
+    bb0 entry
+      val $when.1: Choice<Int>
+        Type Choice<Int>
+        Local this
+      val $pattern.subject.2: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<Int> v0
+          Type Choice<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Choice<Int>
+        Type Choice<Int>
+        Local other
+      val $pattern.subject.4: Choice<Int>
+        Type Choice<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice<Int> v0
+          Type Choice<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice<Int> v1
+          Type Choice<Int>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v1 f0
+          Type Choice<Int>
+          Local $pattern.subject.5
+      val $when.6: Choice<Int>
+        Type Choice<Int>
+        Local other
+      val $pattern.subject.7: Choice<Int>
+        Type Choice<Int>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Int> v1
+          Type Choice<Int>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Choice<Int> v2
+          Type Choice<Int>
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v1 f0
+          Type Choice<Int>
+          Local $pattern.subject.7
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.1.0
+          Type Int
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $left.2.0: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v2 f0
+          Type Choice<Int>
+          Local $pattern.subject.8
+      val $left.2.1: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v2 f1
+          Type Choice<Int>
+          Local $pattern.subject.8
+      val $when.9: Choice<Int>
+        Type Choice<Int>
+        Local other
+      val $pattern.subject.10: Choice<Int>
+        Type Choice<Int>
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Choice<Int> v2
+          Type Choice<Int>
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      val $pattern.subject.11: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb22 bb23
+        Type Boolean
+        VariantTest Choice<Int> v3
+          Type Choice<Int>
+          Local $pattern.subject.11
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      val $right.2.0: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v2 f0
+          Type Choice<Int>
+          Local $pattern.subject.10
+      val $right.2.1: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v2 f1
+          Type Choice<Int>
+          Local $pattern.subject.10
+      branch bb19 bb20
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.2.0
+          Type Int
+          Local $right.2.0
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+    bb19 logic.rhs.19
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.2.1
+          Type Int
+          Local $right.2.1
+      goto bb21
+    bb20 logic.short.20
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      return
+        Type Boolean
+        Local $logic.1
+    bb22 pattern.pass.22
+      val $left.3.0: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v3 f0
+          Type Choice<Int>
+          Local $pattern.subject.11
+      val $left.3.1: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v3 f1
+          Type Choice<Int>
+          Local $pattern.subject.11
+      val $when.12: Choice<Int>
+        Type Choice<Int>
+        Local other
+      val $pattern.subject.13: Choice<Int>
+        Type Choice<Int>
+        Local $when.12
+      branch bb25 bb26
+        Type Boolean
+        VariantTest Choice<Int> v3
+          Type Choice<Int>
+          Local $pattern.subject.13
+    bb23 pattern.else.23
+      unreachable
+    bb24 pattern.merge.24
+      unreachable
+    bb25 pattern.pass.25
+      val $right.3.0: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v3 f0
+          Type Choice<Int>
+          Local $pattern.subject.13
+      val $right.3.1: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v3 f1
+          Type Choice<Int>
+          Local $pattern.subject.13
+      branch bb28 bb29
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.3.0
+          Type Int
+          Local $right.3.0
+    bb26 pattern.else.26
+      return
+        Type Boolean
+        BoolLiteral false
+    bb27 pattern.merge.27
+      unreachable
+    bb28 logic.rhs.28
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.3.1
+          Type Int
+          Local $right.3.1
+      goto bb30
+    bb29 logic.short.29
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb30 logic.merge.30
+      return
+        Type Boolean
+        Local $logic.2
+  fun $lambda.0 @fn2($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn3(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Choice<Int> = @fn4 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.parameter.value: Choice<Int>
+        Type Choice<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $call.1: Int = @fn5 direct
+        Type Choice<Int>
+        Local $dependency.parameter.value
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun pack @fn4(value: Int) -> Choice<Int>
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      return
+        Type Choice<Int>
+        VariantConstruct Choice<Int> v1
+          Type Int
+          Local $dependency.local.2
+  fun score @fn5(value: Choice<Int>, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $when.1: Choice<Int>
+        Type Choice<Int>
+        Local value
+      val $pattern.subject.2: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice<Int> v0
+          Type Choice<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.13
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice<Int> v1
+          Type Choice<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.13
+    bb4 pattern.pass.4
+      val $dependency.local.2: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v1 f0
+          Type Choice<Int>
+          Local $pattern.subject.3
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.2
+      assign $dependency.local.13
+        Type Int
+        Local $call.1
+      goto bb6
+    bb5 pattern.else.5
+      val $pattern.subject.4: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice<Int> v2
+          Type Choice<Int>
+          Local $pattern.subject.4
+    bb6 pattern.merge.6
+      goto bb3
+    bb7 pattern.pass.7
+      val $dependency.local.3: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v2 f0
+          Type Choice<Int>
+          Local $pattern.subject.4
+      val $dependency.local.4: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v2 f1
+          Type Choice<Int>
+          Local $pattern.subject.4
+      call $dependency.local.7: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      assign $dependency.local.13
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.5: Choice<Int>
+        Type Choice<Int>
+        Local $when.1
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice<Int> v3
+          Type Choice<Int>
+          Local $pattern.subject.5
+    bb9 pattern.merge.9
+      goto bb6
+    bb10 pattern.pass.10
+      val $dependency.local.5: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v3 f0
+          Type Choice<Int>
+          Local $pattern.subject.5
+      val $dependency.local.6: Int
+        Type Int
+        VariantPayloadProject Choice<Int> v3 f1
+          Type Choice<Int>
+          Local $pattern.subject.5
+      call $dependency.local.10: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      assign $dependency.local.13
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.10
+          Type Int
+          Local $dependency.local.12
+      goto bb12
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      goto bb9
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn6($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn3 <- exercise
+  instance mi1 function=@fn4 <- pack
+  instance mi2 function=@fn5 <- score
+  output library

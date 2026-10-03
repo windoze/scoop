@@ -1,0 +1,64 @@
+SourceFile
+  QualifiedPackage consumer.enums
+  ImportExact Local dependency.enums.Choice
+  ImportExact Local dependency.enums.Flag
+  ImportExact Local dependency.enums.Token
+  ImportExact Local dependency.enums.make
+  ImportExact Local dependency.enums.sum
+  ImportExact Local dependency.enums.flag
+  ImportExact Local dependency.enums.flagValue
+  public struct Carrier
+    field value: Choice
+    field marker: (Token, Token)
+  enum Wrapper
+    Empty
+    Wrapped(Choice, (Token, Token))
+    @NoGC
+  public fun relay(value: Choice): Choice
+    =
+      Var value
+    @NoGC
+  public fun relayFlag(value: Flag): Flag
+    =
+      Var value
+    @NoGC
+  public fun test(): Long
+    val value
+      Call Carrier
+        Call make
+          IntLiteral 53
+          IntLiteral 42
+        TupleLiteral
+          Call Token
+          Call Token
+    val wrapped
+      MethodCall Wrapped
+        Var Wrapper
+        Call relay
+          FieldAccess value
+            Var value
+        FieldAccess marker
+          Var value
+    val total
+      WhenExpression
+        Var wrapped
+        arm Empty
+          IntLiteral 0
+        arm Wrapped(choice, _)
+          Call sum
+            Var choice
+    return
+      Binary Sub
+        Binary Add
+          Binary Add
+            Var total
+            Call sum
+              Call relay
+                Call make
+                  IntLiteral 17
+                  Unary Neg
+                    IntLiteral 29
+          Call flagValue
+            Call relayFlag
+              Call flag
+        IntLiteral 1

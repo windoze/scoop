@@ -1,0 +1,92 @@
+Module
+  struct Cell<Int> (value: Int)
+  enum Choice<String>
+    Empty()
+    Item(_0: String)
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call cell: Cell<Int> = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      call choice: Choice<String> = @fn1 direct
+      val $dependency.receiver: Cell<Int>
+        Type Cell<Int>
+        Local cell
+      call $dependency.receiver: Int = @fn2 direct
+        Type Cell<Int>
+        Local $dependency.receiver
+      val $dependency.receiver: Choice<String>
+        Type Choice<String>
+        Local choice
+      val $dependency.receiver: Cell<Int>
+        Type Cell<Int>
+        Local cell
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=22 bits=0x00000016
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Cell<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn4 direct
+        Type Choice<String>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun emptyChoice @fn1() -> Choice<String>
+    bb0 entry
+      return
+        Type Choice<String>
+        VariantConstruct Choice<String> v0
+  fun read @fn2(this: Cell<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Cell<Int>
+          Local this
+  fun choose @fn3(this: Cell<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun choose @fn4(this: Choice<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun ctor.Cell.$c0 @fn5(value: Int) -> Cell<Int> <no-gc>
+    bb0 entry
+      return
+        Type Cell<Int>
+        StructInit Cell<Int>
+          Type Int
+          Local value
+  instance mi0 function=@fn1 <- emptyChoice
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- choose
+  instance mi3 function=@fn4 <- choose
+  output library

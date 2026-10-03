@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-copy-update/errors/no-gc-enum.scoop:9:37: error: copy update requires an exact declared struct value, found Event

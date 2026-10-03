@@ -1,0 +1,30 @@
+package dependency.enums
+
+public struct Token()
+public enum Choice {
+    Empty,
+    Pair { left: Long, marker: Token, right: Long }
+}
+public enum Other { Empty, Pair(Long, Token, Long) }
+public enum Flag { Off, On }
+
+@NoGC public fun make(left: Long, right: Long): Choice = Choice.Pair(left = left, marker = Token(), right = right)
+@NoGC public fun empty(): Choice = Choice.Empty
+@NoGC public fun sum(value: Choice): Long = when (value) {
+    Empty -> 0
+    Pair { left, right, .. } -> left + right
+}
+@NoGC public fun flag(): Flag = Flag.On
+@NoGC public fun flagValue(value: Flag): Long = when (value) { Off -> 0; On -> 1 }
+
+public enum Packet { Missing, Data((Long, Token, Long), Token) }
+@NoGC public fun packet(): Packet = Packet.Data((53, Token(), 42), Token())
+
+public typealias ChoiceAlias = Choice
+public enum Marker { Only }
+public enum Draft {
+    Absent,
+    Position(Long, Token, Long),
+    Named { left: Long, marker: Token, right: Long },
+    Defaults(val left: Long, val marker: Token = Token(), val right: Long = left + 1)
+}

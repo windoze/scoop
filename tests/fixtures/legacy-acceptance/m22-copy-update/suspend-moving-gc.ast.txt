@@ -1,0 +1,73 @@
+SourceFile
+  RootPackage
+  public class Node(val text: String)
+  struct ManagedPair
+    field left: Node
+    field right: Node
+  struct ManagedEvent
+    field kept: Node
+    field changed: Node
+  class Gate(var waiter: Continuation<Node>?)
+    fun complete
+  class Registration(val gate: Gate), SuspendRegistration<Node>
+    public fun register
+  suspend fun awaitNode(gate: Gate): Node
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  class CopyTask(val firstGate: Gate, val secondGate: Gate), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun makeGarbage()
+    var index
+      IntLiteral 0
+    while
+      Binary Lt
+        Var index
+        IntLiteral 1000
+      val garbage
+        Call Node
+          Binary Add
+            StringLiteral "garbage-"
+            StringLiteral "node"
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+  fun main()
+    val firstGate
+      Call Gate
+        Var None
+    val secondGate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call CopyTask
+        Var firstGate
+        Var secondGate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "first-suspended"
+    Call gcCollect
+    Call makeGarbage
+    Call gcCollect
+    MethodCall complete
+      Var firstGate
+      Call Node
+        Binary Add
+          StringLiteral "pair-replacement-"
+          StringLiteral "alive"
+    Call println
+      StringLiteral "second-suspended"
+    Call gcCollect
+    Call makeGarbage
+    Call gcCollect
+    MethodCall complete
+      Var secondGate
+      Call Node
+        Binary Add
+          StringLiteral "event-replacement-"
+          StringLiteral "alive"

@@ -1,0 +1,22 @@
+Module
+  fun primitive @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun identity @fn1(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  instance mi0 function=@fn1 <- identity
+  output library

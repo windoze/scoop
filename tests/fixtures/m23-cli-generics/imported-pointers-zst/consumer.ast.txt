@@ -1,0 +1,72 @@
+SourceFile
+  QualifiedPackage consumer.pointers
+  ImportExact Local dependency.pointers.copy
+  private class Counter(var calls: Int)
+  public fun exercise<T>(value: T): Int
+    val left
+      UnitLiteral
+    val right
+      UnitLiteral
+    val state
+      Call Counter
+        IntLiteral 0
+    fun offset(): Long
+      compound-assign Add
+        Var state
+        IntLiteral 1
+      return
+        IntLiteral 500L
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var left
+      val other
+        Call addressOf
+          Var right
+      val moved
+        Binary Add
+          Var pointer
+          Call offset
+      val empty
+        MethodCall load
+          Var moved
+          Call offset
+      MethodCall store
+        Var moved
+        Call offset
+        Call copy<Unit>
+          Var empty
+      if
+        Binary Eq
+          MethodCall toULong
+            Var pointer
+          MethodCall toULong
+            Var other
+        return
+          IntLiteral 1
+      if
+        Binary Or
+          Binary Eq
+            MethodCall toULong
+              Var pointer
+            IntLiteral 0uL
+          Binary Ne
+            MethodCall toULong
+              Var moved
+            MethodCall toULong
+              Var pointer
+        return
+          IntLiteral 2
+      return
+        IfExpression
+          Binary Eq
+            FieldAccess calls
+              Var state
+            IntLiteral 3
+          IntLiteral 42
+          else
+          IntLiteral 3
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

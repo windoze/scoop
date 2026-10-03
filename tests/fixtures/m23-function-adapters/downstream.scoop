@@ -1,0 +1,12 @@
+import consumer.adapters.exercise
+import consumer.adapters.result
+
+class Local(public val value: Int)
+
+public fun check(): Int {
+    val initial = result()
+    if (initial != 42) { return initial }
+    if (exercise(Local(42), { value: Local -> value.value }) != 42) { return 2 }
+    if (exercise(42, { value: Int -> value }) != 42) { return 3 }
+    return exercise(Unit, { value: Unit -> 42 })
+}

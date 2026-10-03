@@ -1,0 +1,20 @@
+Module
+  global0 $singleton$9535237219aa547bc75b4666fc281f9696da641e4b0d8efc8257387b274c5dff: SharedHolder imported provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a storage=8ebb43656dc726f72be087fa44815bb3ba6bb1c160c87965543c442fa9a0101b
+  class SharedHolder vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call external2 direct
+      val $dependency.parameter.value: SharedHolder
+        Type SharedHolder
+        GlobalRead $singleton$9535237219aa547bc75b4666fc281f9696da641e4b0d8efc8257387b274c5dff
+      call $call.1: SharedHolder = external0 direct
+        Type SharedHolder
+        Local $dependency.parameter.value
+      call $call.2: Counter = external1 direct
+        Type SharedHolder
+        Local $call.1
+      return
+        Type Counter
+        Local $call.2
+  output library

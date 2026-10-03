@@ -1,0 +1,53 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call protocols
+    Call verifyDispatch
+      Binary Eq
+        MethodCall observe
+          Var value
+          IntLiteral 17
+        TupleLiteral
+          IntLiteral 2L
+          IntLiteral 17
+          IntLiteral 7
+          IntLiteral 3
+    Call verifyDispatch
+      Binary Eq
+        MethodCall observe
+          Var value
+          StringLiteral "generic"
+        TupleLiteral
+          IntLiteral 2L
+          StringLiteral "generic"
+          IntLiteral 7
+          IntLiteral 3
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall publicOnly
+            Var value
+          IntLiteral 4
+        Binary Eq
+          MethodCall publicOnly
+            Var value
+            IntLiteral 9
+          IntLiteral 9
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          FieldAccess count
+            Call Packet
+          IntLiteral 1
+        Binary Eq
+          FieldAccess count
+            Call Packet
+              IntLiteral 11
+          IntLiteral 11

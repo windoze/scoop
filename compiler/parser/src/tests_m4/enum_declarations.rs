@@ -22,7 +22,7 @@ fn enum_unit_variants() {
     );
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  enum Color\n    Red\n    Green\n    Blue\n"
+        "SourceFile\n  RootPackage\n  enum Color\n    Red\n    Green\n    Blue\n"
     );
 }
 
@@ -86,7 +86,7 @@ fn enum_generic_type_params() {
     assert_eq!(decl.type_params[0].span, Span::new(12, 13));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  enum Option<T>\n    Some(T)\n    None\n"
+        "SourceFile\n  RootPackage\n  enum Option<T>\n    Some(T)\n    None\n"
     );
 }
 
@@ -139,7 +139,7 @@ fn enum_constructor_variant_with_constant_defaults() {
     );
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  enum E\n    WithDefault <ctor>\n      d: Int = <expr>\n      s: String = <expr>\n"
+        "SourceFile\n  RootPackage\n  enum E\n    WithDefault <ctor>\n      d: Int = <expr>\n      s: String = <expr>\n"
     );
 }
 
@@ -150,6 +150,6 @@ fn enum_all_four_variant_forms_dump() {
     );
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  enum Shape\n    Circle(Int)\n    Rect(Int, Int)\n    Named <named>\n      w: Int\n      h: Int\n    WithDefault <ctor>\n      d: Int = <expr>\n"
+        "SourceFile\n  RootPackage\n  enum Shape\n    Circle(Int)\n    Rect(Int, Int)\n    Named <named>\n      w: Int\n      h: Int\n    WithDefault <ctor>\n      d: Int = <expr>\n"
     );
 }

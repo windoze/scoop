@@ -1,0 +1,1246 @@
+Module
+  struct Wide (first: Long, second: Long, third: Long, node: Node)
+  struct Nested<Wide> (payload: (Wide, Int), spare: Int, empty: Unit)
+  struct Pair<Wide> (left: Wide, right: Int)
+  struct Nested<Unit> (payload: (Unit, Int), spare: Int, empty: Unit)
+  struct Pair<Unit> (left: Unit, right: Int)
+  struct Nested<Node> (payload: (Node, Int), spare: Int, empty: Unit)
+  struct Pair<Node> (left: Node, right: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Wide>
+    Completed(value: Wide)
+    Suspended()
+  enum CoroutineSlot<Wide>
+    Empty()
+    Value(value: Wide)
+  enum CoroutineStep<Node>
+    Completed(value: Node)
+    Suspended()
+  enum CoroutineSlot<Node>
+    Empty()
+    Value(value: Node)
+  class Node vtable=0 itables=0
+  class Pieces<Wide> vtable=0 itables=0
+  class Pieces<Unit> vtable=0 itables=0
+  class Pieces<Node> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Wide> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  interface Continuation<Wide>
+  interface SuspendTask<Wide>
+  interface SuspendRegistration<Wide>
+  interface Continuation<Node>
+  interface SuspendTask<Node>
+  interface SuspendRegistration<Node>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn43 id=727f983170107db118156909c60972eb534601a3db9bc12c23918682b4c653c0
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn44 id=34363a99634fc658dde23fc47f47d796a305c864854bd6048d85144271c8470c
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn45 id=0d41933fdad11e62b0b4f82c7035893e38c3d22b2bd7b8dde3fe15b77af4c184
+  generated_exact_type get0 location=enum3 nominal_id=aff6cbe4df55d2dfae2f34c2daa4a91098b572054e5ab45e0426c247ffc6d12f exact_id=0ec4dd463facdf73f0e0d3d9e37dfd6b391adc36aa5d1f9bdffeddcbc5662b61
+  generated_exact_type get1 location=class9 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=enum1 nominal_id=2f239e512080c97ccc799e18fa0aed8081adcc923247a0200931a5d5a416ce47 exact_id=508aabcd1fbc6927d87c6365d692d6c3a657d23214e34ce54f1826473734c6f8
+  generated_exact_type get3 location=enum2 nominal_id=fa21e04852433fa6b0197bc3be069ff89a2f0c4b87a4368286c79c902678ea69 exact_id=51d4f357196527e8a3b3baf51110a1bfb3ac18ddf8e2c1213256929f96ac3f18
+  generated_exact_type get4 location=closure0 nominal_id=171a1e8613ecffb0e3ce938e5334a622ae1752d01edcaed86913f7cdd9956388 exact_id=8e001992ed9b9f9e5c8ec7a69407653a218baaa09dbc11da020ba162ce2980e9
+  generated_exact_type get5 location=closure2 nominal_id=a1dc690d6d4c0e6b78fd12861fda6c979311e1185d1292987089630545ecad8e exact_id=96733a90571cac2817558c4b5714e61b5162df276bb855b204d5d4e29559e84a
+  generated_exact_type get6 location=enum4 nominal_id=39e7adb64a7ec534ed35016d88790178bd52f82d1dac9f246e52b99c956b7c6e exact_id=ad5acf6e70f6ecdbcbe4cba39146bcdd1044504e758c75b1b789d7864ea4fd12
+  generated_exact_type get7 location=closure1 nominal_id=17936749a060eef604fecbab107ce9630650cf8996a7e4f9e99438411925e936 exact_id=b35d43c682fce9b51159a0b8fc33d269bea7025ae5e05d322b1d58e6ba9cd4e3
+  generated_exact_type get8 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get9 location=class7 nominal_id=ccf26b3d1b045896b00da9b20b6ab7da29a43b2dd1b89eef8735d26ed0653693 exact_id=febbc5d10e0db6ce825c3401f3c00f8ea831dcda58cb05f04232b893d817d194
+  generated_callable gc0 function=@fn41 id=0bc2a93f47f50256fd3bb487cf6985dc946d79270b73a30b18960b163a7a0116
+  generated_callable gc1 function=@fn45 id=0d41933fdad11e62b0b4f82c7035893e38c3d22b2bd7b8dde3fe15b77af4c184
+  generated_callable gc2 function=@fn44 id=34363a99634fc658dde23fc47f47d796a305c864854bd6048d85144271c8470c
+  generated_callable gc3 function=@fn43 id=727f983170107db118156909c60972eb534601a3db9bc12c23918682b4c653c0
+  generated_callable gc4 function=@fn42 id=df27d812cbc62dc6144a8afb9b64cfb26642f032e6f6ab7c09c3678235b8d9be
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Node
+        ClassAlloc Node
+      call @fn30 direct
+        Type Node
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $argument.3: Node
+        Type Node
+        Local $new.1
+      val $parameter.first: Long
+        Type Long
+        Local $argument.0
+      val $parameter.second: Long
+        Type Long
+        Local $argument.1
+      val $parameter.third: Long
+        Type Long
+        Local $argument.2
+      val $parameter.node: Node
+        Type Node
+        Local $argument.3
+      call wide: Wide = @fn34 direct
+        Type Long
+        Local $parameter.first
+        Type Long
+        Local $parameter.second
+        Type Long
+        Local $parameter.third
+        Type Node
+        Local $parameter.node
+      val $argument.0: Wide
+        Type Wide
+        Local wide
+      val $argument.1: (Wide) -> Int
+        Type (Wide) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Wide
+        Type Wide
+        Local $argument.0
+      val $parameter.read: (Wide) -> Int
+        Type (Wide) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type Wide
+        Local $parameter.seed
+        Type (Wide) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $parameter.seed: Unit
+        Type Unit
+        Local $argument.0
+      val $parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Unit
+        Local $parameter.seed
+        Type (Unit) -> Int
+        Local $parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $argument.0: Node
+        Type Node
+        FieldAccess 3
+          Type Wide
+          Local wide
+      val $argument.1: (Node) -> Int
+        Type (Node) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $parameter.seed: Node
+        Type Node
+        Local $argument.0
+      val $parameter.read: (Node) -> Int
+        Type (Node) -> Int
+        Local $argument.1
+      call $call.2: Int = @fn6 direct
+        Type Node
+        Local $parameter.seed
+        Type (Node) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.2
+  fun $lambda.0 @fn1($closure: (Wide) -> Int, item: Wide) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Node
+          FieldAccess 3
+            Type Wide
+            Local item
+  fun exercise @fn2(seed: Wide, read: (Wide) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: (Wide, Int)
+        Type (Wide, Int)
+        TupleLiteral
+          Type Wide
+          Local seed
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.2: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.payload: (Wide, Int)
+        Type (Wide, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.spare: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.empty: Unit
+        Type Unit
+        Local $dependency.argument.2
+      call $binding.subject.0: Nested<Wide> = @fn35 direct
+        Type (Wide, Int)
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.spare
+        Type Unit
+        Local $dependency.parameter.empty
+      val $binding.projection.1: (Wide, Int)
+        Type (Wide, Int)
+        FieldAccess 0
+          Type Nested<Wide>
+          Local $binding.subject.0
+      val $binding.projection.2: Wide
+        Type Wide
+        FieldAccess 0
+          Type (Wide, Int)
+          Local $binding.projection.1
+      val value: Wide
+        Type Wide
+        Local $binding.projection.2
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.first: Wide
+        Type Wide
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.1
+        Type Pieces<Wide>
+        ClassAlloc Pieces<Wide>
+      call @fn31 direct
+        Type Pieces<Wide>
+        Local $new.1
+        Type Wide
+        Local $dependency.parameter.first
+        Type Int
+        Local $dependency.parameter.second
+      val $binding.subject.3: Pieces<Wide>
+        Type Pieces<Wide>
+        Local $new.1
+      val $dependency.receiver: Pieces<Wide>
+        Type Pieces<Wide>
+        Local $binding.subject.3
+      call $binding.component.4: Wide = @fn7 direct
+        Type Pieces<Wide>
+        Local $dependency.receiver
+      val piece: Wide
+        Type Wide
+        Local $binding.component.4
+      val $dependency.receiver: Pieces<Wide>
+        Type Pieces<Wide>
+        Local $binding.subject.3
+      call $binding.component.5: Int = @fn8 direct
+        Type Pieces<Wide>
+        Local $dependency.receiver
+      val $dependency.argument.0: Wide
+        Type Wide
+        Local piece
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.left: Wide
+        Type Wide
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Pair<Wide> = @fn36 direct
+        Type Wide
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      val $dependency.argument.1: (Wide) -> Int
+        Type (Wide) -> Int
+        Local read
+      val $dependency.parameter.pair: Pair<Wide>
+        Type Pair<Wide>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Wide) -> Int
+        Type (Wide) -> Int
+        Local $dependency.argument.1
+      call $call.2: Int = @fn9 direct
+        Type Pair<Wide>
+        Local $dependency.parameter.pair
+        Type (Wide) -> Int
+        Local $dependency.parameter.read
+      return
+        Type Int
+        Local $call.2
+  fun $lambda.1 @fn3($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn4(seed: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: (Unit, Int)
+        Type (Unit, Int)
+        TupleLiteral
+          Type Unit
+          Local seed
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.2: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.payload: (Unit, Int)
+        Type (Unit, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.spare: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.empty: Unit
+        Type Unit
+        Local $dependency.argument.2
+      call $binding.subject.0: Nested<Unit> = @fn37 direct
+        Type (Unit, Int)
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.spare
+        Type Unit
+        Local $dependency.parameter.empty
+      val $binding.projection.1: (Unit, Int)
+        Type (Unit, Int)
+        FieldAccess 0
+          Type Nested<Unit>
+          Local $binding.subject.0
+      val $binding.projection.2: Unit
+        Type Unit
+        FieldAccess 0
+          Type (Unit, Int)
+          Local $binding.projection.1
+      val value: Unit
+        Type Unit
+        Local $binding.projection.2
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.first: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.1
+        Type Pieces<Unit>
+        ClassAlloc Pieces<Unit>
+      call @fn32 direct
+        Type Pieces<Unit>
+        Local $new.1
+        Type Unit
+        Local $dependency.parameter.first
+        Type Int
+        Local $dependency.parameter.second
+      val $binding.subject.3: Pieces<Unit>
+        Type Pieces<Unit>
+        Local $new.1
+      val $dependency.receiver: Pieces<Unit>
+        Type Pieces<Unit>
+        Local $binding.subject.3
+      call @fn10 direct
+        Type Pieces<Unit>
+        Local $dependency.receiver
+      val $binding.component.4: Unit
+        Type Unit
+        UnitLiteral
+      val piece: Unit
+        Type Unit
+        Local $binding.component.4
+      val $dependency.receiver: Pieces<Unit>
+        Type Pieces<Unit>
+        Local $binding.subject.3
+      call $binding.component.5: Int = @fn11 direct
+        Type Pieces<Unit>
+        Local $dependency.receiver
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local piece
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.left: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Pair<Unit> = @fn38 direct
+        Type Unit
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.parameter.pair: Pair<Unit>
+        Type Pair<Unit>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $call.2: Int = @fn12 direct
+        Type Pair<Unit>
+        Local $dependency.parameter.pair
+        Type (Unit) -> Int
+        Local $dependency.parameter.read
+      return
+        Type Int
+        Local $call.2
+  fun $lambda.2 @fn5($closure: (Node) -> Int, item: Node) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Node
+          Local item
+  fun exercise @fn6(seed: Node, read: (Node) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: (Node, Int)
+        Type (Node, Int)
+        TupleLiteral
+          Type Node
+          Local seed
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.2: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.payload: (Node, Int)
+        Type (Node, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.spare: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.empty: Unit
+        Type Unit
+        Local $dependency.argument.2
+      call $binding.subject.0: Nested<Node> = @fn39 direct
+        Type (Node, Int)
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.spare
+        Type Unit
+        Local $dependency.parameter.empty
+      val $binding.projection.1: (Node, Int)
+        Type (Node, Int)
+        FieldAccess 0
+          Type Nested<Node>
+          Local $binding.subject.0
+      val $binding.projection.2: Node
+        Type Node
+        FieldAccess 0
+          Type (Node, Int)
+          Local $binding.projection.1
+      val value: Node
+        Type Node
+        Local $binding.projection.2
+      val $dependency.argument.0: Node
+        Type Node
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.first: Node
+        Type Node
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.1
+        Type Pieces<Node>
+        ClassAlloc Pieces<Node>
+      call @fn33 direct
+        Type Pieces<Node>
+        Local $new.1
+        Type Node
+        Local $dependency.parameter.first
+        Type Int
+        Local $dependency.parameter.second
+      val $binding.subject.3: Pieces<Node>
+        Type Pieces<Node>
+        Local $new.1
+      val $dependency.receiver: Pieces<Node>
+        Type Pieces<Node>
+        Local $binding.subject.3
+      call $binding.component.4: Node = @fn13 direct
+        Type Pieces<Node>
+        Local $dependency.receiver
+      val piece: Node
+        Type Node
+        Local $binding.component.4
+      val $dependency.receiver: Pieces<Node>
+        Type Pieces<Node>
+        Local $binding.subject.3
+      call $binding.component.5: Int = @fn14 direct
+        Type Pieces<Node>
+        Local $dependency.receiver
+      val $dependency.argument.0: Node
+        Type Node
+        Local piece
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.left: Node
+        Type Node
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.argument.0: Pair<Node> = @fn40 direct
+        Type Node
+        Local $dependency.parameter.left
+        Type Int
+        Local $dependency.parameter.right
+      val $dependency.argument.1: (Node) -> Int
+        Type (Node) -> Int
+        Local read
+      val $dependency.parameter.pair: Pair<Node>
+        Type Pair<Node>
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Node) -> Int
+        Type (Node) -> Int
+        Local $dependency.argument.1
+      call $call.2: Int = @fn15 direct
+        Type Pair<Node>
+        Local $dependency.parameter.pair
+        Type (Node) -> Int
+        Local $dependency.parameter.read
+      return
+        Type Int
+        Local $call.2
+  fun component1 @fn7(this: Pieces<Wide>) -> Wide
+    bb0 entry
+      call $dependency.local.1: Int = external0 direct
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      call $call.1: Wide = @fn16 direct
+        Type Pieces<Wide>
+        Local this
+      return
+        Type Wide
+        Local $call.1
+  fun component2 @fn8(this: Pieces<Wide>) -> Int
+    bb0 entry
+      call $dependency.local.1: Int = external0 direct
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      call $call.1: Int = @fn17 direct
+        Type Pieces<Wide>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun patternBody @fn9(pair: Pair<Wide>, read: (Wide) -> Int) -> Int
+    bb0 entry
+      val $when.1: Pair<Wide>
+        Type Pair<Wide>
+        Local pair
+      val $dependency.local.2: Wide
+        Type Wide
+        FieldAccess 0
+          Type Pair<Wide>
+          Local $when.1
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Wide>
+          Local $when.1
+      call $dependency.local.4: Int = <closure:function_type0> closure[function_type0]
+        Type (Wide) -> Int
+        Local read
+        Type Wide
+        Local $dependency.local.2
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.7
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      return
+        Type Int
+        Local $dependency.local.7
+  fun component1 @fn10(this: Pieces<Unit>) -> Unit
+    bb0 entry
+      call $dependency.local.1: Int = external0 direct
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      call @fn18 direct
+        Type Pieces<Unit>
+        Local this
+      return
+  fun component2 @fn11(this: Pieces<Unit>) -> Int
+    bb0 entry
+      call $dependency.local.1: Int = external0 direct
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      call $call.1: Int = @fn19 direct
+        Type Pieces<Unit>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun patternBody @fn12(pair: Pair<Unit>, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $when.1: Pair<Unit>
+        Type Pair<Unit>
+        Local pair
+      val $dependency.local.2: Unit
+        Type Unit
+        FieldAccess 0
+          Type Pair<Unit>
+          Local $when.1
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Unit>
+          Local $when.1
+      call $dependency.local.4: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        Local $dependency.local.2
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.7
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      return
+        Type Int
+        Local $dependency.local.7
+  fun component1 @fn13(this: Pieces<Node>) -> Node
+    bb0 entry
+      call $dependency.local.1: Int = external0 direct
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      call $call.1: Node = @fn20 direct
+        Type Pieces<Node>
+        Local this
+      return
+        Type Node
+        Local $call.1
+  fun component2 @fn14(this: Pieces<Node>) -> Int
+    bb0 entry
+      call $dependency.local.1: Int = external0 direct
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      call external1 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      call $call.1: Int = @fn21 direct
+        Type Pieces<Node>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun patternBody @fn15(pair: Pair<Node>, read: (Node) -> Int) -> Int
+    bb0 entry
+      val $when.1: Pair<Node>
+        Type Pair<Node>
+        Local pair
+      val $dependency.local.2: Node
+        Type Node
+        FieldAccess 0
+          Type Pair<Node>
+          Local $when.1
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Node>
+          Local $when.1
+      call $dependency.local.4: Int = <closure:function_type3> closure[function_type3]
+        Type (Node) -> Int
+        Local read
+        Type Node
+        Local $dependency.local.2
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      assign $dependency.local.7
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      return
+        Type Int
+        Local $dependency.local.7
+  fun first @fn16(this: Pieces<Wide>) -> Wide
+    bb0 entry
+      return
+        Type Wide
+        FieldAccess 0
+          Type Pieces<Wide>
+          Local this
+  fun second @fn17(this: Pieces<Wide>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Pieces<Wide>
+          Local this
+  fun first @fn18(this: Pieces<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Pieces<Unit>
+        Local this
+      return
+  fun second @fn19(this: Pieces<Unit>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Pieces<Unit>
+          Local this
+  fun first @fn20(this: Pieces<Node>) -> Node
+    bb0 entry
+      return
+        Type Node
+        FieldAccess 0
+          Type Pieces<Node>
+          Local this
+  fun second @fn21(this: Pieces<Node>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Pieces<Node>
+          Local this
+  fun Continuation.resume @fn22(this: Continuation<Wide>, value: Wide) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn23(this: Continuation<Wide>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn24(this: SuspendTask<Wide>, $completion: Continuation<Wide>) -> CoroutineStep<Wide>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Wide>, continuation: Continuation<Wide>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn26(this: Continuation<Node>, value: Node) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn27(this: Continuation<Node>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn28(this: SuspendTask<Node>, $completion: Continuation<Node>) -> CoroutineStep<Node>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn29(this: SuspendRegistration<Node>, continuation: Continuation<Node>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Node.$c0 @fn30(this: Node, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Node
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Pieces.$c1 @fn31(this: Pieces<Wide>, first: Wide, second: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Pieces<Wide>
+        Local this
+        Type Wide
+        Local first
+      field_set 1
+        Type Pieces<Wide>
+        Local this
+        Type Int
+        Local second
+      return
+  fun init.Pieces.$c1 @fn32(this: Pieces<Unit>, first: Unit, second: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Pieces<Unit>
+        Local this
+        Type Unit
+        Local first
+      field_set 1
+        Type Pieces<Unit>
+        Local this
+        Type Int
+        Local second
+      return
+  fun init.Pieces.$c1 @fn33(this: Pieces<Node>, first: Node, second: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Pieces<Node>
+        Local this
+        Type Node
+        Local first
+      field_set 1
+        Type Pieces<Node>
+        Local this
+        Type Int
+        Local second
+      return
+  fun ctor.Wide.$c0 @fn34(first: Long, second: Long, third: Long, node: Node) -> Wide <no-gc>
+    bb0 entry
+      return
+        Type Wide
+        StructInit Wide
+          Type Long
+          Local first
+          Type Long
+          Local second
+          Type Long
+          Local third
+          Type Node
+          Local node
+  fun ctor.Nested.$c0 @fn35(payload: (Wide, Int), spare: Int, empty: Unit) -> Nested<Wide> <no-gc>
+    bb0 entry
+      return
+        Type Nested<Wide>
+        StructInit Nested<Wide>
+          Type (Wide, Int)
+          Local payload
+          Type Int
+          Local spare
+          Type Unit
+          Local empty
+  fun ctor.Pair.$c2 @fn36(left: Wide, right: Int) -> Pair<Wide> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Wide>
+        StructInit Pair<Wide>
+          Type Wide
+          Local left
+          Type Int
+          Local right
+  fun ctor.Nested.$c0 @fn37(payload: (Unit, Int), spare: Int, empty: Unit) -> Nested<Unit> <no-gc>
+    bb0 entry
+      return
+        Type Nested<Unit>
+        StructInit Nested<Unit>
+          Type (Unit, Int)
+          Local payload
+          Type Int
+          Local spare
+          Type Unit
+          Local empty
+  fun ctor.Pair.$c2 @fn38(left: Unit, right: Int) -> Pair<Unit> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Unit>
+        StructInit Pair<Unit>
+          Type Unit
+          Local left
+          Type Int
+          Local right
+  fun ctor.Nested.$c0 @fn39(payload: (Node, Int), spare: Int, empty: Unit) -> Nested<Node> <no-gc>
+    bb0 entry
+      return
+        Type Nested<Node>
+        StructInit Nested<Node>
+          Type (Node, Int)
+          Local payload
+          Type Int
+          Local spare
+          Type Unit
+          Local empty
+  fun ctor.Pair.$c2 @fn40(left: Node, right: Int) -> Pair<Node> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Node>
+        StructInit Pair<Node>
+          Type Node
+          Local left
+          Type Int
+          Local right
+  fun startCoroutine<Wide> @fn41(task: SuspendTask<Wide>, completion: Continuation<Wide>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn22 interface Continuation<Wide>[0]
+        Type Continuation<Wide>
+        Local completion
+        Type Wide
+        EnumField v0 f0
+          Type CoroutineStep<Wide>
+          Local $step
+      return
+    bb2 failed
+      call @fn23 interface Continuation<Wide>[1]
+        Type Continuation<Wide>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Wide> = @fn24 interface SuspendTask<Wide>[0]
+        Type SuspendTask<Wide>
+        Local task
+        Type Continuation<Wide>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Wide>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Node> @fn42(task: SuspendTask<Node>, completion: Continuation<Node>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn26 interface Continuation<Node>[0]
+        Type Continuation<Node>
+        Local completion
+        Type Node
+        EnumField v0 f0
+          Type CoroutineStep<Node>
+          Local $step
+      return
+    bb2 failed
+      call @fn27 interface Continuation<Node>[1]
+        Type Continuation<Node>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Node> = @fn28 interface SuspendTask<Node>[0]
+        Type SuspendTask<Node>
+        Local task
+        Type Continuation<Node>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Node>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn43($source: (Wide) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Wide) -> Int
+        Local $source
+        Type Wide
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn44($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn45($source: (Node) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Node) -> Int
+        Local $source
+        Type Node
+        Retype Node
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Wide> result=Wide
+  coroutine_step cs1 CoroutineStep<Node> result=Node
+  coroutine_slot cl0 CoroutineSlot<Wide> value=Wide
+  coroutine_slot cl1 CoroutineSlot<Node> value=Node
+  coroutine_start ct0 result=Wide function=fn41
+  coroutine_start ct1 result=Node function=fn42
+  coroutine_fn cf0 @fn24 source_return=Wide step=cs0 immediate
+  coroutine_fn cf1 @fn28 source_return=Node step=cs1 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn7 <- component1
+  instance mi4 function=@fn8 <- component2
+  instance mi5 function=@fn9 <- patternBody
+  instance mi6 function=@fn10 <- component1
+  instance mi7 function=@fn11 <- component2
+  instance mi8 function=@fn12 <- patternBody
+  instance mi9 function=@fn13 <- component1
+  instance mi10 function=@fn14 <- component2
+  instance mi11 function=@fn15 <- patternBody
+  instance mi12 function=@fn16 <- first
+  instance mi13 function=@fn17 <- second
+  instance mi14 function=@fn18 <- first
+  instance mi15 function=@fn19 <- second
+  instance mi16 function=@fn20 <- first
+  instance mi17 function=@fn21 <- second
+  instance mi18 function=@fn22 <- Continuation.resume
+  instance mi19 function=@fn23 <- Continuation.resumeWithException
+  instance mi20 function=@fn24 <- SuspendTask.run
+  instance mi21 function=@fn25 <- SuspendRegistration.register
+  instance mi22 function=@fn26 <- Continuation.resume
+  instance mi23 function=@fn27 <- Continuation.resumeWithException
+  instance mi24 function=@fn28 <- SuspendTask.run
+  instance mi25 function=@fn29 <- SuspendRegistration.register
+  output library

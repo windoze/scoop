@@ -1,0 +1,51 @@
+package defaults
+
+public interface Reading<T> {
+    public val item: T
+    public val fallback: T get() = item
+    public val size: Int get() = 1
+}
+public interface Rich<T> : Reading<T> {
+    public override val size: Int get() = 2
+}
+public class Reader<T> public constructor(private val stored: T) : Rich<T> {
+    public override val item: T get() = stored
+}
+public open class Base public constructor() : Rich<Int> {
+    public override val item: Int get() = 4
+    public override val size: Int get() = 3
+}
+public class Child public constructor() : Base() {}
+public struct Packet<T>(val stored: T) : Reading<T> {
+    public override val item: T get() = stored
+}
+public enum Choice<T> : Reading<T> {
+    Item(val stored: T),
+    public override val item: T get() = when (this) { Choice.Item(value) -> value }
+}
+public object Singleton : Reading<Int> {
+    public override val item: Int get() = 7
+}
+private var stored: Int = 0
+public interface Counter {
+    public var value: Int
+        get() = stored
+        set(value) { stored = value }
+}
+public class Store public constructor() : Counter {}
+
+public fun localCheck(): Boolean {
+    val reader = Reader("local")
+    val packet = Packet(17)
+    val choice = Choice.Item("enum")
+    val store = Store()
+    store.value = 5
+    store.value += 2
+    val before = store.value++
+    val view: Reading<String> = reader
+    val counter: Counter = store
+    return reader.fallback == "local" && reader.size == 2 && view.size == 2 &&
+        packet.fallback == 17 && packet.size == 1 && choice.fallback == "enum" &&
+        choice.size == 1 && Child().size == 3 && Singleton.fallback == 7 &&
+        before == 7 && store.value == 8 && counter.value == 8
+}

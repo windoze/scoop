@@ -1,0 +1,53 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.run
+  public class Holder(val value: Boolean)
+    constructor() : this(<1 args>)
+      Call run
+    public fun read
+  public struct Value
+    field value: Boolean
+    constructor() : this(<1 args>)
+      Call run
+  private fun withDefault(value: Boolean = <expr>): Boolean
+    =
+      Var value
+  private fun dormant(value: Boolean = <expr>): Boolean
+    =
+      Var value
+  public fun combined(): Boolean
+    val first
+      Call withDefault
+    val second
+      Call withDefault
+    fun nested(): Boolean
+      Call run
+    val lambda
+      Lambda 0 suspend=false
+        parameters omitted
+        Call run
+    var keep
+      Call run
+    while
+      Call run
+      if
+        Call run
+        break
+      assign keep
+        Call run
+    when
+      TupleLiteral
+        Call run
+        Call run
+      arm (_, _) if <guard>
+        Call run
+      else
+        Call run
+    val holder
+      Call Holder
+    val value
+      Call Value
+    Call nested
+    Call lambda
+    return
+      Var first

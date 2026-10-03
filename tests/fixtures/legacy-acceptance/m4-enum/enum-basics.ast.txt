@@ -1,0 +1,93 @@
+SourceFile
+  RootPackage
+  enum Color
+    Red
+    Green
+    Blue
+  enum Shape
+    Circle(Int)
+    Rect(Int, Int)
+    Named <named>
+      w: Int
+      h: Int
+    WithDefault <ctor>
+      d: Int = <expr>
+  fun main()
+    val c
+      FieldAccess Red
+        Var Color
+    when
+      Var c
+      arm Red
+        Call println
+          StringLiteral "red"
+      arm Green
+        Call println
+          StringLiteral "green"
+      arm Blue
+        Call println
+          StringLiteral "blue"
+    val s
+      MethodCall Circle
+        Var Shape
+        IntLiteral 5
+    when
+      Var s
+      arm Circle(r)
+        Call println
+          Var r
+      arm Rect(w, h)
+        Call println
+          Binary Add
+            Var w
+            Var h
+      arm Named{w, ..}
+        Call println
+          Var w
+      arm WithDefault(d)
+        Call println
+          Var d
+    val r
+      MethodCall Rect
+        Var Shape
+        IntLiteral 3
+        IntLiteral 4
+    when
+      Var r
+      arm Circle(x)
+        Call println
+          Var x
+      arm Rect(w, h)
+        Call println
+          Binary Add
+            Var w
+            Var h
+      arm Named{w, ..}
+        Call println
+          Var w
+      arm WithDefault(d)
+        Call println
+          Var d
+    val d
+      MethodCall WithDefault
+        Var Shape
+    when
+      Var d
+      arm WithDefault(x)
+        Call println
+          Var x
+      else
+        Call println
+          StringLiteral "other"
+    val d2
+      MethodCall WithDefault
+        Var Shape
+        IntLiteral 3
+    when
+      Var d2
+      arm WithDefault(x)
+        Call println
+          Var x
+      else
+        Call println
+          StringLiteral "other"

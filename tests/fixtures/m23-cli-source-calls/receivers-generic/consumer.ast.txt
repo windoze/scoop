@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage receiver.consumer
+  ImportExact Local receiver.provider.answer
+  private fun Any.localAnswer(): Int
+    =
+      IntLiteral 9
+  private fun using<T>(value: T, answer: Int = <expr>): Int
+    =
+      Var answer
+  public fun generic(): Int
+    val local
+      Call using
+        StringLiteral "generic"
+    return
+      MethodCall answer
+        StringLiteral "generic"

@@ -1,0 +1,169 @@
+SourceFile
+  QualifiedPackage consumer.callprobes
+  public class Counter()
+    public var calls: Int = <expr>
+      IntLiteral 0
+  public class Empty<T>()
+    public fun identity
+  public class Pair<T, U>(val first: T, val second: U)
+  public class Holder<T>(val value: T)
+    public fun apply
+  public enum Packet<T>
+    Item <ctor>
+      value: T
+    Missing
+  public class Reference<T : ref>(val value: T)
+  public fun map<T, R>(operation: (T) -> R, value: T): R
+    =
+      Call operation
+        Var value
+  public fun choose<T>(value: T, operation: (T) -> Int): Int
+    =
+      Call operation
+        Var value
+  public fun choose(value: Int, operation: (String) -> Int): Int
+    =
+      Call operation
+        StringLiteral "rejected"
+  public fun plain(value: Int, operation: (Int) -> Int): Int
+    =
+      Call operation
+        Var value
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val empty: Empty<T>
+      Call Empty
+    if
+      Binary Ne
+        MethodCall identity<_>
+          Var empty
+          IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val pair
+      Call Pair<_, Int>
+        Var seed
+        IntLiteral 42
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess first
+              Var pair
+          IntLiteral 42
+        Binary Ne
+          FieldAccess second
+            Var pair
+          IntLiteral 42
+      return
+        IntLiteral 2
+    val holder
+      Call Holder<_>
+        Var seed
+    if
+      Binary Ne
+        MethodCall apply<_>
+          Var holder
+          IntLiteral 2
+          Lambda 0 suspend=false
+            param value: _
+            param increment: _
+            Binary Add
+              Call inspect
+                Var value
+              Var increment
+        IntLiteral 44
+      return
+        IntLiteral 3
+    val packet: Packet<T>
+      MethodCall Item
+        Var Packet
+        Var seed
+    if
+      Binary Ne
+        WhenExpression
+          Var packet
+          arm Item(value)
+            Call inspect
+              Var value
+          arm Missing
+            IntLiteral 0
+        IntLiteral 42
+      return
+        IntLiteral 4
+    val identity: (T) -> T
+      Lambda 1 suspend=false
+        param value: _
+        Var value
+    if
+      Binary Ne
+        Call inspect
+          Call map
+            Var identity
+            Var seed
+        IntLiteral 42
+      return
+        IntLiteral 5
+    val mapped: Int
+      Call map<Int, _>
+        Lambda 2 suspend=false
+          param value: _
+          Binary Add
+            Var value
+            IntLiteral 1
+        IntLiteral 41
+    if
+      Binary Ne
+        Var mapped
+        IntLiteral 42
+      return
+        IntLiteral 6
+    val counter
+      Call Counter
+    val chosen
+      Call choose
+        IntLiteral 41
+        Lambda 3 suspend=false
+          param value: _
+          assign .calls
+            Var counter
+            Binary Add
+              FieldAccess calls
+                Var counter
+              IntLiteral 1
+          Binary Add
+            Var value
+            IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Var chosen
+          IntLiteral 42
+        Binary Ne
+          FieldAccess calls
+            Var counter
+          IntLiteral 1
+      return
+        IntLiteral 7
+    if
+      Binary Ne
+        Call plain
+          IntLiteral 41
+          AnonymousFunction 0 suspend=false return=Int
+            param value: Int
+            return
+              Binary Add
+                Var value
+                IntLiteral 1
+        IntLiteral 42
+      return
+        IntLiteral 8
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 4 suspend=false
+          param value: _
+          Var value

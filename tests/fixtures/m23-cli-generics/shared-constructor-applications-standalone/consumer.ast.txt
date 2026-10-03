@@ -1,0 +1,103 @@
+SourceFile
+  QualifiedPackage consumer.constructors
+  private struct CurrentPair<T, U>
+    field value: T
+    field adjustment: Int = <expr>
+    constructor(value: T, flag: Boolean) : this(<2 args>)
+  private open class CurrentBox<T, U>(var value: T, val adjustment: Int = <expr>)
+    val copied: T =
+      Var value
+    constructor(value: T, flag: Boolean) : this(<2 args>)
+  private class CurrentChild<T, U>(value: T) : CurrentBox<T, U>(<2 args>)
+  private fun selected<T, U>(value: T, box: CurrentBox<T, U> = <expr>): T
+    =
+      FieldAccess value
+        Var box
+    @NoGC
+  private fun plain(value: Int): Int
+    =
+      FieldAccess value
+        Call CurrentPair<Int, Unit>
+          Var value
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val first
+      Call CurrentPair<T, Unit>
+        Var seed
+    val repeated
+      Call CurrentPair<T, Unit>
+        Var seed
+    val secondary
+      Call CurrentPair<T, String>
+        Var seed
+        BoolLiteral false
+    val box
+      Call CurrentBox<T, Int>
+        Var seed
+    val child
+      Call CurrentChild<T, Unit>
+        Var seed
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var first
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var repeated
+          IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var secondary
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            FieldAccess copied
+              Var box
+          IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var child
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            Call selected<T, Unit>
+              Var seed
+          IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call plain
+          IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 4
+    val closure: () -> T
+      Lambda 0 suspend=false
+        parameters omitted
+        FieldAccess value
+          Call CurrentPair<T, Unit>
+            Var seed
+    return
+      Call inspect
+        Call closure
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 1 suspend=false
+          param value: _
+          Var value

@@ -48,7 +48,7 @@ fn parses_marker_positional_named_and_multiple_annotations() {
     ));
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n    @NoGC\n    @Extern(\"native\", name = \"sum\", enabled = true, version = 12)\n  fun sum(): Int\n    =\n      IntLiteral 0\n"
+        "SourceFile\n  RootPackage\n    @NoGC\n    @Extern(\"native\", name = \"sum\", enabled = true, version = 12)\n  fun sum(): Int\n    =\n      IntLiteral 0\n"
     );
 }
 

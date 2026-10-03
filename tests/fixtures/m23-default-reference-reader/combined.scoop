@@ -1,0 +1,15 @@
+public const val READER_SEED: Int = 3
+@Global public var READER_GLOBAL: Int = 4
+public struct ReaderBox<T>(val value: T)
+public object ReaderDefaults {
+    public val seed: Int = 5
+}
+public fun readerSeed(): Int = READER_SEED
+
+public fun <T> readerCompose(
+    value: T,
+    box: ReaderBox<T> = ReaderBox<T>(value),
+    field: T = box.value,
+    amount: Int = readerSeed() + READER_SEED + READER_GLOBAL + ReaderDefaults.seed,
+    closure: () -> T = { value }
+): T = field

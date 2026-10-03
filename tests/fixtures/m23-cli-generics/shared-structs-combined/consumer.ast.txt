@@ -1,0 +1,94 @@
+SourceFile
+  QualifiedPackage consumer.structs
+  ImportStar Local upstream.structs.*
+  ImportExact Local upstream.structs.RemoteCell as ReusedCell
+  private struct LocalCell<T> : Reader<T>
+    field value: T
+    field remote: ReusedCell<T>
+    public fun get
+    @CLayout
+  private struct LocalNative
+    field left: Int
+    field right: Int
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val local
+      Call LocalCell
+        Var value
+        Call create
+          Var value
+    val current: Reader<T>
+      Var local
+    val remote: Readable<T>
+      FieldAccess remote
+        Var local
+    if
+      Binary Ne
+        Call read
+          MethodCall read
+            Var current
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call read
+          MethodCall get
+            Var remote
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call read
+          Elvis
+            FieldAccess optional
+              FieldAccess remote
+                Var local
+            FieldAccess value
+              Var local
+        IntLiteral 42
+      return
+        IntLiteral 3
+    val first
+      Call NativePair
+        IntLiteral 20
+        IntLiteral 22
+    val second
+      Call LocalNative
+        FieldAccess left
+          Var first
+        FieldAccess right
+          Var first
+    return
+      Binary Add
+        FieldAccess left
+          Var second
+        FieldAccess right
+          Var second
+  public fun result(): Int
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 0 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 1 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 2 suspend=false
+          param item: _
+          Var item

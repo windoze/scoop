@@ -1,0 +1,56 @@
+
+public class CompanionHost public constructor() {
+    public companion object Factory: Readable {
+        public val value: Counter = Counter(21)
+        public var current: Counter = Counter(0)
+        public var count: Long = 0
+        public var guarded: Long = 0
+            private set(next) { field = next }
+        public override fun read(): Long = value.value
+        public fun get(marker: Token = Token()): Counter = value
+    }
+}
+
+public class OtherCompanionHost public constructor() {
+    public companion object
+}
+
+public class RestrictedCompanionHost public constructor() {
+    internal companion object Factory {
+        public val value: Counter = Counter(21)
+    }
+}
+
+public object UnusedOuter {
+    init { throw RebuiltFailure(1) }
+    public object Nested {
+        public val value: Counter = Counter(21)
+    }
+}
+
+public class ConstHost public constructor() {
+    public companion object {
+        public const val answer: Long = 42
+        init { throw RebuiltFailure(2) }
+    }
+}
+
+public object CompanionTrace {
+    public var events: Long = 0
+}
+
+public class WriteHost public constructor() {
+    public companion object {
+        init { CompanionTrace.events = CompanionTrace.events * 10 + 1 }
+        public var count: Long = 0
+            set(next) {
+                CompanionTrace.events = CompanionTrace.events * 10 + 3
+                field = next
+            }
+    }
+}
+
+public fun companionWriteArgument(): Long {
+    CompanionTrace.events = CompanionTrace.events * 10 + 2
+    return 21
+}

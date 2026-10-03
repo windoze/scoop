@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  fun hello()
+    Call print
+      StringLiteral "hello"
+  fun world()
+    Call println
+      StringLiteral ", world"
+  fun main()
+    Call hello
+    Call world

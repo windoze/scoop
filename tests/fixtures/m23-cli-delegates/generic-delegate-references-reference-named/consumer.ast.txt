@@ -1,0 +1,47 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportStar Local templates.delegateGenerated.*
+  public fun exercise<T>(value: T): Int
+    val before
+      FieldAccess initializations
+        Var Trace
+    val receiver
+      Call Receiver<T>
+        Var value
+    val answer
+      FieldAccess referenceNamed
+        Var receiver
+    val allocated
+      Call Payload
+        IntLiteral 0
+    if
+      Binary Or
+        Binary Ne
+          Var answer
+          IntLiteral 42
+        Binary Ne
+          FieldAccess value
+            Var allocated
+          IntLiteral 0
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess referenceNamed
+            Var receiver
+          IntLiteral 42
+        Binary Ne
+          FieldAccess initializations
+            Var Trace
+          Binary Add
+            Var before
+            IntLiteral 1
+      return
+        IntLiteral 2
+    return
+      Var answer
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

@@ -1,0 +1,1 @@
+fun bad(left: Int, right: UInt): Boolean = left != right

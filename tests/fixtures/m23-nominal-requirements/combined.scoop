@@ -1,0 +1,27 @@
+public interface Readable {
+    public fun evaluate(): Int = 1
+}
+public interface Root : Readable {
+    public var count: Int
+        get() = 2
+        set(value) {}
+}
+public open class Factory protected constructor(seed: Int = 3) : Root {
+    public constructor(text: String) : this(seed = 1) {}
+    private constructor(flag: Boolean) : this(seed = 2) {}
+    internal constructor(value: Long) : this(seed = 3) {}
+    private val hidden: Int = 7
+    protected open fun protectedValue(): String = "protected"
+    public fun ordinary(flag: Boolean): String = "ordinary"
+}
+public class Child public constructor(label: String) : Factory(label)
+public struct Value(val payload: Int) : Readable {
+    public override fun evaluate(): Int = 4
+}
+public class FinalReader public constructor() : Readable {
+    public override fun evaluate(): Int = 5
+}
+public struct Generic<T>(val value: T)
+public interface DeferredGeneric<T> {}
+public class DeferredRoot : DeferredGeneric<Int> {}
+public struct DeferredStorage(val root: DeferredRoot)

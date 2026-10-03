@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m6-classes/errors/unimplemented-interface.scoop:5:1: error: class `C` does not implement interface method `I.m`

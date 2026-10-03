@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public interface DeferredGeneric<T>
+  public class DeferredRoot(), DeferredGeneric<Int>
+  public struct ReadyValue
+    field value: Int

@@ -1,0 +1,171 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `invalid` has non-GC-free parameter `values` of type Array<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 106,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 29
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `invalid` has local `$for.source.0` of non-GC-free type Array<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 106,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 29
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `invalid` has local `$dependency.receiver` of non-GC-free type Array<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 106,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 29
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `invalid` has local `$for.iterator.result.1` of non-GC-free type Iterator<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 106,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 29
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `invalid` has local `$for.iterator.2` of non-GC-free type Iterator<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 106,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 29
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Array<Int> is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Array<Int> is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Iterator<Int> is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "calling a managed dependency function is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Array<Int> is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Iterator<Int> is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "calling a managed dependency function is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type Iterator<Int> is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "7dd1a498f5cb0829548fd36c754b38c511c7385a4c4fac77498b2c7ec317ab34",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  }
+]

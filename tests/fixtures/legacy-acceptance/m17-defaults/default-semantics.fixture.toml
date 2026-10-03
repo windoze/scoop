@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m17-defaults-default-semantics"
+root = "../../m17-defaults/default-semantics.scoop"
+inputs = ["../../m17-defaults/default-semantics.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m17-defaults", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "default-semantics.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "default-semantics.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "default-semantics.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "default-semantics.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "prior-once\n7\nstruct-default\n10\n11\nclass-default\n20\n21\nvariant-default\n30\n31\n0\nexact\n42\n40\n40\n41\n42\nlocal-seed\n50\nexplicit-throws\ncaught\n"
+stderr = ""

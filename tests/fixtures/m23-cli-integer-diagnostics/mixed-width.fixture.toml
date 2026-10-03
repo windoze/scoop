@@ -1,0 +1,15 @@
+schema = 1
+name = "integer-diagnostics-mixed-width"
+inputs = ["../m22-integers/errors/mixed-width.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["integer-diagnostics", "negative"]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "${fixture}/../m22-integers/errors/mixed-width.scoop", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "mixed-width.diagnostics.json"}

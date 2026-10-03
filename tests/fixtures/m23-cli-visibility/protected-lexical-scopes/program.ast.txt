@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  public open class Base()
+    protected var state: Int <computed>
+      get()
+        IntLiteral 1
+      private set(value)
+    protected fun secret
+    nested class Writer
+  open class Sibling() : Base(<0 args>)
+  class Derived() : Base(<0 args>)
+    nested struct Reader
+    nested class Probe
+    companion object
+      fun read
+  fun main()

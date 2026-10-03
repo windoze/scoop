@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m19-super-errors-invalid-super"
+root = "../../../m19-super/errors/invalid-super.scoop"
+inputs = ["../../../m19-super/errors/invalid-super.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m19-super", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "invalid-super.diagnostics.json"}

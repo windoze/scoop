@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  public interface DeferredGeneric<T>
+  public class DeferredStorage(val value: DeferredGeneric<Int>)
+  public enum DeferredEnum
+    Empty
+    Full(DeferredStorage)
+  public interface DeferredGetter
+    public open val value: DeferredStorage <computed>
+  public interface DeferredSetter
+    public open var value: DeferredStorage <computed>
+  public interface DeferredSuspend
+    suspend fun fetch
+  public abstract class DeferredBase()
+    public abstract var value: DeferredStorage <abstract>
+  public abstract class DeferredDerived() : DeferredBase(<0 args>)
+  public class ReadyDirect()
+    public fun take
+  public class ReadyPrivateConstructor(value: DeferredStorage)
+  public open class ReadyOuter()
+    protected nested class DeferredNested

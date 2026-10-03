@@ -20,7 +20,7 @@ pub struct ExternFunctionIdentity {
 #[derive(Debug)]
 pub struct CExternFunction {
     pub identity: ExternFunctionIdentity,
-    pub bridge_symbol: String,
+    pub bridge: GeneratedBridgeEntryIdentity,
     pub signature: CFunctionType,
 }
 
@@ -68,7 +68,7 @@ impl ExternFunctions {
             library: identity.library,
             calling_convention: identity.calling_convention,
             kind: ExternFunctionKind::C {
-                bridge_symbol: function.bridge_symbol,
+                bridge: Box::new(function.bridge),
                 signature: function.signature,
             },
         }))
@@ -110,10 +110,34 @@ pub enum CallingConvention {
     Cdecl,
 }
 
+impl scoop_wire::WireEncode for CallingConvention {
+    fn encode(
+        &self,
+        encoder: &mut scoop_wire::Encoder,
+    ) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.unsigned(match self {
+            Self::Cdecl => 1,
+        })
+    }
+}
+
+impl scoop_wire::WireDecode for CallingConvention {
+    fn decode(decoder: &mut scoop_wire::Decoder<'_>) -> Result<Self, scoop_wire::WireError> {
+        match decoder.unsigned()? {
+            1 => Ok(Self::Cdecl),
+            tag => Err(scoop_wire::WireError::new(
+                scoop_wire::WireErrorKind::UnknownTag { tag },
+                decoder.path().clone(),
+                Some(decoder.position()),
+            )),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ExternFunctionKind {
     C {
-        bridge_symbol: String,
+        bridge: Box<GeneratedBridgeEntryIdentity>,
         signature: CFunctionType,
     },
     Scoop {

@@ -1,0 +1,38 @@
+SourceFile
+  RootPackage
+  fun marked(label: String, value: Int): Int
+    Call println
+      Var label
+    return
+      Var value
+  class Failing(seed: Int)
+    val before: Int =
+      Call marked
+        StringLiteral "before"
+        Var seed
+    init
+      Call println
+        StringLiteral "throwing-init"
+      throw
+        Call UnwrapException
+    val after: Int =
+      Call marked
+        StringLiteral "unreachable-property"
+        Var seed
+    constructor(seed: Int, label: String) : this(<1 args>)
+      Call println
+        Var label
+      Call println
+        StringLiteral "unreachable-secondary"
+  fun main()
+    try
+      val failed
+        Call Failing
+          IntLiteral 1
+          StringLiteral "outer"
+      Call println
+        FieldAccess before
+          Var failed
+    catch exception: UnwrapException
+      Call println
+        StringLiteral "caught"

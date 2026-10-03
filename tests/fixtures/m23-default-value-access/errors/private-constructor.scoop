@@ -1,0 +1,4 @@
+public class AccessCell private constructor(value: Int) {
+    public fun reveal(value: AccessCell = AccessCell(1)): AccessCell = value
+}
+fun main() {}

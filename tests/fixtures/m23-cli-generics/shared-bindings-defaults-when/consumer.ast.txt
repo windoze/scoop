@@ -1,0 +1,76 @@
+SourceFile
+  QualifiedPackage consumer.bindings
+  ImportStar Local upstream.bindings.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val pair
+      Call Pair<T>
+        Var seed
+        IntLiteral 0
+    if
+      Binary Ne
+        Call read
+          Call chosen<T>
+            Var pair
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call read
+          Call matched<T>
+            Var pair
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call patternBody<T>
+          Var pair
+          Var read
+        IntLiteral 42
+      return
+        IntLiteral 3
+    return
+      WhenExpression
+        Var pair
+        arm Pair{right: extra, left: value}
+          Binary Add
+            Call read
+              Var value
+            Var extra
+  public fun result(): Int
+    val covered
+      WhenExpression
+        Call Pair<Int?>
+          Call Some
+            IntLiteral 40
+          IntLiteral 2
+        arm Pair(Some(value), extra)
+          Binary Add
+            Var value
+            Var extra
+        arm Pair(None, _)
+          IntLiteral 1
+    if
+      Binary Ne
+        Var covered
+        IntLiteral 42
+      return
+        IntLiteral 4
+    val result
+      WhenExpression
+        Call IntPair
+          IntLiteral 40
+          IntLiteral 2
+        arm IntPair(value, extra) if <guard>
+          Binary Add
+            Var value
+            Var extra
+        else
+          IntLiteral 1
+    return
+      Call exercise<Int>
+        Var result
+        Lambda 0 suspend=false
+          param item: _
+          Var item

@@ -7,11 +7,12 @@ impl Lowerer {
     /// at most one candidate reaches here.
     pub(crate) fn validate_option_enum(&mut self, files: &[ast::SourceFile]) {
         let Some(&(id, file_index, span, type_param_count)) = self.option_candidates.first() else {
-            // Attribute to the first file: with a core library present
-            // that is a core file; without one it is the user file.
-            self.current_file = 0;
+            // Attribute to a core source when the existing M22 core input is
+            // present; a core-less test input falls back to its user source.
+            let core_diagnostic_file = self.core_diagnostic_file();
+            self.current_file = core_diagnostic_file;
             self.error(
-                files[0].span,
+                files[core_diagnostic_file].span,
                 "scoop.core must define an enum `Option<T>`".to_string(),
             );
             return;
@@ -64,10 +65,8 @@ impl Lowerer {
 
         let some_valid = some_index.is_some_and(|index| {
             let variant = &declaration.variants[index];
-            matches!(
-                self.variant_styles.get(&(enumeration, index as u32)),
-                Some(VariantStyle::Positional)
-            ) && matches!(variant.fields.as_slice(), [field]
+            variant.style == VariantStyle::Positional
+                && matches!(variant.fields.as_slice(), [field]
                 if matches!(self.types[field.ty], Type::Param(found) if found == parameter))
         });
         if !some_valid {
@@ -80,10 +79,7 @@ impl Lowerer {
 
         let none_valid = none_index.is_some_and(|index| {
             declaration.variants[index].fields.is_empty()
-                && matches!(
-                    self.variant_styles.get(&(enumeration, index as u32)),
-                    Some(VariantStyle::Unit)
-                )
+                && declaration.variants[index].style == VariantStyle::Unit
         });
         if !none_valid {
             self.error(

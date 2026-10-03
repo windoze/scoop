@@ -1,0 +1,3 @@
+import upstream.classDefinitions.*
+
+public fun invalid(): Link<Int> = Link<Int>("wrong")

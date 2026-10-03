@@ -32,7 +32,7 @@ fn anonymous_function_infers_return_and_owns_local_return() {
     let signature = &module.function_types[anonymous.function_type];
     assert_eq!(signature.parameter_types, vec![int_type(&module)]);
     assert_eq!(signature.return_type, int_type(&module));
-    let invoke = &module.functions[anonymous.function];
+    let invoke = &module.functions[anonymous.definition.source_function()];
     let hir::FunctionKind::User(body) = &invoke.kind else {
         panic!("anonymous invoke body");
     };
@@ -70,11 +70,37 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
         .iter()
         .next()
         .expect("local function");
+    assert_eq!(
+        local.source().expect("current local definition").1,
+        hir::LexicalDefinitionRoot::Function(module.entry())
+    );
+    assert_eq!(
+        definition_path(&local.definition_path),
+        vec![(
+            scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration,
+            1,
+        )]
+    );
     assert_eq!(local.captures.len(), 1);
     assert_eq!(local.captures[0].name, "base");
-    let hir::FunctionKind::User(main_body) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main_body) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
+    let base = main_body
+        .locals
+        .iter()
+        .find_map(|(_, local)| (local.name == "base").then_some(local))
+        .expect("the captured source local remains in the enclosing body");
+    let scoop_identity::LocalValueSelector::LocalDeclaration { path } = &base.selector else {
+        panic!("the captured value must keep a source-local selector")
+    };
+    assert_eq!(
+        definition_path(path),
+        vec![(
+            scoop_identity::StructuralDefinitionSiteRole::LocalDeclaration,
+            0,
+        )]
+    );
     assert!(matches!(
         main_body.statements[1].kind,
         hir::StatementKind::LocalFunction(id) if id == local_id
@@ -82,13 +108,14 @@ fn local_function_has_typed_identity_capture_and_lifted_direct_call() {
     let init = local_init(main_body, "result");
     assert!(matches!(
         init.kind,
-        hir::ExprKind::LocalFunctionCall {
-            local_function,
-            ref captures,
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ref args,
             ..
-        } if local_function == local_id && captures.len() == 1
+        } if module.callable_function(callee) == local.source_function()
+            && args.len() == local.captures.len() + 1
     ));
-    let lifted = &module.functions[local.function];
+    let lifted = &module.functions[local.source_function()];
     assert_eq!(
         lifted.params.len(),
         2,
@@ -132,11 +159,15 @@ fn overload_probes_lambda_candidates_transactionally() {
         1,
         "discarded candidate probes must not leak lambda entities"
     );
-    let hir::FunctionKind::User(main) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(main) = &module.functions[module.entry()].kind else {
         panic!("main body")
     };
     let init = local_init(main, "result");
-    let hir::ExprKind::Call { callee, .. } = &init.kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = &init.kind
+    else {
         panic!("resolved overload call")
     };
     assert_eq!(

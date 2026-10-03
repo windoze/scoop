@@ -1,0 +1,65 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val first
+      Call base
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            MethodCall zeta
+              Var first
+            IntLiteral 1
+          Binary Eq
+            MethodCall alpha
+              Var first
+            IntLiteral 2
+        Binary Eq
+          MethodCall direct
+            Var first
+          IntLiteral 3
+    val second
+      Call derived
+    val parent: Base
+      Var second
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            MethodCall zeta
+              Var parent
+            IntLiteral 5
+          Binary Eq
+            MethodCall middle
+              Var second
+            IntLiteral 6
+        Binary Eq
+          MethodCall alpha
+            Var second
+          IntLiteral 2
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall inspect
+            Var first
+          IntLiteral 4
+        Binary Eq
+          MethodCall inspect
+            Var second
+          IntLiteral 4
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall zeta
+            Var Singleton
+          IntLiteral 5
+        Binary Eq
+          MethodCall middle
+            Var Singleton
+          IntLiteral 6

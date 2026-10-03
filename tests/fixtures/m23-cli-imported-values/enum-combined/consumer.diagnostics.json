@@ -1,0 +1,15 @@
+[
+  {
+    "severity": "warning",
+    "code": "SCOOPC_COMPILER_WARNING",
+    "message": "`choice` is a catch-all binding because `Choice` has no variant named `choice`; qualify an intended variant as `E.V`, or use `_` or an intentional binding name for a catch-all",
+    "origin": {
+      "kind": "source",
+      "cone": "09cc77d23e72625517cd8511b00169a0b2f236b63536d5bc8261af9459632111",
+      "path": "src/main.scoop",
+      "start": 680,
+      "end": 686
+    },
+    "notes": []
+  }
+]

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for callable reference `::unresolved` in dependency top-level candidate layer:\n  - fun unresolved<T>(): Int — cannot infer a unique type argument for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "989c2cbf74a579a1eb832783831714f605231ce5a88da0dcea84853f01422f86",
+      "end": 103,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

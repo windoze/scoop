@@ -1,0 +1,54 @@
+SourceFile
+  QualifiedPackage consumer.rebuiltcore
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val cell
+      Call rebuiltCell
+        Var seed
+    val values: Array<T>
+      ArrayLiteral
+        Var seed
+        FieldAccess value
+          Var cell
+    var count: Int
+      IntLiteral 0
+    var result: Int
+      IntLiteral 0
+    for value
+      Var values
+      compound-assign Add
+        IntLiteral 1
+      assign result
+        Call read
+          Var value
+    if
+      Binary Ne
+        Var count
+        IntLiteral 1
+      return
+        IntLiteral 2
+    return
+      Var result
+  public fun result(): Int
+    val values: Array<Int>
+      ArrayLiteral
+        IntLiteral 100
+        IntLiteral 20
+        IntLiteral 22
+    var total: Int
+      IntLiteral 0
+    for value
+      Var values
+      compound-assign Add
+        Var value
+    if
+      Binary Ne
+        Var total
+        IntLiteral 42
+      return
+        IntLiteral 3
+    return
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value

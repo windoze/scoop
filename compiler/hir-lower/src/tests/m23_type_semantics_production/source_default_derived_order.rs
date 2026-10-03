@@ -1,0 +1,110 @@
+use super::*;
+use source_dispatch::with_source;
+mod generic;
+mod structural;
+mod unit;
+
+#[test]
+fn derived_equality_is_available_while_source_defaults_are_prepared() {
+    for (source, names) in [
+        (
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/fixtures/m23-type-source-defaults/derived-default-order.scoop"
+            )),
+            &["structDefault", "enumDefault"][..],
+        ),
+        (
+            include_str!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/../../tests/fixtures/m23-type-source-defaults/derived-default-combinations.scoop"
+            )),
+            &["nested", "enumNested", "closure"][..],
+        ),
+    ] {
+        with_source(source, |output, mir| {
+            let export = output.output().export.module();
+            assert!(!mir.functions.is_empty());
+            for name in names {
+                let id = export
+                    .functions
+                    .iter()
+                    .find(|(_, f)| f.name == *name)
+                    .unwrap()
+                    .0;
+                let production =
+                    default_expression(output, hir::ExportParameterOwner::Function(id), 2);
+                let role = if *name == "closure" {
+                    "Lambda"
+                } else {
+                    "DerivedEquality"
+                };
+                let references = production
+                    .references
+                    .callables
+                    .iter()
+                    .filter(|r| match r.target {
+                        hir::ExportDefaultCallableTarget::DerivedEquality(_) => {
+                            role == "DerivedEquality"
+                        }
+                        hir::ExportDefaultCallableTarget::Lambda(_) => role == "Lambda",
+                        _ => false,
+                    })
+                    .count();
+                assert_eq!(references, 1, "{name}");
+            }
+            if names.len() == 2 {
+                let (_, holder) = export
+                    .classes
+                    .iter()
+                    .find(|(_, c)| c.name == "Holder")
+                    .unwrap();
+                let production = default_expression(
+                    output,
+                    hir::ExportParameterOwner::ClassConstructor(holder.constructors[0]),
+                    0,
+                );
+                assert_eq!(
+                    production
+                        .references
+                        .callables
+                        .iter()
+                        .filter(|r| matches!(
+                            r.target,
+                            hir::ExportDefaultCallableTarget::DerivedEquality(_)
+                        ))
+                        .count(),
+                    1
+                );
+            } else {
+                assert_eq!(
+                    export
+                        .functions
+                        .iter()
+                        .filter(|(_, f)| f.name == "Atom.equals")
+                        .count(),
+                    1
+                );
+            }
+        });
+    }
+}
+
+fn default_expression(
+    output: &hir::DependencyHirOutput,
+    owner: hir::ExportParameterOwner,
+    position: usize,
+) -> &hir::ExportDefaultExpr {
+    let export = output.output().export.module();
+    let parameters = export
+        .source_parameter_interfaces
+        .iter()
+        .find(|source| source.owner == owner)
+        .unwrap();
+    let hir::ExportParameterCalling::Default { source, .. } =
+        parameters.parameters[position].calling
+    else {
+        panic!("the fixture parameter has a default expression")
+    };
+    &export.export_default_exprs[export.export_default_sources[source].declared().unwrap().0]
+}

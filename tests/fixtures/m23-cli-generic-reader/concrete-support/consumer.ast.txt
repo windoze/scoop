@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    =
+      Call withHiddenValue<Int>
+        IntLiteral 42

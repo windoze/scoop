@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.literals.exercise
+  ImportExact Local consumer.literals.result
+  private class Payload(val value: Int)
+  public fun check(): Int
+    val stored
+      Call Payload
+        Call result
+    if
+      Binary Ne
+        Call exercise<Payload>
+          Var stored
+          Lambda 0 suspend=false
+            param item: _
+            FieldAccess value
+              Var item
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Int>
+          IntLiteral 42
+          Lambda 1 suspend=false
+            param item: _
+            Var item
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val allocation
+      Call Payload
+        IntLiteral 0
+    return
+      Binary Add
+        FieldAccess value
+          Var stored
+        FieldAccess value
+          Var allocation

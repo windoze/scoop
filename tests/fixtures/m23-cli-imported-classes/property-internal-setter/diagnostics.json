@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "setter of property `internalValue` is not accessible",
+    "notes": [],
+    "origin": {
+      "cone": "381e51933dda86e739d59adae1ba162af18bcb5fb89dd86879af32c83c397419",
+      "end": 98,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 85
+    },
+    "severity": "error"
+  }
+]

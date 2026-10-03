@@ -1,16 +1,22 @@
 use super::*;
 
 fn add_encoded_global(module: &mut Module, symbol: &str, ty: LirType, payload: LirConstantImage) {
+    let identity = static_storage_identity(symbol);
     module.globals.alloc(Global {
-        symbol: symbol.to_string(),
         address_kind: PointerKind::Raw,
         scan: RefScan::None,
         init: GlobalInit::Storage {
+            identity,
+            layout: layout_identity(symbol, scoop_identity::RepresentationRole::ManagedValue)
+                .into(),
             ty,
             initial_state: LirStaticInitialState::EncodedStaticValue { payload },
-            thread_local: false,
         },
     });
+}
+
+fn encoded_global_symbol(name: &str) -> String {
+    static_storage_identity(name).symbol().to_string()
 }
 
 fn constant_validation_error(module: &Module) -> CodegenError {
@@ -31,7 +37,10 @@ fn global_constant_preflight_rejects_an_inexact_root_type() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@wrong_root_type` constant value: Boolean constant does not match storage type i64"
+        format!(
+            "storage global `@{}` constant value: Boolean constant does not match storage type i64",
+            encoded_global_symbol("wrong_root_type")
+        )
     );
 }
 
@@ -39,6 +48,7 @@ fn global_constant_preflight_rejects_an_inexact_root_type() {
 fn global_constant_preflight_recursively_rejects_an_inexact_struct_leaf() {
     let mut module = enum_module();
     let inner = module.structs.alloc_scoop(
+        crate::tests::test_physical_exact("Inner", scoop_identity::SourceNominalKind::Struct),
         "Inner".to_string(),
         8,
         8,
@@ -52,6 +62,7 @@ fn global_constant_preflight_recursively_rejects_an_inexact_struct_leaf() {
         }],
     );
     let outer = module.structs.alloc_scoop(
+        crate::tests::test_physical_exact("Outer", scoop_identity::SourceNominalKind::Struct),
         "Outer".to_string(),
         16,
         8,
@@ -92,7 +103,10 @@ fn global_constant_preflight_recursively_rejects_an_inexact_struct_leaf() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@nested_leaf` constant value.field[0].field[0]: Boolean constant does not match storage type i64"
+        format!(
+            "storage global `@{}` constant value.field[0].field[0]: Boolean constant does not match storage type i64",
+            encoded_global_symbol("nested_leaf")
+        )
     );
 }
 
@@ -112,7 +126,10 @@ fn global_constant_preflight_rejects_a_wrong_enum_unit_owner() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@wrong_enum_owner` constant value: enum unit constant for e0 does not match storage type enum1"
+        format!(
+            "storage global `@{}` constant value: enum unit constant for e0 does not match storage type enum1",
+            encoded_global_symbol("wrong_enum_owner")
+        )
     );
 }
 
@@ -134,7 +151,10 @@ fn global_constant_preflight_rejects_a_payload_variant_as_a_unit() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@payload_as_unit` constant value: a payload enum variant cannot be encoded as a unit constant"
+        format!(
+            "storage global `@{}` constant value: a payload enum variant cannot be encoded as a unit constant",
+            encoded_global_symbol("payload_as_unit")
+        )
     );
 }
 
@@ -142,6 +162,10 @@ fn global_constant_preflight_rejects_a_payload_variant_as_a_unit() {
 fn global_constant_preflight_rejects_a_foreign_checked_variant_ref() {
     let mut foreign = scoop_lir::EnumDefs::default();
     let foreign_shape = foreign.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "ForeignShape",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "ForeignShape".to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..4)
@@ -165,6 +189,7 @@ fn global_constant_preflight_rejects_a_foreign_checked_variant_ref() {
     let mut module = enum_module();
     let shape = module.enums.iter().next().expect("Shape enum").0;
     let wrapper = module.structs.alloc_scoop(
+        crate::tests::test_physical_exact("ShapeHolder", scoop_identity::SourceNominalKind::Struct),
         "ShapeHolder".to_string(),
         32,
         8,
@@ -192,7 +217,10 @@ fn global_constant_preflight_rejects_a_foreign_checked_variant_ref() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@foreign_enum_unit` constant value.field[0] carries invalid enum0 variant 3 reference"
+        format!(
+            "storage global `@{}` constant value.field[0] carries invalid enum0 variant 3 reference",
+            encoded_global_symbol("foreign_enum_unit")
+        )
     );
 }
 
@@ -200,6 +228,7 @@ fn global_constant_preflight_rejects_a_foreign_checked_variant_ref() {
 fn global_constant_preflight_rejects_referenced_global_provenance_mismatch() {
     let mut module = enum_module();
     let target = module.globals.iter().next().expect("trap message").0;
+    let target_symbol = module.globals[target].symbol().to_string();
     add_encoded_global(
         &mut module,
         "wrong_global_provenance",
@@ -213,6 +242,9 @@ fn global_constant_preflight_rejects_referenced_global_provenance_mismatch() {
     let error = constant_validation_error(&module);
     assert_eq!(
         error.0,
-        "storage global `@wrong_global_provenance` constant value: global pointer constant declares managed provenance but referenced global `@scoop.trap.0` has raw provenance"
+        format!(
+            "storage global `@{}` constant value: global pointer constant declares managed provenance but referenced global `@{target_symbol}` has raw provenance",
+            encoded_global_symbol("wrong_global_provenance"),
+        )
     );
 }

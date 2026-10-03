@@ -1,0 +1,57 @@
+SourceFile
+  RootPackage
+  class LocalDelegate(var value: Int)
+    operator fun provideDelegate
+    operator fun getValue
+    operator fun setValue
+  class OwnerDelegate(var value: Int)
+    operator fun getValue
+    operator fun setValue
+  class Host()
+    var number: Int by <expr>
+      Call OwnerDelegate
+        IntLiteral 10
+  class ExtensionDelegate(val value: Int)
+    fun getValue
+  operator fun ExtensionDelegate.getValue(thisRef: Unit): Int
+    =
+      Var value
+  fun main()
+    var local by
+      Call LocalDelegate
+        IntLiteral 1
+    Call println
+      Var local
+    assign local
+      IntLiteral 2
+    Call println
+      Var local
+    fun captured(): Int
+      Var local
+    Call println
+      Call captured
+    Call println
+      Update Postfix Increment
+        Place local
+    Call println
+      Var local
+    compound-assign Add
+      IntLiteral 4
+    Call println
+      Var local
+    val extension: Int by
+      Call ExtensionDelegate
+        IntLiteral 8
+    Call println
+      Var extension
+    val host
+      Call Host
+    Call println
+      FieldAccess number
+        Var host
+    assign .number
+      Var host
+      IntLiteral 11
+    Call println
+      FieldAccess number
+        Var host

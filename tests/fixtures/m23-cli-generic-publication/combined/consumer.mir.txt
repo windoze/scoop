@@ -1,0 +1,510 @@
+Module
+  struct LocalValue (number: Int, text: String)
+  class Throwable vtable=0 itables=0
+  fun primitive @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun localValue @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: String
+        Type String
+        StringConst @str0
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      val $parameter.text: String
+        Type String
+        Local $argument.1
+      call $dependency.argument.0: LocalValue = @fn12 direct
+        Type Int
+        Local $parameter.number
+        Type String
+        Local $parameter.text
+      val $dependency.parameter.value: LocalValue
+        Type LocalValue
+        Local $dependency.argument.0
+      call $dependency.argument.0: LocalValue = @fn6 direct
+        Type LocalValue
+        Local $dependency.parameter.value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: LocalValue
+        Type LocalValue
+        Local $dependency.argument.0
+      val $dependency.parameter.count: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.1: LocalValue = @fn7 direct
+        Type LocalValue
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.count
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalValue
+          Local $call.1
+  fun relayValue @fn2() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn8 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.count: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.1: Int = @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.count
+      return
+        Type Int
+        Local $call.1
+  fun recovery @fn3() -> Int
+    bb0 entry
+      assign $new.1
+        Type Throwable
+        ClassAlloc Throwable
+      call external0 direct
+        Type Throwable
+        Local $new.1
+      val $dependency.argument.0: Throwable
+        Type Throwable
+        Local $new.1
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=44 bits=0x0000002c
+      val $dependency.parameter.error: Throwable
+        Type Throwable
+        Local $dependency.argument.0
+      val $dependency.parameter.fallback: Int
+        Type Int
+        Local $dependency.argument.1
+      call $call.2: Int = @fn10 direct
+        Type Throwable
+        Local $dependency.parameter.error
+        Type Int
+        Local $dependency.parameter.fallback
+      return
+        Type Int
+        Local $call.2
+  fun defaultValue @fn4() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=45 bits=0x0000002d
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb8
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      val $dependency.parameter.second: Int
+        Type Int
+        Local $default.local.4
+      call $call.2: Int = @fn11 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.second
+      return
+        Type Int
+        Local $call.2
+    bb6 try.body.6 unwind bb1
+      val $default.local.2: Int
+        Type Int
+        Local $dependency.parameter.value
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $call.1: Int = @fn5 direct
+        Type Int
+        Local $default.local.3
+      assign $default.local.4
+        Type Int
+        Local $call.1
+      goto bb7
+    bb7 scope.7
+      val $default.local.5: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $default.local.6: Int
+        Type Int
+        Local $default.local.5
+      call $default.local.1: Int = @fn5 direct
+        Type Int
+        Local $default.local.6
+      goto bb5
+    bb8 scope.8 unwind bb3
+      val $default.local.5: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $default.local.6: Int
+        Type Int
+        Local $default.local.5
+      call $default.local.1: Int = @fn5 direct
+        Type Int
+        Local $default.local.6
+      rethrow unwind bb3
+  fun identity @fn5(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun identity @fn6(value: LocalValue) -> LocalValue
+    bb0 entry
+      return
+        Type LocalValue
+        Local value
+  fun checked @fn7(value: LocalValue, count: Int) -> LocalValue
+    bb0 entry
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb11
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
+      val $dependency.local.3: Int
+        Type Int
+        Local count
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.3
+            Type Int
+            Local $dependency.local.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 if.then.7 unwind bb1
+      val $dependency.local.6: LocalValue
+        Type LocalValue
+        Local value
+      val $dependency.local.7: LocalValue
+        Type LocalValue
+        Local $dependency.local.6
+      call $call.1: LocalValue = @fn6 direct
+        Type LocalValue
+        Local $dependency.local.7
+      val $return.2: LocalValue
+        Type LocalValue
+        Local $call.1
+      goto bb9
+    bb8 if.merge.8 unwind bb1
+      val $return.3: LocalValue
+        Type LocalValue
+        Local value
+      goto bb10
+    bb9 scope.9
+      val $dependency.local.8: Int
+        Type Int
+        Local count
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      call $dependency.local.2: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.9
+      return
+        Type LocalValue
+        Local $return.2
+    bb10 scope.10
+      val $dependency.local.8: Int
+        Type Int
+        Local count
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      call $dependency.local.2: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.9
+      return
+        Type LocalValue
+        Local $return.3
+    bb11 scope.11 unwind bb3
+      val $dependency.local.8: Int
+        Type Int
+        Local count
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      call $dependency.local.2: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.9
+      rethrow unwind bb3
+  fun relay @fn8(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun checked @fn9(value: Int, count: Int) -> Int
+    bb0 entry
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb11
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      unreachable
+    bb6 try.body.6 unwind bb1
+      val $dependency.local.3: Int
+        Type Int
+        Local count
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.local.3
+            Type Int
+            Local $dependency.local.5
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb7 if.then.7 unwind bb1
+      val $dependency.local.6: Int
+        Type Int
+        Local value
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call $call.1: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.7
+      val $return.2: Int
+        Type Int
+        Local $call.1
+      goto bb9
+    bb8 if.merge.8 unwind bb1
+      val $return.3: Int
+        Type Int
+        Local value
+      goto bb10
+    bb9 scope.9
+      val $dependency.local.8: Int
+        Type Int
+        Local count
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      call $dependency.local.2: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.9
+      return
+        Type Int
+        Local $return.2
+    bb10 scope.10
+      val $dependency.local.8: Int
+        Type Int
+        Local count
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      call $dependency.local.2: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.9
+      return
+        Type Int
+        Local $return.3
+    bb11 scope.11 unwind bb3
+      val $dependency.local.8: Int
+        Type Int
+        Local count
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      call $dependency.local.2: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.9
+      rethrow unwind bb3
+  fun recover @fn10(error: Throwable, fallback: Int) -> Int
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance Throwable
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call $dependency.local.3: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.7
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      unreachable
+    bb8 try.body.8 unwind bb1
+      throw unwind bb1
+        Type Throwable
+        Local error
+    bb9 try.catch.9
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $dependency.local.2: Throwable
+        Type Throwable
+        Retype Throwable
+          Type Any
+          Local $catch.1
+      goto bb11
+    bb10 try.next.10 unwind bb5
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call $dependency.local.3: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.7
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.local.4: Int
+        Type Int
+        Local fallback
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call $call.2: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.5
+      val $return.3: Int
+        Type Int
+        Local $call.2
+      end_catch
+      goto bb12
+    bb12 scope.12
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call $dependency.local.3: Int = @fn5 direct
+        Type Int
+        Local $dependency.local.7
+      return
+        Type Int
+        Local $return.3
+  fun defaulted @fn11(value: Int, second: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local second
+  fun ctor.LocalValue.$c0 @fn12(number: Int, text: String) -> LocalValue <no-gc>
+    bb0 entry
+      return
+        Type LocalValue
+        StructInit LocalValue
+          Type Int
+          Local number
+          Type String
+          Local text
+  instance mi0 function=@fn5 <- identity
+  instance mi1 function=@fn6 <- identity
+  instance mi2 function=@fn7 <- checked
+  instance mi3 function=@fn8 <- relay
+  instance mi4 function=@fn9 <- checked
+  instance mi5 function=@fn10 <- recover
+  instance mi6 function=@fn11 <- defaulted
+  str @str0 "root"
+  output library

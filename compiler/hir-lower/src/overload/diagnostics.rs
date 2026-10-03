@@ -69,26 +69,16 @@ impl Lowerer {
                 && failures[1..]
                     .iter()
                     .all(|failure| failure.state.diagnostics[baseline..] == diagnostics);
-            let all_unhinted = failures.iter().all(|failure| {
+            let independent_of_context = failures.iter().all(|failure| {
                 matches!(
                     failure.kind,
-                    CandidateProbeFailureKind::Expression { expected: None, .. }
+                    CandidateProbeFailureKind::Expression {
+                        context_dependent: false,
+                        ..
+                    }
                 )
             });
-            let fails_identically_without_context = match (arguments, &failures[0].kind) {
-                (
-                    OverloadArguments::Source(expressions),
-                    CandidateProbeFailureKind::Expression { source_index, .. },
-                ) => {
-                    let mut probe = self.clone();
-                    let mut sink = Vec::new();
-                    let before = probe.diagnostics.len();
-                    probe.lower_expr(&expressions[*source_index].expression, &mut sink, None);
-                    probe.diagnostics[before..] == diagnostics
-                }
-                _ => false,
-            };
-            if same_diagnostics && (all_unhinted || fails_identically_without_context) {
+            if same_diagnostics && independent_of_context {
                 self.diagnostics.extend(diagnostics);
                 return;
             }
@@ -206,7 +196,7 @@ fn render_candidate_failure(
                     );
                     parameter.index()
                 })
-                .and_then(|index| candidate.view.value_parameters.get(index))
+                .and_then(|index| candidate.view.signature.value_parameters.get(index))
                 .map(|parameter| format!("argument for `{}`", parameter.name))
                 .unwrap_or_else(|| format!("argument {}", source_index + 1));
             match expected {
@@ -248,7 +238,7 @@ fn render_candidate_failure(
     }
     let fixed = explicit_type_args
         .iter()
-        .zip(&candidate.view.callable_parameters)
+        .zip(&candidate.view.signature.callable_parameters)
         .filter_map(|(argument, parameter)| {
             let ResolvedCallTypeArgument::Explicit { ty, .. } = argument else {
                 return None;

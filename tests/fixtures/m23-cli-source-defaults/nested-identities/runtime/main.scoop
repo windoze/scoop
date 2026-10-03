@@ -1,0 +1,14 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val host = NestedIdentityHost()
+    verifyDefault(host.lambda("lambda")() == "lambda")
+    verifyDefault(host.check("anonymous") == "anonymous")
+    verifyDefault(host.reference()() == "identity")
+    verifyDefault(host.local("local")() == "local")
+    verifyDefault(host.generic(7)() == 7)
+    verifyDefault(host.generic("text")() == "text")
+    verifyDefault(host.genericLocal(9)() == 9)
+    verifyDefault(host.genericLocal("captured")() == "captured")
+}

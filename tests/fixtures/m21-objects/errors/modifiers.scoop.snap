@@ -1,9 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-objects/errors/modifiers.scoop:6:14: error: open property `extensibleProperty` is not allowed in an object declaration
-m21-objects/errors/modifiers.scoop:8:18: error: abstract property `missingProperty` is not allowed in an object declaration
-m21-objects/errors/modifiers.scoop:2:14: error: open function `extensible` is not allowed in an object declaration
-m21-objects/errors/modifiers.scoop:4:18: error: abstract function `missing` is only allowed in abstract classes

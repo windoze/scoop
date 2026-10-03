@@ -35,7 +35,7 @@ impl Lowerer {
                 if function.name == "function"
                     && matches!(self.types[function.ty], hir::Type::Struct(application)
                         if self.struct_applications[application].template
-                            == self.ffi_fun_ptr.expect("FunPtr core exists")
+                            == self.nominal_identity(crate::Owner::Struct(self.ffi_fun_ptr.expect("FunPtr core exists"))).declaration_id()
                             && matches!(self.struct_applications[application].arguments.as_slice(), [arg] if self.is_type_param(*arg, 0)))
                     && context.name == "context"
                     && matches!(self.types[context.ty], hir::Type::Ptr(pointee) if pointee == self.unit));
@@ -54,12 +54,18 @@ impl Lowerer {
         let reusable = hir::AppliedEnumVariantRef::checked_index(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             mode_application,
             0,
         );
         let one_shot = hir::AppliedEnumVariantRef::checked_index(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             mode_application,
             1,
         );
@@ -67,6 +73,9 @@ impl Lowerer {
             hir::ForeignCallbackModes::checked(
                 &self.enums,
                 &self.enum_applications,
+                self.nominal_identities
+                    .as_ref()
+                    .expect("nominal identities precede application references"),
                 reusable,
                 one_shot,
             )
@@ -77,6 +86,9 @@ impl Lowerer {
             hir::AppliedEnumVariantRef::checked_index(
                 &self.enums,
                 &self.enum_applications,
+                self.nominal_identities
+                    .as_ref()
+                    .expect("nominal identities precede application references"),
                 state_application,
                 index,
             )
@@ -90,6 +102,9 @@ impl Lowerer {
             ] => hir::ForeignCallbackStates::checked(
                 &self.enums,
                 &self.enum_applications,
+                self.nominal_identities
+                    .as_ref()
+                    .expect("nominal identities precede application references"),
                 registered,
                 active,
                 completed,
@@ -117,7 +132,7 @@ impl Lowerer {
                 && function.method.is_none();
             let callback_param = |ty| {
                 matches!(self.types[ty], hir::Type::Struct(application)
-                    if self.struct_applications[application].template == callback
+                    if self.struct_applications[application].template == self.nominal_identity(crate::Owner::Struct(callback)).declaration_id()
                         && matches!(self.struct_applications[application].arguments.as_slice(), [arg] if self.is_type_param(*arg, 0)))
             };
             let signature_valid = match operation {
@@ -140,9 +155,9 @@ impl Lowerer {
                         if callback_param(param.ty)
                             && matches!(self.types[signature.return_ty], hir::Type::Enum(application)
                                 if self.enum_applications[application].template
-                                    == self
+                                    == self.nominal_identity(crate::Owner::Enum(self
                                         .option_enumeration()
-                                        .expect("Option core exists")
+                                        .expect("Option core exists"))).declaration_id()
                                     && self.enum_applications[application].arguments.as_slice()
                                         == [throwable]))
                 }
@@ -167,12 +182,18 @@ impl Lowerer {
         let failure_some = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             failure_application,
             option.some(),
         );
         let failure_none = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             failure_application,
             option.none(),
         );
@@ -181,6 +202,9 @@ impl Lowerer {
                 hir::AppliedEnumVariantFieldRef::checked(
                     &self.enums,
                     &self.enum_applications,
+                    self.nominal_identities
+                        .as_ref()
+                        .expect("nominal identities precede application references"),
                     some,
                     option.some_payload().local_index(),
                 )
@@ -190,6 +214,9 @@ impl Lowerer {
                 hir::ForeignCallbackFailureResult::checked(
                     &self.enums,
                     &self.enum_applications,
+                    self.nominal_identities
+                        .as_ref()
+                        .expect("nominal identities precede application references"),
                     option,
                     throwable,
                     some_payload,

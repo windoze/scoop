@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "executable-site-reader"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:shape-selection-standalone" = "0.1.0"

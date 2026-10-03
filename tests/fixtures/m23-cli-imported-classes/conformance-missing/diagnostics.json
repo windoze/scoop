@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Missing` does not implement interface method `Readable.read`",
+    "notes": [],
+    "origin": {
+      "cone": "b7fe5dece66254ea36f28415f607e8ec6deb936c3034bf3933bfc9ecb02683c8",
+      "end": 86,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 35
+    },
+    "severity": "error"
+  }
+]

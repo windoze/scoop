@@ -1,0 +1,38 @@
+SourceFile
+  QualifiedPackage consumer.constructors
+  ImportExact Local dependency.constructors.Token
+  ImportExact Local dependency.constructors.Wide
+  ImportExact Local dependency.constructors.defaultWide
+    @NoGC
+  public fun token(): Token
+    =
+      Call Token
+    @NoGC
+  public fun primary(): Wide
+    =
+      Call Wide
+        IntLiteral 17
+        Unary Neg
+          IntLiteral 29
+        IntLiteral 53
+        Call Token
+    @NoGC
+  public fun secondary(): Wide
+    =
+      Call Wide
+        TupleLiteral
+          Call Token
+          TupleLiteral
+            IntLiteral 5
+            IntLiteral 8
+            IntLiteral 11
+          Call Token
+    @NoGC
+  public fun defaults(): Long
+    =
+      Call defaultWide
+    @NoGC
+  public fun republished(value: Wide = <expr>): Long
+    =
+      MethodCall sum
+        Var value

@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  public fun domainBase(): SourceBase<Int>
+    =
+      Call SourceBase<Int>
+  public fun domainChild(): Derived
+    =
+      Call Derived
+  public fun domainCases(): Cases
+    =
+      Call Cases
+SourceFile
+  RootPackage
+  private fun privateSeed(): Int
+    =
+      IntLiteral 4
+  internal fun internalSeed(): Int
+    =
+      IntLiteral 5
+  public open class SourceBase<T>()
+    public fun inspect
+    public fun inspectPrivate
+    protected val seed: Int = <expr>
+      IntLiteral 3
+    protected fun read
+    private fun hidden
+  public class Cases()
+    public fun inspect
+    private nested class Hidden
+    internal nested class ConeScoped
+  public class Derived() : SourceBase<Int>(<0 args>)
+    protected fun read

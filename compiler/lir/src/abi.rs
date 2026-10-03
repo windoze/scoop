@@ -40,6 +40,16 @@ pub fn classify_non_zero_scoop_abi_value(
     enums: &EnumDefs,
     ty: &LirType,
 ) -> Result<ScoopAbiPassing, ScoopAbiClassificationError> {
+    Ok(profile.classify_scoop_abi_value(scoop_abi_value_shape(enums, ty)?))
+}
+
+/// Return the target-independent scalar/aggregate shape consumed by the
+/// closed Scoop ABI classifier. Zero-sized values use the same shape even
+/// though their physical parameter is elided.
+pub fn scoop_abi_value_shape(
+    enums: &EnumDefs,
+    ty: &LirType,
+) -> Result<ScoopAbiValueShape, ScoopAbiClassificationError> {
     let shape = match ty {
         LirType::I1
         | LirType::I8
@@ -63,7 +73,7 @@ pub fn classify_non_zero_scoop_abi_value(
         }
         LirType::Void => return Err(ScoopAbiClassificationError::VoidStorageType),
     };
-    Ok(profile.classify_scoop_abi_value(shape))
+    Ok(shape)
 }
 
 fn checked_alignment(alignment: u64) -> Result<NonZeroU64, AbiLayoutError> {
@@ -520,13 +530,17 @@ mod tests {
     #[test]
     fn indirect_call_argument_requires_exact_local_storage_type() {
         let mut locals = la_arena::Arena::new();
-        let local = locals.alloc(super::super::Local {
-            name: "argument".to_string(),
-            ty: LirType::Aggregate(vec![LirType::I64, LirType::I64]),
-        });
-        let expected = non_zero_value(locals[local].ty.clone(), 16, RefScan::None);
+        let expected = non_zero_value(
+            LirType::Aggregate(vec![LirType::I64, LirType::I64]),
+            16,
+            RefScan::None,
+        );
+        let local = locals.alloc(super::super::Local::new(
+            "argument",
+            super::super::LocalStorage::NonZero(expected.clone()),
+        ));
 
-        let storage = AbiArgumentStorage::new(local, &locals[local].ty, &expected)
+        let storage = AbiArgumentStorage::new(local, locals[local].ty(), &expected)
             .expect("exact local storage should be accepted");
         assert_eq!(storage.local(), local);
         assert_eq!(

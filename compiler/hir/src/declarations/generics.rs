@@ -23,36 +23,11 @@ impl TypeParamDecl {
         }
     }
 
-    pub fn class_bound(&self) -> Option<&ClassBound> {
-        match &self.bounds {
-            TypeParamBounds::Nominal(bounds) => bounds.class.as_ref(),
-            TypeParamBounds::Unconstrained
-            | TypeParamBounds::Value { .. }
-            | TypeParamBounds::Ref { .. } => None,
-        }
-    }
-
-    pub fn interface_bounds(&self) -> &[InterfaceBound] {
-        match &self.bounds {
-            TypeParamBounds::Nominal(bounds) => &bounds.interfaces,
-            TypeParamBounds::Unconstrained
-            | TypeParamBounds::Value { .. }
-            | TypeParamBounds::Ref { .. } => &[],
-        }
-    }
-
     pub fn nominal_bounds_in_source_order(&self) -> Vec<NominalBoundRef<'_>> {
         let TypeParamBounds::Nominal(bounds) = &self.bounds else {
             return Vec::new();
         };
-        let mut ordered =
-            Vec::with_capacity(usize::from(bounds.class.is_some()) + bounds.interfaces.len());
-        if let Some(bound) = &bounds.class {
-            ordered.push(NominalBoundRef::Class(bound));
-        }
-        ordered.extend(bounds.interfaces.iter().map(NominalBoundRef::Interface));
-        ordered.sort_by_key(|bound| bound.span().start);
-        ordered
+        bounds.in_source_order()
     }
 }
 
@@ -67,32 +42,50 @@ pub enum TypeParamBounds {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NominalBounds {
     /// At most one complete class application, enforced structurally.
-    pub class: Option<ClassBound>,
+    pub class: Option<ClassUpperBound>,
     /// Ordered, distinct, complete interface applications.
-    pub interfaces: Vec<InterfaceBound>,
+    pub interfaces: Vec<InterfaceUpperBound>,
+}
+
+impl NominalBounds {
+    pub fn in_source_order(&self) -> Vec<NominalBoundRef<'_>> {
+        let mut ordered =
+            Vec::with_capacity(usize::from(self.class.is_some()) + self.interfaces.len());
+        if let Some(bound) = &self.class {
+            ordered.push(NominalBoundRef::Class(bound));
+        }
+        ordered.extend(self.interfaces.iter().map(NominalBoundRef::Interface));
+        ordered.sort_by_key(|bound| bound.span().start);
+        ordered
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ClassBound {
-    pub application: ClassApplicationId,
+pub struct ClassUpperBound {
+    pub ty: TypeId,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InterfaceBound {
-    /// Complete interface application.  The bound cannot name a declaration
-    /// without its arguments or another nominal kind.
-    pub application: InterfaceApplicationId,
+pub struct InterfaceUpperBound {
+    pub ty: TypeId,
     pub span: Span,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NominalBoundRef<'a> {
-    Class(&'a ClassBound),
-    Interface(&'a InterfaceBound),
+    Class(&'a ClassUpperBound),
+    Interface(&'a InterfaceUpperBound),
 }
 
 impl NominalBoundRef<'_> {
+    pub fn ty(self) -> TypeId {
+        match self {
+            Self::Class(bound) => bound.ty,
+            Self::Interface(bound) => bound.ty,
+        }
+    }
+
     pub fn span(self) -> Span {
         match self {
             Self::Class(bound) => bound.span,

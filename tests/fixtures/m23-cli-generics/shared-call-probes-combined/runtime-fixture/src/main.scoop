@@ -1,0 +1,15 @@
+import downstream.callprobes.check
+
+@Extern(lib = "m23_class_gc", name = "m23_class_gc_collected")
+fun collected(): Int
+
+fun main() {
+    if (check() != 42) {
+        throw IllegalStateException()
+    }
+    @Unsafe {
+        if (collected() != 1) {
+            throw IllegalStateException()
+        }
+    }
+}

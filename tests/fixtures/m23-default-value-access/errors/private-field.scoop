@@ -1,0 +1,4 @@
+public class AccessField(private val secret: Int) {
+    public fun read(value: Int = this.secret): Int = value
+}
+fun main() {}

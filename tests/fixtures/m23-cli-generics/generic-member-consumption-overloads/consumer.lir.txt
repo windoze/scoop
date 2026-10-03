@@ -1,0 +1,39 @@
+Module
+  global @scoop$1$io$d9675bb0724923ac47befdf6b3917cc1c3b4c99d6672df62fa4e77d9a434c2c6 = "owner"
+  fun @scoop$1$cb$d125081e5724e9eb3b9b681ab789b0f28bb15e2e1126c30897f2f33debf2260f() -> i32
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.argument.0: ptr<managed>
+    local %2 $dependency.argument.1: {i32, i32}
+    local %3 $dependency.parameter.owner: ptr<managed>
+    local %4 $dependency.parameter.value: {i32, i32}
+    local %5 $new.1: ptr<managed>
+    local %6 $call.2: i32
+    local %7 $sc.1: {i32, i32}
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
+    store t0 -> local5
+    call managed-void-target0 sp<managed-call:1> live=[local5:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn2(local5)
+    t1 = aggregate () : {}
+    store local5 -> local0
+    store global0 -> local1
+    t2 = aggregate (integer<Int>(0x00000014), integer<Int>(0x00000016)) : {i32, i32}
+    store t2 -> local2
+    store local1 -> local3
+    store local2 -> local4
+    store local4 -> local7
+    call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local3:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>, ptr<managed>, indirect<{i32, i32} size=8 align=4 scan=none>) -> i32 local-fn1(local0, local3, indirect local7)
+    store t3 -> local6
+    ret local6
+  fun @scoop$1$cb$7b876e0ee636bbc787623205397bcb7ff6961ece0232cd32c2734bc21597942f(ptr<managed>, ptr<managed>, indirect<{i32, i32} size=8 align=4 scan=none>) -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x0000002a)
+  fun @scoop$1$cb$ec1c0b3e7572b5e6ea09d04a2aa09c1e00f5577519c154489700212836e1650b(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.members;o=-;k=C;x=Overloads);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ab609533c9eee50fb92f474f08c8402192d35f235c373bd396f8d7bfac34b446 type-id=3826169890196717644 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  layout Overloads value size=8 align=8 refs=[0]
+  layout Overloads size=16 align=8 refs=[]
+  output library

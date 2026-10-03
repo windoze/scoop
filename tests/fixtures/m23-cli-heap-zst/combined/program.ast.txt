@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val initial
+      FieldAccess empty
+        Var HeapSingleton
+    Call verifyType
+      Binary Eq
+        Var initial
+        Call HeapEmpty
+    assign heapEffects
+      IntLiteral 0
+    Call verifyType
+      Binary Eq
+        Call heapClosureRoundtrip
+        Call HeapEmpty
+    Call verifyType
+      Binary Eq
+        Var heapEffects
+        IntLiteral 2
+    Call verifyType
+      Binary Eq
+        Call heapClosureRoundtrip
+        Call HeapEmpty
+    Call verifyType
+      Binary Eq
+        Var heapEffects
+        IntLiteral 4
+    Call verifyType
+      Binary Eq
+        FieldAccess empty
+          Var HeapSingleton
+        Call HeapEmpty

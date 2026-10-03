@@ -1,0 +1,26 @@
+Module
+  fun shifted @fn0(value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.distance: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerShift left value=Int count=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          IntegerConversion Long -> Int
+            Type Long
+            IntegerBinary bit-and kind=Long
+              Type Long
+              Local $dependency.parameter.distance
+              Type Long
+              IntegerLiteral Long value=31 bits=0x000000000000001f
+  output library

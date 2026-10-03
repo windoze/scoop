@@ -1,0 +1,6 @@
+import dependency.classes.*
+
+public struct LocalDefaults(): CompoundParameters {
+    public override fun answer(marker: Token, input: Counter, extra: Long): WideValue = WideValue(extra, 0, 0)
+}
+public fun primary(): Counter = Counter(LocalDefaults().answer().first)

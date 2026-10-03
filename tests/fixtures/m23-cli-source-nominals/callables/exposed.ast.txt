@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  public object Argument
+  public fun envelope(): Envelope
+    =
+      Call Envelope
+SourceFile
+  RootPackage
+  public interface Bound
+  public open class Envelope()
+    private nested class Reader
+    public fun exercise
+    public fun view
+    public fun cached
+    public fun variant
+    protected nested class Box
+    protected nested interface View
+    protected nested enum Choice
+    protected nested object Cache
+    protected nested class GenericOuter
+  private fun topLevel(): Int
+    =
+      IntLiteral 5

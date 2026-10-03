@@ -1,0 +1,291 @@
+Module
+  struct Value (number: Int)
+  struct GenericValue<Later> (payload: Later, number: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Extra
+  interface Readable
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  generated_exact_type get0 location=enum2 nominal_id=5efc3594a7ef3f302c41877bb3c4155653273353c3414ca4042281cbf0fd84ae exact_id=045714a5a8bfa2e36bf4d0c6a0cd2786ef138be7999bd82d8191b4e28cb65469
+  generated_exact_type get1 location=enum1 nominal_id=80d157c6ccec8b133fe619662528d53a6366ca314aff7d383660e986e2816d48 exact_id=8efd72b5194e66cf42a571b2b006fef87ffe79a4f93176dd27d1f629407bf987
+  generated_callable gc0 function=@fn11 id=779729704fb04fc8ca3fc561955e0a4f8d72cdc6f65c6f6c96a5d4eb7b9f9f9a
+  fun check @fn0() -> Int
+    bb0 entry
+      val $default.local.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $default.local.1: Int
+        Type Int
+        Local $default.local.0
+      call $default.local.2: Value = external1 direct
+        Type Int
+        Local $default.local.1
+      val $default.local.3: Value
+        Type Value
+        Local $default.local.2
+      val $default.local.4: Value
+        Type Value
+        Local $default.local.3
+      call $default.local.5: Int = external0 direct
+        Type Value
+        Local $default.local.4
+      call $dependency.parameter.answer: Int = @fn1 direct
+        Type Value
+        Local $default.local.3
+        Type Int
+        Local $default.local.5
+      call $argument.0: Int = external2 direct
+        Type Int
+        Local $dependency.parameter.answer
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn9 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val first: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local first
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call answer: Int = @fn2 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn9 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocated: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      return
+        Type Int
+        Local answer
+  fun defaultRead @fn1(value: Value, answer: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local answer
+  fun exercise @fn2(value: Later) -> Int
+    bb0 entry
+      val $dependency.local.2: Later
+        Type Later
+        Local value
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.4: Later
+        Type Later
+        Local $dependency.local.2
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.3
+      call $dependency.local.1: GenericValue<Later> = @fn10 direct
+        Type Later
+        Local $dependency.local.4
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.6: GenericValue<Later>
+        Type GenericValue<Later>
+        Local $dependency.local.1
+      val $dependency.local.7: GenericValue<Later>
+        Type GenericValue<Later>
+        Local $dependency.local.6
+      val $dependency.local.8: GenericValue<Later>
+        Type GenericValue<Later>
+        Local $dependency.local.7
+      call $dependency.local.9: Int = @fn3 direct
+        Type GenericValue<Later>
+        Local $dependency.local.8
+      call $call.1: Int = @fn4 direct
+        Type GenericValue<Later>
+        Local $dependency.local.7
+        Type Int
+        Local $dependency.local.9
+      return
+        Type Int
+        Local $call.1
+  fun read @fn3(this: GenericValue<Later>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type GenericValue<Later>
+          Local this
+  fun defaultRead @fn4(value: GenericValue<Later>, answer: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local answer
+  fun Continuation.resume @fn5(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn9(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.GenericValue.$c0 @fn10(payload: Later, number: Int) -> GenericValue<Later> <no-gc>
+    bb0 entry
+      return
+        Type GenericValue<Later>
+        StructInit GenericValue<Later>
+          Type Later
+          Local payload
+          Type Int
+          Local number
+  fun startCoroutine<Later> @fn11(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn7 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn11
+  coroutine_fn cf0 @fn7 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn1 <- defaultRead
+  instance mi1 function=@fn2 <- exercise
+  instance mi2 function=@fn3 <- read
+  instance mi3 function=@fn4 <- defaultRead
+  instance mi4 function=@fn5 <- Continuation.resume
+  instance mi5 function=@fn6 <- Continuation.resumeWithException
+  instance mi6 function=@fn7 <- SuspendTask.run
+  instance mi7 function=@fn8 <- SuspendRegistration.register
+  output library

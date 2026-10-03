@@ -1,0 +1,3 @@
+public fun boxInteger(value: Int): Any = value
+public fun castInteger(value: Any): Int = value as Int
+public fun testInteger(value: Any): Boolean = value is Int

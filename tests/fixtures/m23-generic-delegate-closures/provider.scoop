@@ -1,0 +1,93 @@
+package templates.delegateGenerated
+
+public object Trace {
+    public var initializerClosure: Int = 0
+    public var initializerCombined: Int = 0
+}
+
+public class Receiver<T> public constructor(public val value: T)
+public class Payload public constructor(public var value: Int)
+
+public class ReaderSlot<T> public constructor(private val read: () -> Int) {
+    public operator fun getValue(thisRef: Receiver<T>): Int = this.read()
+}
+
+public val <T> Receiver<T>.initializerClosure: Int by if (true) {
+    Trace.initializerClosure += 1
+    val payload = Payload(42)
+    val read: () -> Int = {
+        val allocated = Payload(0)
+        payload.value + allocated.value
+    }
+    ReaderSlot<T>(read)
+} else {
+    ReaderSlot<T>({ 0 })
+}
+
+public val <T> Receiver<T>.initializerCombined: Int by if (true) {
+    Trace.initializerCombined += 1
+    val payload = Payload(14)
+    fun <U> keep(value: U, again: Boolean = false): U {
+        if (again) { return keep<U>(value) }
+        return value
+    }
+    val read: () -> Int = {
+        val captured = keep<Payload>(payload, true)
+        val tail: () -> Int = { captured.value + payload.value }
+        val allocated = Payload(0)
+        tail() + payload.value + allocated.value
+    }
+    ReaderSlot<T>(read)
+} else {
+    ReaderSlot<T>({ 0 })
+}
+
+public object TraceMore {
+    public var anonymous: Int = 0
+    public var values: Int = 0
+    public var localClosure: Int = 0
+}
+
+public struct Triple(val first: Payload, val second: Payload, val third: Payload)
+
+public fun unitValue(value: Unit): Int = 0
+
+public val <T> Receiver<T>.initializerPlain: Int by ReaderSlot<T>({ 42 })
+
+public val <T> Receiver<T>.initializerAnonymous: Int by if (true) {
+    TraceMore.anonymous += 1
+    val payload = Payload(42)
+    val read = fun(): Int {
+        val allocated = Payload(0)
+        return payload.value + allocated.value
+    }
+    ReaderSlot<T>(read)
+} else {
+    ReaderSlot<T>({ 0 })
+}
+
+public val <T> Receiver<T>.initializerValues: Int by if (true) {
+    TraceMore.values += 1
+    val triple = Triple(Payload(14), Payload(14), Payload(14))
+    val zero = Unit
+    val read: () -> Int = {
+        val allocated = Payload(0)
+        unitValue(zero) + triple.first.value + triple.second.value + triple.third.value + allocated.value
+    }
+    ReaderSlot<T>(read)
+} else {
+    ReaderSlot<T>({ 0 })
+}
+
+public val <T> Receiver<T>.initializerLocalClosure: Int by if (true) {
+    TraceMore.localClosure += 1
+    val payload = Payload(21)
+    fun build(): () -> Int = {
+        fun read(): Int = payload.value
+        val allocated = Payload(0)
+        payload.value + read() + allocated.value
+    }
+    ReaderSlot<T>(build())
+} else {
+    ReaderSlot<T>({ 0 })
+}

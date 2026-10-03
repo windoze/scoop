@@ -1,0 +1,36 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.equality.result
+  ImportExact Local consumer.equality.exercise
+  private class Later(val number: Int)
+  public fun check(): Int
+    val value
+      Call Later
+        Call result
+    val answer
+      Call exercise<Later>
+        Var value
+    if
+      Binary Ne
+        Call exercise<Int>
+          IntLiteral 2
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val allocated
+      Call Later
+        IntLiteral 0
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess number
+            Var value
+          IntLiteral 42
+        Binary Ne
+          FieldAccess number
+            Var allocated
+          IntLiteral 0
+      return
+        IntLiteral 1
+    return
+      Var answer

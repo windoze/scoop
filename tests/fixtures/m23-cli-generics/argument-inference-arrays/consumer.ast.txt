@@ -1,0 +1,194 @@
+SourceFile
+  QualifiedPackage consumer.inference
+  ImportStar Local dependency.inference.*
+  ImportExact Local dependency.inference.exercise as providerExercise
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val values
+      Call pack
+        Argument *
+          ArrayLiteral
+        Var seed
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            Var values
+          IntLiteral 1L
+        Binary Ne
+          Call read
+            Index
+              Var values
+              IntLiteral 0L
+          IntLiteral 42
+      return
+        IntLiteral 8
+    return
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val first
+      Call pack
+        Argument *
+          ArrayLiteral
+        IntLiteral 42
+    val last
+      Call pack
+        IntLiteral 42
+        Argument *
+          ArrayLiteral
+    val wholeEmpty
+      Call whole
+        Argument values=
+          ArrayLiteral
+        Argument seed=
+          IntLiteral 42
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              FieldAccess size
+                Var first
+              IntLiteral 1L
+            Binary Ne
+              Index
+                Var first
+                IntLiteral 0L
+              IntLiteral 42
+          Binary Ne
+            Index
+              Var last
+              IntLiteral 0L
+            IntLiteral 42
+        Binary Ne
+          FieldAccess size
+            Var wholeEmpty
+          IntLiteral 0L
+      return
+        IntLiteral 1
+    val wide
+      Call pack
+        Argument *
+          ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2147483648
+    val reverse
+      Call pack
+        Argument *
+          ArrayLiteral
+        IntLiteral 2147483648
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Index
+              Var wide
+              IntLiteral 0L
+            IntLiteral 1L
+          Binary Ne
+            Index
+              Var wide
+              IntLiteral 1L
+            IntLiteral 2147483648L
+        Binary Ne
+          Index
+            Var reverse
+            IntLiteral 1L
+          IntLiteral 1L
+      return
+        IntLiteral 2
+    val unsigned
+      Call pack
+        Argument *
+          ArrayLiteral
+        IntLiteral 1u
+        IntLiteral 4294967296u
+    if
+      Binary Or
+        Binary Ne
+          Index
+            Var unsigned
+            IntLiteral 0L
+          IntLiteral 1uL
+        Binary Ne
+          Index
+            Var unsigned
+            IntLiteral 1L
+          IntLiteral 4294967296uL
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          Call arrayOrSeed
+            Call empty
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          Call arrayOrSeed
+            Call Array
+              ArrayLiteral
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Or
+        Binary Ne
+          Call mutableOrSeed
+            ArrayLiteral
+            IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          Call mutableOrSeed
+            Call MutableArray
+              ArrayLiteral
+            IntLiteral 42
+          IntLiteral 42
+      return
+        IntLiteral 5
+    if
+      Binary Ne
+        Call two
+          ArrayLiteral
+          ArrayLiteral
+          IntLiteral 42
+          StringLiteral "second"
+        IntLiteral 42
+      return
+        IntLiteral 6
+    val explicit
+      Call pack<_>
+        Argument *
+          ArrayLiteral
+        IntLiteral 42
+    val source
+      Call pack
+        IntLiteral 42
+    val named
+      Call whole
+        Argument values=
+          Var source
+        Argument seed=
+          IntLiteral 0
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            Index
+              Var explicit
+              IntLiteral 0L
+            IntLiteral 42
+          Binary RefEq
+            Var named
+            Var source
+        Call exercise<Int>
+          IntLiteral 42
+          CallableReference 0 readInt
+        else
+        IntLiteral 7

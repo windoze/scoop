@@ -1,0 +1,8 @@
+package consumer.nominalConditions
+import upstream.nominalConditions.*
+
+private fun <T> local(value: T): Int {
+    val scalar = Scalar(value)
+    return 42
+}
+public fun wrong(): Int = local("managed")

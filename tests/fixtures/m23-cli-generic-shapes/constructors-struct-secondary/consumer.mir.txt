@@ -1,0 +1,253 @@
+Module
+  struct Observed<Payload> (value: Payload)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Payload>
+    Completed(value: Payload)
+    Suspended()
+  enum CoroutineSlot<Payload>
+    Empty()
+    Value(value: Payload)
+  class Payload vtable=0 itables=0
+  class Trace vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Payload>
+  interface SuspendTask<Payload>
+  interface SuspendRegistration<Payload>
+  generated_exact_type get0 location=enum2 nominal_id=d075c68d2c8298bcb115e9b7122264f6536c5fa911dcdf1283b53263805b7159 exact_id=6367be5f8b652f687ec67b3c15863eb20439e934859bfdc8f8ee743de43cf7f1
+  generated_exact_type get1 location=enum1 nominal_id=acfdbdf3ee24dbde4b7b072f6efd5a5a6764cf1d8856582f56f131aec9707318 exact_id=655636e5b68d4b27b670062ea6f1e54be4fde33dd40a85f63693b057a7c79842
+  generated_callable gc0 function=@fn9 id=f5d43976061ce04af1a5c2fde46d550c609fc7754baa6ffd4cee724e4f8f4371
+  fun result @fn0() -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.count: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Trace
+        ClassAlloc Trace
+      call external0 direct
+        Type Trace
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.count
+      val trace: Trace
+        Type Trace
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=37 bits=0x00000025
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Payload
+        ClassAlloc Payload
+      call @fn6 direct
+        Type Payload
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.2
+      val $dependency.argument.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace
+        Type Trace
+        Local $dependency.argument.1
+      call value: Observed<Payload> = @fn7 direct
+        Type Payload
+        Local $dependency.parameter.value
+        Type Trace
+        Local $dependency.parameter.trace
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Payload
+        ClassAlloc Payload
+      call @fn6 direct
+        Type Payload
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val first: Payload
+        Type Payload
+        Local $new.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type Payload
+        ClassAlloc Payload
+      call @fn6 direct
+        Type Payload
+        Local $new.4
+        Type Int
+        Local $parameter.value
+      val second: Payload
+        Type Payload
+        Local $new.4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Payload
+          FieldAccess 0
+            Type Observed<Payload>
+            Local value
+      call $dependency.argument.0: Int = external1 direct
+        Type Trace
+        Local trace
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun keep @fn1(value: Payload) -> Payload
+    bb0 entry
+      return
+        Type Payload
+        Local value
+  fun Continuation.resume @fn2(this: Continuation<Payload>, value: Payload) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn3(this: Continuation<Payload>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn4(this: SuspendTask<Payload>, $completion: Continuation<Payload>) -> CoroutineStep<Payload>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn5(this: SuspendRegistration<Payload>, continuation: Continuation<Payload>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Payload.$c0 @fn6(this: Payload, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Payload
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Observed.$c0 @fn7(value: Payload, trace: Trace) -> Observed<Payload>
+    bb0 entry
+      val $dependency.constructor.local.0: Payload
+        Type Payload
+        Local value
+      val $dependency.constructor.local.1: Payload
+        Type Payload
+        Local $dependency.constructor.local.0
+      call $this: Observed<Payload> = @fn8 direct
+        Type Payload
+        Local $dependency.constructor.local.1
+      val $dependency.constructor.local.0: Payload
+        Type Payload
+        FieldAccess 0
+          Type Observed<Payload>
+          Local $this
+      val $dependency.constructor.local.1: Payload
+        Type Payload
+        Local $dependency.constructor.local.0
+      call $call.1: Payload = @fn1 direct
+        Type Payload
+        Local $dependency.constructor.local.1
+      call $dependency.constructor.local.2: Int = external1 direct
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.3: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.constructor.local.4: Int
+        Type Int
+        Local $dependency.constructor.local.3
+      call external2 direct
+        Type Trace
+        Local trace
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.constructor.local.2
+          Type Int
+          Local $dependency.constructor.local.4
+      return
+        Type Observed<Payload>
+        Local $this
+  fun ctor.Observed.$c2 @fn8(value: Payload) -> Observed<Payload> <no-gc>
+    bb0 entry
+      return
+        Type Observed<Payload>
+        StructInit Observed<Payload>
+          Type Payload
+          Local value
+  fun startCoroutine<Payload> @fn9(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn2 interface Continuation<Payload>[0]
+        Type Continuation<Payload>
+        Local completion
+        Type Payload
+        EnumField v0 f0
+          Type CoroutineStep<Payload>
+          Local $step
+      return
+    bb2 failed
+      call @fn3 interface Continuation<Payload>[1]
+        Type Continuation<Payload>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Payload> = @fn4 interface SuspendTask<Payload>[0]
+        Type SuspendTask<Payload>
+        Local task
+        Type Continuation<Payload>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Payload>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Payload> result=Payload
+  coroutine_slot cl0 CoroutineSlot<Payload> value=Payload
+  coroutine_start ct0 result=Payload function=fn9
+  coroutine_fn cf0 @fn4 source_return=Payload step=cs0 immediate
+  instance mi0 function=@fn1 <- keep
+  instance mi1 function=@fn2 <- Continuation.resume
+  instance mi2 function=@fn3 <- Continuation.resumeWithException
+  instance mi3 function=@fn4 <- SuspendTask.run
+  instance mi4 function=@fn5 <- SuspendRegistration.register
+  output library

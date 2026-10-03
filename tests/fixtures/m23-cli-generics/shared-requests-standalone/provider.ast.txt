@@ -1,0 +1,46 @@
+SourceFile
+  QualifiedPackage upstream.requests
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  public fun factory<T>(value: T): () -> T
+    fun keep<U>(next: U): U
+      Var next
+    return
+      Lambda 0 suspend=false
+        parameters omitted
+        Call keep<T>
+          Call identity<T>
+            Var value
+  public fun defaulted<T>(value: T, select: (T) -> T = <expr>): T
+    =
+      Call select
+        Var value
+  public class Box<T>(val value: T)
+    public fun read
+    public fun mix
+  public fun captured<T>(value: T, read: (T) -> Int): Int
+    val amount
+      IntLiteral 0
+    fun step(delta: Int): Int
+      val added
+        Var delta
+      fun inner(): Int
+        Binary Add
+          Binary Add
+            Call read
+              Var value
+            Var amount
+          Var added
+      return
+        Call inner
+    fun apply<U>(extra: U, use: (U) -> Int): Int
+      Call step
+        Call use
+          Var extra
+    return
+      Call apply<Int>
+        IntLiteral 0
+        Lambda 2 suspend=false
+          param number: _
+          Var number

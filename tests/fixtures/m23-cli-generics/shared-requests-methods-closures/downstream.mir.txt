@@ -1,0 +1,2090 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class Box<Later> vtable=0 itables=0
+  class Local<Later> vtable=0 itables=0
+  class Box<Int> vtable=0 itables=0
+  class Local<Int> vtable=0 itables=0
+  class Box<Unit> vtable=0 itables=0
+  class Local<Unit> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn70 id=f7ac139e97ea544f6f673c29032f70864639604e5152944c415d67312ade9a36
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn71 id=bc0e0c8e1474e80b3410dffd4f4db25558c7bb70be33ecd18229a18bae607f7e
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn72 id=e02308b844c0bcc58f8ba2634e285a7da5d70254dbbdde0d0b3b1cc935e70c2a
+  closure cc3 $Closure$lambda3 type=function_type6 invoke=@fn7 captures=1
+    bridge function_type7 -> @fn73 id=11d78f2458b3e98dfc7e366bcadd9bd884d6c3c2c4413256dbf8184682426ee2
+  closure cc4 $Closure$lambda4 type=function_type8 invoke=@fn9 captures=1
+    bridge function_type7 -> @fn74 id=7d416efc3a436daf50f6a66b8c93497a56b37c60b6206c8205e30768790d7b23
+  closure cc5 $Closure$lambda5 type=function_type6 invoke=@fn12 captures=1
+    bridge function_type7 -> @fn75 id=cff774df944909f65cb384554e36c2e9f12f3c0540df5747083480c4befbdbd5
+  closure cc6 $Closure$lambda6 type=function_type8 invoke=@fn14 captures=1
+    bridge function_type7 -> @fn76 id=62ec62e23af91c1bf49ce8fb963c06239214d15ef57ad4d80afb34ba878432df
+  closure cc7 $Closure$lambda7 type=function_type9 invoke=@fn17 captures=0
+    bridge function_type1 -> @fn77 id=a2fecf4d302688cc344617a2002c12f5dca8af146855b04c6751319e147381da
+  closure cc8 $Closure$lambda8 type=function_type11 invoke=@fn19 captures=1
+    bridge function_type7 -> @fn78 id=aeaad210f3427a79a6b40830e140cf58c13d37febb2c08928bdaf2460619ea9b
+  closure cc9 $Closure$lambda9 type=function_type12 invoke=@fn21 captures=1
+    bridge function_type7 -> @fn79 id=506f1365c7dd40eb40572598b72d4d9f6700fb64dd3fab5ede5cd1e209d5df54
+  closure cc10 $Closure$lambda10 type=function_type11 invoke=@fn24 captures=1
+    bridge function_type7 -> @fn80 id=5e7cff8e086b05686720e3cee0a3e57c7af235419bc87f1475e2283bc28956e0
+  closure cc11 $Closure$lambda11 type=function_type12 invoke=@fn26 captures=1
+    bridge function_type7 -> @fn81 id=88de281532be76724afe904e5ab34622614ed9b64d397fe4abfa2fb4e7c3f715
+  closure cc12 $Closure$lambda12 type=function_type2 invoke=@fn29 captures=0
+    bridge function_type1 -> @fn82 id=c0729c1786836a479fdfc7d764fe31a273f9e0498045dfcd2e1e62f385840ff7
+  closure cc13 $Closure$lambda13 type=function_type14 invoke=@fn31 captures=1
+    bridge function_type7 -> @fn83 id=fee8ee273e0abfcb315ee693a5bb359852694022ae6d1a5f5846d6c7fe6f8b6d
+  closure cc14 $Closure$lambda14 type=function_type15 invoke=@fn33 captures=1
+    bridge function_type7 -> @fn84 id=85d6b2bfce3521751704b76ecb6015b1cb57af5582536bd98df056b2474a45a7
+  closure cc15 $Closure$lambda15 type=function_type14 invoke=@fn36 captures=1
+    bridge function_type7 -> @fn85 id=8a29520f7082ae26eb1da489eb7aaba204952892096e00b23fe351e0b2668afe
+  closure cc16 $Closure$lambda16 type=function_type15 invoke=@fn38 captures=1
+    bridge function_type7 -> @fn86 id=02b8e5e04a8bbeadb6ed6d92afdad82aaf95008f354e0d2aa17e708e7babcc09
+  closure cc17 $Closure$lambda17 type=function_type16 invoke=@fn41 captures=0
+    bridge function_type1 -> @fn87 id=8155ee36070905c370c60a84992cc900d4c5dcbc852fcc75a83c1661d706d96c
+  closure cc18 $Closure$lambda18 type=function_type4 invoke=@fn45 captures=1
+    bridge function_type5 -> @fn88 id=46685d4795483ff7597e84d58b8ec1e61390bcfd061b327e8a95de054fa3958a
+  closure cc19 $Closure$lambda19 type=function_type10 invoke=@fn49 captures=1
+    bridge function_type5 -> @fn89 id=fa59c52970e7066c6019cebbc7e2f7b4a3885150ba946619be1713754524bafa
+  closure cc20 $Closure$lambda20 type=function_type13 invoke=@fn53 captures=1
+    bridge function_type5 -> @fn90 id=501b7abae562cc9fb3aeba2bbe7e25bec75211cd2f250a96f38b20b2fe6b8efb
+  generated_exact_type get0 location=closure12 nominal_id=bad1692912ce55ba9c61caeb75d66ef95d64bb73b01383029d19655968e6afc3 exact_id=0211c4b46f941a6045150e5c4621749baa92b3cad6fae63ba758021aa25e3300
+  generated_exact_type get1 location=closure19 nominal_id=63dda44a5fb4b792a3d3512c7a9662cdb9125ed132d59020b435b2d0a741be4f exact_id=0d33d0942cc57807fa852435fdc9742d12b6f04086fc6e5e61a84782afbcf059
+  generated_exact_type get2 location=closure18 nominal_id=891cde5d5ea409f70a966438094eff504852e4af2a18f6a9d34a8f37e9af2064 exact_id=1434ba26844de7fd7741eca0e7de4213b69ad063cd87d026a6dceac1a215dc38
+  generated_exact_type get3 location=enum1 nominal_id=ac3aa5d7788a77c43077b01c08716d6d9c4f879a4989251e7d7f68d30529ecf9 exact_id=154a1372e009b76c4a3c9078113ad40af579c98f9c57bd77fa7e301393f0a555
+  generated_exact_type get4 location=closure4 nominal_id=ea89d8712b88c02cf219fe87fe3b672faf2b484c6b3c1b1ce16621c9a14d4161 exact_id=2207725571d2320c9fe8f592f77adbf8e4b1bde065edb17a4e043c996a9aa2eb
+  generated_exact_type get5 location=closure5 nominal_id=0eafd159d1bf310ba4fd52159a0b3a45cea690e4e7e6c070684a998cb8b35ed5 exact_id=2c7db8712fdb2c01973cb8eaccc618e8384b311155fb86833ca167eb6047a512
+  generated_exact_type get6 location=class10 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get7 location=closure0 nominal_id=19d1e26d7fe1ffd3cbc1ca736d65610aa240de3f3e10c5a8dbf7ba95b736164c exact_id=58d13f7f2b08b96eddf23982fe41a5c6df7aff5905f446e4f3e1ea75d907e74a
+  generated_exact_type get8 location=closure10 nominal_id=bcfe694e79bdae6806a3e1208a27a23ba12edfc8c5cdb750d07ba03ff4eaa69e exact_id=6a14785017515f3ed22d17946f4c0b8031556e08232c4edbfc0cca864177c6af
+  generated_exact_type get9 location=closure1 nominal_id=4eba9e80f65e52614ce9b52183ce1926d89118d6ba31ba6f9f3f8dd52a5c0f18 exact_id=6a38abd90d4ad877eed4469814d5b4cebd400ae7ab8fc73eb2162caadb26f365
+  generated_exact_type get10 location=closure17 nominal_id=bfc6845eef27d6256b53cc5077bae1b586fd5f8dc3197be16e399f87bbcb624c exact_id=6c390d4b9720ea078dd44df7662f2db7be474da8f55aa6edb5649f3b48109f80
+  generated_exact_type get11 location=closure16 nominal_id=1cf31e0cc3f5d1e8a41e2f8b122b429aa08f80ed22f8af37b737ff045f5427d0 exact_id=6ca92d195e77cc0ef849c4e3359e010c092291dca371a323ceb4848be9299aff
+  generated_exact_type get12 location=closure7 nominal_id=8a1aba39310ba28b06ebf708f648f592d1c23c1a9bc81d8b7cd14328f3db223e exact_id=7805b319b28869cd85b16f3a6a1d1e08dac9e5d296af124c2ea3e8bbb4302d01
+  generated_exact_type get13 location=closure9 nominal_id=fc6336a9242b162a15ce005a212987b90afbca8bdaefede5a6d176db0165b59e exact_id=780f245a63b912a52fdf752c4e71e26359c24f9ea884cb7735ecb1a9f2ed56da
+  generated_exact_type get14 location=closure2 nominal_id=423d3ae230add7ffbf6e02dbe76c0baeb559bf632b432ab0ef1ce7ba7d741698 exact_id=8a0f7b20cb59d2b4fbb390d67024dafd085f3e5d51694d671b72f621e0466bb4
+  generated_exact_type get15 location=enum2 nominal_id=52998e43aae18d08a67e1eca87e5aba222da0cbdb3eec96f82117504d3a59491 exact_id=8b93a37ced85c5678583f8bf51b403a6e88954cfa80b30704a98461152ec5ef3
+  generated_exact_type get16 location=closure3 nominal_id=365223669f779dbabf9d734c9c99a96b6b8f5befeba3a628a39b2246adcf83fd exact_id=914bc90ee1cbe3d48689a22f723b347c71423741b215e5409ffda938c82605b5
+  generated_exact_type get17 location=closure15 nominal_id=fab3fda2893ddce9007254796d2ced2ac2377f3cbea6db390c4ea8390fb38f55 exact_id=969984e4120d355e2d6cdb2785ff4d52c560c10d67032351af74347a907d1568
+  generated_exact_type get18 location=closure14 nominal_id=8b84c13e7ae5323c9b496f0512b5d3c22d6ab25b00f937fe9490241b81ac81e4 exact_id=ad5968741ecd8c701c38a566c6b476f1d4689dd08d716822df9cf7acba8e7820
+  generated_exact_type get19 location=closure8 nominal_id=0fc59b39bbe2dda7faf442f79f0175bfe609523cb5bdc34a7603f3439bdfa17b exact_id=b0142647a4dd95eb2784d1221f4b53b0c5475a579c6fd1edbdf0536aa3f815c1
+  generated_exact_type get20 location=closure13 nominal_id=bb770b2c2928132cf8b921dfaba7e37ee6625236d1fbdd267435dfb93c21b54c exact_id=b36d0c8515509b38e9e633b5c181b880e7a40911b37f0b7a96653c1866e7c70a
+  generated_exact_type get21 location=closure6 nominal_id=b452bf9efc6e863175fb17c871bae07bfc84e9d63767cca7052ab0d4530efddc exact_id=bcf4db7dc0e7854dc033d5e6e9e49f971883df2a6301ae6a87880b1e7815d335
+  generated_exact_type get22 location=closure20 nominal_id=9b1e9ecc4babc7bc840706d0bfac8b71018009eb245d39217a0ef94b6bb34131 exact_id=d0ee91dbe25929eb6adc4055f7e29155bb2bd1ce1cbb27476d7381c114ae6904
+  generated_exact_type get23 location=class11 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get24 location=closure11 nominal_id=eab9e63407dae67f478b3474e5397a69e80351de19af693fdbd44b7bdc55a243 exact_id=ea8dfea7d8540f498b9aa13727689497c7c1cca7b370c3683560703905cfed4a
+  generated_callable gc0 function=@fn86 id=02b8e5e04a8bbeadb6ed6d92afdad82aaf95008f354e0d2aa17e708e7babcc09
+  generated_callable gc1 function=@fn69 id=0be28afd71dcc9d7e0203516d9229a474ab28e05fcae800600d2cb945dc259df
+  generated_callable gc2 function=@fn73 id=11d78f2458b3e98dfc7e366bcadd9bd884d6c3c2c4413256dbf8184682426ee2
+  generated_callable gc3 function=@fn88 id=46685d4795483ff7597e84d58b8ec1e61390bcfd061b327e8a95de054fa3958a
+  generated_callable gc4 function=@fn90 id=501b7abae562cc9fb3aeba2bbe7e25bec75211cd2f250a96f38b20b2fe6b8efb
+  generated_callable gc5 function=@fn79 id=506f1365c7dd40eb40572598b72d4d9f6700fb64dd3fab5ede5cd1e209d5df54
+  generated_callable gc6 function=@fn80 id=5e7cff8e086b05686720e3cee0a3e57c7af235419bc87f1475e2283bc28956e0
+  generated_callable gc7 function=@fn76 id=62ec62e23af91c1bf49ce8fb963c06239214d15ef57ad4d80afb34ba878432df
+  generated_callable gc8 function=@fn74 id=7d416efc3a436daf50f6a66b8c93497a56b37c60b6206c8205e30768790d7b23
+  generated_callable gc9 function=@fn87 id=8155ee36070905c370c60a84992cc900d4c5dcbc852fcc75a83c1661d706d96c
+  generated_callable gc10 function=@fn84 id=85d6b2bfce3521751704b76ecb6015b1cb57af5582536bd98df056b2474a45a7
+  generated_callable gc11 function=@fn81 id=88de281532be76724afe904e5ab34622614ed9b64d397fe4abfa2fb4e7c3f715
+  generated_callable gc12 function=@fn85 id=8a29520f7082ae26eb1da489eb7aaba204952892096e00b23fe351e0b2668afe
+  generated_callable gc13 function=@fn77 id=a2fecf4d302688cc344617a2002c12f5dca8af146855b04c6751319e147381da
+  generated_callable gc14 function=@fn78 id=aeaad210f3427a79a6b40830e140cf58c13d37febb2c08928bdaf2460619ea9b
+  generated_callable gc15 function=@fn71 id=bc0e0c8e1474e80b3410dffd4f4db25558c7bb70be33ecd18229a18bae607f7e
+  generated_callable gc16 function=@fn82 id=c0729c1786836a479fdfc7d764fe31a273f9e0498045dfcd2e1e62f385840ff7
+  generated_callable gc17 function=@fn75 id=cff774df944909f65cb384554e36c2e9f12f3c0540df5747083480c4befbdbd5
+  generated_callable gc18 function=@fn72 id=e02308b844c0bcc58f8ba2634e285a7da5d70254dbbdde0d0b3b1cc935e70c2a
+  generated_callable gc19 function=@fn70 id=f7ac139e97ea544f6f673c29032f70864639604e5152944c415d67312ade9a36
+  generated_callable gc20 function=@fn89 id=fa59c52970e7066c6019cebbc7e2f7b4a3885150ba946619be1713754524bafa
+  generated_callable gc21 function=@fn83 id=fee8ee273e0abfcb315ee693a5bb359852694022ae6d1a5f5846d6c7fe6f8b6d
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn62 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.argument.1: (Later) -> Int
+        Type (Later) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $dependency.parameter.seed: Later
+        Type Later
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type Later
+        Local $dependency.parameter.seed
+        Type (Later) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $dependency.parameter.seed: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn6 direct
+        Type Unit
+        Local $dependency.parameter.seed
+        Type (Unit) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn62 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocation: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocation
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.0 @fn1($closure: (Later) -> Int, item: Later) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local item
+  fun exercise @fn2(seed: Later, read: (Later) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.7: Later
+        Type Later
+        Local seed
+      val $dependency.local.8: Later
+        Type Later
+        Local $dependency.local.7
+      assign $new.1
+        Type Box<Later>
+        ClassAlloc Box<Later>
+      call @fn63 direct
+        Type Box<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.8
+      val $dependency.local.2: Box<Later>
+        Type Box<Later>
+        Local $new.1
+      val $dependency.local.9: Box<Later>
+        Type Box<Later>
+        Local $dependency.local.2
+      val $dependency.local.10: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.11: (Later, Int) -> Int
+        Type (Later, Int) -> Int
+        ClosureAlloc cc3 $Closure$lambda3
+          CaptureInit field=0
+            Type (Later) -> Int
+            Local read
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.13: (Later, Int) -> Int
+        Type (Later, Int) -> Int
+        Local $dependency.local.11
+      call $dependency.local.3: Int = @fn8 direct
+        Type Box<Later>
+        Local $dependency.local.9
+        Type Int
+        Local $dependency.local.12
+        Type (Later, Int) -> Int
+        Local $dependency.local.13
+      val $dependency.local.14: Box<Later>
+        Type Box<Later>
+        Local $dependency.local.2
+      val $dependency.local.15: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.16: (Later, Unit) -> Int
+        Type (Later, Unit) -> Int
+        ClosureAlloc cc4 $Closure$lambda4
+          CaptureInit field=0
+            Type (Later) -> Int
+            Local read
+      val $dependency.local.17: Unit
+        Type Unit
+        Local $dependency.local.15
+      val $dependency.local.18: (Later, Unit) -> Int
+        Type (Later, Unit) -> Int
+        Local $dependency.local.16
+      call $dependency.local.4: Int = @fn10 direct
+        Type Box<Later>
+        Local $dependency.local.14
+        Type Unit
+        Local $dependency.local.17
+        Type (Later, Unit) -> Int
+        Local $dependency.local.18
+      val $dependency.local.19: Box<Later>
+        Type Box<Later>
+        Local $dependency.local.2
+      call $dependency.local.20: Later = @fn11 direct
+        Type Box<Later>
+        Local $dependency.local.19
+      val $dependency.local.21: Later
+        Type Later
+        Local $dependency.local.20
+      assign $new.2
+        Type Local<Later>
+        ClassAlloc Local<Later>
+      call @fn64 direct
+        Type Local<Later>
+        Local $new.2
+        Type Later
+        Local $dependency.local.21
+      val $dependency.local.5: Local<Later>
+        Type Local<Later>
+        Local $new.2
+      val $dependency.local.22: Local<Later>
+        Type Local<Later>
+        Local $dependency.local.5
+      val $dependency.local.23: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.24: (Later, Int) -> Int
+        Type (Later, Int) -> Int
+        ClosureAlloc cc5 $Closure$lambda5
+          CaptureInit field=0
+            Type (Later) -> Int
+            Local read
+      val $dependency.local.25: Int
+        Type Int
+        Local $dependency.local.23
+      val $dependency.local.26: (Later, Int) -> Int
+        Type (Later, Int) -> Int
+        Local $dependency.local.24
+      call $dependency.local.27: Int = @fn13 direct
+        Type Local<Later>
+        Local $dependency.local.22
+        Type Int
+        Local $dependency.local.25
+        Type (Later, Int) -> Int
+        Local $dependency.local.26
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.29: Int
+        Type Int
+        Local $dependency.local.28
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.27
+            Type Int
+            Local $dependency.local.29
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.30: Local<Later>
+        Type Local<Later>
+        Local $dependency.local.5
+      val $dependency.local.31: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.32: (Later, Unit) -> Int
+        Type (Later, Unit) -> Int
+        ClosureAlloc cc6 $Closure$lambda6
+          CaptureInit field=0
+            Type (Later) -> Int
+            Local read
+      val $dependency.local.33: Unit
+        Type Unit
+        Local $dependency.local.31
+      val $dependency.local.34: (Later, Unit) -> Int
+        Type (Later, Unit) -> Int
+        Local $dependency.local.32
+      call $dependency.local.35: Int = @fn15 direct
+        Type Local<Later>
+        Local $dependency.local.30
+        Type Unit
+        Local $dependency.local.33
+        Type (Later, Unit) -> Int
+        Local $dependency.local.34
+      val $dependency.local.36: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.36
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.35
+            Type Int
+            Local $dependency.local.37
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.local.38: Later
+        Type Later
+        Local seed
+      val $dependency.local.39: Later
+        Type Later
+        Local $dependency.local.38
+      call $dependency.local.6: () -> Later = @fn16 direct
+        Type Later
+        Local $dependency.local.39
+      val $dependency.local.44: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      call $dependency.local.40: Later = <closure:function_type4> closure[function_type4]
+        Type () -> Later
+        Local $dependency.local.6
+      val $dependency.local.41: (Later) -> Later
+        Type (Later) -> Later
+        ClosureAlloc cc7 $Closure$lambda7
+      val $dependency.local.42: Later
+        Type Later
+        Local $dependency.local.40
+      val $dependency.local.43: (Later) -> Later
+        Type (Later) -> Later
+        Local $dependency.local.41
+      call $call.3: Later = @fn18 direct
+        Type Later
+        Local $dependency.local.42
+        Type (Later) -> Later
+        Local $dependency.local.43
+      call $call.4: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $dependency.local.44
+        Type Later
+        Local $call.3
+      return
+        Type Int
+        Local $call.4
+  fun $lambda.1 @fn3($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn4(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.7: Int
+        Type Int
+        Local seed
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.7
+      assign $new.1
+        Type Box<Int>
+        ClassAlloc Box<Int>
+      call @fn65 direct
+        Type Box<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.8
+      val $dependency.local.2: Box<Int>
+        Type Box<Int>
+        Local $new.1
+      val $dependency.local.9: Box<Int>
+        Type Box<Int>
+        Local $dependency.local.2
+      val $dependency.local.10: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.11: (Int, Int) -> Int
+        Type (Int, Int) -> Int
+        ClosureAlloc cc8 $Closure$lambda8
+          CaptureInit field=0
+            Type (Int) -> Int
+            Local read
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.13: (Int, Int) -> Int
+        Type (Int, Int) -> Int
+        Local $dependency.local.11
+      call $dependency.local.3: Int = @fn20 direct
+        Type Box<Int>
+        Local $dependency.local.9
+        Type Int
+        Local $dependency.local.12
+        Type (Int, Int) -> Int
+        Local $dependency.local.13
+      val $dependency.local.14: Box<Int>
+        Type Box<Int>
+        Local $dependency.local.2
+      val $dependency.local.15: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.16: (Int, Unit) -> Int
+        Type (Int, Unit) -> Int
+        ClosureAlloc cc9 $Closure$lambda9
+          CaptureInit field=0
+            Type (Int) -> Int
+            Local read
+      val $dependency.local.17: Unit
+        Type Unit
+        Local $dependency.local.15
+      val $dependency.local.18: (Int, Unit) -> Int
+        Type (Int, Unit) -> Int
+        Local $dependency.local.16
+      call $dependency.local.4: Int = @fn22 direct
+        Type Box<Int>
+        Local $dependency.local.14
+        Type Unit
+        Local $dependency.local.17
+        Type (Int, Unit) -> Int
+        Local $dependency.local.18
+      val $dependency.local.19: Box<Int>
+        Type Box<Int>
+        Local $dependency.local.2
+      call $dependency.local.20: Int = @fn23 direct
+        Type Box<Int>
+        Local $dependency.local.19
+      val $dependency.local.21: Int
+        Type Int
+        Local $dependency.local.20
+      assign $new.2
+        Type Local<Int>
+        ClassAlloc Local<Int>
+      call @fn66 direct
+        Type Local<Int>
+        Local $new.2
+        Type Int
+        Local $dependency.local.21
+      val $dependency.local.5: Local<Int>
+        Type Local<Int>
+        Local $new.2
+      val $dependency.local.22: Local<Int>
+        Type Local<Int>
+        Local $dependency.local.5
+      val $dependency.local.23: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.24: (Int, Int) -> Int
+        Type (Int, Int) -> Int
+        ClosureAlloc cc10 $Closure$lambda10
+          CaptureInit field=0
+            Type (Int) -> Int
+            Local read
+      val $dependency.local.25: Int
+        Type Int
+        Local $dependency.local.23
+      val $dependency.local.26: (Int, Int) -> Int
+        Type (Int, Int) -> Int
+        Local $dependency.local.24
+      call $dependency.local.27: Int = @fn25 direct
+        Type Local<Int>
+        Local $dependency.local.22
+        Type Int
+        Local $dependency.local.25
+        Type (Int, Int) -> Int
+        Local $dependency.local.26
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.29: Int
+        Type Int
+        Local $dependency.local.28
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.27
+            Type Int
+            Local $dependency.local.29
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.30: Local<Int>
+        Type Local<Int>
+        Local $dependency.local.5
+      val $dependency.local.31: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.32: (Int, Unit) -> Int
+        Type (Int, Unit) -> Int
+        ClosureAlloc cc11 $Closure$lambda11
+          CaptureInit field=0
+            Type (Int) -> Int
+            Local read
+      val $dependency.local.33: Unit
+        Type Unit
+        Local $dependency.local.31
+      val $dependency.local.34: (Int, Unit) -> Int
+        Type (Int, Unit) -> Int
+        Local $dependency.local.32
+      call $dependency.local.35: Int = @fn27 direct
+        Type Local<Int>
+        Local $dependency.local.30
+        Type Unit
+        Local $dependency.local.33
+        Type (Int, Unit) -> Int
+        Local $dependency.local.34
+      val $dependency.local.36: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.36
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.35
+            Type Int
+            Local $dependency.local.37
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.local.38: Int
+        Type Int
+        Local seed
+      val $dependency.local.39: Int
+        Type Int
+        Local $dependency.local.38
+      call $dependency.local.6: () -> Int = @fn28 direct
+        Type Int
+        Local $dependency.local.39
+      val $dependency.local.44: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      call $dependency.local.40: Int = <closure:function_type10> closure[function_type10]
+        Type () -> Int
+        Local $dependency.local.6
+      val $dependency.local.41: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc12 $Closure$lambda12
+      val $dependency.local.42: Int
+        Type Int
+        Local $dependency.local.40
+      val $dependency.local.43: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.41
+      call $call.3: Int = @fn30 direct
+        Type Int
+        Local $dependency.local.42
+        Type (Int) -> Int
+        Local $dependency.local.43
+      call $call.4: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $dependency.local.44
+        Type Int
+        Local $call.3
+      return
+        Type Int
+        Local $call.4
+  fun $lambda.2 @fn5($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn6(seed: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.7: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.8: Unit
+        Type Unit
+        Local $dependency.local.7
+      assign $new.1
+        Type Box<Unit>
+        ClassAlloc Box<Unit>
+      call @fn67 direct
+        Type Box<Unit>
+        Local $new.1
+        Type Unit
+        Local $dependency.local.8
+      val $dependency.local.2: Box<Unit>
+        Type Box<Unit>
+        Local $new.1
+      val $dependency.local.9: Box<Unit>
+        Type Box<Unit>
+        Local $dependency.local.2
+      val $dependency.local.10: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.11: (Unit, Int) -> Int
+        Type (Unit, Int) -> Int
+        ClosureAlloc cc13 $Closure$lambda13
+          CaptureInit field=0
+            Type (Unit) -> Int
+            Local read
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.13: (Unit, Int) -> Int
+        Type (Unit, Int) -> Int
+        Local $dependency.local.11
+      call $dependency.local.3: Int = @fn32 direct
+        Type Box<Unit>
+        Local $dependency.local.9
+        Type Int
+        Local $dependency.local.12
+        Type (Unit, Int) -> Int
+        Local $dependency.local.13
+      val $dependency.local.14: Box<Unit>
+        Type Box<Unit>
+        Local $dependency.local.2
+      val $dependency.local.15: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.16: (Unit, Unit) -> Int
+        Type (Unit, Unit) -> Int
+        ClosureAlloc cc14 $Closure$lambda14
+          CaptureInit field=0
+            Type (Unit) -> Int
+            Local read
+      val $dependency.local.17: Unit
+        Type Unit
+        Local $dependency.local.15
+      val $dependency.local.18: (Unit, Unit) -> Int
+        Type (Unit, Unit) -> Int
+        Local $dependency.local.16
+      call $dependency.local.4: Int = @fn34 direct
+        Type Box<Unit>
+        Local $dependency.local.14
+        Type Unit
+        Local $dependency.local.17
+        Type (Unit, Unit) -> Int
+        Local $dependency.local.18
+      val $dependency.local.19: Box<Unit>
+        Type Box<Unit>
+        Local $dependency.local.2
+      call @fn35 direct
+        Type Box<Unit>
+        Local $dependency.local.19
+      val $dependency.local.20: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.21: Unit
+        Type Unit
+        Local $dependency.local.20
+      assign $new.2
+        Type Local<Unit>
+        ClassAlloc Local<Unit>
+      call @fn68 direct
+        Type Local<Unit>
+        Local $new.2
+        Type Unit
+        Local $dependency.local.21
+      val $dependency.local.5: Local<Unit>
+        Type Local<Unit>
+        Local $new.2
+      val $dependency.local.22: Local<Unit>
+        Type Local<Unit>
+        Local $dependency.local.5
+      val $dependency.local.23: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.24: (Unit, Int) -> Int
+        Type (Unit, Int) -> Int
+        ClosureAlloc cc15 $Closure$lambda15
+          CaptureInit field=0
+            Type (Unit) -> Int
+            Local read
+      val $dependency.local.25: Int
+        Type Int
+        Local $dependency.local.23
+      val $dependency.local.26: (Unit, Int) -> Int
+        Type (Unit, Int) -> Int
+        Local $dependency.local.24
+      call $dependency.local.27: Int = @fn37 direct
+        Type Local<Unit>
+        Local $dependency.local.22
+        Type Int
+        Local $dependency.local.25
+        Type (Unit, Int) -> Int
+        Local $dependency.local.26
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.29: Int
+        Type Int
+        Local $dependency.local.28
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.27
+            Type Int
+            Local $dependency.local.29
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.30: Local<Unit>
+        Type Local<Unit>
+        Local $dependency.local.5
+      val $dependency.local.31: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.32: (Unit, Unit) -> Int
+        Type (Unit, Unit) -> Int
+        ClosureAlloc cc16 $Closure$lambda16
+          CaptureInit field=0
+            Type (Unit) -> Int
+            Local read
+      val $dependency.local.33: Unit
+        Type Unit
+        Local $dependency.local.31
+      val $dependency.local.34: (Unit, Unit) -> Int
+        Type (Unit, Unit) -> Int
+        Local $dependency.local.32
+      call $dependency.local.35: Int = @fn39 direct
+        Type Local<Unit>
+        Local $dependency.local.30
+        Type Unit
+        Local $dependency.local.33
+        Type (Unit, Unit) -> Int
+        Local $dependency.local.34
+      val $dependency.local.36: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.37: Int
+        Type Int
+        Local $dependency.local.36
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.35
+            Type Int
+            Local $dependency.local.37
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.local.38: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.39: Unit
+        Type Unit
+        Local $dependency.local.38
+      call $dependency.local.6: () -> Unit = @fn40 direct
+        Type Unit
+        Local $dependency.local.39
+      val $dependency.local.44: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      call <closure:function_type13> closure[function_type13]
+        Type () -> Unit
+        Local $dependency.local.6
+      val $dependency.local.40: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.41: (Unit) -> Unit
+        Type (Unit) -> Unit
+        ClosureAlloc cc17 $Closure$lambda17
+      val $dependency.local.42: Unit
+        Type Unit
+        Local $dependency.local.40
+      val $dependency.local.43: (Unit) -> Unit
+        Type (Unit) -> Unit
+        Local $dependency.local.41
+      call @fn42 direct
+        Type Unit
+        Local $dependency.local.42
+        Type (Unit) -> Unit
+        Local $dependency.local.43
+      call $call.3: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $dependency.local.44
+        Type Unit
+        UnitLiteral
+      return
+        Type Int
+        Local $call.3
+  fun $lambda @fn7($argument.0: (Later, Int) -> Int, $argument.1: Later, $argument.2: Int) -> Int
+    bb0 entry
+      call $dependency.local.2: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        ClosureCapture cc3 0
+          Type (Later, Int) -> Int
+          Local $argument.0
+        Type Later
+        Local $argument.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $argument.2
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun mix @fn8(this: Box<Later>, extra: Int, select: (Later, Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Later = @fn43 direct
+        Type Box<Later>
+        Local this
+      call $call.2: Int = <closure:function_type6> closure[function_type6]
+        Type (Later, Int) -> Int
+        Local select
+        Type Later
+        Local $call.1
+        Type Int
+        Local extra
+      return
+        Type Int
+        Local $call.2
+  fun $lambda @fn9($argument.0: (Later, Unit) -> Int, $argument.1: Later, $argument.2: Unit) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        ClosureCapture cc4 0
+          Type (Later, Unit) -> Int
+          Local $argument.0
+        Type Later
+        Local $argument.1
+      return
+        Type Int
+        Local $call.1
+  fun mix @fn10(this: Box<Later>, extra: Unit, select: (Later, Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Later = @fn43 direct
+        Type Box<Later>
+        Local this
+      call $call.2: Int = <closure:function_type8> closure[function_type8]
+        Type (Later, Unit) -> Int
+        Local select
+        Type Later
+        Local $call.1
+        Type Unit
+        Local extra
+      return
+        Type Int
+        Local $call.2
+  fun read @fn11(this: Box<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn43 direct
+        Type Box<Later>
+        Local this
+      return
+        Type Later
+        Local $call.1
+  fun $lambda @fn12($argument.0: (Later, Int) -> Int, $argument.1: Later, $argument.2: Int) -> Int
+    bb0 entry
+      call $dependency.local.2: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        ClosureCapture cc5 0
+          Type (Later, Int) -> Int
+          Local $argument.0
+        Type Later
+        Local $argument.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $argument.2
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun mix @fn13(this: Local<Later>, extra: Int, select: (Later, Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Later = @fn44 direct
+        Type Local<Later>
+        Local this
+      call $call.2: Int = <closure:function_type6> closure[function_type6]
+        Type (Later, Int) -> Int
+        Local select
+        Type Later
+        Local $call.1
+        Type Int
+        Local extra
+      return
+        Type Int
+        Local $call.2
+  fun $lambda @fn14($argument.0: (Later, Unit) -> Int, $argument.1: Later, $argument.2: Unit) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        ClosureCapture cc6 0
+          Type (Later, Unit) -> Int
+          Local $argument.0
+        Type Later
+        Local $argument.1
+      return
+        Type Int
+        Local $call.1
+  fun mix @fn15(this: Local<Later>, extra: Unit, select: (Later, Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Later = @fn44 direct
+        Type Local<Later>
+        Local this
+      call $call.2: Int = <closure:function_type8> closure[function_type8]
+        Type (Later, Unit) -> Int
+        Local select
+        Type Later
+        Local $call.1
+        Type Unit
+        Local extra
+      return
+        Type Int
+        Local $call.2
+  fun factory @fn16(value: Later) -> () -> Later
+    bb0 entry
+      return
+        Type () -> Later
+        ClosureAlloc cc18 $Closure$lambda18
+          CaptureInit field=0
+            Type Later
+            Local value
+  fun $lambda @fn17($argument.0: (Later) -> Later, $argument.1: Later) -> Later
+    bb0 entry
+      val $dependency.local.1: Later
+        Type Later
+        Local $argument.1
+      val $dependency.local.2: Later
+        Type Later
+        Local $dependency.local.1
+      call $call.1: Later = @fn46 direct
+        Type Later
+        Local $dependency.local.2
+      return
+        Type Later
+        Local $call.1
+  fun defaulted @fn18(value: Later, select: (Later) -> Later) -> Later
+    bb0 entry
+      call $call.1: Later = <closure:function_type9> closure[function_type9]
+        Type (Later) -> Later
+        Local select
+        Type Later
+        Local value
+      return
+        Type Later
+        Local $call.1
+  fun $lambda @fn19($argument.0: (Int, Int) -> Int, $argument.1: Int, $argument.2: Int) -> Int
+    bb0 entry
+      call $dependency.local.2: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        ClosureCapture cc8 0
+          Type (Int, Int) -> Int
+          Local $argument.0
+        Type Int
+        Local $argument.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $argument.2
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun mix @fn20(this: Box<Int>, extra: Int, select: (Int, Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn47 direct
+        Type Box<Int>
+        Local this
+      call $call.2: Int = <closure:function_type11> closure[function_type11]
+        Type (Int, Int) -> Int
+        Local select
+        Type Int
+        Local $call.1
+        Type Int
+        Local extra
+      return
+        Type Int
+        Local $call.2
+  fun $lambda @fn21($argument.0: (Int, Unit) -> Int, $argument.1: Int, $argument.2: Unit) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        ClosureCapture cc9 0
+          Type (Int, Unit) -> Int
+          Local $argument.0
+        Type Int
+        Local $argument.1
+      return
+        Type Int
+        Local $call.1
+  fun mix @fn22(this: Box<Int>, extra: Unit, select: (Int, Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn47 direct
+        Type Box<Int>
+        Local this
+      call $call.2: Int = <closure:function_type12> closure[function_type12]
+        Type (Int, Unit) -> Int
+        Local select
+        Type Int
+        Local $call.1
+        Type Unit
+        Local extra
+      return
+        Type Int
+        Local $call.2
+  fun read @fn23(this: Box<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn47 direct
+        Type Box<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $lambda @fn24($argument.0: (Int, Int) -> Int, $argument.1: Int, $argument.2: Int) -> Int
+    bb0 entry
+      call $dependency.local.2: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        ClosureCapture cc10 0
+          Type (Int, Int) -> Int
+          Local $argument.0
+        Type Int
+        Local $argument.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $argument.2
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun mix @fn25(this: Local<Int>, extra: Int, select: (Int, Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn48 direct
+        Type Local<Int>
+        Local this
+      call $call.2: Int = <closure:function_type11> closure[function_type11]
+        Type (Int, Int) -> Int
+        Local select
+        Type Int
+        Local $call.1
+        Type Int
+        Local extra
+      return
+        Type Int
+        Local $call.2
+  fun $lambda @fn26($argument.0: (Int, Unit) -> Int, $argument.1: Int, $argument.2: Unit) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        ClosureCapture cc11 0
+          Type (Int, Unit) -> Int
+          Local $argument.0
+        Type Int
+        Local $argument.1
+      return
+        Type Int
+        Local $call.1
+  fun mix @fn27(this: Local<Int>, extra: Unit, select: (Int, Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn48 direct
+        Type Local<Int>
+        Local this
+      call $call.2: Int = <closure:function_type12> closure[function_type12]
+        Type (Int, Unit) -> Int
+        Local select
+        Type Int
+        Local $call.1
+        Type Unit
+        Local extra
+      return
+        Type Int
+        Local $call.2
+  fun factory @fn28(value: Int) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc19 $Closure$lambda19
+          CaptureInit field=0
+            Type Int
+            Local value
+  fun $lambda @fn29($argument.0: (Int) -> Int, $argument.1: Int) -> Int
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local $argument.1
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      call $call.1: Int = @fn50 direct
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        Local $call.1
+  fun defaulted @fn30(value: Int, select: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local select
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun $lambda @fn31($argument.0: (Unit, Int) -> Int, $argument.1: Unit, $argument.2: Int) -> Int
+    bb0 entry
+      call $dependency.local.2: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        ClosureCapture cc13 0
+          Type (Unit, Int) -> Int
+          Local $argument.0
+        Type Unit
+        Local $argument.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $argument.2
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun mix @fn32(this: Box<Unit>, extra: Int, select: (Unit, Int) -> Int) -> Int
+    bb0 entry
+      call @fn51 direct
+        Type Box<Unit>
+        Local this
+      call $call.1: Int = <closure:function_type14> closure[function_type14]
+        Type (Unit, Int) -> Int
+        Local select
+        Type Unit
+        UnitLiteral
+        Type Int
+        Local extra
+      return
+        Type Int
+        Local $call.1
+  fun $lambda @fn33($argument.0: (Unit, Unit) -> Int, $argument.1: Unit, $argument.2: Unit) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        ClosureCapture cc14 0
+          Type (Unit, Unit) -> Int
+          Local $argument.0
+        Type Unit
+        Local $argument.1
+      return
+        Type Int
+        Local $call.1
+  fun mix @fn34(this: Box<Unit>, extra: Unit, select: (Unit, Unit) -> Int) -> Int
+    bb0 entry
+      call @fn51 direct
+        Type Box<Unit>
+        Local this
+      call $call.1: Int = <closure:function_type15> closure[function_type15]
+        Type (Unit, Unit) -> Int
+        Local select
+        Type Unit
+        UnitLiteral
+        Type Unit
+        Local extra
+      return
+        Type Int
+        Local $call.1
+  fun read @fn35(this: Box<Unit>) -> Unit
+    bb0 entry
+      call @fn51 direct
+        Type Box<Unit>
+        Local this
+      return
+  fun $lambda @fn36($argument.0: (Unit, Int) -> Int, $argument.1: Unit, $argument.2: Int) -> Int
+    bb0 entry
+      call $dependency.local.2: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        ClosureCapture cc15 0
+          Type (Unit, Int) -> Int
+          Local $argument.0
+        Type Unit
+        Local $argument.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $argument.2
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun mix @fn37(this: Local<Unit>, extra: Int, select: (Unit, Int) -> Int) -> Int
+    bb0 entry
+      call @fn52 direct
+        Type Local<Unit>
+        Local this
+      call $call.1: Int = <closure:function_type14> closure[function_type14]
+        Type (Unit, Int) -> Int
+        Local select
+        Type Unit
+        UnitLiteral
+        Type Int
+        Local extra
+      return
+        Type Int
+        Local $call.1
+  fun $lambda @fn38($argument.0: (Unit, Unit) -> Int, $argument.1: Unit, $argument.2: Unit) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        ClosureCapture cc16 0
+          Type (Unit, Unit) -> Int
+          Local $argument.0
+        Type Unit
+        Local $argument.1
+      return
+        Type Int
+        Local $call.1
+  fun mix @fn39(this: Local<Unit>, extra: Unit, select: (Unit, Unit) -> Int) -> Int
+    bb0 entry
+      call @fn52 direct
+        Type Local<Unit>
+        Local this
+      call $call.1: Int = <closure:function_type15> closure[function_type15]
+        Type (Unit, Unit) -> Int
+        Local select
+        Type Unit
+        UnitLiteral
+        Type Unit
+        Local extra
+      return
+        Type Int
+        Local $call.1
+  fun factory @fn40(value: Unit) -> () -> Unit
+    bb0 entry
+      return
+        Type () -> Unit
+        ClosureAlloc cc20 $Closure$lambda20
+          CaptureInit field=0
+            Type Unit
+            Local value
+  fun $lambda @fn41($argument.0: (Unit) -> Unit, $argument.1: Unit) -> Unit
+    bb0 entry
+      val $dependency.local.1: Unit
+        Type Unit
+        Local $argument.1
+      val $dependency.local.2: Unit
+        Type Unit
+        Local $dependency.local.1
+      call @fn54 direct
+        Type Unit
+        Local $dependency.local.2
+      return
+  fun defaulted @fn42(value: Unit, select: (Unit) -> Unit) -> Unit
+    bb0 entry
+      call <closure:function_type16> closure[function_type16]
+        Type (Unit) -> Unit
+        Local select
+        Type Unit
+        Local value
+      return
+  fun value @fn43(this: Box<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type Box<Later>
+          Local this
+  fun value @fn44(this: Local<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type Local<Later>
+          Local this
+  fun $lambda @fn45($argument.0: () -> Later) -> Later
+    bb0 entry
+      val $dependency.local.0: Later
+        Type Later
+        ClosureCapture cc18 0
+          Type () -> Later
+          Local $argument.0
+      val $dependency.local.1: Later
+        Type Later
+        Local $dependency.local.0
+      call $dependency.local.2: Later = @fn46 direct
+        Type Later
+        Local $dependency.local.1
+      val $dependency.local.3: Later
+        Type Later
+        Local $dependency.local.2
+      call $call.1: Later = @fn55 direct
+        Type Later
+        Local $dependency.local.3
+      return
+        Type Later
+        Local $call.1
+  fun identity @fn46(value: Later) -> Later
+    bb0 entry
+      return
+        Type Later
+        Local value
+  fun value @fn47(this: Box<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Box<Int>
+          Local this
+  fun value @fn48(this: Local<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Local<Int>
+          Local this
+  fun $lambda @fn49($argument.0: () -> Int) -> Int
+    bb0 entry
+      val $dependency.local.0: Int
+        Type Int
+        ClosureCapture cc19 0
+          Type () -> Int
+          Local $argument.0
+      val $dependency.local.1: Int
+        Type Int
+        Local $dependency.local.0
+      call $dependency.local.2: Int = @fn50 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      call $call.1: Int = @fn56 direct
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Int
+        Local $call.1
+  fun identity @fn50(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun value @fn51(this: Box<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Box<Unit>
+        Local this
+      return
+  fun value @fn52(this: Local<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Local<Unit>
+        Local this
+      return
+  fun $lambda @fn53($argument.0: () -> Unit) -> Unit
+    bb0 entry
+      val $dependency.local.0: Unit
+        Type Unit
+        ClosureCapture cc20 0
+          Type () -> Unit
+          Local $argument.0
+      val $dependency.local.1: Unit
+        Type Unit
+        Local $dependency.local.0
+      call @fn54 direct
+        Type Unit
+        Local $dependency.local.1
+      val $dependency.local.2: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.local.3: Unit
+        Type Unit
+        Local $dependency.local.2
+      call @fn57 direct
+        Type Unit
+        Local $dependency.local.3
+      return
+  fun identity @fn54(value: Unit) -> Unit
+    bb0 entry
+      Type Unit
+      Local value
+      return
+  fun keep @fn55($argument.0: Later) -> Later
+    bb0 entry
+      return
+        Type Later
+        Local $argument.0
+  fun keep @fn56($argument.0: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $argument.0
+  fun keep @fn57($argument.0: Unit) -> Unit
+    bb0 entry
+      Type Unit
+      Local $argument.0
+      return
+  fun Continuation.resume @fn58(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn59(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn60(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn61(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn62(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Box.$c0 @fn63(this: Box<Later>, value: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Later>
+        Local this
+        Type Later
+        Local value
+      return
+  fun init.Local.$c1 @fn64(this: Local<Later>, value: Later) -> Unit
+    bb0 entry
+      field_set 0
+        Type Local<Later>
+        Local this
+        Type Later
+        Local value
+      return
+  fun init.Box.$c0 @fn65(this: Box<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Local.$c1 @fn66(this: Local<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Local<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Box.$c0 @fn67(this: Box<Unit>, value: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Box<Unit>
+        Local this
+        Type Unit
+        Local value
+      return
+  fun init.Local.$c1 @fn68(this: Local<Unit>, value: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type Local<Unit>
+        Local this
+        Type Unit
+        Local value
+      return
+  fun startCoroutine<Later> @fn69(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn58 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn59 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn60 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn70($source: (Later) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn71($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn72($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda3.(Any, Any) -> Any @fn73($source: (Later, Int) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type6> closure[function_type6]
+        Type (Later, Int) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda4.(Any, Any) -> Any @fn74($source: (Later, Unit) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type8> closure[function_type8]
+        Type (Later, Unit) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+        Type Unit
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda5.(Any, Any) -> Any @fn75($source: (Later, Int) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type6> closure[function_type6]
+        Type (Later, Int) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda6.(Any, Any) -> Any @fn76($source: (Later, Unit) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type8> closure[function_type8]
+        Type (Later, Unit) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+        Type Unit
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda7.(Any) -> Any @fn77($source: (Later) -> Later, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Later = <closure:function_type9> closure[function_type9]
+        Type (Later) -> Later
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Later
+          Local $call.1
+  fun function_bridge.$Closure$lambda8.(Any, Any) -> Any @fn78($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type11> closure[function_type11]
+        Type (Int, Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda9.(Any, Any) -> Any @fn79($source: (Int, Unit) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type12> closure[function_type12]
+        Type (Int, Unit) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+        Type Unit
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda10.(Any, Any) -> Any @fn80($source: (Int, Int) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type11> closure[function_type11]
+        Type (Int, Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda11.(Any, Any) -> Any @fn81($source: (Int, Unit) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type12> closure[function_type12]
+        Type (Int, Unit) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+        Type Unit
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda12.(Any) -> Any @fn82($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda13.(Any, Any) -> Any @fn83($source: (Unit, Int) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type14> closure[function_type14]
+        Type (Unit, Int) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda14.(Any, Any) -> Any @fn84($source: (Unit, Unit) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type15> closure[function_type15]
+        Type (Unit, Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+        Type Unit
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda15.(Any, Any) -> Any @fn85($source: (Unit, Int) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type14> closure[function_type14]
+        Type (Unit, Int) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+        Type Int
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda16.(Any, Any) -> Any @fn86($source: (Unit, Unit) -> Int, arg0: Any, arg1: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type15> closure[function_type15]
+        Type (Unit, Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+        Type Unit
+        Unbox
+          Type Any
+          Local arg1
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda17.(Any) -> Any @fn87($source: (Unit) -> Unit, arg0: Any) -> Any
+    bb0 entry
+      call <closure:function_type16> closure[function_type16]
+        Type (Unit) -> Unit
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  fun function_bridge.$Closure$lambda18.() -> Any @fn88($source: () -> Later) -> Any
+    bb0 entry
+      call $call.1: Later = <closure:function_type4> closure[function_type4]
+        Type () -> Later
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type Later
+          Local $call.1
+  fun function_bridge.$Closure$lambda19.() -> Any @fn89($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type10> closure[function_type10]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda20.() -> Any @fn90($source: () -> Unit) -> Any
+    bb0 entry
+      call <closure:function_type13> closure[function_type13]
+        Type () -> Unit
+        Local $source
+      return
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn69
+  coroutine_fn cf0 @fn60 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn7 <- $lambda
+  instance mi4 function=@fn8 <- mix
+  instance mi5 function=@fn9 <- $lambda
+  instance mi6 function=@fn10 <- mix
+  instance mi7 function=@fn11 <- read
+  instance mi8 function=@fn12 <- $lambda
+  instance mi9 function=@fn13 <- mix
+  instance mi10 function=@fn14 <- $lambda
+  instance mi11 function=@fn15 <- mix
+  instance mi12 function=@fn16 <- factory
+  instance mi13 function=@fn17 <- $lambda
+  instance mi14 function=@fn18 <- defaulted
+  instance mi15 function=@fn19 <- $lambda
+  instance mi16 function=@fn20 <- mix
+  instance mi17 function=@fn21 <- $lambda
+  instance mi18 function=@fn22 <- mix
+  instance mi19 function=@fn23 <- read
+  instance mi20 function=@fn24 <- $lambda
+  instance mi21 function=@fn25 <- mix
+  instance mi22 function=@fn26 <- $lambda
+  instance mi23 function=@fn27 <- mix
+  instance mi24 function=@fn28 <- factory
+  instance mi25 function=@fn29 <- $lambda
+  instance mi26 function=@fn30 <- defaulted
+  instance mi27 function=@fn31 <- $lambda
+  instance mi28 function=@fn32 <- mix
+  instance mi29 function=@fn33 <- $lambda
+  instance mi30 function=@fn34 <- mix
+  instance mi31 function=@fn35 <- read
+  instance mi32 function=@fn36 <- $lambda
+  instance mi33 function=@fn37 <- mix
+  instance mi34 function=@fn38 <- $lambda
+  instance mi35 function=@fn39 <- mix
+  instance mi36 function=@fn40 <- factory
+  instance mi37 function=@fn41 <- $lambda
+  instance mi38 function=@fn42 <- defaulted
+  instance mi39 function=@fn43 <- value
+  instance mi40 function=@fn44 <- value
+  instance mi41 function=@fn45 <- $lambda
+  instance mi42 function=@fn46 <- identity
+  instance mi43 function=@fn47 <- value
+  instance mi44 function=@fn48 <- value
+  instance mi45 function=@fn49 <- $lambda
+  instance mi46 function=@fn50 <- identity
+  instance mi47 function=@fn51 <- value
+  instance mi48 function=@fn52 <- value
+  instance mi49 function=@fn53 <- $lambda
+  instance mi50 function=@fn54 <- identity
+  instance mi51 function=@fn55 <- keep
+  instance mi52 function=@fn56 <- keep
+  instance mi53 function=@fn57 <- keep
+  instance mi54 function=@fn58 <- Continuation.resume
+  instance mi55 function=@fn59 <- Continuation.resumeWithException
+  instance mi56 function=@fn60 <- SuspendTask.run
+  instance mi57 function=@fn61 <- SuspendRegistration.register
+  output library

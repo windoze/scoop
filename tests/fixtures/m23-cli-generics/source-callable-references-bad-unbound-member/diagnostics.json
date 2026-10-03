@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unbound member reference `Plain::read` is not supported; bind an expression receiver first",
+    "notes": [],
+    "origin": {
+      "cone": "127778c534c004de8e3d99c342e00bb1b395e9d3b0f42e2264878bcb89fd8f21",
+      "end": 91,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  }
+]

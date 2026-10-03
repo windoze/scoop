@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m3-generics/errors/null-assert-non-option.scoop:3:13: error: `!!` requires an Option operand, found Int

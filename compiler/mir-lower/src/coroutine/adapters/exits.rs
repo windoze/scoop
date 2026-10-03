@@ -21,17 +21,21 @@ pub(super) fn drive_exit_blocks(
     frame_layout: FrameLayout,
     step_ty: &mir::Type,
     outer_continuation: mir::InterfaceId,
-    outer_resume: mir::FunctionId,
-    outer_failure: mir::FunctionId,
+    outer_resume: &mir::CallTarget,
+    outer_failure: &mir::CallTarget,
 ) -> DriveExitBlocks {
     let completed_payload = lowerer
         .coroutines
         .step_metadata_for_type(step_ty)
         .completed_payload();
-    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
+    let throwable = crate::coroutine_registry::throwable_type(module, &lowerer.class_map);
     let exception = locals.alloc(local("$uncaught", throwable.clone()));
     let completion_ty = mir::Type::Interface(outer_continuation);
-    let completed_value_ty = lowerer.functions[outer_resume].params[1].ty.clone();
+    let completed_value_ty = lowerer
+        .coroutines
+        .step_metadata_for_type(step_ty)
+        .result()
+        .clone();
     let completed = blocks.alloc(mir::BasicBlock {
         name: "completed".to_string(),
         statements: vec![
@@ -41,13 +45,7 @@ pub(super) fn drive_exit_blocks(
                 frame_state(STATE_COMPLETED),
             ),
             statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Interface {
-                        interface: outer_continuation,
-                        slot: 0,
-                    },
-                    callee: mir::Callee::User(outer_resume),
-                },
+                target: outer_resume.clone(),
                 args: vec![
                     frame_field(
                         adapter_frame(this, adapter, frame_class),
@@ -84,13 +82,7 @@ pub(super) fn drive_exit_blocks(
                 frame_state(STATE_COMPLETED),
             ),
             statement(mir::StatementKind::Call(mir::CallEffect::Unit(mir::Call {
-                target: mir::CallTarget {
-                    kind: mir::CallKind::Interface {
-                        interface: outer_continuation,
-                        slot: 1,
-                    },
-                    callee: mir::Callee::User(outer_failure),
-                },
+                target: outer_failure.clone(),
                 args: vec![
                     frame_field(
                         adapter_frame(this, adapter, frame_class),

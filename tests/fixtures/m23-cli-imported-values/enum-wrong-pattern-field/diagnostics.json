@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "variant `Pair` of `Choice` has no field `missing`",
+    "notes": [],
+    "origin": {
+      "cone": "9e5992c1f1ef181475d3c89b173866a80c5f4427e0ae9b05daca3d9364b452c1",
+      "end": 144,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 137
+    },
+    "severity": "error"
+  }
+]

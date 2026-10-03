@@ -1,0 +1,121 @@
+Module
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class box<Boolean> vtable=0 itables=0
+  interface Hash
+  interface ToString
+  generated_exact_type get0 location=class3 nominal_id=3536333a8ba0aaed76b3bec081995b49af64f164523f6560324f8e64e7ef08e0 exact_id=c4a33308c9b1a4e41424f4d1ffe01aa6e97556fe61c06a7387e42b4ddf522d17
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val boxed: Any
+        Type Any
+        Box
+          Type Boolean
+          BoolLiteral true
+      val yes: Hash
+        Type Hash
+        Box
+          Type Boolean
+          BoolLiteral true
+      val no: Hash
+        Type Hash
+        Box
+          Type Boolean
+          BoolLiteral false
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Boolean
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external2 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: Boolean
+        Type Boolean
+        Unbox
+          Type Any
+          Local $cast.1
+      branch bb3 bb4
+        Type Boolean
+        Local $ub.2
+    bb3 if.then.3
+      val $dependency.receiver: Hash
+        Type Hash
+        Local yes
+      call $equality.lhs: Long = external0 interface Hash[0]
+        Type Hash
+        Local $dependency.receiver
+      val $dependency.receiver: Hash
+        Type Hash
+        Local no
+      val $dependency.receiver: Long
+        Type Long
+        Local $equality.lhs
+      call $dependency.argument.0: Long = external0 interface Hash[0]
+        Type Hash
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+      goto bb5
+    bb4 if.else.4
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 if.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $shortCircuit.0
+    bb6 if.then.6
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      goto bb8
+    bb7 if.else.7
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb8
+    bb8 if.merge.8
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.1
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

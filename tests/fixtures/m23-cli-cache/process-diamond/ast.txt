@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  fun value(): Int
+    =
+      IntLiteral 1

@@ -1,0 +1,158 @@
+Module
+  class AbstractReader<Int> vtable=0 itables=1
+  class ActualReader<Int> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  interface Readable
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn8 id=f935f94b0a43f5c7825d4da5446c7fc3120238f5a5a4a5f6add16413c7537d0e
+  generated_exact_type get0 location=closure0 nominal_id=65f49e27775b6cf7e89a4c28fc545288889276431b8e2a84ce708af20603f147 exact_id=4ef697ac8f755095b26a2c121b127e10ce9ea0b586853312b4e426eb87798a49
+  generated_exact_type get1 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn8 id=f935f94b0a43f5c7825d4da5446c7fc3120238f5a5a4a5f6add16413c7537d0e
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type ActualReader<Int>
+        ClassAlloc ActualReader<Int>
+      call @fn6 direct
+        Type ActualReader<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.payload
+      val receiver: AbstractReader<Int>
+        Type AbstractReader<Int>
+        Retype AbstractReader<Int>
+          Type ActualReader<Int>
+          Local $new.1
+      val $dependency.argument.0: AbstractReader<Int>
+        Type AbstractReader<Int>
+        Local receiver
+      val $dependency.parameter.value: AbstractReader<Int>
+        Type AbstractReader<Int>
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn3 direct
+        Type AbstractReader<Int>
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: AbstractReader<Int>
+        Type AbstractReader<Int>
+        Local receiver
+      val $dependency.parameter.value: AbstractReader<Int>
+        Type AbstractReader<Int>
+        Local $dependency.argument.0
+      call read: () -> Int = @fn4 direct
+        Type AbstractReader<Int>
+        Local $dependency.parameter.value
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local read
+      return
+        Type Int
+        Local $call.2
+  fun read @fn2(this: ActualReader<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun readBound @fn3(value: AbstractReader<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: AbstractReader<Int>
+        Type AbstractReader<Int>
+        Local value
+      call $call.1: Int = external0 interface Readable[0]
+        Type Readable
+        Retype Readable
+          Type AbstractReader<Int>
+          Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun readReference @fn4(value: AbstractReader<Int>) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Readable
+            Retype Readable
+              Type AbstractReader<Int>
+              Local value
+  fun $reference.0 @fn5($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external0 interface Readable[0]
+        Type Readable
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.ActualReader.$c0 @fn6(this: ActualReader<Int>, payload: Int) -> Unit
+    bb0 entry
+      call @fn7 direct
+        Type AbstractReader<Int>
+        Retype AbstractReader<Int>
+          Type ActualReader<Int>
+          Local this
+      field_set 0
+        Type ActualReader<Int>
+        Local this
+        Type Int
+        Local payload
+      return
+  fun init.AbstractReader.$c1 @fn7(this: AbstractReader<Int>) -> Unit
+    bb0 entry
+      return
+  fun function_bridge.$Closure$reference0.() -> Any @fn8($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- readBound
+  instance mi3 function=@fn4 <- readReference
+  output library

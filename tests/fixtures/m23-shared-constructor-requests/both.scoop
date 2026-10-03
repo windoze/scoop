@@ -1,0 +1,45 @@
+package consumer.constructorrequests
+
+public open class Base<T, U> public constructor(public val value: T)
+
+public open class Shell<T, U>: Base<T, U> {
+    public val output: T = if (true) {
+        val saved = this.value
+        fun read(): T { return saved }
+        val reference: () -> T = ::read
+        val anonymous: () -> T = fun(): T { return reference() }
+        val copy: () -> T = { anonymous() }
+        copy()
+    } else { this.value }
+
+    public constructor(value: T): super(value) {}
+    public constructor(value: T, flag: Boolean): super(if (flag) { value } else { value }) {}
+}
+
+public struct Carrier<T, U>(val value: T)
+
+private typealias Fixed = Shell<Int, Unit>
+private class Current<T, U>(value: T): Shell<T, U>(value, true)
+
+public fun <T, U> make(seed: T): Shell<T, U> = Shell<T, U>(seed, true)
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    val primary = Shell<T, Unit>(seed)
+    if (inspect(primary.output) != 42) { return 3 }
+    val first = make<T, Unit>(seed)
+    val repeated = Shell<T, Unit>(seed, false)
+    val phantom = Shell<T, String>(seed, true)
+    val current = Current<T, Unit>(seed)
+    if (inspect(first.output) != 42 || inspect(repeated.output) != 42) { return 1 }
+    if (inspect(phantom.output) != 42 || inspect(current.output) != 42) { return 2 }
+    val wrapper = Carrier<Shell<T, Unit>, String>(first)
+    return inspect(wrapper.value.output)
+}
+
+public fun result(): Int {
+    val other = Fixed(21)
+    if (other.output != 21) { return 4 }
+    val alias = Fixed(42, true)
+    if (alias.output != 42) { return 1 }
+    return exercise<Int>(42, { value -> value })
+}

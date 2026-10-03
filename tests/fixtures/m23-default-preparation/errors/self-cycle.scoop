@@ -1,0 +1,2 @@
+fun cycle(value: Int = cycle()): Int = value
+fun main() {}

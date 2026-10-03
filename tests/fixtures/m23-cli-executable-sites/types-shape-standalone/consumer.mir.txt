@@ -1,0 +1,57 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun boxInteger @fn0(value: Int) -> Any
+    bb0 entry
+      return
+        Type Any
+        Box
+          Type Int
+          Local value
+  fun castInteger @fn1(value: Any) -> Int
+    bb0 entry
+      val $cast.1: Any
+        Type Any
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external0 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.1
+      return
+        Type Int
+        Local $ub.2
+  fun testInteger @fn2(value: Any) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance Int
+          Type Any
+          Local value
+  output library

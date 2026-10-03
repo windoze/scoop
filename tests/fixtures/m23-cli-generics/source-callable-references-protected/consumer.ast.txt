@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportStar Local templates.references.*
+  public class LocalChild<T>(value: T) : Protected<T>(<1 args>)
+    public fun reference
+    public fun chosen
+  public fun exercise<T>(value: T): Int
+    val child
+      Call LocalChild<T>
+        Var value
+    val read
+      MethodCall reference
+        Var child
+    val values
+      TupleLiteral
+        Call read
+        MethodCall chosen
+          Var child
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

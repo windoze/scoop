@@ -1,0 +1,17 @@
+SourceFile
+  QualifiedPackage downstream.enums
+  ImportExact Local consumer.enums.relay
+  ImportExact Local consumer.enums.test
+  ImportExact Local dependency.enums.make
+  ImportExact Local dependency.enums.sum
+    @NoGC
+  public fun check(): Long
+    =
+      Binary Add
+        Call test
+        Call sum
+          Call relay
+            Call make
+              IntLiteral 5
+              Unary Neg
+                IntLiteral 5

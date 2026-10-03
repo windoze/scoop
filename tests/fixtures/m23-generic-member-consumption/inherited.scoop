@@ -1,0 +1,10 @@
+package consumer.members
+
+import templates.members.*
+
+public fun result(): Int {
+    val box = Inherited<Int>(20)
+    return box.echo() + box.choose<Int>(22)
+}
+
+public fun <T> make(value: T): T = Inherited<T>(value).echo()

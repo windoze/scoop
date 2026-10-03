@@ -1,20 +1,54 @@
 use super::*;
 
 impl Lowerer {
-    pub(crate) fn run(
-        mut self,
+    #[cfg(test)]
+    pub(crate) fn run_defined(
+        self,
         files: &[ast::SourceFile],
     ) -> Result<(hir::Module, Vec<Diagnostic>), Vec<Diagnostic>> {
+        let dependencies = hir::ImportedDependencySelectionPlan::empty(self.current_cone());
+        let (module, warnings, _) = self
+            .with_imported_dependencies(dependencies)
+            .run(files, None)?;
+        Ok((module, warnings))
+    }
+
+    pub(crate) fn run_with_dependencies(
+        self,
+        files: &[ast::SourceFile],
+        world: &hir::ImportedSemanticWorld<'_>,
+    ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
+        self.run(files, Some(world))
+    }
+
+    fn run(
+        mut self,
+        files: &[ast::SourceFile],
+        world: Option<&hir::ImportedSemanticWorld<'_>>,
+    ) -> Result<(hir::Module, Vec<Diagnostic>, LoweringCompletion), Vec<Diagnostic>> {
         if files.is_empty() {
-            return Err(vec![Diagnostic {
-                severity: ast::DiagnosticSeverity::Error,
-                file: 0,
-                span: None,
-                message: "no source files to compile".to_string(),
-            }]);
+            return Err(vec![Diagnostic::without_span(
+                ast::DiagnosticSeverity::Error,
+                0,
+                "no source files to compile",
+            )]);
         }
-        let user_file_index = files.len() - 1;
-        self.user_file_index = user_file_index;
+        assert_eq!(
+            files.len(),
+            self.intrinsic_sources.len(),
+            "every parsed source has exactly one lowering source descriptor"
+        );
+        let primary_output_file = self.primary_output_file();
+        let current_cone = self.current_cone();
+        let defines_core = matches!(self.core, CoreLoweringAuthority::Defined);
+        let core_diagnostic_file = self.core_diagnostic_file();
+        self.top_level_namespaces.initialize_sources(
+            self.intrinsic_sources
+                .iter()
+                .map(|source| source.identity.cone()),
+            current_cone,
+            files,
+        );
 
         // Pass 1: declare aliases, nominals and functions across all files
         // (core first), so bodies and field types resolve regardless of
@@ -32,7 +66,7 @@ impl Lowerer {
         let mut pending_methods: Vec<(FunctionId, &ast::FunctionDecl, usize, Owner)> = Vec::new();
         for (file_index, file) in files.iter().enumerate() {
             self.current_file = file_index;
-            let is_core = self.intrinsic_sources[file_index].core;
+            let is_core = self.source_is_core(file_index);
             for decl in &file.declarations {
                 match decl {
                     ast::Decl::Global(decl) => pending_globals.push((decl, file_index)),
@@ -131,17 +165,41 @@ impl Lowerer {
             self.declare_object_nested(Owner::Object(id), declaration, &mut nested_queues, file);
         }
 
+        if let Err(error) = self.establish_nominal_identities() {
+            let mut diagnostic = Diagnostic::at(error.span(), error.to_string());
+            diagnostic.file = error.file();
+            return Err(vec![diagnostic]);
+        }
+
+        let errors_before_imports = self.diagnostics.len();
+        self.collect_and_resolve_imports(
+            files,
+            crate::imports::ImportDeclarationInputs {
+                functions: &pending_functions,
+                methods: &pending_methods,
+                properties: &pending_globals,
+                enumerations: &pending_enums,
+                objects: &pending_objects,
+            },
+            world,
+        );
+        if self.diagnostics.len() != errors_before_imports {
+            return Err(self.take_source_diagnostics());
+        }
+
         // Alias targets may mention any declaration in the Cone, including a
         // later alias, `Option<T>` through nullable syntax, and the special
         // pointer families. Establish those source identities before the
         // alias graph is expanded. Application bounds are checked again once
         // every nominal constraint is complete below.
-        self.ffi_ptr = self.require_core_struct("Ptr", files);
-        self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
-        self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
-        self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
-        self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
-        self.validate_option_enum(files);
+        if defines_core {
+            self.ffi_ptr = self.require_core_struct("Ptr", files);
+            self.ffi_fun_ptr = self.require_core_struct("FunPtr", files);
+            self.ffi_pinned_ptr = self.require_core_struct("PinnedPtr", files);
+            self.ffi_gc_handle = self.require_core_struct("GcHandle", files);
+            self.ffi_foreign_callback = self.require_core_struct("ForeignCallback", files);
+            self.validate_option_enum(files);
+        }
         self.resolve_all_type_aliases();
 
         // Type-parameter names and arities are declared in pass 1. Resolve
@@ -202,19 +260,23 @@ impl Lowerer {
         }
         self.current_owner = None;
         self.validate_nominal_type_parameter_constraints();
-        let intrinsic_type_core = self.validate_intrinsic_type_core(files);
+        let intrinsic_type_core = if defines_core {
+            self.validate_intrinsic_type_core(files)
+        } else {
+            None
+        };
         if let Some(core) = intrinsic_type_core {
             if self.ffi_ptr != Some(core.ptr) {
-                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.current_file = primary_output_file;
                 self.error(
-                    files[0].span,
+                    files[core_diagnostic_file].span,
                     "the `Ptr` FFI core owner must be the `core_ptr` intrinsic type".to_string(),
                 );
             }
             if self.ffi_fun_ptr != Some(core.fun_ptr) {
-                self.current_file = self.user_file_index.min(files.len() - 1);
+                self.current_file = primary_output_file;
                 self.error(
-                    files[0].span,
+                    files[core_diagnostic_file].span,
                     "the `FunPtr` FFI core owner must be the `core_fun_ptr` intrinsic type"
                         .to_string(),
                 );
@@ -226,13 +288,7 @@ impl Lowerer {
             self.type_params_in_scope = self.interfaces[id].type_params.clone();
             let parents = self.resolve_supertype_interface_list(&decl.supertypes);
             self.type_params_in_scope.clear();
-            self.interfaces[id].parents = parents
-                .into_iter()
-                .map(|parent| match self.types[parent] {
-                    Type::Interface(application) => application,
-                    _ => unreachable!("resolved interface parents are interface applications"),
-                })
-                .collect();
+            self.interfaces[id].parents = parents;
         }
         self.current_owner = None;
         self.check_interface_inheritance_cycles(&pending_interfaces);
@@ -244,7 +300,9 @@ impl Lowerer {
         // The core library's `Throwable` is the root every `throw`
         // operand and catch parameter type is checked against (spec
         // 11.7).
-        self.validate_throwable(files);
+        if defines_core {
+            self.validate_throwable(files);
+        }
 
         for &(id, decl, file_index) in &pending_interfaces {
             self.current_file = file_index;
@@ -277,7 +335,14 @@ impl Lowerer {
             self.type_params_in_scope.clear();
             self.enums[id].interfaces = interfaces;
         }
-        self.validate_option_variants();
+        if let Err(error) = self.establish_enum_member_identities() {
+            self.current_file = error.file();
+            self.error(error.span(), error.to_string());
+            return Err(self.take_source_diagnostics());
+        }
+        if defines_core {
+            self.validate_option_variants();
+        }
         for (id, decl, file_index) in &pending_classes {
             self.current_file = *file_index;
             self.current_owner = Some(Owner::Class(*id));
@@ -298,7 +363,7 @@ impl Lowerer {
             // No later pass may try to materialize an application whose
             // inline layout grows forever. The validator has collected one
             // stable definition-site diagnostic for every cyclic SCC.
-            return Err(self.diagnostics);
+            return Err(self.take_source_diagnostics());
         }
 
         // Every nominal constraint and inheritance edge is now complete, so
@@ -324,30 +389,58 @@ impl Lowerer {
         }
         self.current_owner = None;
 
-        self.validate_core_operator_intrinsics(files);
-        self.validate_array_conversion_intrinsics(files);
-        let source_location_core = self.validate_source_location_core(files);
-        let iteration_core = self.validate_iteration_core(files);
+        if defines_core {
+            self.validate_core_operator_intrinsics(files);
+            self.validate_array_conversion_intrinsics(files);
+            self.validate_gc_control_intrinsics(files);
+        }
+        let source_location_core = if defines_core {
+            self.validate_source_location_core(files)
+        } else {
+            None
+        };
+        let iteration_core = if defines_core {
+            self.validate_iteration_core(files)
+        } else {
+            None
+        };
         self.iteration_core = iteration_core;
 
         // M10's coroutine protocol is compiler-known: MIR generation needs
         // these exact generic interfaces and intrinsic signatures rather than
         // guessing entities from names after HIR.
-        let coroutine_core = self.validate_coroutine_core(files);
-        let ffi_core = self.validate_ffi_core(files);
+        let coroutine_core = if defines_core {
+            self.validate_coroutine_core(files)
+        } else {
+            None
+        };
+        let ffi_core = if defines_core {
+            self.validate_ffi_core(files)
+        } else {
+            None
+        };
         self.ffi_core = ffi_core;
-        let foreign_callback_core = self.validate_foreign_callback_core(files);
+        let foreign_callback_core = if defines_core {
+            self.validate_foreign_callback_core(files)
+        } else {
+            None
+        };
         self.foreign_callback_core = foreign_callback_core;
         self.resolve_globals(&pending_globals, &pending_objects);
+        self.finalize_import_targets();
         self.resolve_property_accessor_signatures();
         self.check_extension_property_signatures();
         self.validate_extern_functions();
         self.validate_extern_global_symbols();
 
-        // Pass 2.6: overload declarations must be distinguishable —
-        // within one name (top-level) or one host (members) no two
-        // functions may share a signature (milestone7 DESIGN.md 1.1).
-        self.check_duplicate_signatures(&pending_functions, &pending_methods);
+        // Publish the complete duplicate-signature rejection set after all
+        // related signatures are final and before body-capable passes may
+        // perform semantic callable lookup.
+        self.validate_and_freeze_duplicate_signatures(&pending_functions, &pending_methods);
+        assert!(
+            self.declaration_surface.is_frozen(),
+            "body-capable passes require a frozen declaration surface"
+        );
 
         // Pass 2.75: inheritance checks (milestone6 DESIGN.md 2.2) —
         // cycles, property shadowing, override rules and interface
@@ -361,6 +454,9 @@ impl Lowerer {
             &pending_methods,
         );
         self.validate_signature_exposure();
+        // Defaults and constructor expressions can select derived equality.
+        // Publish its conditional signatures before any of those bodies lower.
+        self.declare_derived_equality_methods();
         self.lower_export_parameter_interfaces(
             &pending_functions,
             &pending_methods,
@@ -370,12 +466,18 @@ impl Lowerer {
         );
         self.resolve_constructor_graphs(&pending_classes, &pending_structs, &pending_objects);
         self.lower_constructor_initialization(&pending_classes, &pending_structs, &pending_objects);
-        self.declare_derived_equality_methods();
         // Compiler-generated exception edges receive complete typed class /
         // zero-argument-constructor identities after inheritance has been
         // validated and before body lowering. MIR never recovers these
         // targets from names.
-        let exception_core = self.validate_exception_core(files);
+        let exception_core = if defines_core {
+            self.validate_exception_core(files)
+        } else {
+            None
+        };
+        if defines_core && (self.option_core.is_none() || exception_core.is_none()) {
+            return Err(self.take_source_diagnostics());
+        }
         self.lower_runtime_top_level_initializers();
 
         // Pass 3: lower bodies. Intrinsics have no body to lower (the
@@ -409,59 +511,23 @@ impl Lowerer {
             self.functions[id].kind = FunctionKind::User(body);
         }
         self.lower_property_accessor_bodies();
+        if self.diagnostics.is_empty()
+            && let Err(error) = self.prepare_coroutine_declarations()
+        {
+            self.error(Span::new(0, 0), error);
+        }
+        self.complete_imported_generic_bodies();
+        if self.diagnostics.is_empty() {
+            self.prepare_public_derived_equalities();
+        }
 
         // Effects consume fully resolved calls and types. Local functions and
         // callable literals lifted while lowering the bodies are visible now.
         self.validate_c_ffi_types();
         self.check_generic_recursion();
-        self.validate_gc_free_pointee_requirements();
-        self.check_no_gc_types();
+        let type_sites = self.validate_gc_free_pointee_requirements();
+        self.check_no_gc_types(type_sites);
         self.check_no_gc_functions();
-
-        // A module without `main` never reaches HIR (hir docs); it is a
-        // diagnostic here, attributed to the user file. With overloads
-        // (M7) several functions may be named `main`; the entry point
-        // is the zero-parameter one.
-        self.current_file = user_file_index;
-        let zero_param_main = self.functions_by_name.get("main").and_then(|ids| {
-            ids.iter().copied().find(|&id| {
-                self.signatures
-                    .get(&id)
-                    .is_some_and(|sig| sig.params.is_empty())
-            })
-        });
-        let entry = match zero_param_main {
-            Some(id) => {
-                // The entry point is monomorphic: there is no caller to
-                // infer type arguments from.
-                if !self.functions[id].type_params().is_empty() {
-                    self.error(
-                        self.functions[id].span,
-                        "`main` must not be generic".to_string(),
-                    );
-                }
-                if self.functions[id].is_suspend {
-                    self.error(
-                        self.functions[id].span,
-                        "`main` must not be suspend".to_string(),
-                    );
-                }
-                if matches!(self.functions[id].kind, FunctionKind::Extern(_)) {
-                    self.error(
-                        self.functions[id].span,
-                        "`main` must be a Scoop-defined function".to_string(),
-                    );
-                }
-                Some(id)
-            }
-            None => {
-                self.error(
-                    files[user_file_index].span,
-                    "missing entry point: declare `fun main()`".to_string(),
-                );
-                None
-            }
-        };
 
         self.warnings.sort_by_key(|diagnostic| {
             let span = diagnostic.span.unwrap_or(Span {
@@ -471,104 +537,43 @@ impl Lowerer {
             (diagnostic.file, span.start, span.end)
         });
         if !self.diagnostics.is_empty() {
-            self.diagnostics.extend(self.warnings);
-            return Err(self.diagnostics);
+            self.diagnostics.append(&mut self.warnings);
+            return Err(self.take_source_diagnostics());
         }
         let warnings = std::mem::take(&mut self.warnings);
-        // Invariant: empty diagnostics implies `main` was found and the
-        // core `Option<T>` validated above.
-        let entry = entry.expect("missing `main` is always diagnosed");
-        let option_core = self
-            .option_core
-            .expect("a missing or invalid core `Option` is always diagnosed");
-        let iteration_core = iteration_core
-            .expect("a missing or invalid core iteration protocol is always diagnosed");
-        let coroutine_core = coroutine_core
-            .expect("a missing or invalid coroutine core protocol is always diagnosed");
-        let exception_core = exception_core
-            .expect("a missing or invalid compiler exception core is always diagnosed");
-        let ffi_core =
-            ffi_core.expect("a missing or invalid FFI core protocol is always diagnosed");
-        let source_location_core = source_location_core
-            .expect("a missing or invalid source location core is always diagnosed");
-        let public_surface = self.public_semantic_surface();
-        let module = hir::Module {
-            public_surface,
-            source_files: self
-                .intrinsic_sources
-                .into_iter()
-                .map(|source| hir::SourceFileMetadata {
-                    provider: source.provider,
-                    name: source.name,
-                    source: source.source,
-                })
-                .collect(),
-            source_contexts: self.source_contexts,
-            types: self.types,
-            function_types: self.function_types,
-            lambdas: self.lambdas,
-            anonymous_functions: self.anonymous_functions,
-            local_functions: self.local_functions,
-            callable_references: self.callable_references,
-            bound_callable_refs: self.bound_callable_refs,
-            function_coercions: self.function_coercions,
-            foreign_callback_registrations: self.foreign_callback_registrations,
-            source_parameter_interfaces: self.source_parameter_interfaces,
-            export_default_exprs: self.export_default_exprs,
-            export_default_sources: self.export_default_sources,
-            export_vararg_parameter_types: self.export_vararg_parameter_types,
-            functions: self.functions,
-            extern_functions: self.extern_functions,
-            globals: self.globals,
-            initialization_units: self.initialization_units,
-            initialization_failure_roots: self.initialization_failure_roots,
-            objects: self.objects,
-            object_types: self.object_types,
-            companion_relations: self.companion_relations,
-            singleton_values: self.singleton_values,
-            singleton_published_roots: self.singleton_published_roots,
-            properties: self.properties,
-            extension_properties: self.extension_properties,
-            property_getters: self.property_getters,
-            property_setters: self.property_setters,
-            delegate_storages: self.delegate_storages,
-            type_aliases: self.type_aliases,
-            generic_functions: self.generic_functions,
-            method_applications: self.method_applications,
-            generic_methods: self.generic_methods,
-            generic_method_applications: self.generic_method_applications,
-            derived_equality_applications: self.derived_equality_applications,
-            structs: self.structs,
-            struct_constructors: self.struct_constructors,
-            struct_constructor_applications: self.struct_constructor_applications,
-            struct_applications: self.struct_applications,
-            enums: self.enums,
-            enum_applications: self.enum_applications,
-            classes: self.classes,
-            class_fields: self.class_fields,
-            class_constructors: self.class_constructors,
-            class_constructor_applications: self.class_constructor_applications,
-            class_applications: self.class_applications,
-            interfaces: self.interfaces,
-            interface_applications: self.interface_applications,
-            interface_methods: self.interface_method_entities,
-            top_level: self.top_level,
-            unit: self.unit,
-            boolean: self.boolean,
-            string: self.string,
-            option_core,
-            iteration_core,
-            exception_core,
-            coroutine_core,
-            ffi_core,
-            foreign_callback_core: foreign_callback_core
-                .expect("a missing or invalid foreign callback core protocol is always diagnosed"),
-            intrinsic_type_core: intrinsic_type_core
-                .expect("missing or invalid intrinsic core types are always diagnosed"),
-            source_location_core,
-            entry,
-            instantiations: self.instantiations,
+        // Protocol provenance and dependency selections are independent.
+        let core_protocols = match self.core.clone() {
+            CoreLoweringAuthority::Defined => {
+                hir::CoreProtocols::Defined(Box::new(hir::DefinedCoreProtocols {
+                    option: self
+                        .option_core
+                        .expect("a missing or invalid core `Option` is always diagnosed"),
+                    iteration: iteration_core
+                        .expect("a missing or invalid core iteration protocol is always diagnosed"),
+                    exceptions: exception_core
+                        .expect("a missing or invalid compiler exception core is always diagnosed"),
+                    coroutines: coroutine_core
+                        .expect("a missing or invalid coroutine core protocol is always diagnosed"),
+                    ffi: ffi_core
+                        .expect("a missing or invalid FFI core protocol is always diagnosed"),
+                    foreign_callbacks: foreign_callback_core.expect(
+                        "a missing or invalid foreign callback core protocol is always diagnosed",
+                    ),
+                    fundamental_types: intrinsic_type_core
+                        .expect("missing or invalid intrinsic core types are always diagnosed"),
+                    source_location: source_location_core
+                        .expect("a missing or invalid source location core is always diagnosed"),
+                }))
+            }
+            CoreLoweringAuthority::Imported(authority) => hir::CoreProtocols::Imported(authority),
         };
-        Ok((module, warnings))
+        let sources = self.diagnostic_source_identities();
+        self.finish(current_cone, warnings, core_protocols)
+            .map_err(|mut diagnostics| {
+                for diagnostic in &mut diagnostics {
+                    diagnostic.resolve_sources(&sources);
+                }
+                diagnostics
+            })
     }
 }

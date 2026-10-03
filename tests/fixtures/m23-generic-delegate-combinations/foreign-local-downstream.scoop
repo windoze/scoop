@@ -1,0 +1,12 @@
+import consumer.delegates.result
+import consumer.delegates.echo
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    if (result() != 42) { return 1 }
+    val first = Later(42)
+    val second = echo<Later>(first)
+    val allocated = Later(0)
+    return if (first === second && allocated.value == 0) { second.value } else { 2 }
+}

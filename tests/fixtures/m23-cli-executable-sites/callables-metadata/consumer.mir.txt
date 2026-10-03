@@ -1,0 +1,266 @@
+Module
+  global0 initialized: Boolean managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 top-level-private:dev.example:metadata:0.1.0/src/main.scoop:initialized eager global0 initializer=@fn3 ensure=@fn4 failure=1 deps=[]
+  class box<Boolean> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn6 captures=0
+    bridge function_type1 -> @fn8 id=7168eefdc44069f035debea7959127f4a57206e010b07c5254cb3fe21cd7c42d
+  generated_exact_type get0 location=closure0 nominal_id=7fa3ee709b781280209c9ddd94c4d49fbdb6eb46628b78f6dfcb6e8e4f431e41 exact_id=ae31a567d53edc0ab8f43886115a991e0c4e42483e32e588ac4d2319ca79e812
+  generated_exact_type get1 location=class0 nominal_id=3536333a8ba0aaed76b3bec081995b49af64f164523f6560324f8e64e7ef08e0 exact_id=c4a33308c9b1a4e41424f4d1ffe01aa6e97556fe61c06a7387e42b4ddf522d17
+  generated_callable gc0 function=@fn8 id=7168eefdc44069f035debea7959127f4a57206e010b07c5254cb3fe21cd7c42d
+  fun empty @fn0() -> Unit
+    bb0 entry
+      return
+  fun withDefault @fn1(value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun invoke @fn2() -> Boolean
+    bb0 entry
+      val callback: () -> Boolean
+        Type () -> Boolean
+        ClosureAlloc cc0 $Closure$lambda0
+      call @fn0 direct
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      call @fn0 direct
+      val $dependency.argument.1: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.first: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Unit
+        Type Unit
+        Local $dependency.argument.1
+      call external1 direct
+        Type Unit
+        Local $dependency.parameter.first
+        Type Unit
+        Local $dependency.parameter.second
+      call $parameter.value: Boolean = external0 direct
+      call defaulted: Boolean = @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.1: Boolean = external0 direct
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = external0 direct
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $logic.2
+      call fromProvider: Boolean = external2 direct
+        Type Boolean
+        Local $dependency.parameter.flag
+      call $call.4: Boolean = @fn7 direct
+      branch bb4 bb5
+        Type Boolean
+        Local $call.4
+    bb4 logic.rhs.4
+      call $call.6: Boolean = <closure:function_type0> closure[function_type0]
+        Type () -> Boolean
+        Local callback
+      assign $logic.5
+        Type Boolean
+        Local $call.6
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.5
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.5
+    bb7 logic.rhs.7
+      assign $logic.7
+        Type Boolean
+        Local defaulted
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.7
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $logic.7
+    bb10 logic.rhs.10
+      call $call.9: Boolean = @fn5 direct
+      assign $logic.8
+        Type Boolean
+        Local $call.9
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $logic.8
+    bb13 logic.rhs.13
+      assign $logic.10
+        Type Boolean
+        Local fromProvider
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.10
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      return
+        Type Boolean
+        Local $logic.10
+  fun $init$body$0 @fn3() -> Unit
+    bb0 entry
+      call $call.1: Boolean = external0 direct
+      global_assign initialized
+        Type Boolean
+        Local $call.1
+      return
+  fun $init$ensure$0 @fn4() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:metadata:0.1.0/src/main.scoop:initialized
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn3 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:metadata:0.1.0/src/main.scoop:initialized
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:metadata:0.1.0/src/main.scoop:initialized
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:metadata:0.1.0/src/main.scoop:initialized
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:metadata:0.1.0/src/main.scoop:initialized
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$initialized @fn5() -> Boolean
+    bb0 entry
+      call @fn4 direct
+      return
+        Type Boolean
+        GlobalRead initialized
+  fun $lambda.0 @fn6($closure: () -> Boolean) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external0 direct
+      return
+        Type Boolean
+        Local $call.1
+  fun $local.0.nested @fn7() -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external0 direct
+      return
+        Type Boolean
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.() -> Any @fn8($source: () -> Boolean) -> Any
+    bb0 entry
+      call $call.1: Boolean = <closure:function_type0> closure[function_type0]
+        Type () -> Boolean
+        Local $source
+      return
+        Type Any
+        Box
+          Type Boolean
+          Local $call.1
+  output library

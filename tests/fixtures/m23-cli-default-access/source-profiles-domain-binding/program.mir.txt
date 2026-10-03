@@ -1,0 +1,294 @@
+Module
+  global0 $singleton$29e691f8933d5dca255ef22323e09772c8f7483d059d25a937330f1f9604b38f: Store imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=a4e496aad6a6fbe84e22c662b4dd0a080298fb58c19b743cb662d2e9d832b475
+  struct Packet (field: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Samples vtable=0 itables=0
+  class Store vtable=0 itables=0
+  class Child vtable=1 itables=0
+  class Base vtable=1 itables=0
+  fun verifyDefault @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun unitValue @fn1() -> Unit
+    bb0 entry
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      call samples: Samples = external1 direct
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      call $dependency.receiver: Int = external2 direct
+        Type Samples
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      call $dependency.parameter.value: Packet = external3 direct
+        Type Int
+        Local $default.local.2
+      call $equality.lhs: Packet = external4 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Packet
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.field: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Packet = external3 direct
+        Type Int
+        Local $dependency.parameter.field
+      call $argument.0: Boolean = external12 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      call external13 direct
+      val $dependency.parameter.value: Store
+        Type Store
+        GlobalRead $singleton$29e691f8933d5dca255ef22323e09772c8f7483d059d25a937330f1f9604b38f
+      call external13 direct
+      call $call.2: Store = external5 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Store
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Store
+          Local $call.2
+          Type Store
+          GlobalRead $singleton$29e691f8933d5dca255ef22323e09772c8f7483d059d25a937330f1f9604b38f
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.field: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Packet = external3 direct
+        Type Int
+        Local $dependency.parameter.field
+      val $dependency.parameter.source: Packet
+        Type Packet
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        FieldAccess 0
+          Type Packet
+          Local $dependency.parameter.source
+      call $dependency.receiver: Int = external6 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Packet
+        Local $dependency.parameter.source
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call @fn1 direct
+      val unit: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $dependency.argument.0: (Unit, Int)
+        Type (Unit, Int)
+        TupleLiteral
+          Type Unit
+          Local unit
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.source: (Unit, Int)
+        Type (Unit, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Unit
+        Type Unit
+        FieldAccess 0
+          Type (Unit, Int)
+          Local $dependency.parameter.source
+      call external7 direct
+        Type Samples
+        Local $dependency.receiver
+        Type (Unit, Int)
+        Local $dependency.parameter.source
+        Type Unit
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = @fn3 direct
+        Type Unit
+        UnitLiteral
+        Type Unit
+        Local unit
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call $dependency.receiver: Int = external8 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Child = external11 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call $dependency.receiver: Int = external10 direct
+        Type Child
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $derived.equals.0 @fn3(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  str @str0 "illegal state"
+  output executable @fn2

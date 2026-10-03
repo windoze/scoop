@@ -1,0 +1,27 @@
+package consumer.options
+
+import dependency.options.wrap
+import dependency.options.force
+
+private class Cell(public val number: Int)
+private struct Wide(val first: Cell, val second: Cell, val third: Cell)
+private struct Empty()
+
+public fun <T> exercise(value: T): Int {
+    val held: T? = wrap(value)
+    val wide: Wide? = Some(Wide(Cell(10), Cell(11), Cell(20)))
+    val tuple: (Cell, Int)? = Some((Cell(1), 0))
+    val empty: Empty? = Some(Empty())
+    val missing: Empty? = None
+    val callback: (() -> Int)? = Some({ 42 })
+    val allocated = Cell(0)
+    val restored = force(held)
+    if (when (empty) { Some(marker) -> false; None -> true }) { return 1 }
+    if (when (missing) { Some(marker) -> true; None -> false }) { return 2 }
+    val read = force(wide)
+    val pair = force(tuple)
+    if (force(callback)() != 42 || allocated.number != 0) { return 3 }
+    return read.first.number + read.second.number + read.third.number + pair._1.number
+}
+
+public fun result(): Int = exercise<Int>(1)

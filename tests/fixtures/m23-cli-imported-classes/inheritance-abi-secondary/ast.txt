@@ -1,0 +1,56 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.MutableCell
+  ImportExact Local dependency.classes.OrderedParent
+  public class Derived(), OrderedParent
+    public val own: MutableCell = <expr>
+      Call MutableCell
+        Binary Add
+          FieldAccess value
+            Var trace
+          IntLiteral 20
+    init
+      assign .value
+        Var trace
+        Binary Add
+          Binary Mul
+            FieldAccess value
+              Var trace
+            IntLiteral 10
+          IntLiteral 2
+      assign .count
+        This
+        FieldAccess value
+          Var trace
+      compound-assign Add
+        IntLiteral 1
+    constructor(trace: MutableCell) : super(<1 args>)
+      assign .value
+        Var trace
+        Binary Add
+          Binary Mul
+            FieldAccess value
+              Var trace
+            IntLiteral 10
+          IntLiteral 3
+  public fun primary(): Counter
+    val trace
+      Call MutableCell
+        IntLiteral 0
+    val value
+      Call Derived
+        Var trace
+    return
+      Call Counter
+        Binary Sub
+          Binary Add
+            Binary Add
+              FieldAccess value
+                Var trace
+              FieldAccess value
+                FieldAccess own
+                  Var value
+            FieldAccess count
+              Var value
+          IntLiteral 136

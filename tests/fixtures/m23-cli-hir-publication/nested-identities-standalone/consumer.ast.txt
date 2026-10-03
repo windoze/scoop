@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    return
+      Invoke
+        Call readerNested<Int>
+          IntLiteral 42

@@ -1,0 +1,50 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call service
+    val view: View
+      Var value
+    Call verifyType
+      Binary And
+        Binary Eq
+          FieldAccess value
+            Var view
+          IntLiteral 4
+        Binary Eq
+          FieldAccess value
+            Var value
+          IntLiteral 4
+    Call verifyType
+      Binary Eq
+        MethodCall observe
+          Var value
+          IntLiteral 17
+        IntLiteral 17
+    Call verifyType
+      Binary And
+        Binary Eq
+          MethodCall read
+            Call outer
+            IntLiteral 19
+          IntLiteral 19
+        Binary Eq
+          MethodCall read
+            Call outer
+            StringLiteral "text"
+          StringLiteral "text"
+    Call verifyType
+      Binary And
+        Binary Eq
+          Call updateCache
+            IntLiteral 23
+          IntLiteral 23
+        Binary RefEq
+          Var Cache
+          Var Cache

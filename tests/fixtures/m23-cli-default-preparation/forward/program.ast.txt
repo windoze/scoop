@@ -1,0 +1,63 @@
+SourceFile
+  RootPackage
+  fun prepForward(value: Int = <expr>): Int
+    =
+      Var value
+  fun prepVariant(value: PrepChoice = <expr>): PrepChoice
+    =
+      Var value
+  fun prepExplicit(value: Int = <expr>): Int
+    =
+      Var value
+  fun prepPositions(first: Int = <expr>, second: Int = <expr>): Int
+    =
+      Var second
+  fun prepInherited(value: Int = <expr>): Int
+    =
+      Var value
+  fun prepGeneric(value: Int = <expr>): Int
+    =
+      Var value
+  struct PrepValue
+    field value: Int = <expr>
+  enum PrepChoice
+    Item <ctor>
+      value: Int = <expr>
+  open class PrepBase()
+    fun choose
+  class PrepChild() : PrepBase(<0 args>)
+    fun choose
+  open class PrepGeneric<T>()
+    fun choose
+  class PrepGenericChild() : PrepGeneric<Int>(<0 args>)
+    fun choose
+  class PrepSecondary(val value: Int)
+    constructor(marker: String, value: Int = <expr>) : this(<1 args>)
+  fun prepSecondary(value: PrepSecondary = <expr>): PrepSecondary
+    =
+      Var value
+  fun prepVararg(vararg values: Int = <expr>): Array<Int>
+    =
+      Var values
+  fun prepVarargUse(values: Array<Int> = <expr>): Array<Int>
+    =
+      Var values
+  fun prepLater(value: Int = <expr>): Int
+    =
+      Var value
+  fun prepLexical(seed: Int): Int
+    fun local(first: Int, second: Int): Int
+      Var second
+    return
+      Call local
+  fun main()
+    Call prepForward
+    Call prepVariant
+    Call prepExplicit
+    Call prepPositions
+    Call prepInherited
+    Call prepGeneric
+    Call prepSecondary
+    Call prepVarargUse
+    Call prepLexical
+      IntLiteral 13

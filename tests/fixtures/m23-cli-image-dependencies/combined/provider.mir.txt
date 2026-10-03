@@ -1,0 +1,7 @@
+Module
+  fun answer @fn0() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  output library

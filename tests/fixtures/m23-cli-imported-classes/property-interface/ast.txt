@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.classes.*
+  public fun primary(): Counter
+    val cell: MutableValue
+      Call ComputedValue
+        IntLiteral 0
+    assign .value
+      Var cell
+      IntLiteral 9
+    val next
+      Update Prefix Increment
+        Place .value
+          Var cell
+    return
+      Call Counter
+        IfExpression
+          Binary And
+            Binary Eq
+              Var next
+              IntLiteral 20
+            Binary Eq
+              FieldAccess value
+                Var cell
+              IntLiteral 41
+          IntLiteral 21
+          else
+          IntLiteral 0

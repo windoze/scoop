@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "pattern `Other` does not match a subject of type Pair<Int>",
+    "notes": [],
+    "origin": {
+      "cone": "12b14af26f500c38cae39de2618da2c8a178819754fa035d650826caeefbe9c5",
+      "end": 66,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 61
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
+    "notes": [],
+    "origin": {
+      "cone": "12b14af26f500c38cae39de2618da2c8a178819754fa035d650826caeefbe9c5",
+      "end": 116,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 111
+    },
+    "severity": "error"
+  }
+]

@@ -184,7 +184,8 @@ pub(super) fn verify_statepoint_shape(
         // actual callee pointer.
         let actual_callee =
             llvm_value_name(unsafe { LLVMGetOperand(instruction.as_value_ref(), 2) })?;
-        if actual_callee != *expected_callee {
+        if actual_callee != expected_callee.logical_symbol() {
+            let expected_callee = expected_callee.logical_symbol();
             return Err(CodegenError(format!(
                 "native transition statepoint {id} in `{function}` targets `{actual_callee}`, expected `{expected_callee}`"
             )));

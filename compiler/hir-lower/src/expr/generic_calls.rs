@@ -5,500 +5,116 @@ use super::*;
 mod intrinsics;
 
 impl Lowerer {
-    /// A bare call `f(args)`: the candidate layers are, in order,
-    /// the current host's methods (inside a member function, where
-    /// `f(...)` means `this.f(...)`), extensions callable on a lexical `this`,
-    /// top-level functions declared on the call site's own side of the
-    /// core/user boundary, and the other side (the implicitly imported
-    /// layer). The first layer containing an applicable candidate wins whole
-    /// (M16 DESIGN 2.2). The import layering is relative to
-    /// the call site's file: for a user-file call that is user
-    /// top-level → core, for a core-file call core → user. An applicable user
-    /// declaration therefore shadows core overloads without breaking the core
-    /// library's own internal calls. A single candidate and an overload set
-    /// both enter the same M16 resolver.
-    pub(super) fn lower_function_call(
+    pub(in crate::expr) fn finish_named_call_fallback(
         &mut self,
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
-        prior_ordinary_failure: Option<Box<Lowerer>>,
+        ordinary_failure: Option<Box<Lowerer>>,
+        prelude_variant_failure: Option<Box<Lowerer>>,
+        found: bool,
     ) -> Option<hir::Expr> {
-        let name = call.callee.text.clone();
-        let mut ordinary_failure = prior_ordinary_failure;
-
-        // Layer 1: the nearest lexical block containing local functions of
-        // this name. Declarations enter it only as they are encountered.
-        let local_candidates = self.local_function_scopes.lookup(&name);
-        if !local_candidates.is_empty() {
-            match self.probe_expr_layer(|state, layer_sink| {
-                state.lower_local_function_layer(
-                    &name,
-                    &local_candidates,
-                    call,
-                    layer_sink,
-                    expected,
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => ordinary_failure = Some(failure),
-            }
-        }
-
-        if let Some(receiver_ty) = self.initializing_receiver_type() {
-            let members = self.methods_by_name(receiver_ty, &name);
-            if !members.is_empty() {
-                self.error(
-                    call.span,
-                    "initializing receiver cannot escape before construction completes".into(),
-                );
-                return None;
-            }
-        }
-
-        // Layer 2: members of the current host.
-        let members = self
-            .current_this_ty()
-            .map(|host_ty| self.methods_by_name(host_ty, &name))
-            .unwrap_or_default();
-        if !members.is_empty() {
-            match self.probe_expr_layer(|state, layer_sink| {
-                let receiver = state
-                    .lower_current_this(call.callee.span)
-                    .expect("a member callable body always has a lexical `this`");
-                state.finish_overloaded_method_call(
-                    members,
-                    &name,
-                    receiver,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    layer_sink,
-                    expected,
-                    false,
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => ordinary_failure.get_or_insert(failure),
-            };
-        }
-
-        // Reading an implicit `this` property can register a closure capture.
-        // Keep that mutation inside the candidate state until its invoke wins.
-        let property_candidate = {
-            let mut state = self.clone();
-            if state.initialization_context.is_none()
-                || state.initializing_receiver_has_field(&call.callee.text)
-            {
-                state
-                    .bare_member_fallback(&call.callee)
-                    .map(|property| (state, property))
-            } else {
-                None
-            }
-        };
-        if let Some((property_state, property)) = &property_candidate
-            && let Some(layer) = property_state.clone().probe_property_member_invoke(
-                property.clone(),
+        let name = &call.callee.text;
+        if let Some((owner, index)) = self.contextual_imported_variant(name, expected) {
+            return self.lower_imported_variant_construct(
+                owner,
+                index,
+                &call.callee,
                 CallSite {
                     type_args: &call.type_args,
                     args: &call.args,
                     span: call.span,
                 },
+                sink,
                 expected,
-                false,
-            )
-        {
-            match layer {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    ordinary_failure.get_or_insert(failure);
-                }
-            }
-        }
-
-        // An extension body has a lexical `this` just like a member body.
-        // If no real member wins, another visible extension may use it as
-        // the implicit receiver before ordinary top-level functions.
-        if self.current_this_ty().is_some() {
-            for same_side in [true, false] {
-                let extensions = self.extension_candidates_on_side(&name, same_side);
-                if !extensions.is_empty() {
-                    match self.probe_expr_layer(|state, layer_sink| {
-                        let receiver = state
-                            .lower_current_this(call.callee.span)
-                            .expect("a lexical receiver has a `this` value");
-                        state.finish_extension_call(
-                            &extensions,
-                            &name,
-                            receiver,
-                            CallSite {
-                                type_args: &call.type_args,
-                                args: &call.args,
-                                span: call.span,
-                            },
-                            layer_sink,
-                            expected,
-                            false,
-                        )
-                    }) {
-                        Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                        Err(failure) => {
-                            ordinary_failure.get_or_insert(failure);
-                        }
-                    }
-                }
-                let mut extension_property_state = self.clone();
-                let mut extension_property_sink = Vec::new();
-                let receiver = extension_property_state
-                    .lower_current_this(call.callee.span)
-                    .expect("a lexical receiver has a `this` value");
-                match extension_property_state.resolve_extension_property_on_side(
-                    receiver,
-                    &call.callee,
-                    same_side,
-                    &mut extension_property_sink,
-                    true,
-                ) {
-                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
-                        if let Some(layer) = extension_property_state.probe_property_member_invoke(
-                            property.read.clone(),
-                            CallSite {
-                                type_args: &call.type_args,
-                                args: &call.args,
-                                span: call.span,
-                            },
-                            expected,
-                            false,
-                        ) {
-                            match layer {
-                                Ok(mut layer) => {
-                                    let mut setup = extension_property_sink.clone();
-                                    setup.append(&mut layer.sink);
-                                    layer.sink = setup;
-                                    return Some(self.commit_expr_layer(layer, sink));
-                                }
-                                Err(failure) => {
-                                    ordinary_failure.get_or_insert(failure);
-                                }
-                            }
-                        }
-                        if let Some(layer) = extension_property_state
-                            .probe_property_extension_invoke(
-                                property.read,
-                                CallSite {
-                                    type_args: &call.type_args,
-                                    args: &call.args,
-                                    span: call.span,
-                                },
-                                expected,
-                                false,
-                                same_side,
-                            )
-                        {
-                            match layer {
-                                Ok(mut layer) => {
-                                    let mut setup = extension_property_sink;
-                                    setup.append(&mut layer.sink);
-                                    layer.sink = setup;
-                                    return Some(self.commit_expr_layer(layer, sink));
-                                }
-                                Err(failure) => {
-                                    ordinary_failure.get_or_insert(failure);
-                                }
-                            }
-                        }
-                    }
-                    crate::properties::ExtensionPropertyResolution::Failed => {
-                        if extension_property_state.diagnostics.len() > self.diagnostics.len() {
-                            ordinary_failure.get_or_insert(Box::new(extension_property_state));
-                        }
-                    }
-                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
-                }
-                if let Some((property_state, property)) = &property_candidate
-                    && let Some(layer) = property_state.probe_property_extension_invoke(
-                        property.clone(),
-                        CallSite {
-                            type_args: &call.type_args,
-                            args: &call.args,
-                            span: call.span,
-                        },
-                        expected,
-                        false,
-                        same_side,
-                    )
-                {
-                    match layer {
-                        Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                        Err(failure) => {
-                            ordinary_failure.get_or_insert(failure);
-                        }
-                    }
-                }
-            }
-        }
-
-        // Final two layers, relative to the call site's file: the
-        // declarations on the call site's own side of the core/user
-        // boundary come first, the other side is the implicitly
-        // imported layer.
-        let top_level = self
-            .functions_by_name
-            .get(&name)
-            .cloned()
-            .unwrap_or_default();
-        let call_site_is_core = self.current_file < self.user_file_index;
-        let mut found_top_level_candidate = false;
-        for same_side in [true, false] {
-            let candidates = top_level
-                .iter()
-                .copied()
-                .filter(|function| self.function_is_accessible(*function, None))
-                .filter(|function| {
-                    ((self.function_files[function] < self.user_file_index) == call_site_is_core)
-                        == same_side
-                })
-                .collect::<Vec<_>>();
-            if !candidates.is_empty() {
-                found_top_level_candidate = true;
-                match self.probe_expr_layer(|state, layer_sink| {
-                    state.lower_top_level_function_layer(
-                        &name,
-                        &candidates,
-                        call,
-                        layer_sink,
-                        expected,
-                    )
-                }) {
-                    Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                    Err(failure) => {
-                        ordinary_failure.get_or_insert(failure);
-                    }
-                }
-            }
-
-            let property = self
-                .properties_by_name
-                .get(&name)
-                .into_iter()
-                .flatten()
-                .copied()
-                .find(|property| {
-                    self.access_domain_allows(&self.properties[*property].access.lookup.0, None)
-                        && (((self.property_files[property] < self.user_file_index)
-                            == call_site_is_core)
-                            == same_side)
-                });
-            let Some(property) = property else {
-                continue;
-            };
-            let mut candidate = self.clone();
-            let property_ty = candidate.properties[property].ty;
-            if !candidate.type_exposes_invoke(property_ty, false) {
-                continue;
-            }
-            found_top_level_candidate = true;
-            match self.probe_expr_layer(|state, layer_sink| {
-                let callee = state.lower_property_read(
-                    property,
-                    None,
-                    None,
-                    property_ty,
-                    call.callee.span,
-                )?;
-                state.lower_value_invoke(
-                    callee,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    layer_sink,
-                    expected,
-                    false,
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    ordinary_failure.get_or_insert(failure);
-                }
-            }
-        }
-
-        // Ordinary core-prelude variant constructors form their own layer
-        // after source declarations. Probe every same-name target in an
-        // isolated state so only one applicable winner can commit.
-        let prelude = self.core_prelude_variant_refs(&name).to_vec();
-        let mut prelude_successes = Vec::new();
-        let mut prelude_failure = None;
-        let mut unit_only_prelude = Vec::new();
-        for target in prelude {
-            if self.resolved_variant_style(target) == VariantStyle::Unit {
-                unit_only_prelude.push(target);
-                continue;
-            }
-            match self.probe_expr_layer(|state, layer_sink| {
-                state.lower_variant_construct(
-                    target,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    layer_sink,
-                    expected,
-                )
-            }) {
-                Ok(layer) => prelude_successes.push((target, layer)),
-                Err(failure) => {
-                    prelude_failure.get_or_insert(failure);
-                }
-            }
-        }
-        match prelude_successes.len() {
-            1 => {
-                let (_, layer) = prelude_successes.pop().expect("one prelude winner");
-                return Some(self.commit_expr_layer(layer, sink));
-            }
-            2.. => {
-                let targets = prelude_successes
-                    .iter()
-                    .map(|(target, _)| *target)
-                    .collect::<Vec<_>>();
-                self.ambiguous_prelude_variant(&call.callee, &targets);
-                return None;
-            }
-            0 => {}
-        }
-
-        // The final layer is contextual and considers only the exact enum
-        // application supplied by the expected type.
-        let mut contextual_failure = None;
-        if let Some(target) = self.contextual_variant_ref(&name, expected) {
-            if self.resolved_variant_style(target) == VariantStyle::Unit {
-                self.error(
-                    call.span,
-                    format!(
-                        "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
-                        call.callee.text,
-                        self.enums[target.enumeration()].name,
-                        call.callee.text
-                    ),
-                );
-                return None;
-            }
-            match self.probe_expr_layer(|state, layer_sink| {
-                state.lower_variant_construct(
-                    target,
-                    CallSite {
-                        type_args: &call.type_args,
-                        args: &call.args,
-                        span: call.span,
-                    },
-                    layer_sink,
-                    expected,
-                )
-            }) {
-                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => {
-                    contextual_failure = Some(failure);
-                }
-            }
-        }
-        if let Some(failure) = contextual_failure {
-            self.commit_layer_diagnostics(*failure);
-            return None;
-        }
-        if let Some(enumeration) = self.exact_expected_enum(expected) {
-            if let Some(failure) = ordinary_failure {
-                self.commit_layer_diagnostics(*failure);
-                return None;
-            }
-            self.error(
-                call.callee.span,
-                format!(
-                    "enum `{}` has no variant `{}`",
-                    self.enums[enumeration].name, call.callee.text
-                ),
             );
-            return None;
+        }
+        if let Some(target) = self.contextual_variant_ref(name, expected) {
+            match self.probe_expr_layer(|state, sink| {
+                state.lower_variant_construct(
+                    target,
+                    CallSite {
+                        type_args: &call.type_args,
+                        args: &call.args,
+                        span: call.span,
+                    },
+                    sink,
+                    expected,
+                )
+            }) {
+                Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                Err(failure) => {
+                    self.commit_layer_diagnostics(*failure);
+                    return None;
+                }
+            }
         }
         if let Some(failure) = ordinary_failure {
             self.commit_layer_diagnostics(*failure);
             return None;
         }
-        if let Some(failure) = prelude_failure {
-            self.commit_layer_diagnostics(*failure);
-            return None;
-        }
-        if let Some(target) = unit_only_prelude.first() {
-            let enumeration = target.enumeration();
+        if let Some(enumeration) = self.exact_expected_enum(expected) {
             self.error(
-                call.span,
+                call.callee.span,
                 format!(
-                    "unit variant `{}` of `{}` does not take arguments; use `{}` without parentheses",
-                    call.callee.text, self.enums[enumeration].name, call.callee.text
+                    "enum `{}` has no variant `{name}`",
+                    self.enums[enumeration].name
                 ),
             );
-            return None;
+        } else if let Some(failure) = prelude_variant_failure {
+            self.commit_layer_diagnostics(*failure);
+        } else if matches!(
+            self.lookup_type(name),
+            crate::imports::lookup::LookupResult::Inaccessible(_)
+        ) {
+            match self.resolve_type_lookup(&call.callee) {
+                Ok(Some(crate::imports::lookup::TypeLookupTarget::Current(
+                    crate::namespace::TopLevelTypeTarget::Alias(alias),
+                ))) => {
+                    let _ = self.resolve_type_alias_id_reference(alias, &call.callee, false);
+                }
+                Ok(Some(crate::imports::lookup::TypeLookupTarget::Current(
+                    crate::namespace::TopLevelTypeTarget::Nominal(_),
+                ))) => self.error(
+                    call.callee.span,
+                    format!("type `{name}` is not accessible from this source location"),
+                ),
+                Ok(Some(crate::imports::lookup::TypeLookupTarget::Dependency(binding))) => {
+                    let _ = self.resolve_imported_dependency_type_target(
+                        &binding,
+                        &call.callee,
+                        !call.type_args.is_empty(),
+                    );
+                }
+                Ok(None) | Err(()) => {}
+            }
+        } else if self.has_top_level_function_candidate(name) && !found {
+            self.error(
+                call.callee.span,
+                format!("function `{name}` is not accessible here"),
+            );
+        } else {
+            self.error(call.callee.span, format!("unknown function `{name}`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation"));
         }
-        if !found_top_level_candidate {
-            let message = if self
-                .functions_by_name
-                .get(&name)
-                .is_some_and(|candidates| !candidates.is_empty())
-            {
-                format!("function `{}` is not accessible here", call.callee.text)
-            } else if self
-                .properties_by_name
-                .get(&name)
-                .is_some_and(|candidates| {
-                    !candidates.is_empty()
-                        && candidates.iter().all(|property| {
-                            !self.access_domain_allows(
-                                &self.properties[*property].access.lookup.0,
-                                None,
-                            )
-                        })
-                })
-            {
-                format!("property `{}` is not accessible here", call.callee.text)
-            } else if self.lexical_nested_nominal_target(&name).is_none()
-                && self.source_type_alias_named(&name).is_some()
-                && self.type_alias_is_accessible(&name)
-            {
-                format!("typealias `{name}` does not name a constructible type")
-            } else {
-                format!(
-                    "unknown function `{}`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation",
-                    call.callee.text
-                )
-            };
-            self.error(call.callee.span, message);
-            return None;
-        }
-        unreachable!("a discovered callable candidate either succeeded or recorded a failure")
+        None
     }
 
-    fn lower_local_function_layer(
+    pub(in crate::expr) fn lower_local_function_layer(
         &mut self,
         name: &str,
         candidates: &[hir::LocalFunctionId],
         call: &ast::CallExpr,
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
-    ) -> Option<hir::Expr> {
+    ) -> Result<Option<hir::Expr>, ()> {
         let functions: Vec<_> = candidates
             .iter()
-            .map(|id| self.local_functions[*id].function)
+            .map(|id| self.local_functions[*id].source_function())
             .collect();
         let owner_count = self.local_functions[candidates[0]].owner_type_param_count;
         let owner_type_args = self.ambient_type_args(owner_count);
-        let explicit_type_args = self.resolve_call_type_args(&call.type_args)?;
-        let resolved = self.resolve_overload(
+        let explicit_type_args = self.resolve_call_type_args(&call.type_args).ok_or(())?;
+        let resolved = match self.resolve_overload_outcome(
             name,
             &functions,
             &owner_type_args,
@@ -510,26 +126,34 @@ impl Lowerer {
                 argument_protocol: crate::overload::CallArgumentProtocol::Ordinary,
             },
             sink,
-        )?;
+        ) {
+            crate::overload::OverloadResolutionOutcome::NoApplicable => return Ok(None),
+            crate::overload::OverloadResolutionOutcome::Blocked => return Ok(None),
+            crate::overload::OverloadResolutionOutcome::Failed => return Err(()),
+            crate::overload::OverloadResolutionOutcome::Resolved(resolved) => *resolved,
+        };
         let function = resolved.function();
         let local_function = self.local_function_by_function[&function];
-        let captures = self.local_call_capture_args(local_function, call.span)?;
+        let mut args = self
+            .local_call_capture_args(local_function, call.span)
+            .ok_or(())?;
         let callee = self.materialize_resolved_callee(&resolved);
         self.check_call_effects(callee, call.span);
-        Some(hir::Expr {
-            kind: ExprKind::LocalFunctionCall {
-                local_function,
-                callee,
-                captures,
-                args: resolved.args,
+        args.extend(resolved.args);
+        Ok(Some(hir::Expr {
+            kind: ExprKind::Call {
+                callee: hir::CallableTarget::Local(callee),
+                binding: None,
+                receiver: hir::SourceCallReceiver::NoReceiver,
+                args,
             },
             ty: resolved.return_ty,
             span: call.span,
             origin: self.expression_origin(call.span),
-        })
+        }))
     }
 
-    fn lower_top_level_function_layer(
+    pub(in crate::expr) fn lower_top_level_function_layer(
         &mut self,
         name: &str,
         candidates: &[hir::FunctionId],
@@ -551,6 +175,15 @@ impl Lowerer {
             },
             sink,
         )?;
+        self.finish_resolved_top_level_function_call(call, resolved, sink)
+    }
+
+    pub(in crate::expr) fn finish_resolved_top_level_function_call(
+        &mut self,
+        call: &ast::CallExpr,
+        resolved: crate::overload::ResolvedCallee,
+        sink: &mut [hir::Statement],
+    ) -> Option<hir::Expr> {
         let function = resolved.function();
         if let Some(core) = self.foreign_callback_core {
             if function == core.register {
@@ -582,7 +215,9 @@ impl Lowerer {
         self.check_call_effects(callee, call.span);
         Some(hir::Expr {
             kind: ExprKind::Call {
-                callee,
+                binding: None,
+                callee: callee.into(),
+                receiver: resolved.source_receiver,
                 args: resolved.args,
             },
             ty,
@@ -591,7 +226,7 @@ impl Lowerer {
         })
     }
 
-    pub(super) fn ambient_type_args(&mut self, count: usize) -> Vec<TypeId> {
+    pub(crate) fn ambient_type_args(&mut self, count: usize) -> Vec<TypeId> {
         self.type_params_in_scope[..count]
             .iter()
             .map(|parameter| parameter.id)
@@ -640,6 +275,19 @@ impl Lowerer {
             {
                 args.push(hir::Expr {
                     kind: ExprKind::Local(local),
+                    ty,
+                    span,
+                    origin: self.expression_origin(span),
+                });
+                continue;
+            }
+            if let Some(&(parameter, _, _)) = self
+                .constructor_params_in_scope
+                .values()
+                .find(|&&(_, _, candidate)| candidate == binding)
+            {
+                args.push(hir::Expr {
+                    kind: ExprKind::ConstructorParam(parameter),
                     ty,
                     span,
                     origin: self.expression_origin(span),

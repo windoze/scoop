@@ -1,0 +1,120 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  generated_exact_type get0 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun withDefault @fn0(value: Any, result: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local result
+  fun combined @fn1(first: Any, second: Any) -> Int
+    bb0 entry
+      val $argument.0: Any
+        Type Any
+        Local first
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      val $cast.1: Any
+        Type Any
+        Local $parameter.value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external0 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.1
+      val $parameter.result: Int
+        Type Int
+        Local $ub.2
+      call left: Int = @fn0 direct
+        Type Any
+        Local $parameter.value
+        Type Int
+        Local $parameter.result
+      val $argument.0: Any
+        Type Any
+        Local second
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      val $cast.3: Any
+        Type Any
+        Local $parameter.value
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.3
+    bb3 if.then.3
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external0 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb4 if.merge.4
+      val $ub.4: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.3
+      val $parameter.result: Int
+        Type Int
+        Local $ub.4
+      call right: Int = @fn0 direct
+        Type Any
+        Local $parameter.value
+        Type Int
+        Local $parameter.result
+      val $dependency.receiver: Int
+        Type Int
+        Local left
+      val $dependency.argument.0: Int
+        Type Int
+        Local right
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun upcast @fn2(value: String) -> Any
+    bb0 entry
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local value
+  output library

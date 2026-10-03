@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`addressOf` requires a GC-free value type, found Managed",
+    "notes": [],
+    "origin": {
+      "cone": "27c954d08fb6efd3fefeef547a771065efb61d89a284a3a3a434c199c847103d",
+      "end": 127,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 122
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,12 @@
+package consumer.delegates
+
+import templates.delegateCombinations.*
+
+public fun <T> exercise(value: T): Int {
+    val first = Receiver<T>(value).zero
+    Payload(0)
+    val second = Receiver<T>(value).zero
+    return if (first == 42 && second == 42) { 42 } else { 1 }
+}
+
+public fun result(): Int = exercise<Int>(1)

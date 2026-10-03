@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun defaultUnit()
+  fun main()
+    Call verifyDefault
+      Call unitDefault
+        Call defaultUnit
+        Call defaultUnit
+    Call verifyDefault
+      Call tupleDefault
+        TupleLiteral
+          Call defaultUnit
+          Call defaultUnit
+        TupleLiteral
+          Call defaultUnit
+          Call defaultUnit
+    Call verifyDefault
+      Unary Not
+        Call tupleDefault
+          TupleLiteral
+            Call defaultUnit
+            Call defaultUnit
+          TupleLiteral
+            Call defaultUnit
+            Call defaultUnit
+          BoolLiteral false

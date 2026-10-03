@@ -1,0 +1,23 @@
+public interface Contract {
+    public fun combine(first: Int, second: Long): Long = second
+    @Unsafe
+    public fun raw(value: Long): Long = value
+    public infix fun joined(other: Int): Int = other
+    public operator fun contains(value: Int): Boolean = true
+}
+public interface Await {
+    public suspend fun waitFor(value: Int): Long
+}
+public open class Base {
+    protected open fun secret(value: Long): Long = value
+    public open var number: Int
+        get() = 1
+        protected set(value) {}
+    public fun ignored(): Int = 0
+}
+public class Child : Base() {
+    protected final override fun secret(value: Long): Long = value
+}
+public class User : Contract {
+    public override fun combine(first: Int, second: Long): Long = second
+}

@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.sourceProtocols.*
+  public fun read(): Int
+    =
+      Call exported

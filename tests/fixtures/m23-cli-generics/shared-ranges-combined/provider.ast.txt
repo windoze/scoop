@@ -1,0 +1,22 @@
+SourceFile
+  QualifiedPackage dependency.ranges
+  public fun ranged<T>(value: T, read: (T) -> Int): Int
+    var total
+      IntLiteral 0
+    for index
+      Binary RangeUntil
+        IntLiteral 0
+        IntLiteral 7
+      assign total
+        Binary Add
+          Var total
+          Var index
+    return
+      IfExpression
+        Binary Eq
+          Var total
+          IntLiteral 21
+        Call read
+          Var value
+        else
+        IntLiteral 0

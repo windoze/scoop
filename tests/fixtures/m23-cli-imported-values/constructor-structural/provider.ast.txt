@@ -1,0 +1,72 @@
+SourceFile
+  QualifiedPackage dependency.constructors
+  public struct Token
+  public struct Other
+  public struct Wide
+    field first: Long
+    field second: Long
+    field third: Long
+    field marker: Token = <expr>
+    constructor(seed: Long, step: Long = <expr>) : this(<4 args>)
+    constructor(values: (Token, (Long, Long, Long), Token)) : this(<4 args>)
+    constructor(token: Token) : this(<4 args>)
+    constructor(flag: Boolean) : this(<4 args>)
+    public fun sum
+    @NoGC
+  public fun defaultWide(value: Wide = <expr>): Long
+    =
+      MethodCall sum
+        Var value
+  public typealias Packet = Wide
+  public typealias Marker = Token
+  public typealias Scalar = Long
+    @NoGC
+  public fun tupleIdentity(value: (Long, Token, Long)): (Long, Token, Long)
+    =
+      Var value
+    @NoGC
+  public fun tupleDefault(value: (Long, Token, Long) = <expr>): Long
+    =
+      Binary Add
+        FieldAccess _1
+          Var value
+        FieldAccess _3
+          Var value
+    @NoGC
+  public fun tupleProjection(value: (Long, Token, Long), selected: Long = <expr>): Long
+    =
+      Var selected
+  public struct TupleOps
+    public fun nested
+    public fun sum
+    public val pair: (Long, Token, Long) <computed>
+      @NoGC
+      get()
+        TupleLiteral
+          IntLiteral 3
+          Call Token
+          IntLiteral 9
+  public struct TupleBox
+    field elements: (Token, (Long, Long, Long), Token)
+  public struct TupleMarker
+    field elements: (Token, Token)
+  public enum TupleChoice
+    Empty
+    Full((Long, Token, Long))
+    @NoGC
+  public fun tupleChoiceSum(value: (Long, Token, Long)): Long
+    val choice
+      MethodCall Full
+        Var TupleChoice
+        Var value
+    return
+      WhenExpression
+        Var choice
+        arm Empty
+          IntLiteral 0
+        arm Full(fields)
+          Binary Add
+            FieldAccess _1
+              Var fields
+            FieldAccess _3
+              Var fields

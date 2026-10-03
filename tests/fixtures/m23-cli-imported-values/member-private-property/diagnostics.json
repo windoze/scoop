@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Wide` has no field `hiddenValue`",
+    "notes": [],
+    "origin": {
+      "cone": "5d33a401a92224950b65c14b7bc6af4b2399b6421776145454fa85cc1e3bc13d",
+      "end": 111,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 100
+    },
+    "severity": "error"
+  }
+]

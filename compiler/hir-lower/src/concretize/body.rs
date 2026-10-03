@@ -1,6 +1,7 @@
 use super::*;
 mod expression;
 mod pattern;
+mod source_location;
 
 #[derive(Default)]
 pub(super) struct LoopRemap {
@@ -26,12 +27,23 @@ impl Concretizer<'_> {
         let mut locals = Arena::new();
         let mut local_map = Vec::with_capacity(source.len());
         for (source_id, source_local) in source.iter() {
+            let previous = self.type_use_site;
+            let site = match source_local.definition {
+                export::LocalValueDefinitionSite::Source(origin) => {
+                    self.current_source_site(origin.into())
+                }
+                export::LocalValueDefinitionSite::Synthetic => None,
+            };
+            self.type_use_site = self.instantiation_site.or(site).or(previous);
             let id = locals.alloc(concrete::Local {
                 binding: concrete::BindingId::from_raw(source_local.binding.into_raw()),
+                selector: source_local.selector.clone(),
+                definition: source_local.definition,
                 name: source_local.name.clone(),
                 ty: self.lower_type(source_local.ty, substitution),
                 mutable: source_local.mutable,
             });
+            self.type_use_site = previous;
             assert_eq!(id.into_raw(), source_id.into_raw());
             local_map.push(id);
         }
@@ -51,15 +63,15 @@ impl Concretizer<'_> {
                 concrete::StatementKind::Expr(self.lower_expr(expr, substitution, locals))
             }
             export::StatementKind::InitializationEnsure(unit) => {
-                let source = self.source.exception_core.illegal_state_message_constructor;
-                let class = self.class_by_key[&(source.class, Vec::new())];
-                concrete::StatementKind::InitializationEnsure {
-                    unit: concrete::InitializationUnitId::from_raw(unit.into_raw()),
-                    cycle_exception: concrete::MessageClassConstructor {
-                        class,
-                        callable: self.class_constructor_by_key[&(source.constructor, class)],
-                    },
-                }
+                concrete::StatementKind::InitializationEnsure(
+                    self.request_initialization_unit(*unit),
+                )
+            }
+            export::StatementKind::GenericDelegateEnsure(reference) => {
+                let specialization = self.request_generic_delegate(reference, substitution);
+                concrete::StatementKind::InitializationEnsure(
+                    self.generic_delegate_specializations[specialization].initialization,
+                )
             }
             // This marker has no runtime semantics. Concrete local-function
             // entities are requested by direct calls/references instead.
@@ -125,10 +137,6 @@ impl Concretizer<'_> {
                     body,
                 }
             }
-            export::StatementKind::For(plan) => {
-                self.lower_for_iteration(plan, source.span, substitution, locals, loops, out);
-                return;
-            }
             export::StatementKind::Break { target } => concrete::StatementKind::Break {
                 target: self.active_loop_target(loops, *target, "break"),
             },
@@ -162,135 +170,6 @@ impl Concretizer<'_> {
         out.push(concrete::Statement {
             kind,
             span: source.span,
-        });
-    }
-
-    fn lower_for_iteration(
-        &mut self,
-        plan: &export::ForIterationPlan,
-        span: scoop_ast::Span,
-        substitution: &[concrete::TypeId],
-        locals: &[concrete::LocalId],
-        loops: &mut LoopRemap,
-        out: &mut Vec<concrete::Statement>,
-    ) {
-        let source = plan.source();
-        let conformance = plan.conformance();
-        let next = plan.next();
-        out.extend(self.lower_statements(plan.source_setup(), substitution, locals, loops));
-        let source_init = self.lower_expr(plan.source_init(), substitution, locals);
-        out.push(concrete_binding_statement(
-            self.lower_local(source.local, locals),
-            source_init,
-            span,
-        ));
-
-        out.extend(self.lower_statements(plan.iterator_setup(), substitution, locals, loops));
-        let iterator_call = self.lower_expr(plan.iterator_call(), substitution, locals);
-        out.push(concrete_binding_statement(
-            self.lower_local(conformance.source().local, locals),
-            iterator_call,
-            span,
-        ));
-
-        let raw_iterator = concrete::Expr {
-            kind: concrete::ExprKind::Local(self.lower_local(conformance.source().local, locals)),
-            ty: self.lower_type(conformance.source().ty, substitution),
-            span: conformance.span(),
-            origin: conformance.origin().concrete(),
-        };
-        let iterator_application =
-            self.lower_interface_application(conformance.application(), substitution);
-        let iterator = self.adapt_receiver_to_interface(raw_iterator, iterator_application);
-        let iterator_local = self.lower_local(conformance.iterator().local, locals);
-        assert_eq!(
-            iterator.ty,
-            self.lower_type(conformance.iterator().ty, substitution),
-            "the stored iteration conformance must produce its exact interface type"
-        );
-        out.push(concrete_binding_statement(
-            iterator_local,
-            iterator,
-            conformance.span(),
-        ));
-
-        let mapped_target = self.fresh_loop();
-        loops.active.push((plan.target(), mapped_target));
-
-        let next_result_local = self.lower_local(next.result().local, locals);
-        let next_result_type = self.lower_type(next.result().ty, substitution);
-        let next_call = concrete::Expr {
-            kind: concrete::ExprKind::MethodCall {
-                receiver: Box::new(concrete::Expr {
-                    kind: concrete::ExprKind::Local(iterator_local),
-                    ty: self.lower_type(conformance.iterator().ty, substitution),
-                    span: next.span(),
-                    origin: next.origin().concrete(),
-                }),
-                callee: self.lower_method_application(next.callable(), substitution),
-                args: Vec::new(),
-            },
-            ty: next_result_type,
-            span: next.span(),
-            origin: next.origin().concrete(),
-        };
-        let condition_setup = vec![concrete_binding_statement(
-            next_result_local,
-            next_call,
-            next.span(),
-        )];
-
-        let option = next.option();
-        let some_payload =
-            self.lower_applied_enum_variant_field_ref(option.some_payload(), substitution);
-        let none = self.lower_applied_enum_variant_ref(option.none(), substitution);
-        assert_eq!(
-            some_payload.variant().enumeration(),
-            none.enumeration(),
-            "the stored Option variants must share one concrete application"
-        );
-        let next_read = concrete::Expr {
-            kind: concrete::ExprKind::Local(next_result_local),
-            ty: next_result_type,
-            span: next.span(),
-            origin: next.origin().concrete(),
-        };
-        let cond = concrete::Expr {
-            kind: concrete::ExprKind::VariantTest {
-                operand: Box::new(next_read.clone()),
-                variant: some_payload.variant(),
-            },
-            ty: self.lower_type(self.source.boolean, substitution),
-            span: next.span(),
-            origin: next.origin().concrete(),
-        };
-        let element = concrete::Expr {
-            kind: concrete::ExprKind::VariantPayloadProject {
-                operand: Box::new(next_read),
-                field: some_payload,
-            },
-            ty: self.lower_type(next.element().ty, substitution),
-            span: next.span(),
-            origin: next.origin().concrete(),
-        };
-        let mut body = vec![concrete_binding_statement(
-            self.lower_local(next.element().local, locals),
-            element,
-            next.span(),
-        )];
-        let binding = crate::patterns::expand_irrefutable_binding_plan(plan.binding().clone());
-        body.extend(self.lower_statements(&binding, substitution, locals, loops));
-        body.extend(self.lower_statements(plan.body(), substitution, locals, loops));
-
-        assert_eq!(loops.active.pop(), Some((plan.target(), mapped_target)));
-        out.push(concrete::Statement {
-            kind: concrete::StatementKind::While {
-                target: mapped_target,
-                condition_setup,
-                cond,
-                body,
-            },
-            span,
         });
     }
 
@@ -358,10 +237,14 @@ impl Concretizer<'_> {
             export::AssignTarget::Global(global) => {
                 concrete::AssignTarget::Global(self.global_map[global])
             }
-            export::AssignTarget::SingletonPublishedRoot(root) => {
-                concrete::AssignTarget::SingletonPublishedRoot(
-                    concrete::SingletonPublishedRootId::from_raw(root.into_raw()),
+            export::AssignTarget::GenericDelegateStorage(reference) => {
+                let specialization = self.request_generic_delegate(reference, substitution);
+                concrete::AssignTarget::Global(
+                    self.generic_delegate_specializations[specialization].storage,
                 )
+            }
+            export::AssignTarget::SingletonPublishedRoot(root) => {
+                concrete::AssignTarget::SingletonPublishedRoot(self.lower_singleton_root(*root))
             }
             export::AssignTarget::Index { array, index } => concrete::AssignTarget::Index {
                 array: Box::new(self.lower_expr(array, substitution, locals)),
@@ -375,29 +258,17 @@ impl Concretizer<'_> {
                     field,
                 }
             }
-            export::AssignTarget::InitializingClassField {
-                application,
-                field,
-                origin,
-            } => {
-                let receiver_ty = self.lower_type(
-                    self.source.class_applications[*application].canonical_type,
-                    substitution,
-                );
+            export::AssignTarget::InitializingClassField { field, origin } => {
+                let (receiver_ty, field) =
+                    self.lower_initializing_class_field(*field, substitution);
                 concrete::AssignTarget::Field {
                     receiver: Box::new(concrete::Expr {
                         kind: concrete::ExprKind::ConstructorReceiver,
                         ty: receiver_ty,
-                        span: self.source.class_fields[*field].span,
+                        span: origin.concrete().evaluation.span,
                         origin: origin.concrete(),
                     }),
-                    field: self.lower_field_ref(
-                        export::FieldRef::ClassField {
-                            application: *application,
-                            field: *field,
-                        },
-                        substitution,
-                    ),
+                    field,
                 }
             }
         }
@@ -446,19 +317,13 @@ impl Concretizer<'_> {
                         );
                         concrete::ExhaustivenessProof::PatternMatrix { subject_ty }
                     }
-                    export::ExhaustivenessProof::EnumPatternMatrix {
-                        subject_ty,
-                        application,
-                    } => {
+                    export::ExhaustivenessProof::EnumPatternMatrix { subject_ty } => {
                         let subject_ty = self.lower_type(*subject_ty, substitution);
-                        let enum_id = self.lower_enum_application(*application, substitution);
+                        let concrete::TypeKind::Enum(enum_id) = self.types[subject_ty].kind else {
+                            unreachable!("an enum matrix retains its complete enum subject")
+                        };
                         assert_eq!(
                             subject_ty, subject.ty,
-                            "the checked enum proof must match its concrete subject",
-                        );
-                        assert_eq!(
-                            self.types[subject_ty].kind,
-                            concrete::TypeKind::Enum(enum_id),
                             "the checked enum proof must match its concrete subject",
                         );
                         concrete::ExhaustivenessProof::EnumPatternMatrix {
@@ -475,19 +340,5 @@ impl Concretizer<'_> {
             arms,
             fallback,
         }
-    }
-}
-
-fn concrete_binding_statement(
-    local: concrete::LocalId,
-    init: concrete::Expr,
-    span: scoop_ast::Span,
-) -> concrete::Statement {
-    concrete::Statement {
-        kind: concrete::StatementKind::ValDecl {
-            pattern: concrete::Pattern::Binding { local },
-            init,
-        },
-        span,
     }
 }

@@ -1,0 +1,112 @@
+SourceFile
+  QualifiedPackage consumer.arrayconstruction
+  ImportExact Local Array as Snapshot
+  ImportExact Local MutableArray as Buffer
+  ImportExact Local dependency.arrayconstruction.IntSnapshot as FixedSnapshot
+  ImportExact Local dependency.arrayconstruction.IntBuffer as FixedBuffer
+  ImportExact Local dependency.arrayconstruction.exercise as providerExercise
+  private class Local(val number: Int)
+  private typealias LocalSnapshot = Array<Local>
+  private typealias LocalBuffer = MutableArray<Local>
+  private typealias Forwarded = FixedSnapshot
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val original: Array<Int>
+      ArrayLiteral
+        IntLiteral 42
+    val mutable
+      Call Buffer<_>
+        Var original
+    val copied
+      Call Snapshot
+        Var mutable
+    val fixed
+      Call FixedSnapshot
+        Argument source=
+          Var mutable
+    val forwarded
+      Call Forwarded
+        Var mutable
+    val fixedBuffer
+      Call FixedBuffer
+        Var copied
+    assign []
+      Var mutable
+      IntLiteral 0L
+      IntLiteral 7
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Index
+              Var copied
+              IntLiteral 0L
+            IntLiteral 42
+          Binary Ne
+            Index
+              Var fixed
+              IntLiteral 0L
+            IntLiteral 42
+        Binary Ne
+          Index
+            Var forwarded
+            IntLiteral 0L
+          IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Index
+              Var fixedBuffer
+              IntLiteral 0L
+            IntLiteral 42
+          Binary RefEq
+            Var fixed
+            Var forwarded
+        Binary RefEq
+          Var fixed
+          Var copied
+      return
+        IntLiteral 2
+    val local
+      Call LocalBuffer
+        Argument source=
+          ArrayLiteral
+            Call Local
+              IntLiteral 42
+    val localCopy
+      Call LocalSnapshot
+        Var local
+    val empty
+      Call LocalSnapshot
+        ArrayLiteral
+    assign []
+      Var local
+      IntLiteral 0L
+      Call Local
+        IntLiteral 7
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess number
+            Index
+              Var localCopy
+              IntLiteral 0L
+          IntLiteral 42
+        Binary Ne
+          FieldAccess size
+            Var empty
+          IntLiteral 0L
+      return
+        IntLiteral 3
+    return
+      FieldAccess number
+        Index
+          Var localCopy
+          IntLiteral 0L

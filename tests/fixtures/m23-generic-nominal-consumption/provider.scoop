@@ -1,0 +1,14 @@
+package dependency.nominals
+
+public enum Parcel<T> { Empty, Item(T) }
+
+public fun <T> pack(value: T): Parcel<T> = Parcel.Item(value)
+public fun <T> unpack(value: Parcel<T>, fallback: T): T = when (value) {
+    Empty -> fallback
+    Item(item) -> item
+}
+public fun <T> relay(value: Parcel<T>): Parcel<T> = value
+public fun <T> nested(value: T): Parcel<Parcel<T>> = pack(pack(value))
+
+public enum ReferenceParcel<T: ref> { Item(T) }
+public enum ValueParcel<T: value> { Item(T) }

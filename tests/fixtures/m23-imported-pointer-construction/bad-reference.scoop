@@ -1,0 +1,2 @@
+private class Managed(public val number: Int)
+public fun result(): Int { @Unsafe { val pointer = Ptr<Managed>(1uL) }; return 42 }

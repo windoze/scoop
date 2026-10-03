@@ -1,0 +1,1 @@
+public const val broken: Long = 7.compareTo(rhs = 3)

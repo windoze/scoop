@@ -1,0 +1,8 @@
+import dependency.classes.Counter
+import dependency.classes.FirstChoice
+
+public interface LocalParent: FirstChoice {}
+public class LocalChoice public constructor(): LocalParent {
+    public override fun choose(): Long = super<LocalParent>.choose() + 1
+}
+public fun primary(): Counter = Counter(LocalChoice().choose())

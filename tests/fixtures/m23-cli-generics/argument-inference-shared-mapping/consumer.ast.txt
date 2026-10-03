@@ -1,0 +1,238 @@
+SourceFile
+  QualifiedPackage consumer.inference
+  ImportStar Local dependency.inference.*
+  private fun localOrdered<T>(values: Array<T>, seed: T, after: Int = <expr>, copied: Array<T> = <expr>): T
+    Call mark
+      IntLiteral 4
+    return
+      Call arrayOrSeed
+        Var copied
+        Var seed
+  private fun localPack<T>(vararg values: T, after: Int = <expr>): Array<T>
+    Call mark
+      IntLiteral 5
+    return
+      Var values
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val first
+      Call localOrdered
+        Argument seed=
+          Var seed
+        Argument values=
+          ArrayLiteral
+        Argument after=
+          IntLiteral 0
+    val second
+      Call ordered
+        Argument seed=
+          Var seed
+        Argument values=
+          ArrayLiteral
+        Argument after=
+          IntLiteral 0
+    val local
+      Call localPack
+        Argument values=
+          ArrayLiteral
+            Var first
+        Argument after=
+          IntLiteral 0
+    val external
+      Call orderedPack
+        Argument values=
+          ArrayLiteral
+            Var second
+        Argument after=
+          IntLiteral 0
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            Var local
+          IntLiteral 1L
+        Binary Ne
+          FieldAccess size
+            Var external
+          IntLiteral 1L
+      return
+        IntLiteral 1
+    return
+      IfExpression
+        Binary Eq
+          Call read
+            Index
+              Var local
+              IntLiteral 0L
+          IntLiteral 42
+        Call read
+          Index
+            Var external
+            IntLiteral 0L
+        else
+        IntLiteral 2
+  public fun result(): Int
+    assign trace
+      IntLiteral 0
+    val local
+      Call localOrdered
+        Argument seed=
+          Call mark
+            IntLiteral 1
+        Argument values=
+          Call deferredEmpty
+            IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Var local
+          IntLiteral 42
+        Binary Ne
+          Var trace
+          IntLiteral 1234
+      return
+        IntLiteral 3
+    assign trace
+      IntLiteral 0
+    val external
+      Call ordered
+        Argument seed=
+          Call mark
+            IntLiteral 1
+        Argument values=
+          Call deferredEmpty
+            IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Var external
+          IntLiteral 42
+        Binary Ne
+          Var trace
+          IntLiteral 1234
+      return
+        IntLiteral 4
+    assign trace
+      IntLiteral 0
+    val first
+      Call localPack
+        Call mark
+          IntLiteral 1
+        Argument *
+          Call markedArray
+            IntLiteral 2
+        Argument after=
+          Call mark
+            IntLiteral 3
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess size
+              Var first
+            IntLiteral 2L
+          Binary Ne
+            Index
+              Var first
+              IntLiteral 1L
+            IntLiteral 42
+        Binary Ne
+          Var trace
+          IntLiteral 1235
+      return
+        IntLiteral 5
+    assign trace
+      IntLiteral 0
+    val second
+      Call orderedPack
+        Call mark
+          IntLiteral 1
+        Argument *
+          Call markedArray
+            IntLiteral 2
+        Argument after=
+          Call mark
+            IntLiteral 3
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess size
+              Var second
+            IntLiteral 2L
+          Binary Ne
+            Index
+              Var second
+              IntLiteral 1L
+            IntLiteral 42
+        Binary Ne
+          Var trace
+          IntLiteral 1235
+      return
+        IntLiteral 6
+    val values
+      ArrayLiteral
+        IntLiteral 42
+    assign trace
+      IntLiteral 0
+    val namedLocal
+      Call localPack
+        Argument values=
+          Var values
+    if
+      Binary Or
+        Binary RefNe
+          Var namedLocal
+          Var values
+        Binary Ne
+          Var trace
+          IntLiteral 45
+      return
+        IntLiteral 7
+    assign trace
+      IntLiteral 0
+    val namedExternal
+      Call orderedPack
+        Argument values=
+          Var values
+    if
+      Binary Or
+        Binary RefNe
+          Var namedExternal
+          Var values
+        Binary Ne
+          Var trace
+          IntLiteral 45
+      return
+        IntLiteral 8
+    assign trace
+      IntLiteral 0
+    val emptyLocal
+      Call localPack<Int>
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            Var emptyLocal
+          IntLiteral 0L
+        Binary Ne
+          Var trace
+          IntLiteral 45
+      return
+        IntLiteral 9
+    assign trace
+      IntLiteral 0
+    val emptyExternal
+      Call orderedPack<Int>
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            FieldAccess size
+              Var emptyExternal
+            IntLiteral 0L
+          Binary Eq
+            Var trace
+            IntLiteral 45
+        IntLiteral 42
+        else
+        IntLiteral 10

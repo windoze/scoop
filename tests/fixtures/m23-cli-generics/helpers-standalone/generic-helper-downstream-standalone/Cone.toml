@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "generic-helper-downstream-standalone"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:generic-helper-standalone" = "0.1.0"

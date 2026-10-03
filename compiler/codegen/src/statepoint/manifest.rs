@@ -17,14 +17,14 @@ impl ExpectedRoot {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum ExpectedStatepoint {
     Relocating(Vec<ExpectedRoot>),
-    NativeTransition(&'static str),
+    NativeTransition(scoop_lir::RuntimeAbiSymbolV1),
     ZeroLiveInvoke,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct ExpectedSite {
     pub(super) function: String,
     pub(super) block: String,
@@ -50,6 +50,30 @@ impl ExpectedSafepoints {
                 ExpectedStatepoint::NativeTransition(_) | ExpectedStatepoint::ZeroLiveInvoke => 0,
             })
     }
+
+    pub(crate) fn without_body_sites(&self) -> Self {
+        Self {
+            sites: BTreeMap::new(),
+            functions: self.functions.clone(),
+        }
+    }
+
+    pub(crate) fn for_function(&self, symbol: &str) -> Result<Self, CodegenError> {
+        if !self.functions.contains_key(symbol) {
+            return Err(CodegenError(format!(
+                "cannot select safepoints for unknown LIR function `{symbol}`"
+            )));
+        }
+        Ok(Self {
+            sites: self
+                .sites
+                .iter()
+                .filter(|(_, site)| site.function == symbol)
+                .map(|(id, site)| (*id, site.clone()))
+                .collect(),
+            functions: self.functions.clone(),
+        })
+    }
 }
 
 pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoints, CodegenError> {
@@ -57,12 +81,12 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
     let mut functions = BTreeMap::new();
     for function in &module.functions {
         if functions
-            .insert(function.symbol.clone(), function.gc_effect)
+            .insert(function.symbol().to_string(), function.gc_effect)
             .is_some()
         {
             return Err(CodegenError(format!(
                 "duplicate LIR function symbol `{}` in statepoint manifest",
-                function.symbol
+                function.symbol()
             )));
         }
         for (_, block) in function.blocks.iter() {
@@ -77,11 +101,15 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                         }
                         scoop_lir::CallSite::NativeSafe(site) => Some((
                             site.safepoint,
-                            ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_safe"),
+                            ExpectedStatepoint::NativeTransition(
+                                scoop_lir::RuntimeAbiSymbolV1::EnterNativeSafe,
+                            ),
                         )),
                         scoop_lir::CallSite::NativeBorrowed(site) => Some((
                             site.safepoint,
-                            ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_borrowed"),
+                            ExpectedStatepoint::NativeTransition(
+                                scoop_lir::RuntimeAbiSymbolV1::EnterNativeBorrowed,
+                            ),
                         )),
                         scoop_lir::CallSite::NoGc(_) => None,
                     },
@@ -95,9 +123,14 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                     | scoop_lir::Instruction::NativeGlobalStore { safepoint, .. }
                     | scoop_lir::Instruction::NativeGlobalAddress { safepoint, .. } => Some((
                         *safepoint,
-                        ExpectedStatepoint::NativeTransition("scoop_rt_enter_native_safe"),
+                        ExpectedStatepoint::NativeTransition(
+                            scoop_lir::RuntimeAbiSymbolV1::EnterNativeSafe,
+                        ),
                     )),
-                    scoop_lir::Instruction::ArrayAlloc {
+                    scoop_lir::Instruction::BoxValue {
+                        safepoint, live, ..
+                    }
+                    | scoop_lir::Instruction::ArrayAlloc {
                         safepoint, live, ..
                     }
                     | scoop_lir::Instruction::ArrayAssembly {
@@ -111,16 +144,27 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                 let Some((safepoint, expectation)) = expectation else {
                     continue;
                 };
+                let safepoint = function
+                    .safepoints
+                    .get(safepoint)
+                    .ok_or_else(|| {
+                        CodegenError(format!(
+                            "LIR function `{}` references missing safepoint site {}",
+                            function.symbol(),
+                            safepoint.into_u32()
+                        ))
+                    })?
+                    .runtime_id();
                 if function.gc_effect == GcEffect::NoGc {
                     return Err(CodegenError(format!(
                         "NoGc LIR function `{}` contains safepoint {}",
-                        function.symbol,
+                        function.symbol(),
                         safepoint.get()
                     )));
                 }
                 insert_expectation(
                     &mut sites,
-                    &function.symbol,
+                    function.symbol(),
                     &block.name,
                     safepoint,
                     expectation,

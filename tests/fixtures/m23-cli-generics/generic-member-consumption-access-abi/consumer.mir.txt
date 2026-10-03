@@ -1,0 +1,646 @@
+Module
+  struct Large (first: Reference, second: Reference, third: Reference)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Large>
+    Completed(value: Large)
+    Suspended()
+  enum CoroutineSlot<Large>
+    Empty()
+    Value(value: Large)
+  enum CoroutineStep<Reference>
+    Completed(value: Reference)
+    Suspended()
+  enum CoroutineSlot<Reference>
+    Empty()
+    Value(value: Reference)
+  class Reference vtable=0 itables=0
+  class Derived<Large> vtable=3 itables=0
+  class ProtectedMiddle<Large> vtable=3 itables=0
+  class ProtectedBox<Large> vtable=3 itables=0
+  class Derived<Unit> vtable=3 itables=0
+  class ProtectedMiddle<Unit> vtable=3 itables=0
+  class ProtectedBox<Unit> vtable=3 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Large> vtable=0 itables=0
+  interface Continuation<Large>
+  interface SuspendTask<Large>
+  interface SuspendRegistration<Large>
+  interface Continuation<Reference>
+  interface SuspendTask<Reference>
+  interface SuspendRegistration<Reference>
+  generated_exact_type get0 location=enum2 nominal_id=22f4440996747fe3853cb31a8f0bf29303d3d13a8b20045097574bdd3aee644a exact_id=335731232d4b6677318f082ff5bd1a0373d84cb39ee5d4352b3db0996618e288
+  generated_exact_type get1 location=class10 nominal_id=f8ca5288748032b44af4fbea616256af18830f43e8c52e0b5548e4cc2ba44cc6 exact_id=736e74ab025dd98bc03fb98b9aeade3f0c9428de42e66de41d97d3f956d5f7e4
+  generated_exact_type get2 location=enum4 nominal_id=425df98a376a83a1481a485bb76e2c3b024091b28f185592767ead1e0e66f1b4 exact_id=82728f1c9b5f6ec79b71e4cbd1ccfd871d845cfb347948d1a7139ad3c7742e8d
+  generated_exact_type get3 location=enum1 nominal_id=954c132d704b600825c140babc7af005effa75bbece6e2793572d3821d011c01 exact_id=d8cf3962fb7a8aa69fe529626d328a7a8c8c84bb150050fdf179a333c75e538a
+  generated_exact_type get4 location=enum3 nominal_id=86a1e2e8b2146478164b0637ca892bd132bfa60fcc2771d81d7d76c5339a3d75 exact_id=f22bd9b76be6ed91bffe0b7017d718c611010b22c1901afb72b236daa786fc30
+  generated_callable gc0 function=@fn25 id=163767738d0ebd93309beb9d709facdb29548db2a8f03ce5a103385b33e634ee
+  generated_callable gc1 function=@fn26 id=a213890f49078a3b4dd227c3db8a0228e2b18c33b9d531b779d0bc7d2bc1ba6f
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Reference
+        ClassAlloc Reference
+      call @fn17 direct
+        Type Reference
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $argument.0: Reference
+        Type Reference
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Reference
+        ClassAlloc Reference
+      call @fn17 direct
+        Type Reference
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val $argument.1: Reference
+        Type Reference
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type Reference
+        ClassAlloc Reference
+      call @fn17 direct
+        Type Reference
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val $argument.2: Reference
+        Type Reference
+        Local $new.3
+      val $parameter.first: Reference
+        Type Reference
+        Local $argument.0
+      val $parameter.second: Reference
+        Type Reference
+        Local $argument.1
+      val $parameter.third: Reference
+        Type Reference
+        Local $argument.2
+      call $argument.0: Large = @fn24 direct
+        Type Reference
+        Local $parameter.first
+        Type Reference
+        Local $parameter.second
+        Type Reference
+        Local $parameter.third
+      val $parameter.value: Large
+        Type Large
+        Local $argument.0
+      assign $new.4
+        Type Derived<Large>
+        ClassAlloc Derived<Large>
+      call @fn18 direct
+        Type Derived<Large>
+        Local $new.4
+        Type Large
+        Local $parameter.value
+      val holder: Derived<Large>
+        Type Derived<Large>
+        Local $new.4
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $parameter.value: Unit
+        Type Unit
+        Local $argument.0
+      assign $new.5
+        Type Derived<Unit>
+        ClassAlloc Derived<Unit>
+      call @fn19 direct
+        Type Derived<Unit>
+        Local $new.5
+        Type Unit
+        Local $parameter.value
+      val $receiver: Derived<Unit>
+        Type Derived<Unit>
+        Local $new.5
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $parameter.next: Unit
+        Type Unit
+        Local $argument.0
+      call @fn7 direct
+        Type Derived<Unit>
+        Local $receiver
+        Type Unit
+        Local $parameter.next
+      val token: Unit
+        Type Unit
+        UnitLiteral
+      val $receiver: Derived<Large>
+        Type Derived<Large>
+        Local holder
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.6
+        Type Reference
+        ClassAlloc Reference
+      call @fn17 direct
+        Type Reference
+        Local $new.6
+        Type Int
+        Local $parameter.value
+      val $argument.0: Reference
+        Type Reference
+        Local $new.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.7
+        Type Reference
+        ClassAlloc Reference
+      call @fn17 direct
+        Type Reference
+        Local $new.7
+        Type Int
+        Local $parameter.value
+      val $argument.1: Reference
+        Type Reference
+        Local $new.7
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.8
+        Type Reference
+        ClassAlloc Reference
+      call @fn17 direct
+        Type Reference
+        Local $new.8
+        Type Int
+        Local $parameter.value
+      val $argument.2: Reference
+        Type Reference
+        Local $new.8
+      val $parameter.first: Reference
+        Type Reference
+        Local $argument.0
+      val $parameter.second: Reference
+        Type Reference
+        Local $argument.1
+      val $parameter.third: Reference
+        Type Reference
+        Local $argument.2
+      call $argument.0: Large = @fn24 direct
+        Type Reference
+        Local $parameter.first
+        Type Reference
+        Local $parameter.second
+        Type Reference
+        Local $parameter.third
+      val $parameter.next: Large
+        Type Large
+        Local $argument.0
+      call value: Large = @fn8 direct
+        Type Derived<Large>
+        Local $receiver
+        Type Large
+        Local $parameter.next
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.9
+        Type Reference
+        ClassAlloc Reference
+      call @fn17 direct
+        Type Reference
+        Local $new.9
+        Type Int
+        Local $parameter.value
+      val allocated: Reference
+        Type Reference
+        Local $new.9
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 0
+            Type Large
+            Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 1
+            Type Large
+            Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          FieldAccess 2
+            Type Large
+            Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Reference
+          Local allocated
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun secret @fn1(this: ProtectedBox<Large>) -> Large
+    bb0 entry
+      return
+        Type Large
+        FieldAccess 0
+          Type ProtectedBox<Large>
+          Local this
+  fun state @fn2(this: ProtectedBox<Large>) -> Large
+    bb0 entry
+      return
+        Type Large
+        FieldAccess 1
+          Type ProtectedBox<Large>
+          Local this
+  fun state @fn3(this: ProtectedBox<Large>, next: Large) -> Unit
+    bb0 entry
+      field_set 1
+        Type ProtectedBox<Large>
+        Local this
+        Type Large
+        Local next
+      return
+  fun secret @fn4(this: ProtectedBox<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type ProtectedBox<Unit>
+        Local this
+      return
+  fun state @fn5(this: ProtectedBox<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 1
+        Type ProtectedBox<Unit>
+        Local this
+      return
+  fun state @fn6(this: ProtectedBox<Unit>, next: Unit) -> Unit
+    bb0 entry
+      field_set 1
+        Type ProtectedBox<Unit>
+        Local this
+        Type Unit
+        Local next
+      return
+  fun Derived.replace @fn7(this: Derived<Unit>, next: Unit) -> Unit
+    bb0 entry
+      val $place.0: Derived<Unit>
+        Type Derived<Unit>
+        Local this
+      call @fn6 virtual[2]
+        Type ProtectedBox<Unit>
+        Retype ProtectedBox<Unit>
+          Type Derived<Unit>
+          Local $place.0
+        Type Unit
+        Local next
+      val $dependency.receiver: ProtectedBox<Unit>
+        Type ProtectedBox<Unit>
+        Retype ProtectedBox<Unit>
+          Type Derived<Unit>
+          Local this
+      call @fn4 virtual[0]
+        Type ProtectedBox<Unit>
+        Local $dependency.receiver
+      return
+  fun Derived.replace @fn8(this: Derived<Large>, next: Large) -> Large
+    bb0 entry
+      val $place.0: Derived<Large>
+        Type Derived<Large>
+        Local this
+      call @fn3 virtual[2]
+        Type ProtectedBox<Large>
+        Retype ProtectedBox<Large>
+          Type Derived<Large>
+          Local $place.0
+        Type Large
+        Local next
+      val $dependency.receiver: ProtectedBox<Large>
+        Type ProtectedBox<Large>
+        Retype ProtectedBox<Large>
+          Type Derived<Large>
+          Local this
+      call $call.1: Large = @fn1 virtual[0]
+        Type ProtectedBox<Large>
+        Local $dependency.receiver
+      return
+        Type Large
+        Local $call.1
+  fun Continuation.resume @fn9(this: Continuation<Large>, value: Large) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Large>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Large>, $completion: Continuation<Large>) -> CoroutineStep<Large>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Large>, continuation: Continuation<Large>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn13(this: Continuation<Reference>, value: Reference) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn14(this: Continuation<Reference>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn15(this: SuspendTask<Reference>, $completion: Continuation<Reference>) -> CoroutineStep<Reference>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Reference>, continuation: Continuation<Reference>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Reference.$c0 @fn17(this: Reference, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Reference
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Derived.$c1 @fn18(this: Derived<Large>, value: Large) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Large
+        Type Large
+        Local value
+      val $dependency.parameter.value: Large
+        Type Large
+        Local $dependency.argument.0
+      call @fn20 direct
+        Type ProtectedMiddle<Large>
+        Retype ProtectedMiddle<Large>
+          Type Derived<Large>
+          Local this
+        Type Large
+        Local $dependency.parameter.value
+      return
+  fun init.Derived.$c1 @fn19(this: Derived<Unit>, value: Unit) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Unit
+        Type Unit
+        Local value
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      call @fn21 direct
+        Type ProtectedMiddle<Unit>
+        Retype ProtectedMiddle<Unit>
+          Type Derived<Unit>
+          Local this
+        Type Unit
+        Local $dependency.parameter.value
+      return
+  fun init.ProtectedMiddle.$c0 @fn20(this: ProtectedMiddle<Large>, value: Large) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Large
+        Type Large
+        Local value
+      val $dependency.constructor.local.1: Large
+        Type Large
+        Local $dependency.constructor.local.0
+      call @fn22 direct
+        Type ProtectedBox<Large>
+        Retype ProtectedBox<Large>
+          Type ProtectedMiddle<Large>
+          Local this
+        Type Large
+        Local $dependency.constructor.local.1
+      return
+  fun init.ProtectedMiddle.$c0 @fn21(this: ProtectedMiddle<Unit>, value: Unit) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Unit
+        Type Unit
+        Local value
+      val $dependency.constructor.local.1: Unit
+        Type Unit
+        Local $dependency.constructor.local.0
+      call @fn23 direct
+        Type ProtectedBox<Unit>
+        Retype ProtectedBox<Unit>
+          Type ProtectedMiddle<Unit>
+          Local this
+        Type Unit
+        Local $dependency.constructor.local.1
+      return
+  fun init.ProtectedBox.$c1 @fn22(this: ProtectedBox<Large>, stored: Large) -> Unit
+    bb0 entry
+      field_set 0
+        Type ProtectedBox<Large>
+        Local this
+        Type Large
+        Local stored
+      field_set 1
+        Type ProtectedBox<Large>
+        Local this
+        Type Large
+        Local stored
+      field_set 2
+        Type ProtectedBox<Large>
+        Local this
+        Type Large
+        Local stored
+      return
+  fun init.ProtectedBox.$c1 @fn23(this: ProtectedBox<Unit>, stored: Unit) -> Unit
+    bb0 entry
+      field_set 0
+        Type ProtectedBox<Unit>
+        Local this
+        Type Unit
+        Local stored
+      field_set 1
+        Type ProtectedBox<Unit>
+        Local this
+        Type Unit
+        Local stored
+      field_set 2
+        Type ProtectedBox<Unit>
+        Local this
+        Type Unit
+        Local stored
+      return
+  fun ctor.Large.$c0 @fn24(first: Reference, second: Reference, third: Reference) -> Large <no-gc>
+    bb0 entry
+      return
+        Type Large
+        StructInit Large
+          Type Reference
+          Local first
+          Type Reference
+          Local second
+          Type Reference
+          Local third
+  fun startCoroutine<Large> @fn25(task: SuspendTask<Large>, completion: Continuation<Large>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<Large>[0]
+        Type Continuation<Large>
+        Local completion
+        Type Large
+        EnumField v0 f0
+          Type CoroutineStep<Large>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<Large>[1]
+        Type Continuation<Large>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Large> = @fn11 interface SuspendTask<Large>[0]
+        Type SuspendTask<Large>
+        Local task
+        Type Continuation<Large>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Large>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Reference> @fn26(task: SuspendTask<Reference>, completion: Continuation<Reference>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn13 interface Continuation<Reference>[0]
+        Type Continuation<Reference>
+        Local completion
+        Type Reference
+        EnumField v0 f0
+          Type CoroutineStep<Reference>
+          Local $step
+      return
+    bb2 failed
+      call @fn14 interface Continuation<Reference>[1]
+        Type Continuation<Reference>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Reference> = @fn15 interface SuspendTask<Reference>[0]
+        Type SuspendTask<Reference>
+        Local task
+        Type Continuation<Reference>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Reference>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Large> result=Large
+  coroutine_step cs1 CoroutineStep<Reference> result=Reference
+  coroutine_slot cl0 CoroutineSlot<Large> value=Large
+  coroutine_slot cl1 CoroutineSlot<Reference> value=Reference
+  coroutine_start ct0 result=Large function=fn25
+  coroutine_start ct1 result=Reference function=fn26
+  coroutine_fn cf0 @fn11 source_return=Large step=cs0 immediate
+  coroutine_fn cf1 @fn15 source_return=Reference step=cs1 immediate
+  instance mi0 function=@fn1 <- secret
+  instance mi1 function=@fn2 <- state
+  instance mi2 function=@fn3 <- state
+  instance mi3 function=@fn4 <- secret
+  instance mi4 function=@fn5 <- state
+  instance mi5 function=@fn6 <- state
+  instance mi6 function=@fn7 <- Derived.replace
+  instance mi7 function=@fn8 <- Derived.replace
+  instance mi8 function=@fn9 <- Continuation.resume
+  instance mi9 function=@fn10 <- Continuation.resumeWithException
+  instance mi10 function=@fn11 <- SuspendTask.run
+  instance mi11 function=@fn12 <- SuspendRegistration.register
+  instance mi12 function=@fn13 <- Continuation.resume
+  instance mi13 function=@fn14 <- Continuation.resumeWithException
+  instance mi14 function=@fn15 <- SuspendTask.run
+  instance mi15 function=@fn16 <- SuspendRegistration.register
+  output library

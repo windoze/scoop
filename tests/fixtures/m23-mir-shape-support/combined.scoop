@@ -1,0 +1,7 @@
+public interface Marker { public fun value(): Int = 7 }
+public struct Payload(val label: String) : Marker {}
+public enum Message { Idle, Data(Payload) }
+public class Holder(val value: Message)
+public object Singleton { public val label: String = "stable" }
+private struct Hidden(val value: Int)
+public fun hide(): Any = Hidden(1)

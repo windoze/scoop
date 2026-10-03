@@ -24,7 +24,6 @@ const PCREL_ABSPTR_ENCODING: u8 = 0x10;
 const ARM64_RELOC_UNSIGNED: u8 = 0;
 const ARM64_RELOC_SUBTRACTOR: u8 = 1;
 const ARM64_RELOC_POINTER_TO_GOT: u8 = 7;
-const SCOOP_PERSONALITY_SYMBOL: &str = "_scoop_eh_personality";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CieKind {
@@ -383,7 +382,13 @@ fn validate_personality_relocation(
         || entries[0].r_type != ARM64_RELOC_POINTER_TO_GOT
         || !entries[0].r_pcrel
         || entries[0].r_length != 2
-        || entries[0].symbol != SCOOP_PERSONALITY_SYMBOL
+        || entries[0].symbol
+            != scoop_lir::LirTargetProfile::DARWIN_AARCH64
+                .contract()
+                .native_symbol_normalization()
+                .compiler_generated_object_symbol(
+                    scoop_lir::TargetEhSupportV1::ScoopPersonality.logical_symbol(),
+                )
         || !entries[0].symbol_is_undefined
         || entries[0].symbol_section.is_some()
         || entries[0].symbol_is_local

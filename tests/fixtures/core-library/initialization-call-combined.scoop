@@ -1,0 +1,17 @@
+object UserCache {
+    val value: Int = userCoreWithDefault()
+}
+
+val eager: Int = userCoreOffset(40)
+
+fun selectedValue(useCache: Boolean): Int {
+    return if (useCache) {
+        userCoreOffset(UserCache.value)
+    } else {
+        userCoreWithDefault(eager)
+    }
+}
+
+fun main() {
+    val result = selectedValue(true)
+}

@@ -1,0 +1,13 @@
+package consumer.equality
+
+import templates.equality.*
+
+public fun <T> exercise(value: T): Int {
+    val left = Empty<T>()
+    if (left != Empty<T>()) { return 1 }
+    val nested = (left, 42)
+    if (nested != (Empty<T>(), 42) || nested == (Empty<T>(), 1)) { return 2 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(1)

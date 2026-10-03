@@ -1,0 +1,55 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun makeNative(value: Int): Native<Int>
+    =
+      Call Native
+        Var value
+        BoolLiteral true
+  fun main()
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess value
+            Call makeNative
+              IntLiteral 42
+          IntLiteral 42
+        Binary Ne
+          FieldAccess value
+            Call Recursive
+              IntLiteral 42
+              BoolLiteral true
+          IntLiteral 42
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        FieldAccess value
+          Call Native<String>
+            StringLiteral "managed"
+        StringLiteral "managed"
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        FieldAccess code
+          Call Phantom<String>
+        IntLiteral 1
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        FieldAccess value
+          Call WrapperValue
+            IntLiteral 42
+            BoolLiteral true
+        IntLiteral 42
+      throw
+        Call IllegalStateException
+    val wrapper: Wrapper<Int>
+      Call Wrapper
+        IntLiteral 42
+    val unrelated: Wrapper<String>
+      Call Wrapper<String>
+        BoolLiteral true
+    Call gcCollect

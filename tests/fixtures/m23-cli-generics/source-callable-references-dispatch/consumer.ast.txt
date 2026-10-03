@@ -1,0 +1,43 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportStar Local templates.references.*
+  public fun exercise<T>(value: T): Int
+    val base: Base
+      Call Derived
+    val virtual
+      CallableReference 0 read
+        Var base
+    val reader: Readable
+      Call Reader
+    val interfaceRead: () -> Int
+      CallableReference 1 read
+        Var reader
+    val generic: VirtualBox<T>
+      Call VirtualChild<T>
+        Var value
+        Var value
+    val genericRead
+      CallableReference 2 read
+        Var generic
+    val chooser: Chooser<T>
+      Call Choosing<T>
+    val interfaceChoose: (T) -> T
+      CallableReference 3 choose
+        Var chooser
+    val values
+      TupleLiteral
+        Call genericRead
+        Call interfaceChoose
+          Var value
+    if
+      Binary Ne
+        Call virtual
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call interfaceRead
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

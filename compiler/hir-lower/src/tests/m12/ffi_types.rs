@@ -133,24 +133,21 @@ fn pointer_core_normalizes_construction_memory_ops_and_layout_queries() {
             .any(|(_, ty)| matches!(ty, hir::Type::Ptr(pointee)
             if module.types[*pointee] == hir::Type::Integer(hir::IntegerKind::SIGNED_32)))
     );
-    let top_level_intrinsics = [
-        module.ffi_core.address_of,
-        module.ffi_core.size_of,
-        module.ffi_core.align_of,
-    ];
+    let core = defined_export_core(&module);
+    let top_level_intrinsics = [core.ffi.address_of, core.ffi.size_of, core.ffi.align_of];
     assert!(module.instantiations.iter().all(|(_, application)| {
         let function = module.generic_functions[application.generic].function;
         !top_level_intrinsics.contains(&function)
     }));
     let pointer_methods = [
-        module.ffi_core.ptr_to_ulong,
-        module.ffi_core.ptr_cast,
-        module.ffi_core.ptr_load,
-        module.ffi_core.ptr_load_offset,
-        module.ffi_core.ptr_store,
-        module.ffi_core.ptr_store_offset,
-        module.ffi_core.ptr_plus,
-        module.ffi_core.ptr_minus,
+        core.ffi.ptr_to_ulong,
+        core.ffi.ptr_cast,
+        core.ffi.ptr_load,
+        core.ffi.ptr_load_offset,
+        core.ffi.ptr_store,
+        core.ffi.ptr_store_offset,
+        core.ffi.ptr_plus,
+        core.ffi.ptr_minus,
     ];
     assert!(
         module
@@ -201,7 +198,7 @@ fn pointer_carrier_equality_uses_the_typed_ulong_intrinsic() {
         )],
     )]))
     .expect("pointer carrier equality must normalize before MIR");
-    let hir::FunctionKind::User(body) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(body) = &module.functions[module.entry()].kind else {
         panic!("entry function must have a user body")
     };
     for name in ["sameAddress", "sameULong"] {
@@ -237,7 +234,7 @@ fn pointer_construction_maps_named_raw_and_preserves_raw_contract() {
         )],
     )]))
     .expect("the named raw argument must bind to the Ptr constructor parameter");
-    let hir::FunctionKind::User(body) = &module.functions[module.entry].kind else {
+    let hir::FunctionKind::User(body) = &module.functions[module.entry()].kind else {
         panic!("entry function must have a user body")
     };
     assert!(matches!(
@@ -472,7 +469,9 @@ fn nullable_pointer_storage_accepts_none_as_an_encoded_constant_image() {
         let global = module
             .globals
             .iter()
-            .find_map(|(_, global)| (global.name == name).then_some(global))
+            .find_map(|(_, global)| {
+                (module.properties[global.property].name == name).then_some(global)
+            })
             .unwrap_or_else(|| panic!("missing global {name}"));
         assert!(matches!(
             global.storage,

@@ -1,0 +1,20 @@
+public open class Envelope protected constructor(count: Int = 1) {
+    private constructor(flag: Boolean): this(count = 2) {}
+    internal constructor(value: Long): this(count = 3) {}
+    @Unsafe public constructor(text: String): this(count = 4) {}
+    protected class Box<T> private constructor(private val stored: T, count: Int = 1) {
+        public constructor(value: T): this(value, 2) {}
+        internal constructor(value: T, flag: Boolean): this(value, 3) {}
+    }
+    protected struct Pair<T>(val value: T, val count: Int = 1) {
+        @NoGC @Unsafe private constructor(value: T): this(value, 2) {}
+        internal constructor(value: T, flag: Boolean): this(value, 3) {}
+    }
+    protected class Outer<T> {
+        private class Static public constructor(count: Int = 1)
+    }
+    protected object Singleton {}
+}
+public struct Empty() {
+    @NoGC public constructor(flag: Boolean): this() {}
+}

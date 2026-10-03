@@ -1,0 +1,41 @@
+Module
+  enum ReadChoice
+    Ready()
+    Empty()
+  class Counter vtable=0 itables=0
+  class box<ReadChoice> vtable=0 itables=0
+  interface Readable
+  generated_exact_type get0 location=class1 nominal_id=cc47cdf2b659ddd3d9579bb07953c6a1dc81eb3c22c1929868a4c3f803bd8487 exact_id=c570022eb24e77c8d873a4975833944e9d232bd77c8493fd87a498ceecba082b
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val value: Readable
+        Type Readable
+        Box
+          Type ReadChoice
+          VariantConstruct ReadChoice v0
+      val $dependency.receiver: Readable
+        Type Readable
+        Local value
+      val $dependency.parameter.extra: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $dependency.argument.0: Long = external0 interface Readable[1]
+        Type Readable
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.extra
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  output library

@@ -58,10 +58,8 @@ fn generic_iterator_bound_concretizes_value_and_reference_results() {
     for (_, function) in output.local.functions.iter().filter(|(_, function)| {
         function.name == "consume"
             && matches!(
-                function.origin,
-                hir::concrete::FunctionOrigin::Free(
-                    hir::concrete::FreeFunctionOrigin::Generic { .. }
-                )
+                function.materialization.context(),
+                hir::concrete::CallableMaterializationContext::Application(_)
             )
     }) {
         let hir::concrete::FunctionKind::User(body) = &function.kind else {
@@ -84,7 +82,11 @@ fn generic_iterator_bound_concretizes_value_and_reference_results() {
                 saw_value = true;
             }
             hir::concrete::TypeKind::Class(_) => {
-                assert!(matches!(&init.kind, hir::concrete::ExprKind::Local(_)));
+                assert!(
+                    matches!(&init.kind, hir::concrete::ExprKind::ReferenceUpcast(value)
+                    if matches!(value.kind, hir::concrete::ExprKind::Local(local) if local == raw)
+                        && value.ty == body.locals[raw].ty)
+                );
                 saw_reference = true;
             }
             other => panic!("unexpected iterator result kind {other:?}"),
@@ -154,10 +156,12 @@ fn generic_iteration_concretization_keeps_the_export_selected_winner() {
     ]))
     .expect("the generic body selects the bound-compatible extension once");
 
+    let body = export_body(&output.export, "consume");
+    let iterator = export_local_with_prefix(body, "$for.iterator.result.");
     assert_eq!(
         export_callee_name(
             &output.export,
-            first_for(export_body(&output.export, "consume")).iterator_call(),
+            export_local_init(&body.statements, iterator),
         ),
         "iterator"
     );
@@ -168,10 +172,8 @@ fn generic_iteration_concretization_keeps_the_export_selected_winner() {
         .find_map(|(_, function)| {
             (function.name == "consume"
                 && matches!(
-                    function.origin,
-                    hir::concrete::FunctionOrigin::Free(
-                        hir::concrete::FreeFunctionOrigin::Generic { .. }
-                    )
+                    function.materialization.context(),
+                    hir::concrete::CallableMaterializationContext::Application(_)
                 ))
             .then_some(function)
         })

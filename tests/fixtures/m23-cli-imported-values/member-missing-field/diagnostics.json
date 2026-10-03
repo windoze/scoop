@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Wide` has no field `missing`",
+    "notes": [],
+    "origin": {
+      "cone": "03df8bddde441464b742d6724bcf0877d1ef1456b180f44dc8a83f8ad96f7b72",
+      "end": 107,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 100
+    },
+    "severity": "error"
+  }
+]

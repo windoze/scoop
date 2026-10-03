@@ -92,8 +92,8 @@ fn lowered_alias<'module>(
         .unwrap_or_else(|| panic!("missing lowered typealias `{name}`"))
 }
 
-fn user_body(module: &hir::Module) -> &hir::Body {
-    match &module.functions[module.entry].kind {
+fn user_body(module: &hir::ExportHirOutput) -> &hir::Body {
+    match &module.functions[module.entry()].kind {
         hir::FunctionKind::User(body) => body,
         _ => panic!("main must have a user body"),
     }
@@ -398,13 +398,16 @@ fn alias_qualified_patterns_preserve_the_exact_generic_application() {
                     hir::Expr {
                         kind:
                             hir::ExprKind::FieldAccess {
-                                field: hir::FieldRef::StructField(field),
+                                field: hir::FieldRef::StructField { owner, .. },
                                 ..
                             },
                         ..
                     },
                 ..
-            } => Some(field.application()),
+            } => match module.types[*owner] {
+                hir::Type::Struct(application) => Some(application),
+                _ => panic!("a struct field has a struct application owner"),
+            },
             _ => None,
         })
         .expect("alias-qualified struct projection");
@@ -426,8 +429,11 @@ fn alias_qualified_patterns_preserve_the_exact_generic_application() {
         let hir::Pattern::Variant { application, .. } = &arm.pattern else {
             panic!("each IntChoice arm must be a variant pattern")
         };
+        let hir::Type::Enum(owner) = module.types[application.owner] else {
+            panic!("the variant retains its complete enum owner")
+        };
         assert_eq!(
-            module.enum_applications[*application].arguments,
+            module.enum_applications[owner].arguments,
             vec![int_type(&module)]
         );
     }

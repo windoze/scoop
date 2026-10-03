@@ -39,7 +39,7 @@ fn params_and_return_translate() {
     let module = lower(&h.finish(main));
 
     let add_fn = &module.functions[module.top_level[0]];
-    assert_eq!(add_fn.symbol, "scoop.add");
+    assert_eq!(add_fn.name, "add");
     assert_eq!(add_fn.params.len(), 2);
     let int_ty = mir::Type::Integer(mir::IntegerKind::SIGNED_32);
     assert_eq!(add_fn.params[0].ty, int_ty);
@@ -87,11 +87,18 @@ fn monomorphizes_generic_functions() {
 
     // main first (declaration order), then the instances in
     // creation order. The generic function itself has no MIR body.
-    assert_eq!(module.top_level.len(), 3);
+    assert_eq!(
+        module
+            .functions
+            .iter()
+            .filter(|(_, function)| function.name == "identity")
+            .count(),
+        2
+    );
     let int_instance = &module.functions[module.top_level[1]];
     let string_instance = &module.functions[module.top_level[2]];
-    assert_eq!(int_instance.symbol, "scoop.identity$I32");
-    assert_eq!(string_instance.symbol, "scoop.identity$S");
+    assert_eq!(int_instance.name, "identity");
+    assert_eq!(string_instance.name, "identity");
 
     // The instance signature, locals and body are fully
     // substituted — no `Param` survives.
@@ -110,23 +117,104 @@ fn monomorphizes_generic_functions() {
     assert_eq!(string_instance.params[0].ty, mir::Type::String);
     assert_eq!(string_instance.return_ty, mir::Type::String);
 
-    // MIR gives every materialized body its own typed identity and
-    // records symbol -> generic source provenance in the meta.
-    assert_eq!(module.meta.instances.len(), 2);
-    let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
-    assert_eq!(int_meta.symbol, "scoop.identity$I32");
-    let mir::MonomorphizedSource::GenericFunction { source, arguments } = &int_meta.source else {
-        panic!("identity must retain generic free-function provenance")
-    };
-    assert_eq!(
-        module.meta.generic_function_sources[*source].display_name,
-        "identity"
+    let int_value = module
+        .meta
+        .local_values
+        .get(module.top_level[1], int_instance.params[0].local)
+        .expect("the Int parameter keeps its LocalConcrete value identity");
+    let string_value = module
+        .meta
+        .local_values
+        .get(module.top_level[2], string_instance.params[0].local)
+        .expect("the String parameter keeps its LocalConcrete value identity");
+    assert_ne!(
+        int_value.identity_record().id(),
+        string_value.identity_record().id(),
+        "the same template parameter has a distinct value in each materialization"
     );
-    assert_eq!(arguments.to_vec(), vec![int_ty]);
-    assert_eq!(module.meta.generic_function_sources.len(), 1);
+
+    // MIR gives every materialized body its own typed identity and records
+    // its generic source provenance in metadata.
+    let int_meta = &module.meta.instances[instance_id(&module, module.top_level[1])];
+    assert_eq!(int_meta.display_name, "identity");
+    let int_source = module
+        .meta
+        .source_callable_materializations
+        .get(int_meta.function)
+        .expect("the generic Int body has an exact MIR location");
+    assert_eq!(int_source.materialization(), int_meta.materialization);
+    assert_eq!(
+        int_value.identity_record().key().owner(),
+        int_meta.materialization
+    );
+    assert!(matches!(
+        int_meta.materialization.template(),
+        scoop_identity::CallableTemplateOwner::GenericFunction(_)
+    ));
+    let scoop_identity::CallableMaterializationContext::Application(int_application) =
+        int_meta.materialization.context()
+    else {
+        panic!("identity<Int> must retain its persistent callable application")
+    };
+    let int_member = int_source
+        .odr_member_record()
+        .expect("the generic Int body belongs to its callable ODR group");
+    assert!(matches!(
+        int_member.key().discriminator(),
+        scoop_identity::OdrMemberDiscriminator::CallableApplication(found)
+            if *found == int_application
+    ));
+    assert_eq!(
+        int_source.signature_record().subject(),
+        mir::CallableSignatureSubject::odr(
+            scoop_identity::CallableOdrMemberId::from_key(int_member.key()).unwrap()
+        )
+    );
+    let int_function = &module.functions[int_meta.function];
+    let parameter_exact = module
+        .meta
+        .source_exact_types
+        .get(&int_function.params[0].ty)
+        .unwrap()
+        .identity_record()
+        .id();
+    let result_exact = module
+        .meta
+        .source_exact_types
+        .get(&int_function.return_ty)
+        .unwrap()
+        .identity_record()
+        .id();
+    let int_signature = int_source.signature_record().signature();
+    assert!(!int_signature.receiver().is_present());
+    assert_eq!(int_signature.parameters(), &[parameter_exact]);
+    assert_eq!(int_signature.result(), result_exact);
+    let string_meta = &module.meta.instances[instance_id(&module, module.top_level[2])];
+    assert_eq!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(string_meta.function)
+            .expect("the generic String body has an exact MIR location")
+            .materialization(),
+        string_meta.materialization
+    );
+    assert_eq!(
+        string_meta.materialization.template(),
+        int_meta.materialization.template()
+    );
+    let scoop_identity::CallableMaterializationContext::Application(string_application) =
+        string_meta.materialization.context()
+    else {
+        panic!("identity<String> must retain its persistent callable application")
+    };
+    assert_ne!(int_application, string_application);
 
     // The calls in main resolve to the two instances.
-    let main_fn = &module.functions[module.entry];
+    let main_fn = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")];
     for (statement, instance) in entry_statements(&main_fn.body)
         .iter()
         .zip([module.top_level[1], module.top_level[2]])
@@ -160,9 +248,19 @@ fn duplicate_requests_produce_one_instance() {
     assert_eq!(h.instantiate(identity, vec![int]), identity_int);
     let module = lower(&h.finish(main));
 
-    assert_eq!(module.top_level.len(), 2);
+    assert_eq!(
+        module
+            .functions
+            .iter()
+            .filter(|(_, function)| function.name == "identity")
+            .count(),
+        1
+    );
     let instance = module.top_level[1];
-    let main_fn = &module.functions[module.entry];
+    let main_fn = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")];
     for statement in entry_statements(&main_fn.body) {
         let (call, _) = statement_call(statement);
         assert_eq!(
@@ -210,17 +308,26 @@ fn nested_generic_calls_extend_the_worklist() {
         },
     );
     // The nested request is parameterized in export HIR's list;
-    // local-concrete HIR resolves it while materializing forward$I32.
+    // local-concrete HIR resolves it while materializing forward<Int>.
     let module = lower(&h.finish(main));
 
-    // main, forward$I32, then inner$I32 (discovered via the worklist).
-    assert_eq!(module.top_level.len(), 3);
+    // main, forward<Int>, then inner<Int> (discovered via the worklist).
+    for name in ["forward", "inner"] {
+        assert_eq!(
+            module
+                .functions
+                .iter()
+                .filter(|(_, function)| function.name == name)
+                .count(),
+            1
+        );
+    }
     let forward_i = &module.functions[module.top_level[1]];
     let inner_i = &module.functions[module.top_level[2]];
-    assert_eq!(forward_i.symbol, "scoop.forward$I32");
-    assert_eq!(inner_i.symbol, "scoop.inner$I32");
+    assert_eq!(forward_i.name, "forward");
+    assert_eq!(inner_i.name, "inner");
     let (call, destination) = statement_call(&entry_statements(&forward_i.body)[0]);
-    let destination = destination.expect("inner$I32 returns Int");
+    let destination = destination.expect("inner<Int> returns Int");
     assert_eq!(
         call.target.callee,
         mir::Callee::Monomorphized(instance_id(&module, module.top_level[2]))
@@ -242,7 +349,7 @@ fn nested_generic_calls_extend_the_worklist() {
 }
 
 #[test]
-fn instance_symbols_encode_enum_and_tuple_arguments() {
+fn instance_identities_and_types_preserve_enum_and_tuple_arguments() {
     let mut h = Harness::new();
     let f = identity_fn(&mut h, "f");
     let (int, string) = (h.int, h.string);
@@ -255,28 +362,33 @@ fn instance_symbols_encode_enum_and_tuple_arguments() {
             statements: Vec::new(),
         },
     );
-    h.instantiate(f, vec![option_int]);
-    h.instantiate(f, vec![pair]);
+    h.use_identity_instances(f, &[option_int, pair]);
     let module = lower(&h.finish(main));
 
-    let symbols: Vec<&str> = module.top_level[1..]
+    let instances = module
+        .functions
         .iter()
-        .map(|&id| module.functions[id].symbol.as_str())
-        .collect();
-    // An enum argument encodes the category, length-delimited
-    // instance name, and complete argument list (`mir::encode_type`).
-    assert_eq!(symbols, ["scoop.f$E10_Option$I32AI32X", "scoop.f$TI32_SX"]);
+        .filter(|(_, function)| function.name == "f")
+        .collect::<Vec<_>>();
+    assert_eq!(instances.len(), 2);
+    let first = &module.meta.instances[instance_id(&module, instances[0].0)];
+    let second = &module.meta.instances[instance_id(&module, instances[1].0)];
+    assert_ne!(first.materialization, second.materialization);
     // Substitution recurses into enum / tuple types.
-    let option_instance = &module.functions[module.top_level[1]];
+    let option_instance = instances[0].1;
     let mir::Type::Enum(enum_id, args) = &option_instance.params[0].ty else {
         panic!("the Option<Int> instance parameter must be an enum type")
     };
-    assert_eq!(module.enums[*enum_id].name, "Option$I32");
+    assert_eq!(module.enums[*enum_id].name, "Option");
+    assert_eq!(
+        module.enums[*enum_id].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
     assert_eq!(
         args.as_slice(),
         &[mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
     );
-    let tuple_instance = &module.functions[module.top_level[2]];
+    let tuple_instance = instances[1].1;
     assert_eq!(
         tuple_instance.return_ty,
         mir::Type::Tuple(vec![

@@ -1,0 +1,3 @@
+import dependency.defaultCombinations.*
+
+public class Child: Defaults() { public fun readAll(): Int = fields() + globals() + singleton() + invoke() }

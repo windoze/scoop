@@ -1,0 +1,15 @@
+import dependency.classes.Counter
+import dependency.classes.throwValue
+
+private fun failure(): RebuiltFailure = try {
+    throwValue(RebuiltFailure(21))
+    RebuiltFailure(0)
+} catch (error: RebuiltFailure) {
+    error
+}
+
+public fun primary(): Counter {
+    val error = failure()
+    val allocated = Counter(7)
+    return if (allocated.twice() == 14) { Counter(error.code) } else { Counter(0) }
+}

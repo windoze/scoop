@@ -1,0 +1,22 @@
+package upstream.sharedbounds
+
+public interface Reader<T> { public fun read(): T }
+public interface LeftReader<T>: Reader<T> {}
+public interface RightReader<T>: Reader<T> {}
+public interface BothReader<T>: LeftReader<T>, RightReader<T> {}
+
+public class Holder<T> public constructor(public val value: T): BothReader<T> {
+    public override fun read(): T = this.value
+}
+
+public open class Base<T> public constructor(public val value: T) {
+    public fun read(): T = this.value
+}
+public class Child<T> public constructor(value: T): Base<T>(value)
+
+public fun <T, R: BothReader<T>> readBound(value: R): T = value.read()
+public fun <T, R: Base<T>> readClass(value: R): T = value.read()
+public fun <T, R: Reader<T>> choose(value: T, source: R): T = value
+public fun <T, R: Reader<T>> delayed(source: R, read: (T) -> Int): Int = read(source.read())
+public fun <T> same(first: Reader<T>, second: Reader<T>): Int = 42
+public fun <R: Reader<Int>> unfilled(): Int = 42

@@ -1,0 +1,34 @@
+package consumer.valuelayouts
+import upstream.valuelayouts.*
+
+private struct Empty(val marker: Phantom<Empty>)
+
+private enum Chain {
+    End,
+    Next(Reference<Chain>)
+}
+
+private fun consume(value: Empty): Int = 42
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val empty = Empty(Phantom<Empty>())
+    if (consume(empty) != 42) { return 1 }
+    val tail: Chain = Chain.End
+    val chain = Chain.Next(Reference(Link(tail)))
+    val ended: Boolean = when (chain) {
+        Next(reference) -> when (reference.link.value) {
+            End -> true
+            Next(next) -> false
+        }
+        End -> false
+    }
+    if (!ended) { return 2 }
+    val receiver: Readable<T> = Wrapper(seed)
+    return read(receiver.get())
+}
+
+public fun result(): Int {
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 1 }
+    if (exercise<String>("value", { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

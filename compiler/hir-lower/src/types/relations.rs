@@ -1,164 +1,91 @@
 use super::*;
 
+mod parents;
+
 impl Lowerer {
-    /// The subtyping relation (milestone6 DESIGN.md 2.2): equal types,
-    /// a class below its base classes, a class below the interfaces it
-    /// (or a base class) implements, a value type below the interfaces
-    /// it implements (spec 4.4.3), and everything below `Any`. Value
-    /// types count as subtypes of `Any` (they cross via boxing, spec
-    /// 4.4.4); arrays are invariant in the element type (spec 10.4), so
-    /// no array is a subtype of another array.
+    /// Subtyping follows the complete parent applications shared by source
+    /// checking and inference. Function types retain their structural variance.
     pub(crate) fn is_subtype(&mut self, a: TypeId, b: TypeId) -> bool {
-        if self.types_equal(a, b) {
+        if self.types_equal(a, b) || matches!(self.types[b], Type::Any) {
             return true;
         }
-        let a_ty = self.types[a].clone();
-        let b_ty = self.types[b].clone();
-        match (a_ty, b_ty) {
-            (_, Type::Any) => true,
-            (Type::Param(parameter), _) => {
-                let Some(parameter) = self
-                    .type_params_in_scope
-                    .iter()
-                    .find(|candidate| candidate.id == parameter)
-                    .cloned()
-                else {
-                    return false;
-                };
-                if let Some(bound) = parameter.class_bound() {
-                    let bound = self.class_applications[bound.application].canonical_type;
-                    if self.is_subtype(bound, b) {
-                        return true;
-                    }
-                }
-                parameter.interface_bounds().iter().any(|bound| {
-                    let bound = self.interface_applications[bound.application].canonical_type;
-                    self.is_subtype(bound, b)
-                })
-            }
-            (Type::Class(application), Type::Class(..)) => {
-                let application = self.class_applications[application].clone();
-                let Some(base) = self.classes[application.template].base_class else {
-                    return false;
-                };
-                let base = self.instantiate_ty(base, &application.arguments);
-                self.is_subtype(base, b)
-            }
-            (Type::Interface(a), Type::Interface(b)) => {
-                let a = self.interface_applications[a].clone();
-                let b = self.interface_applications[b].clone();
-                if a.template != b.template {
-                    let parents = self.interfaces[a.template].parents.clone();
-                    return parents.into_iter().any(|parent| {
-                        let parent = self.interface_applications[parent].canonical_type;
-                        let parent = self.instantiate_ty(parent, &a.arguments);
-                        self.is_subtype(parent, b.canonical_type)
-                    });
-                }
-                a.arguments
+        if let (Type::Function(source), Type::Function(target)) =
+            (self.types[a].clone(), self.types[b].clone())
+        {
+            let source = self.function_types[source].clone();
+            let target = self.function_types[target].clone();
+            return source.is_suspend == target.is_suspend
+                && source.parameter_types.len() == target.parameter_types.len()
+                && target
+                    .parameter_types
                     .into_iter()
-                    .zip(b.arguments)
-                    .all(|(a, b)| self.types_equal(a, b))
-            }
-            (Type::Function(source), Type::Function(target)) => {
-                let source = self.function_types[source].clone();
-                let target = self.function_types[target].clone();
-                source.is_suspend == target.is_suspend
-                    && source.parameter_types.len() == target.parameter_types.len()
-                    && target
-                        .parameter_types
-                        .into_iter()
-                        .zip(source.parameter_types)
-                        .all(|(target, source)| self.is_subtype(target, source))
-                    && self.is_subtype(source.return_type, target.return_type)
-            }
-            (Type::Integer(kind), Type::Interface(..)) => self
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind))
-                .into_iter()
-                .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::Boolean, Type::Interface(..)) => self
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean)
-                .into_iter()
-                .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::String, Type::Interface(..)) => self
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::String)
-                .into_iter()
-                .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::Class(application), Type::Interface(..)) => self
-                .class_interfaces_for_application(application)
-                .into_iter()
-                .any(|implemented| self.is_subtype(implemented, b)),
-            (Type::Struct(application), Type::Interface(..)) => {
-                let application = self.struct_applications[application].clone();
-                let interfaces = self.structs[application.template].interfaces.clone();
-                interfaces.into_iter().any(|implemented| {
-                    let implemented = self.instantiate_ty(implemented, &application.arguments);
-                    self.is_subtype(implemented, b)
-                })
-            }
-            (Type::Enum(application), Type::Interface(..)) => {
-                let application = self.enum_applications[application].clone();
-                let interfaces = self.enums[application.template].interfaces.clone();
-                interfaces.into_iter().any(|implemented| {
-                    let implemented = self.instantiate_ty(implemented, &application.arguments);
-                    self.is_subtype(implemented, b)
-                })
-            }
-            _ => false,
+                    .zip(source.parameter_types)
+                    .all(|(target, source)| self.is_subtype(target, source))
+                && self.is_subtype(source.return_type, target.return_type);
         }
+        if !matches!(self.types[b], Type::Class(_) | Type::Interface(_)) {
+            return false;
+        }
+        let mut pending = vec![a];
+        let mut seen = std::collections::HashSet::new();
+        while let Some(ty) = pending.pop() {
+            if !seen.insert(ty) {
+                continue;
+            }
+            if self.types_equal(ty, b) {
+                return true;
+            }
+            pending.extend(self.direct_nominal_supertypes(ty));
+        }
+        false
     }
 
-    /// Interfaces explicitly declared by the source definition of one
-    /// compiler-represented intrinsic type.  Primitive `Type` variants do not
-    /// erase their source declaration: `intrinsic_type_owners` is the typed
-    /// declaration relation established in pass 1, and all capability checks
-    /// consume that relation instead of maintaining a second built-in list.
-    pub(crate) fn intrinsic_type_interfaces(
-        &mut self,
-        kind: hir::IntrinsicTypeKind,
-    ) -> Vec<TypeId> {
-        let Some(&(owner, _provider)) = self.intrinsic_type_owners.get(&kind) else {
-            // A missing intrinsic owner is diagnosed by the core-contract
-            // validator and prevents HIR output.  During recovery there is no
-            // source declaration whose interfaces could be consumed.
-            return Vec::new();
-        };
-        match owner {
-            crate::IntrinsicTypeOwner::Struct(owner) => self.structs[owner].interfaces.clone(),
-            crate::IntrinsicTypeOwner::Class(owner) => {
-                self.class_interfaces_for_application(self.classes[owner].self_application)
-            }
-        }
+    /// Every reachable interface application, including the subject itself
+    /// when it is an interface. Distinct arguments remain distinct entries.
+    pub(crate) fn type_interfaces(&mut self, ty: TypeId) -> Vec<TypeId> {
+        self.interfaces_from_roots(vec![ty])
     }
 
-    /// Fully substitute every interface reached from one class application,
-    /// including interfaces inherited through its concrete generic base
-    /// application. Applications, rather than declaration ids, are the
-    /// deduplication identity.
     pub(crate) fn class_interfaces_for_application(
         &mut self,
         application: hir::ClassApplicationId,
     ) -> Vec<TypeId> {
+        // Intrinsic classes can have a normalized canonical Type (String).
+        // Read their declaration's edges without resolving that Type again.
+        let roots = self.direct_nominal_supertypes_for(Type::Class(application));
+        self.interfaces_from_roots(roots)
+    }
+
+    fn interfaces_from_roots(&mut self, roots: Vec<TypeId>) -> Vec<TypeId> {
         let mut result = Vec::new();
-        let mut pending = vec![application];
-        let mut seen = Vec::<hir::ClassApplicationId>::new();
-        while let Some(application) = pending.pop() {
-            let application_value = self.class_applications[application].clone();
-            for interface in self.classes[application_value.template].interfaces.clone() {
-                let interface = self.instantiate_ty(interface, &application_value.arguments);
-                self.append_interface_closure(interface, &mut result);
+        let mut pending = Vec::new();
+        for root in roots {
+            if matches!(self.types[root], Type::Interface(_)) {
+                self.append_interface_closure(root, &mut result);
+            } else {
+                pending.push(root);
             }
-            if let Some(base) = self.classes[application_value.template].base_class {
-                let base = self.instantiate_ty(base, &application_value.arguments);
-                let Type::Class(base_application) = self.types[base] else {
-                    unreachable!("class bases are resolved class applications")
-                };
-                if seen.contains(&base_application) {
-                    continue;
+        }
+        pending.reverse();
+        let mut seen = std::collections::HashSet::new();
+        while let Some(ty) = pending.pop() {
+            if !seen.insert(ty) {
+                continue;
+            }
+            if matches!(self.types[ty], Type::Interface(_)) {
+                self.append_interface_closure(ty, &mut result);
+                continue;
+            }
+            let parents = self.direct_nominal_supertypes(ty);
+            let mut bases = Vec::new();
+            for parent in parents {
+                if matches!(self.types[parent], Type::Interface(_)) {
+                    self.append_interface_closure(parent, &mut result);
+                } else {
+                    bases.push(parent);
                 }
-                seen.push(base_application);
-                pending.push(base_application);
             }
+            pending.extend(bases.into_iter().rev());
         }
         result
     }
@@ -171,97 +98,36 @@ impl Lowerer {
             return;
         }
         result.push(interface);
-        let Type::Interface(application) = self.types[interface] else {
-            unreachable!("interface closure starts from an interface application")
-        };
-        let application = self.interface_applications[application].clone();
-        for parent in self.interfaces[application.template].parents.clone() {
-            let parent = self.interface_applications[parent].canonical_type;
-            let parent = self.instantiate_ty(parent, &application.arguments);
+        for parent in self.direct_nominal_supertypes(interface) {
             self.append_interface_closure(parent, result);
         }
     }
 
-    /// Collect every distinct exact application of `target` reachable from a
-    /// type's complete class/interface/bound closure. Unlike ordinary
-    /// subtyping queries this deliberately retains multiple applications with
-    /// different arguments so source iteration can diagnose an ambiguous
-    /// element type.
-    pub(crate) fn exact_interface_applications(
-        &mut self,
-        ty: TypeId,
-        target: hir::InterfaceId,
-    ) -> Vec<hir::InterfaceApplicationId> {
-        let mut roots = Vec::new();
-        match self.types[ty].clone() {
-            Type::Interface(application) => {
-                roots.push(self.interface_applications[application].canonical_type)
-            }
-            Type::Class(application) => {
-                roots.extend(self.class_interfaces_for_application(application));
-            }
-            Type::Struct(application) => {
-                let application = self.struct_applications[application].clone();
-                for interface in self.structs[application.template].interfaces.clone() {
-                    roots.push(self.instantiate_ty(interface, &application.arguments));
+    /// Actual Iterator applications use the same inheritance/bound closure as
+    /// all other interfaces, preserving distinct element types for diagnostics.
+    pub(crate) fn iteration_interface_applications(&mut self, ty: TypeId) -> Vec<TypeId> {
+        self.type_interfaces(ty)
+            .into_iter()
+            .filter(|&interface| match (&self.core, &self.types[interface]) {
+                (crate::CoreLoweringAuthority::Defined, Type::Interface(application)) => {
+                    self.interface_applications[*application].template
+                        == self
+                            .nominal_identity(crate::Owner::Interface(
+                                self.iteration_core
+                                    .expect("the defining core was checked")
+                                    .iterator(),
+                            ))
+                            .declaration_id()
                 }
-            }
-            Type::Enum(application) => {
-                let application = self.enum_applications[application].clone();
-                for interface in self.enums[application.template].interfaces.clone() {
-                    roots.push(self.instantiate_ty(interface, &application.arguments));
+                (crate::CoreLoweringAuthority::Imported(core), Type::Interface(application)) => {
+                    self.interface_applications[*application].template
+                        == hir::SourceNominalId::GenericTemplate(
+                            core.iteration().iterator().persistent(),
+                        )
                 }
-            }
-            Type::Integer(kind) => {
-                roots.extend(self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind)));
-            }
-            Type::Boolean => {
-                roots.extend(self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean));
-            }
-            Type::String => {
-                roots.extend(self.intrinsic_type_interfaces(hir::IntrinsicTypeKind::String));
-            }
-            Type::Param(parameter) => {
-                let declaration = self
-                    .type_params_in_scope
-                    .iter()
-                    .find(|candidate| candidate.id == parameter)
-                    .expect("the result parameter is in the active declaration scope")
-                    .clone();
-                for bound in declaration.nominal_bounds_in_source_order() {
-                    match bound {
-                        hir::NominalBoundRef::Class(bound) => {
-                            roots.extend(self.class_interfaces_for_application(bound.application));
-                        }
-                        hir::NominalBoundRef::Interface(bound) => roots
-                            .push(self.interface_applications[bound.application].canonical_type),
-                    }
-                }
-            }
-            Type::Unit
-            | Type::Any
-            | Type::Tuple(_)
-            | Type::Function(_)
-            | Type::Ptr(_)
-            | Type::FunPtr(_) => {}
-        }
-
-        let mut closure = Vec::new();
-        for root in roots {
-            self.append_interface_closure(root, &mut closure);
-        }
-        let mut applications = Vec::new();
-        for interface in closure {
-            let Type::Interface(application) = self.types[interface] else {
-                unreachable!("interface closure contains only interface types")
-            };
-            if self.interface_applications[application].template == target
-                && !applications.contains(&application)
-            {
-                applications.push(application);
-            }
-        }
-        applications
+                _ => false,
+            })
+            .collect()
     }
 
     /// Whether a value of static type `a` could ever hold a `b` at run
@@ -278,7 +144,7 @@ impl Lowerer {
             Type::Any | Type::Interface(..) => true,
             &Type::Class(application) => {
                 let template = self.class_applications[application].template;
-                self.classes[template].modifier != hir::ClassModifier::Final
+                self.class_definition(template).modifier != hir::ClassModifier::Final
                     && matches!(self.types[b], Type::Interface(..))
             }
             _ => false,

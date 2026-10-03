@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.FirstChoice
+  public interface LocalParent : FirstChoice
+  public class LocalChoice(), LocalParent
+    public fun choose
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall choose
+          Call LocalChoice

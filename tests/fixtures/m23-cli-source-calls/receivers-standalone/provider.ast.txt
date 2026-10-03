@@ -1,0 +1,9 @@
+SourceFile
+  QualifiedPackage receiver.provider
+  public fun String.answer(): Int
+    =
+      IntLiteral 7
+  public fun withDefault(value: Int = <expr>): Int
+    =
+      Var value
+  public var String.score: Int <computed>

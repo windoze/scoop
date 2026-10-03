@@ -50,12 +50,10 @@ impl Lowerer {
             else {
                 continue; // diagnostic already recorded
             };
-            let parameter_id = self.fresh_constructor_parameter();
-            parameters.push(hir::ConstructorParameter {
-                id: parameter_id,
-                name: parameter.name.text.clone(),
-                ty,
-            });
+            let lowered_parameter =
+                self.constructor_parameter(parameter.name.text.clone(), ty, parameter.name.span);
+            let parameter_id = lowered_parameter.id;
+            parameters.push(lowered_parameter);
             if parameter.property != ast::PrimaryParameterProperty::Plain {
                 field_names.insert(parameter.name.text.clone());
                 let access = self.member_access(
@@ -132,9 +130,20 @@ impl Lowerer {
                 self.current_file,
                 crate::visibility::MemberSlotAccess::None,
             );
+            let safety = match &decl.constructor {
+                ast::ClassConstructorDecl::Omitted => hir::Safety::Safe,
+                ast::ClassConstructorDecl::Declared(source) => {
+                    self.constructor_gc_effect(&source.annotations, false);
+                    self.constructor_safety(&source.annotations, source.span)
+                }
+            };
+            let evaluation_context = self.next_class_constructor_context();
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
+                identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,
+                safety,
+                no_gc_type_params: Vec::new(),
                 parameters,
                 kind: hir::ClassConstructorKind::Primary {
                     base: hir::BaseInitialization::Root,
@@ -143,6 +152,7 @@ impl Lowerer {
                 },
                 span: decl.span,
                 origin: self.definition_origin(decl.span),
+                evaluation_context,
             });
             self.classes[id].constructors.push(constructor);
             self.class_parameter_calling
@@ -164,11 +174,11 @@ impl Lowerer {
                 let Some(resolved) = self.resolve_fn_param(parameter) else {
                     continue;
                 };
-                parameters.push(hir::ConstructorParameter {
-                    id: self.fresh_constructor_parameter(),
-                    name: resolved.name.text,
-                    ty: resolved.ty,
-                });
+                parameters.push(self.constructor_parameter(
+                    resolved.name.text,
+                    resolved.ty,
+                    resolved.name.span,
+                ));
                 callings.push(resolved.calling);
             }
             let access = self.member_access(
@@ -179,9 +189,15 @@ impl Lowerer {
                 self.current_file,
                 crate::visibility::MemberSlotAccess::None,
             );
+            self.constructor_gc_effect(&source.annotations, false);
+            let safety = self.constructor_safety(&source.annotations, source.span);
+            let evaluation_context = self.next_class_constructor_context();
             let constructor = self.class_constructors.alloc(hir::ClassConstructor {
                 owner: id,
+                identity_kind: hir::ClassConstructorIdentityKind::Source,
                 access,
+                safety,
+                no_gc_type_params: Vec::new(),
                 parameters,
                 kind: hir::ClassConstructorKind::Secondary {
                     delegation: hir::ClassSecondaryDelegation::Terminal {
@@ -195,6 +211,7 @@ impl Lowerer {
                 },
                 span: source.span,
                 origin: self.definition_origin(source.span),
+                evaluation_context,
             });
             self.classes[id].constructors.push(constructor);
             self.class_parameter_calling.insert(constructor, callings);
@@ -226,12 +243,12 @@ impl Lowerer {
                         continue;
                     }
                     let base_id = self.class_applications[application].template;
-                    if self.classes[base_id].modifier == hir::ClassModifier::Final {
+                    if self.class_definition(base_id).modifier == hir::ClassModifier::Final {
                         self.error(
                             spec.ty.span,
                             format!(
                                 "class `{}` is final and cannot be inherited",
-                                self.classes[base_id].name
+                                self.nominal_template_name(base_id)
                             ),
                         );
                         continue;

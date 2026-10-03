@@ -1,0 +1,85 @@
+Module
+  class VirtualBase vtable=1 itables=0
+  class VirtualCounter vtable=1 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call value: VirtualBase = external1 direct
+        Type Long
+        Local $dependency.parameter.value
+      val alias: Any
+        Type Any
+        Retype Any
+          Type VirtualBase
+          Local value
+      branch bb1 bb2
+        Type Boolean
+        Binary RefEq
+          Type Any
+          Local alias
+          Type VirtualBase
+          Local value
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IsInstance VirtualCounter
+          Type VirtualBase
+          Local value
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      val $dependency.receiver: VirtualCounter
+        Type VirtualCounter
+        Retype VirtualCounter
+          Type VirtualBase
+          Local value
+      call $dependency.argument.0: Long = external2 direct
+        Type VirtualCounter
+        Local $dependency.receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external3 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+    bb5 if.merge.5
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external3 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+  output library

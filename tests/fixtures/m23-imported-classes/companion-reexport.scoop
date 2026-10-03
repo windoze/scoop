@@ -1,0 +1,4 @@
+import dependency.classes.Counter
+public import dependency.classes.CompanionHost.Companion as SharedFactory
+
+public fun primary(): Counter = SharedFactory.value

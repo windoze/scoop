@@ -7,14 +7,14 @@ use inkwell::targets::{TargetData, TargetMachine};
 use inkwell::types::AnyType;
 use scoop_lir::{BackendScalarKind, ScalarLayout};
 
-use super::TargetProfile;
+use super::ValidatedBackendProfile;
 use crate::CodegenError;
 
 pub(super) fn validate_target_machine(
-    profile: TargetProfile,
+    profile: ValidatedBackendProfile,
     machine: &TargetMachine,
 ) -> Result<(), CodegenError> {
-    let contract = profile.lir_target_profile;
+    let contract = profile.lir_target_selection.target();
     let target_data = machine.get_target_data();
     let data_layout = target_data.get_data_layout();
     let actual_data_layout = data_layout.as_str().to_str().map_err(|error| {
@@ -90,6 +90,8 @@ pub(super) fn validate_target_machine(
         profile.managed_address_space.inkwell(),
         contract.managed_pointer_layout(),
     )?;
+    crate::runtime_metadata_v1::RuntimeMetadataV1Types::new(&context)
+        .validate_layout(&target_data)?;
     Ok(())
 }
 

@@ -14,8 +14,9 @@ fn foreign_callback_adapter(symbol: &str) -> Function {
         },
     });
     Function {
+        callable_body: callable_body(symbol),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: symbol.to_string(),
         signature: plain_scoop_signature(
             vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
             LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
@@ -28,8 +29,31 @@ fn foreign_callback_adapter(symbol: &str) -> Function {
     }
 }
 
+fn static_callback_bridge(module: &mut Module, symbol: &str) -> scoop_lir::NoGcLocalFunctionRef {
+    let mut blocks = Arena::default();
+    let entry = blocks.alloc(BasicBlock {
+        name: "entry".to_string(),
+        instructions: Vec::new(),
+        terminator: Terminator::Return { value: None },
+    });
+    let index = module.functions.len();
+    module.functions.push(Function {
+        callable_body: callable_body(symbol),
+        safepoints: scoop_lir::SafepointIdentities::default(),
+        gc_effect: GcEffect::NoGc,
+        signature: plain_scoop_signature(Vec::new(), LirType::Void),
+        call_targets: CallTargets::default(),
+        locals: Arena::default(),
+        temps: Arena::default(),
+        blocks,
+        entry,
+    });
+    no_gc_local_function_ref(index)
+}
+
 fn callback_struct(module: &mut Module, name: &str) -> scoop_lir::StructDefId {
     module.structs.alloc_scoop(
+        crate::tests::test_physical_exact(name, scoop_identity::SourceNominalKind::Struct),
         name.to_string(),
         16,
         8,
@@ -55,6 +79,10 @@ fn callback_struct(module: &mut Module, name: &str) -> scoop_lir::StructDefId {
 
 fn callback_state(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
     module.enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            name,
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: name.to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..4)
@@ -75,6 +103,10 @@ fn callback_state(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
 
 fn callback_mode(module: &mut Module) -> scoop_lir::EnumDefId {
     module.enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "ForeignCallbackMode",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "ForeignCallbackMode".to_string(),
         repr: EnumRepr::Tagged {
             variants: (0..2)
@@ -95,6 +127,10 @@ fn callback_mode(module: &mut Module) -> scoop_lir::EnumDefId {
 
 fn callback_failure(module: &mut Module, name: &str) -> scoop_lir::EnumDefId {
     module.enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            name,
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: name.to_string(),
         repr: EnumRepr::Niche {
             kind: scoop_lir::NichePointerKind::Managed,
@@ -110,6 +146,10 @@ fn pointer_niche(
     kind: scoop_lir::NichePointerKind,
 ) -> scoop_lir::EnumDefId {
     let definition = EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            name,
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: name.to_string(),
         repr: EnumRepr::Niche {
             kind,
@@ -221,8 +261,7 @@ pub(super) fn foreign_callback_family(module: &mut Module) -> scoop_lir::Foreign
 
 struct ForeignCallbackBridgeFixture<'a> {
     adapter: &'a str,
-    trampoline: &'a str,
-    signature: &'a str,
+    identity_seed: u8,
     params: Vec<scoop_lir::CType>,
     return_type: scoop_lir::CReturnType,
     context_index: u32,
@@ -233,27 +272,33 @@ fn add_foreign_callback_bridge(
     family: scoop_lir::ForeignCallbackFamilyId,
     fixture: ForeignCallbackBridgeFixture<'_>,
 ) {
+    install_test_c_signature(module, fixture.identity_seed);
+    let ordinal =
+        u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32");
+    let application = callback_application(ordinal);
+    let adapter_index = module.functions.len();
+    module
+        .functions
+        .push(foreign_callback_adapter(fixture.adapter));
     module
         .foreign_callback_bridges
         .alloc(scoop_lir::ForeignCallbackBridge {
+            application,
             family,
-            adapter_symbol: fixture.adapter.to_string(),
-            trampoline_symbol: fixture.trampoline.to_string(),
-            signature_symbol: fixture.signature.to_string(),
+            adapter: managed_local_function_ref(adapter_index),
+            trampoline: callback_trampoline(fixture.identity_seed, fixture.context_index),
             params: fixture.params,
             return_type: fixture.return_type,
             context_index: fixture.context_index,
             mode: module.foreign_callback_families[family].modes.reusable(),
         });
-    module
-        .functions
-        .push(foreign_callback_adapter(fixture.adapter));
 }
 
 #[test]
 fn c_layout_matches_llvm_and_generated_c_assertions() {
     let mut structs = scoop_lir::StructDefs::default();
     let inner = structs.alloc_c(
+        crate::tests::test_physical_exact("Inner", scoop_identity::SourceNominalKind::Struct),
         "Inner".to_string(),
         16,
         8,
@@ -264,6 +309,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         },
         vec![
             scoop_lir::CStructField {
+                identity: test_field_identity("Inner", "flag"),
                 ty: scoop_lir::CType::Boolean,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
@@ -271,6 +317,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("Inner", "value"),
                 ty: scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                 layout: scoop_lir::FieldLayout {
                     offset: 1,
@@ -281,6 +328,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     );
     let inner_id = inner.definition();
     let outer = structs.alloc_c(
+        crate::tests::test_physical_exact("Outer", scoop_identity::SourceNominalKind::Struct),
         "Outer".to_string(),
         32,
         16,
@@ -291,6 +339,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         },
         vec![
             scoop_lir::CStructField {
+                identity: test_field_identity("Outer", "flag"),
                 ty: scoop_lir::CType::Boolean,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
@@ -298,6 +347,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("Outer", "inner"),
                 ty: scoop_lir::CType::Struct(inner),
                 layout: scoop_lir::FieldLayout {
                     offset: 2,
@@ -305,6 +355,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("Outer", "value"),
                 ty: scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                 layout: scoop_lir::FieldLayout {
                     offset: 18,
@@ -316,6 +367,10 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     let outer_id = outer.definition();
     let mut enums = scoop_lir::EnumDefs::default();
     let wrapped = enums.alloc(EnumDef {
+        exact_type: crate::tests::test_physical_exact(
+            "Wrapped",
+            scoop_identity::SourceNominalKind::Enum,
+        ),
         name: "Wrapped".to_string(),
         repr: EnumRepr::Tagged {
             variants: vec![
@@ -344,6 +399,88 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     });
 
     let mut meta = string_metadata();
+    let bool_exact = test_exact_type("Bool");
+    let int64_exact = test_exact_type("Int64");
+    let inner_exact = test_exact_type("Inner");
+    let inner_layout = scoop_identity::CanonicalCAbiLayoutFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiLayout::new(
+            inner_exact,
+            16,
+            std::num::NonZeroU64::new(8).unwrap(),
+            scoop_identity::CLayoutOverride::Bytes(scoop_identity::CLayoutByteAlignment::Bytes8),
+            scoop_identity::CLayoutOverride::Bytes(scoop_identity::CLayoutByteAlignment::Bytes1),
+            vec![
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Inner", "flag"),
+                    0,
+                    scoop_identity::CanonicalCStorageType::Boolean {
+                        exact_type: bool_exact,
+                    },
+                ),
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Inner", "value"),
+                    1,
+                    scoop_identity::CanonicalCStorageType::Integer {
+                        exact_type: int64_exact,
+                        signedness: scoop_identity::Signedness::Signed,
+                        bit_width: scoop_identity::IntegerBitWidth::Bits64,
+                    },
+                ),
+            ],
+        ),
+    )
+    .unwrap();
+    let outer_exact = test_exact_type("Outer");
+    let outer_layout = scoop_identity::CanonicalCAbiLayoutFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiLayout::new(
+            outer_exact,
+            32,
+            std::num::NonZeroU64::new(16).unwrap(),
+            scoop_identity::CLayoutOverride::Bytes(scoop_identity::CLayoutByteAlignment::Bytes16),
+            scoop_identity::CLayoutOverride::Bytes(scoop_identity::CLayoutByteAlignment::Bytes2),
+            vec![
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Outer", "flag"),
+                    0,
+                    scoop_identity::CanonicalCStorageType::Boolean {
+                        exact_type: bool_exact,
+                    },
+                ),
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Outer", "inner"),
+                    2,
+                    scoop_identity::CanonicalCStorageType::Struct {
+                        exact_type: inner_exact,
+                        layout: inner_layout.fingerprint(),
+                    },
+                ),
+                scoop_identity::CanonicalCAbiLayoutField::new(
+                    test_field_identity("Outer", "value"),
+                    18,
+                    scoop_identity::CanonicalCStorageType::Integer {
+                        exact_type: int64_exact,
+                        signedness: scoop_identity::Signedness::Signed,
+                        bit_width: scoop_identity::IntegerBitWidth::Bits64,
+                    },
+                ),
+            ],
+        ),
+    )
+    .unwrap();
+    let outer_storage = scoop_identity::CanonicalCStorageType::Struct {
+        exact_type: outer_exact,
+        layout: outer_layout.fingerprint(),
+    };
+    let outer_signature = scoop_identity::CanonicalCAbiSignatureFingerprintRecord::new(
+        scoop_identity::CanonicalCAbiFunctionSignature::cdecl(
+            vec![scoop_identity::CanonicalCAbiParameter::new(outer_exact, outer_storage).unwrap()],
+            scoop_identity::CanonicalCAbiReturn::value(outer_exact, outer_storage).unwrap(),
+        ),
+    )
+    .unwrap();
+    meta.canonical_c_abi =
+        scoop_lir::CanonicalCAbiMetadata::checked(Vec::new(), vec![inner_layout, outer_layout])
+            .unwrap();
     let outer_array = array_type(
         &mut meta,
         "ArrayOuter",
@@ -412,6 +549,7 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         terminator: Terminator::Return { value: None },
     });
     let mut module = Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs,
@@ -423,8 +561,9 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            callable_body: callable_body_at(file!(), line!()),
+            safepoints: scoop_lir::SafepointIdentities::default(),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets: CallTargets::default(),
             locals: Arena::default(),
@@ -432,9 +571,12 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop_main".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta,
     };
+    refresh_module_safepoints(&mut module);
 
     let machine = host_target_machine().expect("target machine");
     let target_data = machine.get_target_data();
@@ -486,6 +628,8 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
     std::fs::remove_file(&source).ok();
     assert!(status.success(), "generated C assertions must compile");
 
+    install_test_native_function_contract_with_signature(&mut module, 1, &outer_signature);
+    let outbound = outbound_bridge_with_signature(1, &outer_signature);
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "swap".to_string(),
@@ -493,16 +637,20 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_0".to_string(),
+        bridge: outbound,
         signature: scoop_lir::CFunctionType {
             params: vec![scoop_lir::CType::Struct(outer)],
             return_type: c_value(scoop_lir::CType::Struct(outer)),
         },
     });
+    let static_bridge = static_callback_bridge(&mut module, "scoop_callback_bridge_0");
+    install_test_c_signature_record(&mut module, outer_signature.clone());
+    let static_trampoline =
+        static_callback_trampoline_with_signature(3, outer_signature.fingerprint());
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "swapCallback".to_string(),
-        bridge_symbol: "scoop_callback_bridge_0".to_string(),
-        trampoline_symbol: "scoop_c_callback_0".to_string(),
+        bridge: scoop_lir::StaticCallbackTarget::Local(static_bridge),
+        trampoline: static_trampoline,
         params: vec![scoop_lir::CType::Struct(outer)],
         return_type: c_value(scoop_lir::CType::Struct(outer)),
     });
@@ -518,13 +666,19 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
             callback_modes.one_shot(),
         ),
     ] {
+        install_test_c_signature(&mut module, 2);
+        let application = callback_application(
+            u32::try_from(module.foreign_callback_bridges.len()).expect("bridge count fits u32"),
+        );
+        let adapter_index = module.functions.len();
+        module.functions.push(foreign_callback_adapter(adapter));
         module
             .foreign_callback_bridges
             .alloc(scoop_lir::ForeignCallbackBridge {
+                application,
                 family: foreign_callback_family,
-                adapter_symbol: adapter.to_string(),
-                trampoline_symbol: "scoop_foreign_callback_0".to_string(),
-                signature_symbol: "scoop_foreign_callback_signature_0".to_string(),
+                adapter: managed_local_function_ref(adapter_index),
+                trampoline: callback_trampoline(2, 1),
                 params: vec![
                     scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                     c_opaque_pointer(),
@@ -533,67 +687,181 @@ fn c_layout_matches_llvm_and_generated_c_assertions() {
                 context_index: 1,
                 mode,
             });
-        module.functions.push(foreign_callback_adapter(adapter));
     }
-    let bridge = c_bridge_source(&module)
-        .expect("C bridge")
-        .expect("C extern needs a bridge");
-    assert!(bridge.contains("extern scoop_c_layout_1 native_swap(scoop_c_layout_1);"));
-    assert!(bridge.contains("void scoop_c_bridge_0(void *result, const void *arg0)"));
-    assert!(bridge.contains("memcpy(result, &native_result, sizeof(native_result));"));
+    let foundation = scoop_lir::CanonicalLirFoundation::from_module(&module)
+        .expect("callback bridge identities project into the LIR foundation");
+    let counts = foundation.counts();
+    assert_eq!(counts.bridge_units, 3);
+    assert_eq!(counts.bridge_atoms, 8);
+    assert_eq!(counts.callback_bridges, 2);
+    let outbound_symbol = match &module
+        .extern_functions
+        .iter()
+        .next()
+        .expect("C extern")
+        .1
+        .kind
+    {
+        scoop_lir::ExternFunctionKind::C { bridge, .. } => bridge.symbol().to_string(),
+        scoop_lir::ExternFunctionKind::Scoop { .. } => panic!("expected C extern"),
+    };
+    let foreign_trampoline = module
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .expect("foreign callback bridge")
+        .1
+        .trampoline
+        .clone();
+    let bridge_sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module)
+        .expect("C extern needs bridge sources");
+    assert_eq!(bridge_sources.units().len(), 3);
     assert!(
-        bridge.contains("extern void scoop_callback_bridge_0(void *result, const void *arg0);")
+        bridge_sources
+            .units()
+            .windows(2)
+            .all(|units| units[0].unit() < units[1].unit()),
+        "generated C sources must follow canonical unit order"
     );
-    assert!(bridge.contains("scoop_c_layout_1 scoop_c_callback_0(scoop_c_layout_1 arg0)"));
-    assert!(bridge.contains("scoop_callback_bridge_0(&result, &arg0);"));
+    let bridge = bridge_sources
+        .units()
+        .iter()
+        .map(|unit| unit.source())
+        .collect::<Vec<_>>()
+        .join("\n");
+    let static_callback = module
+        .callback_bridges
+        .iter()
+        .next()
+        .expect("callback bridge")
+        .1;
+    let scoop_lir::StaticCallbackTarget::Local(bridge_function) = static_callback.bridge else {
+        panic!("local callback bridge");
+    };
+    let callback_bridge_symbol =
+        module.functions[bridge_function.declaration().into_u32() as usize].symbol();
+    let static_trampoline_symbol = static_callback.trampoline.entry().symbol();
+    let callback_bridge_object_symbol = module
+        .meta
+        .target_profile
+        .contract()
+        .native_symbol_normalization()
+        .compiler_generated_object_symbol(callback_bridge_symbol);
+    assert_eq!(
+        bridge_sources.plan().units().len(),
+        bridge_sources.units().len()
+    );
+    let primary_symbols = [
+        outbound_symbol.as_str(),
+        static_trampoline_symbol,
+        foreign_trampoline.entry().symbol(),
+    ];
+    for (index, symbol) in primary_symbols.iter().enumerate() {
+        let owners = bridge_sources
+            .units()
+            .iter()
+            .filter(|unit| unit.source().contains(symbol))
+            .count();
+        assert_eq!(owners, 1, "primary {symbol} must belong to one C source");
+        let owner = bridge_sources
+            .units()
+            .iter()
+            .find(|unit| unit.source().contains(symbol))
+            .unwrap();
+        for unrelated in primary_symbols.iter().skip(index + 1) {
+            assert!(
+                !owner.source().contains(unrelated),
+                "unit {} leaked unrelated primary {unrelated}",
+                owner.unit()
+            );
+        }
+    }
+    assert!(bridge.contains("extern scoop_c_layout_1 native_swap(scoop_c_layout_1);"));
+    assert!(bridge.contains(&format!(
+        "void {outbound_symbol}(void *result, const void *arg0)"
+    )));
+    assert!(bridge.contains("__builtin_memcpy(result, &native_result, sizeof(native_result));"));
+    assert!(!bridge.contains("#include <string.h>"));
+    assert!(bridge.contains(&format!(
+        "extern void scoop_callback_storage_bridge(void *result, const void *arg0) __asm__(\"{callback_bridge_object_symbol}\");"
+    )));
+    assert!(bridge.contains(&format!(
+        "scoop_c_layout_1 {static_trampoline_symbol}(scoop_c_layout_1 arg0)"
+    )));
+    assert!(bridge.contains("scoop_callback_storage_bridge(&result, &arg0);"));
     assert_eq!(
         bridge
-            .matches("const unsigned char scoop_foreign_callback_signature_0 = 0;")
+            .matches(&format!(
+                "const unsigned char {} __attribute__((section(\"__TEXT,__scoop_sig\"))) = 0;",
+                foreign_trampoline.signature_descriptor_symbol()
+            ))
             .count(),
         1,
         "one signature/context shape must emit one descriptor:\n{bridge}"
     );
     assert_eq!(
         bridge
-            .matches("int64_t scoop_foreign_callback_0(int64_t arg0, void *arg1)")
+            .matches(&format!(
+                "int64_t {}(int64_t arg0, void *arg1)",
+                foreign_trampoline.entry().symbol()
+            ))
             .count(),
         1,
         "registrations sharing a signature/context shape must share one trampoline:\n{bridge}"
     );
     assert!(bridge.contains("int64_t result = {0};"));
     assert!(bridge.contains("const void *arguments[1] = {&arg0};"));
-    assert!(bridge.contains(
-            "scoop_runtime_callback_invoke(arg1, &scoop_foreign_callback_signature_0, &result, arguments)"
+    assert!(bridge.contains(&format!(
+        "scoop_runtime_callback_invoke(arg1, &{}, &result, arguments)",
+        foreign_trampoline.signature_descriptor_symbol()
+    )));
+    for unit in bridge_sources.units() {
+        let bridge_source = std::env::temp_dir().join(format!(
+            "scoop_c_bridge_{}_{}.c",
+            std::process::id(),
+            unit.unit()
         ));
-    let bridge_source = std::env::temp_dir().join(format!(
-        "scoop_c_foreign_callback_bridge_{}.c",
-        std::process::id()
-    ));
-    std::fs::write(&bridge_source, &bridge).expect("write generated callback C");
-    let status = std::process::Command::new("cc")
-        .args(["-std=c11", "-fsyntax-only"])
-        .arg(&bridge_source)
-        .status()
-        .expect("run C compiler");
-    std::fs::remove_file(&bridge_source).ok();
-    assert!(status.success(), "generated callback C must compile");
+        std::fs::write(&bridge_source, unit.source()).expect("write generated callback C");
+        let status = std::process::Command::new("cc")
+            .args(["-std=c11", "-fsyntax-only"])
+            .arg(&bridge_source)
+            .status()
+            .expect("run C compiler");
+        std::fs::remove_file(&bridge_source).ok();
+        assert!(status.success(), "generated callback C must compile");
+    }
 
+    let array_outer_symbol = type_descriptor_symbol(&module, "ArrayOuter");
     let ir = ir_of(&module);
     assert!(
         ir.contains("getelementptr i8, ptr addrspace(1) %managed_object, i64 32"),
         "over-aligned array data must start at offset 32:\n{ir}"
     );
     assert!(
-        ir.contains(
-            "@scoop_runtime_finish_tlab_alloc(ptr addrspace(1) %tlab_object, ptr @scoop_td_ArrayOuter, i64 64)"
-        ) && ir.contains("@scoop_runtime_alloc_slow(ptr @scoop_td_ArrayOuter, i64 64)"),
+        ir.contains(&format!(
+            "@scoop_runtime_finish_tlab_alloc(ptr addrspace(1) %tlab_object, ptr @\"{array_outer_symbol}\", i64 %alloc_size)"
+        )) && ir.contains(&format!(
+            "@scoop_runtime_alloc_slow(ptr @\"{array_outer_symbol}\", i64 64)"
+        )) && ir.contains("%alloc_size_plus_align = add i64 64, %allocation_alignment_mask")
+            && ir.contains("%alloc_is_small = icmp ule i64 %alloc_size, 64"),
         "one 32-byte element plus the aligned 32-byte header must flow through the 64-byte TLAB check:\n{ir}"
     );
 }
 
 #[test]
+fn generated_c_source_set_is_empty_when_the_bridge_plan_is_empty() {
+    let module = values_module();
+    let sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module)
+        .expect("bridge-free module has a canonical empty source set");
+
+    assert!(sources.plan().units().is_empty());
+    assert!(sources.units().is_empty());
+}
+
+#[test]
 fn c_extern_derives_physical_signature_from_exact_c_types() {
     let mut module = values_module();
+    install_test_native_function_contract(&mut module, 3);
     let function = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "machineSize".to_string(),
@@ -601,7 +869,7 @@ fn c_extern_derives_physical_signature_from_exact_c_types() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_machine_size".to_string(),
+        bridge: outbound_bridge(3),
         signature: scoop_lir::CFunctionType {
             params: vec![scoop_lir::CType::Integer(IntegerKind::UNSIGNED_64)],
             return_type: scoop_lir::CReturnType::Void,
@@ -615,9 +883,7 @@ fn c_extern_derives_physical_signature_from_exact_c_types() {
     };
     assert_eq!(signature.storage_params(), vec![LirType::I64]);
     assert_eq!(signature.storage_return_type(), LirType::Void);
-    let bridge = c_bridge_source(&module)
-        .expect("exact signature validates")
-        .expect("C extern emits a bridge");
+    let bridge = joined_c_bridge_sources(&module).expect("C extern emits a bridge source");
     assert!(bridge.contains("extern void machine_size(uint64_t);"));
 }
 
@@ -627,6 +893,7 @@ fn append_c_void_call(
     storage_type: LirType,
     argument: impl FnOnce(scoop_lir::LocalId) -> Value,
 ) {
+    install_test_native_function_contract(module, 4);
     let function = module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "consume".to_string(),
@@ -634,17 +901,14 @@ fn append_c_void_call(
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_consume".to_string(),
+        bridge: outbound_bridge(4),
         signature: scoop_lir::CFunctionType {
             params: vec![parameter],
             return_type: scoop_lir::CReturnType::Void,
         },
     });
     let caller = &mut module.functions[0];
-    let storage = caller.locals.alloc(Local {
-        name: "c_argument".to_string(),
-        ty: storage_type,
-    });
+    let storage = caller.locals.alloc(test_local("c_argument", storage_type));
     let site = void_site(
         &mut caller.call_targets,
         TestCallProtocol::NativeSafe {
@@ -657,6 +921,7 @@ fn append_c_void_call(
     caller.blocks[caller.entry]
         .instructions
         .push(Instruction::Call { site });
+    refresh_test_safepoints(caller);
 }
 
 #[test]
@@ -707,10 +972,9 @@ fn c_extern_call_binds_each_argument_to_its_exact_c_storage_type() {
 fn c_argument_storage_address_cannot_escape_to_another_call_protocol() {
     let mut module = values_module();
     let caller = &mut module.functions[0];
-    let storage = caller.locals.alloc(Local {
-        name: "escaped_c_argument".to_string(),
-        ty: LirType::I8,
-    });
+    let storage = caller
+        .locals
+        .alloc(test_local("escaped_c_argument", LirType::I8));
     let site = void_site(
         &mut caller.call_targets,
         TestCallProtocol::NoGc {
@@ -747,10 +1011,21 @@ fn exact_c_argument_storage_address_reaches_the_bridge_as_its_backing_alloca() {
         |storage| Value::CArgumentStorage(scoop_lir::CArgumentStorage::address_of(storage)),
     );
 
+    let bridge_symbol = match &module
+        .extern_functions
+        .iter()
+        .next()
+        .expect("C extern")
+        .1
+        .kind
+    {
+        scoop_lir::ExternFunctionKind::C { bridge, .. } => bridge.symbol().to_string(),
+        scoop_lir::ExternFunctionKind::Scoop { .. } => panic!("expected C extern"),
+    };
     let ir = ir_of(&module);
     assert!(
         ir.lines()
-            .any(|line| { line.contains("call void @scoop_c_bridge_consume(ptr %c_argument)") }),
+            .any(|line| line.contains(&format!("call void @\"{bridge_symbol}\"(ptr %c_argument)"))),
         "C bridge did not receive the exact backing alloca:\n{ir}"
     );
 }
@@ -758,18 +1033,19 @@ fn exact_c_argument_storage_address_reaches_the_bridge_as_its_backing_alloca() {
 #[test]
 fn native_global_derives_physical_storage_from_exact_c_type() {
     let mut module = values_module();
+    install_test_native_global_contract(&mut module, 1);
     let get = module
         .native_global_bridges
         .gets
         .alloc(scoop_lir::NativeGlobalGetBridge {
-            symbol: "get_machine_global".to_string(),
+            identity: global_read_bridge(1),
         });
     let address =
         module
             .native_global_bridges
             .addresses
             .alloc(scoop_lir::NativeGlobalAddressBridge {
-                symbol: "address_machine_global".to_string(),
+                identity: global_address_bridge(1),
             });
     module.native_globals.alloc(scoop_lir::NativeGlobal {
         source_name: "machineGlobal".to_string(),
@@ -786,10 +1062,58 @@ fn native_global_derives_physical_storage_from_exact_c_type() {
         .next()
         .expect("one native global");
     assert_eq!(global.storage_type(), LirType::I64);
-    let bridge = c_bridge_source(&module)
-        .expect("exact global validates")
-        .expect("native global emits a bridge");
+    let bridge = joined_c_bridge_sources(&module).expect("native global emits bridge sources");
     assert!(bridge.contains("extern uint64_t machine_global;"));
+}
+
+#[test]
+fn equivalent_native_global_contracts_share_generated_bridge_definitions() {
+    let mut module = values_module();
+    install_test_native_global_contract(&mut module, 9);
+    let read_identity = global_read_bridge(9);
+    let read_symbol = read_identity.symbol().to_string();
+    let address_identity = global_address_bridge(9);
+    let address_symbol = address_identity.symbol().to_string();
+
+    for source_name in ["firstGlobal", "secondGlobal"] {
+        let get = module
+            .native_global_bridges
+            .gets
+            .alloc(scoop_lir::NativeGlobalGetBridge {
+                identity: read_identity.clone(),
+            });
+        let address =
+            module
+                .native_global_bridges
+                .addresses
+                .alloc(scoop_lir::NativeGlobalAddressBridge {
+                    identity: address_identity.clone(),
+                });
+        module.native_globals.alloc(scoop_lir::NativeGlobal {
+            source_name: source_name.to_string(),
+            native_symbol: "shared_global".to_string(),
+            library: "fixture".to_string(),
+            c_type: scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
+            thread_local: false,
+            access: scoop_lir::NativeGlobalAccess::ReadOnly { get, address },
+        });
+    }
+
+    let bridge = joined_c_bridge_sources(&module).expect("native global needs bridge sources");
+    assert_eq!(
+        bridge
+            .matches(&format!("void {read_symbol}(void *result)"))
+            .count(),
+        1,
+        "one native contract must emit one read bridge:\n{bridge}"
+    );
+    assert_eq!(
+        bridge
+            .matches(&format!("void {address_symbol}(void *result)"))
+            .count(),
+        1,
+        "one native contract must emit one address bridge:\n{bridge}"
+    );
 }
 
 #[test]
@@ -850,6 +1174,10 @@ fn nullable_data_pointer_ref_rejects_a_mismatched_exact_pointee() {
         .nullable_data_pointer_ref(option, scoop_lir::CDataPointee::OpaqueVoid)
         .expect("test raw-pointer niche");
     module.structs.alloc_c(
+        crate::tests::test_physical_exact(
+            "MalformedNullableData",
+            scoop_identity::SourceNominalKind::Struct,
+        ),
         "MalformedNullableData".to_string(),
         8,
         8,
@@ -859,6 +1187,7 @@ fn nullable_data_pointer_ref_rejects_a_mismatched_exact_pointee() {
             packed: scoop_lir::LirCLayoutValue::Natural,
         },
         vec![scoop_lir::CStructField {
+            identity: test_field_identity("MalformedNullableData", "value"),
             ty: scoop_lir::CType::DataPointer {
                 pointee: scoop_lir::CDataPointee::Object(Box::new(scoop_lir::CType::Integer(
                     IntegerKind::SIGNED_32,
@@ -897,6 +1226,10 @@ fn nullable_code_pointer_ref_rejects_a_mismatched_exact_signature() {
         .nullable_code_pointer_ref(option, bound_signature)
         .expect("test code-pointer niche");
     module.structs.alloc_c(
+        crate::tests::test_physical_exact(
+            "MalformedNullableCode",
+            scoop_identity::SourceNominalKind::Struct,
+        ),
         "MalformedNullableCode".to_string(),
         8,
         8,
@@ -906,6 +1239,7 @@ fn nullable_code_pointer_ref_rejects_a_mismatched_exact_signature() {
             packed: scoop_lir::LirCLayoutValue::Natural,
         },
         vec![scoop_lir::CStructField {
+            identity: test_field_identity("MalformedNullableCode", "value"),
             ty: scoop_lir::CType::CodePointer {
                 signature: Box::new(scoop_lir::CFunctionType {
                     params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_32)],
@@ -944,6 +1278,10 @@ fn c_layout_pointer_spelling_follows_niche_provenance() {
     let raw_type = c_nullable_opaque_pointer(&module.enums, raw);
     let code_type = c_nullable_function_pointer(&module.enums, code);
     module.structs.alloc_c(
+        crate::tests::test_physical_exact(
+            "PointerFields",
+            scoop_identity::SourceNominalKind::Struct,
+        ),
         "PointerFields".to_string(),
         16,
         8,
@@ -954,6 +1292,7 @@ fn c_layout_pointer_spelling_follows_niche_provenance() {
         },
         vec![
             scoop_lir::CStructField {
+                identity: test_field_identity("PointerFields", "raw"),
                 ty: raw_type,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
@@ -961,6 +1300,7 @@ fn c_layout_pointer_spelling_follows_niche_provenance() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("PointerFields", "code"),
                 ty: code_type,
                 layout: scoop_lir::FieldLayout {
                     offset: 8,
@@ -1058,6 +1398,7 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
         ("nullable_code", nullable_code),
     ];
     module.structs.alloc_c(
+        crate::tests::test_physical_exact("PointerTree", scoop_identity::SourceNominalKind::Struct),
         "PointerTree".to_string(),
         32,
         8,
@@ -1070,6 +1411,7 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
             .iter()
             .enumerate()
             .map(|(index, (_, ty))| scoop_lir::CStructField {
+                identity: test_field_identity("PointerTree", &format!("field{index}")),
                 ty: ty.clone(),
                 layout: scoop_lir::FieldLayout {
                     offset: u64::try_from(index).expect("four test fields") * 8,
@@ -1079,6 +1421,8 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
             .collect(),
     );
     for (name, ty) in &pointer_types {
+        let function_seed = u8::try_from(module.extern_functions.iter().count() + 10).unwrap();
+        install_test_native_function_contract(&mut module, function_seed);
         module.extern_functions.alloc_c(scoop_lir::CExternFunction {
             identity: scoop_lir::ExternFunctionIdentity {
                 source_name: format!("roundtrip{name}"),
@@ -1086,24 +1430,26 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
                 library: "fixture".to_string(),
                 calling_convention: scoop_lir::CallingConvention::Cdecl,
             },
-            bridge_symbol: format!("bridge_{name}"),
+            bridge: outbound_bridge(function_seed),
             signature: scoop_lir::CFunctionType {
                 params: vec![ty.clone()],
                 return_type: c_value(ty.clone()),
             },
         });
+        let global_seed = u8::try_from(module.native_globals.len() + 40).unwrap();
+        install_test_native_global_contract(&mut module, global_seed);
         let get = module
             .native_global_bridges
             .gets
             .alloc(scoop_lir::NativeGlobalGetBridge {
-                symbol: format!("get_{name}"),
+                identity: global_read_bridge(global_seed),
             });
         let address =
             module
                 .native_global_bridges
                 .addresses
                 .alloc(scoop_lir::NativeGlobalAddressBridge {
-                    symbol: format!("address_{name}"),
+                    identity: global_address_bridge(global_seed),
                 });
         module.native_globals.alloc(scoop_lir::NativeGlobal {
             source_name: format!("global{name}"),
@@ -1115,13 +1461,25 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
         });
     }
 
-    let source = c_bridge_source(&module)
-        .expect("exact C pointer tree validates")
-        .expect("pointer externs and globals emit a bridge");
-    assert!(source.contains("void *_field_0;"), "{source}");
-    assert!(source.contains("void *_field_1;"), "{source}");
-    assert!(source.contains("scoop_c_funptr_0 _field_2;"), "{source}");
-    assert!(source.contains("scoop_c_funptr_0 _field_3;"), "{source}");
+    let assertions = c_layout_assertions(&module).expect("pointer C layout assertions");
+    assert!(assertions.contains("void *_field_0;"), "{assertions}");
+    assert!(assertions.contains("void *_field_1;"), "{assertions}");
+    assert!(
+        assertions.contains("scoop_c_funptr_0 _field_2;"),
+        "{assertions}"
+    );
+    assert!(
+        assertions.contains("scoop_c_funptr_0 _field_3;"),
+        "{assertions}"
+    );
+    let bridge_sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module)
+        .expect("pointer externs and globals emit bridge sources");
+    let source = bridge_sources
+        .units()
+        .iter()
+        .map(|unit| unit.source())
+        .collect::<Vec<_>>()
+        .join("\n");
     for name in ["direct_data", "nullable_data"] {
         assert!(
             source.contains(&format!("extern void *roundtrip_{name}(void *);")),
@@ -1145,24 +1503,28 @@ fn exact_c_pointer_tree_survives_fields_functions_and_globals() {
         );
     }
 
-    let bridge_source = std::env::temp_dir().join(format!(
-        "scoop_exact_c_pointer_tree_{}.c",
-        std::process::id()
-    ));
-    std::fs::write(&bridge_source, &source).expect("write exact C pointer bridge");
-    let status = std::process::Command::new("cc")
-        .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
-        .arg(&bridge_source)
-        .status()
-        .expect("compile exact C pointer bridge");
-    std::fs::remove_file(&bridge_source).ok();
-    assert!(status.success(), "exact C pointer bridge must compile");
+    for unit in bridge_sources.units() {
+        let bridge_source = std::env::temp_dir().join(format!(
+            "scoop_exact_c_pointer_tree_{}_{}.c",
+            std::process::id(),
+            unit.unit()
+        ));
+        std::fs::write(&bridge_source, unit.source()).expect("write exact C pointer bridge");
+        let status = std::process::Command::new("cc")
+            .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
+            .arg(&bridge_source)
+            .status()
+            .expect("compile exact C pointer bridge");
+        std::fs::remove_file(&bridge_source).ok();
+        assert!(status.success(), "exact C pointer bridge must compile");
+    }
 }
 
 #[test]
 fn c_layout_exact_declarators_support_recursive_struct_and_function_pointers() {
     let mut module = values_module();
     let node = module.structs.alloc_c(
+        crate::tests::test_physical_exact("Node", scoop_identity::SourceNominalKind::Struct),
         "Node".to_string(),
         16,
         8,
@@ -1189,6 +1551,7 @@ fn c_layout_exact_declarators_support_recursive_struct_and_function_pointers() {
         node,
         vec![
             scoop_lir::CStructField {
+                identity: test_field_identity("Node", "next"),
                 ty: node_pointer,
                 layout: scoop_lir::FieldLayout {
                     offset: 0,
@@ -1196,6 +1559,7 @@ fn c_layout_exact_declarators_support_recursive_struct_and_function_pointers() {
                 },
             },
             scoop_lir::CStructField {
+                identity: test_field_identity("Node", "visitor"),
                 ty: visitor,
                 layout: scoop_lir::FieldLayout {
                     offset: 8,
@@ -1244,6 +1608,7 @@ fn c_layout_exact_declarators_support_recursive_struct_and_function_pointers() {
 fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
     let mut module = values_module();
     let a = module.structs.alloc_c(
+        crate::tests::test_physical_exact("A", scoop_identity::SourceNominalKind::Struct),
         "A".to_string(),
         1,
         1,
@@ -1255,6 +1620,7 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
         Vec::new(),
     );
     let b = module.structs.alloc_c(
+        crate::tests::test_physical_exact("B", scoop_identity::SourceNominalKind::Struct),
         "B".to_string(),
         1,
         1,
@@ -1268,6 +1634,7 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
     module.structs.set_c_fields(
         a,
         vec![scoop_lir::CStructField {
+            identity: test_field_identity("A", "b"),
             ty: scoop_lir::CType::Struct(b),
             layout: scoop_lir::FieldLayout {
                 offset: 0,
@@ -1278,6 +1645,7 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
     module.structs.set_c_fields(
         b,
         vec![scoop_lir::CStructField {
+            identity: test_field_identity("B", "a"),
             ty: scoop_lir::CType::Struct(a),
             layout: scoop_lir::FieldLayout {
                 offset: 0,
@@ -1298,10 +1666,13 @@ fn c_layout_rejects_a_mutual_by_value_struct_cycle() {
 #[test]
 fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
     let mut module = values_module();
+    let signed_bridge = static_callback_bridge(&mut module, "signed_narrow_bridge");
+    install_test_c_signature(&mut module, 10);
+    let signed_trampoline = static_callback_trampoline(10);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "signedNarrow".to_string(),
-        bridge_symbol: "signed_narrow_bridge".to_string(),
-        trampoline_symbol: "signed_narrow".to_string(),
+        bridge: scoop_lir::StaticCallbackTarget::Local(signed_bridge),
+        trampoline: signed_trampoline,
         params: vec![
             scoop_lir::CType::Integer(IntegerKind::SIGNED_8),
             scoop_lir::CType::Integer(IntegerKind::UNSIGNED_8),
@@ -1315,17 +1686,23 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
         ],
         return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_8)),
     });
+    let unsigned_bridge = static_callback_bridge(&mut module, "unsigned_narrow_bridge");
+    install_test_c_signature(&mut module, 11);
+    let unsigned_trampoline = static_callback_trampoline(11);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "unsignedNarrow".to_string(),
-        bridge_symbol: "unsigned_narrow_bridge".to_string(),
-        trampoline_symbol: "unsigned_narrow".to_string(),
+        bridge: scoop_lir::StaticCallbackTarget::Local(unsigned_bridge),
+        trampoline: unsigned_trampoline,
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Integer(IntegerKind::UNSIGNED_16)),
     });
+    let bool_bridge = static_callback_bridge(&mut module, "bool_narrow_bridge");
+    install_test_c_signature(&mut module, 12);
+    let bool_trampoline = static_callback_trampoline(12);
     module.callback_bridges.alloc(scoop_lir::CallbackBridge {
         source_name: "boolNarrow".to_string(),
-        bridge_symbol: "bool_narrow_bridge".to_string(),
-        trampoline_symbol: "bool_narrow".to_string(),
+        bridge: scoop_lir::StaticCallbackTarget::Local(bool_bridge),
+        trampoline: bool_trampoline,
         params: Vec::new(),
         return_type: c_value(scoop_lir::CType::Boolean),
     });
@@ -1336,8 +1713,7 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_narrow_adapter",
-            trampoline: "foreign_narrow",
-            signature: "foreign_narrow_signature",
+            identity_seed: 1,
             params: vec![
                 c_opaque_pointer(),
                 scoop_lir::CType::Integer(IntegerKind::SIGNED_16),
@@ -1347,24 +1723,44 @@ fn c_callback_declarations_apply_exact_narrow_integer_abi_extensions() {
             context_index: 0,
         },
     );
+    let foreign_bridge_symbol = module
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .expect("foreign callback bridge")
+        .1
+        .trampoline
+        .entry()
+        .symbol()
+        .to_string();
+    let mut static_symbols = module
+        .callback_bridges
+        .iter()
+        .map(|(_, bridge)| bridge.trampoline.entry().symbol());
+    let signed_symbol = static_symbols.next().expect("signed callback");
+    let unsigned_symbol = static_symbols.next().expect("unsigned callback");
+    let bool_symbol = static_symbols.next().expect("boolean callback");
+    assert!(static_symbols.next().is_none());
 
     let ir = ir_of(&module);
     assert!(
-        ir.contains(
-            "declare signext i8 @signed_narrow(i8 signext, i8 zeroext, i16 signext, i16 zeroext, i1 zeroext, i32, i32, i64, i64)"
-        ),
+        ir.contains(&format!(
+            "declare signext i8 @\"{signed_symbol}\"(i8 signext, i8 zeroext, i16 signext, i16 zeroext, i1 zeroext, i32, i32, i64, i64)"
+        )),
         "static callback parameters lost signedness/width ABI attributes:\n{ir}"
     );
     assert!(
-        ir.contains("declare zeroext i16 @unsigned_narrow()"),
+        ir.contains(&format!("declare zeroext i16 @\"{unsigned_symbol}\"()")),
         "unsigned narrow callback result lost zeroext:\n{ir}"
     );
     assert!(
-        ir.contains("declare zeroext i1 @bool_narrow()"),
+        ir.contains(&format!("declare zeroext i1 @\"{bool_symbol}\"()")),
         "C _Bool callback result lost zeroext:\n{ir}"
     );
     assert!(
-        ir.contains("declare zeroext i8 @foreign_narrow(ptr, i16 signext, i1 zeroext)"),
+        ir.contains(&format!(
+            "declare zeroext i8 @\"{foreign_bridge_symbol}\"(ptr, i16 signext, i1 zeroext)"
+        )),
         "foreign callback boundary lost narrow integer ABI attributes:\n{ir}"
     );
 }
@@ -1404,21 +1800,23 @@ fn foreign_callback_bridge_rejects_wrong_adapter_signature() {
     module
         .foreign_callback_bridges
         .alloc(scoop_lir::ForeignCallbackBridge {
+            application: callback_application(0),
             family,
-            adapter_symbol: "scoop_main".to_string(),
-            trampoline_symbol: "foreign_callback".to_string(),
-            signature_symbol: "foreign_callback_signature".to_string(),
+            adapter: managed_local_function_ref(0),
+            trampoline: callback_trampoline(5, 0),
             params: vec![c_opaque_pointer()],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
             mode: module.foreign_callback_families[family].modes.reusable(),
         });
 
-    let error = c_bridge_source(&module)
+    let error = joined_c_bridge_sources(&module)
         .expect_err("foreign callback bridge must point at an exact managed adapter");
     assert!(
-        error.0.contains("foreign callback adapter @scoop_main")
-            && error.0.contains("machine<foreign-callback-status>"),
+        error.0.contains(&format!(
+            "foreign callback adapter @{}",
+            module.functions[0].symbol()
+        )) && error.0.contains("machine<foreign-callback-status>"),
         "unexpected error: {error}"
     );
 }
@@ -1441,7 +1839,7 @@ fn foreign_callback_operation_rejects_lookalike_callback_struct() {
             },
         ));
 
-    let error = c_bridge_source(&module)
+    let error = crate::validation::validate_module(&module)
         .expect_err("callback operations must preserve nominal callback identity");
     assert!(
         error.0.contains("requires exact callback struct")
@@ -1506,7 +1904,7 @@ fn foreign_callback_family_revalidates_mode_state_and_failure_metadata() {
         let family = foreign_callback_family(&mut module);
         corrupt(&mut module, family);
 
-        let error = c_bridge_source(&module)
+        let error = joined_c_bridge_sources(&module)
             .expect_err("callback family metadata must be revalidated at codegen entry");
         assert!(error.0.contains(kind), "unexpected error: {error}");
     }
@@ -1522,8 +1920,7 @@ fn foreign_callback_bridge_mode_must_belong_to_its_family() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter",
-            trampoline: "foreign_callback",
-            signature: "foreign_callback_signature",
+            identity_seed: 1,
             params: vec![c_opaque_pointer()],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
@@ -1537,8 +1934,8 @@ fn foreign_callback_bridge_mode_must_belong_to_its_family() {
         .0;
     module.foreign_callback_bridges[bridge].mode = foreign_mode;
 
-    let error =
-        c_bridge_source(&module).expect_err("callback bridge mode must belong to its typed family");
+    let error = joined_c_bridge_sources(&module)
+        .expect_err("callback bridge mode must belong to its typed family");
     assert!(
         error.0.contains("mode outside family"),
         "unexpected error: {error}"
@@ -1614,7 +2011,7 @@ fn foreign_callback_state_operation_rejects_lookalike_state_enum() {
             },
         ));
 
-    let error = c_bridge_source(&module)
+    let error = crate::validation::validate_module(&module)
         .expect_err("callback state operations must preserve nominal state identity");
     assert!(
         error.0.contains("foreign callback operation")
@@ -1646,7 +2043,7 @@ fn foreign_callback_failure_operation_rejects_lookalike_failure_enum() {
             },
         ));
 
-    let error = c_bridge_source(&module)
+    let error = crate::validation::validate_module(&module)
         .expect_err("callback failure operations must preserve nominal failure identity");
     assert!(
         error.0.contains("foreign callback operation")
@@ -1664,15 +2061,15 @@ fn foreign_callback_bridge_rejects_out_of_bounds_context_index() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter",
-            trampoline: "foreign_callback",
-            signature: "foreign_callback_signature",
+            identity_seed: 1,
             params: vec![c_opaque_pointer()],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 1,
         },
     );
 
-    let error = c_bridge_source(&module).expect_err("context index must name a C parameter");
+    let error =
+        joined_c_bridge_sources(&module).expect_err("context index must name a C parameter");
     assert!(
         error
             .0
@@ -1690,15 +2087,14 @@ fn foreign_callback_bridge_rejects_non_pointer_context() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter",
-            trampoline: "foreign_callback",
-            signature: "foreign_callback_signature",
+            identity_seed: 1,
             params: vec![scoop_lir::CType::Integer(IntegerKind::SIGNED_64)],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
         },
     );
 
-    let error = c_bridge_source(&module).expect_err("callback context must be a C pointer");
+    let error = joined_c_bridge_sources(&module).expect_err("callback context must be a C pointer");
     assert!(
         error
             .0
@@ -1716,8 +2112,7 @@ fn foreign_callback_bridge_rejects_conflicting_trampoline_abi_metadata() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter_0",
-            trampoline: "shared_foreign_callback",
-            signature: "foreign_callback_signature_0",
+            identity_seed: 1,
             params: vec![c_opaque_pointer()],
             return_type: scoop_lir::CReturnType::Void,
             context_index: 0,
@@ -1728,65 +2123,32 @@ fn foreign_callback_bridge_rejects_conflicting_trampoline_abi_metadata() {
         family,
         ForeignCallbackBridgeFixture {
             adapter: "foreign_callback_adapter_1",
-            trampoline: "shared_foreign_callback",
-            signature: "foreign_callback_signature_1",
+            identity_seed: 1,
             params: vec![
-                scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
                 c_opaque_pointer(),
+                scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
             ],
             return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),
-            context_index: 1,
+            context_index: 0,
         },
     );
 
-    let error = c_bridge_source(&module)
+    let symbol = module
+        .foreign_callback_bridges
+        .iter()
+        .next()
+        .unwrap()
+        .1
+        .trampoline
+        .entry()
+        .symbol()
+        .to_string();
+    let error = joined_c_bridge_sources(&module)
         .expect_err("a shared trampoline symbol must have one ABI description");
     assert!(
-        error
-            .0
-            .contains("trampoline symbol @shared_foreign_callback has conflicting ABI metadata"),
-        "unexpected error: {error}"
-    );
-}
-
-#[test]
-fn foreign_callback_bridge_rejects_conflicting_signature_abi_metadata() {
-    let mut module = values_module();
-    let family = foreign_callback_family(&mut module);
-    add_foreign_callback_bridge(
-        &mut module,
-        family,
-        ForeignCallbackBridgeFixture {
-            adapter: "foreign_callback_adapter_0",
-            trampoline: "foreign_callback_0",
-            signature: "shared_foreign_callback_signature",
-            params: vec![c_opaque_pointer()],
-            return_type: scoop_lir::CReturnType::Void,
-            context_index: 0,
-        },
-    );
-    add_foreign_callback_bridge(
-        &mut module,
-        family,
-        ForeignCallbackBridgeFixture {
-            adapter: "foreign_callback_adapter_1",
-            trampoline: "foreign_callback_1",
-            signature: "shared_foreign_callback_signature",
-            params: vec![
-                scoop_lir::CType::Integer(IntegerKind::SIGNED_64),
-                c_opaque_pointer(),
-            ],
-            return_type: c_value(scoop_lir::CType::Integer(IntegerKind::SIGNED_64)),
-            context_index: 1,
-        },
-    );
-
-    let error = c_bridge_source(&module)
-        .expect_err("a shared signature symbol must have one ABI description");
-    assert!(
-        error.0.contains(
-            "signature symbol @shared_foreign_callback_signature has conflicting ABI metadata"
-        ),
+        error.0.contains(&format!(
+            "trampoline symbol @{symbol} has conflicting ABI metadata"
+        )),
         "unexpected error: {error}"
     );
 }

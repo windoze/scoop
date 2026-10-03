@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  fun main()
+    val a: Int?
+      Call Some
+        IntLiteral 10
+    when
+      Var a
+      arm Some(v)
+        Call println
+          Var v
+      arm None
+        Call println
+          StringLiteral "none"
+    val b: Int?
+      Var None
+    when
+      Var b
+      arm Some(v)
+        Call println
+          Var v
+      arm None
+        Call println
+          StringLiteral "none"

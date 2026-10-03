@@ -1,0 +1,22 @@
+Module
+  fun read @fn0() -> Boolean
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Any = external0 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Any
+        Type Any
+        Local $dependency.argument.0
+      call $call.1: Boolean = external1 direct
+        Type Any
+        Local $dependency.parameter.value
+      return
+        Type Boolean
+        Local $call.1
+  output library

@@ -1,0 +1,6 @@
+package consumer.localcalls
+
+public fun result(): Int {
+    fun read(value: Int): Int = value
+    return read("bad")
+}

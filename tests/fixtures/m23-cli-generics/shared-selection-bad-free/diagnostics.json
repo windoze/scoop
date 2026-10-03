@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `ambiguous` is ambiguous in exact import layer:\n  - ambiguous(first: Any, second: Int): Int — applicable; tied by MSC\n  - ambiguous(first: Int, second: Any, extra: Int): Int — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "734b2ae5916c69a42ba0aeaf739553ca9a431d14dce8dea6c2938859f17bc0e1",
+      "end": 83,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 66
+    },
+    "severity": "error"
+  }
+]

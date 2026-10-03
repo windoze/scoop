@@ -7,7 +7,20 @@
 #include "../src/initialization.c"
 
 const ScoopTypeDescriptor scoop_td_String = {
-    1, 24, 8, NULL, NULL, NULL, NULL, 0, "String"};
+    .type_id = 1,
+    .instance_shape =
+        {
+            .instance_kind = SCOOP_TYPE_INSTANCE_INLINE_BYTES_V1,
+            .inline_storage_kind = SCOOP_INLINE_STORAGE_INLINE_V1,
+            .minimum_size = sizeof(ScoopString),
+            .instance_alignment = _Alignof(ScoopString),
+            .inline_offset = sizeof(ScoopString),
+            .inline_size = 1,
+            .inline_stride = 1,
+            .inline_alignment = 1,
+        },
+    .diagnostic_name = {(const uint8_t *)"String", sizeof("String") - 1},
+};
 
 void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     (void)td;
@@ -15,86 +28,55 @@ void *scoop_gc_alloc_internal(const ScoopTypeDescriptor *td, size_t size) {
     abort();
 }
 
-const ScoopInitializationUnitDescriptor scoop_image_initialization_units[] = {{0}};
-const uint64_t scoop_image_initialization_unit_count = 0;
-
+/* This test isolates the coordinator state machine from loaded-image validation. */
+void scoop_image_require_unit(const ScoopInitializationUnitDescriptorV1 *unit) {
+    assert(unit != NULL && unit->cell != NULL);
+}
 static void unused_initializer(void) {}
 static void unused_ensure(void) {}
-static uint64_t eager_ensure_count;
-static uint64_t lazy_ensure_count;
-
-static void eager_ensure(void) { eager_ensure_count++; }
-static void lazy_ensure(void) { lazy_ensure_count++; }
 
 typedef struct TestUnit {
     ScoopInitializationCell cell;
     uint64_t storage;
     void *failure;
-    ScoopInitializationUnitDescriptor descriptor;
+    ScoopStaticStorageDescriptorV1 storage_registration;
+    ScoopStaticStorageDescriptorV1 failure_registration;
+    ScoopInitializationUnitDescriptorV1 descriptor;
 } TestUnit;
 
-static void initialize_test_unit(TestUnit *unit, const char *key) {
+static void initialize_test_unit(TestUnit *unit, uint8_t identity_byte,
+                                 const char *display_name) {
     *unit = (TestUnit){
         .cell = {0},
         .storage = 0,
         .failure = NULL,
     };
-    unit->descriptor = (ScoopInitializationUnitDescriptor){
-        .schedule = SCOOP_INIT_LAZY_ACCESS,
-        .stable_key = key,
+    unit->storage_registration.writable_base = &unit->storage;
+    unit->failure_registration.writable_base = &unit->failure;
+    unit->descriptor = (ScoopInitializationUnitDescriptorV1){
+        .schedule_kind = SCOOP_INITIALIZATION_LAZY_ACCESS_V1,
+        .diagnostic_path = {(const uint8_t *)display_name, strlen(display_name)},
         .cell = &unit->cell,
-        .storage = &unit->storage,
-        .failure_root = &unit->failure,
+        .storage = &unit->storage_registration,
+        .failure_root = &unit->failure_registration,
         .initializer_entry = unused_initializer,
         .ensure_entry = unused_ensure,
     };
+    unit->descriptor.registration.semantic_id.bytes[31] = identity_byte;
 }
 
-static void test_startup_schedule(void) {
-    ScoopInitializationCell cells[2] = {{0}, {0}};
-    uint64_t storage[2] = {0, 0};
-    void *failures[2] = {NULL, NULL};
-    ScoopInitializationUnitDescriptor units[2] = {
-        {
-            .schedule = SCOOP_INIT_LAZY_ACCESS,
-            .stable_key = "a-lazy",
-            .cell = &cells[0],
-            .storage = &storage[0],
-            .failure_root = &failures[0],
-            .initializer_entry = unused_initializer,
-            .ensure_entry = lazy_ensure,
-        },
-        {
-            .schedule = SCOOP_INIT_EAGER_STARTUP,
-            .stable_key = "b-eager",
-            .cell = &cells[1],
-            .storage = &storage[1],
-            .failure_root = &failures[1],
-            .initializer_entry = unused_initializer,
-            .ensure_entry = eager_ensure,
-        },
-    };
-    eager_ensure_count = 0;
-    lazy_ensure_count = 0;
-    initialize_units(units, 2);
-    assert(eager_ensure_count == 1);
-    assert(lazy_ensure_count == 0);
-}
-
-__attribute__((noinline)) static uint64_t managed_enter(
-    const ScoopInitializationUnitDescriptor *unit) {
+__attribute__((noinline)) static uint64_t
+managed_enter(const ScoopInitializationUnitDescriptorV1 *unit) {
     uintptr_t stack_marker = 0;
-    return scoop_rt_init_enter_impl(
-        unit, 1, (uintptr_t)&stack_marker,
-        (uintptr_t)__builtin_frame_address(0));
+    return scoop_rt_init_enter_impl(unit, 1, (uintptr_t)&stack_marker,
+                                    (uintptr_t)__builtin_frame_address(0));
 }
 
 __attribute__((noinline)) static void empty_collection(void) {
     uintptr_t stack_marker = 0;
     ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(
-        &anchor, 1, (uintptr_t)&stack_marker,
-        (uintptr_t)__builtin_frame_address(0));
+    scoop_thread_push_managed_anchor(&anchor, 1, (uintptr_t)&stack_marker,
+                                     (uintptr_t)__builtin_frame_address(0));
     assert(scoop_thread_begin_collection());
     scoop_thread_end_collection();
     scoop_thread_pop_managed_anchor(&anchor);
@@ -156,14 +138,14 @@ static void wait_for_edge(WorkerPlan *plan, TestUnit *unit) {
 
 static void test_ready_and_failure(void) {
     TestUnit ready;
-    initialize_test_unit(&ready, "ready");
+    initialize_test_unit(&ready, 1, "top-level:ready");
     assert(managed_enter(&ready.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     init_succeed(&ready.descriptor);
     assert(managed_enter(&ready.descriptor) == SCOOP_INIT_READY);
 
     static uint64_t failure_object;
     TestUnit failed;
-    initialize_test_unit(&failed, "failed");
+    initialize_test_unit(&failed, 2, "top-level:failed");
     assert(managed_enter(&failed.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     init_fail(&failed.descriptor, &failure_object);
     assert(managed_enter(&failed.descriptor) == SCOOP_INIT_RESULT_FAILED);
@@ -174,20 +156,23 @@ static void test_same_thread_cycle(void) {
     static uint64_t failure_object;
     TestUnit outer;
     TestUnit inner;
-    initialize_test_unit(&outer, "outer");
-    initialize_test_unit(&inner, "inner");
+    initialize_test_unit(&outer, 3, "object:Outer");
+    initialize_test_unit(&inner, 4, "object:Inner");
+    static const uint8_t outer_path[] = "object:Outer trailing bytes";
+    outer.descriptor.diagnostic_path = (ScoopByteSpanV1){outer_path, 12};
     assert(managed_enter(&outer.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     assert(managed_enter(&inner.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     assert(managed_enter(&outer.descriptor) == SCOOP_INIT_CYCLE);
     assert(strcmp(scoop_thread_current_required()->initialization_cycle_path,
-                  "initialization cycle: outer -> inner -> outer") == 0);
+                  "initialization cycle: object:Outer -> object:Inner -> "
+                  "object:Outer") == 0);
     init_fail(&inner.descriptor, &failure_object);
     init_fail(&outer.descriptor, &failure_object);
 }
 
 static void test_wait_participates_in_collection(void) {
     TestUnit unit;
-    initialize_test_unit(&unit, "waited");
+    initialize_test_unit(&unit, 5, "top-level:waited");
     assert(managed_enter(&unit.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     WorkerPlan plan = {
         .owned = NULL,
@@ -211,8 +196,8 @@ static void test_cross_thread_cycle(void) {
     static uint64_t failure_object;
     TestUnit left;
     TestUnit right;
-    initialize_test_unit(&left, "left");
-    initialize_test_unit(&right, "right");
+    initialize_test_unit(&left, 6, "top-level:left");
+    initialize_test_unit(&right, 7, "top-level:right");
     assert(managed_enter(&left.descriptor) == SCOOP_INIT_RUN_INITIALIZER);
     WorkerPlan plan = {
         .owned = &right,
@@ -225,7 +210,8 @@ static void test_cross_thread_cycle(void) {
     wait_for_edge(&plan, &left);
     assert(managed_enter(&right.descriptor) == SCOOP_INIT_CYCLE);
     assert(strcmp(scoop_thread_current_required()->initialization_cycle_path,
-                  "initialization cycle: left -> right -> left") == 0);
+                  "initialization cycle: top-level:left -> top-level:right -> "
+                  "top-level:left") == 0);
     init_fail(&left.descriptor, &failure_object);
     assert(pthread_join(worker, NULL) == 0);
     assert(atomic_load_explicit(&plan.result, memory_order_acquire) ==
@@ -235,12 +221,13 @@ static void test_cross_thread_cycle(void) {
 
 int main(void) {
     scoop_thread_runtime_init();
-    scoop_thread_attach_main(__builtin_frame_address(0));
-    test_startup_schedule();
+    scoop_thread_attach_main();
+    scoop_thread_enter_managed(__builtin_frame_address(0));
     test_ready_and_failure();
     test_same_thread_cycle();
     test_wait_participates_in_collection();
     test_cross_thread_cycle();
+    scoop_thread_leave_managed();
     scoop_thread_prepare_shutdown();
     scoop_thread_detach_main();
     scoop_thread_runtime_finish_shutdown();

@@ -15,10 +15,12 @@ pub(super) fn rewrite_intrinsic_site(
     failure_value: mir::CoroutineFailureValueId,
     outer_step: &mir::Type,
     outer_continuation: mir::InterfaceId,
-    outer_resume: mir::FunctionId,
-    outer_failure: mir::FunctionId,
-    source_symbol: &str,
+    outer_resume: &mir::CallTarget,
+    outer_failure: &mir::CallTarget,
+    source_name: &str,
     driver: mir::FunctionId,
+    source: hir::CallableMaterialization,
+    source_odr_group: Option<hir::OdrGroupId>,
     site: SuspendSite,
     mut call: mir::Call,
     post: mir::BlockId,
@@ -27,14 +29,16 @@ pub(super) fn rewrite_intrinsic_site(
     let SuspendKind::Intrinsic { register } = site.kind else {
         unreachable!("intrinsic site carries its concrete register method")
     };
-    let throwable = mir::Type::Class(lowerer.class_map[&module.exception_core.throwable.class()]);
+    let throwable = crate::coroutine_registry::throwable_type(module, &lowerer.class_map);
     let (result_latch_id, result_latch_ty) = lowerer.coroutines.slot_for(
+        &lowerer.source_exact_types,
         &site.result,
         &lowerer.structs,
         &mut lowerer.enums,
         &mut lowerer.shell,
     );
     let (failure_latch_id, failure_latch_ty) = lowerer.coroutines.slot_for(
+        &lowerer.source_exact_types,
         &throwable,
         &lowerer.structs,
         &mut lowerer.enums,
@@ -67,8 +71,11 @@ pub(super) fn rewrite_intrinsic_site(
         outer_continuation,
         outer_resume,
         outer_failure,
-        source_symbol,
+        source_name,
         driver,
+        source,
+        source_odr_group,
+        site.identity_path.clone(),
         site.state,
         &site.result,
         Some((result_latch.clone(), failure_latch.clone())),

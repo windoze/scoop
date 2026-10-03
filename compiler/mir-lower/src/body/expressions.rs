@@ -23,14 +23,17 @@ impl BodyLowerer<'_> {
             );
         }
         let kind = match &expr.kind {
-            hir::ExprKind::StringLiteral(value) => {
-                // One global constant per literal occurrence, numbered
-                // in order of appearance (deterministic).
-                let symbol = format!("scoop.str.{}", self.strings.len());
-                let id = self.strings.alloc(mir::StringConst {
-                    value: value.clone(),
-                    symbol,
-                });
+            hir::ExprKind::StringLiteral { value, owner } => {
+                let id = match *owner {
+                    hir::StringConstantOwner::CurrentDefinition => {
+                        self.intern_current_string(value.clone())
+                    }
+                    hir::StringConstantOwner::Property(property) => self.strings.intern(
+                        mir::ImmortalObjectOwner::Property(property),
+                        0,
+                        value.clone(),
+                    ),
+                };
                 smir::ExprKind::StringConst(id)
             }
             hir::ExprKind::IntegerLiteral(value) => {
@@ -87,7 +90,7 @@ impl BodyLowerer<'_> {
                 let class = self.module.class_constructors[*constructor].class;
                 smir::ExprKind::ClassNew {
                     class_id: self.class_map[&class],
-                    initializer: self.ctors[constructor],
+                    initializer: mir::Callee::User(self.ctors[constructor]),
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 }
             }
@@ -96,13 +99,21 @@ impl BodyLowerer<'_> {
                 initializer,
                 args,
             } => {
+                let callee = match initializer {
+                    hir::ClassInitializerTarget::Local(initializer) => {
+                        mir::Callee::User(self.ctors[initializer])
+                    }
+                    hir::ClassInitializerTarget::Imported(initializer) => mir::Callee::External(
+                        self.imported_dependency_callable_map[initializer].callable,
+                    ),
+                };
                 let mut lowered = Vec::with_capacity(args.len() + 1);
                 lowered.push(self.lower_expr(receiver));
                 lowered.extend(args.iter().map(|arg| self.lower_expr(arg)));
                 smir::ExprKind::Call(smir::Call {
                     target: mir::CallTarget {
                         kind: mir::CallKind::Direct,
-                        callee: mir::Callee::User(self.ctors[initializer]),
+                        callee,
                     },
                     args: lowered,
                     return_ty: mir::Type::Unit,
@@ -185,21 +196,33 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::GlobalRead(self.global_map[global])
             }
             hir::ExprKind::SingletonValue(value) => {
-                let singleton = self.module.singleton_values[*value];
-                let unit = &self.module.initialization_units[singleton.initialization];
+                let (ensure, global) = match *value {
+                    hir::SingletonValueTarget::Local(value) => {
+                        let singleton = self.module.singleton_values[value];
+                        let unit = &self.module.initialization_units[singleton.initialization];
+                        let root = self.singleton_root_map[&singleton.published_root];
+                        (
+                            mir::Callee::User(self.function_map[&unit.ensure]),
+                            self.singleton_published_roots[root].global,
+                        )
+                    }
+                    hir::SingletonValueTarget::Dependency(value) => {
+                        let (ensure, global) = self.imported_singleton_map[&value];
+                        (mir::Callee::External(ensure), global)
+                    }
+                };
                 self.prelude.push(smir::StatementKind::Expr(smir::Expr::new(
                     mir::Type::Unit,
                     smir::ExprKind::Call(smir::Call {
                         target: mir::CallTarget {
                             kind: mir::CallKind::Direct,
-                            callee: mir::Callee::User(self.function_map[&unit.ensure]),
+                            callee: ensure,
                         },
                         args: Vec::new(),
                         return_ty: mir::Type::Unit,
                     }),
                 )));
-                let root = self.singleton_root_map[&singleton.published_root];
-                smir::ExprKind::GlobalRead(self.singleton_published_roots[root].global)
+                smir::ExprKind::GlobalRead(global)
             }
             hir::ExprKind::Capture(binding) => {
                 if let Some(local) = self.current_local_capture_params.get(binding) {
@@ -220,59 +243,63 @@ impl BodyLowerer<'_> {
             }
             hir::ExprKind::Lambda(id) => {
                 let class = self.ensure_lambda_closure(*id);
-                let sources: Vec<_> = self.module.lambdas[*id]
+                let sources = self.module.lambdas[*id]
                     .captures
                     .iter()
-                    .map(|capture| capture.source.clone())
+                    .map(|capture| {
+                        (
+                            self.closure_capture_indices[&(class, capture.binding)],
+                            capture.source.clone(),
+                        )
+                    })
                     .collect();
-                smir::ExprKind::ClosureAlloc {
-                    class,
-                    captures: sources
-                        .iter()
-                        .map(|source| self.lower_expr(source))
-                        .collect(),
-                }
+                self.lower_closure_allocation(class, sources)
             }
             hir::ExprKind::AnonymousFunction(id) => {
                 let class = self.ensure_anonymous_closure(*id);
-                let sources: Vec<_> = self.module.anonymous_functions[*id]
+                let sources = self.module.anonymous_functions[*id]
                     .captures
                     .iter()
-                    .map(|capture| capture.source.clone())
+                    .map(|capture| {
+                        (
+                            self.closure_capture_indices[&(class, capture.binding)],
+                            capture.source.clone(),
+                        )
+                    })
                     .collect();
-                smir::ExprKind::ClosureAlloc {
-                    class,
-                    captures: sources
-                        .iter()
-                        .map(|source| self.lower_expr(source))
-                        .collect(),
-                }
+                self.lower_closure_allocation(class, sources)
             }
             hir::ExprKind::CallableReference(id) => {
                 let class = self.ensure_reference_closure(*id);
                 let reference = &self.module.callable_references[*id];
-                let mut captures = Vec::with_capacity(
+                let mut sources = Vec::with_capacity(
                     reference.captures.len()
                         + usize::from(matches!(
                             &reference.target,
                             hir::CallableReferenceTarget::BoundMember { .. }
                                 | hir::CallableReferenceTarget::BoundExtension { .. }
+                                | hir::CallableReferenceTarget::BoundIntrinsic { .. }
                         )),
                 );
                 match &reference.target {
                     hir::CallableReferenceTarget::BoundMember { receiver, .. }
-                    | hir::CallableReferenceTarget::BoundExtension { receiver, .. } => {
-                        captures.push(self.lower_expr(receiver));
+                    | hir::CallableReferenceTarget::BoundExtension { receiver, .. }
+                    | hir::CallableReferenceTarget::BoundIntrinsic { receiver, .. } => {
+                        sources.push((
+                            self.closure_receiver_indices[&class],
+                            receiver.as_ref().clone(),
+                        ));
                     }
-                    _ => {}
+                    hir::CallableReferenceTarget::Named(_)
+                    | hir::CallableReferenceTarget::Local { .. } => {}
                 }
-                captures.extend(
-                    reference
-                        .captures
-                        .iter()
-                        .map(|capture| self.lower_expr(&capture.source)),
-                );
-                smir::ExprKind::ClosureAlloc { class, captures }
+                sources.extend(reference.captures.iter().map(|capture| {
+                    (
+                        self.closure_capture_indices[&(class, capture.binding)],
+                        capture.source.clone(),
+                    )
+                }));
+                self.lower_closure_allocation(class, sources)
             }
             hir::ExprKind::FunctionCoercion {
                 source,
@@ -503,11 +530,10 @@ impl BodyLowerer<'_> {
             hir::ExprKind::SizeOf(ty) => smir::ExprKind::SizeOf(Box::new(self.lower_type(*ty))),
             hir::ExprKind::AlignOf(ty) => smir::ExprKind::AlignOf(Box::new(self.lower_type(*ty))),
             hir::ExprKind::FunctionAddress(function) => {
-                let mir::Type::FunPtr(signature) = self.lower_type(expr.ty) else {
+                let hir::TypeKind::FunPtr(signature) = self.module.types[expr.ty].kind else {
                     unreachable!("FunctionAddress has a FunPtr type")
                 };
-                let callback =
-                    self.ensure_callback_bridge(self.function_map[function], signature, expr.span);
+                let callback = self.ensure_callback_bridge(*function, signature, expr.span);
                 smir::ExprKind::FunctionAddress { callback }
             }
             hir::ExprKind::ForeignCallbackRegister {
@@ -599,7 +625,11 @@ impl BodyLowerer<'_> {
             // boxed value type (and the target interface) on the way.
             hir::ExprKind::Box(operand) => {
                 let payload = self.lower_type(operand.ty);
-                self.register_boxed(&payload, Some(expr.ty));
+                self.register_boxed(
+                    &payload,
+                    self.module.exact_type_identities[operand.ty].id(),
+                    Some(expr.ty),
+                );
                 smir::ExprKind::Box(Box::new(self.lower_expr(operand)))
             }
             // Smart casts unbox inline wherever the narrowed local is read
@@ -617,31 +647,35 @@ impl BodyLowerer<'_> {
                 smir::ExprKind::Local(slot)
             }
             hir::ExprKind::IsInstance { operand, check_ty } => {
-                let check_ty = self.lower_type(*check_ty);
-                self.register_check(&check_ty);
+                let exact = *check_ty;
+                let check_ty = self.lower_type(exact);
+                self.register_check(&check_ty, exact);
                 smir::ExprKind::IsInstance {
                     operand: Box::new(self.lower_expr(operand)),
                     check_ty: Box::new(check_ty),
                 }
             }
-            hir::ExprKind::Cast { operand, optional } => {
-                return self.lower_cast(operand, *optional, expr.ty, expr.span);
-            }
-            hir::ExprKind::Call { callee, args } => {
-                return self.lower_call(*callee, args, expr.ty);
-            }
-            hir::ExprKind::LocalFunctionCall {
-                callee,
-                captures,
-                args,
-                ..
+            hir::ExprKind::ReferenceUpcast(operand) => smir::ExprKind::Retype {
+                operand: Box::new(self.lower_expr(operand)),
+                ty: Box::new(ty.clone()),
+            },
+            hir::ExprKind::Cast {
+                operand,
+                check_ty,
+                optional,
             } => {
-                let function = self.module.callable_function(*callee);
-                self.record_suspend_function_call(function);
-                let callee = self.lower_user_callee(*callee);
-                let call_args: Vec<_> = captures.iter().chain(args).collect();
-                let return_ty = self.lower_type(expr.ty);
-                return self.call(callee, &call_args, return_ty);
+                return self.lower_cast(operand, *check_ty, *optional, expr.ty, expr.span);
+            }
+            hir::ExprKind::Call { callee, args, .. } => {
+                return match callee {
+                    hir::CallableTarget::DerivedEquality(target) => {
+                        self.lower_imported_equality(*target, args, expr.ty)
+                    }
+                    hir::CallableTarget::Local(callee) => self.lower_call(*callee, args, expr.ty),
+                    hir::CallableTarget::Imported(callee) => {
+                        self.lower_imported_call(*callee, args, expr.ty)
+                    }
+                };
             }
             hir::ExprKind::CallableCall {
                 callee,
@@ -735,5 +769,27 @@ impl BodyLowerer<'_> {
             }
         };
         smir::Expr::new(ty, kind)
+    }
+
+    fn lower_closure_allocation(
+        &mut self,
+        class: mir::ClosureClassId,
+        semantic_sources: Vec<(u32, hir::Expr)>,
+    ) -> smir::ExprKind {
+        let field_count = self.closure_classes[class].captures.len();
+        assert_eq!(
+            semantic_sources.len(),
+            field_count,
+            "a closure allocation initializes every physical capture field"
+        );
+        smir::ExprKind::ClosureAlloc {
+            class,
+            captures: semantic_sources
+                .into_iter()
+                .map(|(field, source)| {
+                    smir::ClosureCaptureInit::new(field, self.lower_expr(&source))
+                })
+                .collect(),
+        }
     }
 }

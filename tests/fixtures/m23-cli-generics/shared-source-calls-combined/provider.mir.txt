@@ -1,0 +1,89 @@
+Module
+  global0 trace: Int managed initial=encoded(Int:0x0)
+  fun reset @fn0() -> Unit
+    bb0 entry
+      call @fn5 direct
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      return
+  fun state @fn1() -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 direct
+      return
+        Type Int
+        Local $call.1
+  fun step @fn2(value: Int) -> Int
+    bb0 entry
+      call $dependency.receiver: Int = @fn4 direct
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+        Type Int
+        Local value
+  fun take @fn3(first: Int, second: Int, third: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local first
+      val $dependency.argument.0: Int
+        Type Int
+        Local second
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local third
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $get$trace @fn4() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead trace
+  fun $set$trace @fn5(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign trace
+        Type Int
+        Local value
+      return
+  output library

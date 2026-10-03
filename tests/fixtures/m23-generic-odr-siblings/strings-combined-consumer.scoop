@@ -1,0 +1,25 @@
+import dependency.odr.*
+import sibling.left.*
+import sibling.right.*
+
+private class Later(public val value: Int)
+
+public fun check(): Int {
+    val value = left()
+    if (value !== right()) { return 1 }
+    if (value === distinct()) { return 2 }
+    if (leftMethod() !== rightMethod()) { return 3 }
+    if (leftExtension() !== rightExtension()) { return 4 }
+    if (leftNested() !== rightNested()) { return 5 }
+    if (value === leftMethod()) { return 6 }
+    if (leftMethod() === leftExtension()) { return 7 }
+    if (leftNested() === leftExtension()) { return 8 }
+    if (forwarded<Int>(1) !== leftMethod()) { return 9 }
+    val first = Later(20)
+    val label = forwarded<Later>(first)
+    val second = Later(22)
+    if (label !== forwarded<Later>(second)) { return 10 }
+    if (label === leftMethod()) { return 11 }
+    if (value != "generic constant") { return 12 }
+    return first.value + second.value
+}

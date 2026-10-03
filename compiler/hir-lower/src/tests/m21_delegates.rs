@@ -114,7 +114,7 @@ fn local_delegate_is_an_immutable_hidden_local_with_resolved_get_and_set_targets
     ]))
     .expect("a local delegated var lowers");
 
-    let main = module.entry;
+    let main = module.entry();
     let hir::FunctionKind::User(body) = &module.functions[main].kind else {
         panic!("main is a user function")
     };
@@ -212,11 +212,9 @@ fn class_delegate_owns_typed_hidden_storage_and_generated_accessors() {
     };
     assert!(matches!(
         common_initialization.as_slice(),
-        [hir::ClassInitializationStep::DelegatedProperty {
-            storage: actual_storage,
-            field: actual_field,
-            ..
-        }] if *actual_storage == storage && *actual_field == field
+        [hir::ClassInitializationStep::Field { field: actual_field, .. }]
+            if actual_field.field == module.field_identities[field].id()
+                && actual_field.owner == module.class_applications[host.self_application].canonical_type
     ));
     let getter = module.properties[property].capability.getter();
     let hir::PropertyAccessorImplementation::Body(getter) =
@@ -297,13 +295,13 @@ fn top_level_and_extension_delegates_own_eager_managed_storage() {
 
     assert_eq!(module.delegate_storages.len(), 2);
     assert_eq!(module.initialization_units.len(), 2);
-    let mut stable_keys = module
+    let mut display_names = module
         .initialization_units
         .iter()
-        .map(|(_, unit)| unit.stable_key.as_str())
+        .map(|(_, unit)| unit.display_name.as_str())
         .collect::<Vec<_>>();
-    stable_keys.sort_unstable();
-    assert_eq!(stable_keys, ["extension:Int:shared", "top-level:number"]);
+    display_names.sort_unstable();
+    assert_eq!(display_names, ["extension:Int:shared", "top-level:number"]);
     for (storage_id, storage) in module.delegate_storages.iter() {
         let hir::DelegateStorageLocation::ManagedGlobal(global) = storage.location else {
             panic!("global delegates own managed-global storage")

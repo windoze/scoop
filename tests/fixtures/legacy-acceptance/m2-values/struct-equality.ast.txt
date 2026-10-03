@@ -1,0 +1,73 @@
+SourceFile
+  RootPackage
+  struct Point
+    field x: Int
+    field y: Int
+  struct Line
+    field a: Point
+    field b: Point
+  fun main()
+    val p1
+      Call Point
+        IntLiteral 1
+        IntLiteral 2
+    val p3
+      Call Point
+        IntLiteral 3
+        IntLiteral 4
+    Call println
+      Binary Eq
+        Var p1
+        Call Point
+          IntLiteral 1
+          IntLiteral 2
+    Call println
+      Binary Eq
+        Var p1
+        Var p3
+    Call println
+      Binary Ne
+        Var p1
+        Var p3
+    val l1
+      Call Line
+        Var p1
+        Var p3
+    val l2
+      Call Line
+        Call Point
+          IntLiteral 1
+          IntLiteral 2
+        Call Point
+          IntLiteral 3
+          IntLiteral 4
+    Call println
+      Binary Eq
+        Var l1
+        Var l2
+    val t1
+      TupleLiteral
+        IntLiteral 1
+        StringLiteral "a"
+    Call println
+      Binary Eq
+        Var t1
+        TupleLiteral
+          IntLiteral 1
+          StringLiteral "a"
+    Call println
+      Binary Eq
+        Var t1
+        TupleLiteral
+          IntLiteral 1
+          StringLiteral "b"
+    Call println
+      Binary Add
+        StringLiteral "x"
+        StringLiteral "y"
+    Call println
+      Binary Eq
+        Binary Add
+          StringLiteral "x"
+          StringLiteral "y"
+        StringLiteral "xy"

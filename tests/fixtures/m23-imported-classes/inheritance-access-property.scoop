@@ -1,0 +1,17 @@
+import dependency.classes.AccessParent
+import dependency.classes.Counter
+
+public class Derived public constructor(): AccessParent() {
+    protected override var state: Long = 20
+        get() = field + 1
+        set(next) { field = next * 2 }
+    public fun read(): Long {
+        state = 10
+        guarded = state
+        guarded += 2
+        val previous = guarded++
+        guarded -= 3
+        return guarded + previous - 23
+    }
+}
+public fun primary(): Counter = Counter(Derived().read())

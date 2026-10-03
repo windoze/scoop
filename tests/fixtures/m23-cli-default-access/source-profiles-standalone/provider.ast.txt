@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public class Plain()
+    public fun own
+    public fun literal
+  public class Generic<T>()
+    public fun fromOwner
+    public nested class Static

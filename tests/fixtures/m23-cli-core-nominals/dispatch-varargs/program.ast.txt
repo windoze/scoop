@@ -1,0 +1,47 @@
+SourceFile
+  RootPackage
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val values: Array<Int>
+      ArrayLiteral
+        IntLiteral 3
+        IntLiteral 4
+    val instance
+      Call Variadic
+        IntLiteral 1
+        Argument *
+          Var values
+    Call check
+      Binary Eq
+        MethodCall observe
+          Var instance
+        IntLiteral 0L
+    Call check
+      Binary Eq
+        MethodCall observe
+          Var instance
+          IntLiteral 1
+          Argument *
+            Var values
+          IntLiteral 5
+        IntLiteral 4L
+    Call check
+      Binary Eq
+        MethodCall observe
+          Var instance
+          Argument values=
+            Var values
+        IntLiteral 2L
+    Call check
+      Binary Eq
+        MethodCall observe
+          Call Variadic
+            Argument values=
+              Var values
+          IntLiteral 7
+        IntLiteral 1L

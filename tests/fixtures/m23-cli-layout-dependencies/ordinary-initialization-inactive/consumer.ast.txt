@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.runtimeValue
+  ImportExact Local dependency.api.computedValue
+  public fun unusedDefault(value: Int = <expr>): Int
+    =
+      Var value
+  public fun genericOnly<T>(value: T): Int
+    =
+      Var runtimeValue
+  public val callback: () -> Int = <expr>
+  public val anonymousCallback: () -> Int = <expr>
+  public val accessorCallback: () -> Int <computed>
+  public val computedRead: Int = <expr>

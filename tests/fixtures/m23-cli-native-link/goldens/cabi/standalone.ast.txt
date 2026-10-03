@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+    @CLayout(aligned = 8, packed = 1)
+  struct Packed
+    field flag: Boolean
+    field value: Int
+    @Extern(lib = "m23_cabi", name = "m23_packed")
+  fun transform(value: Packed): Packed
+  fun main()
+    @Unsafe block
+      val result
+        Call transform
+          Call Packed
+            BoolLiteral true
+            IntLiteral 41
+      Call println
+        FieldAccess flag
+          Var result
+      Call println
+        FieldAccess value
+          Var result

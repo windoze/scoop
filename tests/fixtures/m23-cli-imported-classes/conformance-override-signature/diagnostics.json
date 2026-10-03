@@ -1,0 +1,28 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`read` is marked `override` but does not override any method",
+    "notes": [],
+    "origin": {
+      "cone": "fe6f8bd1d970c34191ddcbb15e257c08b57e199c3716aceff43064d964e92c5c",
+      "end": 115,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 111
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "class `Wrong` does not implement interface method `Readable.read`",
+    "notes": [],
+    "origin": {
+      "cone": "fe6f8bd1d970c34191ddcbb15e257c08b57e199c3716aceff43064d964e92c5c",
+      "end": 129,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 35
+    },
+    "severity": "error"
+  }
+]

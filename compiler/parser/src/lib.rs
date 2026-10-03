@@ -8,9 +8,11 @@
 
 mod decl;
 mod expr;
+mod header;
 mod lexer;
 mod parser;
 mod pattern;
+mod source_input;
 mod stmt;
 #[cfg(test)]
 mod tests;
@@ -43,6 +45,10 @@ mod tests_m22_integer_literals;
 #[cfg(test)]
 mod tests_m22_type_aliases;
 #[cfg(test)]
+mod tests_m23_header_contract;
+#[cfg(test)]
+mod tests_m23_headers;
+#[cfg(test)]
 mod tests_m3;
 #[cfg(test)]
 mod tests_m4;
@@ -55,6 +61,11 @@ mod tests_m8;
 #[cfg(test)]
 mod tests_m9;
 mod ty;
+
+pub use source_input::{
+    CurrentConeSourceInput, IdentifiedSourceInput, ParseAllDiagnostic, ParseCurrentConeError,
+    ParseCurrentConeInputError, ParserDiagnosticContext, parse_all, parse_current_cone,
+};
 
 /// Parses a whole source file into an AST.
 ///

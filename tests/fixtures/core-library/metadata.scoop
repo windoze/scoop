@@ -1,0 +1,5 @@
+public struct UserCoreValue(val value: Int)
+public typealias UserCoreAlias = UserCoreValue
+public const val USER_CORE_DEFAULT: Int = 7
+public fun userCoreWithDefault(value: Int = USER_CORE_DEFAULT): Int = value
+public fun userCoreDefaultChain(value: Int = userCoreWithDefault()): Int = value

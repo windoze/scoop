@@ -1,0 +1,28 @@
+package upstream.enumdefinitions
+
+public class Link<T> public constructor(public val value: T, public val tail: Chain<T>)
+
+public enum Chain<T> {
+    End,
+    Cons(Link<T>)
+}
+
+public interface Readable<T> {
+    public fun read(): T
+    public fun apply(action: (T) -> Int): Int = action(this.read())
+}
+
+public enum Entry<T>: Readable<T> {
+    Value(T)
+
+    public override fun read(): T = when (this) {
+        Value(value) -> value
+    }
+}
+
+public fun <T> singleton(value: T): Chain<T> = Chain.Cons(Link(value, Chain.End))
+
+public fun <T> total(value: Chain<T>, read: (T) -> Int): Int = when (value) {
+    End -> 0
+    Cons(link) -> read(link.value) + total(link.tail, read)
+}

@@ -1,0 +1,3 @@
+import dependency.generics.identity
+
+public fun primitive(): Int = identity(40)

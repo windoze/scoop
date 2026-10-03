@@ -1,0 +1,3 @@
+import dependency.classes.Outer
+
+public fun read(value: Outer.Hidden): Long = 0

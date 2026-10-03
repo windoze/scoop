@@ -1,0 +1,114 @@
+Module
+  struct Marker ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Marker> vtable=0 itables=0
+  generated_exact_type get0 location=class4 nominal_id=66b52be820b888224690e1df4377f52d5a08dccdb098b8ac64400b1b0c5add61 exact_id=dbf6b4d90ac8056c6530753f156ae8090ed741ef8b5833ea43ec1837daa70416
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.argument.0: Marker = external1 direct
+      val $dependency.parameter.value: Marker
+        Type Marker
+        Local $dependency.argument.0
+      call $call.1: Marker = external2 direct
+        Type Marker
+        Local $dependency.parameter.value
+      call $call.2: Marker = external3 direct
+      call $argument.0: Boolean = external5 direct
+        Type Marker
+        Local $call.1
+        Type Marker
+        Local $call.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.3: Marker = external1 direct
+      val erased: Any
+        Type Any
+        Box
+          Type Marker
+          Local $call.3
+      val $cast.1: Any
+        Type Any
+        Local erased
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Marker
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.4
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external4 direct
+        Type ClassCastException
+        Local $new.4
+      throw
+        Type ClassCastException
+        Local $new.4
+    bb2 if.merge.2
+      val $ub.2: Marker
+        Type Marker
+        Unbox
+          Type Any
+          Local $cast.1
+      call $call.5: Marker = external3 direct
+      call $argument.0: Boolean = external5 direct
+        Type Marker
+        Local $ub.2
+        Type Marker
+        Local $call.5
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

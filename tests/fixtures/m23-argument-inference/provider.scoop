@@ -1,0 +1,66 @@
+package dependency.inference
+
+public fun <T> pack(vararg values: T): Array<T> = values
+public fun <T> whole(seed: T, vararg values: T): Array<T> = values
+public fun <T> empty(): Array<T> = []
+public fun <T> identity(value: T): T = value
+public fun <T> arrayOrSeed(values: Array<T>, seed: T): T = if (values.size == 0L) { seed } else { values[0L] }
+public fun <T> mutableOrSeed(values: MutableArray<T>, seed: T): T = if (values.size == 0L) { seed } else { values[0L] }
+public fun <T> prefer(value: Option<T>, seed: T): T = when (value) {
+    Some(inner) -> inner
+    None -> seed
+}
+public fun <T> applyTo(action: (T) -> Int, seed: T): Int = action(seed)
+public fun <T> viaReference(action: (T) -> T, seed: T): T = action(seed)
+public fun <T> referenceOnly(action: (T) -> T): Int = 42
+public fun <T> defaulted(values: Array<T> = []): Int = 42
+public fun <T, U> unused(values: Array<T>, seed: T): T = seed
+public fun <T : value> valueSeed(values: Array<T>, seed: T): T = seed
+public fun <A, B> two(left: Array<A>, right: Array<B>, first: A, second: B): A = first
+
+public struct Pair<T>(val values: Array<T>, val seed: T)
+public enum Choice<T> { Data(val values: Array<T>, val seed: T), Empty }
+public fun <T> choiceOrSeed(value: Choice<T>, seed: T): T = when (value) {
+    Data(values, inner) -> arrayOrSeed(values, inner)
+    Empty -> seed
+}
+
+public class Host<A> public constructor(public val value: A) {
+    public fun <T> select(values: Array<T>, seed: T): T = arrayOrSeed(values, seed)
+    public fun <T> transform(action: (T) -> A, seed: T): A = action(seed)
+}
+
+public fun <T> T.fromEmpty(values: Array<T>): T = arrayOrSeed(values, this)
+
+public fun <T> route(action: (T) -> Int, values: Array<T>, seed: T): Int = action(arrayOrSeed(values, seed))
+public fun route(action: (Int) -> Int, values: Array<Int>, seed: Int): Int = action(arrayOrSeed(values, seed)) + 1
+public fun <T> conflict(action: (T) -> T, values: Array<T>, left: T, right: Any): T = action(arrayOrSeed(values, left))
+public fun <T> conflict(action: (T) -> T, values: Array<T>, left: Any, right: T): T = action(arrayOrSeed(values, right))
+
+public var trace: Int = 0
+public fun mark(digit: Int): Int { trace = trace * 10 + digit; return 42 }
+public fun <T> deferredEmpty(digit: Int): Array<T> { mark(digit); return [] }
+public fun markedArray(digit: Int): Array<Int> = [mark(digit)]
+public fun <T> ordered(values: Array<T>, seed: T, after: Int = mark(3), copied: Array<T> = values): T {
+    mark(4)
+    return arrayOrSeed(copied, seed)
+}
+public fun <T> orderedPack(vararg values: T, after: Int = mark(4)): Array<T> {
+    mark(5)
+    return values
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val packed = pack(*[], seed)
+    val named = whole(values = [], seed = seed)
+    val pair = Pair([], seed)
+    val choice = Choice.Data([], seed)
+    val host = Host(seed)
+    val selected = prefer(None, seed)
+    val referenced = viaReference(::identity, seed)
+    if (packed.size != 1L || named.size != 0L || pair.values.size != 0L) { return 1 }
+    if (read(packed[0L]) != 42 || read(pair.seed) != 42) { return 2 }
+    if (read(choiceOrSeed(choice, seed)) != 42 || read(selected) != 42) { return 3 }
+    if (read(host.select([], seed)) != 42 || read(referenced) != 42) { return 4 }
+    return applyTo(read, arrayOrSeed(empty(), seed))
+}

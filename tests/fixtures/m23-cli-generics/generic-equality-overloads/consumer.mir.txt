@@ -1,0 +1,310 @@
+Module
+  struct Manual<Int> (payload: Int, number: Int)
+  struct Different<Int> (number: Int)
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      call left: Manual<Int> = @fn5 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $equality.lhs: Manual<Int>
+        Type Manual<Int>
+        Local left
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.receiver: Manual<Int>
+        Type Manual<Int>
+        Local $equality.lhs
+      call $dependency.argument.0: Manual<Int> = @fn5 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.parameter.other: Manual<Int>
+        Type Manual<Int>
+        Local $dependency.argument.0
+      call $call.1: Boolean = @fn2 direct
+        Type Manual<Int>
+        Local $dependency.receiver
+        Type Manual<Int>
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $equality.lhs: Manual<Int>
+        Type Manual<Int>
+        Local left
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.payload: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.receiver: Manual<Int>
+        Type Manual<Int>
+        Local $equality.lhs
+      call $dependency.argument.0: Manual<Int> = @fn5 direct
+        Type Int
+        Local $dependency.parameter.payload
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.parameter.other: Manual<Int>
+        Type Manual<Int>
+        Local $dependency.argument.0
+      call $shortCircuit.0: Boolean = @fn2 direct
+        Type Manual<Int>
+        Local $dependency.receiver
+        Type Manual<Int>
+        Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call derived: Different<Int> = @fn6 direct
+        Type Int
+        Local $dependency.parameter.number
+      val $equality.lhs: Different<Int>
+        Type Different<Int>
+        Local derived
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.2: Different<Int> = @fn6 direct
+        Type Int
+        Local $dependency.parameter.number
+      call $call.3: Boolean = @fn3 direct
+        Type Different<Int>
+        Local $equality.lhs
+        Type Different<Int>
+        Local $call.2
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
+    bb6 if.then.6
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      val $equality.lhs: Different<Int>
+        Type Different<Int>
+        Local derived
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.4: Different<Int> = @fn6 direct
+        Type Int
+        Local $dependency.parameter.number
+      call $shortCircuit.1: Boolean = @fn3 direct
+        Type Different<Int>
+        Local $equality.lhs
+        Type Different<Int>
+        Local $call.4
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $shortCircuit.1
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      val $dependency.receiver: Different<Int>
+        Type Different<Int>
+        Local derived
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Boolean = @fn4 direct
+        Type Different<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.other
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb11 if.then.11
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      val $dependency.receiver: Different<Int>
+        Type Different<Int>
+        Local derived
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call $shortCircuit.2: Boolean = @fn4 direct
+        Type Different<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.other
+      goto bb13
+    bb13 if.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $shortCircuit.2
+    bb14 if.then.14
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb15 if.merge.15
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun equals @fn2(this: Manual<Int>, other: Manual<Int>) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        FieldAccess 1
+          Type Manual<Int>
+          Local this
+      val $dependency.local.3: Int
+        Type Int
+        FieldAccess 1
+          Type Manual<Int>
+          Local other
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun $derived.equals.0 @fn3(this: Different<Int>, other: Different<Int>) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Different<Int>
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Different<Int>
+            Local other
+  fun equals @fn4(this: Different<Int>, other: Int) -> Boolean
+    bb0 entry
+      val $dependency.local.2: Int
+        Type Int
+        FieldAccess 0
+          Type Different<Int>
+          Local this
+      val $dependency.local.3: Int
+        Type Int
+        Local other
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+  fun ctor.Manual.$c0 @fn5(payload: Int, number: Int) -> Manual<Int> <no-gc>
+    bb0 entry
+      return
+        Type Manual<Int>
+        StructInit Manual<Int>
+          Type Int
+          Local payload
+          Type Int
+          Local number
+  fun ctor.Different.$c1 @fn6(number: Int) -> Different<Int> <no-gc>
+    bb0 entry
+      return
+        Type Different<Int>
+        StructInit Different<Int>
+          Type Int
+          Local number
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- equals
+  instance mi2 function=@fn4 <- equals
+  output library

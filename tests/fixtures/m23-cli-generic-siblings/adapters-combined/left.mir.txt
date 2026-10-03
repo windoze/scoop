@@ -1,0 +1,520 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Payload vtable=0 itables=0
+  class Marker<Int> vtable=0 itables=1
+  class Throwable vtable=0 itables=0
+  class Marker<Payload> vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  interface Readable
+  closure cc0 $Closure$adapter$(Any) -> Payload$(Payload) -> Any type=function_type0 invoke=@fn8 captures=1
+    bridge function_type1 -> @fn9 id=640488ba5fbf75926ffe2e0dfd4438717400492ff0509bfe04e9b083a0ba7495
+  generated_exact_type get0 location=closure0 nominal_id=420de768a9c0d917aecc4b475e7ea6ef08cc2110d6bf0ece587e6fcee24a6270 exact_id=46d99e9a8ff0a66debe46ff58b860e615c79013a83252f680ddfba83e73c64a0
+  generated_callable gc0 function=@fn9 id=640488ba5fbf75926ffe2e0dfd4438717400492ff0509bfe04e9b083a0ba7495
+  generated_callable gc1 function=@fn8 id=835a68c5f8d1f0071b3eb65c9b6ff53a1ce0d774622d3d3fb7be03ac41049efb
+  adapter ca0 class=cc0 source=function_type2 target=function_type0
+  fun action @fn0() -> (Payload) -> Any
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call external0 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.fail: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      call $dependency.argument.0: Payload = @fn3 direct
+        Type Payload
+        Local $dependency.parameter.value
+        Type Boolean
+        Local $dependency.parameter.fail
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      call $call.2: (Any) -> Payload = external1 direct
+        Type Payload
+        Local $dependency.parameter.value
+      return
+        Type (Payload) -> Any
+        ClosureAlloc cc0 $Closure$adapter$(Any) -> Payload$(Payload) -> Any
+          CaptureInit field=0
+            Type (Any) -> Payload
+            Local $call.2
+  fun dynamic @fn1() -> Any
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call external0 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      val $dependency.parameter.fail: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      call $dependency.argument.0: Payload = @fn3 direct
+        Type Payload
+        Local $dependency.parameter.value
+        Type Boolean
+        Local $dependency.parameter.fail
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      call $call.2: (Any) -> Payload = external1 direct
+        Type Payload
+        Local $dependency.parameter.value
+      return
+        Type Any
+        Retype Any
+          Type (Any) -> Payload
+          Local $call.2
+  fun sameType @fn2() -> Any
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Marker<Int>
+        ClassAlloc Marker<Int>
+      call @fn6 direct
+        Type Marker<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Any
+        Retype Any
+          Type Marker<Int>
+          Local $new.1
+  fun guarded @fn3(value: Payload, fail: Boolean) -> Payload
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb14 bb15
+        Type Boolean
+        IsInstance Throwable
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      val $dependency.local.7: Payload
+        Type Payload
+        Local value
+      val $dependency.local.8: Payload
+        Type Payload
+        Local $dependency.local.7
+      assign $new.11
+        Type Marker<Payload>
+        ClassAlloc Marker<Payload>
+      call @fn7 direct
+        Type Marker<Payload>
+        Local $new.11
+        Type Payload
+        Local $dependency.local.8
+      val $dependency.local.3: Marker<Payload>
+        Type Marker<Payload>
+        Local $new.11
+      val $dependency.local.9: Marker<Payload>
+        Type Marker<Payload>
+        Local $dependency.local.3
+      call $dependency.local.10: Int = @fn5 direct
+        Type Marker<Payload>
+        Local $dependency.local.9
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      branch bb22 bb23
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.10
+            Type Int
+            Local $dependency.local.12
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      unreachable
+    bb8 try.body.8 unwind bb1
+      branch bb9 bb10
+        Type Boolean
+        Local fail
+    bb9 if.then.9 unwind bb1
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      val $dependency.local.6: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.5
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.local.6
+      throw unwind bb1
+        Type IllegalStateException
+        Local $new.1
+    bb10 if.merge.10 unwind bb1
+      val $return.2: Payload
+        Type Payload
+        Local value
+      goto bb11
+    bb11 scope.11
+      val $dependency.local.7: Payload
+        Type Payload
+        Local value
+      val $dependency.local.8: Payload
+        Type Payload
+        Local $dependency.local.7
+      assign $new.3
+        Type Marker<Payload>
+        ClassAlloc Marker<Payload>
+      call @fn7 direct
+        Type Marker<Payload>
+        Local $new.3
+        Type Payload
+        Local $dependency.local.8
+      val $dependency.local.3: Marker<Payload>
+        Type Marker<Payload>
+        Local $new.3
+      val $dependency.local.9: Marker<Payload>
+        Type Marker<Payload>
+        Local $dependency.local.3
+      call $dependency.local.10: Int = @fn5 direct
+        Type Marker<Payload>
+        Local $dependency.local.9
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      branch bb12 bb13
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.10
+            Type Int
+            Local $dependency.local.12
+    bb12 if.then.12
+      val $dependency.local.13: String
+        Type String
+        StringConst @str1
+      val $dependency.local.14: String
+        Type String
+        Local $dependency.local.13
+      val $dependency.local.15: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.14
+      assign $new.4
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.4
+        Type Option<String>
+        Local $dependency.local.15
+      throw
+        Type IllegalStateException
+        Local $new.4
+    bb13 if.merge.13
+      return
+        Type Payload
+        Local $return.2
+    bb14 try.catch.14
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $dependency.local.2: Throwable
+        Type Throwable
+        Retype Throwable
+          Type Any
+          Local $catch.5
+      goto bb16
+    bb15 try.next.15 unwind bb5
+      val $dependency.local.7: Payload
+        Type Payload
+        Local value
+      val $dependency.local.8: Payload
+        Type Payload
+        Local $dependency.local.7
+      assign $new.9
+        Type Marker<Payload>
+        ClassAlloc Marker<Payload>
+      call @fn7 direct
+        Type Marker<Payload>
+        Local $new.9
+        Type Payload
+        Local $dependency.local.8
+      val $dependency.local.3: Marker<Payload>
+        Type Marker<Payload>
+        Local $new.9
+      val $dependency.local.9: Marker<Payload>
+        Type Marker<Payload>
+        Local $dependency.local.3
+      call $dependency.local.10: Int = @fn5 direct
+        Type Marker<Payload>
+        Local $dependency.local.9
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      branch bb20 bb21
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.10
+            Type Int
+            Local $dependency.local.12
+    bb16 scope.16 unwind bb3
+      val $return.6: Payload
+        Type Payload
+        Local value
+      end_catch
+      goto bb17
+    bb17 scope.17
+      val $dependency.local.7: Payload
+        Type Payload
+        Local value
+      val $dependency.local.8: Payload
+        Type Payload
+        Local $dependency.local.7
+      assign $new.7
+        Type Marker<Payload>
+        ClassAlloc Marker<Payload>
+      call @fn7 direct
+        Type Marker<Payload>
+        Local $new.7
+        Type Payload
+        Local $dependency.local.8
+      val $dependency.local.3: Marker<Payload>
+        Type Marker<Payload>
+        Local $new.7
+      val $dependency.local.9: Marker<Payload>
+        Type Marker<Payload>
+        Local $dependency.local.3
+      call $dependency.local.10: Int = @fn5 direct
+        Type Marker<Payload>
+        Local $dependency.local.9
+      val $dependency.local.11: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      branch bb18 bb19
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.10
+            Type Int
+            Local $dependency.local.12
+    bb18 if.then.18
+      val $dependency.local.13: String
+        Type String
+        StringConst @str1
+      val $dependency.local.14: String
+        Type String
+        Local $dependency.local.13
+      val $dependency.local.15: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.14
+      assign $new.8
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.8
+        Type Option<String>
+        Local $dependency.local.15
+      throw
+        Type IllegalStateException
+        Local $new.8
+    bb19 if.merge.19
+      return
+        Type Payload
+        Local $return.6
+    bb20 if.then.20 unwind bb5
+      val $dependency.local.13: String
+        Type String
+        StringConst @str1
+      val $dependency.local.14: String
+        Type String
+        Local $dependency.local.13
+      val $dependency.local.15: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.14
+      assign $new.10
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.10
+        Type Option<String>
+        Local $dependency.local.15
+      throw unwind bb5
+        Type IllegalStateException
+        Local $new.10
+    bb21 if.merge.21 unwind bb5
+      rethrow unwind bb5
+    bb22 if.then.22
+      val $dependency.local.13: String
+        Type String
+        StringConst @str1
+      val $dependency.local.14: String
+        Type String
+        Local $dependency.local.13
+      val $dependency.local.15: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $dependency.local.14
+      assign $new.12
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.12
+        Type Option<String>
+        Local $dependency.local.15
+      throw
+        Type IllegalStateException
+        Local $new.12
+    bb23 if.merge.23
+      resume
+  fun read @fn4(this: Marker<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun read @fn5(this: Marker<Payload>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun init.Marker.$c0 @fn6(this: Marker<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Marker<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Marker.$c0 @fn7(this: Marker<Payload>, value: Payload) -> Unit
+    bb0 entry
+      field_set 0
+        Type Marker<Payload>
+        Local this
+        Type Payload
+        Local value
+      return
+  fun $adapter.(Any) -> Payload.(Payload) -> Any @fn8($closure: (Payload) -> Any, arg0: Payload) -> Any
+    bb0 entry
+      call $call.1: Payload = <closure:function_type2> closure[function_type2]
+        Type (Any) -> Payload
+        ClosureCapture cc0 0
+          Type (Payload) -> Any
+          Local $closure
+        Type Any
+        Retype Any
+          Type Payload
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Payload
+          Local $call.1
+  fun function_bridge.$Closure$adapter$(Any) -> Payload$(Payload) -> Any.(Any) -> Any @fn9($source: (Payload) -> Any, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Any = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Any
+        Local $source
+        Type Payload
+        Retype Payload
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  instance mi0 function=@fn3 <- guarded
+  instance mi1 function=@fn4 <- read
+  instance mi2 function=@fn5 <- read
+  str @str0 "illegal state"
+  str @str1 "illegal state"
+  output library

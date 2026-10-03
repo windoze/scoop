@@ -1,0 +1,92 @@
+SourceFile
+  QualifiedPackage consumer.valuelayouts
+  ImportStar Local upstream.valuelayouts.*
+  private struct Local<T>
+    field payload: T
+  private struct Mixed
+    field value: Local<Wrapper<Phantom<Mixed>>>
+  private enum Nested
+    End
+    Next(Local<Reference<Nested>>)
+  private fun consume(value: Mixed): Int
+    =
+      IntLiteral 42
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val mixed
+      Call Mixed
+        Call Local
+          Call Wrapper
+            Call Phantom<Mixed>
+    if
+      Binary Ne
+        Call consume
+          Var mixed
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val tail: Nested
+      FieldAccess End
+        Var Nested
+    val nested
+      MethodCall Next
+        Var Nested
+        Call Local
+          Call Reference
+            Call Link
+              Var tail
+    val ended: Boolean
+      WhenExpression
+        Var nested
+        arm Next(local)
+          WhenExpression
+            FieldAccess value
+              FieldAccess link
+                FieldAccess payload
+                  Var local
+            arm End
+              BoolLiteral true
+            arm Next(next)
+              BoolLiteral false
+        arm End
+          BoolLiteral false
+    if
+      Unary Not
+        Var ended
+      return
+        IntLiteral 2
+    val receiver: Readable<T>
+      FieldAccess payload
+        Call Local
+          Call Wrapper
+            Var seed
+    return
+      Call read
+        MethodCall get
+          Var receiver
+  public fun result(): Int
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 0 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 1 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 2 suspend=false
+          param item: _
+          Var item

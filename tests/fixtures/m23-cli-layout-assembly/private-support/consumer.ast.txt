@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public fun consume(value: Exposed): Token
+    =
+      MethodCall echo
+        Var value
+        Call keep
+          Call Token

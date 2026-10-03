@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-integers/errors/literal-unsigned-overflow.scoop:3:31: error: integer literal magnitude `18446744073709551616uL` is out of range for u64

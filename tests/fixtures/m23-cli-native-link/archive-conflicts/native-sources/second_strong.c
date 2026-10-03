@@ -1,0 +1,1 @@
+int m23_add(int x, int y) { return x + y; } int helper(void) { return 0; }

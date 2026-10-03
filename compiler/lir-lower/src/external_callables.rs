@@ -1,0 +1,132 @@
+//! Shared materialization of every external MIR callable root.
+
+use std::collections::HashMap;
+
+use la_arena::Arena;
+use scoop_lir as lir;
+use scoop_mir as mir;
+
+use crate::{LirLoweringError as Error, LoweringContext, abi};
+
+pub(super) fn lower_external_callables(
+    context: &LoweringContext,
+    input: &mir::ConeMirInput,
+    selected: &lir::SelectedExternalLirSet,
+    layouts: Option<&lir::StrongProductionDependencySelectionV2<'_>>,
+    structs: &lir::StructDefs,
+    enums: &lir::EnumDefs,
+) -> Result<
+    (
+        Arena<lir::ExternalCallable>,
+        HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
+    ),
+    Error,
+> {
+    let roots = input.materialization().external_callable_roots();
+    if selected.consumer() != input.module().cone {
+        return Err(Error::ForeignExternalLirSelection {
+            expected: input.module().cone,
+            actual: selected.consumer(),
+        });
+    }
+    if selected.len() > roots.len() || (layouts.is_none() && selected.len() != roots.len()) {
+        return Err(Error::ExternalCallableCountMismatch {
+            mir: roots.len(),
+            lir: selected.len(),
+        });
+    }
+
+    let module = input.module();
+    let mut callables = Arena::new();
+    let mut mapping = HashMap::with_capacity(roots.len());
+    let mut direct_count = 0;
+    for (index, root) in roots.iter().enumerate() {
+        let provider = root.provider();
+        let target = root.implementation();
+        let exact_arguments = root
+            .signature()
+            .receiver()
+            .into_option()
+            .into_iter()
+            .chain(root.signature().parameters().iter().copied());
+        let parameters = exact_arguments
+            .enumerate()
+            .map(|(argument, exact)| {
+                physical_type(module, exact).ok_or(Error::MissingExternalArgumentType {
+                    index,
+                    argument,
+                    exact,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let result = physical_type(module, root.signature().result()).ok_or(
+            Error::MissingExternalResultType {
+                index,
+                exact: root.signature().result(),
+            },
+        )?;
+        let signature =
+            abi::classify_mir_signature(context, parameters.iter(), &result, structs, enums)?;
+        let callable = if let Some(direct) = selected.callable_by_target(provider, target) {
+            direct_count += 1;
+            direct
+                .materialize(signature)
+                .map_err(Error::ExternalCallable)?
+        } else {
+            layouts
+                .ok_or(Error::MissingExternalCallable {
+                    index,
+                    provider,
+                    target,
+                })?
+                .materialize_callable(provider, target, signature)
+                .map_err(Error::DependencyLayout)?
+        };
+        if callable.canonical_signature().signature() != root.signature() {
+            return Err(Error::ExternalCallableMismatch {
+                index,
+                provider,
+                target,
+            });
+        }
+        let expected_gc = match root.gc_effect() {
+            mir::GcEffect::Managed => scoop_identity::GcEffect::Managed,
+            mir::GcEffect::NoGc => scoop_identity::GcEffect::NoGc,
+        };
+        if callable.canonical_signature().gc_effect() != expected_gc
+            || callable.root_plan().canonical_gc_effect() != expected_gc
+        {
+            return Err(Error::ExternalCallableGcEffectMismatch {
+                index,
+                provider,
+                target,
+                mir: root.gc_effect(),
+                lir: callable.canonical_signature().gc_effect(),
+            });
+        }
+        let lir_id = callables.alloc(callable);
+        mapping.insert(root.callable(), lir_id);
+    }
+    if direct_count != selected.len() {
+        return Err(Error::ExternalCallableCountMismatch {
+            mir: direct_count,
+            lir: selected.len(),
+        });
+    }
+    Ok((callables, mapping))
+}
+
+fn physical_type(
+    module: &mir::Module,
+    exact: scoop_identity::PersistentExactTypeId,
+) -> Option<mir::Type> {
+    if let Some(source) = module.meta.source_exact_types.get_by_identity(exact) {
+        return Some(source.ty().clone());
+    }
+    let generated = module.meta.generated_exact_types.get_by_identity(exact)?;
+    match generated.location() {
+        mir::GeneratedExactTypeLocation::Class(class) => Some(mir::Type::Class(class)),
+        mir::GeneratedExactTypeLocation::Enum(enum_) => Some(mir::Type::Enum(enum_, Vec::new())),
+        mir::GeneratedExactTypeLocation::Closure(_) => None,
+    }
+}

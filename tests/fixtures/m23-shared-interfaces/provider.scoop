@@ -1,0 +1,16 @@
+package upstream.interfaces
+
+public interface Values<A, B> {
+    public val first: A
+    public var second: B
+    public fun total(left: (A) -> Int, right: (B) -> Int): Int =
+        left(this.first) + right(this.second)
+}
+
+public class Remote<A, B> public constructor(private val a: A, private var b: B): Values<A, B> {
+    public override val first: A
+        get() = this.a
+    public override var second: B
+        get() = this.b
+        set(value) { this.b = value }
+}

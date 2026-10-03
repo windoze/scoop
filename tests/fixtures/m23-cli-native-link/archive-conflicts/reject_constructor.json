@@ -1,0 +1,12 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "native object 181c3dc0b6a3e08143994c292b454e044973d491aedec5375fb45846000cf2bf-member-1-668 selected by _helper <- native object 181c3dc0b6a3e08143994c292b454e044973d491aedec5375fb45846000cf2bf-member-0-8 selected by _m23_add <- Cone dev.programlink:archive:0.1.0 member 264b89b1182212490e7ec904e0d4b960f265b87dbfe5e95b11d2f286c1a75464 (${work}/native/libm23_math.a): native object contains forbidden initialization or LTO section __mod_init_func",
+    "notes": [],
+    "origin": {
+      "kind": "none"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

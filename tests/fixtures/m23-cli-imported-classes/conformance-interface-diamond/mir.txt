@@ -1,0 +1,468 @@
+Module
+  struct LocalValue ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LocalValue>
+    Completed(value: LocalValue)
+    Suspended()
+  enum CoroutineSlot<LocalValue>
+    Empty()
+    Value(value: LocalValue)
+  enum CoroutineStep<LocalRight>
+    Completed(value: LocalRight)
+    Suspended()
+  enum CoroutineSlot<LocalRight>
+    Empty()
+    Value(value: LocalRight)
+  enum CoroutineStep<LocalLeft>
+    Completed(value: LocalLeft)
+    Suspended()
+  enum CoroutineSlot<LocalLeft>
+    Empty()
+    Value(value: LocalLeft)
+  enum CoroutineStep<LocalReader>
+    Completed(value: LocalReader)
+    Suspended()
+  enum CoroutineSlot<LocalReader>
+    Empty()
+    Value(value: LocalReader)
+  class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<LocalValue> vtable=0 itables=5
+  interface LocalReader : LocalLeft, LocalRight
+  interface LocalLeft : ChildReader
+  interface ChildReader : ParentReader
+  interface ParentReader
+  interface LocalRight : ChildReader
+  interface Continuation<LocalValue>
+  interface SuspendTask<LocalValue>
+  interface SuspendRegistration<LocalValue>
+  interface Continuation<LocalReader>
+  interface SuspendTask<LocalReader>
+  interface SuspendRegistration<LocalReader>
+  interface Continuation<LocalLeft>
+  interface SuspendTask<LocalLeft>
+  interface SuspendRegistration<LocalLeft>
+  interface Continuation<LocalRight>
+  interface SuspendTask<LocalRight>
+  interface SuspendRegistration<LocalRight>
+  generated_exact_type get0 location=enum8 nominal_id=ccce0b3879ae2a71bc6c0e02b6a89ef19f20c1e18dcdb2c0eed5ebd3e2020dc6 exact_id=088864f5041f76c7200e6b8a144fcc87e853ff1cf168249fadd43becfd882b9a
+  generated_exact_type get1 location=enum3 nominal_id=26409f325f7e8103a81ced9dd342d9fb9b74cc4ec649b2dab77749403be816cc exact_id=18ec70519eb34a64853e8287d8d41a2778ece5ea61ff1d25c58006c84cf50ad6
+  generated_exact_type get2 location=enum7 nominal_id=a9871a4d0398b38880e94504d3e8b19fbc82f86f01e06a4f30822962970285db exact_id=28b550c1b693441e3327b84556b66717dcc850f5de037acf461f8716d2d423dd
+  generated_exact_type get3 location=enum4 nominal_id=261cc983cafda07658dda00fd730114230ecb204def4e8cbf1e7a181766fc9de exact_id=2fa2d1fbd5eab6e31f5ecb3a2b1a7865d84c0b8674af821e50ae47178e31aefc
+  generated_exact_type get4 location=enum2 nominal_id=44afed0f572445250e17bb51750395729cc78ccd7627ca42dd4e00de34205996 exact_id=31129e87c09f757b4cacd01699adf9b4d371534e7b287f4545de22cf9969328a
+  generated_exact_type get5 location=enum5 nominal_id=13a2c75093a5908ab75182de1b3d5bcde504a6d7fab17f13f5b15bdedcf162dd exact_id=b103fc884b2c0b5660fc8bce4c89082e45764b1159eeaa9ce8d76724ba312533
+  generated_exact_type get6 location=class4 nominal_id=b4a17d8aae30d8da03046d0e1052e12491a1314d38857dee73d70ddd8f215ef2 exact_id=bd07171fc581e708c09102bac0ee890abc8e915ed906e52aec5ac0235e377190
+  generated_exact_type get7 location=enum1 nominal_id=95672fdb1ecd561bed67de0031f4fbdaa164aca7839027fae4968f865279143f exact_id=ca2aa9d4b929b3c0d2d258f126ef77579e3fcbc38223e321416adf443c985164
+  generated_exact_type get8 location=enum6 nominal_id=e61821e0aad242de953cf5e9ddd13b14c3eba046bfa8d7d801006b1b21d66f44 exact_id=f06c9c5c8c03aa23f51d0d9658221b0e5f6805e72885bd6d756743ce1f371e71
+  generated_callable gc0 function=@fn29 id=0661cfac0d159c96c3f0bdce6eb2b53bdcc38e6a85294dc19b4fb399aa9df1d8
+  generated_callable gc1 function=@fn28 id=0cb7da068aabce6edf0d5b058c96a8ec74de56a428f4d565647fcf61bb653d8a
+  generated_callable gc2 function=@fn26 id=1e274233555e47d8fdb89811a6da89e0346922db5866f4be3d75462faea17069
+  generated_callable gc3 function=@fn32 id=4477998ec797b777d08f5f466f5f87bd0deef7378f44326b23986cd91c28e665
+  generated_callable gc4 function=@fn22 id=4b7888d747b1cfdd0a85e40fb72ec9596a391b0daa5d859f234bd94463290d66
+  generated_callable gc5 function=@fn27 id=5562540e4362afa9555def236648926cad0348e0a58131a4e82b2bcba1ab4bbc
+  generated_callable gc6 function=@fn31 id=6dfaa647cb7391b09bdbbd425ba2e65e65852824893ae39260dda87e7cc4aa65
+  generated_callable gc7 function=@fn25 id=73b7f006b147b0e58fe8daaccefab9160460a8f965bd2f8b566ca57bcc4eccb2
+  generated_callable gc8 function=@fn33 id=794fbb4e9e523a1543ab8740eb670cf0d9d449b34e2887ae9024faae966ecb11
+  generated_callable gc9 function=@fn23 id=a5e4ac4b41bd520fa2ada6a5b202a3e0d3d5f49a407abcd91e99a7168898dab1
+  generated_callable gc10 function=@fn30 id=ca5049313709952eef12a4c166bc2c49e4f595a04b3d97a8eb9d2f74c08d8e1c
+  generated_callable gc11 function=@fn21 id=cbf62b30d62416be8cb1f4a7b82fa608dcb822cbf291d6019570d63344fb4455
+  generated_callable gc12 function=@fn24 id=dce2acb87d1f7fceda7d54a73dc9decde8244701bc1a011d41f06363bfe26776
+  fun LocalValue.equals @fn0(this: LocalValue, other: LocalValue) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun localReader @fn1() -> LocalReader
+    bb0 entry
+      call $call.1: LocalValue = @fn20 direct
+      return
+        Type LocalReader
+        Box
+          Type LocalValue
+          Local $call.1
+  fun primary @fn2() -> Counter
+    bb0 entry
+      call $receiver: LocalReader = @fn1 direct
+      call $dependency.receiver: Long = @fn19 interface LocalReader[1]
+        Type LocalReader
+        Local $receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  fun Continuation.resume @fn3(this: Continuation<LocalValue>, value: LocalValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<LocalValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<LocalValue>, $completion: Continuation<LocalValue>) -> CoroutineStep<LocalValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<LocalValue>, continuation: Continuation<LocalValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn7(this: Continuation<LocalReader>, value: LocalReader) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<LocalReader>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<LocalReader>, $completion: Continuation<LocalReader>) -> CoroutineStep<LocalReader>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<LocalReader>, continuation: Continuation<LocalReader>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<LocalLeft>, value: LocalLeft) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<LocalLeft>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<LocalLeft>, $completion: Continuation<LocalLeft>) -> CoroutineStep<LocalLeft>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<LocalLeft>, continuation: Continuation<LocalLeft>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<LocalRight>, value: LocalRight) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<LocalRight>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<LocalRight>, $completion: Continuation<LocalRight>) -> CoroutineStep<LocalRight>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<LocalRight>, continuation: Continuation<LocalRight>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun LocalReader.child @fn19(this: LocalReader) -> Long
+    bb0 entry
+      return
+        Type Long
+        IntegerLiteral Long value=19 bits=0x0000000000000013
+  fun ctor.LocalValue.$c0 @fn20() -> LocalValue <no-gc>
+    bb0 entry
+      return
+        Type LocalValue
+        StructInit LocalValue
+  fun startCoroutine<LocalValue> @fn21(task: SuspendTask<LocalValue>, completion: Continuation<LocalValue>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<LocalValue>[0]
+        Type Continuation<LocalValue>
+        Local completion
+        Type LocalValue
+        EnumField v0 f0
+          Type CoroutineStep<LocalValue>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<LocalValue>[1]
+        Type Continuation<LocalValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalValue> = @fn5 interface SuspendTask<LocalValue>[0]
+        Type SuspendTask<LocalValue>
+        Local task
+        Type Continuation<LocalValue>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocalRight> @fn22(task: SuspendTask<LocalRight>, completion: Continuation<LocalRight>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<LocalRight>[0]
+        Type Continuation<LocalRight>
+        Local completion
+        Type LocalRight
+        EnumField v0 f0
+          Type CoroutineStep<LocalRight>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<LocalRight>[1]
+        Type Continuation<LocalRight>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalRight> = @fn17 interface SuspendTask<LocalRight>[0]
+        Type SuspendTask<LocalRight>
+        Local task
+        Type Continuation<LocalRight>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalRight>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocalLeft> @fn23(task: SuspendTask<LocalLeft>, completion: Continuation<LocalLeft>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<LocalLeft>[0]
+        Type Continuation<LocalLeft>
+        Local completion
+        Type LocalLeft
+        EnumField v0 f0
+          Type CoroutineStep<LocalLeft>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<LocalLeft>[1]
+        Type Continuation<LocalLeft>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalLeft> = @fn13 interface SuspendTask<LocalLeft>[0]
+        Type SuspendTask<LocalLeft>
+        Local task
+        Type Continuation<LocalLeft>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalLeft>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocalReader> @fn24(task: SuspendTask<LocalReader>, completion: Continuation<LocalReader>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<LocalReader>[0]
+        Type Continuation<LocalReader>
+        Local completion
+        Type LocalReader
+        EnumField v0 f0
+          Type CoroutineStep<LocalReader>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<LocalReader>[1]
+        Type Continuation<LocalReader>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalReader> = @fn9 interface SuspendTask<LocalReader>[0]
+        Type SuspendTask<LocalReader>
+        Local task
+        Type Continuation<LocalReader>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalReader>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<LocalValue> LocalReader.parent() @fn25(this: LocalReader) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type ParentReader
+        Retype ParentReader
+          Type LocalReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> LocalReader.child() @fn26(this: LocalReader) -> Long
+    bb0 entry
+      call $call.1: Long = @fn19 direct
+        Type LocalReader
+        Retype LocalReader
+          Type LocalReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> LocalLeft.parent() @fn27(this: LocalLeft) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type ParentReader
+        Retype ParentReader
+          Type LocalLeft
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> LocalLeft.child() @fn28(this: LocalLeft) -> Long
+    bb0 entry
+      call $call.1: Long = @fn19 direct
+        Type LocalReader
+        Retype LocalReader
+          Type LocalLeft
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> ChildReader.parent() @fn29(this: ChildReader) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type ParentReader
+        Retype ParentReader
+          Type ChildReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> ChildReader.child() @fn30(this: ChildReader) -> Long
+    bb0 entry
+      call $call.1: Long = @fn19 direct
+        Type LocalReader
+        Retype LocalReader
+          Type ChildReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> ParentReader.parent() @fn31(this: ParentReader) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type ParentReader
+        Retype ParentReader
+          Type ParentReader
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> LocalRight.parent() @fn32(this: LocalRight) -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+        Type ParentReader
+        Retype ParentReader
+          Type LocalRight
+          Local this
+      return
+        Type Long
+        Local $call.1
+  fun thunk<LocalValue> LocalRight.child() @fn33(this: LocalRight) -> Long
+    bb0 entry
+      call $call.1: Long = @fn19 direct
+        Type LocalReader
+        Retype LocalReader
+          Type LocalRight
+          Local this
+      return
+        Type Long
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<LocalValue> result=LocalValue
+  coroutine_step cs1 CoroutineStep<LocalRight> result=LocalRight
+  coroutine_step cs2 CoroutineStep<LocalLeft> result=LocalLeft
+  coroutine_step cs3 CoroutineStep<LocalReader> result=LocalReader
+  coroutine_slot cl0 CoroutineSlot<LocalValue> value=LocalValue
+  coroutine_slot cl1 CoroutineSlot<LocalRight> value=LocalRight
+  coroutine_slot cl2 CoroutineSlot<LocalLeft> value=LocalLeft
+  coroutine_slot cl3 CoroutineSlot<LocalReader> value=LocalReader
+  coroutine_start ct0 result=LocalValue function=fn21
+  coroutine_start ct1 result=LocalRight function=fn22
+  coroutine_start ct2 result=LocalLeft function=fn23
+  coroutine_start ct3 result=LocalReader function=fn24
+  coroutine_fn cf0 @fn5 source_return=LocalValue step=cs0 immediate
+  coroutine_fn cf1 @fn9 source_return=LocalReader step=cs3 immediate
+  coroutine_fn cf2 @fn13 source_return=LocalLeft step=cs2 immediate
+  coroutine_fn cf3 @fn17 source_return=LocalRight step=cs1 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  instance mi4 function=@fn7 <- Continuation.resume
+  instance mi5 function=@fn8 <- Continuation.resumeWithException
+  instance mi6 function=@fn9 <- SuspendTask.run
+  instance mi7 function=@fn10 <- SuspendRegistration.register
+  instance mi8 function=@fn11 <- Continuation.resume
+  instance mi9 function=@fn12 <- Continuation.resumeWithException
+  instance mi10 function=@fn13 <- SuspendTask.run
+  instance mi11 function=@fn14 <- SuspendRegistration.register
+  instance mi12 function=@fn15 <- Continuation.resume
+  instance mi13 function=@fn16 <- Continuation.resumeWithException
+  instance mi14 function=@fn17 <- SuspendTask.run
+  instance mi15 function=@fn18 <- SuspendRegistration.register
+  output library

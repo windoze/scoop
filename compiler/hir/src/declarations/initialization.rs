@@ -1,11 +1,12 @@
 use super::*;
 
-/// One compiler-managed exactly-once initialization action. The stable key is
-/// independent from arena order and link symbols; dependencies contain only
-/// direct source initializer reads validated by HIR lowering.
+/// One compiler-managed exactly-once initialization action. Its persistent
+/// identity is derived after concretization; `display_name` is diagnostic
+/// decoration only. Dependencies contain only direct source initializer reads
+/// validated by HIR lowering.
 #[derive(Debug, Clone)]
 pub struct InitializationUnit {
-    pub stable_key: String,
+    pub display_name: String,
     pub schedule: InitializationSchedule,
     pub kind: InitializationUnitKind,
     pub initializer: FunctionId,
@@ -25,6 +26,10 @@ pub enum InitializationSchedule {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationUnitKind {
+    GenericDelegatedExtension {
+        property: PropertyId,
+        template: GenericDelegateTemplateId,
+    },
     EagerTopLevel {
         property: PropertyId,
         storage: GlobalId,

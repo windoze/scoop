@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "struct `Cell` has no field `missing`",
+    "notes": [],
+    "origin": {
+      "cone": "d92c8b2c209d9063a90a811f4eac245cae26b3377937f90e04675f1c425743a9",
+      "end": 136,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 129
+    },
+    "severity": "error"
+  }
+]

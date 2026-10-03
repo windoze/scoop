@@ -1,0 +1,179 @@
+use inkwell::context::Context;
+use inkwell::module::Linkage;
+use inkwell::targets::TargetData;
+use scoop_identity::DefinitionAtomRole;
+use scoop_lir::{ObjectSymbolSurfaceV1, StrongDefinitionRole};
+
+use super::*;
+
+#[test]
+fn reference_array_scan_children_belong_to_their_primary_atom() {
+    let mut module = super::objects::classes_module();
+    array_type(
+        &mut module.meta,
+        "Array<Reference>",
+        scoop_lir::ArrayKind::Immutable,
+        MANAGED_PTR,
+        8,
+        8,
+        RefScan::References(vec![0]),
+    );
+    let ir = ir_of(&module);
+    assert!(!ir.contains(".element"), "{ir}");
+    assert!(!ir.contains(".part."), "{ir}");
+    let output = std::env::temp_dir().join(format!(
+        "scoop_codegen_array_scan_atoms_{}.o",
+        std::process::id()
+    ));
+    write_verified_test_object(&module, &output);
+    std::fs::remove_file(output).unwrap();
+}
+
+#[test]
+fn emits_every_canonical_global_shape_atom_and_boundary() {
+    let module = super::objects::classes_module();
+    let foundation = scoop_lir::ConeLirFoundation::from_module(&module)
+        .expect("test module has a strong foundation");
+    let surface = ObjectSymbolSurfaceV1::from_foundation(&foundation)
+        .expect("test module has a canonical symbol surface");
+    let context = Context::create();
+    let llvm = context.create_module("strong-shapes");
+    let target_data = TargetData::create(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64.canonical_llvm_data_layout(),
+    );
+    let descriptor_type =
+        runtime_metadata_v1::RuntimeMetadataV1Types::new(&context).type_descriptor();
+    let type_globals = module
+        .meta
+        .type_descriptors
+        .iter()
+        .map(|(_, descriptor)| {
+            let global = llvm.add_global(descriptor_type, None, descriptor.identity.symbol());
+            global.set_linkage(Linkage::External);
+            global.set_constant(true);
+            global
+        })
+        .collect::<Vec<_>>();
+    let external_type_globals = module
+        .meta
+        .external_type_descriptors
+        .iter()
+        .map(|(_, descriptor)| {
+            let global = llvm.add_global(
+                descriptor_type,
+                None,
+                descriptor.expected_symbol().symbol().as_str(),
+            );
+            global.set_linkage(Linkage::External);
+            global
+        })
+        .collect::<Vec<_>>();
+    for function in &module.functions {
+        let function = llvm.add_function(
+            function.symbol(),
+            context.ptr_type(inkwell::AddressSpace::from(1u16)).fn_type(
+                &[context.ptr_type(inkwell::AddressSpace::from(1u16)).into()],
+                false,
+            ),
+            None,
+        );
+        function.set_linkage(Linkage::External);
+    }
+
+    shape_definitions::emit_strong_shape_definitions_v1(
+        &context,
+        &llvm,
+        &target_data,
+        &surface,
+        &module,
+        TypeDescriptorGlobals {
+            local: &type_globals,
+            external: &external_type_globals,
+        },
+    )
+    .expect("emit canonical strong shape definitions");
+    llvm.verify().expect("valid shape LLVM module");
+
+    let ir = llvm.print_to_string().to_string();
+    let shape_roles = [
+        StrongDefinitionRole::TypeDescriptor,
+        StrongDefinitionRole::Layout,
+        StrongDefinitionRole::ScanProgram,
+        StrongDefinitionRole::DispatchTable,
+    ];
+    for plan in surface
+        .plans()
+        .iter()
+        .filter(|plan| shape_roles.contains(&plan.definition_role()))
+    {
+        let symbol = plan.primary_symbol().symbol();
+        let global = llvm.get_global(symbol.as_str());
+        assert!(
+            global.is_some(),
+            "missing primary shape definition `{symbol}`\n{ir}"
+        );
+        if plan.definition_role() == StrongDefinitionRole::Layout {
+            assert_eq!(
+                global.unwrap().get_alignment(),
+                8,
+                "layout definition `{symbol}` must carry its verifier-required alignment"
+            );
+        }
+        for boundary in plan.atom_boundaries() {
+            for symbol in [boundary.start().symbol(), boundary.end().symbol()] {
+                assert!(
+                    ir.contains(&format!("@\"{symbol}\" = alias")),
+                    "missing boundary alias `{symbol}`\n{ir}"
+                );
+            }
+        }
+    }
+    assert_eq!(
+        surface
+            .plans()
+            .iter()
+            .filter(|plan| plan.definition_role() == StrongDefinitionRole::TypeDescriptor)
+            .flat_map(|plan| plan.atom_boundaries())
+            .filter(|boundary| boundary.atom_role() == DefinitionAtomRole::RuntimeRecord)
+            .count(),
+        1,
+        "the one nonempty itable directory must have a typed atom boundary"
+    );
+    assert!(!ir.contains(".object_scan = private"), "{ir}");
+    assert!(!ir.contains(".vtable = private"), "{ir}");
+}
+
+#[test]
+fn rejects_array_descriptor_without_its_exact_element_scan_definition() {
+    let mut module = values_module();
+    let array = array_type(
+        &mut module.meta,
+        "ArrayRefShape",
+        scoop_lir::ArrayKind::Immutable,
+        MANAGED_PTR,
+        8,
+        8,
+        RefScan::References(vec![0]),
+    );
+    module.meta.arrays[array].layout = scoop_lir::ArrayLayoutV1::new(
+        module.meta.target_profile,
+        scoop_lir::ArrayElementStorageV1::inline(8, 8, RefScan::None).unwrap(),
+    )
+    .unwrap();
+
+    let validation_error = validation::validate_module(&module)
+        .expect_err("array metadata and descriptor shape must agree before emission");
+    assert!(
+        validation_error
+            .0
+            .contains("does not match its closed element size, alignment, and scan shape"),
+        "{validation_error}"
+    );
+
+    let error = try_strong_shape_ir_of(&module)
+        .expect_err("descriptor inline scans require a nonempty typed LIR scan definition");
+    assert!(
+        error.0.contains("references empty typed inline scan"),
+        "{error}"
+    );
+}

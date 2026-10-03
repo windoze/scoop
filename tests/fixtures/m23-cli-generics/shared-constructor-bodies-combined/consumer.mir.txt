@@ -1,0 +1,1640 @@
+Module
+  struct Pair<Int, Unit> (value: Int, serial: Int)
+  struct Reader<Int, String> (content: Int, serial: Int)
+  struct Reader<Int, Int> (content: Int, serial: Int)
+  struct CurrentPair<Built<Int, String>, Unit> (value: Built<Int, String>)
+  class Trace vtable=0 itables=0
+  class Built<Int, String> vtable=0 itables=0
+  class Base<Int, String> vtable=0 itables=0
+  class Built<Int, Int> vtable=0 itables=0
+  class Base<Int, Int> vtable=0 itables=0
+  class Terminal<Int, Unit> vtable=0 itables=0
+  class Base<Int, Unit> vtable=0 itables=0
+  class Terminal<Int, String> vtable=0 itables=0
+  class Current<Int, Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn36 id=fb4a4dad2e92604f0be00d2f4fe4e62b924b19172a46e77248b69dfcd29d98ba
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn12 captures=1
+    bridge function_type3 -> @fn37 id=c4d176789bf7d65ffce54ea589d9dc37358d24e4001b0ae142e799ff5b7972b5
+  closure cc2 $Closure$lambda2 type=function_type2 invoke=@fn17 captures=1
+    bridge function_type3 -> @fn38 id=d4529f907609499194e8fbcb294c9595bc92d0ff91069ed12608a908f850a2ff
+  closure cc3 $Closure$anonymous0 type=function_type2 invoke=@fn11 captures=1
+    bridge function_type3 -> @fn39 id=bca9045a50747d350f6159503fea15ab5042bf420ce7fc9045f79200e1ace4b6
+  closure cc4 $Closure$anonymous1 type=function_type2 invoke=@fn16 captures=1
+    bridge function_type3 -> @fn40 id=4018900b7bba9eab18197a715bd1f3af937990aef502166018656560e8b922da
+  generated_exact_type get0 location=closure1 nominal_id=536335b4adce170cf5493e7db7b9bc80fd36f019f6b811146924e91ed3bed5cd exact_id=655acd89932c4d23606d601550abb7179943a6d40a94222bc9fef2bbe651a722
+  generated_exact_type get1 location=closure3 nominal_id=762491fa8e4c07664d2e62237c458ed8e55c8a01a3702518dd0c25606e5d91fe exact_id=9e2c853d1c3bcccd44855e2ad8667081fe1b8e84bca38989e6236a5f9375ace4
+  generated_exact_type get2 location=closure4 nominal_id=75c731383d2912bad286619c318b850bbaa80877818785e59c57a0ceb1189362 exact_id=bfd923d670b61a908f499522de82c9e1743297b8f2027288f1a7d91b67781d5e
+  generated_exact_type get3 location=closure2 nominal_id=561da0da9b78a932582ac69a11887468a292d52ed77487c9f50739efcbc490b3 exact_id=c507f6cb5f400231755a0408e3b5ff5b8412877e1f03471947dcbd932d97e451
+  generated_exact_type get4 location=closure0 nominal_id=0b6bbb3befb2debf49b79bdfe21ad450ab92826c99b144f4816f504fd161be61 exact_id=ca171e66740156f1e77a81cfe33efb8baf8813f9c1cac04dcd6a1f2d8deb3780
+  generated_exact_type get5 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn40 id=4018900b7bba9eab18197a715bd1f3af937990aef502166018656560e8b922da
+  generated_callable gc1 function=@fn39 id=bca9045a50747d350f6159503fea15ab5042bf420ce7fc9045f79200e1ace4b6
+  generated_callable gc2 function=@fn37 id=c4d176789bf7d65ffce54ea589d9dc37358d24e4001b0ae142e799ff5b7972b5
+  generated_callable gc3 function=@fn38 id=d4529f907609499194e8fbcb294c9595bc92d0ff91069ed12608a908f850a2ff
+  generated_callable gc4 function=@fn36 id=fb4a4dad2e92604f0be00d2f4fe4e62b924b19172a46e77248b69dfcd29d98ba
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.inspect: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.inspect
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn1($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn2(seed: Int, inspect: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.digits: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Trace
+        ClassAlloc Trace
+      call external1 direct
+        Type Trace
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.digits
+      val trace: Trace
+        Type Trace
+        Local $new.1
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.argument.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace
+        Type Trace
+        Local $dependency.argument.1
+      call pair: Pair<Int, Unit> = @fn31 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Trace
+        Local $dependency.parameter.trace
+      call $dependency.receiver: Int = external2 direct
+        Type Trace
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type Pair<Int, Unit>
+          Local pair
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        FieldAccess 0
+          Type Pair<Int, Unit>
+          Local pair
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb8 if.merge.8
+      val $place.2: Trace
+        Type Trace
+        Local trace
+      call external3 direct
+        Type Trace
+        Local $place.2
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.argument.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.argument.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace
+        Type Trace
+        Local $dependency.argument.1
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.2
+      assign $new.2
+        Type Built<Int, String>
+        ClassAlloc Built<Int, String>
+      call @fn21 direct
+        Type Built<Int, String>
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.value
+        Type Trace
+        Local $dependency.parameter.trace
+        Type Boolean
+        Local $dependency.parameter.flag
+      val built: Built<Int, String>
+        Type Built<Int, String>
+        Local $new.2
+      call $dependency.receiver: Int = external2 direct
+        Type Trace
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=34956 bits=0x0000888c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb9 if.then.9
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb11
+    bb10 if.else.10
+      call $call.3: Int = @fn3 direct
+        Type Built<Int, String>
+        Local built
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.3
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb11
+    bb11 if.merge.11
+      branch bb12 bb13
+        Type Boolean
+        Local $shortCircuit.3
+    bb12 if.then.12
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb13 if.merge.13
+      call $call.4: Int = @fn4 direct
+        Type Built<Int, String>
+        Local built
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb14 bb15
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb14 if.then.14
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb16
+    bb15 if.else.15
+      call $call.5: Int = @fn5 direct
+        Type Built<Int, String>
+        Local built
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb16
+    bb16 if.merge.16
+      branch bb17 bb18
+        Type Boolean
+        Local $shortCircuit.4
+    bb17 if.then.17
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb18 if.merge.18
+      val $place.5: Trace
+        Type Trace
+        Local trace
+      call external3 direct
+        Type Trace
+        Local $place.5
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.argument.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace
+        Type Trace
+        Local $dependency.argument.1
+      assign $new.6
+        Type Built<Int, Int>
+        ClassAlloc Built<Int, Int>
+      call @fn22 direct
+        Type Built<Int, Int>
+        Local $new.6
+        Type Int
+        Local $dependency.parameter.value
+        Type Trace
+        Local $dependency.parameter.trace
+      val primary: Built<Int, Int>
+        Type Built<Int, Int>
+        Local $new.6
+      call $dependency.receiver: Int = external2 direct
+        Type Trace
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3495 bits=0x00000da7
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb19 bb20
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb19 if.then.19
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb21
+    bb20 if.else.20
+      call $call.7: Int = @fn6 direct
+        Type Base<Int, Int>
+        Retype Base<Int, Int>
+          Type Built<Int, Int>
+          Local primary
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.7
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb21
+    bb21 if.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $shortCircuit.6
+    bb22 if.then.22
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb23 if.merge.23
+      val $place.7: Trace
+        Type Trace
+        Local trace
+      call external3 direct
+        Type Trace
+        Local $place.7
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.argument.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace
+        Type Trace
+        Local $dependency.argument.1
+      assign $new.8
+        Type Terminal<Int, Unit>
+        ClassAlloc Terminal<Int, Unit>
+      call @fn23 direct
+        Type Terminal<Int, Unit>
+        Local $new.8
+        Type Int
+        Local $dependency.parameter.value
+        Type Trace
+        Local $dependency.parameter.trace
+      val terminal: Terminal<Int, Unit>
+        Type Terminal<Int, Unit>
+        Local $new.8
+      call $dependency.receiver: Int = external2 direct
+        Type Trace
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=37 bits=0x00000025
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb24 bb25
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb24 if.then.24
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb26
+    bb25 if.else.25
+      call $call.9: Int = @fn7 direct
+        Type Terminal<Int, Unit>
+        Local terminal
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.9
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb26
+    bb26 if.merge.26
+      branch bb27 bb28
+        Type Boolean
+        Local $shortCircuit.8
+    bb27 if.then.27
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb28 if.merge.28
+      val $place.9: Trace
+        Type Trace
+        Local trace
+      call external3 direct
+        Type Trace
+        Local $place.9
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.0: Int
+        Type Int
+        Local seed
+      val $dependency.argument.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.argument.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace
+        Type Trace
+        Local $dependency.argument.1
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.2
+      assign $new.10
+        Type Terminal<Int, String>
+        ClassAlloc Terminal<Int, String>
+      call @fn24 direct
+        Type Terminal<Int, String>
+        Local $new.10
+        Type Int
+        Local $dependency.parameter.value
+        Type Trace
+        Local $dependency.parameter.trace
+        Type Boolean
+        Local $dependency.parameter.flag
+      val chained: Terminal<Int, String>
+        Type Terminal<Int, String>
+        Local $new.10
+      call $dependency.receiver: Int = external2 direct
+        Type Trace
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=378 bits=0x0000017a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb29 bb30
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb29 if.then.29
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb31
+    bb30 if.else.30
+      call $call.11: Int = @fn8 direct
+        Type Base<Int, String>
+        Retype Base<Int, String>
+          Type Terminal<Int, String>
+          Local chained
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.11
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb31
+    bb31 if.merge.31
+      branch bb32 bb33
+        Type Boolean
+        Local $shortCircuit.10
+    bb32 if.then.32
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb33 if.merge.33
+      val $place.11: Trace
+        Type Trace
+        Local trace
+      call external3 direct
+        Type Trace
+        Local $place.11
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Int
+        Type Int
+        Local seed
+      val $argument.1: Trace
+        Type Trace
+        Local trace
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.trace: Trace
+        Type Trace
+        Local $argument.1
+      assign $new.12
+        Type Current<Int, Unit>
+        ClassAlloc Current<Int, Unit>
+      call @fn25 direct
+        Type Current<Int, Unit>
+        Local $new.12
+        Type Int
+        Local $parameter.value
+        Type Trace
+        Local $parameter.trace
+      val local: Current<Int, Unit>
+        Type Current<Int, Unit>
+        Local $new.12
+      call $dependency.receiver: Int = external2 direct
+        Type Trace
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=38 bits=0x00000026
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb34 bb35
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb34 if.then.34
+      val $shortCircuit.12: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb36
+    bb35 if.else.35
+      call $call.13: Int = @fn9 direct
+        Type Base<Int, Unit>
+        Retype Base<Int, Unit>
+          Type Current<Int, Unit>
+          Local local
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.13
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.12: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb36
+    bb36 if.merge.36
+      branch bb37 bb38
+        Type Boolean
+        Local $shortCircuit.12
+    bb37 if.then.37
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+    bb38 if.merge.38
+      val $argument.0: Built<Int, String>
+        Type Built<Int, String>
+        Local built
+      val $parameter.value: Built<Int, String>
+        Type Built<Int, String>
+        Local $argument.0
+      call copy: CurrentPair<Built<Int, String>, Unit> = @fn32 direct
+        Type Built<Int, String>
+        Local $parameter.value
+      call $call.14: Int = @fn4 direct
+        Type Built<Int, String>
+        FieldAccess 0
+          Type CurrentPair<Built<Int, String>, Unit>
+          Local copy
+      call $call.15: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local inspect
+        Type Int
+        Local $call.14
+      return
+        Type Int
+        Local $call.15
+  fun delegated @fn3(this: Built<Int, String>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn10 direct
+        Type Reader<Int, String>
+        FieldAccess 5
+          Type Built<Int, String>
+          Local this
+        Type Built<Int, String>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun retained @fn4(this: Built<Int, String>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 3
+          Type Built<Int, String>
+          Local this
+  fun output @fn5(this: Built<Int, String>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 4
+          Type Built<Int, String>
+          Local this
+  fun value @fn6(this: Base<Int, Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base<Int, Int>
+          Local this
+  fun copied @fn7(this: Terminal<Int, Unit>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type Terminal<Int, Unit>
+          Local this
+  fun value @fn8(this: Base<Int, String>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base<Int, String>
+          Local this
+  fun value @fn9(this: Base<Int, Unit>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base<Int, Unit>
+          Local this
+  fun getValue @fn10(this: Reader<Int, String>, thisRef: Built<Int, String>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Reader<Int, String>
+          Local this
+  fun $anonymous @fn11($argument.0: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn13 direct
+        Type Int
+        ClosureCapture cc3 0
+          Type () -> Int
+          Local $argument.0
+      return
+        Type Int
+        Local $call.1
+  fun $lambda @fn12($argument.0: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn14 direct
+        Type Int
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $argument.0
+      return
+        Type Int
+        Local $call.1
+  fun copy @fn13($capture.0: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.0
+  fun copy @fn14($capture.0: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.0
+  fun read @fn15($capture.0: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.0
+  fun $anonymous @fn16($argument.0: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn18 direct
+        Type Int
+        ClosureCapture cc4 0
+          Type () -> Int
+          Local $argument.0
+      return
+        Type Int
+        Local $call.1
+  fun $lambda @fn17($argument.0: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn19 direct
+        Type Int
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $argument.0
+      return
+        Type Int
+        Local $call.1
+  fun copy @fn18($capture.0: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.0
+  fun copy @fn19($capture.0: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.0
+  fun read @fn20($capture.0: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local $capture.0
+  fun init.Built.$c2 @fn21(this: Built<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: Trace
+        Type Trace
+        Local $dependency.constructor.local.1
+      call @fn26 direct
+        Type Built<Int, String>
+        Local this
+        Type Int
+        Local $dependency.constructor.local.2
+        Type Trace
+        Local $dependency.constructor.local.3
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.1: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      return
+  fun init.Built.$c3 @fn22(this: Built<Int, Int>, value: Int, trace: Trace) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: Trace
+        Type Trace
+        Local $dependency.constructor.local.1
+      call @fn27 direct
+        Type Base<Int, Int>
+        Retype Base<Int, Int>
+          Type Built<Int, Int>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.2
+        Type Trace
+        Local $dependency.constructor.local.3
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.1: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      field_set 2
+        Type Built<Int, Int>
+        Local this
+        Type Int
+        Local $call.1
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $dependency.constructor.local.4: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      val $dependency.constructor.local.5: Int
+        Type Int
+        Local $dependency.constructor.local.3
+      val $dependency.constructor.local.6: Int
+        Type Int
+        Local $dependency.constructor.local.4
+      call $call.2: Reader<Int, Int> = @fn34 direct
+        Type Int
+        Local $dependency.constructor.local.5
+        Type Int
+        Local $dependency.constructor.local.6
+      field_set 5
+        Type Built<Int, Int>
+        Local this
+        Type Reader<Int, Int>
+        Local $call.2
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc3 $Closure$anonymous0
+          CaptureInit field=0
+            Type Int
+            Local $dependency.constructor.local.0
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $dependency.constructor.local.1
+      assign $dependency.constructor.local.2
+        Type Int
+        Local $call.3
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.constructor.local.2
+        Type Int
+        Local value
+      goto bb3
+    bb3 if.merge.3
+      field_set 3
+        Type Built<Int, Int>
+        Local this
+        Type Int
+        Local $dependency.constructor.local.2
+      field_set 4
+        Type Built<Int, Int>
+        Local this
+        Type Int
+        Local value
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Int
+            Local $dependency.constructor.local.0
+      call $call.4: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $dependency.constructor.local.1
+      field_set 4
+        Type Built<Int, Int>
+        Local this
+        Type Int
+        Local $call.4
+      val $dependency.constructor.local.2: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.3: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.constructor.local.4: Int
+        Type Int
+        Local $dependency.constructor.local.3
+      call $call.5: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.2
+        Type Int
+        Local $dependency.constructor.local.4
+      return
+  fun init.Terminal.$c4 @fn23(this: Terminal<Int, Unit>, value: Int, trace: Trace) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: Trace
+        Type Trace
+        Local $dependency.constructor.local.1
+      call @fn28 direct
+        Type Base<Int, Unit>
+        Retype Base<Int, Unit>
+          Type Terminal<Int, Unit>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.2
+        Type Trace
+        Local $dependency.constructor.local.3
+      field_set 2
+        Type Terminal<Int, Unit>
+        Local this
+        Type Int
+        FieldAccess 0
+          Type Base<Int, Unit>
+          Retype Base<Int, Unit>
+            Type Terminal<Int, Unit>
+            Local this
+      field_set 3
+        Type Terminal<Int, Unit>
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.constructor.local.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $call.1: Int = @fn15 direct
+        Type Int
+        Local $dependency.constructor.local.0
+      field_set 3
+        Type Terminal<Int, Unit>
+        Local this
+        Type Int
+        Local $call.1
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        FieldAccess 3
+          Type Terminal<Int, Unit>
+          Local this
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.2: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      return
+  fun init.Terminal.$c5 @fn24(this: Terminal<Int, String>, value: Int, trace: Trace, flag: Boolean) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: Trace
+        Type Trace
+        Local $dependency.constructor.local.1
+      call @fn29 direct
+        Type Terminal<Int, String>
+        Local this
+        Type Int
+        Local $dependency.constructor.local.2
+        Type Trace
+        Local $dependency.constructor.local.3
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.1: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      return
+  fun init.Current.$c0 @fn25(this: Current<Int, Unit>, value: Int, trace: Trace) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.trace: Trace
+        Type Trace
+        Local $dependency.argument.1
+      call @fn28 direct
+        Type Base<Int, Unit>
+        Retype Base<Int, Unit>
+          Type Current<Int, Unit>
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+        Type Trace
+        Local $dependency.parameter.trace
+      val $dependency.receiver: Trace
+        Type Trace
+        Local trace
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $call.1: Int = external0 direct
+        Type Trace
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      field_set 2
+        Type Current<Int, Unit>
+        Local this
+        Type Int
+        Local $call.1
+      return
+  fun init.Built.$c3 @fn26(this: Built<Int, String>, value: Int, trace: Trace) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: Trace
+        Type Trace
+        Local $dependency.constructor.local.1
+      call @fn30 direct
+        Type Base<Int, String>
+        Retype Base<Int, String>
+          Type Built<Int, String>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.2
+        Type Trace
+        Local $dependency.constructor.local.3
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.1: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      field_set 2
+        Type Built<Int, String>
+        Local this
+        Type Int
+        Local $call.1
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $dependency.constructor.local.4: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      val $dependency.constructor.local.5: Int
+        Type Int
+        Local $dependency.constructor.local.3
+      val $dependency.constructor.local.6: Int
+        Type Int
+        Local $dependency.constructor.local.4
+      call $call.2: Reader<Int, String> = @fn35 direct
+        Type Int
+        Local $dependency.constructor.local.5
+        Type Int
+        Local $dependency.constructor.local.6
+      field_set 5
+        Type Built<Int, String>
+        Local this
+        Type Reader<Int, String>
+        Local $call.2
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc4 $Closure$anonymous1
+          CaptureInit field=0
+            Type Int
+            Local $dependency.constructor.local.0
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $dependency.constructor.local.1
+      assign $dependency.constructor.local.2
+        Type Int
+        Local $call.3
+      goto bb3
+    bb2 if.else.2
+      assign $dependency.constructor.local.2
+        Type Int
+        Local value
+      goto bb3
+    bb3 if.merge.3
+      field_set 3
+        Type Built<Int, String>
+        Local this
+        Type Int
+        Local $dependency.constructor.local.2
+      field_set 4
+        Type Built<Int, String>
+        Local this
+        Type Int
+        Local value
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+          CaptureInit field=0
+            Type Int
+            Local $dependency.constructor.local.0
+      call $call.4: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $dependency.constructor.local.1
+      field_set 4
+        Type Built<Int, String>
+        Local this
+        Type Int
+        Local $call.4
+      val $dependency.constructor.local.2: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.3: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.constructor.local.4: Int
+        Type Int
+        Local $dependency.constructor.local.3
+      call $call.5: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.2
+        Type Int
+        Local $dependency.constructor.local.4
+      return
+  fun init.Base.$c0 @fn27(this: Base<Int, Int>, value: Int, trace: Trace) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Int, Int>
+        Local this
+        Type Int
+        Local value
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.1: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      field_set 1
+        Type Base<Int, Int>
+        Local this
+        Type Int
+        Local $call.1
+      return
+  fun init.Base.$c0 @fn28(this: Base<Int, Unit>, value: Int, trace: Trace) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Int, Unit>
+        Local this
+        Type Int
+        Local value
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.1: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      field_set 1
+        Type Base<Int, Unit>
+        Local this
+        Type Int
+        Local $call.1
+      return
+  fun init.Terminal.$c4 @fn29(this: Terminal<Int, String>, value: Int, trace: Trace) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      val $dependency.constructor.local.3: Trace
+        Type Trace
+        Local $dependency.constructor.local.1
+      call @fn30 direct
+        Type Base<Int, String>
+        Retype Base<Int, String>
+          Type Terminal<Int, String>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.2
+        Type Trace
+        Local $dependency.constructor.local.3
+      field_set 2
+        Type Terminal<Int, String>
+        Local this
+        Type Int
+        FieldAccess 0
+          Type Base<Int, String>
+          Retype Base<Int, String>
+            Type Terminal<Int, String>
+            Local this
+      field_set 3
+        Type Terminal<Int, String>
+        Local this
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.constructor.local.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      call $call.1: Int = @fn20 direct
+        Type Int
+        Local $dependency.constructor.local.0
+      field_set 3
+        Type Terminal<Int, String>
+        Local this
+        Type Int
+        Local $call.1
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        FieldAccess 3
+          Type Terminal<Int, String>
+          Local this
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.2: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      return
+  fun init.Base.$c0 @fn30(this: Base<Int, String>, value: Int, trace: Trace) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Int, String>
+        Local this
+        Type Int
+        Local value
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.1: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      field_set 1
+        Type Base<Int, String>
+        Local this
+        Type Int
+        Local $call.1
+      return
+  fun ctor.Pair.$c1 @fn31(value: Int, trace: Trace) -> Pair<Int, Unit>
+    bb0 entry
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $dependency.constructor.local.4: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      val $dependency.constructor.local.5: Int
+        Type Int
+        Local $dependency.constructor.local.3
+      val $dependency.constructor.local.6: Int
+        Type Int
+        Local $dependency.constructor.local.4
+      call $this: Pair<Int, Unit> = @fn33 direct
+        Type Int
+        Local $dependency.constructor.local.5
+        Type Int
+        Local $dependency.constructor.local.6
+      val $dependency.constructor.local.0: Trace
+        Type Trace
+        Local trace
+      val $dependency.constructor.local.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.constructor.local.2: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      call $call.1: Int = external0 direct
+        Type Trace
+        Local $dependency.constructor.local.0
+        Type Int
+        Local $dependency.constructor.local.2
+      return
+        Type Pair<Int, Unit>
+        Local $this
+  fun ctor.CurrentPair.$c0 @fn32(value: Built<Int, String>) -> CurrentPair<Built<Int, String>, Unit> <no-gc>
+    bb0 entry
+      return
+        Type CurrentPair<Built<Int, String>, Unit>
+        StructInit CurrentPair<Built<Int, String>, Unit>
+          Type Built<Int, String>
+          Local value
+  fun ctor.Pair.$c6 @fn33(value: Int, serial: Int) -> Pair<Int, Unit> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Int, Unit>
+        StructInit Pair<Int, Unit>
+          Type Int
+          Local value
+          Type Int
+          Local serial
+  fun ctor.Reader.$c7 @fn34(content: Int, serial: Int) -> Reader<Int, Int> <no-gc>
+    bb0 entry
+      return
+        Type Reader<Int, Int>
+        StructInit Reader<Int, Int>
+          Type Int
+          Local content
+          Type Int
+          Local serial
+  fun ctor.Reader.$c7 @fn35(content: Int, serial: Int) -> Reader<Int, String> <no-gc>
+    bb0 entry
+      return
+        Type Reader<Int, String>
+        StructInit Reader<Int, String>
+          Type Int
+          Local content
+          Type Int
+          Local serial
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn36($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn37($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.() -> Any @fn38($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn39($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$anonymous1.() -> Any @fn40($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- delegated
+  instance mi2 function=@fn4 <- retained
+  instance mi3 function=@fn5 <- output
+  instance mi4 function=@fn6 <- value
+  instance mi5 function=@fn7 <- copied
+  instance mi6 function=@fn8 <- value
+  instance mi7 function=@fn9 <- value
+  instance mi8 function=@fn10 <- getValue
+  instance mi9 function=@fn11 <- $anonymous
+  instance mi10 function=@fn12 <- $lambda
+  instance mi11 function=@fn13 <- copy
+  instance mi12 function=@fn14 <- copy
+  instance mi13 function=@fn15 <- read
+  instance mi14 function=@fn16 <- $anonymous
+  instance mi15 function=@fn17 <- $lambda
+  instance mi16 function=@fn18 <- copy
+  instance mi17 function=@fn19 <- copy
+  instance mi18 function=@fn20 <- read
+  output library

@@ -6,10 +6,10 @@ use super::integer_values::{
 };
 use crate::Lowerer;
 
-#[derive(Clone, Copy)]
 pub(in crate::globals) struct ResolvedConstIntegerIntrinsic {
     pub(in crate::globals) kind: ConstIntegerIntrinsicKind,
-    pub(in crate::globals) function: hir::FunctionId,
+    pub(in crate::globals) is_infix: bool,
+    pub(in crate::globals) parameters: Vec<String>,
 }
 
 #[derive(Clone, Copy)]
@@ -25,53 +25,89 @@ impl Lowerer {
         source: hir::IntegerKind,
         source_name: &str,
     ) -> Option<ResolvedConstIntegerIntrinsic> {
-        for operation in hir::NoGcIntegerOperation::ALL {
-            let Some(function) = self.registered_no_gc_integer_operation(source, operation) else {
-                continue;
-            };
-            if self.const_intrinsic_source_name(function) == source_name {
-                return Some(ResolvedConstIntegerIntrinsic {
-                    kind: ConstIntegerIntrinsicKind::NoGcOperation(operation),
-                    function,
-                });
-            }
+        let operations = hir::NoGcIntegerOperation::ALL
+            .into_iter()
+            .filter(|operation| operation.supports(source))
+            .map(|operation| {
+                (
+                    hir::IntegerIntrinsicKind::NoGcOperation {
+                        kind: source,
+                        operation,
+                    },
+                    ConstIntegerIntrinsicKind::NoGcOperation(operation),
+                )
+            })
+            .chain(hir::IntegerDivRem::ALL.into_iter().map(|operation| {
+                (
+                    hir::IntegerIntrinsicKind::ManagedOperation {
+                        kind: source,
+                        operation,
+                    },
+                    ConstIntegerIntrinsicKind::ManagedDivRem(operation),
+                )
+            }))
+            .chain(hir::IntegerKind::ALL.into_iter().map(|target_kind| {
+                (
+                    hir::IntegerIntrinsicKind::Conversion {
+                        source,
+                        target_kind,
+                    },
+                    ConstIntegerIntrinsicKind::Conversion(target_kind),
+                )
+            }));
+        operations
+            .filter_map(|(intrinsic, kind)| {
+                self.const_integer_source_call(intrinsic, kind, source_name)
+            })
+            .next()
+    }
+
+    fn const_integer_source_call(
+        &self,
+        intrinsic: hir::IntegerIntrinsicKind,
+        kind: ConstIntegerIntrinsicKind,
+        source_name: &str,
+    ) -> Option<ResolvedConstIntegerIntrinsic> {
+        if !self.const_integer_operation_available(intrinsic) {
+            return None;
         }
-        for operation in hir::IntegerDivRem::ALL {
-            let key =
-                hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::ManagedOperation {
-                    kind: source,
-                    operation,
-                });
-            let Some(&(function, _)) = self.intrinsic_functions.get(&key) else {
-                continue;
-            };
-            if hir::ManagedCallableRef::try_from_function(function, &self.functions).is_some()
-                && self.const_intrinsic_source_name(function) == source_name
-            {
-                return Some(ResolvedConstIntegerIntrinsic {
-                    kind: ConstIntegerIntrinsicKind::ManagedDivRem(operation),
-                    function,
-                });
+        let key = hir::IntrinsicFunctionKind::Integer(intrinsic);
+        if let Some(&(function, _)) = self.intrinsic_functions.get(&key) {
+            if self.const_intrinsic_source_name(function) != source_name {
+                return None;
             }
-        }
-        for target_kind in hir::IntegerKind::ALL {
-            let key = hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::Conversion {
-                source,
-                target_kind,
+            let signature = &self.signatures[&function];
+            return Some(ResolvedConstIntegerIntrinsic {
+                kind,
+                is_infix: signature.modifiers.is_infix,
+                parameters: signature
+                    .params
+                    .iter()
+                    .map(|parameter| parameter.name.text.clone())
+                    .collect(),
             });
-            let Some(&(function, _)) = self.intrinsic_functions.get(&key) else {
-                continue;
-            };
-            if hir::NoGcCallableRef::try_from_function(function, &self.functions).is_some()
-                && self.const_intrinsic_source_name(function) == source_name
-            {
-                return Some(ResolvedConstIntegerIntrinsic {
-                    kind: ConstIntegerIntrinsicKind::Conversion(target_kind),
-                    function,
-                });
-            }
         }
-        None
+        let callable = self.dependencies.as_ref()?.intrinsic_callable(
+            key,
+            match intrinsic.gc_effect() {
+                hir::GcEffect::NoGc => scoop_identity::GcEffect::NoGc,
+                hir::GcEffect::Managed => scoop_identity::GcEffect::Managed,
+            },
+        )?;
+        if callable.name().as_str() != source_name {
+            return None;
+        }
+        Some(ResolvedConstIntegerIntrinsic {
+            kind,
+            is_infix: callable.interface().effects().infix() == hir::CallableInfixV1::Infix,
+            parameters: callable
+                .source()
+                .parameters()
+                .parameters()
+                .iter()
+                .map(|parameter| parameter.name().as_str().to_owned())
+                .collect(),
+        })
     }
 
     pub(in crate::globals) fn const_integer_receiver_expected(
@@ -118,22 +154,6 @@ impl Lowerer {
         }
     }
 
-    pub(in crate::globals) fn registered_no_gc_integer_operation(
-        &self,
-        source: hir::IntegerKind,
-        operation: hir::NoGcIntegerOperation,
-    ) -> Option<hir::FunctionId> {
-        if !operation.supports(source) {
-            return None;
-        }
-        let key = hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::NoGcOperation {
-            kind: source,
-            operation,
-        });
-        let &(function, _) = self.intrinsic_functions.get(&key)?;
-        hir::NoGcCallableRef::try_from_function(function, &self.functions).map(|_| function)
-    }
-
     pub(in crate::globals) fn evaluate_typed_integer_binary_operator(
         &self,
         operator: ast::BinOp,
@@ -164,10 +184,10 @@ impl Lowerer {
             | ast::BinOp::Or => None,
         };
         if let Some(operation) = operation {
-            if self
-                .registered_no_gc_integer_operation(kind, operation)
-                .is_none()
-            {
+            if !self.const_integer_operation_available(hir::IntegerIntrinsicKind::NoGcOperation {
+                kind,
+                operation,
+            }) {
                 return IntegerBinaryResult::Unsupported;
             }
             let Some(value) = evaluate_integer_no_gc_operation(operation, left, Some(right)) else {
@@ -203,15 +223,10 @@ impl Lowerer {
             ast::BinOp::Rem => hir::IntegerDivRem::Rem,
             _ => return IntegerBinaryResult::Unsupported,
         };
-        let key =
-            hir::IntrinsicFunctionKind::Integer(hir::IntegerIntrinsicKind::ManagedOperation {
-                kind,
-                operation,
-            });
-        let Some(&(function, _)) = self.intrinsic_functions.get(&key) else {
-            return IntegerBinaryResult::Unsupported;
-        };
-        if hir::ManagedCallableRef::try_from_function(function, &self.functions).is_none() {
+        if !self.const_integer_operation_available(hir::IntegerIntrinsicKind::ManagedOperation {
+            kind,
+            operation,
+        }) {
             return IntegerBinaryResult::Unsupported;
         }
         evaluate_integer_binary(operator, left, right)

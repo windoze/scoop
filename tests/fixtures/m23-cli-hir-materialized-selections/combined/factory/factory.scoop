@@ -1,0 +1,2 @@
+public fun item(value: Int): Item = Item(value)
+public fun count(value: Item): Int = value.count

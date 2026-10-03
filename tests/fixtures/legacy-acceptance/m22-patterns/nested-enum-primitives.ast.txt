@@ -1,0 +1,96 @@
+SourceFile
+  RootPackage
+  enum Inner
+    Flag(Boolean, Int)
+    Empty
+  enum Outer
+    Wrapped(Inner, Boolean)
+    Other
+  enum Ticket
+    Empty
+    Value(Int)
+  fun traced(value: Outer): Outer
+    Call println
+      StringLiteral "subject"
+    return
+      Var value
+  fun guarded(value: Int): Boolean
+    Call println
+      StringLiteral "guard"
+    return
+      Binary Gt
+        Var value
+        IntLiteral 0
+  fun classify(value: Outer): Int
+    =
+      WhenExpression
+        Call traced
+          Var value
+        arm Wrapped(Flag(false, amount), false) if <guard>
+          Var amount
+        arm Wrapped(Flag(_, amount), _)
+          Binary Add
+            Var amount
+            IntLiteral 100
+        arm Wrapped(Empty, _)
+          Unary Neg
+            IntLiteral 2
+        arm Other
+          Unary Neg
+            IntLiteral 1
+  fun finalPayload(value: Ticket): Int
+    =
+      WhenExpression
+        Var value
+        arm Empty
+          Unary Neg
+            IntLiteral 1
+        arm Value(payload)
+          Var payload
+  fun main()
+    Call println
+      Call classify
+        MethodCall Wrapped
+          Var Outer
+          MethodCall Flag
+            Var Inner
+            BoolLiteral false
+            IntLiteral 7
+          BoolLiteral false
+    Call println
+      Call classify
+        MethodCall Wrapped
+          Var Outer
+          MethodCall Flag
+            Var Inner
+            BoolLiteral false
+            Unary Neg
+              IntLiteral 1
+          BoolLiteral false
+    Call println
+      Call classify
+        MethodCall Wrapped
+          Var Outer
+          MethodCall Flag
+            Var Inner
+            BoolLiteral true
+            IntLiteral 8
+          BoolLiteral false
+    Call println
+      Call classify
+        MethodCall Wrapped
+          Var Outer
+          MethodCall Flag
+            Var Inner
+            BoolLiteral false
+            IntLiteral 9
+          BoolLiteral true
+    Call println
+      Call finalPayload
+        MethodCall Value
+          Var Ticket
+          IntLiteral 11
+    Call println
+      Call finalPayload
+        FieldAccess Empty
+          Var Ticket

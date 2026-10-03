@@ -1,0 +1,11 @@
+SourceFile
+  QualifiedPackage nativelink.mixedleft
+  ImportStar Local nativelink.mixed.*
+  public fun left(): Int
+    =
+      Binary Add
+        Binary Add
+          Call shared
+            IntLiteral 1
+          Var eager
+        Call readLazy

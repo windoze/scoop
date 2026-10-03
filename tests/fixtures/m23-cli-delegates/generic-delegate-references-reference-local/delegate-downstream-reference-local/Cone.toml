@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "delegate-downstream-reference-local"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:delegate-reference-local" = "0.1.0"

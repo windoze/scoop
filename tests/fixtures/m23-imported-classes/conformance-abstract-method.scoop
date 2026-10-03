@@ -1,0 +1,12 @@
+import dependency.classes.Counter
+import dependency.classes.Readable
+import dependency.classes.retainReadable
+
+public abstract class LocalBase public constructor(): Readable {
+    public abstract override fun read(): Long
+}
+public class LocalReader public constructor(): LocalBase() {
+    public override fun read(): Long = 20
+}
+public fun localReader(): LocalBase = LocalReader()
+public fun primary(): Counter = Counter(retainReadable(localReader()).answer())

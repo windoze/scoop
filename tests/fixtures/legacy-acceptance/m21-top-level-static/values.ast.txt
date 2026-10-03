@@ -1,0 +1,43 @@
+SourceFile
+  RootPackage
+  val BASE: Int <const> = <expr>
+  val answer: Int = <expr>
+  val staticText: String = <expr>
+  var label: String = <expr>
+  var maybe: String?
+  var explicitNone: String? = <expr>
+  var adjusted: Int = <expr>
+  fun main()
+    Call println
+      Var answer
+    Call println
+      Var staticText
+    Call println
+      Var label
+    Call println
+      Binary Eq
+        Var maybe
+        Var None
+    Call println
+      Binary Eq
+        Var explicitNone
+        Var None
+    Call println
+      Var adjusted
+    assign adjusted
+      IntLiteral 10
+    Call println
+      Var adjusted
+    assign label
+      Binary Add
+        StringLiteral "move"
+        StringLiteral "d"
+    assign maybe
+      Call Some
+        Var label
+    Call gcCollect
+    Call println
+      Var label
+    Call println
+      NullAssert
+        Var maybe

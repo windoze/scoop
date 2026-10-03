@@ -1,0 +1,7 @@
+import dependency.classes.*
+
+public fun primary(): Counter {
+    val cell = ComputedValue(0)
+    cell.value = 10
+    return Counter(cell.value)
+}

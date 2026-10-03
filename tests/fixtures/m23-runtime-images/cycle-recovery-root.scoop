@@ -1,0 +1,6 @@
+import startup.recovery.recovered
+@Extern(lib = "m23_runtime_images", name = "m23_trace") private fun trace(value: Long)
+fun main() {
+    if (recovered() != 42L || recovered() != 42L) { throw IllegalStateException() }
+    @Unsafe { trace(42L) }
+}

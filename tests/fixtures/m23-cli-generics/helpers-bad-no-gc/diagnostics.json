@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "generic function `native` requires type argument Payload for `T` to be GC-free",
+    "notes": [],
+    "origin": {
+      "cone": "faedc0e4ae58eaba9c2faa973e37fb924a61cb79b0ccbd494be65b3e65e9276b",
+      "end": 142,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 123
+    },
+    "severity": "error"
+  }
+]

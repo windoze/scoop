@@ -1,0 +1,14 @@
+package consumer.constructors
+
+import templates.constructors.*
+
+private class Payload(public val value: Int)
+
+public fun result(): Int {
+    val box = Alternate<Payload>(Payload(37))
+    val first = Payload(1)
+    val second = Payload(2)
+    return box.carried.value + box.extra
+}
+
+public fun <T> make(value: T): Box<T> = Box<T>(value)

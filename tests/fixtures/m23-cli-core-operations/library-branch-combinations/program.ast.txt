@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  public fun useCombinedDefaults(seed: Int): Int
+    =
+      Binary Add
+        Call userCoreBranchDefault
+          Var seed
+        Call userCoreIntegerOperands
+          Var seed
+  fun main()
+    val first
+      Call useCombinedDefaults
+        IntLiteral 0
+    val second
+      Call useCombinedDefaults
+        IntLiteral 3

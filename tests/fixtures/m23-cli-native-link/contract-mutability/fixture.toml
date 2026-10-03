@@ -1,0 +1,125 @@
+schema = 1
+name = "native-link-contract-mutability"
+inputs = ["cone", "../../m23-native-link/contracts/root.scoop", "../../m23-native-link/contracts/var.scoop", "../../m23-native-link/contracts/val.scoop", "left", "right", "also-left", "native-sources/compile_m23_contract.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["native-link", "program-link", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [{"copy" = {"from" = "${fixture}/cone", "to" = "${work}/sources/contracts"}}, {"copy" = {"from" = "${fixture}/../../m23-native-link/contracts/root.scoop", "to" = "${work}/sources/contracts/src/main.scoop"}}, {"mkdir" = {"path" = "${work}/native"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "left_body"
+await_file = "${fixture}/../../m23-native-link/contracts/var.scoop"
+
+[[steps]]
+name = "right_body"
+await_file = "${fixture}/../../m23-native-link/contracts/val.scoop"
+
+[[steps]]
+name = "prepare_left"
+files = [{"copy" = {"from" = "${fixture}/left", "to" = "${work}/sources/left"}}, {"write" = {"path" = "${work}/sources/left/src/main.scoop", "data" = "package nativelink.contracts.left\n\n${left_body.bytes}"}}]
+checks = []
+
+[[steps]]
+name = "prepare_right"
+files = [{"copy" = {"from" = "${fixture}/right", "to" = "${work}/sources/right"}}, {"write" = {"path" = "${work}/sources/right/src/main.scoop", "data" = "package nativelink.contracts.right\n\n${left_body.bytes}"}}]
+checks = []
+
+[[steps]]
+name = "prepare_also-left"
+files = [{"copy" = {"from" = "${fixture}/also-left", "to" = "${work}/sources/also-left"}}, {"write" = {"path" = "${work}/sources/also-left/src/main.scoop", "data" = "package nativelink.contracts.alsoleft\n\n${left_body.bytes}"}}]
+checks = []
+
+[[steps]]
+name = "declare_dependencies"
+files = [{"copy" = {"from" = "${fixture}/cone/Cone.toml", "to" = "${work}/sources/contracts/Cone.toml"}}]
+checks = []
+
+[[steps]]
+name = "prepare_compile_m23_contract"
+files = [{"copy" = {"from" = "${fixture}/native-sources/compile_m23_contract.c", "to" = "${work}/sources/native/m23_contract.c"}}, {"mkdir" = {"path" = "${work}/objects"}}]
+checks = []
+
+[[steps]]
+name = "compile_m23_contract"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${work}/sources/native/m23_contract.c", "-o", "${work}/objects/m23_contract.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"PATH" = "/usr/bin:/bin"}
+
+[[steps]]
+name = "install_m23_contract"
+files = [{"copy" = {"from" = "${work}/objects/m23_contract.o", "to" = "${work}/native/m23_contract.o"}}]
+checks = []
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${work}/sources/contracts", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--library-path", "${work}/native", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "lir.txt"}]
+
+[[steps]]
+name = "dependency_names"
+checks = [{"actual" = "${build.result.dependencies.1.coordinate.name}", "equals" = "also-left"}, {"actual" = "${build.result.dependencies.2.coordinate.name}", "equals" = "left"}, {"actual" = "${build.result.dependencies.3.coordinate.name}", "equals" = "right"}]
+
+[[steps]]
+name = "control"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "conflicting_declaration"
+files = [{"write" = {"path" = "${work}/sources/right/src/main.scoop", "data" = "package nativelink.contracts.right\n\n${right_body.bytes}"}}]
+checks = []
+
+[[steps]]
+name = "rebuild_right"
+argv = ["${scoop}", "build", "${work}/sources/right", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/right-target", "--message-format", "json", "-o", "${work}/right.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "recompile"
+argv = ["${scoopc}", "build", "${work}/sources/contracts", "--target", "${target}", "--sysroot", "${sysroot}", "--direct-slib", "${build.result.dependencies.0.path}", "--direct-slib", "${build.result.dependencies.1.path}", "--direct-slib", "${build.result.dependencies.2.path}", "--direct-slib", "${rebuild_right.result.output}", "--out-slib", "${work}/replacement.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "isolate"
+files = [{"copy" = {"from" = "${work}/replacement.slib", "to" = "${work}/artifacts/root.slib"}}, {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}}, {"mkdir" = {"path" = "${work}/empty-sysroot"}}, {"copy" = {"from" = "${build.result.dependencies.0.path}", "to" = "${work}/artifacts/0.slib"}}, {"copy" = {"from" = "${build.result.dependencies.1.path}", "to" = "${work}/artifacts/1.slib"}}, {"copy" = {"from" = "${build.result.dependencies.2.path}", "to" = "${work}/artifacts/2.slib"}}, {"copy" = {"from" = "${build.result.dependencies.3.path}", "to" = "${work}/artifacts/3.slib"}}, {"remove" = {"path" = "${work}/sources"}}]
+checks = []
+
+[[steps]]
+name = "updated_dependency"
+files = [{"remove" = {"path" = "${work}/artifacts/3.slib"}}, {"copy" = {"from" = "${rebuild_right.result.output}", "to" = "${work}/artifacts/3.slib"}}]
+checks = []
+
+[[steps]]
+name = "previous_reject_conflict"
+files = [{"write" = {"path" = "${work}/program", "data" = "previous executable"}}]
+checks = []
+
+[[steps]]
+name = "reject_conflict"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--dependency-slib", "${work}/artifacts/1.slib", "--dependency-slib", "${work}/artifacts/2.slib", "--dependency-slib", "${work}/artifacts/3.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "json", "-o", "${work}/program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "reject_conflict.json"}
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [{"file" = "${work}/program", "equals" = "previous executable"}]

@@ -1,0 +1,49 @@
+SourceFile
+  RootPackage
+  open class MovingBase(val base: String)
+    val baseCopy: String =
+      Binary Add
+        StringLiteral "base-copy-"
+        Var base
+    init
+      Call gcCollect
+      Call println
+        Var base
+      Call println
+        Var baseCopy
+  class MovingDerived(seed: String) : MovingBase(<1 args>)
+    val derived: String =
+      Binary Add
+        StringLiteral "derived-"
+        Var seed
+    init
+      Call gcCollect
+      Call println
+        Var derived
+    constructor(seed: String, secondary: String) : this(<1 args>)
+      Call gcCollect
+      Call println
+        Var secondary
+      Call println
+        Var base
+      Call println
+        Var derived
+    fun verify
+  fun main()
+    val moving
+      Call MovingDerived
+        StringLiteral "seed"
+        StringLiteral "secondary-alive"
+    Call gcCollect
+    Call println
+      FieldAccess base
+        Var moving
+    Call println
+      FieldAccess baseCopy
+        Var moving
+    Call println
+      FieldAccess derived
+        Var moving
+    Call println
+      MethodCall verify
+        Var moving

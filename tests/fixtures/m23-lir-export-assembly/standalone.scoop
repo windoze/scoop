@@ -1,0 +1,5 @@
+public struct Token() {}
+public struct Payload(val marker: Token, val flag: Boolean)
+public fun pass(value: Token): Token = value
+public fun same(left: Token, right: Token): Boolean = left == right
+public fun ready(): Boolean = true

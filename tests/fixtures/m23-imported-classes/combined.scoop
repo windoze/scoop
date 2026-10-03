@@ -1,0 +1,11 @@
+import dependency.classes.Counter
+import dependency.classes.Holder
+import dependency.classes.Token
+import dependency.classes.makeCounter
+import dependency.classes.identity
+
+public fun primary(): Counter {
+    val holder = Holder(makeCounter(21), Token())
+    makeCounter(0)
+    return identity(holder.read())
+}

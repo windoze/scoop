@@ -1,0 +1,113 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportExact Local dependency.members.Token
+  ImportExact Local dependency.members.Wide
+  ImportExact Local dependency.members.Managed
+  ImportExact Local dependency.members.Nested
+  ImportExact Local dependency.members.defaultField
+  ImportExact Local dependency.members.defaultMember
+  ImportExact Local dependency.members.defaultProperty
+  ImportExact Local dependency.members.defaultMarker
+  public typealias Payload = Wide
+  public struct Container
+    field marker: Token
+    field payload: Payload
+    @NoGC
+  public fun keepToken(value: Token): Token
+    =
+      MethodCall sameToken
+        Var value
+    @NoGC
+  public fun keepWide(value: Payload): Wide
+    val copy
+      MethodCall copyWide
+        Var value
+        Argument other=
+          Var value
+    return
+      Binary Add
+        Var value
+        MethodCall copyWide
+          Var copy
+    @NoGC
+  public fun total(value: Payload): Long
+    =
+      Binary Add
+        MethodCall total
+          Var value
+        IntLiteral 7
+    @NoGC
+  public fun fieldSum(value: Payload): Long
+    =
+      Binary Add
+        Binary Add
+          Binary Add
+            FieldAccess first
+              MethodCall copyWide
+                Var value
+            FieldAccess second
+              Var value
+          FieldAccess third
+            Var value
+        IntLiteral 7
+    @NoGC
+  public fun computedTotal(value: Payload): Long
+    =
+      Binary Add
+        FieldAccess calculated
+          MethodCall copyWide
+            Var value
+        IntLiteral 7
+  public fun keepManaged(value: Managed): Managed
+    =
+      MethodCall sameManaged
+        Var value
+  public fun text(value: Managed): String
+    =
+      FieldAccess text
+        Var value
+    @NoGC
+  public fun marker(value: Nested): Token
+    =
+      FieldAccess marker
+        Var value
+    @NoGC
+  public fun nestedFirst(value: Nested): Long
+    =
+      FieldAccess first
+        FieldAccess value
+          Var value
+  public val Wide.first: Long <computed>
+    @NoGC
+  public fun first(value: Wide): Long
+    =
+      FieldAccess first
+        Var value
+    @NoGC
+  public fun fromField(value: Wide): Long
+    =
+      Call defaultField
+        MethodCall copyWide
+          Var value
+    @NoGC
+  public fun fromMember(value: Wide): Long
+    =
+      Call defaultMember
+        Argument value=
+          MethodCall copyWide
+            Var value
+    @NoGC
+  public fun fromProperty(value: Wide): Long
+    =
+      Call defaultProperty
+        MethodCall copyWide
+          Var value
+    @NoGC
+  public fun fromMarker(value: Nested): Token
+    =
+      Call defaultMarker
+        Var value
+    @NoGC
+  public fun republished(value: Wide, selected: Long = <expr>): Long
+    =
+      Var selected

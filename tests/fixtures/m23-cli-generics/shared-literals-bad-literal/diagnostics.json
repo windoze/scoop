@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "literal pattern of type String cannot match Boolean",
+    "notes": [],
+    "origin": {
+      "cone": "4348f558cc515b6b1816c84dd037a49cd0aa07e687328895dc81effd1b818dfe",
+      "end": 107,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 101
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  public open class Base()
+    protected fun secret
+    public var number: Int <computed>
+      get()
+        IntLiteral 1
+      protected set(value)
+  public object Singleton
+    public fun probe
+  public class Holder()
+    public companion object
+      public fun probe
+  fun main()

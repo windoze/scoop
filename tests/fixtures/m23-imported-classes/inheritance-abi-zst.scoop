@@ -1,0 +1,16 @@
+import dependency.classes.Counter
+import dependency.classes.Token
+import dependency.classes.ZstParent
+
+public class Derived public constructor(): ZstParent(Token()) {
+    public override fun echo(first: Token, value: Long, last: Token): Token {
+        val result = super.echo(last, value, first)
+        count += 1
+        return result
+    }
+}
+public fun primary(): Counter {
+    val value: ZstParent = Derived()
+    val marker = value.echo(value.marker, 20, Token())
+    return Counter(value.read(marker))
+}

@@ -1,4 +1,41 @@
 #[test]
+fn loaded_image_ranges_use_current_vm_permissions() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .unwrap();
+    let binary = std::env::temp_dir().join(format!("scoop_image_ranges_{}", std::process::id()));
+    let compile = std::process::Command::new("cc")
+        .args([
+            "-std=c11",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            "-Wl,-rename_section,__LLVM_STACKMAPS,__llvm_stackmaps,__DATA_CONST,__llvm_stackmaps",
+        ])
+        .arg(workspace.join("runtime/src/platform/image/macho.c"))
+        .arg(workspace.join("runtime/src/image/ranges.c"))
+        .arg(workspace.join("runtime/tests/image_ranges_test.c"))
+        .arg("-o")
+        .arg(&binary)
+        .output()
+        .unwrap();
+    assert!(
+        compile.status.success(),
+        "{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+    let output = std::process::Command::new(&binary).output().unwrap();
+    std::fs::remove_file(&binary).unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"loaded image range tests passed\n");
+}
+
+#[test]
 fn runtime_stackmap_v3_parser_rejects_incomplete_metadata() {
     let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -8,6 +45,8 @@ fn runtime_stackmap_v3_parser_rejects_incomplete_metadata() {
     let status = std::process::Command::new("cc")
         .args(["-std=c11", "-Wall", "-Wextra", "-Werror"])
         .arg(workspace.join("runtime/src/gc/stackmap.c"))
+        .arg(workspace.join("runtime/src/gc/stackmap/parser.c"))
+        .arg(workspace.join("runtime/src/gc/stackmap/records.c"))
         .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
         .arg(workspace.join("runtime/tests/stackmap_test.c"))
         .arg("-o")
@@ -44,10 +83,13 @@ fn runtime_walks_and_rewrites_only_exact_stackmap_slots() {
         .arg("-I")
         .arg(workspace.join("runtime/include"))
         .arg(workspace.join("runtime/src/gc/stackmap.c"))
+        .arg(workspace.join("runtime/src/gc/stackmap/parser.c"))
+        .arg(workspace.join("runtime/src/gc/stackmap/records.c"))
         .arg(workspace.join("runtime/src/gc/stack_roots.c"))
         .arg(workspace.join("runtime/src/platform/arch/aarch64.c"))
         .arg(workspace.join("runtime/src/platform/os/darwin.c"))
         .arg(workspace.join("runtime/tests/platform/fake.c"))
+        .arg(workspace.join("runtime/tests/platform/stackmap_fixture.c"))
         .arg(workspace.join("runtime/tests/exact_stack_roots_test.c"))
         .arg("-o")
         .arg(&binary)
@@ -112,6 +154,43 @@ fn generated_entry_header_exposes_the_compiler_runtime_abi() {
     assert!(
         status.success(),
         "the private generated-entry header must describe its complete ABI"
+    );
+}
+
+#[test]
+fn runtime_metadata_v1_header_has_the_frozen_layout() {
+    let workspace = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .and_then(std::path::Path::parent)
+        .expect("codegen crate is nested below the workspace root");
+    let binary = std::env::temp_dir().join(format!(
+        "scoop_runtime_metadata_v1_layout_test_{}",
+        std::process::id()
+    ));
+    let compile = std::process::Command::new("cc")
+        .args(["-std=c11", "-Wall", "-Wextra", "-Werror"])
+        .arg("-I")
+        .arg(workspace.join("runtime/include"))
+        .arg(workspace.join("runtime/tests/runtime_metadata_v1_layout_test.c"))
+        .arg("-o")
+        .arg(&binary)
+        .output()
+        .expect("compile runtime metadata v1 layout test");
+    assert!(
+        compile.status.success(),
+        "runtime metadata v1 header must match the frozen C ABI:\n{}",
+        String::from_utf8_lossy(&compile.stderr)
+    );
+
+    let output = std::process::Command::new(&binary)
+        .output()
+        .expect("run runtime metadata v1 layout test");
+    std::fs::remove_file(&binary).ok();
+    assert!(
+        output.status.success(),
+        "runtime metadata v1 constants must match the frozen ABI:\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
     );
 }
 
@@ -192,8 +271,12 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
         ),
         (
-            "_scoop_rt_box:",
-            ["mov\tx4, x30", "mov\tx5, sp", "mov\tx6, x29"],
+            "_scoop_rt_box_zst:",
+            ["mov\tx1, x30", "mov\tx2, sp", "mov\tx3, x29"],
+        ),
+        (
+            "_scoop_rt_box_value:",
+            ["mov\tx2, x30", "mov\tx3, sp", "mov\tx4, x29"],
         ),
         (
             "_scoop_rt_materialize_exception:",
@@ -221,7 +304,7 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         ),
         (
             "_scoop_rt_array_clone:",
-            ["mov\tx4, x30", "mov\tx5, sp", "mov\tx6, x29"],
+            ["mov\tx3, x30", "mov\tx4, sp", "mov\tx5, x29"],
         ),
         (
             "_scoop_rt_enter_native_safe:",
@@ -263,7 +346,8 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         "_scoop_runtime_alloc_slow_impl",
         "_scoop_rt_gc_collect_impl",
         "_scoop_rt_string_concat_impl",
-        "_scoop_rt_box_impl",
+        "_scoop_rt_box_zst_impl",
+        "_scoop_rt_box_value_impl",
         "_scoop_rt_materialize_exception_impl",
         "_scoop_rt_init_enter_impl",
         "_scoop_rt_init_succeed_impl",
@@ -281,5 +365,5 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             "missing tail-branch relocation for {implementation}:\n{relocations}"
         );
     }
-    assert_eq!(relocations.matches("BR26").count(), 14);
+    assert_eq!(relocations.matches("BR26").count(), 15);
 }

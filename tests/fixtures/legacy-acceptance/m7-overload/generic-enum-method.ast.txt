@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  enum Box<T>
+    Full(T)
+    Empty
+  fun main()
+    val i
+      MethodCall Full
+        Var Box
+        IntLiteral 1
+    val s
+      MethodCall Full
+        Var Box
+        StringLiteral "s"
+    Call println
+      MethodCall echo
+        Var i
+        IntLiteral 2
+    Call println
+      MethodCall echo
+        Var s
+        StringLiteral "ok"

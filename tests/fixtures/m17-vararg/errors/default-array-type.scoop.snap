@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-vararg/errors/default-array-type.scoop:1:35: error: array literal element must be of type Int, found String

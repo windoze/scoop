@@ -1,8 +1,12 @@
 use super::*;
 
-use std::collections::{HashMap, HashSet};
-
 use crate::call_resolution::candidates::NominalConstructorSource;
+
+mod context;
+mod imported;
+mod validation;
+
+pub(crate) use context::ConstructorSource;
 
 impl Lowerer {
     pub(crate) fn struct_primary_constructor(
@@ -28,7 +32,9 @@ impl Lowerer {
         objects: &[(hir::ObjectId, crate::declarations::ObjectSource<'_>, usize)],
     ) {
         self.check_duplicate_constructor_signatures(classes, structs);
+        let outer_owner = self.current_owner;
         for &(class, declaration, file) in classes {
+            self.current_owner = Some(Owner::Class(class));
             self.current_file = file;
             let diagnostics_before_edges = self.diagnostics.len();
             self.resolve_class_constructor_edges(class, declaration);
@@ -37,6 +43,7 @@ impl Lowerer {
             }
         }
         for &(structure, declaration, file) in structs {
+            self.current_owner = Some(Owner::Struct(structure));
             self.current_file = file;
             let diagnostics_before_edges = self.diagnostics.len();
             self.resolve_struct_constructor_edges(structure, declaration);
@@ -45,9 +52,11 @@ impl Lowerer {
             }
         }
         for &(object, declaration, file) in objects {
+            self.current_owner = Some(Owner::Object(object));
             self.current_file = file;
             self.resolve_object_base(object, declaration);
         }
+        self.current_owner = outer_owner;
     }
 
     fn resolve_object_base(
@@ -90,65 +99,6 @@ impl Lowerer {
         };
         self.current_initialization_unit = previous_unit;
         self.set_primary_base(constructor, base);
-    }
-
-    fn check_duplicate_constructor_signatures(
-        &mut self,
-        classes: &[(ClassId, &ast::ClassDecl, usize)],
-        structs: &[(hir::StructId, &ast::StructDecl, usize)],
-    ) {
-        for &(class, _, file) in classes {
-            self.current_file = file;
-            let constructors = self.classes[class].constructors.clone();
-            for (index, &constructor) in constructors.iter().enumerate() {
-                for &previous in &constructors[..index] {
-                    let left = self.class_constructors[constructor].parameters.clone();
-                    let right = self.class_constructors[previous].parameters.clone();
-                    if self.same_constructor_parameter_types(&left, &right) {
-                        let signature = self.class_constructor_signature(constructor);
-                        self.error(
-                            self.class_constructors[constructor].span,
-                            format!(
-                                "duplicate constructor signature `{signature}` in class `{}`",
-                                self.classes[class].name
-                            ),
-                        );
-                    }
-                }
-            }
-        }
-        for &(structure, _, file) in structs {
-            self.current_file = file;
-            let constructors = self.structs[structure].constructors.clone();
-            for (index, &constructor) in constructors.iter().enumerate() {
-                for &previous in &constructors[..index] {
-                    let left = self.struct_constructors[constructor].parameters.clone();
-                    let right = self.struct_constructors[previous].parameters.clone();
-                    if self.same_constructor_parameter_types(&left, &right) {
-                        let signature = self.struct_constructor_signature(constructor);
-                        self.error(
-                            self.struct_constructors[constructor].span,
-                            format!(
-                                "duplicate constructor signature `{signature}` in struct `{}`",
-                                self.structs[structure].name
-                            ),
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    fn same_constructor_parameter_types(
-        &mut self,
-        left: &[hir::ConstructorParameter],
-        right: &[hir::ConstructorParameter],
-    ) -> bool {
-        left.len() == right.len()
-            && left
-                .iter()
-                .zip(right)
-                .all(|(left, right)| self.types_equal(left.ty, right.ty))
     }
 
     fn resolve_class_constructor_edges(&mut self, id: ClassId, decl: &ast::ClassDecl) {
@@ -360,8 +310,11 @@ impl Lowerer {
             .map(NominalConstructorSource::Class)
             .collect::<Vec<_>>();
         let name = self.classes[owner].name.clone();
-        let resolved =
-            self.with_constructor_expression_context(source, context, |this, sink| {
+        let resolved = self.with_constructor_expression_context(
+            source,
+            context,
+            self.class_constructors[source].safety,
+            |this, sink| {
                 this.resolve_nominal_constructor_overload(
                     &name,
                     &candidates,
@@ -373,7 +326,8 @@ impl Lowerer {
                     },
                     sink,
                 )
-            })?;
+            },
+        )?;
         let NominalConstructorSource::Class(target) = resolved.value.source else {
             unreachable!("a `this` edge contains class constructor candidates")
         };
@@ -397,25 +351,32 @@ impl Lowerer {
         span: ast::Span,
         context: &str,
     ) -> Option<hir::BaseInitialization> {
+        if self.dependency_nominal_application(base_ty).is_some() {
+            return self
+                .lower_imported_base_initialization(source, base_ty, arguments, span, context);
+        }
         let Type::Class(base_application) = self.types[base_ty] else {
             unreachable!("a direct base type is a class application")
         };
         let base = self.class_applications[base_application].clone();
-        let candidates = self.classes[base.template]
+        let candidates = self.classes[self.class_id(base.template)]
             .constructors
             .iter()
             .copied()
             .map(NominalConstructorSource::Class)
             .collect::<Vec<_>>();
-        let name = self.classes[base.template].name.clone();
+        let name = self.classes[self.class_id(base.template)].name.clone();
         let type_arguments = base.arguments;
         let explicit_type_arguments = type_arguments
             .iter()
             .copied()
             .map(|ty| crate::expr::ResolvedCallTypeArgument::Explicit { ty, span })
             .collect::<Vec<_>>();
-        let resolved =
-            self.with_constructor_expression_context(source, context, |this, sink| {
+        let resolved = self.with_constructor_expression_context(
+            source,
+            context,
+            self.class_constructors[source].safety,
+            |this, sink| {
                 this.resolve_nominal_constructor_overload(
                     &name,
                     &candidates,
@@ -427,14 +388,15 @@ impl Lowerer {
                     },
                     sink,
                 )
-            })?;
+            },
+        )?;
         let NominalConstructorSource::Class(target) = resolved.value.source else {
             unreachable!("a `super` edge contains class constructor candidates")
         };
         debug_assert_eq!(resolved.value.type_args, type_arguments);
         let target = self.class_constructor_application(target, base_application);
         Some(hir::BaseInitialization::Super {
-            target,
+            target: hir::BaseInitializerTarget::Local(target),
             arguments: hir::ConstructorArguments {
                 locals: resolved.locals,
                 statements: resolved.statements,
@@ -511,6 +473,7 @@ impl Lowerer {
             let Some(resolved) = self.with_constructor_expression_context(
                 ConstructorSource::Struct(constructor),
                 "struct secondary `this` delegation",
+                self.struct_constructors[constructor].safety,
                 |this, sink| {
                     this.resolve_nominal_constructor_overload(
                         &name,
@@ -548,106 +511,6 @@ impl Lowerer {
         }
     }
 
-    pub(crate) fn with_constructor_expression_context<T>(
-        &mut self,
-        source: impl Into<ConstructorSource>,
-        context: &str,
-        lower: impl FnOnce(&mut Self, &mut Vec<hir::Statement>) -> Option<T>,
-    ) -> Option<LoweredConstructorExpression<T>> {
-        let source = source.into();
-        let (parameters, type_parameters, owner, owner_name) = match source {
-            ConstructorSource::Class(constructor) => {
-                let declaration = &self.class_constructors[constructor];
-                let class = declaration.owner;
-                if let Some(&object) = self.object_by_backing_class.get(&class) {
-                    (
-                        declaration.parameters.clone(),
-                        Vec::new(),
-                        Owner::Object(object),
-                        self.objects[object].name.clone(),
-                    )
-                } else {
-                    (
-                        declaration.parameters.clone(),
-                        self.classes[class].type_params.clone(),
-                        Owner::Class(class),
-                        self.classes[class].name.clone(),
-                    )
-                }
-            }
-            ConstructorSource::Struct(constructor) => {
-                let declaration = &self.struct_constructors[constructor];
-                let owner = declaration.owner;
-                (
-                    declaration.parameters.clone(),
-                    self.structs[owner].type_params.clone(),
-                    Owner::Struct(owner),
-                    self.structs[owner].name.clone(),
-                )
-            }
-        };
-        let outer_type_parameters =
-            std::mem::replace(&mut self.type_params_in_scope, type_parameters);
-        let outer_constructor_parameters = std::mem::replace(
-            &mut self.constructor_params_in_scope,
-            parameters
-                .iter()
-                .map(|parameter| {
-                    (
-                        parameter.name.clone(),
-                        (
-                            parameter.id,
-                            parameter.ty,
-                            self.constructor_parameter_bindings[&parameter.id],
-                        ),
-                    )
-                })
-                .collect(),
-        );
-        let outer_locals = std::mem::take(&mut self.locals);
-        let outer_return_ty = std::mem::replace(&mut self.current_return_ty, self.unit);
-        let outer_fn_name = std::mem::replace(
-            &mut self.current_fn_name,
-            format!("<init {owner_name}: {context}>"),
-        );
-        let outer_loop_targets = std::mem::take(&mut self.loop_targets);
-        let outer_owner = self.current_owner.replace(owner);
-        let outer_this = self.current_this.take();
-        let outer_source_context = self.current_source_context;
-        self.set_source_context(self.current_fn_name.clone());
-        self.push_scope();
-        self.push_suspension_context(SuspensionContext::Forbidden(
-            if self.initialization_context.is_some() {
-                ForbiddenSuspendContext::ConstructorInitialization
-            } else {
-                ForbiddenSuspendContext::ConstructorDelegation
-            },
-        ));
-
-        let mut statements = Vec::new();
-        let value = lower(self, &mut statements);
-        let locals = std::mem::take(&mut self.locals);
-
-        self.pop_suspension_context();
-        self.pop_scope();
-        self.current_source_context = outer_source_context;
-        self.current_this = outer_this;
-        self.current_owner = outer_owner;
-        self.current_fn_name = outer_fn_name;
-        self.current_return_ty = outer_return_ty;
-        self.locals = outer_locals;
-        debug_assert!(self.loop_targets.is_empty());
-        self.loop_targets = outer_loop_targets;
-        self.constructor_params_in_scope = outer_constructor_parameters;
-        self.type_params_in_scope = outer_type_parameters;
-
-        value.map(|value| LoweredConstructorExpression {
-            locals,
-            statements,
-            value,
-        })
-    }
-
     fn source_base_spec<'a>(
         &mut self,
         owner: ClassId,
@@ -665,153 +528,4 @@ impl Lowerer {
         self.type_params_in_scope = outer;
         result
     }
-
-    fn check_class_constructor_cycles(&mut self, owner: ClassId) {
-        let mut edges = HashMap::new();
-        for &constructor in &self.classes[owner].constructors {
-            if let hir::ClassConstructorKind::Secondary {
-                delegation: hir::ClassSecondaryDelegation::This { target, .. },
-                ..
-            } = self.class_constructors[constructor].kind
-            {
-                edges.insert(
-                    constructor,
-                    self.class_constructor_applications[target].constructor,
-                );
-            }
-        }
-        self.report_class_cycles(&edges);
-    }
-
-    fn report_class_cycles(
-        &mut self,
-        edges: &HashMap<hir::ClassConstructorId, hir::ClassConstructorId>,
-    ) {
-        let mut reported = HashSet::new();
-        let mut starts = edges.keys().copied().collect::<Vec<_>>();
-        starts.sort_by_key(|constructor| constructor.into_raw().into_u32());
-        for start in starts {
-            let mut positions = HashMap::new();
-            let mut path = Vec::new();
-            let mut current = start;
-            while let Some(&next) = edges.get(&current) {
-                if let Some(&position) = positions.get(&current) {
-                    let cycle = &path[position..];
-                    if cycle
-                        .iter()
-                        .all(|constructor| !reported.contains(constructor))
-                    {
-                        reported.extend(cycle.iter().copied());
-                        let mut signatures = cycle
-                            .iter()
-                            .map(|constructor| self.class_constructor_signature(*constructor))
-                            .collect::<Vec<_>>();
-                        signatures.push(signatures[0].clone());
-                        self.error(
-                            self.class_constructors[current].span,
-                            format!("constructor delegation cycle: {}", signatures.join(" -> ")),
-                        );
-                    }
-                    break;
-                }
-                positions.insert(current, path.len());
-                path.push(current);
-                current = next;
-            }
-        }
-    }
-
-    fn check_struct_constructor_cycles(&mut self, owner: hir::StructId) {
-        let mut edges = HashMap::new();
-        for &constructor in &self.structs[owner].constructors {
-            if let hir::StructConstructorKind::Secondary { ref delegation, .. } =
-                self.struct_constructors[constructor].kind
-            {
-                edges.insert(
-                    constructor,
-                    self.struct_constructor_applications[delegation.target].constructor,
-                );
-            }
-        }
-        let mut reported = HashSet::new();
-        let mut starts = edges.keys().copied().collect::<Vec<_>>();
-        starts.sort_by_key(|constructor| constructor.into_raw().into_u32());
-        for start in starts {
-            let mut positions = HashMap::new();
-            let mut path = Vec::new();
-            let mut current = start;
-            while let Some(&next) = edges.get(&current) {
-                if let Some(&position) = positions.get(&current) {
-                    let cycle = &path[position..];
-                    if cycle
-                        .iter()
-                        .all(|constructor| !reported.contains(constructor))
-                    {
-                        reported.extend(cycle.iter().copied());
-                        let mut signatures = cycle
-                            .iter()
-                            .map(|constructor| self.struct_constructor_signature(*constructor))
-                            .collect::<Vec<_>>();
-                        signatures.push(signatures[0].clone());
-                        self.error(
-                            self.struct_constructors[current].span,
-                            format!("constructor delegation cycle: {}", signatures.join(" -> ")),
-                        );
-                    }
-                    break;
-                }
-                positions.insert(current, path.len());
-                path.push(current);
-                current = next;
-            }
-        }
-    }
-
-    fn class_constructor_signature(&mut self, constructor: hir::ClassConstructorId) -> String {
-        let declaration = self.class_constructors[constructor].clone();
-        let name = self.classes[declaration.owner].name.clone();
-        let parameters = declaration
-            .parameters
-            .iter()
-            .map(|parameter| self.type_name(parameter.ty))
-            .collect::<Vec<_>>()
-            .join(", ");
-        format!("{name}({parameters})")
-    }
-
-    fn struct_constructor_signature(&mut self, constructor: hir::StructConstructorId) -> String {
-        let declaration = self.struct_constructors[constructor].clone();
-        let name = self.structs[declaration.owner].name.clone();
-        let parameters = declaration
-            .parameters
-            .iter()
-            .map(|parameter| self.type_name(parameter.ty))
-            .collect::<Vec<_>>()
-            .join(", ");
-        format!("{name}({parameters})")
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(crate) enum ConstructorSource {
-    Class(hir::ClassConstructorId),
-    Struct(hir::StructConstructorId),
-}
-
-impl From<hir::ClassConstructorId> for ConstructorSource {
-    fn from(value: hir::ClassConstructorId) -> Self {
-        Self::Class(value)
-    }
-}
-
-impl From<hir::StructConstructorId> for ConstructorSource {
-    fn from(value: hir::StructConstructorId) -> Self {
-        Self::Struct(value)
-    }
-}
-
-pub(crate) struct LoweredConstructorExpression<T> {
-    pub(crate) locals: la_arena::Arena<hir::Local>,
-    pub(crate) statements: Vec<hir::Statement>,
-    pub(crate) value: T,
 }

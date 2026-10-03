@@ -1,0 +1,15 @@
+public interface Marker {
+    public fun tag(): Int = 1
+}
+public open class Factory protected constructor(seed: Int) : Marker {
+    public constructor(text: String) : this(seed = 1) {}
+    private constructor(flag: Boolean) : this(seed = 2) {}
+    internal constructor(value: Long) : this(seed = 3) {}
+}
+public class Product public constructor(count: Int, label: String) : Factory(count)
+public struct Pair(val left: Int, val right: Long) {
+    public constructor(text: String) : this(1, 2L) {}
+}
+public class Defaults public constructor(value: Int = 5)
+public class HiddenConstructors private constructor()
+public object Singleton : Factory(seed = 1)

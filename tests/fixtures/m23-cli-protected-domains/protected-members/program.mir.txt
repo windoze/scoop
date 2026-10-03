@@ -1,0 +1,292 @@
+Module
+  global0 $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2: Singleton imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=1ed09dc134578776f6d2e382973eb480035371f925b629bf52db57c6670c89ae
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<ConsumerChild>
+    Completed(value: ConsumerChild)
+    Suspended()
+  enum CoroutineSlot<ConsumerChild>
+    Empty()
+    Value(value: ConsumerChild)
+  class ConsumerChild vtable=3 itables=0
+  class Child vtable=3 itables=0
+  class Base vtable=3 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Singleton vtable=3 itables=0
+  interface Continuation<ConsumerChild>
+  interface SuspendTask<ConsumerChild>
+  interface SuspendRegistration<ConsumerChild>
+  generated_exact_type get0 location=enum1 nominal_id=2785f98d4c3671e32b8d1d38e8c41ebe4a2100c3d0eb6545832e7f81e510939f exact_id=91e9c0aed83e1d00eb11c16330e032c32e3c2e40d54ab56b56ad3ef9a545bd17
+  generated_exact_type get1 location=enum2 nominal_id=eec28a32e3c2fd2e16a9d339655a11b3fe9afcb925b1f291a3755833238819ae exact_id=99dcdc15bcc917e525889b4ec021adf414ea13b24a46b9fb8c296d0b4f88dfc9
+  generated_callable gc0 function=@fn8 id=e6cc2e703a7c506cd93e7f89a49c56241fe5b4b7528306032c8bc2f2caaeda89
+  fun ConsumerChild.inspect @fn0(this: ConsumerChild) -> Int
+    bb0 entry
+      val $place.0: ConsumerChild
+        Type ConsumerChild
+        Local this
+      call external2 virtual[2]
+        Type Base
+        Retype Base
+          Type ConsumerChild
+          Local $place.0
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $place.1: ConsumerChild
+        Type ConsumerChild
+        Local this
+      call external7 direct
+        Type Base
+        Retype Base
+          Type ConsumerChild
+          Local $place.1
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.receiver: Child
+        Type Child
+        Retype Child
+          Type ConsumerChild
+          Local this
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = external3 direct
+        Type Child
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Int = external1 virtual[1]
+        Type Base
+        Retype Base
+          Type ConsumerChild
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $dependency.argument.0: Int = external8 direct
+        Type Base
+        Retype Base
+          Type ConsumerChild
+          Local this
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun verifyDomain @fn1(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external5 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Child
+        ClassAlloc Child
+      call external4 direct
+        Type Child
+        Local $new.1
+      val $dependency.receiver: Child
+        Type Child
+        Local $new.1
+      call $dependency.receiver: Int = external6 direct
+        Type Child
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      call external9 direct
+      val $dependency.receiver: Child
+        Type Child
+        Retype Child
+          Type Singleton
+          GlobalRead $singleton$962b63c6b4b6c2a1f707091568053ebeee0a0d2b303ef2dcf73cc55d6c4606a2
+      call $dependency.receiver: Int = external6 direct
+        Type Child
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.2
+        Type ConsumerChild
+        ClassAlloc ConsumerChild
+      call @fn7 direct
+        Type ConsumerChild
+        Local $new.2
+      val $receiver: ConsumerChild
+        Type ConsumerChild
+        Local $new.2
+      call $dependency.receiver: Int = @fn0 direct
+        Type ConsumerChild
+        Local $receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun Continuation.resume @fn3(this: Continuation<ConsumerChild>, value: ConsumerChild) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<ConsumerChild>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<ConsumerChild>, $completion: Continuation<ConsumerChild>) -> CoroutineStep<ConsumerChild>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<ConsumerChild>, continuation: Continuation<ConsumerChild>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ConsumerChild.$c0 @fn7(this: ConsumerChild) -> Unit
+    bb0 entry
+      call external4 direct
+        Type Child
+        Retype Child
+          Type ConsumerChild
+          Local this
+      return
+  fun startCoroutine<ConsumerChild> @fn8(task: SuspendTask<ConsumerChild>, completion: Continuation<ConsumerChild>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<ConsumerChild>[0]
+        Type Continuation<ConsumerChild>
+        Local completion
+        Type ConsumerChild
+        EnumField v0 f0
+          Type CoroutineStep<ConsumerChild>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<ConsumerChild>[1]
+        Type Continuation<ConsumerChild>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ConsumerChild> = @fn5 interface SuspendTask<ConsumerChild>[0]
+        Type SuspendTask<ConsumerChild>
+        Local task
+        Type Continuation<ConsumerChild>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ConsumerChild>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<ConsumerChild> result=ConsumerChild
+  coroutine_slot cl0 CoroutineSlot<ConsumerChild> value=ConsumerChild
+  coroutine_start ct0 result=ConsumerChild function=fn8
+  coroutine_fn cf0 @fn5 source_return=ConsumerChild step=cs0 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  str @str0 "illegal state"
+  output executable @fn2

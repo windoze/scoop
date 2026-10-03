@@ -1,0 +1,2 @@
+struct Bad(val value: Int) { @NoGC constructor(text: String): this(1) {} }
+fun main() {}

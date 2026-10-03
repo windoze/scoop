@@ -1,0 +1,7 @@
+package consumer.argumentmaterialization
+import upstream.argumentmaterialization.*
+
+public fun fail(): Int {
+    val ordinary = Ordinary()
+    return ordinary()
+}

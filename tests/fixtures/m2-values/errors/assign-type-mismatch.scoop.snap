@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m2-values/errors/assign-type-mismatch.scoop:3:9: error: cannot assign value of type Int to `s` of type String

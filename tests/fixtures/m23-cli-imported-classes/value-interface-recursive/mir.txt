@@ -1,0 +1,56 @@
+Module
+  struct EchoValue (reference: Counter)
+  class Counter vtable=0 itables=0
+  class box<EchoValue> vtable=0 itables=0
+  interface ValueEcho
+  generated_exact_type get0 location=class1 nominal_id=d3af21fdca74da677466b01b9c45b5e2f34c15ad1bea391293055264ebdf97a3 exact_id=6e83f7b17982472574182a27174f161109ca3e91c41cb71947a132f061c56fac
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Counter
+        Type Counter
+        Local $new.1
+      val $dependency.parameter.reference: Counter
+        Type Counter
+        Local $dependency.argument.0
+      call input: EchoValue = external1 direct
+        Type Counter
+        Local $dependency.parameter.reference
+      val echo: ValueEcho
+        Type ValueEcho
+        Box
+          Type EchoValue
+          Local input
+      val $dependency.receiver: ValueEcho
+        Type ValueEcho
+        Local echo
+      val $dependency.argument.0: EchoValue
+        Type EchoValue
+        Local input
+      val $dependency.parameter.value: EchoValue
+        Type EchoValue
+        Local $dependency.argument.0
+      call $call.2: EchoValue = external2 interface ValueEcho[0]
+        Type ValueEcho
+        Local $dependency.receiver
+        Type EchoValue
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        FieldAccess 0
+          Type EchoValue
+          Local $call.2
+  output library

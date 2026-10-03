@@ -1,0 +1,476 @@
+Module
+  global0 $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab: Registry imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=3a526283084ebedba97eaa36d7f52805272cb4afce09bb5e17c04d14d61a27bc
+  struct Token ()
+  struct Pair (left: Token, right: Token)
+  struct Value ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Choice
+    Empty()
+    Full(_0: Pair)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Base vtable=3 itables=1
+  class Derived vtable=3 itables=1
+  class Registry vtable=3 itables=1
+  class box<Value> vtable=0 itables=0
+  interface Contract
+  generated_exact_type get0 location=class6 nominal_id=2650cdcb8edcc37d961b9ed3edbcabdab16054c9c7c8bc99ebc7826be71ab635 exact_id=950cadae11cf94de5aaa3b954735def437c23e1a891181987a2ae185fe9a7cb9
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call token: Token = external1 direct
+      call $equality.lhs: Pair = external2 direct
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.argument.1: Token
+        Type Token
+        Local token
+      val $dependency.parameter.left: Token
+        Type Token
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Token
+        Type Token
+        Local $dependency.argument.1
+      call $call.1: Pair = external3 direct
+        Type Token
+        Local $dependency.parameter.left
+        Type Token
+        Local $dependency.parameter.right
+      call $argument.0: Boolean = external19 direct
+        Type Pair
+        Local $equality.lhs
+        Type Pair
+        Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.2: Value = external5 direct
+      val value: Contract
+        Type Contract
+        Box
+          Type Value
+          Local $call.2
+      val $dependency.receiver: Contract
+        Type Contract
+        Local value
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.3: Token = external6 interface Contract[0]
+        Type Contract
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      call $call.4: Boolean = external18 direct
+        Type Token
+        Local $call.3
+        Type Token
+        Local token
+      branch bb1 bb2
+        Type Boolean
+        Local $call.4
+    bb1 logic.rhs.1
+      call $call.6: Token = external7 interface Contract[2]
+        Type Contract
+        Local value
+      call $call.7: Boolean = external18 direct
+        Type Token
+        Local $call.6
+        Type Token
+        Local token
+      assign $logic.5
+        Type Boolean
+        Local $call.7
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.5
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.5
+    bb4 if.then.4
+      val $dependency.receiver: Contract
+        Type Contract
+        Local value
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.8: Token = external4 interface Contract[1]
+        Type Contract
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      call $shortCircuit.0: Boolean = external18 direct
+        Type Token
+        Local $call.8
+        Type Token
+        Local token
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.parameter.value: Token = external1 direct
+      assign $new.9
+        Type Derived
+        ClassAlloc Derived
+      call external11 direct
+        Type Derived
+        Local $new.9
+        Type Token
+        Local $dependency.parameter.value
+      val base: Base
+        Type Base
+        Retype Base
+          Type Derived
+          Local $new.9
+      val $dependency.receiver: Base
+        Type Base
+        Local base
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.10: Token = external8 virtual[0]
+        Type Base
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      call $call.11: Boolean = external18 direct
+        Type Token
+        Local $call.10
+        Type Token
+        Local token
+      branch bb7 bb8
+        Type Boolean
+        Local $call.11
+    bb7 logic.rhs.7
+      call $call.13: Token = external10 virtual[2]
+        Type Base
+        Local base
+      call $call.14: Boolean = external18 direct
+        Type Token
+        Local $call.13
+        Type Token
+        Local token
+      assign $logic.12
+        Type Boolean
+        Local $call.14
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.12
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $logic.12
+    bb10 if.then.10
+      val $dependency.receiver: Contract
+        Type Contract
+        Retype Contract
+          Type Base
+          Local base
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.15: Token = external4 interface Contract[1]
+        Type Contract
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      call $shortCircuit.1: Boolean = external18 direct
+        Type Token
+        Local $call.15
+        Type Token
+        Local token
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Base
+        Type Base
+        Local base
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.16: Token = external12 direct
+        Type Base
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = external18 direct
+        Type Token
+        Local $call.16
+        Type Token
+        Local token
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Base
+        Type Base
+        Local base
+      val $dependency.parameter.value: Base
+        Type Base
+        Local $dependency.argument.0
+      call $call.17: Token = external13 direct
+        Type Base
+        Local $dependency.parameter.value
+      call $call.18: Boolean = external18 direct
+        Type Token
+        Local $call.17
+        Type Token
+        Local token
+      branch bb13 bb14
+        Type Boolean
+        Local $call.18
+    bb13 if.then.13
+      call external20 direct
+      val $dependency.argument.0: Base
+        Type Base
+        Retype Base
+          Type Registry
+          GlobalRead $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab
+      val $dependency.parameter.value: Base
+        Type Base
+        Local $dependency.argument.0
+      call $call.19: Token = external13 direct
+        Type Base
+        Local $dependency.parameter.value
+      call $shortCircuit.2: Boolean = external18 direct
+        Type Token
+        Local $call.19
+        Type Token
+        Local token
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.argument.0: Pair = external2 direct
+      val $dependency.parameter._1: Pair
+        Type Pair
+        Local $dependency.argument.0
+      val $dependency.argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Pair
+          Local $dependency.parameter._1
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.argument.1: Token
+        Type Token
+        Local token
+      val $dependency.parameter.left: Token
+        Type Token
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Token
+        Type Token
+        Local $dependency.argument.1
+      call $dependency.argument.0: Pair = external3 direct
+        Type Token
+        Local $dependency.parameter.left
+        Type Token
+        Local $dependency.parameter.right
+      val $dependency.parameter._1: Pair
+        Type Pair
+        Local $dependency.argument.0
+      val $dependency.argument.1: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Pair
+          Local $dependency.parameter._1
+      val $dependency.parameter.left: Choice
+        Type Choice
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Choice
+        Type Choice
+        Local $dependency.argument.1
+      call $call.20: Boolean = external15 direct
+        Type Choice
+        Local $dependency.parameter.left
+        Type Choice
+        Local $dependency.parameter.right
+      branch bb16 bb17
+        Type Boolean
+        Local $call.20
+    bb16 logic.rhs.16
+      call $call.22: Boolean = external16 direct
+      assign $logic.21
+        Type Boolean
+        Local $call.22
+      goto bb18
+    bb17 logic.short.17
+      assign $logic.21
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      val $argument.0: Boolean
+        Type Boolean
+        Local $logic.21
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call pending: Contract = external17 direct
+      val $dependency.receiver: Contract
+        Type Contract
+        Local pending
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.23: Token = external6 interface Contract[0]
+        Type Contract
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      call $call.24: Boolean = external18 direct
+        Type Token
+        Local $call.23
+        Type Token
+        Local token
+      branch bb19 bb20
+        Type Boolean
+        Local $call.24
+    bb19 if.then.19
+      val $dependency.receiver: Contract
+        Type Contract
+        Local pending
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.25: Token = external4 interface Contract[1]
+        Type Contract
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      call $shortCircuit.3: Boolean = external18 direct
+        Type Token
+        Local $call.25
+        Type Token
+        Local token
+      goto bb21
+    bb20 if.else.20
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 if.merge.21
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

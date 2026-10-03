@@ -1,0 +1,8 @@
+import templates.constructors.ValueOnly
+
+private class Payload()
+
+public fun bad(): Int {
+    val value = ValueOnly<Payload>(Payload())
+    return 0
+}

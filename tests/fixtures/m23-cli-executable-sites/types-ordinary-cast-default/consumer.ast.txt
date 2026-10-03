@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public fun withCast<T>(value: Any, result: T = <expr>): T
+    =
+      Var result
+  public fun useCast(value: Any): Int
+    =
+      Call withCast<Int>
+        Var value

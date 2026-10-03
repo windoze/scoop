@@ -149,7 +149,7 @@ fn hello_world() {
     let file = ok("fun main() {\n    print(\"hello, world\")\n    println(\"!\")\n}\n");
     assert_eq!(
         scoop_ast::dump(&file),
-        "SourceFile\n  fun main()\n    Call print\n      StringLiteral \"hello, world\"\n    Call println\n      StringLiteral \"!\"\n"
+        "SourceFile\n  RootPackage\n  fun main()\n    Call print\n      StringLiteral \"hello, world\"\n    Call println\n      StringLiteral \"!\"\n"
     );
 }
 

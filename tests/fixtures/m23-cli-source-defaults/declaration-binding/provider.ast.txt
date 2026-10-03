@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  public struct ContractValue<T>
+    field first: T
+    field second: T = <expr>
+  public enum ContractChoice<T>
+    Item <ctor>
+      first: T
+      second: T = <expr>
+  public open class ContractBase<A, B>()
+    protected fun pick
+    protected fun copy
+    internal fun number
+    internal fun successive
+    protected nested class Static
+  public class ContractChild<T>() : ContractBase<T, T>(<0 args>)
+    protected fun pick
+  public fun declarationSeed(value: Int = <expr>): Int
+    =
+      Var value

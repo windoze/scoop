@@ -1,7 +1,15 @@
 use super::*;
 
-pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, buf: &mut String) {
+pub(super) fn dump_instruction(
+    module: &Module,
+    function: &Function,
+    instruction: &Instruction,
+    buf: &mut String,
+) {
     match instruction {
+        Instruction::BoxValue { .. } | Instruction::UnboxValue { .. } => {
+            super::boxing::dump_boxing(function, instruction, buf)
+        }
         Instruction::BinOp { out, op, lhs, rhs } => buf.push_str(&format!(
             "    t{} = {:?} {}, {} : {}\n",
             out.into_raw(),
@@ -116,6 +124,13 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),
+        Instruction::MakeZstValue { out, value } => buf.push_str(&format!(
+            "    t{} = zst_value exact={} align {} : {}\n",
+            out.into_raw(),
+            value.exact(),
+            value.representation().layout().alignment(),
+            value.representation().storage_type().dump()
+        )),
         Instruction::MakeAggregate { out, elements } => {
             let elements: Vec<String> = elements.iter().map(|e| value_name(*e)).collect();
             buf.push_str(&format!(
@@ -198,7 +213,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             "    t{} = native_global_load ng{} sp{} roots=[{}] : {}\n",
             out.into_raw(),
             global.into_raw(),
-            safepoint.get(),
+            safepoint_name(function, *safepoint),
             caller_roots_name(roots.as_slice()),
             function.temps[*out].ty.dump()
         )),
@@ -211,7 +226,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             "    native_global_store ng{}, {} sp{} roots=[{}]\n",
             global.into_raw(),
             value_name(*value),
-            safepoint.get(),
+            safepoint_name(function, *safepoint),
             caller_roots_name(roots.as_slice())
         )),
         Instruction::NativeGlobalAddress {
@@ -223,7 +238,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             "    t{} = native_global_address ng{} sp{} roots=[{}]\n",
             out.into_raw(),
             global.into_raw(),
-            safepoint.get(),
+            safepoint_name(function, *safepoint),
             caller_roots_name(roots.as_slice())
         )),
         Instruction::HeapStore {
@@ -277,10 +292,15 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             value_name(*replacement),
             function.temps[*out].ty.dump()
         )),
-        Instruction::FunctionAddress { out, symbol } => buf.push_str(&format!(
+        Instruction::FunctionAddress { out, target } => buf.push_str(&format!(
             "    t{} = function_address @{} : ptr\n",
             out.into_raw(),
-            symbol
+            match target {
+                FunctionAddressTarget::Local(reference) =>
+                    module.functions[reference.declaration().into_u32() as usize].symbol(),
+                FunctionAddressTarget::CallbackTrampoline(bridge) =>
+                    module.callback_bridges[*bridge].trampoline.entry().symbol(),
+            }
         )),
         Instruction::ForeignCallbackRegister {
             out,
@@ -349,23 +369,23 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
         Instruction::RawLoad {
             out,
             pointer,
-            align,
+            pointee,
         } => buf.push_str(&format!(
             "    t{} = raw_load {} align {} : {}\n",
             out.into_raw(),
             value_name(*pointer),
-            align,
+            pointee.layout().alignment(),
             function.temps[*out].ty.dump()
         )),
         Instruction::RawStore {
             pointer,
             value,
-            align,
+            pointee,
         } => buf.push_str(&format!(
             "    raw_store {} {} align {}\n",
             value_name(*pointer),
             value_name(*value),
-            align
+            pointee.layout().alignment()
         )),
         Instruction::PtrOffset {
             out,
@@ -397,7 +417,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
         Instruction::ManagedPoll { site } => buf.push_str(&format!(
             "    poll managed-void-target{} sp{} live=[{}]\n",
             site.target.into_raw(),
-            site.safepoint.get(),
+            safepoint_name(function, site.safepoint),
             live_set_name(&site.live)
         )),
         Instruction::Invoke { site } => {
@@ -443,7 +463,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
                 out.into_raw(),
                 array_type.into_raw(),
                 elements.join(", "),
-                safepoint.get(),
+                safepoint_name(function, *safepoint),
                 live_set_name(live),
                 function.temps[*out].ty.dump()
             ))
@@ -451,6 +471,7 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
         Instruction::ArrayAssembly {
             out,
             parts,
+            overflow_message,
             array_type,
             safepoint,
             live,
@@ -467,11 +488,12 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
                 })
                 .collect::<Vec<_>>();
             buf.push_str(&format!(
-                "    t{} = array_assembly array{} ({}) sp{} live {} : {}\n",
+                "    t{} = array_assembly array{} ({}) overflow {} sp{} live {} : {}\n",
                 out.into_raw(),
                 array_type.into_raw(),
                 parts.join(", "),
-                safepoint.get(),
+                value_name(Value::Global(*overflow_message)),
+                safepoint_name(function, *safepoint),
                 live_set_name(live),
                 function.temps[*out].ty.dump()
             ))
@@ -513,17 +535,19 @@ pub(super) fn dump_instruction(function: &Function, instruction: &Instruction, b
             value_name(*value)
         )),
         Instruction::ArrayClone {
+            source_type,
             out,
             operand,
             array_type,
             safepoint,
             live,
         } => buf.push_str(&format!(
-            "    t{} = array_clone array{} {} sp{} live {} : {}\n",
+            "    t{} = array_clone array{} -> array{} {} sp{} live {} : {}\n",
             out.into_raw(),
+            source_type.into_raw(),
             array_type.into_raw(),
             value_name(*operand),
-            safepoint.get(),
+            safepoint_name(function, *safepoint),
             live_set_name(live),
             function.temps[*out].ty.dump()
         )),

@@ -1,0 +1,5 @@
+import dependency.classes.FirstChoice
+
+public class LocalChoice public constructor(): FirstChoice {
+    public override fun choose(): Long = super<FirstChoice>.choose(1)
+}

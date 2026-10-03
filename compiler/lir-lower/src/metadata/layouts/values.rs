@@ -1,45 +1,12 @@
 use super::*;
 
-/// Layout of an aggregate value (struct / tuple / Unit): fields in
-/// declaration order at their natural alignment. The recursive scan
-/// program preserves references nested in aggregates and tagged enums.
-pub(crate) fn aggregate_layout(
-    context: &LoweringContext,
-    module: &mir::Module,
-    enums: &lir::EnumDefs,
-    name: String,
-    fields: &[mir::Type],
-) -> lir::Layout {
-    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-    let (offsets, size, align) = aggregate_shape(context, module, &enum_shape, fields);
-    let scan = scan_fields(context, module, enums, fields, &offsets, 0);
-    lir::Layout {
-        name,
-        size,
-        align,
-        fields: offsets
-            .iter()
-            .zip(fields)
-            .map(|(&offset, field)| {
-                let (_, access_align) = size_align(context, module, &enum_shape, field);
-                lir::FieldLayout {
-                    offset,
-                    access_align,
-                }
-            })
-            .collect(),
-        c_layout: None,
-        interior_mutable: false,
-        kind: lir::LayoutKind::Plain { scan },
-    }
-}
-
 pub(crate) fn struct_layout(
     context: &LoweringContext,
     module: &mir::Module,
     enums: &lir::EnumDefs,
+    identity: lir::LayoutIdentity,
     definition: &mir::StructDef,
-) -> lir::Layout {
+) -> StorageResult<lir::Layout> {
     if let mir::StructRepresentation::Intrinsic(representation) = &definition.representation {
         let (size, align, representation) = match representation {
             mir::IntrinsicTypeRepresentation::Integer(kind) => {
@@ -85,7 +52,8 @@ pub(crate) fn struct_layout(
                 unreachable!("the registry fixes intrinsic declaration targets")
             }
         };
-        return lir::Layout {
+        return Ok(lir::Layout {
+            identity,
             name: definition.name.clone(),
             size,
             align,
@@ -93,14 +61,15 @@ pub(crate) fn struct_layout(
             c_layout: None,
             interior_mutable: false,
             kind: lir::LayoutKind::Intrinsic(representation),
-        };
+        });
     }
-    let enum_shape = |id: mir::EnumId| repr_shape(context, &enums[enum_def_id(id)].repr);
-    let (fields, size, align) = struct_shape(context, module, &enum_shape, definition);
+    let enum_shape = |id: mir::EnumId| Ok(repr_shape(context, &enums[enum_def_id(id)].repr));
+    let (fields, size, align) = struct_shape(context, module, &enum_shape, definition)?;
     let mir::StructRepresentation::Declared {
         c_layout,
         interior_mutable,
         fields: definition_fields,
+        ..
     } = &definition.representation
     else {
         unreachable!()
@@ -110,8 +79,9 @@ pub(crate) fn struct_layout(
         .map(|field| field.ty.clone())
         .collect();
     let offsets: Vec<_> = fields.iter().map(|field| field.offset).collect();
-    let scan = scan_fields(context, module, enums, &field_types, &offsets, 0);
-    lir::Layout {
+    let scan = scan_fields(context, module, enums, &field_types, &offsets, 0)?;
+    Ok(lir::Layout {
+        identity,
         name: definition.name.clone(),
         size,
         align,
@@ -119,7 +89,7 @@ pub(crate) fn struct_layout(
         c_layout: c_layout.map(lower_c_layout),
         interior_mutable: *interior_mutable,
         kind: lir::LayoutKind::Plain { scan },
-    }
+    })
 }
 
 /// Layout of an enum value. Tagged enums expose one unconditional scan
@@ -128,12 +98,14 @@ pub(crate) fn enum_layout(
     context: &LoweringContext,
     enums: &lir::EnumDefs,
     id: mir::EnumId,
+    identity: lir::LayoutIdentity,
     def: &mir::EnumDef,
 ) -> lir::Layout {
     match &enums[enum_def_id(id)].repr {
         lir::EnumRepr::Niche { .. } => {
             let (size, align) = repr_shape(context, &enums[enum_def_id(id)].repr);
             lir::Layout {
+                identity,
                 name: def.name.clone(),
                 size,
                 align,
@@ -148,6 +120,7 @@ pub(crate) fn enum_layout(
         lir::EnumRepr::Tagged { .. } => {
             let (size, align) = repr_shape(context, &enums[enum_def_id(id)].repr);
             lir::Layout {
+                identity,
                 name: def.name.clone(),
                 size,
                 align,

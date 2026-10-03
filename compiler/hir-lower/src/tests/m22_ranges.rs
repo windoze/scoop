@@ -389,7 +389,10 @@ fn class_method(module: &hir::Module, class: hir::ClassId, name: &str) -> hir::F
 }
 
 fn integer_method(module: &hir::Module, kind: hir::IntegerKind, name: &str) -> hir::FunctionId {
-    let owner = module.intrinsic_type_core.integers.owner(kind);
+    let owner = defined_export_core(module)
+        .fundamental_types
+        .integers
+        .owner(kind);
     module.structs[owner]
         .methods
         .iter()
@@ -400,8 +403,13 @@ fn integer_method(module: &hir::Module, kind: hir::IntegerKind, name: &str) -> h
 
 fn callee_function(module: &hir::Module, expression: &hir::Expr) -> hir::FunctionId {
     match &expression.kind {
-        hir::ExprKind::Call { callee, .. } => module.callable_function(*callee),
-        hir::ExprKind::MethodCall { callee, .. } => module.callable_function(*callee),
+        hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } => module.callable_function(*callee),
+        hir::ExprKind::MethodCall { callee, .. } => {
+            module.callable_function(crate::tests::local_method_callable(module, *callee))
+        }
         other => panic!("expected a resolved call, found {other:?}"),
     }
 }
@@ -413,18 +421,8 @@ fn user_body(module: &hir::Module, function: hir::FunctionId) -> &hir::Body {
     body
 }
 
-fn main_body(module: &hir::Module) -> &hir::Body {
-    user_body(module, module.entry)
-}
-
-fn for_plans(body: &hir::Body) -> Vec<&hir::ForIterationPlan> {
-    body.statements
-        .iter()
-        .filter_map(|statement| match &statement.kind {
-            hir::StatementKind::For(plan) => Some(plan.as_ref()),
-            _ => None,
-        })
-        .collect()
+fn main_body(module: &hir::ExportHirOutput) -> &hir::Body {
+    user_body(module, module.entry())
 }
 
 fn assert_plain_public_method(
@@ -526,11 +524,6 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
             &format!("Iterator<{element}>"),
             (Some(hir::OperatorKind::Iterator), false),
         );
-        assert!(
-            !module.functions[iterator].override_access.is_empty(),
-            "{}.iterator must carry its exact override witness",
-            case.range
-        );
         assert_plain_public_method(
             &module,
             class_method(&module, class_id, "step"),
@@ -619,8 +612,8 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
         arithmetic_exception,
         index_out_of_bounds_exception,
         illegal_state_exception,
-        illegal_state_message_constructor: _,
-    } = module.exception_core;
+        initialization_cycle_thrower: _,
+    } = defined_export_core(&module).exceptions;
     for compiler_owned in [
         throwable.class(),
         unwrap_exception.class(),
@@ -719,29 +712,52 @@ fn m22_range_resolution_widening_and_for_elements_preserve_exact_targets() {
         );
     }
 
-    let plans = for_plans(body);
-    assert_eq!(plans.len(), INTEGER_RANGE_CASES.len());
-    for (plan, case) in plans.into_iter().zip(INTEGER_RANGE_CASES) {
-        assert_eq!(hir::type_name(&module, plan.source_init().ty), case.range);
+    let sources = iteration_initializers(body, "$for.source.");
+    let iterators = iteration_initializers(body, "$for.iterator.result.");
+    let loops = body
+        .statements
+        .iter()
+        .filter_map(|statement| match &statement.kind {
+            hir::StatementKind::While { body, .. } => Some(body),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(sources.len(), INTEGER_RANGE_CASES.len());
+    assert_eq!(iterators.len(), INTEGER_RANGE_CASES.len());
+    assert_eq!(loops.len(), INTEGER_RANGE_CASES.len());
+    for (((source, iterator), loop_body), case) in sources
+        .into_iter()
+        .zip(iterators)
+        .zip(loops)
+        .zip(INTEGER_RANGE_CASES)
+    {
+        assert_eq!(hir::type_name(&module, source.ty), case.range);
         assert_eq!(
-            callee_function(&module, plan.source_init()),
+            callee_function(&module, source),
             integer_method(&module, case.kind, "rangeTo")
         );
         assert_eq!(
-            callee_function(&module, plan.iterator_call()),
+            callee_function(&module, iterator),
             class_method(&module, find_class(&module, case.range), "iterator")
         );
-        assert_eq!(
-            hir::type_name(&module, plan.next().element().ty),
-            case.element.canonical_name()
-        );
-        let hir::IrrefutableBindingShape::Binding(binding) = &plan.binding().shape else {
-            panic!("range for bindings are plain exact element bindings")
-        };
-        assert_eq!(
-            hir::type_name(&module, binding.ty),
-            case.element.canonical_name()
-        );
+        let bindings = loop_body
+            .iter()
+            .filter_map(|statement| match &statement.kind {
+                hir::StatementKind::ValDecl {
+                    pattern: hir::Pattern::Binding { local },
+                    ..
+                } => Some(&body.locals[*local]),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(bindings.len(), 3);
+        for binding in bindings {
+            assert_eq!(
+                hir::type_name(&module, binding.ty),
+                case.element.canonical_name()
+            );
+            assert!(!binding.mutable);
+        }
     }
 
     for case in INTEGER_RANGE_CASES {
@@ -788,4 +804,17 @@ fn m22_range_resolution_widening_and_for_elements_preserve_exact_targets() {
             }
         }
     }
+}
+
+fn iteration_initializers<'body>(body: &'body hir::Body, prefix: &str) -> Vec<&'body hir::Expr> {
+    body.statements
+        .iter()
+        .filter_map(|statement| match &statement.kind {
+            hir::StatementKind::ValDecl {
+                pattern: hir::Pattern::Binding { local },
+                init,
+            } if body.locals[*local].name.starts_with(prefix) => Some(init),
+            _ => None,
+        })
+        .collect()
 }

@@ -1,0 +1,40 @@
+Module
+  global0 count: Int managed initial=encoded(Int:0x0)
+  fun calls @fn0() -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 direct
+      return
+        Type Int
+        Local $call.1
+  fun mark @fn1() -> Unit
+    bb0 entry
+      call $old.0: Int = @fn2 direct
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+  fun $get$count @fn2() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead count
+  fun $set$count @fn3(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign count
+        Type Int
+        Local value
+      return
+  output library

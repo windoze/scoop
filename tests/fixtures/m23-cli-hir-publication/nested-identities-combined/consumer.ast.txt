@@ -1,0 +1,59 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    if
+      Binary Ne
+        Invoke
+          Call nestedLambda<Int, (Int, Int), String>
+        IntLiteral 1
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Invoke
+          Call nestedLocal<Int, String>
+        IntLiteral 1
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Invoke
+          Call nestedAnonymous<Int, (Int, Int), String>
+        IntLiteral 1
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Invoke
+          Call nestedReference<Int>
+        IntLiteral 1
+      return
+        IntLiteral 4
+    val host
+      Call nestedHost
+    if
+      Binary Ne
+        Invoke
+          MethodCall expanded<String>
+            Var host
+        IntLiteral 1
+      return
+        IntLiteral 5
+    if
+      Binary Ne
+        Invoke
+          MethodCall local<String>
+            Var host
+        IntLiteral 1
+      return
+        IntLiteral 6
+    if
+      Binary Ne
+        Invoke
+          MethodCall anonymous<String>
+            Var host
+        IntLiteral 1
+      return
+        IntLiteral 7
+    return
+      IntLiteral 42

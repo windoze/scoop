@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn basic_for_plan_keeps_source_iterator_and_next_exactly_once() {
+fn basic_for_expansion_keeps_source_iterator_and_next_exactly_once() {
     let output = lower_user_output(file(vec![
         iterator_class("BasicIterator", ty_named("Int")),
         source_class("BasicSource", "BasicIterator"),
@@ -21,52 +21,85 @@ fn basic_for_plan_keeps_source_iterator_and_next_exactly_once() {
             )],
         ),
     ]))
-    .expect("a source for loop must lower to one complete typed plan");
+    .expect("a source for loop must lower to ordinary typed statements");
 
     let module = &output.export;
-    let plan = first_for(export_body(module, "main"));
+    let export_body = export_body(module, "main");
     let int = int_type(module);
-    assert!(plan.source_setup().is_empty());
-    let [receiver_setup] = plan.iterator_setup() else {
-        panic!("the iterator receiver must be materialized exactly once")
-    };
-    let hir::StatementKind::ValDecl { init, .. } = &receiver_setup.kind else {
-        panic!("the iterator receiver setup must be one temporary binding")
-    };
-    assert!(matches!(
-        &init.kind,
-        hir::ExprKind::Local(local) if *local == plan.source().local
-    ));
-    assert_eq!(plan.source().ty, plan.source_init().ty);
-    assert_eq!(export_callee_name(module, plan.source_init()), "makeSource");
+    let source = export_local_with_prefix(export_body, "$for.source.");
+    let raw = export_local_with_prefix(export_body, "$for.iterator.result.");
+    let iterator = export_body
+        .locals
+        .iter()
+        .find_map(|(id, local)| {
+            (id != raw && local.name.starts_with("$for.iterator.")).then_some(id)
+        })
+        .expect("the adapted iterator has its own local");
+    let next_result = export_local_with_prefix(export_body, "$for.next.");
+    let element = export_local_with_prefix(export_body, "$for.element.");
     assert_eq!(
-        export_callee_name(module, plan.iterator_call()),
+        export_callee_name(module, export_local_init(&export_body.statements, source)),
+        "makeSource"
+    );
+    assert_eq!(
+        export_callee_name(module, export_local_init(&export_body.statements, raw)),
         "BasicSource.iterator"
     );
-
-    let conformance = plan.conformance();
-    assert_eq!(conformance.source().ty, plan.iterator_call().ty);
-    let application = &module.interface_applications[conformance.application()];
-    assert_eq!(application.template, module.iteration_core.iterator());
-    assert_eq!(application.arguments, [int]);
-    assert_eq!(conformance.iterator().ty, application.canonical_type);
-
-    let next = plan.next();
-    let next_application = &module.method_applications[next.callable()];
-    assert_eq!(
-        next_application.function,
-        module.interface_methods[module.iteration_core.next()].function
-    );
-    assert_eq!(next.element().ty, int);
-    assert_eq!(plan.binding().subject, next.element());
-    let option = &module.enum_applications[next.option().application()];
-    assert_eq!(option.template, module.option_core.enumeration());
-    assert_eq!(option.arguments, [int]);
-    let hir::IrrefutableBindingShape::Binding(binding) = &plan.binding().shape else {
-        panic!("a plain for variable must retain one binding leaf")
+    let hir::Type::Interface(application) = module.types[export_body.locals[iterator].ty] else {
+        panic!("the saved iterator must have the exact core interface type")
     };
-    assert_eq!(binding.ty, int);
-    assert_eq!(plan.body().len(), 1);
+    let application = &module.interface_applications[application];
+    assert_eq!(
+        application.template,
+        module.nominal_identities[defined_export_core(module).iteration.iterator()]
+            .declaration_id()
+    );
+    assert_eq!(application.arguments, [int]);
+    let iterator_local_ids = [source, raw, iterator, next_result, element];
+    let iterator_paths = iterator_local_ids
+        .into_iter()
+        .map(|local| {
+            let scoop_identity::LocalValueSelector::Synthetic { path, role } =
+                &export_body.locals[local].selector
+            else {
+                panic!("for desugaring locals must have typed synthetic selectors")
+            };
+            assert_eq!(*role, scoop_identity::SyntheticLocalRole::DesugaredIterator);
+            path
+        })
+        .collect::<std::collections::HashSet<_>>();
+    assert_eq!(iterator_paths.len(), iterator_local_ids.len());
+    let (_, setup, cond, loop_body) = export_loop(export_body);
+    assert_eq!(setup.len(), 1);
+    let next_call = export_local_init(setup, next_result);
+    let hir::ExprKind::MethodCall { callee, .. } = &next_call.kind else {
+        panic!("the condition setup must contain the canonical next call")
+    };
+    assert_eq!(
+        module.callable_function(crate::tests::local_method_callable(module, *callee)),
+        module.interface_methods[defined_export_core(module).iteration.next()].function
+    );
+    let hir::Type::Enum(option) = module.types[next_call.ty] else {
+        panic!("next returns the actual Option application")
+    };
+    assert_eq!(
+        module.enum_applications[option].template,
+        module.nominal_identities[defined_export_core(module).option.enumeration()]
+            .declaration_id()
+    );
+    assert_eq!(module.enum_applications[option].arguments, [int]);
+    assert!(
+        matches!(&cond.kind, hir::ExprKind::IsSome(operand) if matches!(operand.kind, hir::ExprKind::Local(local) if local == next_result))
+    );
+    assert!(
+        matches!(&export_local_init(loop_body, element).kind, hir::ExprKind::Unwrap { operand, trap_on_none: false } if matches!(operand.kind, hir::ExprKind::Local(local) if local == next_result))
+    );
+    let item = export_local_with_prefix(export_body, "item");
+    assert_eq!(export_body.locals[item].ty, int);
+    assert!(!export_body.locals[item].mutable);
+    assert!(
+        matches!(export_local_init(loop_body, item).kind, hir::ExprKind::Local(local) if local == element)
+    );
 
     let concrete = &output.local;
     let body = concrete_body(concrete, "main");
@@ -107,36 +140,25 @@ fn basic_for_plan_keeps_source_iterator_and_next_exactly_once() {
         panic!("the single header action must materialize next()")
     };
     assert_eq!(concrete_callee_name(concrete, init), "Iterator.next");
-    let hir::concrete::ExprKind::VariantTest {
-        operand: some_operand,
-        variant: some,
-    } = &cond.kind
-    else {
-        panic!("the loop condition must test the canonical Some variant")
+    let hir::concrete::ExprKind::IsSome(some_operand) = &cond.kind else {
+        panic!("the loop condition must test the canonical Option value")
     };
-    assert!(matches!(
-        &some_operand.kind,
-        hir::concrete::ExprKind::Local(local) if *local == *next_result
-    ));
-    let Some(payload_statement) = loop_body.first() else {
-        panic!("a successful next result must project its payload")
+    assert!(
+        matches!(&some_operand.kind, hir::concrete::ExprKind::Local(local) if *local == *next_result)
+    );
+    let hir::concrete::StatementKind::ValDecl { init: payload, .. } = &loop_body[0].kind else {
+        panic!("the first successful iteration action binds the payload")
     };
-    let hir::concrete::StatementKind::ValDecl { init: payload, .. } = &payload_statement.kind
-    else {
-        panic!("the first successful-iteration action must bind the payload")
-    };
-    let hir::concrete::ExprKind::VariantPayloadProject {
-        operand: payload_operand,
-        field,
+    let hir::concrete::ExprKind::Unwrap {
+        operand,
+        trap_on_none: false,
     } = &payload.kind
     else {
-        panic!("the element binding must project the canonical Some payload")
+        panic!("a successful next result is projected without a trap")
     };
-    assert_eq!(field.variant(), *some);
-    assert!(matches!(
-        &payload_operand.kind,
-        hir::concrete::ExprKind::Local(local) if *local == *next_result
-    ));
+    assert!(
+        matches!(&operand.kind, hir::concrete::ExprKind::Local(local) if *local == *next_result)
+    );
 }
 
 #[test]
@@ -171,13 +193,19 @@ fn member_iterator_layer_wins_before_extension_layer() {
     .expect("a valid member iterator must stop lookup before extensions");
 
     let module = &output.export;
-    let plan = first_for(export_body(module, "main"));
+    let body = export_body(module, "main");
+    let raw = export_local_with_prefix(body, "$for.iterator.result.");
+    let (_, setup, _, _) = export_loop(body);
+    let next = export_local_with_prefix(body, "$for.next.");
+    let hir::Type::Enum(option) = module.types[export_local_init(setup, next).ty] else {
+        panic!("the poll result has the selected element type")
+    };
     assert_eq!(
-        export_callee_name(module, plan.iterator_call()),
+        export_callee_name(module, export_local_init(&body.statements, raw)),
         "LayeredSource.iterator"
     );
     assert_eq!(
-        module.interface_applications[plan.conformance().application()].arguments,
+        module.enum_applications[option].arguments,
         [int_type(module)]
     );
 }
@@ -294,20 +322,24 @@ fn suspend_for_binding_may_call_a_suspend_component() {
     suspended.push(fun("main", Vec::new()));
     let output = lower_user_output(file(suspended))
         .expect("a suspend for binding may retain and concretize its suspend component call");
-    let plan = first_for(export_body(&output.export, "consume"));
-    let call = plan
-        .binding()
-        .actions
+    let (_, _, _, body) = export_loop(export_body(&output.export, "consume"));
+    let call = body
         .iter()
-        .find_map(|action| match action {
-            hir::IrrefutableBindingAction::Component { call, .. } => Some(call),
+        .find_map(|statement| match &statement.kind {
+            hir::StatementKind::ValDecl { init, .. }
+                if matches!(init.kind, hir::ExprKind::MethodCall { .. }) =>
+            {
+                Some(init)
+            }
             _ => None,
         })
-        .expect("the class binding plan must contain component1");
+        .expect("the class binding must invoke component1");
     let hir::ExprKind::MethodCall { callee, .. } = &call.kind else {
         panic!("component1 must remain an exact method call")
     };
-    let function = output.export.callable_function(*callee);
+    let function = output
+        .export
+        .callable_function(crate::tests::local_method_callable(&output.export, *callee));
     assert!(output.export.functions[function].is_suspend);
 }
 
@@ -439,31 +471,36 @@ fn iteration_plan_keeps_canonical_next_some_and_none_identities() {
     ]))
     .expect("unrelated declarations with protocol spellings must not change plan identities");
 
-    let plan = first_for(export_body(&module, "consume"));
-    let next = &module.method_applications[plan.next().callable()];
-    let canonical_next = module.interface_methods[module.iteration_core.next()].function;
+    let body = export_body(&module, "consume");
+    let (_, setup, _, _) = export_loop(body);
+    let next_call = export_local_init(setup, export_local_with_prefix(body, "$for.next."));
+    let hir::ExprKind::MethodCall { callee, .. } = &next_call.kind else {
+        panic!("the poll invokes the checked core slot")
+    };
+    let next_function =
+        module.callable_function(crate::tests::local_method_callable(&module, *callee));
+    let canonical_next =
+        module.interface_methods[defined_export_core(&module).iteration.next()].function;
     let shadow_next = module
         .functions
         .iter()
         .find_map(|(id, function)| (function.name == "Names.next").then_some(id))
         .expect("the unrelated user next declaration is retained");
-    assert_eq!(next.function, canonical_next);
-    assert_ne!(next.function, shadow_next);
+    assert_eq!(next_function, canonical_next);
+    assert_ne!(next_function, shadow_next);
 
-    let option = plan.next().option();
+    let hir::Type::Enum(option) = module.types[next_call.ty] else {
+        panic!("next retains the core Option return type")
+    };
     assert_eq!(
-        option.some_payload().variant().declaration(),
-        module.option_core.some()
-    );
-    assert_eq!(option.none().declaration(), module.option_core.none());
-    assert_eq!(
-        module.enum_applications[option.application()].template,
-        module.option_core.enumeration()
+        module.enum_applications[option].template,
+        module.nominal_identities[defined_export_core(&module).option.enumeration()]
+            .declaration_id()
     );
     let shadow = module
         .enums
         .iter()
         .find_map(|(id, enumeration)| (enumeration.name == "ShadowOption").then_some(id))
         .expect("the shadow enum is retained");
-    assert_ne!(shadow, module.option_core.enumeration());
+    assert_ne!(shadow, defined_export_core(&module).option.enumeration());
 }

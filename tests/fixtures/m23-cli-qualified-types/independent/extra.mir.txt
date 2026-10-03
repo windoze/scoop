@@ -1,0 +1,7 @@
+Module
+  fun marker @fn0() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+  output library

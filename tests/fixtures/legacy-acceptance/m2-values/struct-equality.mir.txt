@@ -1,0 +1,448 @@
+Module
+  struct Point (x: Int, y: Int)
+  struct Line (a: Point, b: Point)
+  interface ToString
+  interface Hash
+  fun Point.equals @fn0(this: Point, other: Point) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Point
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Point
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type Point
+            Local this
+          Type Int
+          FieldAccess 1
+            Type Point
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun Line.equals @fn1(this: Line, other: Line) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn0 direct
+        Type Point
+        FieldAccess 0
+          Type Line
+          Local this
+        Type Point
+        FieldAccess 0
+          Type Line
+          Local other
+      branch bb1 bb2
+        Type Boolean
+        Local $call.1
+    bb1 logic.rhs.1
+      call $call.3: Boolean = @fn0 direct
+        Type Point
+        FieldAccess 1
+          Type Line
+          Local this
+        Type Point
+        FieldAccess 1
+          Type Line
+          Local other
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.2
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call p1: Point = @fn6 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call p3: Point = @fn6 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $equality.lhs: Point
+        Type Point
+        Local p1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Point = @fn6 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      call $dependency.argument.0: Boolean = @fn0 direct
+        Type Point
+        Local $equality.lhs
+        Type Point
+        Local $call.1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Boolean = @fn0 direct
+        Type Point
+        Local p1
+        Type Point
+        Local p3
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $call.2: Boolean = @fn0 direct
+        Type Point
+        Local p1
+        Type Point
+        Local p3
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $argument.0: Point
+        Type Point
+        Local p1
+      val $argument.1: Point
+        Type Point
+        Local p3
+      val $parameter.a: Point
+        Type Point
+        Local $argument.0
+      val $parameter.b: Point
+        Type Point
+        Local $argument.1
+      call l1: Line = @fn7 direct
+        Type Point
+        Local $parameter.a
+        Type Point
+        Local $parameter.b
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Point = @fn6 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.x: Int
+        Type Int
+        Local $argument.0
+      val $parameter.y: Int
+        Type Int
+        Local $argument.1
+      call $argument.1: Point = @fn6 direct
+        Type Int
+        Local $parameter.x
+        Type Int
+        Local $parameter.y
+      val $parameter.a: Point
+        Type Point
+        Local $argument.0
+      val $parameter.b: Point
+        Type Point
+        Local $argument.1
+      call l2: Line = @fn7 direct
+        Type Point
+        Local $parameter.a
+        Type Point
+        Local $parameter.b
+      call $dependency.argument.0: Boolean = @fn1 direct
+        Type Line
+        Local l1
+        Type Line
+        Local l2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val t1: (Int, String)
+        Type (Int, String)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type String
+          StringConst @str0
+      call $dependency.argument.0: Boolean = @fn4 direct
+        Type (Int, String)
+        Local t1
+        Type (Int, String)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type String
+          StringConst @str1
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Boolean = @fn4 direct
+        Type (Int, String)
+        Local t1
+        Type (Int, String)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+          Type String
+          StringConst @str2
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        StringConst @str5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.receiver: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str7
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.argument.0: Boolean = external0 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn3(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str8
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $derived.equals.2 @fn4(this: (Int, String), other: (Int, String)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, String)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, String)
+            Local other
+    bb1 logic.rhs.1
+      call $call.2: Boolean = external0 direct
+        Type String
+        FieldAccess 1
+          Type (Int, String)
+          Local this
+        Type String
+        FieldAccess 1
+          Type (Int, String)
+          Local other
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun println @fn5(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str9
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.Point.$c0 @fn6(x: Int, y: Int) -> Point <no-gc>
+    bb0 entry
+      return
+        Type Point
+        StructInit Point
+          Type Int
+          Local x
+          Type Int
+          Local y
+  fun ctor.Line.$c1 @fn7(a: Point, b: Point) -> Line <no-gc>
+    bb0 entry
+      return
+        Type Line
+        StructInit Line
+          Type Point
+          Local a
+          Type Point
+          Local b
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn5 <- println
+  str @str0 "a"
+  str @str1 "a"
+  str @str2 "b"
+  str @str3 "x"
+  str @str4 "y"
+  str @str5 "x"
+  str @str6 "y"
+  str @str7 "xy"
+  str @str8 "\n"
+  str @str9 "\n"
+  output executable @fn2

@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportStar Local schedule.join.*
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  fun main()
+    @Unsafe block
+      Call trace
+        Binary Add
+          Var joined
+          IntLiteral 10L

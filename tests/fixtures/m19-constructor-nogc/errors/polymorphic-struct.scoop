@@ -1,0 +1,2 @@
+struct Spiral<T>() { constructor(flag: Boolean): this() { val next: Spiral<Spiral<T>> = Spiral<Spiral<T>>(true) } }
+fun main() {}

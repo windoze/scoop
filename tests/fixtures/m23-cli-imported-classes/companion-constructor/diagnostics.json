@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Factory` does not name a constructible type",
+    "notes": [],
+    "origin": {
+      "cone": "e0c509eeb0db49eb17baba11ed2f45017eea1c3fbc52df9b9defbcef620305cb",
+      "end": 87,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 64
+    },
+    "severity": "error"
+  }
+]

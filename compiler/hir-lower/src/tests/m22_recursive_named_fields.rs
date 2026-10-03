@@ -124,14 +124,20 @@ fn recursive_named_fields_lower_by_exact_type_in_declaration_order() {
     assert!(matches!(&leaf_fields[1].1, hir::Pattern::Wildcard));
 
     let hir::Pattern::Variant {
-        variant,
+        application,
         fields: variant_fields,
-        ..
     } = &payload[1]
     else {
         panic!("nested named variant must retain its variant shape")
     };
-    assert_eq!(*variant, 0);
+    assert_eq!(
+        module
+            .enum_member_identities
+            .variant_declaration(application.variant)
+            .expect("the nested pattern retains its original variant")
+            .local_index(),
+        0
+    );
     assert_eq!(variant_fields.len(), 1);
     assert!(matches!(&variant_fields[0].1, hir::Pattern::Literal { .. }));
 }
@@ -220,7 +226,7 @@ fn lambda_parameters_share_recursive_irrefutable_named_lowering() {
     ]);
     let module = lower_user(source).expect("nested named lambda parameter must lower");
     let (_, lambda) = module.lambdas.iter().next().expect("lambda entity");
-    let invoke = &module.functions[lambda.function];
+    let invoke = &module.functions[lambda.definition.source_function()];
     assert_eq!(
         invoke.params.len(),
         2,
@@ -244,13 +250,19 @@ fn lambda_parameters_share_recursive_irrefutable_named_lowering() {
                 return None;
             };
             let hir::ExprKind::FieldAccess {
-                field: hir::FieldRef::StructField(field),
+                field: hir::FieldRef::StructField { field, .. },
                 ..
             } = init.kind
             else {
                 return None;
             };
-            Some(field.local_index())
+            Some(
+                module
+                    .field_identities
+                    .struct_declaration(field)
+                    .unwrap()
+                    .local_index(),
+            )
         })
         .collect::<Vec<_>>();
     assert_eq!(projections, vec![0, 0]);

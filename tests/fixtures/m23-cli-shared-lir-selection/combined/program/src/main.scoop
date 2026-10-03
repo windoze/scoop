@@ -1,0 +1,10 @@
+fun verifyProjection(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyProjection(read() == "provider")
+    verifyProjection(message == "provider")
+    gcCollect()
+    verifyProjection(read() == "provider")
+    verifyProjection(readTop() == "provider")
+    verifyProjection(Holder.value == "provider")
+}

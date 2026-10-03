@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Unary Not
+        Call literal
+      throw
+        Call IllegalStateException

@@ -1,0 +1,205 @@
+use scoop_identity::{
+    ConeIdentity, DependencyCallableDeclarationId, ExactCallableSignature,
+    StrongCallableDefinitionOwner,
+};
+use scoop_wire::{Encoder, WireEncode};
+
+use crate::CanonicalMirFoundation;
+
+use super::encode_array;
+use super::errors::{CrossConeMirBridgeBuildError, ParamFreeMirCallableBuildError};
+use super::validation::{
+    reject_duplicate_exports, reject_duplicate_selected, validate_callable_shape,
+    validate_section_relations,
+};
+
+/// One executable callable exported by its terminal provider.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ParamFreeMirCallableExportV1 {
+    pub(super) declaration: DependencyCallableDeclarationId,
+    pub(super) implementation: StrongCallableDefinitionOwner,
+    pub(super) signature: crate::MirBridgeCallableSignatureV1,
+}
+
+impl ParamFreeMirCallableExportV1 {
+    pub fn try_new(
+        declaration: DependencyCallableDeclarationId,
+        implementation: StrongCallableDefinitionOwner,
+        signature: ExactCallableSignature,
+        gc_effect: crate::GcEffect,
+    ) -> Result<Self, ParamFreeMirCallableBuildError> {
+        validate_callable_shape(declaration, implementation, &signature)?;
+        Ok(Self {
+            declaration,
+            implementation,
+            signature: crate::MirBridgeCallableSignatureV1::new(signature, gc_effect),
+        })
+    }
+
+    pub const fn declaration(&self) -> DependencyCallableDeclarationId {
+        self.declaration
+    }
+
+    pub const fn implementation(&self) -> StrongCallableDefinitionOwner {
+        self.implementation
+    }
+
+    pub const fn signature(&self) -> &ExactCallableSignature {
+        self.signature.exact()
+    }
+
+    pub const fn bridge_signature(&self) -> &crate::MirBridgeCallableSignatureV1 {
+        &self.signature
+    }
+
+    pub const fn gc_effect(&self) -> crate::GcEffect {
+        self.signature.gc_effect()
+    }
+}
+
+impl WireEncode for ParamFreeMirCallableExportV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(4)?;
+        encoder.field(1)?;
+        self.declaration.encode(encoder)?;
+        encoder.field(2)?;
+        self.implementation.encode(encoder)?;
+        encoder.field(3)?;
+        self.signature().encode(encoder)?;
+        encoder.field(4)?;
+        encoder.unsigned(match self.gc_effect() {
+            crate::GcEffect::Managed => 1,
+            crate::GcEffect::NoGc => 2,
+        })
+    }
+}
+
+/// One ordinary dependency callable selected by this consumer.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectedDependencyMirCallableV1 {
+    pub(super) provider: ConeIdentity,
+    pub(super) declaration: DependencyCallableDeclarationId,
+    pub(super) implementation: StrongCallableDefinitionOwner,
+    pub(super) signature: ExactCallableSignature,
+}
+
+impl SelectedDependencyMirCallableV1 {
+    pub fn try_new(
+        provider: ConeIdentity,
+        declaration: DependencyCallableDeclarationId,
+        implementation: StrongCallableDefinitionOwner,
+        signature: ExactCallableSignature,
+    ) -> Result<Self, ParamFreeMirCallableBuildError> {
+        validate_callable_shape(declaration, implementation, &signature)?;
+        Ok(Self {
+            provider,
+            declaration,
+            implementation,
+            signature,
+        })
+    }
+
+    pub const fn provider(&self) -> ConeIdentity {
+        self.provider
+    }
+
+    pub const fn declaration(&self) -> DependencyCallableDeclarationId {
+        self.declaration
+    }
+
+    pub const fn implementation(&self) -> StrongCallableDefinitionOwner {
+        self.implementation
+    }
+
+    pub const fn signature(&self) -> &ExactCallableSignature {
+        &self.signature
+    }
+
+    pub(super) fn sort_key(&self) -> (ConeIdentity, DependencyCallableDeclarationId) {
+        (self.provider, self.declaration)
+    }
+}
+
+impl WireEncode for SelectedDependencyMirCallableV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(4)?;
+        encoder.field(1)?;
+        self.provider.encode(encoder)?;
+        encoder.field(2)?;
+        self.declaration.encode(encoder)?;
+        encoder.field(3)?;
+        self.implementation.encode(encoder)?;
+        encoder.field(4)?;
+        self.signature.encode(encoder)
+    }
+}
+
+/// Canonical MIR export and selected-use surfaces for ordinary dependencies.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossConeMirBridgeSectionV1 {
+    pub(super) artifact: ConeIdentity,
+    pub(super) exports: std::sync::Arc<[ParamFreeMirCallableExportV1]>,
+    pub(super) selected: std::sync::Arc<[SelectedDependencyMirCallableV1]>,
+}
+
+impl CrossConeMirBridgeSectionV1 {
+    pub fn try_new(
+        artifact: ConeIdentity,
+        foundation: &CanonicalMirFoundation,
+        mut exports: Vec<ParamFreeMirCallableExportV1>,
+        mut selected: Vec<SelectedDependencyMirCallableV1>,
+    ) -> Result<Self, CrossConeMirBridgeBuildError> {
+        exports.sort_unstable_by_key(ParamFreeMirCallableExportV1::declaration);
+        reject_duplicate_exports(&exports)
+            .map_err(CrossConeMirBridgeBuildError::DuplicateExport)?;
+        selected.sort_unstable_by_key(SelectedDependencyMirCallableV1::sort_key);
+        reject_duplicate_selected(&selected).map_err(|(provider, declaration)| {
+            CrossConeMirBridgeBuildError::DuplicateSelected {
+                provider,
+                declaration,
+            }
+        })?;
+        validate_section_relations(artifact, foundation, &exports, &selected)
+            .map_err(CrossConeMirBridgeBuildError::Relation)?;
+        Ok(Self {
+            artifact,
+            exports: exports.into(),
+            selected: selected.into(),
+        })
+    }
+
+    /// Artifact identity supplied by the containing manifest while the
+    /// section was built or validated. It is contextual and therefore is not
+    /// encoded redundantly in this section's wire payload.
+    pub const fn artifact(&self) -> ConeIdentity {
+        self.artifact
+    }
+
+    pub fn exports(&self) -> &[ParamFreeMirCallableExportV1] {
+        &self.exports
+    }
+
+    pub fn export(
+        &self,
+        declaration: DependencyCallableDeclarationId,
+    ) -> Option<&ParamFreeMirCallableExportV1> {
+        self.exports
+            .binary_search_by_key(&declaration, ParamFreeMirCallableExportV1::declaration)
+            .ok()
+            .map(|index| &self.exports[index])
+    }
+
+    pub fn selected(&self) -> &[SelectedDependencyMirCallableV1] {
+        &self.selected
+    }
+}
+
+impl WireEncode for CrossConeMirBridgeSectionV1 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
+        encoder.map(2)?;
+        encoder.field(1)?;
+        encode_array(encoder, &self.exports)?;
+        encoder.field(2)?;
+        encode_array(encoder, &self.selected)
+    }
+}

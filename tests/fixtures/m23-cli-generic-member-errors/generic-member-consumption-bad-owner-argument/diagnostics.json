@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `echo`: String is not a subtype of Int",
+    "notes": [],
+    "origin": {
+      "cone": "bd6c1d32ee7962056483699e1024f63e5206ae981aaa3d998e69e6627642c399",
+      "end": 91,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 69
+    },
+    "severity": "error"
+  }
+]

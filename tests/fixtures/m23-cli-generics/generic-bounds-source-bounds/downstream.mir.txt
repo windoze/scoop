@@ -1,0 +1,425 @@
+Module
+  class Later vtable=0 itables=0
+  class ForeignDerived vtable=1 itables=3
+  class PlainBase vtable=1 itables=2
+  class LocalBase vtable=2 itables=2
+  class HolderImpl<Int> vtable=0 itables=2
+  class box<Int> vtable=0 itables=0
+  interface Readable
+  interface Marker
+  interface LocalExtra
+  interface Extra
+  interface ChildHolder<Int> : Holder<Int>
+  interface Holder<Int>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn10 captures=1
+    bridge function_type1 -> @fn13 id=5cd50537c0d90eac5c401b71cb3da0940e004db5c89cf2a878f51c5633e6250b
+  generated_exact_type get0 location=closure0 nominal_id=41ed08f13d69caf8a3bfafddce021cc3c0fa29255eea6a55998d26691bc5f63c exact_id=9dfc6b93a97c512cc5ea35a5885186ad967de541873315ec470a15519603ff7f
+  generated_exact_type get1 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn13 id=5cd50537c0d90eac5c401b71cb3da0940e004db5c89cf2a878f51c5633e6250b
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn11 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val first: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local first
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call answer: Int = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn11 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocated: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local first
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      return
+        Type Int
+        Local answer
+  fun exercise @fn1(value: Later) -> Int
+    bb0 entry
+      assign $new.1
+        Type LocalBase
+        ClassAlloc LocalBase
+      call external6 direct
+        Type LocalBase
+        Local $new.1
+      val $dependency.local.2: LocalBase
+        Type LocalBase
+        Local $new.1
+      val $dependency.local.3: LocalBase
+        Type LocalBase
+        Local $dependency.local.2
+      call $dependency.local.4: Int = @fn3 direct
+        Type LocalBase
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.4
+            Type Int
+            Local $dependency.local.6
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      assign $new.2
+        Type ForeignDerived
+        ClassAlloc ForeignDerived
+      call external7 direct
+        Type ForeignDerived
+        Local $new.2
+      val $dependency.local.1: ForeignDerived
+        Type ForeignDerived
+        Local $new.2
+      val $dependency.local.7: ForeignDerived
+        Type ForeignDerived
+        Local $dependency.local.1
+      val $dependency.local.8: ForeignDerived
+        Type ForeignDerived
+        Local $dependency.local.7
+      call $dependency.local.9: Int = @fn4 direct
+        Type ForeignDerived
+        Local $dependency.local.8
+      val $dependency.local.10: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.10
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.9
+            Type Int
+            Local $dependency.local.11
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.local.12: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.12
+      assign $new.3
+        Type HolderImpl<Int>
+        ClassAlloc HolderImpl<Int>
+      call @fn12 direct
+        Type HolderImpl<Int>
+        Local $new.3
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.14: HolderImpl<Int>
+        Type HolderImpl<Int>
+        Local $new.3
+      val $dependency.local.15: HolderImpl<Int>
+        Type HolderImpl<Int>
+        Local $dependency.local.14
+      call $dependency.local.16: Int = @fn5 direct
+        Type HolderImpl<Int>
+        Local $dependency.local.15
+      val $dependency.local.17: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.16
+            Type Int
+            Local $dependency.local.18
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $dependency.local.19: ForeignDerived
+        Type ForeignDerived
+        Local $dependency.local.1
+      val $dependency.local.20: ForeignDerived
+        Type ForeignDerived
+        Local $dependency.local.19
+      call $call.4: Int = @fn6 direct
+        Type ForeignDerived
+        Local $dependency.local.20
+      return
+        Type Int
+        Local $call.4
+  fun get @fn2(this: HolderImpl<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn7 direct
+        Type HolderImpl<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun fromLocal @fn3(value: LocalBase) -> Int
+    bb0 entry
+      val $dependency.local.2: LocalBase
+        Type LocalBase
+        Local value
+      val $dependency.local.3: LocalBase
+        Type LocalBase
+        Local $dependency.local.2
+      call $dependency.local.1: () -> Int = @fn8 direct
+        Type LocalBase
+        Local $dependency.local.3
+      call $dependency.local.5: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $dependency.local.1
+      val $dependency.local.4: LocalBase
+        Type LocalBase
+        Local value
+      call $dependency.local.6: Int = external5 virtual[1]
+        Type LocalBase
+        Local $dependency.local.4
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+  fun fromInterfaces @fn4(value: ForeignDerived) -> Int
+    bb0 entry
+      val $dependency.local.1: ForeignDerived
+        Type ForeignDerived
+        Local value
+      val $dependency.local.2: ForeignDerived
+        Type ForeignDerived
+        Local $dependency.local.1
+      call $dependency.local.4: Int = @fn9 direct
+        Type ForeignDerived
+        Local $dependency.local.2
+      val $dependency.local.3: ForeignDerived
+        Type ForeignDerived
+        Local value
+      call $dependency.local.5: Int = external3 direct
+        Type ForeignDerived
+        Local $dependency.local.3
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+  fun fromHolder @fn5(value: HolderImpl<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: HolderImpl<Int>
+        Type HolderImpl<Int>
+        Local value
+      call $call.1: Int = @fn2 direct
+        Type HolderImpl<Int>
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun fromImported @fn6(value: ForeignDerived) -> Int
+    bb0 entry
+      val $dependency.local.1: ForeignDerived
+        Type ForeignDerived
+        Local value
+      val $dependency.local.2: ForeignDerived
+        Type ForeignDerived
+        Local $dependency.local.1
+      call $dependency.local.4: Int = @fn9 direct
+        Type ForeignDerived
+        Local $dependency.local.2
+      val $dependency.local.3: ForeignDerived
+        Type ForeignDerived
+        Local value
+      call $dependency.local.5: Int = external3 direct
+        Type ForeignDerived
+        Local $dependency.local.3
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+  fun payload @fn7(this: HolderImpl<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type HolderImpl<Int>
+          Local this
+  fun readReference @fn8(value: LocalBase) -> () -> Int
+    bb0 entry
+      return
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type LocalBase
+            Local value
+  fun readBound @fn9(value: ForeignDerived) -> Int
+    bb0 entry
+      val $dependency.local.1: ForeignDerived
+        Type ForeignDerived
+        Local value
+      call $call.1: Int = external2 direct
+        Type ForeignDerived
+        Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn10($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external4 virtual[0]
+        Type LocalBase
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun init.Later.$c0 @fn11(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.HolderImpl.$c0 @fn12(this: HolderImpl<Int>, payload: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type HolderImpl<Int>
+        Local this
+        Type Int
+        Local payload
+      return
+  fun function_bridge.$Closure$reference0.() -> Any @fn13($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- get
+  instance mi2 function=@fn3 <- fromLocal
+  instance mi3 function=@fn4 <- fromInterfaces
+  instance mi4 function=@fn5 <- fromHolder
+  instance mi5 function=@fn6 <- fromImported
+  instance mi6 function=@fn7 <- payload
+  instance mi7 function=@fn8 <- readReference
+  instance mi8 function=@fn9 <- readBound
+  output library

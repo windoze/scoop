@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public fun read(value: Any): Any
+    =
+      Call outside
+        Var value

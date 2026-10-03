@@ -1,0 +1,13 @@
+Module
+  fun dormant @fn0(value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun invoke @fn1() -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external0 direct
+      return
+        Type Boolean
+        Local $call.1
+  output library

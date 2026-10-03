@@ -1,0 +1,307 @@
+use std::collections::{HashMap, HashSet};
+
+use la_arena::Idx;
+use scoop_identity::{
+    DeclarationScope, DefinitionOwnerAtom, GeneratedCallableKey, InitializationCallableRole,
+    LexicalCallableParent, LexicalCallableRole, PersistentFunctionId,
+    PersistentGeneratedCallableId, PersistentGenericFunctionId, StructuralDefinitionPath,
+};
+
+use super::{
+    FunctionIdentityRelation, HirFunctionIdentity, HirFunctionIdentityError,
+    HirFunctionIdentityInputs, HirPropertyAccessorFunction, HirSourceFunctionIdentity,
+};
+use crate::{FunctionId, FunctionKind, LexicalDefinitionRoot, PropertyAccessorImplementation};
+
+mod claims;
+mod derived;
+mod topology;
+use claims::*;
+use topology::{resolve_definition_owner, resolve_lexical_parent};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum ClaimKind {
+    LocalSource {
+        root: LexicalDefinitionRoot,
+        path: StructuralDefinitionPath,
+        declaration_function_type: crate::FunctionTypeId,
+        owner_type_parameter_count: usize,
+        origin: crate::DefinitionOrigin,
+        capture_bindings: Vec<crate::BindingId>,
+    },
+    PropertyAccessor(HirPropertyAccessorFunction),
+    Lexical {
+        root: LexicalDefinitionRoot,
+        role: LexicalCallableRole,
+        path: StructuralDefinitionPath,
+    },
+    Initialization {
+        unit: crate::InitializationUnitId,
+        role: InitializationCallableRole,
+    },
+    DerivedEquality,
+}
+
+#[derive(Clone, Debug)]
+struct Claim {
+    relation: FunctionIdentityRelation,
+    kind: ClaimKind,
+}
+
+pub(super) fn validate(
+    inputs: &HirFunctionIdentityInputs<'_>,
+    identities: &[HirFunctionIdentity],
+) -> Result<(), HirFunctionIdentityError> {
+    if inputs.functions.len() != identities.len() {
+        return Err(HirFunctionIdentityError::Length {
+            expected: inputs.functions.len(),
+            actual: identities.len(),
+        });
+    }
+
+    let mut claims = vec![None; inputs.functions.len()];
+    claim_accessors(inputs, &mut claims)?;
+    claim_lexical_functions(inputs, &mut claims)?;
+    claim_local_functions(inputs, &mut claims)?;
+    claim_initialization(inputs, &mut claims)?;
+    let nominal_derived = claim_derived_equality(inputs, &mut claims)?;
+
+    let mut plain_ids = HashSet::<PersistentFunctionId>::new();
+    let mut generic_ids = HashSet::<PersistentGenericFunctionId>::new();
+    let mut generated_ids = HashSet::<PersistentGeneratedCallableId>::new();
+
+    for (function, declaration) in inputs.functions.iter() {
+        let identity = &identities[local_index(function)];
+        let claim = claims[local_index(function)].as_ref();
+        validate_entry(
+            inputs,
+            identities,
+            function,
+            declaration,
+            identity,
+            claim,
+            nominal_derived.contains(&function),
+        )?;
+        collect_unique_ids(
+            function,
+            identity,
+            &mut plain_ids,
+            &mut generic_ids,
+            &mut generated_ids,
+        )?;
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn validate_entry(
+    inputs: &HirFunctionIdentityInputs<'_>,
+    identities: &[HirFunctionIdentity],
+    function: FunctionId,
+    declaration: &crate::Function,
+    identity: &HirFunctionIdentity,
+    claim: Option<&Claim>,
+    nominal_derived: bool,
+) -> Result<(), HirFunctionIdentityError> {
+    let is_derived = matches!(declaration.kind, FunctionKind::DerivedEquality);
+    match (identity, claim) {
+        (HirFunctionIdentity::Source(_), None) if !is_derived => Ok(()),
+        (
+            HirFunctionIdentity::Source(source),
+            Some(Claim {
+                kind: ClaimKind::LocalSource { root, path, .. },
+                ..
+            }),
+        ) if !is_derived => {
+            validate_local_source(inputs, identities, function, source, *root, path)
+        }
+        (
+            HirFunctionIdentity::PropertyAccessor(actual),
+            Some(Claim {
+                kind: ClaimKind::PropertyAccessor(expected),
+                ..
+            }),
+        ) if actual == expected => validate_accessor(inputs, function, *actual),
+        (
+            HirFunctionIdentity::LexicalGenerated(record),
+            Some(Claim {
+                kind: ClaimKind::Lexical { root, role, path },
+                ..
+            }),
+        ) => {
+            let parent = resolve_lexical_parent(inputs, identities, function, *root, path)?;
+            if record.key()
+                == &(GeneratedCallableKey::Lexical {
+                    parent,
+                    role: *role,
+                    path: path.clone(),
+                })
+            {
+                Ok(())
+            } else {
+                Err(HirFunctionIdentityError::LexicalIdentity {
+                    function: raw_index(function),
+                })
+            }
+        }
+        (
+            HirFunctionIdentity::Initialization { unit, role, record },
+            Some(Claim {
+                kind:
+                    ClaimKind::Initialization {
+                        unit: expected_unit,
+                        role: expected_role,
+                    },
+                ..
+            }),
+        ) => {
+            let expected_key = GeneratedCallableKey::Initialization {
+                unit: inputs.initialization_unit_identities[*expected_unit].id(),
+                role: *expected_role,
+            };
+            if unit == expected_unit && role == expected_role && record.key() == &expected_key {
+                Ok(())
+            } else {
+                Err(HirFunctionIdentityError::InitializationIdentity {
+                    function: raw_index(function),
+                })
+            }
+        }
+        (
+            HirFunctionIdentity::DerivedEquality(applications),
+            Some(Claim {
+                kind: ClaimKind::DerivedEquality,
+                ..
+            }),
+        ) if is_derived => derived::validate(inputs, function, applications, nominal_derived),
+        _ => Err(HirFunctionIdentityError::IdentityKind {
+            function: raw_index(function),
+        }),
+    }
+}
+
+fn validate_local_source(
+    inputs: &HirFunctionIdentityInputs<'_>,
+    identities: &[HirFunctionIdentity],
+    function: FunctionId,
+    identity: &HirSourceFunctionIdentity,
+    root: LexicalDefinitionRoot,
+    path: &StructuralDefinitionPath,
+) -> Result<(), HirFunctionIdentityError> {
+    let declaration = identity.declaration();
+    let valid_scope = matches!(
+        declaration.scope(),
+        DeclarationScope::LexicalScoped {
+            source,
+            path: declaration_path,
+        } if source.cone() == declaration.origin() && declaration_path == path
+    );
+    let parent = resolve_definition_owner(inputs, identities, function, root, path)?;
+    if valid_scope && declaration.owners().owners().last() == Some(&parent) {
+        Ok(())
+    } else {
+        Err(HirFunctionIdentityError::LexicalIdentity {
+            function: raw_index(function),
+        })
+    }
+}
+
+fn validate_accessor(
+    inputs: &HirFunctionIdentityInputs<'_>,
+    function: FunctionId,
+    accessor: HirPropertyAccessorFunction,
+) -> Result<(), HirFunctionIdentityError> {
+    let valid = match accessor {
+        HirPropertyAccessorFunction::Getter(getter) => {
+            local_index(getter) < inputs.property_getters.len()
+                && matches!(
+                    inputs.property_getters[getter].implementation,
+                    PropertyAccessorImplementation::Body(actual)
+                        | PropertyAccessorImplementation::AbstractSlot(actual)
+                        if actual == function
+                )
+                && inputs
+                    .property_accessor_identities
+                    .get_getter(getter)
+                    .is_some()
+        }
+        HirPropertyAccessorFunction::Setter(setter) => {
+            local_index(setter) < inputs.property_setters.len()
+                && matches!(
+                    inputs.property_setters[setter].implementation,
+                    PropertyAccessorImplementation::Body(actual)
+                        | PropertyAccessorImplementation::AbstractSlot(actual)
+                        if actual == function
+                )
+                && inputs
+                    .property_accessor_identities
+                    .get_setter(setter)
+                    .is_some()
+        }
+    };
+    if valid {
+        Ok(())
+    } else {
+        Err(HirFunctionIdentityError::AccessorIdentity {
+            function: raw_index(function),
+        })
+    }
+}
+
+fn collect_unique_ids(
+    function: FunctionId,
+    identity: &HirFunctionIdentity,
+    plain: &mut HashSet<PersistentFunctionId>,
+    generic: &mut HashSet<PersistentGenericFunctionId>,
+    generated: &mut HashSet<PersistentGeneratedCallableId>,
+) -> Result<(), HirFunctionIdentityError> {
+    match identity {
+        HirFunctionIdentity::Source(HirSourceFunctionIdentity::Plain(record)) => {
+            if !plain.insert(record.id()) {
+                return Err(HirFunctionIdentityError::DuplicatePlainIdentity {
+                    function: raw_index(function),
+                });
+            }
+        }
+        HirFunctionIdentity::Source(HirSourceFunctionIdentity::Generic(record)) => {
+            if !generic.insert(record.id()) {
+                return Err(HirFunctionIdentityError::DuplicateGenericIdentity {
+                    function: raw_index(function),
+                });
+            }
+        }
+        HirFunctionIdentity::LexicalGenerated(record)
+        | HirFunctionIdentity::Initialization { record, .. } => {
+            insert_generated(function, record.id(), generated)?;
+        }
+        HirFunctionIdentity::DerivedEquality(applications) => {
+            for application in applications {
+                insert_generated(function, application.record().id(), generated)?;
+            }
+        }
+        HirFunctionIdentity::PropertyAccessor(_) => {}
+    }
+    Ok(())
+}
+
+fn insert_generated(
+    function: FunctionId,
+    id: PersistentGeneratedCallableId,
+    generated: &mut HashSet<PersistentGeneratedCallableId>,
+) -> Result<(), HirFunctionIdentityError> {
+    if generated.insert(id) {
+        Ok(())
+    } else {
+        Err(HirFunctionIdentityError::DuplicateGeneratedIdentity {
+            function: raw_index(function),
+        })
+    }
+}
+
+fn local_index<T>(id: Idx<T>) -> usize {
+    id.into_raw().into_u32() as usize
+}
+
+fn raw_index<T>(id: Idx<T>) -> u32 {
+    id.into_raw().into_u32()
+}

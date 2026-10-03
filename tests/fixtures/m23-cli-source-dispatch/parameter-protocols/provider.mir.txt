@@ -1,0 +1,206 @@
+Module
+  struct Packet (count: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Packet>
+    Completed(value: Packet)
+    Suspended()
+  enum CoroutineSlot<Packet>
+    Empty()
+    Value(value: Packet)
+  enum CoroutineStep<Protocols>
+    Completed(value: Protocols)
+    Suspended()
+  enum CoroutineSlot<Protocols>
+    Empty()
+    Value(value: Protocols)
+  class Protocols vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Packet> vtable=0 itables=0
+  interface Continuation<Packet>
+  interface SuspendTask<Packet>
+  interface SuspendRegistration<Packet>
+  interface Continuation<Protocols>
+  interface SuspendTask<Protocols>
+  interface SuspendRegistration<Protocols>
+  generated_exact_type get0 location=enum3 nominal_id=ecd3e10bcb6cac197d44c41bad0e16ce7a2d628d328df8d67a649b0f68fcd079 exact_id=2bb271eaed09f34699d822348621eb1591caaae275e47023754fe7d225cf4fcc
+  generated_exact_type get1 location=enum1 nominal_id=021bd0e5b96428b3bf62e95fd6359ab3ed4d91702914202c4eae529a8f0c0f07 exact_id=5676f92896e7b60adea532878425c4cb724069afa37f0c4dbdaa0ada9fe9b9ad
+  generated_exact_type get2 location=class4 nominal_id=f8734879024a5572e4d10abfffff948a064a0d097d97124ceb05eaa4b966944f exact_id=9a7744aa01a0eff13a7cf9e276961176a48a0cd050b2beb8a6ba8d2aa7834b78
+  generated_exact_type get3 location=enum2 nominal_id=60c7157a3f4ad141ad134f296ed39c1a140b852dc5fdc55bb153167c4082c914 exact_id=c1c9d9bc0667bbf5b0359613621b80f2cdfa107af6c4612ad503c07291a07209
+  generated_exact_type get4 location=enum4 nominal_id=361d6af0b91c73ff5d0ba9fe2f6a4ce96ffe38a21624054a2844caee1c296b86 exact_id=dad19d1596e0c500d34a5ace503848ecb395d510acd605dc38543fba33c60e09
+  generated_callable gc0 function=@fn15 id=245e32b05b779993dc05879efa6317c597fedba73b22fd5f120805bc9315dec4
+  generated_callable gc1 function=@fn16 id=948d93db2ccfcfb238ccc2d414368c4b4178ebfe881d98458b2a13c36a15ab53
+  fun Packet.equals @fn0(this: Packet, other: Packet) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Packet
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Packet
+            Local other
+  fun Protocols.required @fn1(this: Protocols, first: Int, second: Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        Local second
+  fun Protocols.empty @fn2(this: Protocols) -> Unit
+    bb0 entry
+      return
+  fun Protocols.ignored @fn3(this: Protocols, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Protocols.publicOnly @fn4(this: Protocols, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Continuation.resume @fn5(this: Continuation<Packet>, value: Packet) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Packet>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn9(this: Continuation<Protocols>, value: Protocols) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Protocols>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Protocols>, $completion: Continuation<Protocols>) -> CoroutineStep<Protocols>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Protocols>, continuation: Continuation<Protocols>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Protocols.$c0 @fn13(this: Protocols, seed: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Protocols
+        Local this
+        Type Int
+        Local seed
+      return
+  fun ctor.Packet.$c0 @fn14(count: Int) -> Packet <no-gc>
+    bb0 entry
+      return
+        Type Packet
+        StructInit Packet
+          Type Int
+          Local count
+  fun startCoroutine<Packet> @fn15(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Packet>[0]
+        Type Continuation<Packet>
+        Local completion
+        Type Packet
+        EnumField v0 f0
+          Type CoroutineStep<Packet>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Packet>[1]
+        Type Continuation<Packet>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Packet> = @fn7 interface SuspendTask<Packet>[0]
+        Type SuspendTask<Packet>
+        Local task
+        Type Continuation<Packet>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Packet>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Protocols> @fn16(task: SuspendTask<Protocols>, completion: Continuation<Protocols>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<Protocols>[0]
+        Type Continuation<Protocols>
+        Local completion
+        Type Protocols
+        EnumField v0 f0
+          Type CoroutineStep<Protocols>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<Protocols>[1]
+        Type Continuation<Protocols>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Protocols> = @fn11 interface SuspendTask<Protocols>[0]
+        Type SuspendTask<Protocols>
+        Local task
+        Type Continuation<Protocols>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Protocols>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Packet> result=Packet
+  coroutine_step cs1 CoroutineStep<Protocols> result=Protocols
+  coroutine_slot cl0 CoroutineSlot<Packet> value=Packet
+  coroutine_slot cl1 CoroutineSlot<Protocols> value=Protocols
+  coroutine_start ct0 result=Packet function=fn15
+  coroutine_start ct1 result=Protocols function=fn16
+  coroutine_fn cf0 @fn7 source_return=Packet step=cs0 immediate
+  coroutine_fn cf1 @fn11 source_return=Protocols step=cs1 immediate
+  instance mi0 function=@fn5 <- Continuation.resume
+  instance mi1 function=@fn6 <- Continuation.resumeWithException
+  instance mi2 function=@fn7 <- SuspendTask.run
+  instance mi3 function=@fn8 <- SuspendRegistration.register
+  instance mi4 function=@fn9 <- Continuation.resume
+  instance mi5 function=@fn10 <- Continuation.resumeWithException
+  instance mi6 function=@fn11 <- SuspendTask.run
+  instance mi7 function=@fn12 <- SuspendRegistration.register
+  output library

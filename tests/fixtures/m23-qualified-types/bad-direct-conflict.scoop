@@ -1,0 +1,3 @@
+package consumer.paths
+
+public fun rejected(value: facade.paths.Point): Int = 0

@@ -1,0 +1,357 @@
+Module
+  struct Tag (v: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Describable>
+    Some(_0: Describable)
+    None()
+  enum CoroutineStep<Describable>
+    Completed(value: Describable)
+    Suspended()
+  enum CoroutineSlot<Describable>
+    Empty()
+    Value(value: Describable)
+  class Doc vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Tag> vtable=0 itables=1
+  interface Describable
+  interface ToString
+  interface Hash
+  interface Continuation<Describable>
+  interface SuspendTask<Describable>
+  interface SuspendRegistration<Describable>
+  generated_exact_type get0 location=class4 nominal_id=768fc1d43de4fd651db6fe5ea8079d960b8cd25a84473ad2987bdcbc61c3e277 exact_id=3d63cf44a2dc755e967691e63546df1c3cf9d9bda15f6eed485a7a62a4edfd84
+  generated_exact_type get1 location=enum2 nominal_id=b5fe9fb967ca22aa2974ef8d23c260bbcc86d87748abfead478947c22e20a9c3 exact_id=773e405dd0af64f3193b0b2632f32e73310c9044f8901e766d58fd9ca52e6e45
+  generated_exact_type get2 location=enum3 nominal_id=4e67420dc0ca3ca869491347bb5d13fddca231c388e770fb5fee4d99f79e1096 exact_id=ca63b76ee1205fa0934762ca46cb44a37344defa6f2a4c593c3975500aced9b4
+  generated_callable gc0 function=@fn14 id=57fafb109726312a302376eecc7bc4beca6a3c84d3fc9b8abd5e74f55f74c94a
+  generated_callable gc1 function=@fn13 id=ba6399414ddfdc753ed5609bd6027ef6986170af38932dd2d3f85215cf8595c0
+  fun Tag.describe @fn0(this: Tag) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun Doc.describe @fn1(this: Doc) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Doc
+          Local this
+  fun main @fn2() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.title: String
+        Type String
+        Local $argument.0
+      assign $new.1
+        Type Doc
+        ClassAlloc Doc
+      call @fn11 direct
+        Type Doc
+        Local $new.1
+        Type String
+        Local $parameter.title
+      val d: Doc
+        Type Doc
+        Local $new.1
+      val $receiver: Doc
+        Type Doc
+        Local d
+      call $dependency.argument.0: String = @fn1 direct
+        Type Doc
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val i: Describable
+        Type Describable
+        Retype Describable
+          Type Doc
+          Local d
+      val $receiver: Describable
+        Type Describable
+        Local i
+      call $dependency.argument.0: String = @fn10 interface Describable[0]
+        Type Describable
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.v: Int
+        Type Int
+        Local $argument.0
+      call t: Tag = @fn12 direct
+        Type Int
+        Local $parameter.v
+      val ti: Describable
+        Type Describable
+        Box
+          Type Tag
+          Local t
+      val $receiver: Describable
+        Type Describable
+        Local ti
+      call $dependency.argument.0: String = @fn10 interface Describable[0]
+        Type Describable
+        Local $receiver
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type String
+        Local $dependency.parameter.value
+      val a: Any
+        Type Any
+        Box
+          Type Tag
+          Local t
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Tag
+          Type Any
+          Local a
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $cast.1: Any
+        Type Any
+        Local a
+      branch bb1 bb2
+        Type Boolean
+        IsInstance Describable
+          Type Any
+          Local $cast.1
+    bb1 if.then.1
+      assign $cast.2
+        Type Option<Describable>
+        VariantConstruct Option<Describable> v0
+          Type Describable
+          Retype Describable
+            Type Any
+            Local $cast.1
+      goto bb3
+    bb2 if.else.2
+      assign $cast.2
+        Type Option<Describable>
+        VariantConstruct Option<Describable> v1
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Option<Describable>
+        Type Option<Describable>
+        Local $cast.2
+      val $parameter.value: Option<Describable>
+        Type Option<Describable>
+        Local $argument.0
+      call $dependency.argument.0: Boolean = @fn5 direct
+        Type Option<Describable>
+        Local $parameter.value
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn3(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun isPresent @fn5(value: Option<Describable>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Describable>
+        Type Option<Describable>
+        Local value
+      val $pattern.subject.2: Option<Describable>
+        Type Option<Describable>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Describable> v0
+          Type Option<Describable>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Describable>
+        Type Option<Describable>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Describable> v1
+          Type Option<Describable>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Boolean
+        Local $result.0
+    bb4 pattern.pass.4
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun Continuation.resume @fn6(this: Continuation<Describable>, value: Describable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn7(this: Continuation<Describable>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn8(this: SuspendTask<Describable>, $completion: Continuation<Describable>) -> CoroutineStep<Describable>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn9(this: SuspendRegistration<Describable>, continuation: Continuation<Describable>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Describable.describe @fn10(this: Describable) -> String
+    bb0 entry
+      trap "call to abstract method `Describable.describe`"
+  fun init.Doc.$c0 @fn11(this: Doc, title: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Doc
+        Local this
+        Type String
+        Local title
+      return
+  fun ctor.Tag.$c0 @fn12(v: Int) -> Tag <no-gc>
+    bb0 entry
+      return
+        Type Tag
+        StructInit Tag
+          Type Int
+          Local v
+  fun startCoroutine<Describable> @fn13(task: SuspendTask<Describable>, completion: Continuation<Describable>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn6 interface Continuation<Describable>[0]
+        Type Continuation<Describable>
+        Local completion
+        Type Describable
+        EnumField v0 f0
+          Type CoroutineStep<Describable>
+          Local $step
+      return
+    bb2 failed
+      call @fn7 interface Continuation<Describable>[1]
+        Type Continuation<Describable>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Describable> = @fn8 interface SuspendTask<Describable>[0]
+        Type SuspendTask<Describable>
+        Local task
+        Type Continuation<Describable>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Describable>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<Tag> Describable.describe() @fn14(this: Describable) -> String
+    bb0 entry
+      call $call.1: String = @fn0 direct
+        Type Tag
+        Unbox
+          Type Describable
+          Local this
+      return
+        Type String
+        Local $call.1
+  coroutine_step cs0 CoroutineStep<Describable> result=Describable
+  coroutine_slot cl0 CoroutineSlot<Describable> value=Describable
+  coroutine_start ct0 result=Describable function=fn13
+  coroutine_fn cf0 @fn8 source_return=Describable step=cs0 immediate
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- println
+  instance mi2 function=@fn5 <- isPresent
+  instance mi3 function=@fn6 <- Continuation.resume
+  instance mi4 function=@fn7 <- Continuation.resumeWithException
+  instance mi5 function=@fn8 <- SuspendTask.run
+  instance mi6 function=@fn9 <- SuspendRegistration.register
+  str @str0 "tag"
+  str @str1 "report"
+  str @str2 "\n"
+  str @str3 "\n"
+  output executable @fn2

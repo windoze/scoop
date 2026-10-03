@@ -1,0 +1,78 @@
+SourceFile
+  RootPackage
+  public fun nestedIdentityValue(): String
+    =
+      StringLiteral "identity"
+  public class NestedIdentityHost()
+    public fun check
+    internal fun lambda
+    protected fun anonymous
+    internal fun reference
+    internal fun local
+    internal fun generic
+    internal fun genericLocal
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val host
+      Call NestedIdentityHost
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall lambda
+            Var host
+            StringLiteral "lambda"
+        StringLiteral "lambda"
+    Call verifyDefault
+      Binary Eq
+        MethodCall check
+          Var host
+          StringLiteral "anonymous"
+        StringLiteral "anonymous"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall reference
+            Var host
+        StringLiteral "identity"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall local
+            Var host
+            StringLiteral "local"
+        StringLiteral "local"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall generic
+            Var host
+            IntLiteral 7
+        IntLiteral 7
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall generic
+            Var host
+            StringLiteral "text"
+        StringLiteral "text"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall genericLocal
+            Var host
+            IntLiteral 9
+        IntLiteral 9
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall genericLocal
+            Var host
+            StringLiteral "captured"
+        StringLiteral "captured"

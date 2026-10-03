@@ -1,0 +1,90 @@
+SourceFile
+  QualifiedPackage consumer.options
+  private class Cell(val number: Int)
+  private var stored: Int?
+  public fun exercise<T>(value: T): Int
+    assign stored
+      Var None
+    val held
+      Call reorderedWrap
+        Var value
+    val nested: T??
+      Call Some
+        Var held
+    val missing: T?
+      Var None
+    val callback: () -> T?
+      Lambda 0 suspend=false
+        parameters omitted
+        Call Some
+          Var value
+    val read
+      Call reorderedForce
+        Call callback
+    val defaulted
+      Call reorderedDefault
+        Var value
+    if
+      WhenExpression
+        Var nested
+        arm Some(Some(payload))
+          BoolLiteral false
+        else
+          BoolLiteral true
+      return
+        IntLiteral 1
+    if
+      WhenExpression
+        Var missing
+        arm Some(payload)
+          BoolLiteral true
+        arm None
+          BoolLiteral false
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Elvis
+          Var stored
+          IntLiteral 40
+        IntLiteral 40
+      return
+        IntLiteral 3
+    assign stored
+      Call Some
+        IntLiteral 40
+    val cell
+      Call reorderedWrap
+        Call Cell
+          IntLiteral 2
+    val allocated
+      Call Cell
+        IntLiteral 0
+    var caught
+      BoolLiteral false
+    try
+      Call reorderedForce<Int>
+        Var None
+    catch error: UnwrapException
+      assign caught
+        BoolLiteral true
+    if
+      Unary Not
+        Var caught
+      return
+        IntLiteral 4
+    return
+      Binary Add
+        Binary Add
+          Elvis
+            Var stored
+            IntLiteral 0
+          FieldAccess number
+            Call reorderedForce
+              Var cell
+        FieldAccess number
+          Var allocated
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

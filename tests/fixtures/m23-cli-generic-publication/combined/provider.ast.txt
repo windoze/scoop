@@ -1,0 +1,35 @@
+SourceFile
+  QualifiedPackage dependency.generics
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  public fun checked<T>(value: T, count: Int): T
+    try
+      if
+        Binary Gt
+          Var count
+          IntLiteral 0
+        return
+          Call identity
+            Var value
+      return
+        Var value
+    finally
+      val marker
+        Call identity
+          Var count
+  public fun recover<T>(error: Throwable, fallback: T): T
+    try
+      throw
+        Var error
+    catch caught: Throwable
+      return
+        Call identity
+          Var fallback
+    finally
+      val marker
+        Call identity
+          IntLiteral 0
+  public fun defaulted<T>(value: T, second: T = <expr>): T
+    =
+      Var second

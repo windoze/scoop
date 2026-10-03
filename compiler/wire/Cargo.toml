@@ -1,0 +1,8 @@
+[package]
+name = "scoop-wire"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+minicbor.workspace = true
+sha2.workspace = true

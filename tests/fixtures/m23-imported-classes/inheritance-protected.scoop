@@ -1,0 +1,7 @@
+import dependency.classes.Counter
+import dependency.classes.ProtectedParent
+
+public class Derived public constructor(): ProtectedParent(21) {
+    public fun exposed(): Long = this.secret()
+}
+public fun primary(): Counter = Counter(Derived().exposed())

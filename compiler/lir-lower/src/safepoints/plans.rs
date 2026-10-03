@@ -14,7 +14,7 @@ pub(super) fn annotate_root_plans(
     function: &mut lir::Function,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) {
+) -> StorageResult<()> {
     let block_count = function.blocks.len();
     let mut uses = vec![HashSet::new(); block_count];
     let mut defs = vec![HashSet::new(); block_count];
@@ -88,7 +88,7 @@ pub(super) fn annotate_root_plans(
             plans[block_index][instruction_index] = match instruction {
                 lir::Instruction::ManagedPoll { .. } => RootPlan::Statepoint(statepoint_live_set(
                     context, &live, function, structs, enums,
-                )),
+                )?),
                 lir::Instruction::ArrayAlloc { elements, .. } => {
                     // Array allocation is expanded in codegen: element values
                     // remain live after the collecting slow-path call until
@@ -96,8 +96,14 @@ pub(super) fn annotate_root_plans(
                     let mut allocation_live = live.clone();
                     for element in elements {
                         if let Some(value) = LiveValue::from_value(*element)
-                            && root_scan(context, live_value_ty(value, function), structs, enums, 0)
-                                .contains_reference()
+                            && root_scan(
+                                context,
+                                live_value_ty(value, function),
+                                structs,
+                                enums,
+                                0,
+                            )?
+                            .contains_reference()
                         {
                             allocation_live.insert(value);
                         }
@@ -108,7 +114,7 @@ pub(super) fn annotate_root_plans(
                         function,
                         structs,
                         enums,
-                    ))
+                    )?)
                 }
                 lir::Instruction::ArrayAssembly { parts, .. } => {
                     let mut allocation_live = live.clone();
@@ -122,14 +128,28 @@ pub(super) fn annotate_root_plans(
                         function,
                         structs,
                         enums,
-                    );
+                    )?;
                     RootPlan::Statepoint(statepoint_live_set(
                         context,
                         &allocation_live,
                         function,
                         structs,
                         enums,
-                    ))
+                    )?)
+                }
+                lir::Instruction::BoxValue { payload, .. } => {
+                    let mut roots = live.clone();
+                    include_managed_operands(
+                        context,
+                        &mut roots,
+                        payload.source().map(lir::Value::Local),
+                        function,
+                        structs,
+                        enums,
+                    )?;
+                    RootPlan::Statepoint(statepoint_live_set(
+                        context, &roots, function, structs, enums,
+                    )?)
                 }
                 lir::Instruction::ArrayClone { operand, .. } => {
                     let mut roots = live.clone();
@@ -140,10 +160,10 @@ pub(super) fn annotate_root_plans(
                         function,
                         structs,
                         enums,
-                    );
+                    )?;
                     RootPlan::Statepoint(statepoint_live_set(
                         context, &roots, function, structs, enums,
-                    ))
+                    )?)
                 }
                 lir::Instruction::Call { site } => match site {
                     lir::CallSite::Managed(_) => {
@@ -155,16 +175,16 @@ pub(super) fn annotate_root_plans(
                             function,
                             structs,
                             enums,
-                        );
+                        )?;
                         RootPlan::Statepoint(statepoint_live_set(
                             context, &roots, function, structs, enums,
-                        ))
+                        )?)
                     }
                     lir::CallSite::NoGc(_) => RootPlan::None,
                     lir::CallSite::NativeSafe(_) => {
                         RootPlan::NativeSafe(lir::NativeSafeRootSet::new(caller_roots(
                             context, &live, function, structs, enums,
-                        )))
+                        )?))
                     }
                     lir::CallSite::NativeBorrowed(site) => {
                         let mut borrowed_live = live.clone();
@@ -176,7 +196,7 @@ pub(super) fn annotate_root_plans(
                                     structs,
                                     enums,
                                     0,
-                                )
+                                )?
                                 .contains_reference()
                             {
                                 borrowed_live.insert(value);
@@ -188,7 +208,7 @@ pub(super) fn annotate_root_plans(
                             function,
                             structs,
                             enums,
-                        ))
+                        )?)
                     }
                 },
                 lir::Instruction::Invoke { site } => match site {
@@ -200,7 +220,7 @@ pub(super) fn annotate_root_plans(
                         function,
                         structs,
                         enums,
-                    )),
+                    )?),
                     lir::InvokeSite::NoGc(_) => RootPlan::None,
                 },
                 lir::Instruction::NativeGlobalLoad { .. }
@@ -208,7 +228,7 @@ pub(super) fn annotate_root_plans(
                 | lir::Instruction::NativeGlobalAddress { .. } => {
                     RootPlan::NativeSafe(lir::NativeSafeRootSet::new(caller_roots(
                         context, &live, function, structs, enums,
-                    )))
+                    )?))
                 }
                 _ => RootPlan::None,
             };
@@ -230,7 +250,11 @@ pub(super) fn annotate_root_plans(
                     site.live = live;
                 }
                 (
-                    lir::Instruction::ArrayAlloc {
+                    lir::Instruction::BoxValue {
+                        live: instruction_live,
+                        ..
+                    }
+                    | lir::Instruction::ArrayAlloc {
                         live: instruction_live,
                         ..
                     }
@@ -287,10 +311,13 @@ pub(super) fn annotate_root_plans(
                     RootPlan::None,
                 )
                 | (_, RootPlan::None) => {}
-                (_, unexpected) => {
-                    panic!("root-plan kind does not match LIR instruction: {unexpected:?}")
+                (_, _) => {
+                    return Err(StorageLoweringError::InvalidRepresentation(
+                        "root-plan kind does not match LIR instruction",
+                    ));
                 }
             }
         }
     }
+    Ok(())
 }

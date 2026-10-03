@@ -1,0 +1,43 @@
+SourceFile
+  RootPackage
+  fun choose<T>(value: T, fallback: T = <expr>): T
+    =
+      Var fallback
+  fun main()
+    val narrow: Int8
+      IntLiteral 1
+    val wide: Int16
+      IntLiteral 2
+    Call println
+      MethodCall toInt32
+        Binary Add
+          Var narrow
+          MethodCall toInt8
+            Var wide
+    val signed: Int
+      IntLiteral 1
+    val unsigned: UInt
+      IntLiteral 2u
+    Call println
+      Binary Add
+        Var signed
+        MethodCall toInt32
+          Var unsigned
+    val distance: Int
+      IntLiteral 1
+    Call println
+      InfixCall shl
+        Var signed
+        MethodCall toInt64
+          Var distance
+    Call println
+      MethodCall toInt64
+        Call choose
+          IntLiteral 3
+    val small: UInt8
+      IntLiteral 1u
+    Call println
+      Binary Add
+        Var small
+        MethodCall toUInt8
+          IntLiteral 2

@@ -1,0 +1,216 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Implement>
+    Completed(value: Implement)
+    Suspended()
+  enum CoroutineSlot<Implement>
+    Empty()
+    Value(value: Implement)
+  class Implement vtable=0 itables=1
+  class Owner<Int> vtable=1 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface View<Int>
+  interface Continuation<Implement>
+  interface SuspendTask<Implement>
+  interface SuspendRegistration<Implement>
+  generated_exact_type get0 location=enum2 nominal_id=1de36e782f89cfd4a14d11f6363b406db1b0acf27ee0e59ec8df54efb1735110 exact_id=5200c81e7e43c14c6749e1baeed2fbe8ba9de974fa2188183c129b3a03cf407c
+  generated_exact_type get1 location=enum1 nominal_id=842261b0604de85a3a92e475780fff7e0aeff02e7caf3730a4dbf6358e7b3c36 exact_id=67beb732671c6dcc55aed19abf3d3f4b7107db2fe029f9cff59748141c61453d
+  generated_callable gc0 function=@fn17 id=fcf9ade8e0cbba92cbf261c82b103f83f5f72bc95333f59d3c58f99e276e8f78
+  fun Implement.$get$item @fn0(this: Implement) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+  fun main @fn1() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Implement
+        ClassAlloc Implement
+      call @fn15 direct
+        Type Implement
+        Local $new.1
+      val reader: View<Int>
+        Type View<Int>
+        Retype View<Int>
+          Type Implement
+          Local $new.1
+      val $receiver: View<Int>
+        Type View<Int>
+        Local reader
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn12 interface View<Int>[1]
+        Type View<Int>
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.current: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Owner<Int>
+        ClassAlloc Owner<Int>
+      call @fn16 direct
+        Type Owner<Int>
+        Local $new.2
+        Type Int
+        Local $parameter.current
+      val owner: Owner<Int>
+        Type Owner<Int>
+        Local $new.2
+      call result: Int = @fn2 virtual[0]
+        Type Owner<Int>
+        Local owner
+      return
+  fun Owner.$get$value @fn2(this: Owner<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Owner<Int>
+          Local this
+  fun Continuation.resume @fn3(this: Continuation<Implement>, value: Implement) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<Implement>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<Implement>, $completion: Continuation<Implement>) -> CoroutineStep<Implement>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<Implement>, continuation: Continuation<Implement>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun View.$get$secret @fn7(this: View<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun View.$set$current @fn8(this: View<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn10 direct
+        Type View<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun View.$get$cache @fn9(this: View<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn14 interface View<Int>[2]
+        Type View<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun View.$set$cache @fn10(this: View<Int>, value: Int) -> Unit
+    bb0 entry
+      return
+  fun View.readSecret @fn11(this: View<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn7 direct
+        Type View<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun View.reset @fn12(this: View<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn8 direct
+        Type View<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun View.$get$current @fn13(this: View<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn9 direct
+        Type View<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun View.$get$item @fn14(this: View<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `View.$get$item`"
+  fun init.Implement.$c0 @fn15(this: Implement) -> Unit
+    bb0 entry
+      return
+  fun init.Owner.$c1 @fn16(this: Owner<Int>, current: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner<Int>
+        Local this
+        Type Int
+        Local current
+      return
+  fun startCoroutine<Implement> @fn17(task: SuspendTask<Implement>, completion: Continuation<Implement>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<Implement>[0]
+        Type Continuation<Implement>
+        Local completion
+        Type Implement
+        EnumField v0 f0
+          Type CoroutineStep<Implement>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<Implement>[1]
+        Type Continuation<Implement>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Implement> = @fn5 interface SuspendTask<Implement>[0]
+        Type SuspendTask<Implement>
+        Local task
+        Type Continuation<Implement>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Implement>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Implement> result=Implement
+  coroutine_slot cl0 CoroutineSlot<Implement> value=Implement
+  coroutine_start ct0 result=Implement function=fn17
+  coroutine_fn cf0 @fn5 source_return=Implement step=cs0 immediate
+  instance mi0 function=@fn2 <- Owner.$get$value
+  instance mi1 function=@fn3 <- Continuation.resume
+  instance mi2 function=@fn4 <- Continuation.resumeWithException
+  instance mi3 function=@fn5 <- SuspendTask.run
+  instance mi4 function=@fn6 <- SuspendRegistration.register
+  instance mi5 function=@fn7 <- View.$get$secret
+  instance mi6 function=@fn8 <- View.$set$current
+  instance mi7 function=@fn9 <- View.$get$cache
+  instance mi8 function=@fn10 <- View.$set$cache
+  instance mi9 function=@fn11 <- View.readSecret
+  instance mi10 function=@fn12 <- View.reset
+  instance mi11 function=@fn13 <- View.$get$current
+  instance mi12 function=@fn14 <- View.$get$item
+  output executable @fn1

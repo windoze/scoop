@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m22-iteration/errors/suspend-context.scoop:12:19: error: suspend function `SuspendSource.iterator` cannot be called from non-suspend function `main`

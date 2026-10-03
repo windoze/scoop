@@ -1,0 +1,322 @@
+Module
+  class Base vtable=1 itables=0
+  class VirtualBox<Int> vtable=1 itables=0
+  class Derived vtable=1 itables=0
+  class Reader vtable=0 itables=1
+  class VirtualChild<Int> vtable=1 itables=0
+  class Choosing<Int> vtable=0 itables=1
+  class box<Int> vtable=0 itables=0
+  interface Readable
+  interface Chooser<Int>
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn13 id=6940f27a26f2aaafba8681cdc5c2a865aa8acb9b8b7ab26cf3a0424d9ee7066a
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn7 captures=1
+    bridge function_type1 -> @fn14 id=8ca3cb7d7988239fc42a6cbec78501ba1a8b8b5053c62764940eec06cd5ffaa1
+  closure cc2 $Closure$reference2 type=function_type0 invoke=@fn8 captures=1
+    bridge function_type1 -> @fn15 id=acc0b0750ee310abfc4b14243a2e4c7ded074aea3ce92c6c7b18b278609e4938
+  closure cc3 $Closure$reference3 type=function_type2 invoke=@fn9 captures=1
+    bridge function_type3 -> @fn16 id=efca0ced97aaf124decf6bfabbbfb05a647b5b508d95319356b00ffcbc9ff4a1
+  generated_exact_type get0 location=closure1 nominal_id=ecaa2de3e314f54e85bd793725f911332b1f55d5370d6523a72b32997a0e8f9f exact_id=36b82a729662842327d692284704fd3539d21d0cc41b0f8df360943bdb30bba3
+  generated_exact_type get1 location=closure2 nominal_id=7bc6fb97e014bd721624219dba3cc51d3cde1fc40ba194831b6e45de6409c737 exact_id=c83caf582da2fbf26485477a9aaafb1e5756e1c9d1cca948c35d0691e733a9d8
+  generated_exact_type get2 location=closure0 nominal_id=3c40e73bff3a639732222ddbcb40e1e16b5b3b30dc455455dc801ea9f334c34d exact_id=ce10a8afe6ee6da3f61549502aa044cefaf0f1d8a78220f59c2fb716b43d9ff5
+  generated_exact_type get3 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get4 location=closure3 nominal_id=db604dd04204c268d10fa4940a97cf1912a970f0561d0480f76fcf2e4417620c exact_id=ea3dbefc9549f1dda3ae0db48bfc6845348d067a8f316802b7603262c419f0fd
+  generated_callable gc0 function=@fn13 id=6940f27a26f2aaafba8681cdc5c2a865aa8acb9b8b7ab26cf3a0424d9ee7066a
+  generated_callable gc1 function=@fn14 id=8ca3cb7d7988239fc42a6cbec78501ba1a8b8b5053c62764940eec06cd5ffaa1
+  generated_callable gc2 function=@fn15 id=acc0b0750ee310abfc4b14243a2e4c7ded074aea3ce92c6c7b18b278609e4938
+  generated_callable gc3 function=@fn16 id=efca0ced97aaf124decf6bfabbbfb05a647b5b508d95319356b00ffcbc9ff4a1
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn1(value: Int) -> Int
+    bb0 entry
+      assign $new.1
+        Type Derived
+        ClassAlloc Derived
+      call external2 direct
+        Type Derived
+        Local $new.1
+      val base: Base
+        Type Base
+        Retype Base
+          Type Derived
+          Local $new.1
+      val virtual: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$reference0
+          CaptureInit field=0
+            Type Base
+            Local base
+      assign $new.2
+        Type Reader
+        ClassAlloc Reader
+      call external4 direct
+        Type Reader
+        Local $new.2
+      val reader: Readable
+        Type Readable
+        Retype Readable
+          Type Reader
+          Local $new.2
+      val interfaceRead: () -> Int
+        Type () -> Int
+        ClosureAlloc cc1 $Closure$reference1
+          CaptureInit field=0
+            Type Readable
+            Local reader
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.1
+      assign $new.3
+        Type VirtualChild<Int>
+        ClassAlloc VirtualChild<Int>
+      call @fn10 direct
+        Type VirtualChild<Int>
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.other
+      val generic: VirtualBox<Int>
+        Type VirtualBox<Int>
+        Retype VirtualBox<Int>
+          Type VirtualChild<Int>
+          Local $new.3
+      val genericRead: () -> Int
+        Type () -> Int
+        ClosureAlloc cc2 $Closure$reference2
+          CaptureInit field=0
+            Type VirtualBox<Int>
+            Local generic
+      assign $new.4
+        Type Choosing<Int>
+        ClassAlloc Choosing<Int>
+      call @fn11 direct
+        Type Choosing<Int>
+        Local $new.4
+      val chooser: Chooser<Int>
+        Type Chooser<Int>
+        Retype Chooser<Int>
+          Type Choosing<Int>
+          Local $new.4
+      val interfaceChoose: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc3 $Closure$reference3
+          CaptureInit field=0
+            Type Chooser<Int>
+            Local chooser
+      call $call.5: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local genericRead
+      call $call.6: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local interfaceChoose
+        Type Int
+        Local value
+      val values: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.5
+          Type Int
+          Local $call.6
+      call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local virtual
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      call $call.7: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local interfaceRead
+      return
+        Type Int
+        Local $call.7
+  fun read @fn2(this: VirtualBox<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn5 direct
+        Type VirtualBox<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun read @fn3(this: VirtualChild<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type VirtualChild<Int>
+          Local this
+  fun choose @fn4(this: Chooser<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun value @fn5(this: VirtualBox<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type VirtualBox<Int>
+          Local this
+  fun $reference.0 @fn6($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external0 virtual[0]
+        Type Base
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.1 @fn7($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = external5 interface Readable[0]
+        Type Readable
+        ClosureCapture cc1 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.2 @fn8($closure: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn2 virtual[0]
+        Type VirtualBox<Int>
+        ClosureCapture cc2 0
+          Type () -> Int
+          Local $closure
+      return
+        Type Int
+        Local $call.1
+  fun $reference.3 @fn9($closure: (Int) -> Int, arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn4 interface Chooser<Int>[0]
+        Type Chooser<Int>
+        ClosureCapture cc3 0
+          Type (Int) -> Int
+          Local $closure
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun init.VirtualChild.$c0 @fn10(this: VirtualChild<Int>, value: Int, other: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call @fn12 direct
+        Type VirtualBox<Int>
+        Retype VirtualBox<Int>
+          Type VirtualChild<Int>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.1
+      field_set 1
+        Type VirtualChild<Int>
+        Local this
+        Type Int
+        Local other
+      return
+  fun init.Choosing.$c1 @fn11(this: Choosing<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.VirtualBox.$c2 @fn12(this: VirtualBox<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type VirtualBox<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun function_bridge.$Closure$reference0.() -> Any @fn13($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn14($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference2.() -> Any @fn15($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$reference3.(Any) -> Any @fn16($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- read
+  instance mi2 function=@fn3 <- read
+  instance mi3 function=@fn4 <- choose
+  instance mi4 function=@fn5 <- value
+  output library

@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  public fun pass(value: DeferredRoot): DeferredRoot
+    =
+      Var value
+  public fun passValue(value: ReadyEmpty): ReadyEmpty
+    =
+      Var value
+  public fun passTemplate<T>(value: DeferredGeneric<T>): DeferredGeneric<T>
+    =
+      Var value

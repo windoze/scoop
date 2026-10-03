@@ -1,0 +1,80 @@
+SourceFile
+  QualifiedPackage templates.equality
+  public struct Counter<T>
+    field number: Int
+  public fun compareCounters<T>(left: Counter<T>, right: Counter<T>): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  public interface EqualTo<T>
+    operator fun equals
+  public class Key<T>(val payload: T, val number: Int), EqualTo<Key<T>>
+    public operator fun equals
+  public struct Payload<T>
+    field data: T
+    field last: Int
+  public struct Nested<T>
+    field inner: Payload<T>
+    field tag: Int
+  public struct Empty<T>
+  public struct Wide<T>
+    field first: T
+    field second: T
+    field third: T
+  public enum Choice<T>
+    Empty
+    Value(T)
+    Pair(T, T)
+  public fun emptyChoice<T>(): Choice<T>
+    =
+      FieldAccess Empty
+        Var Choice
+  public fun single<T>(value: T): Choice<T>
+    =
+      MethodCall Value
+        Var Choice
+        Var value
+  public fun pair<T>(first: T, second: T): Choice<T>
+    =
+      MethodCall Pair
+        Var Choice
+        Var first
+        Var second
+  public fun comparePayloads<T : EqualTo<T>>(left: Payload<T>, right: Payload<T>): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  public fun compareNested<T : EqualTo<T>>(left: Nested<T>, right: Nested<T>): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  public fun compareChoices<T : EqualTo<T>>(left: Choice<T>, right: Choice<T>): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  public fun compareWide<T : EqualTo<T>>(left: Wide<T>, right: Wide<T>): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  public struct Manual<T>
+    field payload: T
+    field number: Int
+    public operator fun equals
+  public struct Different<T>
+    field number: Int
+    public operator fun equals
+  public class Trace<T>(var visits: Int)
+  public class Tracked<T>(val payload: T, val trace: Trace<T>, val number: Int, val digit: Int), EqualTo<Tracked<T>>
+    public operator fun equals
+  public fun defaultCompare<T>(left: Counter<T>, right: Counter<T>, same: Boolean = <expr>): Int
+    if
+      Var same
+      return
+        IntLiteral 42
+    return
+      IntLiteral 0

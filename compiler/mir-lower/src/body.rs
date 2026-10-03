@@ -3,15 +3,30 @@ use super::*;
 mod callbacks;
 mod calls;
 mod casts;
+mod coroutines;
+mod exceptions;
 mod expressions;
 mod function;
+mod imported_calls;
 mod operators;
 mod patterns;
 mod statements;
+mod static_callbacks;
 
 /// Per-function-body lowering state.
 pub(super) struct BodyLowerer<'a> {
+    pub(super) imported_singleton_map: &'a HashMap<
+        scoop_identity::PersistentObjectValueId,
+        (mir::ExternalCallableUseId, mir::GlobalId),
+    >,
     pub(super) module: &'a hir::Module,
+    pub(super) core_protocols: &'a hir::ConcreteCoreProtocols,
+    pub(super) source_exact_types: &'a mut SourceExactTypeRegistry,
+    pub(super) local_values: &'a mut LocalValueRegistry,
+    pub(super) current_function: mir::FunctionId,
+    pub(super) current_materialization: hir::CallableMaterialization,
+    pub(super) current_string_owner: mir::ImmortalObjectOwner,
+    pub(super) next_string_ordinal: u32,
     pub(super) struct_map: &'a HashMap<hir::StructId, mir::StructId>,
     pub(super) class_map: &'a HashMap<hir::ClassId, mir::ClassId>,
     pub(super) interfaces: &'a mut InterfaceRegistry,
@@ -23,6 +38,9 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) method_slots: &'a HashMap<mir::ClassId, HashMap<hir::VirtualMethodId, u32>>,
     pub(super) function_map: &'a HashMap<hir::FunctionId, mir::FunctionId>,
     pub(super) extern_map: &'a HashMap<hir::ExternFunctionId, mir::ExternFunctionId>,
+    pub(super) external_callables: &'a Arena<mir::ExternalCallableUse>,
+
+    pub(super) imported_dependency_callable_map: &'a ImportedCallableMap,
     pub(super) global_map: &'a HashMap<hir::GlobalId, mir::GlobalId>,
     pub(super) singleton_root_map:
         &'a HashMap<hir::SingletonPublishedRootId, mir::SingletonPublishedRootId>,
@@ -35,12 +53,12 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) foreign_callback_family_by_callback:
         &'a mut HashMap<mir::StructId, mir::ForeignCallbackFamilyId>,
     pub(super) foreign_callback_bridges: &'a mut Arena<mir::ForeignCallbackBridge>,
-    pub(super) foreign_callback_by_registration:
-        &'a mut HashMap<hir::ForeignCallbackRegistrationId, mir::ForeignCallbackBridgeId>,
+    pub(super) foreign_callback_by_application:
+        &'a mut HashMap<hir::PersistentCallbackApplicationId, mir::ForeignCallbackBridgeId>,
     /// Local-concrete constructor callable -> MIR function.
     pub(super) ctors: &'a HashMap<hir::ClassConstructorId, mir::FunctionId>,
     pub(super) struct_ctors: &'a HashMap<hir::StructConstructorId, mir::FunctionId>,
-    pub(super) strings: &'a mut Arena<mir::StringConst>,
+    pub(super) strings: &'a mut StringRegistry,
     pub(super) functions: &'a mut Arena<mir::Function>,
     pub(super) top_level: &'a mut Vec<mir::FunctionId>,
     pub(super) instances: &'a mut InstanceRegistry,
@@ -51,7 +69,7 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) boxed: &'a mut BoxedRegistry,
     /// MIR class arena (boxed value types are appended here).
     pub(super) classes: &'a mut Arena<mir::ClassDef>,
-    /// Mangling shell (enum / struct names for `encode_type`).
+    /// Type context kept in arena lockstep with output definitions.
     pub(super) shell: &'a mut mir::Module,
     /// HIR local -> MIR local (same declaration order per body).
     pub(super) local_map: HashMap<hir::LocalId, mir::LocalId>,
@@ -78,7 +96,8 @@ pub(super) struct BodyLowerer<'a> {
     pub(super) reference_closures: &'a HashMap<hir::CallableReferenceId, mir::ClosureClassId>,
     pub(super) closure_classes: &'a mut Arena<mir::ClosureClass>,
     pub(super) closure_invokes: &'a mut Arena<mir::ClosureInvokeFunction>,
-    pub(super) closure_capture_indices: &'a mut HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    pub(super) closure_capture_indices: &'a HashMap<(mir::ClosureClassId, hir::BindingId), u32>,
+    pub(super) closure_receiver_indices: &'a HashMap<mir::ClosureClassId, u32>,
     pub(super) closure_adapters: &'a mut Arena<mir::ClosureAdapter>,
     pub(super) closure_adapter_by_types:
         &'a mut HashMap<(mir::FunctionTypeId, mir::FunctionTypeId), mir::ClosureAdapterId>,
@@ -97,6 +116,18 @@ pub(super) struct BodyLowerer<'a> {
     /// declared `suspend`: a suspend declaration with no suspend call needs no
     /// coroutine-specific EH materialization.
     pub(super) contains_suspend_call: bool,
+}
+
+impl BodyLowerer<'_> {
+    pub(super) fn intern_current_string(&mut self, value: String) -> mir::StringConstId {
+        let ordinal = self.next_string_ordinal;
+        self.next_string_ordinal = self
+            .next_string_ordinal
+            .checked_add(1)
+            .expect("one string-constant owner has at most u32::MAX direct children");
+        self.strings
+            .intern(self.current_string_owner, ordinal, value)
+    }
 }
 
 /// A step from a pattern subject down to a nested field.

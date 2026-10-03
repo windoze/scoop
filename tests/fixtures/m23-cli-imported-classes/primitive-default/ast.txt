@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.defaultPrimitiveHash
+  public fun primary(): Counter
+    val value: Long
+      IntLiteral 21
+    return
+      Call Counter
+        IfExpression
+          Binary Eq
+            MethodCall hash
+              Call defaultPrimitiveHash
+            MethodCall hash
+              Var value
+          IntLiteral 21
+          else
+          IntLiteral 0

@@ -1,0 +1,21 @@
+package consumer.equality
+
+import templates.equality.*
+
+public fun <T> exercise(value: T): Int {
+    val first = Key<T>(value, 42)
+    val same = Key<T>(value, 42)
+    val other = Key<T>(value, 1)
+    val left = single(first)
+    val right = single(same)
+    val empty = emptyChoice<Key<T>>()
+    if (!compareChoices(left, right)) { return 1 }
+    if (left == single(other) || left == empty) { return 2 }
+    if (empty != emptyChoice<Key<T>>()) { return 3 }
+    val both = pair(first, same)
+    if (!compareChoices(both, pair(same, first))) { return 4 }
+    if (both == pair(first, other) || both == left) { return 5 }
+    return 42
+}
+
+public fun result(): Int = exercise<Int>(1)

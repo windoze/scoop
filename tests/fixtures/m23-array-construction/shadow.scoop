@@ -1,0 +1,15 @@
+package consumer.arrayconstruction
+
+import dependency.arrayconstruction.exercise as providerExercise
+import Array as CoreArray
+
+private class Array(public val number: Int)
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    val ordinary = Array(42)
+    val mutable: MutableArray<Int> = [ordinary.number]
+    val converted = CoreArray(mutable)
+    return converted[0L]
+}

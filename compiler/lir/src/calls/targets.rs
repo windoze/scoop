@@ -233,6 +233,7 @@ impl<Destination> Default for ProtocolCallTargets<Destination> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallDestination {
     Local(LocalFunctionId),
+    External(ExternalCallableId),
     Runtime(RuntimeFunction),
     Extern(ExternFunctionId),
     Dispatch { table: Value, slot: DispatchSlotId },
@@ -307,6 +308,7 @@ impl LocalFunctionIdentities {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ManagedCallDestination {
     Local(ManagedLocalFunctionRef),
+    External(ExternalCallableId),
     Runtime(ManagedRuntimeFunction),
     Dispatch {
         table: Value,
@@ -317,6 +319,10 @@ pub enum ManagedCallDestination {
 impl ManagedCallDestination {
     pub fn local(function: ManagedLocalFunctionRef) -> Self {
         Self::Local(function)
+    }
+
+    pub fn external(function: ExternalCallableId) -> Self {
+        Self::External(function)
     }
 
     pub fn runtime(function: ManagedRuntimeFunction) -> Self {
@@ -330,6 +336,7 @@ impl ManagedCallDestination {
     pub fn view(self) -> CallDestination {
         match self {
             Self::Local(function) => CallDestination::Local(function.declaration()),
+            Self::External(function) => CallDestination::External(function),
             Self::Runtime(function) => CallDestination::Runtime(RuntimeFunction::Managed(function)),
             Self::Dispatch { table, slot } => CallDestination::Dispatch {
                 table,
@@ -343,6 +350,7 @@ impl ManagedCallDestination {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NoGcCallDestination {
     Local(NoGcLocalFunctionRef),
+    External(ExternalCallableId),
     Runtime(NoGcRuntimeFunction),
     Dispatch {
         table: Value,
@@ -353,6 +361,10 @@ pub enum NoGcCallDestination {
 impl NoGcCallDestination {
     pub fn local(function: NoGcLocalFunctionRef) -> Self {
         Self::Local(function)
+    }
+
+    pub fn external(function: ExternalCallableId) -> Self {
+        Self::External(function)
     }
 
     pub fn runtime(function: NoGcRuntimeFunction) -> Self {
@@ -366,6 +378,7 @@ impl NoGcCallDestination {
     pub fn view(self) -> CallDestination {
         match self {
             Self::Local(function) => CallDestination::Local(function.declaration()),
+            Self::External(function) => CallDestination::External(function),
             Self::Runtime(function) => CallDestination::Runtime(RuntimeFunction::NoGc(function)),
             Self::Dispatch { table, slot } => CallDestination::Dispatch {
                 table,
@@ -466,11 +479,12 @@ pub enum DispatchKind {
     FunctionBridge,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ManagedRuntimeFunction {
     Safepoint,
     Alloc,
-    Box,
+    BoxZst,
+    BoxValue,
     GcCollect,
     MaterializeException,
     StringConcat,
@@ -481,7 +495,7 @@ pub enum ManagedRuntimeFunction {
     InitializationCycleMessage,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NoGcRuntimeFunction {
     IsInstance,
     ITableLookup,
@@ -494,46 +508,114 @@ pub enum NoGcRuntimeFunction {
     Trap,
     Throw,
     Rethrow,
+    UnboxZst,
+    UnboxValue,
+    PushRecursiveRegion,
+    PopRecursiveRegion,
 }
 
 /// Read-only common view used by mechanical dump/codegen logic. Runtime
 /// protocol classification is already fixed by the typed target destination;
 /// consumers must not reconstruct it from this enum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum RuntimeFunction {
     Managed(ManagedRuntimeFunction),
     NoGc(NoGcRuntimeFunction),
 }
 
 impl RuntimeFunction {
+    pub const fn requires_dedicated_operation(self) -> bool {
+        matches!(
+            self,
+            Self::Managed(ManagedRuntimeFunction::BoxZst | ManagedRuntimeFunction::BoxValue)
+                | Self::NoGc(
+                    NoGcRuntimeFunction::UnboxZst
+                        | NoGcRuntimeFunction::UnboxValue
+                        | NoGcRuntimeFunction::PushRecursiveRegion
+                        | NoGcRuntimeFunction::PopRecursiveRegion
+                )
+        )
+    }
+
     pub const fn symbol(self) -> &'static str {
+        crate::RuntimeAbiSymbolV1::LirCall(self).logical_symbol()
+    }
+
+    pub const fn wire_family_tag(self) -> u64 {
         match self {
-            Self::Managed(ManagedRuntimeFunction::Safepoint) => "scoop_rt_safepoint",
-            Self::Managed(ManagedRuntimeFunction::Alloc) => "scoop_rt_alloc",
-            Self::Managed(ManagedRuntimeFunction::Box) => "scoop_rt_box",
-            Self::Managed(ManagedRuntimeFunction::GcCollect) => "scoop_rt_gc_collect",
-            Self::Managed(ManagedRuntimeFunction::MaterializeException) => {
-                "scoop_rt_materialize_exception"
-            }
-            Self::Managed(ManagedRuntimeFunction::StringConcat) => "scoop_rt_string_concat",
-            Self::Managed(ManagedRuntimeFunction::InitializationEnter) => "scoop_rt_init_enter",
-            Self::Managed(ManagedRuntimeFunction::InitializationSucceed) => "scoop_rt_init_succeed",
-            Self::Managed(ManagedRuntimeFunction::InitializationFail) => "scoop_rt_init_fail",
-            Self::Managed(ManagedRuntimeFunction::InitializationFailure) => "scoop_rt_init_failure",
-            Self::Managed(ManagedRuntimeFunction::InitializationCycleMessage) => {
-                "scoop_rt_init_cycle_message"
-            }
-            Self::NoGc(NoGcRuntimeFunction::IsInstance) => "scoop_rt_is_instance",
-            Self::NoGc(NoGcRuntimeFunction::ITableLookup) => "scoop_rt_itable_lookup",
-            Self::NoGc(NoGcRuntimeFunction::Pin) => "scoop_rt_pin",
-            Self::NoGc(NoGcRuntimeFunction::Unpin) => "scoop_rt_unpin",
-            Self::NoGc(NoGcRuntimeFunction::GetHandle) => "scoop_rt_get_handle",
-            Self::NoGc(NoGcRuntimeFunction::ReleaseHandle) => "scoop_rt_release_handle",
-            Self::NoGc(NoGcRuntimeFunction::GcStats) => "scoop_rt_gc_stats",
-            Self::NoGc(NoGcRuntimeFunction::StringCompare) => "scoop_rt_string_compare",
-            Self::NoGc(NoGcRuntimeFunction::Trap) => "scoop_rt_trap",
-            Self::NoGc(NoGcRuntimeFunction::Throw) => "scoop_rt_throw",
-            Self::NoGc(NoGcRuntimeFunction::Rethrow) => "scoop_rt_rethrow",
+            Self::Managed(_) => 1,
+            Self::NoGc(_) => 2,
+        }
+    }
+
+    pub const fn wire_function_tag(self) -> u64 {
+        match self {
+            Self::Managed(function) => match function {
+                ManagedRuntimeFunction::Safepoint => 1,
+                ManagedRuntimeFunction::Alloc => 2,
+                ManagedRuntimeFunction::GcCollect => 4,
+                ManagedRuntimeFunction::MaterializeException => 5,
+                ManagedRuntimeFunction::StringConcat => 6,
+                ManagedRuntimeFunction::InitializationEnter => 7,
+                ManagedRuntimeFunction::InitializationSucceed => 8,
+                ManagedRuntimeFunction::InitializationFail => 9,
+                ManagedRuntimeFunction::InitializationFailure => 10,
+                ManagedRuntimeFunction::InitializationCycleMessage => 11,
+                ManagedRuntimeFunction::BoxZst => 12,
+                ManagedRuntimeFunction::BoxValue => 13,
+            },
+            Self::NoGc(function) => match function {
+                NoGcRuntimeFunction::IsInstance => 1,
+                NoGcRuntimeFunction::ITableLookup => 2,
+                NoGcRuntimeFunction::Pin => 3,
+                NoGcRuntimeFunction::Unpin => 4,
+                NoGcRuntimeFunction::GetHandle => 5,
+                NoGcRuntimeFunction::ReleaseHandle => 6,
+                NoGcRuntimeFunction::GcStats => 7,
+                NoGcRuntimeFunction::StringCompare => 8,
+                NoGcRuntimeFunction::Trap => 9,
+                NoGcRuntimeFunction::Throw => 10,
+                NoGcRuntimeFunction::Rethrow => 11,
+                NoGcRuntimeFunction::UnboxZst => 12,
+                NoGcRuntimeFunction::UnboxValue => 13,
+                NoGcRuntimeFunction::PushRecursiveRegion => 14,
+                NoGcRuntimeFunction::PopRecursiveRegion => 15,
+            },
+        }
+    }
+
+    pub const fn from_wire_tags(family: u64, function: u64) -> Option<Self> {
+        match (family, function) {
+            (1, 1) => Some(Self::Managed(ManagedRuntimeFunction::Safepoint)),
+            (1, 2) => Some(Self::Managed(ManagedRuntimeFunction::Alloc)),
+            (1, 4) => Some(Self::Managed(ManagedRuntimeFunction::GcCollect)),
+            (1, 5) => Some(Self::Managed(ManagedRuntimeFunction::MaterializeException)),
+            (1, 6) => Some(Self::Managed(ManagedRuntimeFunction::StringConcat)),
+            (1, 7) => Some(Self::Managed(ManagedRuntimeFunction::InitializationEnter)),
+            (1, 8) => Some(Self::Managed(ManagedRuntimeFunction::InitializationSucceed)),
+            (1, 9) => Some(Self::Managed(ManagedRuntimeFunction::InitializationFail)),
+            (1, 10) => Some(Self::Managed(ManagedRuntimeFunction::InitializationFailure)),
+            (1, 11) => Some(Self::Managed(
+                ManagedRuntimeFunction::InitializationCycleMessage,
+            )),
+            (1, 12) => Some(Self::Managed(ManagedRuntimeFunction::BoxZst)),
+            (1, 13) => Some(Self::Managed(ManagedRuntimeFunction::BoxValue)),
+            (2, 1) => Some(Self::NoGc(NoGcRuntimeFunction::IsInstance)),
+            (2, 2) => Some(Self::NoGc(NoGcRuntimeFunction::ITableLookup)),
+            (2, 3) => Some(Self::NoGc(NoGcRuntimeFunction::Pin)),
+            (2, 4) => Some(Self::NoGc(NoGcRuntimeFunction::Unpin)),
+            (2, 5) => Some(Self::NoGc(NoGcRuntimeFunction::GetHandle)),
+            (2, 6) => Some(Self::NoGc(NoGcRuntimeFunction::ReleaseHandle)),
+            (2, 7) => Some(Self::NoGc(NoGcRuntimeFunction::GcStats)),
+            (2, 8) => Some(Self::NoGc(NoGcRuntimeFunction::StringCompare)),
+            (2, 9) => Some(Self::NoGc(NoGcRuntimeFunction::Trap)),
+            (2, 10) => Some(Self::NoGc(NoGcRuntimeFunction::Throw)),
+            (2, 11) => Some(Self::NoGc(NoGcRuntimeFunction::Rethrow)),
+            (2, 12) => Some(Self::NoGc(NoGcRuntimeFunction::UnboxZst)),
+            (2, 13) => Some(Self::NoGc(NoGcRuntimeFunction::UnboxValue)),
+            (2, 14) => Some(Self::NoGc(NoGcRuntimeFunction::PushRecursiveRegion)),
+            (2, 15) => Some(Self::NoGc(NoGcRuntimeFunction::PopRecursiveRegion)),
+            _ => None,
         }
     }
 }

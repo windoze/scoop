@@ -1,0 +1,12 @@
+import dependency.classes.Counter
+
+private object Saved {
+    val value: Counter = Counter(21)
+}
+
+public fun primary(): Counter {
+    val first = Saved.value
+    val allocated = Counter(7)
+    val second = Saved.value
+    return if (first === second && allocated.twice() == 14) { first } else { Counter(0) }
+}

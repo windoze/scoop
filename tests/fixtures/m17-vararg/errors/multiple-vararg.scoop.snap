@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m17-vararg/errors/multiple-vararg.scoop:1:31: error: a parameter list may declare at most one `vararg` parameter

@@ -1,102 +1,148 @@
 use super::*;
 
+fn string_identity(
+    owner: scoop_identity::CallableMaterialization,
+    ordinal: u32,
+) -> mir::ImmortalObjectKey {
+    mir::ImmortalObjectKey::string_constant(
+        mir::ImmortalObjectOwner::Callable(owner),
+        mir::StructuralDefinitionPath::from_first(
+            mir::StructuralPathSegment::new(
+                mir::StructuralDefinitionSiteRole::StringConstant,
+                ordinal,
+            ),
+            [],
+        ),
+    )
+}
+
 #[test]
 fn lowers_hello_world() {
-    let module = lower(&hello_world());
+    let source = hello_world();
+    let concrete =
+        scoop_hir_lower::concretize_output(&source).expect("concrete type applications are valid");
+    let expected_string_identities = ["println", "helper", "main"].map(|name| {
+        let id = concrete
+            .top_level
+            .iter()
+            .find(|&&id| concrete.functions[id].name == name)
+            .unwrap();
+        string_identity(concrete.functions[*id].materialization, 0)
+    });
+    let module = lower(&source);
 
-    // Intrinsics are excluded from `top_level`; declaration order
-    // kept: the two core overloads the test uses, then the user
-    // functions.
-    assert_eq!(module.top_level.len(), 4);
-    let helper = &module.functions[module.top_level[2]];
-    let main = &module.functions[module.top_level[3]];
+    // Intrinsics are excluded from `top_level`; source externs retain
+    // their provider entry in declaration order beside ordinary bodies.
+    assert_eq!(
+        module
+            .top_level
+            .iter()
+            .take(5)
+            .map(|id| module.functions[*id].name.as_str())
+            .collect::<Vec<_>>(),
+        ["write", "print", "println", "helper", "main"]
+    );
+    let helper_id = module.top_level[3];
+    let main_id = module.top_level[4];
+    let helper = &module.functions[helper_id];
+    let main = &module.functions[main_id];
     assert_eq!(helper.name, "helper");
     assert_eq!(main.name, "main");
 
-    // Mangling: entry is the fixed `scoop_main`, others `scoop.<name>`.
-    assert_eq!(main.symbol, mir::ENTRY_SYMBOL);
-    assert_eq!(helper.symbol, "scoop.helper");
-    assert_eq!(module.entry, module.top_level[3]);
+    assert_eq!(
+        module
+            .output
+            .executable_entry()
+            .expect("test module is executable"),
+        main_id
+    );
+    assert!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(helper_id)
+            .is_some()
+    );
+    assert!(
+        module
+            .meta
+            .source_callable_materializations
+            .get(
+                module
+                    .output
+                    .executable_entry()
+                    .expect("test module is executable")
+            )
+            .is_some()
+    );
 
     // String literals became numbered global constants (in lowering
     // order: function bodies are lowered in declaration order, so
     // core's `println(String)` contributes its `"\n"` first).
-    let strings: Vec<(&str, &str)> = module
+    let strings: Vec<&str> = module
         .strings
         .iter()
-        .map(|(_, s)| (s.value.as_str(), s.symbol.as_str()))
+        .map(|(_, s)| s.value.as_str())
         .collect();
+    assert_eq!(strings, ["\n", "!", "hello, world"]);
     assert_eq!(
-        strings,
-        [
-            ("\n", "scoop.str.0"),
-            ("!", "scoop.str.1"),
-            ("hello, world", "scoop.str.2")
-        ]
+        module
+            .strings
+            .iter()
+            .map(|(_, string)| &string.identity)
+            .collect::<Vec<_>>(),
+        expected_string_identities.iter().collect::<Vec<_>>()
     );
 
     // M2 meta exists but is empty.
     assert!(module.meta.dispatch_tables.is_empty());
 
     // Golden dump locks the output structure.
-    let expected = "\
-Module mangling=compact-v2
-  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  fun print @scoop.print(message: String) -> Unit
-    bb0 entry
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local message
-      return
-  fun println @scoop.println(message: String) -> Unit
-    bb0 entry
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        StringConst @scoop.str.0
-      return
-  fun helper @scoop.helper() -> Unit
-    bb0 entry
-      call @scoop.print direct
-        Type String
-        StringConst @scoop.str.1
-      return
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      call @scoop.println direct
-        Type String
-        StringConst @scoop.str.2
-      call @scoop.helper direct
-      return
-  str @scoop.str.0 \"\\n\"
-  str @scoop.str.1 \"!\"
-  str @scoop.str.2 \"hello, world\"
-  entry @scoop_main
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("lowers_hello_world", &module);
+}
+
+#[test]
+fn library_hir_lowers_to_library_mir_without_an_entry() {
+    let executable = hello_world();
+    let library =
+        hir::ExportHirOutput::try_new(executable.module().clone(), hir::ConeOutputKind::Library)
+            .expect("the same checked graph can be requested as a library");
+    let module = lower(&library);
+
+    assert!(matches!(module.output, mir::MirOutput::Library));
+    assert!(
+        module
+            .functions
+            .iter()
+            .any(|(_, function)| function.name == "main")
+    );
 }
 
 #[test]
 fn repeated_literals_get_separate_constants_deterministically() {
-    let mut hir_module = hello_world();
+    let executable = hello_world();
     // Add another `println("hello, world")` to `main`. The
     // `println(String)` overload is the second function in
     // `top_level` (after `print(String)`).
-    let println = hir_module.top_level[1];
-    let string = hir_module.string;
-    let unit = hir_module.unit;
-    let main_id = hir_module.entry;
+    let println = executable.top_level[1];
+    let string = executable.string;
+    let unit = executable.unit;
+    let main_id = executable.entry();
+    let mut hir_module = executable.into_module();
     let hir::FunctionKind::User(body) = &mut hir_module.functions[main_id].kind else {
         unreachable!()
     };
     body.statements.push(hir::Statement {
         kind: hir::StatementKind::Expr(hir::Expr {
             kind: hir::ExprKind::Call {
-                callee: hir::Callable::Function(println),
+                binding: None,
+                receiver: scoop_hir::SourceCallReceiver::NoReceiver,
+                callee: (hir::Callable::Function(println)).into(),
                 args: vec![hir::Expr {
-                    kind: hir::ExprKind::StringLiteral("hello, world".to_string()),
+                    kind: hir::ExprKind::StringLiteral {
+                        value: "hello, world".to_string(),
+                        owner: hir::StringConstantOwner::CurrentDefinition,
+                    },
                     ty: string,
                     span: SPAN,
                     origin: expression_origin(),
@@ -109,16 +155,14 @@ fn repeated_literals_get_separate_constants_deterministically() {
         span: SPAN,
     });
 
+    let hir_module = executable_output(hir_module, main_id);
     let module = lower(&hir_module);
-    let symbols: Vec<&str> = module
+    let values: Vec<&str> = module
         .strings
         .iter()
-        .map(|(_, s)| s.symbol.as_str())
+        .map(|(_, s)| s.value.as_str())
         .collect();
-    assert_eq!(
-        symbols,
-        ["scoop.str.0", "scoop.str.1", "scoop.str.2", "scoop.str.3"]
-    );
+    assert_eq!(values, ["\n", "!", "hello, world", "hello, world"]);
 }
 
 #[test]
@@ -146,7 +190,11 @@ fn formatting_helpers_are_ordinary_extern_calls() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let symbols: Vec<&str> = entry_statements(body)
         .iter()
         .map(|statement| {
@@ -190,7 +238,13 @@ fn raw_struct_construction_reaches_mir_without_a_constructor_call() {
 
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let statements = entry_statements(&module.functions[module.entry].body);
+    let statements = entry_statements(
+        &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body,
+    );
     assert!(matches!(
         statements,
         [mir::Statement {
@@ -301,7 +355,11 @@ fn gc_shapes() -> (Harness, hir::FunctionId) {
 fn gc_wrappers_use_explicit_raw_word_marshalling() {
     let (h, main) = gc_shapes();
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     // `_pin(s)` produces the raw word used by `PinnedPtr(raw)`.
     let (call, pin_result) = statement_call(&entry_statements(body)[0]);

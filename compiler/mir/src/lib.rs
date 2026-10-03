@@ -11,16 +11,96 @@
 //! cannot contain a call.
 
 use la_arena::{Arena, Idx};
-use scoop_ast::Span;
 
-mod symbols;
-pub use symbols::*;
+pub use scoop_identity::{
+    CallableOwner, ConeIdentity, CoreImportedCallableKind, ImmortalObjectKey, ImmortalObjectOwner,
+    OdrGroupId, PersistentExactTypeId, PersistentFieldId, PersistentInitializationUnitId,
+    PropertyOwner, SourceNativeExternalContractRecord, SourceSpan, StructuralDefinitionPath,
+    StructuralDefinitionSiteRole, StructuralPathSegment,
+};
+
+mod ids;
+pub use ids::*;
 
 mod integer;
 pub use integer::*;
 
 mod types;
 pub use types::*;
+
+mod function_adapter;
+pub use function_adapter::*;
+
+mod exact_owner;
+pub use exact_owner::*;
+
+mod source_exact_types;
+pub use source_exact_types::*;
+mod cone_input;
+pub use cone_input::*;
+
+mod dependency_output;
+pub use dependency_output::*;
+
+mod external_callable;
+pub use external_callable::*;
+
+mod generated_exact_types;
+pub use generated_exact_types::*;
+
+mod generated_callables;
+pub use generated_callables::*;
+
+mod source_callable_materializations;
+pub use source_callable_materializations::*;
+
+mod local_values;
+pub use local_values::*;
+
+mod closure_environment;
+pub use closure_environment::*;
+
+mod function_bridge;
+pub use function_bridge::*;
+
+mod static_callback_bridge;
+pub use static_callback_bridge::*;
+
+mod coroutine_shape;
+pub use coroutine_shape::*;
+
+mod coroutine_support;
+pub use coroutine_support::*;
+
+mod coroutine_state_machine;
+pub use coroutine_state_machine::*;
+
+mod continuation_adapter;
+pub use continuation_adapter::*;
+
+mod boxed_value;
+pub use boxed_value::*;
+
+mod boxing_adjust;
+pub use boxing_adjust::*;
+
+mod identity_metadata;
+pub use identity_metadata::*;
+
+mod callable_signatures;
+pub use callable_signatures::*;
+
+mod foundation;
+pub use foundation::*;
+
+mod production;
+pub use production::*;
+
+mod cross_cone_type_bridge;
+pub use cross_cone_type_bridge::*;
+
+mod cross_cone_bridge;
+pub use cross_cone_bridge::*;
 
 mod module;
 pub use module::*;

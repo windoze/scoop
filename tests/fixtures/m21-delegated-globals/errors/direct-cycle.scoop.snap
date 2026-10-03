@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m21-delegated-globals/errors/direct-cycle.scoop:6:18: error: initialization cycle: top-level:left -> top-level:right -> top-level:left

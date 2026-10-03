@@ -1,0 +1,50 @@
+Module
+  class ComputedValue vtable=2 itables=1
+  class MutableBase vtable=2 itables=1
+  class Counter vtable=0 itables=0
+  interface MutableValue
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.initial: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type ComputedValue
+        ClassAlloc ComputedValue
+      call external4 direct
+        Type ComputedValue
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.initial
+      val cell: ComputedValue
+        Type ComputedValue
+        Local $new.1
+      val $place.0: ComputedValue
+        Type ComputedValue
+        Local cell
+      call external3 direct
+        Type ComputedValue
+        Local $place.0
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      call $dependency.argument.0: Long = external2 direct
+        Type ComputedValue
+        Local cell
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external5 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

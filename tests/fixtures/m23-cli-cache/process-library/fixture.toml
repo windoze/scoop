@@ -1,0 +1,85 @@
+schema = 1
+name = "cli-process-library"
+inputs = ["root"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "cache", "stage-golden", "process-cache"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"copy" = {"from" = "${fixture}/root", "to" = "${work}/root"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${work}/absent-runtime", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${cold.result.kind}", "equals" = "library"},
+  {"actual" = "${cold.result.dependencies.length}", "equals" = 1},
+  {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.dependencies.0.identity}", "${cold.result.root.identity}"]},
+  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"actual" = "${cold.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
+  {"actual" = "${cold.result.observations.nodes.0.identity}", "equals" = "${cold.result.dependencies.0.identity}"},
+  {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "compiled"},
+  {"actual" = "${cold.result.root.coordinate}", "equals" = {"group" = "test", "name" = "root", "version" = "1.0.0"}},
+  {"actual" = "${cold.result.observations.nodes.1.identity}", "equals" = "${cold.result.root.identity}"},
+  {"actual" = "${cold.result.observations.nodes.1.origin}", "equals" = "compiled"},
+  {"file" = "${work}/published", "same_as" = "${cold.result.root.path}"},
+  {"file" = "${work}/dump/${cold.result.root.identity}/ast.txt", "snapshot" = "ast.txt"},
+  {"file" = "${work}/dump/${cold.result.root.identity}/hir.txt", "snapshot" = "hir.txt"},
+  {"file" = "${work}/dump/${cold.result.root.identity}/mir.txt", "snapshot" = "mir.txt"},
+  {"file" = "${work}/dump/${cold.result.root.identity}/lir.txt", "snapshot" = "lir.txt"},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/published", "--runtime-root", "${work}/absent-runtime"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${warm.result.kind}", "equals" = "library"},
+  {"actual" = "${warm.result.dependencies.length}", "equals" = 1},
+  {"actual" = "${warm.result.observations.child_invocations}", "equals" = []},
+  {"glob" = "${work}/cache/compile-v1/.staging/*", "equals" = []},
+  {"actual" = "${warm.result.dependencies.0.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
+  {"actual" = "${warm.result.observations.nodes.0.identity}", "equals" = "${warm.result.dependencies.0.identity}"},
+  {"actual" = "${warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.dependencies.0.artifact_fingerprint}"},
+  {"actual" = "${warm.result.observations.nodes.0.cache_key}", "equals" = "${cold.result.observations.nodes.0.cache_key}"},
+  {"file" = "${warm.result.dependencies.0.path}", "same_as" = "${cold.result.dependencies.0.path}"},
+  {"actual" = "${warm.result.root.coordinate}", "equals" = {"group" = "test", "name" = "root", "version" = "1.0.0"}},
+  {"actual" = "${warm.result.observations.nodes.1.identity}", "equals" = "${warm.result.root.identity}"},
+  {"actual" = "${warm.result.observations.nodes.1.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.root.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"},
+  {"actual" = "${warm.result.observations.nodes.1.cache_key}", "equals" = "${cold.result.observations.nodes.1.cache_key}"},
+  {"file" = "${warm.result.root.path}", "same_as" = "${cold.result.root.path}"},
+  {"file" = "${work}/published", "same_as" = "${warm.result.root.path}"},
+]
+
+[[steps]]
+name = "manual_core"
+files = [
+  {"copy" = {"from" = "${cold.result.dependencies.0.path}", "to" = "${work}/manual-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+]
+
+[[steps]]
+name = "manual"
+argv = ["${scoopc}", "build", "${work}/root", "--sysroot", "${work}/manual-sysroot", "--out-slib", "${work}/manual.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [
+  {"file" = "${work}/manual.slib", "same_as" = "${cold.result.root.path}"},
+]

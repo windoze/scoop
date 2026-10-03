@@ -1,0 +1,2 @@
+public fun stage3CoreAnswer(): Long = 42
+public fun stage3CoreFailure() { throw ArithmeticException() }

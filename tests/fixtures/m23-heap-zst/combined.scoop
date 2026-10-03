@@ -1,0 +1,32 @@
+public struct HeapEmpty()
+public struct HeapPair(val first: HeapEmpty, val second: HeapEmpty)
+public class HeapCell(public var empty: HeapEmpty)
+public open class HeapBase(public var first: HeapEmpty)
+public class HeapDerived(public var number: Int, public var pair: HeapPair) : HeapBase(HeapEmpty())
+
+public var heapEffects: Int = 0
+public object HeapSingleton {
+    public var empty: HeapEmpty = heapEmptySource()
+}
+
+public fun heapEmptySource(): HeapEmpty {
+    heapEffects = heapEffects + 1
+    return HeapEmpty()
+}
+
+public fun heapClosureRoundtrip(): HeapEmpty {
+    val empty = heapEmptySource()
+    val pair = HeapPair(empty, HeapEmpty())
+    val derived = HeapDerived(7, pair)
+    val changing = HeapCell(empty)
+    val readEmpty: () -> HeapEmpty = { empty }
+    val readPair: () -> HeapPair = { pair }
+    val readReference: () -> HeapDerived = { derived }
+    val readChanging: () -> HeapEmpty = { changing.empty }
+    changing.empty = heapEmptySource()
+    readReference().pair = readPair()
+    derived.first = readEmpty()
+    HeapSingleton.empty = readChanging()
+    derived.number = derived.number + heapEffects
+    return HeapSingleton.empty
+}

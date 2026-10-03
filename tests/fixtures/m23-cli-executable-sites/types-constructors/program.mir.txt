@@ -1,0 +1,85 @@
+Module
+  global0 $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab: Registry imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=3a526283084ebedba97eaa36d7f52805272cb4afce09bb5e17c04d14d61a27bc
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Cell vtable=0 itables=0
+  class Registry vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun read @fn0(cell: Cell) -> Int
+    bb0 entry
+      call $dependency.receiver: Int = external0 direct
+        Type Cell
+        Local cell
+      call $dependency.argument.0: Int = external1 direct
+        Type Cell
+        Local cell
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun main @fn1() -> Unit
+    bb0 entry
+      call external5 direct
+      val $property_receiver.0: Registry
+        Type Registry
+        GlobalRead $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab
+      call external2 direct
+        Type Registry
+        Local $property_receiver.0
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      call external5 direct
+      call $dependency.receiver: Int = external3 direct
+        Type Registry
+        GlobalRead $singleton$c1d4248881463d564dd6a509ef4337653186f34055ee46d9a4dcd6a8b8587aab
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external4 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  str @str0 "illegal state"
+  output executable @fn1

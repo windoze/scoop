@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m9-gc-errors-interface-invariance"
+root = "../../../m9-gc/errors/interface-invariance.scoop"
+inputs = ["../../../m9-gc/errors/interface-invariance.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m9-gc", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "interface-invariance.diagnostics.json"}

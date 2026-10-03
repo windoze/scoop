@@ -1,0 +1,24 @@
+SourceFile
+  QualifiedPackage dependency.values
+  public struct Token
+  public struct Wide
+    field first: Long
+    field second: Long
+    field third: Long
+  public struct Nested
+    field token: Token
+    field payload: Wide
+  public struct Managed
+    field text: String
+    field token: Token
+    @NoGC
+  public fun passToken(value: Token): Token
+    =
+      Var value
+    @NoGC
+  public fun passWide(value: Wide): Wide
+    =
+      Var value
+  public fun passManaged(value: Managed): Managed
+    =
+      Var value

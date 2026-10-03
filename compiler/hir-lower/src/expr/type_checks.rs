@@ -74,7 +74,7 @@ impl Lowerer {
             );
             return None;
         }
-        if optional && self.option_enumeration().is_none() {
+        if optional && !self.has_option_protocol() {
             // The missing core `Option` was already diagnosed.
             return None;
         }
@@ -96,6 +96,7 @@ impl Lowerer {
             return Some(hir::Expr {
                 kind: ExprKind::Cast {
                     operand: Box::new(operand),
+                    check_ty: target,
                     optional: true,
                 },
                 ty,
@@ -103,9 +104,17 @@ impl Lowerer {
                 origin: self.expression_origin(span),
             });
         }
+        if let Err(error) = self.prepare_cast_exception_type() {
+            self.error(
+                span,
+                format!("cannot resolve cast exception type: {error:?}"),
+            );
+            return None;
+        }
         let cast = hir::Expr {
             kind: ExprKind::Cast {
                 operand: Box::new(operand),
+                check_ty: target,
                 optional: false,
             },
             ty: target,

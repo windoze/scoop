@@ -1,0 +1,36 @@
+SourceFile
+  RootPackage
+  public fun child(text: String, value: Int): Child
+    =
+      Call Child
+        Var text
+        Var value
+  public fun observeChild(value: Child): (Int, String, Int)
+    =
+      TupleLiteral
+        FieldAccess inherited
+          Var value
+        FieldAccess own
+          Var value
+        FieldAccess number
+          Var value
+  public fun inherited(value: Base): Int
+    =
+      FieldAccess inherited
+        Var value
+SourceFile
+  RootPackage
+  public interface Marker
+    fun mark
+  public open class Base(val inherited: Int)
+  public class Child(val own: String, val number: Int) : Base(<1 args>), Marker
+  public struct Label : Marker
+    field text: String
+  public enum Choice
+    None
+    Some(Label)
+  public object Singleton
+    public val text: String = <expr>
+      StringLiteral "value"
+    public val number: Int = <expr>
+      IntLiteral 3

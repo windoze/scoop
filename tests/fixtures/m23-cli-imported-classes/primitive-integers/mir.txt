@@ -1,0 +1,534 @@
+Module
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class box<Int8> vtable=0 itables=0
+  class box<Int16> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  class box<Long> vtable=0 itables=0
+  class box<UInt8> vtable=0 itables=0
+  class box<UInt16> vtable=0 itables=0
+  class box<UInt> vtable=0 itables=0
+  class box<ULong> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface RebuiltReadable
+  generated_exact_type get0 location=class8 nominal_id=d3ec1dd80e1deff45823497aaf368fae1fd223a3e94270c12ebe3b9145f95ade exact_id=2ae85a658cc02e953803af8e625fcc5e4bb5f08a0be20e17c3bc3bf638468d26
+  generated_exact_type get1 location=class10 nominal_id=9998276d77b1440b651ab89b36decb49be3f72b687801ebd40eea50d574b8000 exact_id=ade3773a6e341f9480fe5dc861bba51256358366e34407ddaa8801e520ea521f
+  generated_exact_type get2 location=class4 nominal_id=adb25914e90c2d4fb3b4af969746a6725289251b4b7688111cc5e8e8ec1a8387 exact_id=b4b5dd6b39f7a03d0862e75930c05229b5dec39780205d043c8a7a51fcfd6fbc
+  generated_exact_type get3 location=class7 nominal_id=ea29b4b462ff68321554b9a22923fb4511a95fbd8a9db3ae48d8e354df33f1dd exact_id=bb6274a8ad942aaa9e497e7cf9cedec226cd43a70f4602c59619ea3af8ce965e
+  generated_exact_type get4 location=class9 nominal_id=1752f8072e4dbd971b0565007ee0039aeff7f1cbe5744c0c4b41df01fbcd925c exact_id=d27808736e83b2eff1efbcee80673281b7ee064cf628e54c6f3014c9fcc40911
+  generated_exact_type get5 location=class3 nominal_id=de537a479a9750a662a38e8bc8144b7035afa0c1849733a99c565fd3a7bc87b1 exact_id=db9e3cb3d8fc84aff6fadcd13ed41bfabfeba931a2091e153f787fa001f8bcd3
+  generated_exact_type get6 location=class5 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=class6 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val s8: Int8
+        Type Int8
+        IntegerLiteral Int8 value=21 bits=0x15
+      val s16: Int16
+        Type Int16
+        IntegerLiteral Int16 value=21 bits=0x0015
+      val s32: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val s64: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val u8: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=21 bits=0x15
+      val u16: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=21 bits=0x0015
+      val u32: UInt
+        Type UInt
+        IntegerLiteral UInt value=21 bits=0x00000015
+      val u64: ULong
+        Type ULong
+        IntegerLiteral ULong value=21 bits=0x0000000000000015
+      val b8: Any
+        Type Any
+        Box
+          Type Int8
+          Local s8
+      val b16: Any
+        Type Any
+        Box
+          Type Int16
+          Local s16
+      val b32: Any
+        Type Any
+        Box
+          Type Int
+          Local s32
+      val b64: Any
+        Type Any
+        Box
+          Type Long
+          Local s64
+      val c8: Any
+        Type Any
+        Box
+          Type UInt8
+          Local u8
+      val c16: Any
+        Type Any
+        Box
+          Type UInt16
+          Local u16
+      val c32: Any
+        Type Any
+        Box
+          Type UInt
+          Local u32
+      val c64: Any
+        Type Any
+        Box
+          Type ULong
+          Local u64
+      val $cast.1: Any
+        Type Any
+        Local b8
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int8
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: Int8
+        Type Int8
+        Unbox
+          Type Any
+          Local $cast.1
+      val $dependency.receiver: Int8
+        Type Int8
+        Local $ub.2
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=21 bits=0x15
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+    bb3 if.then.3
+      val $cast.3: Any
+        Type Any
+        Local b16
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int16
+            Type Any
+            Local $cast.3
+    bb4 if.else.4
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 if.merge.5
+      branch bb8 bb9
+        Type Boolean
+        Local $shortCircuit.0
+    bb6 if.then.6
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb7 if.merge.7
+      val $ub.4: Int16
+        Type Int16
+        Unbox
+          Type Any
+          Local $cast.3
+      val $dependency.receiver: Int16
+        Type Int16
+        Local $ub.4
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=21 bits=0x0015
+      val $dependency.parameter.other: Int16
+        Type Int16
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $dependency.receiver
+          Type Int16
+          Local $dependency.parameter.other
+      goto bb5
+    bb8 if.then.8
+      val $cast.5: Any
+        Type Any
+        Local b32
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Int
+            Type Any
+            Local $cast.5
+    bb9 if.else.9
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb10
+    bb10 if.merge.10
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.1
+    bb11 if.then.11
+      assign $new.3
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.3
+      throw
+        Type ClassCastException
+        Local $new.3
+    bb12 if.merge.12
+      val $ub.6: Int
+        Type Int
+        Unbox
+          Type Any
+          Local $cast.5
+      val $dependency.receiver: Int
+        Type Int
+        Local $ub.6
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=21 bits=0x00000015
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb10
+    bb13 if.then.13
+      val $cast.7: Any
+        Type Any
+        Local b64
+      branch bb16 bb17
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Long
+            Type Any
+            Local $cast.7
+    bb14 if.else.14
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      branch bb18 bb19
+        Type Boolean
+        Local $shortCircuit.2
+    bb16 if.then.16
+      assign $new.4
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.4
+      throw
+        Type ClassCastException
+        Local $new.4
+    bb17 if.merge.17
+      val $ub.8: Long
+        Type Long
+        Unbox
+          Type Any
+          Local $cast.7
+      val $dependency.receiver: Long
+        Type Long
+        Local $ub.8
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb15
+    bb18 if.then.18
+      val $cast.9: Any
+        Type Any
+        Local c8
+      branch bb21 bb22
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance UInt8
+            Type Any
+            Local $cast.9
+    bb19 if.else.19
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb20
+    bb20 if.merge.20
+      branch bb23 bb24
+        Type Boolean
+        Local $shortCircuit.3
+    bb21 if.then.21
+      assign $new.5
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.5
+      throw
+        Type ClassCastException
+        Local $new.5
+    bb22 if.merge.22
+      val $ub.10: UInt8
+        Type UInt8
+        Unbox
+          Type Any
+          Local $cast.9
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local $ub.10
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=21 bits=0x15
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt8 result=Boolean
+          Type UInt8
+          Local $dependency.receiver
+          Type UInt8
+          Local $dependency.parameter.other
+      goto bb20
+    bb23 if.then.23
+      val $cast.11: Any
+        Type Any
+        Local c16
+      branch bb26 bb27
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance UInt16
+            Type Any
+            Local $cast.11
+    bb24 if.else.24
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb25
+    bb25 if.merge.25
+      branch bb28 bb29
+        Type Boolean
+        Local $shortCircuit.4
+    bb26 if.then.26
+      assign $new.6
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.6
+      throw
+        Type ClassCastException
+        Local $new.6
+    bb27 if.merge.27
+      val $ub.12: UInt16
+        Type UInt16
+        Unbox
+          Type Any
+          Local $cast.11
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local $ub.12
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=21 bits=0x0015
+      val $dependency.parameter.other: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt16 result=Boolean
+          Type UInt16
+          Local $dependency.receiver
+          Type UInt16
+          Local $dependency.parameter.other
+      goto bb25
+    bb28 if.then.28
+      val $cast.13: Any
+        Type Any
+        Local c32
+      branch bb31 bb32
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance UInt
+            Type Any
+            Local $cast.13
+    bb29 if.else.29
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb30 if.merge.30
+      branch bb33 bb34
+        Type Boolean
+        Local $shortCircuit.5
+    bb31 if.then.31
+      assign $new.7
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.7
+      throw
+        Type ClassCastException
+        Local $new.7
+    bb32 if.merge.32
+      val $ub.14: UInt
+        Type UInt
+        Unbox
+          Type Any
+          Local $cast.13
+      val $dependency.receiver: UInt
+        Type UInt
+        Local $ub.14
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=21 bits=0x00000015
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt result=Boolean
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          Local $dependency.parameter.other
+      goto bb30
+    bb33 if.then.33
+      val $cast.15: Any
+        Type Any
+        Local c64
+      branch bb36 bb37
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance ULong
+            Type Any
+            Local $cast.15
+    bb34 if.else.34
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb35
+    bb35 if.merge.35
+      val correct: Boolean
+        Type Boolean
+        Local $shortCircuit.6
+      branch bb38 bb39
+        Type Boolean
+        Local correct
+    bb36 if.then.36
+      assign $new.8
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.8
+      throw
+        Type ClassCastException
+        Local $new.8
+    bb37 if.merge.37
+      val $ub.16: ULong
+        Type ULong
+        Unbox
+          Type Any
+          Local $cast.15
+      val $dependency.receiver: ULong
+        Type ULong
+        Local $ub.16
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=21 bits=0x0000000000000015
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      goto bb35
+    bb38 if.then.38
+      assign $result.7
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      goto bb40
+    bb39 if.else.39
+      assign $result.7
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb40
+    bb40 if.merge.40
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.7
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.9
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.9
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.9
+  output library

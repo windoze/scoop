@@ -1,0 +1,5 @@
+import templates.bounds.PlainBase
+
+private open class LocalBase {}
+
+private fun <T> result(value: T): Int where T : PlainBase, T : LocalBase = 0

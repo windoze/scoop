@@ -1,0 +1,40 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun makeChain(): Chain
+    =
+      Call Chain
+  fun main()
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess value
+            Call makeChain
+          IntLiteral 1
+        Binary Ne
+          FieldAccess value
+            Call Scalar
+          IntLiteral 1
+      throw
+        Call IllegalStateException
+    val empty: Empty
+      Call Empty
+        BoolLiteral true
+    if
+      Binary Ne
+        FieldAccess value
+          Call Defaulted
+        IntLiteral 1
+      throw
+        Call IllegalStateException
+    @Unsafe block
+      if
+        Binary Ne
+          FieldAccess value
+            Call Scalar
+              IntLiteral 42
+              BoolLiteral true
+          IntLiteral 42
+        throw
+          Call IllegalStateException
+    Call gcCollect

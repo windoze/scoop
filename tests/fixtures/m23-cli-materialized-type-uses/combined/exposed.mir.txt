@@ -1,0 +1,221 @@
+Module
+  struct Packet (pair: (Boolean, String))
+  enum Envelope
+    Empty()
+    Present(_1: Packet)
+  class Cell vtable=0 itables=1
+  interface Reader
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn9 id=4e3d340ca996dbe4d2d7b3c08a07145a123093cdf9ff5198244a28b66980a37e
+  generated_exact_type get0 location=closure0 nominal_id=fa9411ec28265f77672aa04ac76add353fe784095b0d43bc94747bca392810a6 exact_id=dd318e71d9c500280961a50d46ae3abd7d2bd3a3ea2197d4bf322a1950ebd8b4
+  generated_callable gc0 function=@fn9 id=4e3d340ca996dbe4d2d7b3c08a07145a123093cdf9ff5198244a28b66980a37e
+  fun Cell.read @fn0(this: Cell) -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  fun observe @fn1() -> (Boolean, String, String, Boolean)
+    bb0 entry
+      val $argument.0: (Boolean, String)
+        Type (Boolean, String)
+        TupleLiteral
+          Type Boolean
+          BoolLiteral true
+          Type String
+          StringConst @str1
+      val $parameter.pair: (Boolean, String)
+        Type (Boolean, String)
+        Local $argument.0
+      call packet: Packet = @fn8 direct
+        Type (Boolean, String)
+        Local $parameter.pair
+      val $argument.0: Packet
+        Type Packet
+        Local packet
+      val $parameter._1: Packet
+        Type Packet
+        Local $argument.0
+      val $argument.0: Envelope
+        Type Envelope
+        VariantConstruct Envelope v1
+          Type Packet
+          Local $parameter._1
+      val $parameter.data: Envelope
+        Type Envelope
+        Local $argument.0
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      call @fn7 direct
+        Type Cell
+        Local $new.1
+        Type Envelope
+        Local $parameter.data
+      val cell: Cell
+        Type Cell
+        Local $new.1
+      val reader: Reader
+        Type Reader
+        Retype Reader
+          Type Cell
+          Local cell
+      val $when.1: Envelope
+        Type Envelope
+        FieldAccess 0
+          Type Cell
+          Local cell
+      val $pattern.subject.2: Envelope
+        Type Envelope
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Envelope v0
+          Type Envelope
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Envelope
+        Type Envelope
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Envelope v1
+          Type Envelope
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      val present: Boolean
+        Type Boolean
+        Local $result.0
+      val $receiver: Reader
+        Type Reader
+        Local reader
+      val $argument.0: Packet
+        Type Packet
+        Local packet
+      val $parameter.value: Packet
+        Type Packet
+        Local $argument.0
+      val $argument.0: Any
+        Type Any
+        Retype Any
+          Type Cell
+          Local cell
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call $call.2: String = @fn6 interface Reader[0]
+        Type Reader
+        Local $receiver
+      call $call.3: () -> String = @fn3 direct
+        Type Packet
+        Local $parameter.value
+      call $call.4: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.3
+      call $call.5: Boolean = @fn4 direct
+        Type Any
+        Local $parameter.value
+      return
+        Type (Boolean, String, String, Boolean)
+        TupleLiteral
+          Type Boolean
+          Local present
+          Type String
+          Local $call.2
+          Type String
+          Local $call.4
+          Type Boolean
+          Local $call.5
+    bb4 pattern.pass.4
+      val value: Packet
+        Type Packet
+        VariantPayloadProject Envelope v1 f0
+          Type Envelope
+          Local $pattern.subject.3
+      assign $result.0
+        Type Boolean
+        FieldAccess 0
+          Type (Boolean, String)
+          FieldAccess 0
+            Type Packet
+            Local value
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun observedMatch @fn2(value: Any) -> Boolean
+    bb0 entry
+      val $argument.0: Any
+        Type Any
+        Local value
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call $call.1: Boolean = @fn4 direct
+        Type Any
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.1
+  fun capture @fn3(value: Packet) -> () -> String
+    bb0 entry
+      val text: String
+        Type String
+        StringConst @str2
+      return
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local text
+  fun matches @fn4(value: Any) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance Cell
+          Type Any
+          Local value
+  fun $lambda.0 @fn5($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+  fun Reader.read @fn6(this: Reader) -> String
+    bb0 entry
+      trap "call to abstract method `Reader.read`"
+  fun init.Cell.$c0 @fn7(this: Cell, data: Envelope) -> Unit
+    bb0 entry
+      field_set 0
+        Type Cell
+        Local this
+        Type Envelope
+        Local data
+      return
+  fun ctor.Packet.$c0 @fn8(pair: (Boolean, String)) -> Packet <no-gc>
+    bb0 entry
+      return
+        Type Packet
+        StructInit Packet
+          Type (Boolean, String)
+          Local pair
+  fun function_bridge.$Closure$lambda0.() -> Any @fn9($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  str @str0 "cell"
+  str @str1 "payload"
+  str @str2 "captured"
+  output library

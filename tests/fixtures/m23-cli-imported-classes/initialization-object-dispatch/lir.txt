@@ -1,0 +1,26 @@
+Module
+  imported_global @scoop$1$ss$d290468017d933350e437305fbceb884bb974d02b96ffb69f6da670c2f002718 : ptr<managed> provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a scan=refs[0]
+  fun @scoop$1$cb$e720f04d7eeee2e19212feb2e17073cf62c53844d900c52bedf3626ae62ff02e() -> ptr<managed>
+    local %0 reader: ptr<managed>
+    local %1 $dependency.receiver: ptr<managed>
+    local %2 $dependency.argument.0: i64
+    local %3 $dependency.parameter.value: i64
+    local %4 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target2 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () external-fn4()
+    t0 = aggregate () : {}
+    t1 = global_load global0 : ptr<managed>
+    store t1 -> local0
+    store local0 -> local1
+    t2 = heap_load local1 +0 : ptr<metadata>
+    call no-gc-direct-target0 t3 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t2, external-td0)
+    call managed-direct-target0 sp<managed-call:1> live=[local1:ptr<managed>@0] t4 = sig=direct1 (ptr<managed>) -> i64 dispatch[Interface:0] t3(local1)
+    store t4 -> local2
+    store local2 -> local3
+    call managed-direct-target1 sp<managed-call:2> live=[] t5 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    store t5 -> local4
+    call managed-void-target1 sp<managed-call:3> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn3(local4, local3)
+    t6 = aggregate () : {}
+    ret local4
+  output library

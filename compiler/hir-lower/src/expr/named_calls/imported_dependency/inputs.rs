@@ -1,0 +1,108 @@
+use super::ImportedArgumentMap;
+use crate::call_resolution::arguments::{ArgumentShape, ArgumentShapeFailure};
+use crate::call_resolution::candidates::{ArgumentMode, ValueParameter};
+use crate::call_resolution::contextual::ArgumentExpression;
+use crate::expr::CallSite;
+use scoop_ast as ast;
+use scoop_hir as hir;
+
+#[derive(Clone, Copy)]
+pub(in crate::expr) enum ImportedCallArguments<'a> {
+    Source(&'a [ast::CallArgument]),
+    Lowered(&'a [hir::Expr]),
+}
+
+#[derive(Clone, Copy)]
+pub(in crate::expr) struct ImportedProbeCall<'a> {
+    pub(super) type_args: &'a [ast::CallTypeArgument],
+    pub(in crate::expr) arguments: ImportedCallArguments<'a>,
+    pub(in crate::expr) span: ast::Span,
+}
+
+impl<'a> From<CallSite<'a>> for ImportedProbeCall<'a> {
+    fn from(call: CallSite<'a>) -> Self {
+        Self {
+            type_args: call.type_args,
+            arguments: ImportedCallArguments::Source(call.args),
+            span: call.span,
+        }
+    }
+}
+
+impl<'a> ImportedProbeCall<'a> {
+    pub(in crate::expr) fn lowered(arguments: &'a [hir::Expr], span: ast::Span) -> Self {
+        Self {
+            type_args: &[],
+            arguments: ImportedCallArguments::Lowered(arguments),
+            span,
+        }
+    }
+}
+
+impl<'a> ImportedCallArguments<'a> {
+    pub(super) fn source(self, index: usize) -> Option<&'a ast::Expr> {
+        match self {
+            Self::Source(arguments) => Some(&arguments[index].expression),
+            Self::Lowered(_) => None,
+        }
+    }
+
+    pub(super) fn map(
+        self,
+        parameters: &[ValueParameter<hir::ExportDefaultTemplateKeyV1>],
+        mode: ArgumentMode,
+        operator_set: bool,
+    ) -> Result<ImportedArgumentMap, ArgumentShapeFailure> {
+        let arguments = match self {
+            Self::Source(arguments) => arguments.iter().map(ArgumentShape::from).collect(),
+            Self::Lowered(arguments) => vec![
+                ArgumentShape {
+                    name: None,
+                    spread: false
+                };
+                arguments.len()
+            ],
+        };
+        ImportedArgumentMap::map(parameters, &arguments, mode, operator_set)
+    }
+
+    pub(super) fn expressions(self) -> Vec<ArgumentExpression<'a>> {
+        match self {
+            Self::Source(arguments) => arguments
+                .iter()
+                .map(|argument| ArgumentExpression::Source(&argument.expression))
+                .collect(),
+            Self::Lowered(arguments) => arguments.iter().map(ArgumentExpression::Lowered).collect(),
+        }
+    }
+
+    pub(super) fn span(self, index: usize) -> ast::Span {
+        match self {
+            Self::Source(arguments) => arguments[index].span,
+            Self::Lowered(arguments) => arguments[index].span,
+        }
+    }
+}
+
+#[derive(Clone)]
+pub(in crate::expr) enum ImportedMemberReceiver {
+    Value(hir::Expr),
+    LiteralSubject(hir::TypeId),
+}
+
+impl ImportedMemberReceiver {
+    pub(in crate::expr) fn ty(&self) -> hir::TypeId {
+        match self {
+            Self::Value(value) => value.ty,
+            Self::LiteralSubject(ty) => *ty,
+        }
+    }
+}
+
+pub(super) enum ImportedCallReceiver {
+    Absent,
+    Member {
+        value: ImportedMemberReceiver,
+        static_type: hir::TypeId,
+    },
+}

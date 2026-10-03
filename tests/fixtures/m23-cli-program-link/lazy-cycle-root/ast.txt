@@ -1,0 +1,54 @@
+SourceFile
+  RootPackage
+  ImportStar Local startup.cycle.*
+  private fun trace(value: Long)
+    Call println
+      Var value
+  private fun failure(): IllegalStateException
+    =
+      TryExpression
+        Call readCycle
+        throw
+          Call IllegalStateException
+        catch error: IllegalStateException
+          Var error
+  fun main()
+    val first
+      Call failure
+    val firstMessage
+      WhenExpression
+        FieldAccess message
+          Var first
+        arm Some(value)
+          Var value
+        arm None
+          throw
+            Call IllegalStateException
+    val allocated
+      Call Box
+        IntLiteral 42L
+    val second
+      Call failure
+    val secondMessage
+      WhenExpression
+        FieldAccess message
+          Var second
+        arm Some(value)
+          Var value
+        arm None
+          throw
+            Call IllegalStateException
+    if
+      Binary Or
+        Binary Ne
+          Call count
+          IntLiteral 1
+        Binary RefNe
+          Var firstMessage
+          Var secondMessage
+      throw
+        Call IllegalStateException
+    @Unsafe block
+      Call trace
+        FieldAccess value
+          Var allocated

@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  fun retain(value: EmptyStorage): Any
+    =
+      Var value
+  fun main()

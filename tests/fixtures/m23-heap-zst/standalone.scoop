@@ -1,0 +1,11 @@
+public struct HeapEmpty()
+public class HeapCell(public var empty: HeapEmpty)
+
+public fun heapEmptySource(): HeapEmpty = HeapEmpty()
+public fun heapCellSource(): HeapCell = HeapCell(heapEmptySource())
+
+public fun heapFieldRoundtrip(): HeapEmpty {
+    val cell = heapCellSource()
+    cell.empty = heapEmptySource()
+    return cell.empty
+}

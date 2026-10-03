@@ -1,0 +1,10 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    val value = RebuiltCounter(21).read()
+    val flag = RebuiltFlag.Ready
+    return when (flag) {
+        Ready -> Counter(RebuiltAlias(value).read())
+        Empty -> Counter(0)
+    }
+}

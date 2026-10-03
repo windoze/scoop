@@ -1,0 +1,1658 @@
+Module
+  struct Token ()
+  enum Choice
+    Empty()
+    Pair(left: Long, marker: Token, right: Long)
+  enum Other
+    Empty()
+    Pair(_1: Long, _2: Token, _3: Long)
+  enum Flag
+    Off()
+    On()
+  enum Packet
+    Missing()
+    Data(_1: (Long, Token, Long), _2: Token)
+  enum Marker
+    Only()
+  enum Draft
+    Absent()
+    Position(_1: Long, _2: Token, _3: Long)
+    Named(left: Long, marker: Token, right: Long)
+    Defaults(left: Long, marker: Token, right: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Choice>
+    Completed(value: Choice)
+    Suspended()
+  enum CoroutineSlot<Choice>
+    Empty()
+    Value(value: Choice)
+  enum CoroutineStep<Marker>
+    Completed(value: Marker)
+    Suspended()
+  enum CoroutineSlot<Marker>
+    Empty()
+    Value(value: Marker)
+  enum CoroutineStep<Token>
+    Completed(value: Token)
+    Suspended()
+  enum CoroutineSlot<Token>
+    Empty()
+    Value(value: Token)
+  enum CoroutineStep<Packet>
+    Completed(value: Packet)
+    Suspended()
+  enum CoroutineSlot<Packet>
+    Empty()
+    Value(value: Packet)
+  enum CoroutineStep<Other>
+    Completed(value: Other)
+    Suspended()
+  enum CoroutineSlot<Other>
+    Empty()
+    Value(value: Other)
+  enum CoroutineStep<Flag>
+    Completed(value: Flag)
+    Suspended()
+  enum CoroutineSlot<Flag>
+    Empty()
+    Value(value: Flag)
+  enum CoroutineStep<Draft>
+    Completed(value: Draft)
+    Suspended()
+  enum CoroutineSlot<Draft>
+    Empty()
+    Value(value: Draft)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Choice> vtable=0 itables=0
+  class box<Marker> vtable=0 itables=0
+  class box<Token> vtable=0 itables=0
+  class box<Packet> vtable=0 itables=0
+  class box<Other> vtable=0 itables=0
+  class box<Flag> vtable=0 itables=0
+  class box<Draft> vtable=0 itables=0
+  interface Continuation<Token>
+  interface SuspendTask<Token>
+  interface SuspendRegistration<Token>
+  interface Continuation<Choice>
+  interface SuspendTask<Choice>
+  interface SuspendRegistration<Choice>
+  interface Continuation<Other>
+  interface SuspendTask<Other>
+  interface SuspendRegistration<Other>
+  interface Continuation<Flag>
+  interface SuspendTask<Flag>
+  interface SuspendRegistration<Flag>
+  interface Continuation<Packet>
+  interface SuspendTask<Packet>
+  interface SuspendRegistration<Packet>
+  interface Continuation<Marker>
+  interface SuspendTask<Marker>
+  interface SuspendRegistration<Marker>
+  interface Continuation<Draft>
+  interface SuspendTask<Draft>
+  interface SuspendRegistration<Draft>
+  generated_exact_type get0 location=class4 nominal_id=67cea740050d5b0eb19430db811d94d2adf6f541e3c9a0dff35556812d6875f3 exact_id=0074628e839436c60f27fa96104633cb3cb9428bb0dd36adc323c561b47fc4f4
+  generated_exact_type get1 location=class9 nominal_id=4f6ec29496d28518249d0d5b99cec5b0ec0a5d1ed480cd695c4dcb65fd69e9a7 exact_id=015def51a915d1add60a779c45a54ba4028ba0e22d49338d2cab6590e2cfe413
+  generated_exact_type get2 location=enum11 nominal_id=b11c18dd045af6a7917bafe64108308fe7bdb155c4f8a1af4b2b3a145a028995 exact_id=04d2c6b053712b5bcedab6bcc9929daf62729bd0e4254b16777b41645c08545b
+  generated_exact_type get3 location=enum17 nominal_id=28082a8cb7a8f7e0c8b3a3b53d4ed318b315fd03ffe91499fb7325a9248fd075 exact_id=0cc5929a6f2d33773d6fdb6dfd00793c7069a7af54b35b840fe478b225ae0203
+  generated_exact_type get4 location=class8 nominal_id=fcc73984b896039e8ec99f62db567a9ddd2fe326eae58f9bff1e8971d4cadf2f exact_id=1d1e7c39e91f398e6d1be81aa60921fec09b9d4af51157b9e415045850bf41f1
+  generated_exact_type get5 location=enum19 nominal_id=54744846772eb94b04f7afcfb713ea740791704a44e319a9efef9ee6ea2ef1d1 exact_id=250a07428b2a1132b571b87bfd6ec680522405ffda1fc1efd99a73012355e406
+  generated_exact_type get6 location=enum14 nominal_id=b6d5e1e45e0e76b3ba12c0360443eff68356e74da9542506ce9d308e97e011ad exact_id=2df761a1bd80e3552b1c11bcd2c13c670f52dd88854048d2a85f1ed099e48938
+  generated_exact_type get7 location=class6 nominal_id=3aa076a47bbaf2c311472768118bb9b6feeb29e4987ffa0391e7b25d2b78ca95 exact_id=481df22511016d674eaae1f45e358f956c1064e7f500ddc8164fa49bf2385da6
+  generated_exact_type get8 location=enum8 nominal_id=8a65320feb58b950b9072839f2a18cc276cd5d56ce0afba7dc17e17cf086dfd9 exact_id=4c7fee686721afaae8001f9d4e49e47b4e5a6c472205abd81a5ecb7a3a79c5aa
+  generated_exact_type get9 location=class7 nominal_id=1755d26221a12ecbaca470481b702c6a8c082362e06a69dbb431de82cac1e710 exact_id=5602c89be8069b8fa352b424d112c1263ecb8317f227b24ec70c039e654507ef
+  generated_exact_type get10 location=enum18 nominal_id=eee05fb4fe797fb3b03cf8a3f31bcf8cf8d5e24b5edba764cf51aaad328991d0 exact_id=57b768b9df7d3b6536b3e7fcf50d1908a4cfc110ac749cf9593469c8d175824a
+  generated_exact_type get11 location=enum12 nominal_id=103839c1d9d36a84ffe4cfd17b82abb9da5c780e5a03892b96d5f1b82fde39fe exact_id=6f850335dc028075ed81c218d065c42fb1b8052d8bfbf626633d835e5fd3664c
+  generated_exact_type get12 location=enum7 nominal_id=f74f9441e553a70907a1e75f509d8c5d26c9ed01eceed6a1e6e4c29cb1306906 exact_id=8876e44e7736499bdbc8d9c3567013d053c3e3cff736fecc761339c22b033669
+  generated_exact_type get13 location=class3 nominal_id=5bf838505c15850ec364674298f78224c0c309e32946916f58206c7bfc3c687a exact_id=8f3d7551efb9904ff36bdb37a5cac045b920a377a7dfda1ed7f13bf689b4557c
+  generated_exact_type get14 location=enum16 nominal_id=6e38ea1fc41d65214ee866691e493327f641edebe8a7009d0ea90bb6f7848f01 exact_id=934264475104afcb32287eb289b90673be61f9ecc4e30df8e63633ce41401bce
+  generated_exact_type get15 location=enum10 nominal_id=0bd393e50a94e14711d355ef8ee4bc520286a91c4addcb20aaaa508bf7ec88e4 exact_id=9f4f4ee29465980cab5ce391b13e907ea5ad5ef4a583147ea623e57050337d45
+  generated_exact_type get16 location=enum9 nominal_id=766d34c6d1af1d4d7fc652773dd1f4a0d9723a944034ebcab3c0ec7ccfd15c92 exact_id=a9f8b8e0434c0dd8578f3b5b7f892e64683facf176867f9d5df0a30fc66741e9
+  generated_exact_type get17 location=enum13 nominal_id=f7583b76857f5773c0f7a8945df12665fe0de6b2d07406a0d7af828694fd5c27 exact_id=b58f076a67068eebed094b90d4796d65e93af5e6a0efae5d400649295134c01b
+  generated_exact_type get18 location=class5 nominal_id=fa826b4d34664af2927128457cb0f8d4c1d5d535d08e92e0177eba4d38157b23 exact_id=e09a29afb41ec59eb0476c308029091b7296548c8b394efb644dde2ca2d544eb
+  generated_exact_type get19 location=enum20 nominal_id=dddc38b952a1906db367f8b6d1b8a660f1bb447fe18fa9c3108b842e23be5fa2 exact_id=e31a7e5d3c4fea8371764883af087480b3e48fd0c818acd91feb2af6bb64c341
+  generated_exact_type get20 location=enum15 nominal_id=016244be7ce5a4a930b3fd645e58945838f723092c495f6e48404ec6bc37aee9 exact_id=ec30933cba59b8e508d582c1b5a41cba409d7206333c4f7e1e66886a8eb87291
+  generated_callable gc0 function=@fn45 id=531c597185956bb70fde1945c299aa3cfa4e293d57f5ee76a5407344f6e38136
+  generated_callable gc1 function=@fn48 id=5949f0e78cc2c31d8628eb9f99b6c23d94d5b6d162c1904726f133a1a66b06a0
+  generated_callable gc2 function=@fn44 id=714e4cb31eeb07eff58eeb9190cf2c4adf9d7776190703e71e1655a276f76ac2
+  generated_callable gc3 function=@fn46 id=a951a572c93c8a131e4b17c5e800683748c0c2c5bb25884b8d07671393f0f9bf
+  generated_callable gc4 function=@fn47 id=ab43a40f5b8d07f080179d9378324712d2069a04089ee1917f10b21cda3d5195
+  generated_callable gc5 function=@fn49 id=b1680058d1e6da5ce6272ee6eecd8ed2cd14b57a1004f3d6af0f0b1bdb3f6096
+  generated_callable gc6 function=@fn43 id=caf76eb0894640e37c72646e28db12e3e4c7c7b979c57498d33b716609759af6
+  fun Token.equals @fn0(this: Token, other: Token) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Choice.equals @fn1(this: Choice, other: Choice) -> Boolean
+    bb0 entry
+      val $when.1: Choice
+        Type Choice
+        Local this
+      val $pattern.subject.2: Choice
+        Type Choice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.4: Choice
+        Type Choice
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Choice
+        Type Choice
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Long
+        Type Long
+        VariantPayloadProject Choice v1 f0
+          Type Choice
+          Local $pattern.subject.5
+      val $left.1.1: Token
+        Type Token
+        VariantPayloadProject Choice v1 f1
+          Type Choice
+          Local $pattern.subject.5
+      val $left.1.2: Long
+        Type Long
+        VariantPayloadProject Choice v1 f2
+          Type Choice
+          Local $pattern.subject.5
+      val $when.6: Choice
+        Type Choice
+        Local other
+      val $pattern.subject.7: Choice
+        Type Choice
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Long
+        Type Long
+        VariantPayloadProject Choice v1 f0
+          Type Choice
+          Local $pattern.subject.7
+      val $right.1.1: Token
+        Type Token
+        VariantPayloadProject Choice v1 f1
+          Type Choice
+          Local $pattern.subject.7
+      val $right.1.2: Long
+        Type Long
+        VariantPayloadProject Choice v1 f2
+          Type Choice
+          Local $pattern.subject.7
+      branch bb13 bb14
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.1.0
+          Type Long
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 logic.rhs.13
+      call $call.2: Boolean = @fn0 direct
+        Type Token
+        Local $left.1.1
+        Type Token
+        Local $right.1.1
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $logic.1
+    bb16 logic.rhs.16
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.1.2
+          Type Long
+          Local $right.1.2
+      goto bb18
+    bb17 logic.short.17
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      return
+        Type Boolean
+        Local $logic.3
+  fun Other.equals @fn2(this: Other, other: Other) -> Boolean
+    bb0 entry
+      val $when.1: Other
+        Type Other
+        Local this
+      val $pattern.subject.2: Other
+        Type Other
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Other v0
+          Type Other
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Other
+        Type Other
+        Local other
+      val $pattern.subject.4: Other
+        Type Other
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Other v0
+          Type Other
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Other
+        Type Other
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Other v1
+          Type Other
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Long
+        Type Long
+        VariantPayloadProject Other v1 f0
+          Type Other
+          Local $pattern.subject.5
+      val $left.1.1: Token
+        Type Token
+        VariantPayloadProject Other v1 f1
+          Type Other
+          Local $pattern.subject.5
+      val $left.1.2: Long
+        Type Long
+        VariantPayloadProject Other v1 f2
+          Type Other
+          Local $pattern.subject.5
+      val $when.6: Other
+        Type Other
+        Local other
+      val $pattern.subject.7: Other
+        Type Other
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Other v1
+          Type Other
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Long
+        Type Long
+        VariantPayloadProject Other v1 f0
+          Type Other
+          Local $pattern.subject.7
+      val $right.1.1: Token
+        Type Token
+        VariantPayloadProject Other v1 f1
+          Type Other
+          Local $pattern.subject.7
+      val $right.1.2: Long
+        Type Long
+        VariantPayloadProject Other v1 f2
+          Type Other
+          Local $pattern.subject.7
+      branch bb13 bb14
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.1.0
+          Type Long
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 logic.rhs.13
+      call $call.2: Boolean = @fn0 direct
+        Type Token
+        Local $left.1.1
+        Type Token
+        Local $right.1.1
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $logic.1
+    bb16 logic.rhs.16
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.1.2
+          Type Long
+          Local $right.1.2
+      goto bb18
+    bb17 logic.short.17
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      return
+        Type Boolean
+        Local $logic.3
+  fun Flag.equals @fn3(this: Flag, other: Flag) -> Boolean
+    bb0 entry
+      val $when.1: Flag
+        Type Flag
+        Local this
+      val $pattern.subject.2: Flag
+        Type Flag
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Flag v0
+          Type Flag
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Flag
+        Type Flag
+        Local other
+      val $pattern.subject.4: Flag
+        Type Flag
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Flag v0
+          Type Flag
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Flag
+        Type Flag
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Flag v1
+          Type Flag
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Flag
+        Type Flag
+        Local other
+      val $pattern.subject.7: Flag
+        Type Flag
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Flag v1
+          Type Flag
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun Packet.equals @fn4(this: Packet, other: Packet) -> Boolean
+    bb0 entry
+      val $when.1: Packet
+        Type Packet
+        Local this
+      val $pattern.subject.2: Packet
+        Type Packet
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Packet v0
+          Type Packet
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Packet
+        Type Packet
+        Local other
+      val $pattern.subject.4: Packet
+        Type Packet
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Packet v0
+          Type Packet
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Packet
+        Type Packet
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Packet v1
+          Type Packet
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: (Long, Token, Long)
+        Type (Long, Token, Long)
+        VariantPayloadProject Packet v1 f0
+          Type Packet
+          Local $pattern.subject.5
+      val $left.1.1: Token
+        Type Token
+        VariantPayloadProject Packet v1 f1
+          Type Packet
+          Local $pattern.subject.5
+      val $when.6: Packet
+        Type Packet
+        Local other
+      val $pattern.subject.7: Packet
+        Type Packet
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Packet v1
+          Type Packet
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: (Long, Token, Long)
+        Type (Long, Token, Long)
+        VariantPayloadProject Packet v1 f0
+          Type Packet
+          Local $pattern.subject.7
+      val $right.1.1: Token
+        Type Token
+        VariantPayloadProject Packet v1 f1
+          Type Packet
+          Local $pattern.subject.7
+      call $call.1: Boolean = @fn5 direct
+        Type (Long, Token, Long)
+        Local $left.1.0
+        Type (Long, Token, Long)
+        Local $right.1.0
+      branch bb13 bb14
+        Type Boolean
+        Local $call.1
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 logic.rhs.13
+      call $call.3: Boolean = @fn0 direct
+        Type Token
+        Local $left.1.1
+        Type Token
+        Local $right.1.1
+      assign $logic.2
+        Type Boolean
+        Local $call.3
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      return
+        Type Boolean
+        Local $logic.2
+  fun $derived.equals.4 @fn5(this: (Long, Token, Long), other: (Long, Token, Long)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 0
+            Type (Long, Token, Long)
+            Local this
+          Type Long
+          FieldAccess 0
+            Type (Long, Token, Long)
+            Local other
+    bb1 logic.rhs.1
+      call $call.2: Boolean = @fn0 direct
+        Type Token
+        FieldAccess 1
+          Type (Long, Token, Long)
+          Local this
+        Type Token
+        FieldAccess 1
+          Type (Long, Token, Long)
+          Local other
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 2
+            Type (Long, Token, Long)
+            Local this
+          Type Long
+          FieldAccess 2
+            Type (Long, Token, Long)
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.3
+  fun Marker.equals @fn6(this: Marker, other: Marker) -> Boolean
+    bb0 entry
+      val $when.1: Marker
+        Type Marker
+        Local this
+      val $pattern.subject.2: Marker
+        Type Marker
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Marker v0
+          Type Marker
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Marker
+        Type Marker
+        Local other
+      val $pattern.subject.4: Marker
+        Type Marker
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Marker v0
+          Type Marker
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+  fun Draft.equals @fn7(this: Draft, other: Draft) -> Boolean
+    bb0 entry
+      val $when.1: Draft
+        Type Draft
+        Local this
+      val $pattern.subject.2: Draft
+        Type Draft
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Draft v0
+          Type Draft
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Draft
+        Type Draft
+        Local other
+      val $pattern.subject.4: Draft
+        Type Draft
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Draft v0
+          Type Draft
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Draft
+        Type Draft
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Draft v1
+          Type Draft
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Long
+        Type Long
+        VariantPayloadProject Draft v1 f0
+          Type Draft
+          Local $pattern.subject.5
+      val $left.1.1: Token
+        Type Token
+        VariantPayloadProject Draft v1 f1
+          Type Draft
+          Local $pattern.subject.5
+      val $left.1.2: Long
+        Type Long
+        VariantPayloadProject Draft v1 f2
+          Type Draft
+          Local $pattern.subject.5
+      val $when.6: Draft
+        Type Draft
+        Local other
+      val $pattern.subject.7: Draft
+        Type Draft
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Draft v1
+          Type Draft
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Draft
+        Type Draft
+        Local $when.1
+      branch bb19 bb20
+        Type Boolean
+        VariantTest Draft v2
+          Type Draft
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Long
+        Type Long
+        VariantPayloadProject Draft v1 f0
+          Type Draft
+          Local $pattern.subject.7
+      val $right.1.1: Token
+        Type Token
+        VariantPayloadProject Draft v1 f1
+          Type Draft
+          Local $pattern.subject.7
+      val $right.1.2: Long
+        Type Long
+        VariantPayloadProject Draft v1 f2
+          Type Draft
+          Local $pattern.subject.7
+      branch bb13 bb14
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.1.0
+          Type Long
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 logic.rhs.13
+      call $call.2: Boolean = @fn0 direct
+        Type Token
+        Local $left.1.1
+        Type Token
+        Local $right.1.1
+      assign $logic.1
+        Type Boolean
+        Local $call.2
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $logic.1
+    bb16 logic.rhs.16
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.1.2
+          Type Long
+          Local $right.1.2
+      goto bb18
+    bb17 logic.short.17
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      return
+        Type Boolean
+        Local $logic.3
+    bb19 pattern.pass.19
+      val $left.2.0: Long
+        Type Long
+        VariantPayloadProject Draft v2 f0
+          Type Draft
+          Local $pattern.subject.8
+      val $left.2.1: Token
+        Type Token
+        VariantPayloadProject Draft v2 f1
+          Type Draft
+          Local $pattern.subject.8
+      val $left.2.2: Long
+        Type Long
+        VariantPayloadProject Draft v2 f2
+          Type Draft
+          Local $pattern.subject.8
+      val $when.9: Draft
+        Type Draft
+        Local other
+      val $pattern.subject.10: Draft
+        Type Draft
+        Local $when.9
+      branch bb22 bb23
+        Type Boolean
+        VariantTest Draft v2
+          Type Draft
+          Local $pattern.subject.10
+    bb20 pattern.else.20
+      val $pattern.subject.11: Draft
+        Type Draft
+        Local $when.1
+      branch bb31 bb32
+        Type Boolean
+        VariantTest Draft v3
+          Type Draft
+          Local $pattern.subject.11
+    bb21 pattern.merge.21
+      unreachable
+    bb22 pattern.pass.22
+      val $right.2.0: Long
+        Type Long
+        VariantPayloadProject Draft v2 f0
+          Type Draft
+          Local $pattern.subject.10
+      val $right.2.1: Token
+        Type Token
+        VariantPayloadProject Draft v2 f1
+          Type Draft
+          Local $pattern.subject.10
+      val $right.2.2: Long
+        Type Long
+        VariantPayloadProject Draft v2 f2
+          Type Draft
+          Local $pattern.subject.10
+      branch bb25 bb26
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.2.0
+          Type Long
+          Local $right.2.0
+    bb23 pattern.else.23
+      return
+        Type Boolean
+        BoolLiteral false
+    bb24 pattern.merge.24
+      unreachable
+    bb25 logic.rhs.25
+      call $call.5: Boolean = @fn0 direct
+        Type Token
+        Local $left.2.1
+        Type Token
+        Local $right.2.1
+      assign $logic.4
+        Type Boolean
+        Local $call.5
+      goto bb27
+    bb26 logic.short.26
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb27 logic.merge.27
+      branch bb28 bb29
+        Type Boolean
+        Local $logic.4
+    bb28 logic.rhs.28
+      assign $logic.6
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.2.2
+          Type Long
+          Local $right.2.2
+      goto bb30
+    bb29 logic.short.29
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb30 logic.merge.30
+      return
+        Type Boolean
+        Local $logic.6
+    bb31 pattern.pass.31
+      val $left.3.0: Long
+        Type Long
+        VariantPayloadProject Draft v3 f0
+          Type Draft
+          Local $pattern.subject.11
+      val $left.3.1: Token
+        Type Token
+        VariantPayloadProject Draft v3 f1
+          Type Draft
+          Local $pattern.subject.11
+      val $left.3.2: Long
+        Type Long
+        VariantPayloadProject Draft v3 f2
+          Type Draft
+          Local $pattern.subject.11
+      val $when.12: Draft
+        Type Draft
+        Local other
+      val $pattern.subject.13: Draft
+        Type Draft
+        Local $when.12
+      branch bb34 bb35
+        Type Boolean
+        VariantTest Draft v3
+          Type Draft
+          Local $pattern.subject.13
+    bb32 pattern.else.32
+      unreachable
+    bb33 pattern.merge.33
+      unreachable
+    bb34 pattern.pass.34
+      val $right.3.0: Long
+        Type Long
+        VariantPayloadProject Draft v3 f0
+          Type Draft
+          Local $pattern.subject.13
+      val $right.3.1: Token
+        Type Token
+        VariantPayloadProject Draft v3 f1
+          Type Draft
+          Local $pattern.subject.13
+      val $right.3.2: Long
+        Type Long
+        VariantPayloadProject Draft v3 f2
+          Type Draft
+          Local $pattern.subject.13
+      branch bb37 bb38
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.3.0
+          Type Long
+          Local $right.3.0
+    bb35 pattern.else.35
+      return
+        Type Boolean
+        BoolLiteral false
+    bb36 pattern.merge.36
+      unreachable
+    bb37 logic.rhs.37
+      call $call.8: Boolean = @fn0 direct
+        Type Token
+        Local $left.3.1
+        Type Token
+        Local $right.3.1
+      assign $logic.7
+        Type Boolean
+        Local $call.8
+      goto bb39
+    bb38 logic.short.38
+      assign $logic.7
+        Type Boolean
+        BoolLiteral false
+      goto bb39
+    bb39 logic.merge.39
+      branch bb40 bb41
+        Type Boolean
+        Local $logic.7
+    bb40 logic.rhs.40
+      assign $logic.9
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $left.3.2
+          Type Long
+          Local $right.3.2
+      goto bb42
+    bb41 logic.short.41
+      assign $logic.9
+        Type Boolean
+        BoolLiteral false
+      goto bb42
+    bb42 logic.merge.42
+      return
+        Type Boolean
+        Local $logic.9
+  fun make @fn8(left: Long, right: Long) -> Choice <no-gc>
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        Local left
+      call $argument.1: Token = @fn42 direct
+      val $argument.2: Long
+        Type Long
+        Local right
+      val $parameter.left: Long
+        Type Long
+        Local $argument.0
+      val $parameter.marker: Token
+        Type Token
+        Local $argument.1
+      val $parameter.right: Long
+        Type Long
+        Local $argument.2
+      return
+        Type Choice
+        VariantConstruct Choice v1
+          Type Long
+          Local $parameter.left
+          Type Token
+          Local $parameter.marker
+          Type Long
+          Local $parameter.right
+  fun empty @fn9() -> Choice <no-gc>
+    bb0 entry
+      return
+        Type Choice
+        VariantConstruct Choice v0
+  fun sum @fn10(value: Choice) -> Long <no-gc>
+    bb0 entry
+      val $when.1: Choice
+        Type Choice
+        Local value
+      val $pattern.subject.2: Choice
+        Type Choice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Choice v0
+          Type Choice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Choice
+        Type Choice
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Choice v1
+          Type Choice
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Long
+        Local $result.0
+    bb4 pattern.pass.4
+      val left: Long
+        Type Long
+        VariantPayloadProject Choice v1 f0
+          Type Choice
+          Local $pattern.subject.3
+      val right: Long
+        Type Long
+        VariantPayloadProject Choice v1 f2
+          Type Choice
+          Local $pattern.subject.3
+      val $dependency.receiver: Long
+        Type Long
+        Local left
+      val $dependency.argument.0: Long
+        Type Long
+        Local right
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $result.0
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun flag @fn11() -> Flag <no-gc>
+    bb0 entry
+      return
+        Type Flag
+        VariantConstruct Flag v1
+  fun flagValue @fn12(value: Flag) -> Long <no-gc>
+    bb0 entry
+      val $when.1: Flag
+        Type Flag
+        Local value
+      val $pattern.subject.2: Flag
+        Type Flag
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Flag v0
+          Type Flag
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Flag
+        Type Flag
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Flag v1
+          Type Flag
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Long
+        Local $result.1
+    bb4 pattern.pass.4
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun packet @fn13() -> Packet <no-gc>
+    bb0 entry
+      call $call.1: Token = @fn42 direct
+      val $argument.0: (Long, Token, Long)
+        Type (Long, Token, Long)
+        TupleLiteral
+          Type Long
+          IntegerLiteral Long value=53 bits=0x0000000000000035
+          Type Token
+          Local $call.1
+          Type Long
+          IntegerLiteral Long value=42 bits=0x000000000000002a
+      call $argument.1: Token = @fn42 direct
+      val $parameter._1: (Long, Token, Long)
+        Type (Long, Token, Long)
+        Local $argument.0
+      val $parameter._2: Token
+        Type Token
+        Local $argument.1
+      return
+        Type Packet
+        VariantConstruct Packet v1
+          Type (Long, Token, Long)
+          Local $parameter._1
+          Type Token
+          Local $parameter._2
+  fun Continuation.resume @fn14(this: Continuation<Token>, value: Token) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn15(this: Continuation<Token>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn16(this: SuspendTask<Token>, $completion: Continuation<Token>) -> CoroutineStep<Token>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn17(this: SuspendRegistration<Token>, continuation: Continuation<Token>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn18(this: Continuation<Choice>, value: Choice) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn19(this: Continuation<Choice>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn20(this: SuspendTask<Choice>, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Choice>, continuation: Continuation<Choice>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn22(this: Continuation<Other>, value: Other) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn23(this: Continuation<Other>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn24(this: SuspendTask<Other>, $completion: Continuation<Other>) -> CoroutineStep<Other>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn25(this: SuspendRegistration<Other>, continuation: Continuation<Other>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn26(this: Continuation<Flag>, value: Flag) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn27(this: Continuation<Flag>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn28(this: SuspendTask<Flag>, $completion: Continuation<Flag>) -> CoroutineStep<Flag>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn29(this: SuspendRegistration<Flag>, continuation: Continuation<Flag>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn30(this: Continuation<Packet>, value: Packet) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn31(this: Continuation<Packet>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn32(this: SuspendTask<Packet>, $completion: Continuation<Packet>) -> CoroutineStep<Packet>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn33(this: SuspendRegistration<Packet>, continuation: Continuation<Packet>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn34(this: Continuation<Marker>, value: Marker) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn35(this: Continuation<Marker>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn36(this: SuspendTask<Marker>, $completion: Continuation<Marker>) -> CoroutineStep<Marker>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn37(this: SuspendRegistration<Marker>, continuation: Continuation<Marker>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn38(this: Continuation<Draft>, value: Draft) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn39(this: Continuation<Draft>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn40(this: SuspendTask<Draft>, $completion: Continuation<Draft>) -> CoroutineStep<Draft>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn41(this: SuspendRegistration<Draft>, continuation: Continuation<Draft>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Token.$c0 @fn42() -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        StructInit Token
+  fun startCoroutine<Choice> @fn43(task: SuspendTask<Choice>, completion: Continuation<Choice>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn18 interface Continuation<Choice>[0]
+        Type Continuation<Choice>
+        Local completion
+        Type Choice
+        EnumField v0 f0
+          Type CoroutineStep<Choice>
+          Local $step
+      return
+    bb2 failed
+      call @fn19 interface Continuation<Choice>[1]
+        Type Continuation<Choice>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Choice> = @fn20 interface SuspendTask<Choice>[0]
+        Type SuspendTask<Choice>
+        Local task
+        Type Continuation<Choice>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Choice>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Marker> @fn44(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn34 interface Continuation<Marker>[0]
+        Type Continuation<Marker>
+        Local completion
+        Type Marker
+        EnumField v0 f0
+          Type CoroutineStep<Marker>
+          Local $step
+      return
+    bb2 failed
+      call @fn35 interface Continuation<Marker>[1]
+        Type Continuation<Marker>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Marker> = @fn36 interface SuspendTask<Marker>[0]
+        Type SuspendTask<Marker>
+        Local task
+        Type Continuation<Marker>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Marker>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Token> @fn45(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn14 interface Continuation<Token>[0]
+        Type Continuation<Token>
+        Local completion
+        Type Token
+        EnumField v0 f0
+          Type CoroutineStep<Token>
+          Local $step
+      return
+    bb2 failed
+      call @fn15 interface Continuation<Token>[1]
+        Type Continuation<Token>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Token> = @fn16 interface SuspendTask<Token>[0]
+        Type SuspendTask<Token>
+        Local task
+        Type Continuation<Token>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Token>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Packet> @fn46(task: SuspendTask<Packet>, completion: Continuation<Packet>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn30 interface Continuation<Packet>[0]
+        Type Continuation<Packet>
+        Local completion
+        Type Packet
+        EnumField v0 f0
+          Type CoroutineStep<Packet>
+          Local $step
+      return
+    bb2 failed
+      call @fn31 interface Continuation<Packet>[1]
+        Type Continuation<Packet>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Packet> = @fn32 interface SuspendTask<Packet>[0]
+        Type SuspendTask<Packet>
+        Local task
+        Type Continuation<Packet>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Packet>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Other> @fn47(task: SuspendTask<Other>, completion: Continuation<Other>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn22 interface Continuation<Other>[0]
+        Type Continuation<Other>
+        Local completion
+        Type Other
+        EnumField v0 f0
+          Type CoroutineStep<Other>
+          Local $step
+      return
+    bb2 failed
+      call @fn23 interface Continuation<Other>[1]
+        Type Continuation<Other>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Other> = @fn24 interface SuspendTask<Other>[0]
+        Type SuspendTask<Other>
+        Local task
+        Type Continuation<Other>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Other>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Flag> @fn48(task: SuspendTask<Flag>, completion: Continuation<Flag>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn26 interface Continuation<Flag>[0]
+        Type Continuation<Flag>
+        Local completion
+        Type Flag
+        EnumField v0 f0
+          Type CoroutineStep<Flag>
+          Local $step
+      return
+    bb2 failed
+      call @fn27 interface Continuation<Flag>[1]
+        Type Continuation<Flag>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Flag> = @fn28 interface SuspendTask<Flag>[0]
+        Type SuspendTask<Flag>
+        Local task
+        Type Continuation<Flag>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Flag>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Draft> @fn49(task: SuspendTask<Draft>, completion: Continuation<Draft>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn38 interface Continuation<Draft>[0]
+        Type Continuation<Draft>
+        Local completion
+        Type Draft
+        EnumField v0 f0
+          Type CoroutineStep<Draft>
+          Local $step
+      return
+    bb2 failed
+      call @fn39 interface Continuation<Draft>[1]
+        Type Continuation<Draft>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Draft> = @fn40 interface SuspendTask<Draft>[0]
+        Type SuspendTask<Draft>
+        Local task
+        Type Continuation<Draft>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Draft>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Choice> result=Choice
+  coroutine_step cs1 CoroutineStep<Marker> result=Marker
+  coroutine_step cs2 CoroutineStep<Token> result=Token
+  coroutine_step cs3 CoroutineStep<Packet> result=Packet
+  coroutine_step cs4 CoroutineStep<Other> result=Other
+  coroutine_step cs5 CoroutineStep<Flag> result=Flag
+  coroutine_step cs6 CoroutineStep<Draft> result=Draft
+  coroutine_slot cl0 CoroutineSlot<Choice> value=Choice
+  coroutine_slot cl1 CoroutineSlot<Marker> value=Marker
+  coroutine_slot cl2 CoroutineSlot<Token> value=Token
+  coroutine_slot cl3 CoroutineSlot<Packet> value=Packet
+  coroutine_slot cl4 CoroutineSlot<Other> value=Other
+  coroutine_slot cl5 CoroutineSlot<Flag> value=Flag
+  coroutine_slot cl6 CoroutineSlot<Draft> value=Draft
+  coroutine_start ct0 result=Choice function=fn43
+  coroutine_start ct1 result=Marker function=fn44
+  coroutine_start ct2 result=Token function=fn45
+  coroutine_start ct3 result=Packet function=fn46
+  coroutine_start ct4 result=Other function=fn47
+  coroutine_start ct5 result=Flag function=fn48
+  coroutine_start ct6 result=Draft function=fn49
+  coroutine_fn cf0 @fn16 source_return=Token step=cs2 immediate
+  coroutine_fn cf1 @fn20 source_return=Choice step=cs0 immediate
+  coroutine_fn cf2 @fn24 source_return=Other step=cs4 immediate
+  coroutine_fn cf3 @fn28 source_return=Flag step=cs5 immediate
+  coroutine_fn cf4 @fn32 source_return=Packet step=cs3 immediate
+  coroutine_fn cf5 @fn36 source_return=Marker step=cs1 immediate
+  coroutine_fn cf6 @fn40 source_return=Draft step=cs6 immediate
+  instance mi0 function=@fn14 <- Continuation.resume
+  instance mi1 function=@fn15 <- Continuation.resumeWithException
+  instance mi2 function=@fn16 <- SuspendTask.run
+  instance mi3 function=@fn17 <- SuspendRegistration.register
+  instance mi4 function=@fn18 <- Continuation.resume
+  instance mi5 function=@fn19 <- Continuation.resumeWithException
+  instance mi6 function=@fn20 <- SuspendTask.run
+  instance mi7 function=@fn21 <- SuspendRegistration.register
+  instance mi8 function=@fn22 <- Continuation.resume
+  instance mi9 function=@fn23 <- Continuation.resumeWithException
+  instance mi10 function=@fn24 <- SuspendTask.run
+  instance mi11 function=@fn25 <- SuspendRegistration.register
+  instance mi12 function=@fn26 <- Continuation.resume
+  instance mi13 function=@fn27 <- Continuation.resumeWithException
+  instance mi14 function=@fn28 <- SuspendTask.run
+  instance mi15 function=@fn29 <- SuspendRegistration.register
+  instance mi16 function=@fn30 <- Continuation.resume
+  instance mi17 function=@fn31 <- Continuation.resumeWithException
+  instance mi18 function=@fn32 <- SuspendTask.run
+  instance mi19 function=@fn33 <- SuspendRegistration.register
+  instance mi20 function=@fn34 <- Continuation.resume
+  instance mi21 function=@fn35 <- Continuation.resumeWithException
+  instance mi22 function=@fn36 <- SuspendTask.run
+  instance mi23 function=@fn37 <- SuspendRegistration.register
+  instance mi24 function=@fn38 <- Continuation.resume
+  instance mi25 function=@fn39 <- Continuation.resumeWithException
+  instance mi26 function=@fn40 <- SuspendTask.run
+  instance mi27 function=@fn41 <- SuspendRegistration.register
+  output library

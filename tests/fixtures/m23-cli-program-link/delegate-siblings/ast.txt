@@ -1,0 +1,185 @@
+SourceFile
+  QualifiedPackage consumer.delegateSiblings
+  ImportExact Local templates.delegateSiblings.State
+  ImportExact Local templates.delegateSiblings.Payload
+  ImportExact Local siblings.delegates.left.write
+  ImportExact Local siblings.delegates.left.failure as failLeft
+  ImportExact Local siblings.delegates.right.read
+  ImportExact Local siblings.delegates.right.otherFirst
+  ImportExact Local siblings.delegates.right.otherSecond
+  ImportExact Local siblings.delegates.right.failure as failRight
+  ImportExact Local siblings.delegates.right.otherFailure
+  public fun check(): Int
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess builds
+              Var State
+            IntLiteral 0
+          Binary Ne
+            FieldAccess provides
+              Var State
+            IntLiteral 0
+        Binary Ne
+          FieldAccess failures
+            Var State
+          IntLiteral 0
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call write
+        IntLiteral 42
+      return
+        IntLiteral 2
+    Call Payload
+      IntLiteral 0
+    if
+      Binary Ne
+        Call read
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess builds
+            Var State
+          IntLiteral 1
+        Binary Ne
+          FieldAccess provides
+            Var State
+          IntLiteral 1
+      return
+        IntLiteral 4
+    if
+      Binary Or
+        Binary Ne
+          Call otherFirst
+          IntLiteral 40
+        Binary Ne
+          Call otherSecond
+          IntLiteral 40
+      return
+        IntLiteral 5
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess builds
+            Var State
+          IntLiteral 3
+        Binary Ne
+          FieldAccess provides
+            Var State
+          IntLiteral 3
+      return
+        IntLiteral 6
+    Call Payload
+      IntLiteral 0
+    if
+      Binary Ne
+        Call read
+        IntLiteral 42
+      return
+        IntLiteral 7
+    val first
+      Call failLeft
+    if
+      Binary Ne
+        FieldAccess failures
+          Var State
+        IntLiteral 1
+      return
+        IntLiteral 12
+    Call Payload
+      IntLiteral 0
+    val second
+      Call failRight
+    if
+      Binary Ne
+        FieldAccess failures
+          Var State
+        IntLiteral 1
+      return
+        IntLiteral 13
+    if
+      Binary Or
+        Unary Not
+          Binary RefEq
+            FieldAccess payload
+              Var first
+            FieldAccess payload
+              Var second
+        Binary Ne
+          FieldAccess value
+            FieldAccess payload
+              Var first
+          IntLiteral 1
+      return
+        IntLiteral 8
+    assign .value
+      FieldAccess payload
+        Var first
+      IntLiteral 17
+    val different
+      Call otherFailure
+    if
+      Binary Or
+        Binary RefEq
+          FieldAccess payload
+            Var first
+          FieldAccess payload
+            Var different
+        Binary Ne
+          FieldAccess failures
+            Var State
+          IntLiteral 2
+      return
+        IntLiteral 9
+    if
+      Binary Ne
+        FieldAccess value
+          FieldAccess payload
+            Var different
+        IntLiteral 2
+      return
+        IntLiteral 14
+    Call Payload
+      IntLiteral 0
+    if
+      Binary Or
+        Unary Not
+          Binary RefEq
+            FieldAccess payload
+              Var first
+            FieldAccess payload
+              Call failLeft
+        Unary Not
+          Binary RefEq
+            FieldAccess payload
+              Var different
+            FieldAccess payload
+              Call otherFailure
+      return
+        IntLiteral 10
+    if
+      Binary Ne
+        FieldAccess value
+          FieldAccess payload
+            Call failRight
+        IntLiteral 17
+      return
+        IntLiteral 15
+    if
+      Binary Ne
+        FieldAccess failures
+          Var State
+        IntLiteral 2
+      return
+        IntLiteral 11
+    return
+      IntLiteral 42
+  fun main()
+    Call println
+      Call check

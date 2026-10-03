@@ -1,0 +1,15 @@
+Module
+  fun result @fn0() -> String
+    bb0 entry
+      call $call.1: String = @fn1 direct
+      return
+        Type String
+        Local $call.1
+  fun text @fn1() -> String
+    bb0 entry
+      return
+        Type String
+        StringConst @str0
+  instance mi0 function=@fn1 <- text
+  str @str0 "next value"
+  output library

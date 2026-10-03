@@ -1,0 +1,34 @@
+SourceFile
+  RootPackage
+  ImportStar Local nativelink.scoopabifacade.*
+  struct Marker
+    field text: String
+  fun main()
+    val marker
+      Call Marker
+        Binary Add
+          StringLiteral "caller-"
+          StringLiteral "alive"
+    val result
+      Call roundTrip
+        Var marker
+        Binary Add
+          StringLiteral "managed-"
+          StringLiteral "alive"
+    Call gcCollect
+    Call println
+      FieldAccess text
+        Var result
+    Call println
+      FieldAccess left
+        Var result
+    Call println
+      FieldAccess right
+        Var result
+    Call println
+      Call zstValue
+        Call Empty
+        IntLiteral 41
+    Call println
+      FieldAccess text
+        Var marker

@@ -1,0 +1,70 @@
+SourceFile
+  RootPackage
+  ImportExact Local answer
+  ImportExact Local narrow
+  ImportExact Local unsigned
+  ImportExact Local unsignedNegated
+  ImportExact Local nested
+  ImportExact Local quotient
+  ImportExact Local remainder
+  ImportExact Local negated
+  ImportExact Local positive
+  ImportExact Local order
+  ImportExact Local equal
+  ImportExact Local staticValue
+  fun main()
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Var answer
+              IntLiteral 42
+            Binary Ne
+              Var narrow
+              Unary Neg
+                IntLiteral 126
+          Binary Ne
+            Var unsigned
+            IntLiteral 4u
+        Binary Ne
+          Var unsignedNegated
+          IntLiteral 252u
+      throw
+        Call IllegalStateException
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Ne
+                Var nested
+                IntLiteral 11
+              Binary Ne
+                Var quotient
+                Unary Neg
+                  IntLiteral 5
+            Binary Ne
+              Var remainder
+              Unary Neg
+                IntLiteral 2
+          Binary Ne
+            Var negated
+            IntLiteral 126
+        Binary Ne
+          Var positive
+          IntLiteral 126
+      throw
+        Call IllegalStateException
+    if
+      Binary Or
+        Binary Or
+          Unary Not
+            Var order
+          Unary Not
+            Var equal
+        Binary Ne
+          Var staticValue
+          IntLiteral 11
+      throw
+        Call IllegalStateException

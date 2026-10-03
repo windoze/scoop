@@ -1,0 +1,11 @@
+package consumer.members
+
+import templates.members.*
+
+public class Derived<T>: ProtectedMiddle<T> {
+    public constructor(value: T): super(value) {}
+    public fun read(): T = this.secret()
+}
+
+public fun result(): Int = Derived<Int>(42).read()
+public fun <T> make(value: T): T = Derived<T>(value).read()

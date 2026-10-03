@@ -1,0 +1,2 @@
+PinnedPtr: Managed args=[direct:8:Scalar,indirect:8:Aggregate,elided:0:Aggregate,indirect:8:Aggregate] result=indirect:8:Aggregate
+GcHandle: Managed args=[direct:8:Scalar,indirect:8:Aggregate,elided:0:Aggregate,indirect:8:Aggregate] result=indirect:8:Aggregate

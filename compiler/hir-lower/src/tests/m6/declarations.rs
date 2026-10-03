@@ -13,7 +13,7 @@ fn class_hierarchy_golden() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -53,6 +53,19 @@ fn class_hierarchy_golden() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -84,7 +97,7 @@ fn class_hierarchy_golden() {
     Call write : Unit
       Local $parameter.message : String
   fun main(): Unit
-  entry main
+  output executable main
   instance println<Int>
 "#;
     assert_eq!(hir::dump(&module), expected);
@@ -115,7 +128,7 @@ fn class_and_interface_structure() {
     let point = &module.classes[point_id];
     let base = point.base_class.as_ref().expect("Point has a base");
     assert!(matches!(module.types[*base], hir::Type::Class(application)
-        if module.class_applications[application].template == shape_id
+        if module.class_applications[application].template == module.nominal_identities[shape_id].declaration_id()
             && module.class_applications[application].arguments.is_empty()));
     let hir::ClassConstructorKind::Primary {
         base:
@@ -133,7 +146,7 @@ fn class_and_interface_structure() {
         statement.kind,
         hir::StatementKind::ValDecl {
             init: hir::Expr {
-                kind: hir::ExprKind::StringLiteral(_),
+                kind: hir::ExprKind::StringLiteral { .. },
                 ..
             },
             ..
@@ -153,7 +166,7 @@ fn class_and_interface_structure() {
     assert!(matches!(
         module.types[iface_method.method.expect("a method").owner],
         hir::Type::Interface(application)
-            if module.interface_applications[application].template == describable_id
+            if module.interface_applications[application].template == module.nominal_identities[describable_id].declaration_id()
                 && module.interface_applications[application].arguments.is_empty()
     ));
 
@@ -204,7 +217,9 @@ fn method_calls_resolve_against_the_receiver_type() {
     match &show.kind {
         hir::ExprKind::MethodCall { callee, args, .. } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Shape.describe"
             );
             assert!(args.is_empty());
@@ -215,7 +230,9 @@ fn method_calls_resolve_against_the_receiver_type() {
     match &show2.kind {
         hir::ExprKind::MethodCall { callee, .. } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Describable.describe"
             );
         }
@@ -226,7 +243,9 @@ fn method_calls_resolve_against_the_receiver_type() {
     match &show3.kind {
         hir::ExprKind::MethodCall { callee, .. } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Shape.describe"
             );
         }
@@ -268,8 +287,9 @@ fn class_field_layout_is_base_prefix_then_own() {
         hir::ExprKind::FieldAccess { field, .. } => assert_eq!(
             *field,
             hir::FieldRef::ClassField {
-                application: class_application(&module, point_id),
-                field: y_field
+                owner: module.class_applications[class_application(&module, point_id)]
+                    .canonical_type,
+                field: module.field_identities[y_field].id()
             }
         ),
         other => panic!("expected a field access, found {other:?}"),
@@ -278,8 +298,9 @@ fn class_field_layout_is_base_prefix_then_own() {
         hir::ExprKind::FieldAccess { field, .. } => assert_eq!(
             *field,
             hir::FieldRef::ClassField {
-                application: class_application(&module, shape_id),
-                field: name_field
+                owner: module.class_applications[class_application(&module, shape_id)]
+                    .canonical_type,
+                field: module.field_identities[name_field].id()
             }
         ),
         other => panic!("expected a field access, found {other:?}"),

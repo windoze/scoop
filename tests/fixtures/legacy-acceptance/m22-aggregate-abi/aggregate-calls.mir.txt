@@ -1,0 +1,1241 @@
+Module
+  struct OriginalBundle (optional: Option<Int>, signal: Signal, nested: (Signal, Option<Int>))
+  struct Nested24Box (marker: Int, nested: (Signal, Long))
+  struct ManagedAggregate (first: String, nested: (String, Long))
+  enum Signal
+    Ready()
+    Payload(_1: Int)
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Signal>
+    Completed(value: Signal)
+    Suspended()
+  enum CoroutineSlot<Signal>
+    Empty()
+    Value(value: Signal)
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box<Signal> vtable=0 itables=0
+  class box<(Signal, Long)> vtable=0 itables=0
+  class box<(Int, Long)> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Signal>
+  interface SuspendTask<Signal>
+  interface SuspendRegistration<Signal>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn12 captures=1
+    bridge function_type1 -> @fn21 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  generated_exact_type get0 location=closure0 nominal_id=2fcc5dceba1f09c36d231287088079138d2c04817531ae31cc6d2cc1c02b5c0b exact_id=2302a5386d95a61953db931e029826819dc2e78ed627925872f2aaa8f36b4d72
+  generated_exact_type get1 location=class5 nominal_id=11c8d780f41fb73cf744630194b0ac248bed0df4c78f45ff8965276ab4268d91 exact_id=38ada29282764d617fb1539eec45bc4625b727336d18460fc5e100106d5e4f94
+  generated_exact_type get2 location=class6 nominal_id=b3d4e9df0b5dfafde9cbc54f879aa56b151191debba0b2a8681d2a3b2e1a9441 exact_id=43c6893b2d52d20bdcedb5ba4738e35d506c274cbc4f03f772a317825f89e893
+  generated_exact_type get3 location=class4 nominal_id=e759b2c5535d4b7c4e6138eb42a891aedb0d0e05086637d754de5c4395dbae3a exact_id=7e4b6ff8dd45b68ed6f9f4f9870c4a95266f901b784d9433cc172d41ba6c9dc5
+  generated_exact_type get4 location=enum3 nominal_id=fb52d557a86b400ca643c36e72e1ea00dedb87d997103c89966576e662163915 exact_id=a253ca5b578dd4db12b8ca4e3e0627297f22c5df142af162ca01443b66de81da
+  generated_exact_type get5 location=enum4 nominal_id=3348c722c81918b50fdd083c0f72a36f67f8d172861a7e3e3f47ca203fdb1275 exact_id=d05f4d1434d8ed6efc137877ce2aed2fb4b092d4c19caaced54a2152af217855
+  generated_callable gc0 function=@fn20 id=02308c728fd275d58fcda46727312241e663fe8076f92fc8535cc28c34c9c7d7
+  generated_callable gc1 function=@fn21 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
+  fun signalValue @fn0(value: Signal) -> Int <no-gc>
+    bb0 entry
+      val $when.1: Signal
+        Type Signal
+        Local value
+      val $pattern.subject.2: Signal
+        Type Signal
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Signal v0
+          Type Signal
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Signal
+        Type Signal
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Signal v1
+          Type Signal
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+    bb4 pattern.pass.4
+      val number: Int
+        Type Int
+        VariantPayloadProject Signal v1 f0
+          Type Signal
+          Local $pattern.subject.3
+      assign $result.0
+        Type Int
+        Local number
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun optionValue @fn1(value: Option<Int>) -> Int <no-gc>
+    bb0 entry
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local value
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.1
+    bb4 pattern.pass.4
+      val number: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.3
+      assign $result.1
+        Type Int
+        Local number
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun noGcNested24 @fn2(value: (Signal, Long)) -> (Int, Long) <no-gc>
+    bb0 entry
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Long)
+          Local value
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $call.1: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      return
+        Type (Int, Long)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Long
+          FieldAccess 1
+            Type (Signal, Long)
+            Local value
+  fun noGcFlat32 @fn3(value: (Long, Long, Long, Long)) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, Long, Long, Long)
+          Local value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Long, Long, Long, Long)
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type (Long, Long, Long, Long)
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 3
+          Type (Long, Long, Long, Long)
+          Local value
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun makeText @fn4(left: String, right: String) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        Local left
+      val $dependency.argument.0: String
+        Type String
+        Local right
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun managedRoundTrip @fn5(value: ManagedAggregate) -> ManagedAggregate
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      return
+        Type ManagedAggregate
+        Local value
+  fun managedMaybeThrow @fn6(value: ManagedAggregate, shouldThrow: Boolean) -> ManagedAggregate
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      branch bb1 bb2
+        Type Boolean
+        Local shouldThrow
+    bb1 if.then.1
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external0 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb2 if.merge.2
+      return
+        Type ManagedAggregate
+        Local value
+  fun main @fn7() -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val $argument.1: Signal
+        Type Signal
+        VariantConstruct Signal v0
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.2: (Signal, Option<Int>)
+        Type (Signal, Option<Int>)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Option<Int>
+          VariantConstruct Option<Int> v1
+      val $parameter.optional: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      val $parameter.signal: Signal
+        Type Signal
+        Local $argument.1
+      val $parameter.nested: (Signal, Option<Int>)
+        Type (Signal, Option<Int>)
+        Local $argument.2
+      call original: OriginalBundle = @fn17 direct
+        Type Option<Int>
+        Local $parameter.optional
+        Type Signal
+        Local $parameter.signal
+        Type (Signal, Option<Int>)
+        Local $parameter.nested
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        FieldAccess 0
+          Type OriginalBundle
+          Local original
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Option<Int>
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 1
+          Type OriginalBundle
+          Local original
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Option<Int>)
+          FieldAccess 2
+            Type OriginalBundle
+            Local original
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        FieldAccess 1
+          Type (Signal, Option<Int>)
+          FieldAccess 2
+            Type OriginalBundle
+            Local original
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Option<Int>
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.1: (Signal, Long)
+        Type (Signal, Long)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Long
+          IntegerLiteral Long value=55 bits=0x0000000000000037
+      val $parameter.marker: Int
+        Type Int
+        Local $argument.0
+      val $parameter.nested: (Signal, Long)
+        Type (Signal, Long)
+        Local $argument.1
+      call nested24Box: Nested24Box = @fn18 direct
+        Type Int
+        Local $parameter.marker
+        Type (Signal, Long)
+        Local $parameter.nested
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Nested24Box
+          Local nested24Box
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Long)
+          FieldAccess 1
+            Type Nested24Box
+            Local nested24Box
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Signal, Long)
+          FieldAccess 1
+            Type Nested24Box
+            Local nested24Box
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val nested24: (Signal, Long)
+        Type (Signal, Long)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Long
+          IntegerLiteral Long value=55 bits=0x0000000000000037
+      val $argument.0: (Signal, Long)
+        Type (Signal, Long)
+        Local nested24
+      val $parameter.value: (Signal, Long)
+        Type (Signal, Long)
+        Local $argument.0
+      call inspected24: (Int, Long) = @fn2 direct
+        Type (Signal, Long)
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Long)
+          Local inspected24
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Int, Long)
+          Local inspected24
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=60 bits=0x0000003c
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: (Signal, Long)
+        Type (Signal, Long)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Long
+          IntegerLiteral Long value=70 bits=0x0000000000000046
+      val $parameter.value: (Signal, Long)
+        Type (Signal, Long)
+        Local $argument.0
+      call generic24: (Signal, Long) = @fn11 direct
+        Type (Signal, Long)
+        Local $parameter.value
+      val $argument.0: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Long)
+          Local generic24
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Signal, Long)
+          Local generic24
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: (Long, Long, Long, Long)
+        Type (Long, Long, Long, Long)
+        TupleLiteral
+          Type Long
+          IntegerLiteral Long value=10 bits=0x000000000000000a
+          Type Long
+          IntegerLiteral Long value=20 bits=0x0000000000000014
+          Type Long
+          IntegerLiteral Long value=30 bits=0x000000000000001e
+          Type Long
+          IntegerLiteral Long value=40 bits=0x0000000000000028
+      val $parameter.value: (Long, Long, Long, Long)
+        Type (Long, Long, Long, Long)
+        Local $argument.0
+      call $dependency.argument.0: Long = @fn3 direct
+        Type (Long, Long, Long, Long)
+        Local $parameter.value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $argument.1: String
+        Type String
+        StringConst @str6
+      val $parameter.left: String
+        Type String
+        Local $argument.0
+      val $parameter.right: String
+        Type String
+        Local $argument.1
+      call $argument.0: String = @fn4 direct
+        Type String
+        Local $parameter.left
+        Type String
+        Local $parameter.right
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $argument.1: String
+        Type String
+        StringConst @str8
+      val $parameter.left: String
+        Type String
+        Local $argument.0
+      val $parameter.right: String
+        Type String
+        Local $argument.1
+      call $call.1: String = @fn4 direct
+        Type String
+        Local $parameter.left
+        Type String
+        Local $parameter.right
+      val $argument.1: (String, Long)
+        Type (String, Long)
+        TupleLiteral
+          Type String
+          Local $call.1
+          Type Long
+          IntegerLiteral Long value=700 bits=0x00000000000002bc
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.nested: (String, Long)
+        Type (String, Long)
+        Local $argument.1
+      call managed: ManagedAggregate = @fn19 direct
+        Type String
+        Local $parameter.first
+        Type (String, Long)
+        Local $parameter.nested
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: ManagedAggregate
+        Type ManagedAggregate
+        Local managed
+      val $parameter.value: ManagedAggregate
+        Type ManagedAggregate
+        Local $argument.0
+      call roundTrip: ManagedAggregate = @fn5 direct
+        Type ManagedAggregate
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type ManagedAggregate
+          Local roundTrip
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type (String, Long)
+          FieldAccess 1
+            Type ManagedAggregate
+            Local roundTrip
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (String, Long)
+          FieldAccess 1
+            Type ManagedAggregate
+            Local roundTrip
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str10
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str12
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb20
+    bb8 try.body.8 unwind bb1
+      val $argument.0: ManagedAggregate
+        Type ManagedAggregate
+        Local managed
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $parameter.value: ManagedAggregate
+        Type ManagedAggregate
+        Local $argument.0
+      val $parameter.shouldThrow: Boolean
+        Type Boolean
+        Local $argument.1
+      call normal: ManagedAggregate = @fn6 direct
+        Type ManagedAggregate
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.shouldThrow
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type ManagedAggregate
+          Local normal
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type (String, Long)
+          FieldAccess 1
+            Type ManagedAggregate
+            Local normal
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (String, Long)
+          FieldAccess 1
+            Type ManagedAggregate
+            Local normal
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb7
+    bb9 try.catch.9
+      call $catch.2: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val exception: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          Local $catch.2
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str11
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+    bb13 try.unwind.13
+      landing_pad cleanup=false
+      goto bb14
+    bb14 try.dispatch.14
+      begin_catch
+      branch bb21 bb22
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb15 try.handler_pad.15
+      landing_pad cleanup=true
+      goto bb16
+    bb16 try.handler_cleanup.16
+      end_catch
+      resume
+    bb17 try.exit_pad.17
+      landing_pad cleanup=true
+      goto bb18
+    bb18 try.exit_cleanup.18
+      end_catch
+      resume
+    bb19 try.end.19
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str15
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val bias: Long
+        Type Long
+        IntegerLiteral Long value=1000 bits=0x00000000000003e8
+      val closure: ((Signal, Long)) -> (Int, Long)
+        Type ((Signal, Long)) -> (Int, Long)
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Long
+            Local bias
+      val $callable.receiver: ((Signal, Long)) -> (Int, Long)
+        Type ((Signal, Long)) -> (Int, Long)
+        Local closure
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter._1: Int
+        Type Int
+        Local $argument.0
+      call closureResult: (Int, Long) = <closure:function_type0> closure[function_type0]
+        Type ((Signal, Long)) -> (Int, Long)
+        Local $callable.receiver
+        Type (Signal, Long)
+        TupleLiteral
+          Type Signal
+          VariantConstruct Signal v1
+            Type Int
+            Local $parameter._1
+          Type Long
+          IntegerLiteral Long value=90 bits=0x000000000000005a
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Long)
+          Local closureResult
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type (Int, Long)
+          Local closureResult
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn10 direct
+        Type Long
+        Local $dependency.parameter.value
+      return
+    bb20 try.body.20 unwind bb13
+      val $argument.0: ManagedAggregate
+        Type ManagedAggregate
+        Local managed
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: ManagedAggregate
+        Type ManagedAggregate
+        Local $argument.0
+      val $parameter.shouldThrow: Boolean
+        Type Boolean
+        Local $argument.1
+      call ignored: ManagedAggregate = @fn6 direct
+        Type ManagedAggregate
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.shouldThrow
+      val $dependency.argument.0: String
+        Type String
+        FieldAccess 0
+          Type ManagedAggregate
+          Local ignored
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str13
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      goto bb19
+    bb21 try.catch.21
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val exception: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          Local $catch.3
+      goto bb23
+    bb22 try.next.22
+      rethrow unwind bb17
+    bb23 scope.23 unwind bb15
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str14
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb24
+    bb24 scope.24
+      goto bb19
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str16
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn9(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str17
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn10(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str18
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun genericRoundTrip @fn11(value: (Signal, Long)) -> (Signal, Long)
+    bb0 entry
+      return
+        Type (Signal, Long)
+        Local value
+  fun $lambda.0 @fn12($closure: ((Signal, Long)) -> (Int, Long), $arg.0: (Signal, Long)) -> (Int, Long)
+    bb0 entry
+      val $binding.projection.2: Signal
+        Type Signal
+        FieldAccess 0
+          Type (Signal, Long)
+          Local $arg.0
+      val signal: Signal
+        Type Signal
+        Local $binding.projection.2
+      val $binding.projection.3: Long
+        Type Long
+        FieldAccess 1
+          Type (Signal, Long)
+          Local $arg.0
+      val number: Long
+        Type Long
+        Local $binding.projection.3
+      call @scoop_rt_gc_collect direct
+      val $argument.0: Signal
+        Type Signal
+        Local signal
+      val $parameter.value: Signal
+        Type Signal
+        Local $argument.0
+      val $dependency.receiver: Long
+        Type Long
+        ClosureCapture cc0 0
+          Type ((Signal, Long)) -> (Int, Long)
+          Local $closure
+      val $dependency.argument.0: Long
+        Type Long
+        Local number
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.1: Int = @fn0 direct
+        Type Signal
+        Local $parameter.value
+      return
+        Type (Int, Long)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Long
+          IntegerBinary add kind=Long
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+  fun Continuation.resume @fn13(this: Continuation<Signal>, value: Signal) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn14(this: Continuation<Signal>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn15(this: SuspendTask<Signal>, $completion: Continuation<Signal>) -> CoroutineStep<Signal>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Signal>, continuation: Continuation<Signal>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.OriginalBundle.$c0 @fn17(optional: Option<Int>, signal: Signal, nested: (Signal, Option<Int>)) -> OriginalBundle <no-gc>
+    bb0 entry
+      return
+        Type OriginalBundle
+        StructInit OriginalBundle
+          Type Option<Int>
+          Local optional
+          Type Signal
+          Local signal
+          Type (Signal, Option<Int>)
+          Local nested
+  fun ctor.Nested24Box.$c1 @fn18(marker: Int, nested: (Signal, Long)) -> Nested24Box <no-gc>
+    bb0 entry
+      return
+        Type Nested24Box
+        StructInit Nested24Box
+          Type Int
+          Local marker
+          Type (Signal, Long)
+          Local nested
+  fun ctor.ManagedAggregate.$c2 @fn19(first: String, nested: (String, Long)) -> ManagedAggregate <no-gc>
+    bb0 entry
+      return
+        Type ManagedAggregate
+        StructInit ManagedAggregate
+          Type String
+          Local first
+          Type (String, Long)
+          Local nested
+  fun startCoroutine<Signal> @fn20(task: SuspendTask<Signal>, completion: Continuation<Signal>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn13 interface Continuation<Signal>[0]
+        Type Continuation<Signal>
+        Local completion
+        Type Signal
+        EnumField v0 f0
+          Type CoroutineStep<Signal>
+          Local $step
+      return
+    bb2 failed
+      call @fn14 interface Continuation<Signal>[1]
+        Type Continuation<Signal>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Signal> = @fn15 interface SuspendTask<Signal>[0]
+        Type SuspendTask<Signal>
+        Local task
+        Type Continuation<Signal>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Signal>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn21($source: ((Signal, Long)) -> (Int, Long), arg0: Any) -> Any
+    bb0 entry
+      call $call.1: (Int, Long) = <closure:function_type0> closure[function_type0]
+        Type ((Signal, Long)) -> (Int, Long)
+        Local $source
+        Type (Signal, Long)
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type (Int, Long)
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Signal> result=Signal
+  coroutine_slot cl0 CoroutineSlot<Signal> value=Signal
+  coroutine_start ct0 result=Signal function=fn20
+  coroutine_fn cf0 @fn15 source_return=Signal step=cs0 immediate
+  instance mi0 function=@fn8 <- println
+  instance mi1 function=@fn9 <- println
+  instance mi2 function=@fn10 <- println
+  instance mi3 function=@fn11 <- genericRoundTrip
+  instance mi4 function=@fn13 <- Continuation.resume
+  instance mi5 function=@fn14 <- Continuation.resumeWithException
+  instance mi6 function=@fn15 <- SuspendTask.run
+  instance mi7 function=@fn16 <- SuspendRegistration.register
+  str @str0 "original-nested-32"
+  str @str1 "nested-24-constructor"
+  str @str2 "nested-24-nogc"
+  str @str3 "generic-specialization-24"
+  str @str4 "flat-32-control"
+  str @str5 "alpha"
+  str @str6 "-live"
+  str @str7 "beta"
+  str @str8 "-live"
+  str @str9 "managed-call"
+  str @str10 "managed-invoke-normal"
+  str @str11 "unexpected-normal-catch"
+  str @str12 "managed-invoke-throw"
+  str @str13 "unexpected-throw-return"
+  str @str14 "caught-managed-invoke"
+  str @str15 "closure-hidden-receiver-24"
+  str @str16 "\n"
+  str @str17 "\n"
+  str @str18 "\n"
+  output executable @fn7

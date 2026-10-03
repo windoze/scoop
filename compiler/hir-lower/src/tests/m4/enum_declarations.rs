@@ -43,7 +43,7 @@ fn enum_declaration_all_variant_forms() {
   open class Throwable()
   open class Exception(message: Option<String>)
     field0 property9: Option<String>
-    property9 val message: Option<String> getter9=storage <stored field0 init=parameter9>
+    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -73,6 +73,19 @@ fn enum_declaration_all_variant_forms() {
   fun coreULongHash(arg1: ULong): Long <extern6 abi=scoop symbol=scoop_rt_ulong_hash>
   fun coreBooleanHash(arg1: Boolean): Long <extern7 abi=scoop symbol=scoop_rt_bool_hash>
   fun coreStringHash(arg1: String): Long <extern8 abi=scoop symbol=scoop_rt_string_hash>
+  fun __scoopThrowInitializationCycle(message: String): Unit
+    val local1
+      Local message : String
+    val local2
+      Local $argument.0 : String
+    val local3
+      VariantConstruct Option.Some<String> : Option<String>
+        Local $parameter._1 : String
+    val local4
+      Local $argument.0 : Option<String>
+    throw
+      ClassInit IllegalStateException : IllegalStateException
+        Local $parameter.message : Option<String>
   fun startCoroutine<T>(): Unit <intrinsic coroutine_start>
   suspend fun suspendCoroutine<T>(): T0 <intrinsic coroutine_suspend>
   fun write(arg1: String): Unit <extern9 abi=scoop symbol=scoop_rt_write>
@@ -130,7 +143,7 @@ fn enum_declaration_all_variant_forms() {
       VariantConstruct Shape.Named : Shape
         Local $parameter.w : Int
         Local $parameter.h : Int
-  entry main
+  output executable main
 "#;
     assert_eq!(hir::dump(&module), expected);
 }
@@ -155,9 +168,13 @@ fn generic_enum_instantiations_and_interning() {
         ],
     )]);
     let module = lower_user(file).expect("generic enum program must lower");
-    let body = match &module.functions[module.entry].kind {
+    let body = match &module.functions[module.entry()].kind {
         FunctionKind::User(body) => body,
-        FunctionKind::Intrinsic(_) | FunctionKind::Extern(_) | FunctionKind::DerivedEquality => {
+        FunctionKind::Intrinsic(_)
+        | FunctionKind::Extern(_)
+        | FunctionKind::DerivedEquality
+        | FunctionKind::Abstract { .. }
+        | FunctionKind::InitializationEnsure => {
             panic!("main is a user function")
         }
     };
@@ -322,10 +339,15 @@ fn variant_parameter_interface_keeps_its_checked_owner_identity() {
         .find(|interface| interface.owner == hir::ExportParameterOwner::VariantConstructor(variant))
         .expect("variant constructor parameter protocol");
     assert_eq!(interface.parameters.len(), 1);
-    assert!(matches!(
-        interface.parameters[0].calling,
-        hir::ExportParameterCalling::Default { .. }
-    ));
+    let hir::ExportParameterCalling::Default { source, .. } = interface.parameters[0].calling
+    else {
+        panic!("variant parameter default");
+    };
+    let expression = module.export_default_sources[source].declared().unwrap().0;
+    assert_eq!(
+        module.export_default_exprs[expression].definition_root,
+        hir::LexicalDefinitionRoot::VariantConstructor(variant)
+    );
     assert_eq!(
         module.enums[variant.enumeration()].variants[variant.local_index() as usize].name,
         "WithDefault"

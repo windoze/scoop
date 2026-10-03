@@ -1,0 +1,58 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportStar Local templates.delegateCombinations.*
+  private fun leftFailure<T>(): Int
+    =
+      TryExpression
+        FieldAccess cycleLeft
+          Call Token<T>
+        IntLiteral 0
+        catch error: IllegalStateException
+          IntLiteral 42
+  private fun rightFailure<T>(): Int
+    =
+      TryExpression
+        FieldAccess cycleRight
+          Call Token<T>
+        IntLiteral 0
+        catch error: IllegalStateException
+          IntLiteral 42
+  public fun exercise<T>(value: T): Int
+    assign .left
+      Var Trace
+      IntLiteral 0
+    assign .right
+      Var Trace
+      IntLiteral 0
+    val first
+      Call leftFailure<T>
+    Call Payload
+      IntLiteral 0
+    val second
+      Call rightFailure<T>
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary And
+              Binary Eq
+                Var first
+                IntLiteral 42
+              Binary Eq
+                Var second
+                IntLiteral 42
+            Binary Eq
+              FieldAccess left
+                Var Trace
+              IntLiteral 1
+          Binary Eq
+            FieldAccess right
+              Var Trace
+            IntLiteral 1
+        IntLiteral 42
+        else
+        IntLiteral 1
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

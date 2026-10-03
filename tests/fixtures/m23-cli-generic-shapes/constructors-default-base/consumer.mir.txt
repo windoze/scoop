@@ -1,0 +1,62 @@
+Module
+  class DefaultDerived<Int> vtable=0 itables=0
+  class DefaultBase<Int> vtable=0 itables=0
+  fun result @fn0() -> Int
+    bb0 entry
+      assign $new.1
+        Type DefaultDerived<Int>
+        ClassAlloc DefaultDerived<Int>
+      call @fn2 direct
+        Type DefaultDerived<Int>
+        Local $new.1
+      val box: DefaultDerived<Int>
+        Type DefaultDerived<Int>
+        Local $new.1
+      call $dependency.receiver: Int = @fn1 direct
+        Type DefaultBase<Int>
+        Retype DefaultBase<Int>
+          Type DefaultDerived<Int>
+          Local box
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun count @fn1(this: DefaultBase<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type DefaultBase<Int>
+          Local this
+  fun init.DefaultDerived.$c0 @fn2(this: DefaultDerived<Int>) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      call @fn3 direct
+        Type DefaultBase<Int>
+        Retype DefaultBase<Int>
+          Type DefaultDerived<Int>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.0
+      return
+  fun init.DefaultBase.$c2 @fn3(this: DefaultBase<Int>, count: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type DefaultBase<Int>
+        Local this
+        Type Int
+        Local count
+      return
+  instance mi0 function=@fn1 <- count
+  output library

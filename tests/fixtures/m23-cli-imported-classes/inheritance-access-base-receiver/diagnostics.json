@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "protected method `secret` cannot be accessed through receiver of static type `AccessParent`; receiver must be `Derived` or one of its subclasses",
+    "notes": [],
+    "origin": {
+      "cone": "021c6a39518ee3181b1f6d22256312082d8cf7bc170bbdda12dd919dc9e9fc5a",
+      "end": 161,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 155
+    },
+    "severity": "error"
+  }
+]

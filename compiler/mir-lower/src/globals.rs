@@ -5,14 +5,15 @@ pub(super) fn lower_managed_static_state(
     ty: &mir::Type,
     structs: &Arena<mir::StructDef>,
     enums: &EnumRegistry,
-    strings: &mut Arena<mir::StringConst>,
+    strings: &mut StringRegistry,
+    owner: mir::PropertyOwner,
 ) -> mir::MirStaticInitialState {
     match state {
         hir::HirStaticInitialState::ZeroedForRuntimeUnit { .. } => {
             mir::MirStaticInitialState::ZeroedForRuntimeUnit
         }
         hir::HirStaticInitialState::EncodedStaticValue { payload } => {
-            lower_encoded_static_state(payload, ty, structs, enums, strings)
+            lower_encoded_static_state(payload, ty, structs, enums, strings, owner)
         }
     }
 }
@@ -22,10 +23,20 @@ pub(super) fn lower_encoded_static_state(
     ty: &mir::Type,
     structs: &Arena<mir::StructDef>,
     enums: &EnumRegistry,
-    strings: &mut Arena<mir::StringConst>,
+    strings: &mut StringRegistry,
+    owner: mir::PropertyOwner,
 ) -> mir::MirStaticInitialState {
+    let mut next_string_ordinal = 0;
     mir::MirStaticInitialState::EncodedStaticValue {
-        payload: lower_global_constant(payload, ty, structs, enums, strings),
+        payload: lower_global_constant(
+            payload,
+            ty,
+            structs,
+            enums,
+            strings,
+            owner,
+            &mut next_string_ordinal,
+        ),
     }
 }
 
@@ -34,7 +45,9 @@ pub(super) fn lower_global_constant(
     ty: &mir::Type,
     structs: &Arena<mir::StructDef>,
     enums: &EnumRegistry,
-    strings: &mut Arena<mir::StringConst>,
+    strings: &mut StringRegistry,
+    owner: mir::PropertyOwner,
+    next_string_ordinal: &mut u32,
 ) -> mir::MirConstantImage {
     match (value, ty) {
         (hir::HirConstantImage::Integer(value), mir::Type::Integer(kind)) => {
@@ -50,11 +63,15 @@ pub(super) fn lower_global_constant(
             mir::MirConstantImage::Boolean(*value)
         }
         (hir::HirConstantImage::String(value), mir::Type::String) => {
-            let symbol = format!("scoop.str.{}", strings.len());
-            let id = strings.alloc(mir::StringConst {
-                value: value.clone(),
-                symbol,
-            });
+            let ordinal = *next_string_ordinal;
+            *next_string_ordinal = next_string_ordinal
+                .checked_add(1)
+                .expect("one property has at most u32::MAX string constants");
+            let id = strings.intern(
+                mir::ImmortalObjectOwner::Property(owner),
+                ordinal,
+                value.clone(),
+            );
             mir::MirConstantImage::String(id)
         }
         (hir::HirConstantImage::NullPointer(hir::HirPointerNullKind::Raw), mir::Type::Ptr(_)) => {
@@ -83,7 +100,15 @@ pub(super) fn lower_global_constant(
                     .iter()
                     .zip(definition_fields)
                     .map(|(field, definition)| {
-                        lower_global_constant(field, &definition.ty, structs, enums, strings)
+                        lower_global_constant(
+                            field,
+                            &definition.ty,
+                            structs,
+                            enums,
+                            strings,
+                            owner,
+                            next_string_ordinal,
+                        )
                     })
                     .collect(),
             }
@@ -95,6 +120,26 @@ pub(super) fn lower_global_constant(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use scoop_identity::{
+        CanonicalIdentifier, ConeCoordinate, DeclarationScope, DefinitionOwnerChain, PackagePath,
+        PersistentPropertyId, SourceDeclarationKey, SourceDeclarationSite,
+    };
+
+    fn property_owner() -> mir::PropertyOwner {
+        let cone = ConeCoordinate::new("test", "globals", "0.0.0")
+            .unwrap()
+            .identity()
+            .unwrap();
+        let site = SourceDeclarationSite::new(
+            cone,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap();
+        let key = SourceDeclarationKey::property(site, CanonicalIdentifier::new("stored").unwrap());
+        mir::PropertyOwner::Property(PersistentPropertyId::from_source_declaration(&key).unwrap())
+    }
 
     #[test]
     fn every_exact_integer_static_image_and_state_is_preserved() {
@@ -109,7 +154,8 @@ mod tests {
             hir::HirIntegerConstant::Unsigned64(u64::MAX),
         ];
         let structs = Arena::new();
-        let mut strings = Arena::new();
+        let mut strings = StringRegistry::default();
+        let owner = property_owner();
         for value in values {
             let kind = lower_integer_kind(value.kind());
             let state = lower_encoded_static_state(
@@ -118,6 +164,7 @@ mod tests {
                 &structs,
                 &EnumRegistry::default(),
                 &mut strings,
+                owner,
             );
             let mir::MirStaticInitialState::EncodedStaticValue {
                 payload: mir::MirConstantImage::Integer(lowered),
@@ -139,8 +186,42 @@ mod tests {
             &mir::Type::Unit,
             &Arena::new(),
             &EnumRegistry::default(),
-            &mut Arena::new(),
+            &mut StringRegistry::default(),
+            property_owner(),
         );
         assert_eq!(state, mir::MirStaticInitialState::ZeroedForRuntimeUnit);
+    }
+
+    #[test]
+    fn encoded_string_storage_uses_its_property_identity() {
+        let owner = property_owner();
+        let mut strings = StringRegistry::default();
+        let state = lower_encoded_static_state(
+            &hir::HirConstantImage::String("stored".to_string()),
+            &mir::Type::String,
+            &Arena::new(),
+            &EnumRegistry::default(),
+            &mut strings,
+            owner,
+        );
+        let mir::MirStaticInitialState::EncodedStaticValue {
+            payload: mir::MirConstantImage::String(string),
+        } = state
+        else {
+            panic!("a static string remains an encoded string image")
+        };
+        let strings = strings.finish();
+        let expected = mir::ImmortalObjectKey::string_constant(
+            mir::ImmortalObjectOwner::Property(owner),
+            mir::StructuralDefinitionPath::from_first(
+                mir::StructuralPathSegment::new(
+                    mir::StructuralDefinitionSiteRole::StringConstant,
+                    0,
+                ),
+                [],
+            ),
+        );
+        assert_eq!(strings[string].identity, expected);
+        assert_eq!(strings[string].value, "stored");
     }
 }

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "variant `Pair` of `Choice` has named fields; use a named field pattern",
+    "notes": [],
+    "origin": {
+      "cone": "748902d715665a35ad0170b8fcd8a7ddb42b2b294f49d08421962dbe38999f1a",
+      "end": 150,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 130
+    },
+    "severity": "error"
+  }
+]

@@ -1,0 +1,1 @@
+public fun invalid(first: () -> Int = { second }, second: Int = 42): Int = first()

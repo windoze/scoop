@@ -1,0 +1,11 @@
+import functionstorage.callback
+
+val first: () -> Int = { 40 }
+val second: () -> Int = fun(): Int { return 2 }
+val callbacks: Array<() -> Int> = [first, second, callback]
+
+fun main() {
+    if (first() + second() != 42 || callbacks[0]() + callbacks[1]() != callbacks[2]()) {
+        throw IllegalStateException()
+    }
+}

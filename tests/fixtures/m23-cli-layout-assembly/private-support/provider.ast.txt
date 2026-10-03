@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  private struct Deep
+    field flag: Boolean
+  private struct Hidden
+    field part: Deep
+  public class Exposed()
+    private val hidden: Hidden = <expr>
+      Call Hidden
+        Call Deep
+          BoolLiteral true
+    public fun echo
+  public struct Token
+  public fun keep(value: Token): Token
+    =
+      Var value

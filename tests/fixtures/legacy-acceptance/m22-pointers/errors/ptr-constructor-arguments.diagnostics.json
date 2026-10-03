@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "required `Ptr` value parameter `raw` has no argument",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 68,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 58
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`Ptr` has no value parameter named `address`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 93,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 86
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`Ptr` value parameter `raw` is supplied more than once",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 132,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 123
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "spread is not allowed for `Ptr` value parameter `raw`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 191,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 181
+    },
+    "severity": "error"
+  }
+]

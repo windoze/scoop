@@ -1,0 +1,44 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportStar Local templates.delegateCombinations.*
+  private var <T>Receiver<T>.foreign: Int by <expr>
+  public fun exercise<T>(value: T): Int
+    assign .order
+      Var Trace
+      IntLiteral 0
+    assign .foreign
+      Call Receiver<T>
+        Var value
+      IntLiteral 42
+    if
+      Binary Ne
+        FieldAccess order
+          Var Trace
+        IntLiteral 45
+      return
+        IntLiteral 1
+    Call Payload
+      IntLiteral 0
+    val first
+      FieldAccess foreign
+        Call Receiver<T>
+          Var value
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess order
+            Var Trace
+          IntLiteral 456
+        Binary Ne
+          Var first
+          IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      FieldAccess foreign
+        Call Receiver<T>
+          Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

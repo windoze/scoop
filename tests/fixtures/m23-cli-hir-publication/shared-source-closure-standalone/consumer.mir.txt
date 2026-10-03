@@ -1,0 +1,32 @@
+Module
+  class SourceContainer vtable=0 itables=0
+  fun check @fn0() -> Int
+    bb0 entry
+      call $dependency.receiver: SourceContainer = external0 direct
+      call $dependency.receiver: Int = external1 direct
+        Type SourceContainer
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=15 bits=0x0000000f
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  output library

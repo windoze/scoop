@@ -42,6 +42,26 @@ pub(super) fn reduce_constraints(
     Ok(reducer.atomic)
 }
 
+pub(super) fn reduce_relation(
+    lowerer: &mut Lowerer,
+    session: &InferenceSession,
+    relation: RelationKind,
+    left: TypeTerm,
+    right: TypeTerm,
+    origin: ConstraintOrigin,
+) -> Result<Vec<AtomicConstraint>, ConstraintFailure> {
+    let mut reducer = RelationReducer {
+        lowerer,
+        session,
+        atomic: Vec::new(),
+    };
+    match relation {
+        RelationKind::Equal => reducer.equal(left, right, origin)?,
+        RelationKind::Subtype => reducer.subtype(left, right, origin)?,
+    }
+    Ok(reducer.atomic)
+}
+
 struct RelationReducer<'a> {
     lowerer: &'a mut Lowerer,
     session: &'a InferenceSession,
@@ -132,58 +152,23 @@ impl RelationReducer<'_> {
         right_ty: hir::TypeId,
         origin: ConstraintOrigin,
     ) -> Result<(), ConstraintFailure> {
+        if let (Some(left_application), Some(right_application)) = (
+            self.lowerer.nominal_application(left_ty),
+            self.lowerer.nominal_application(right_ty),
+        ) {
+            return self.equal_nominal_arguments(
+                left_application.template == right_application.template,
+                left,
+                right,
+                left_application.arguments,
+                right_application.arguments,
+                origin,
+            );
+        }
         match (
             self.lowerer.types[left_ty].clone(),
             self.lowerer.types[right_ty].clone(),
         ) {
-            (Type::Struct(left_id), Type::Struct(right_id)) => {
-                let left_application = self.lowerer.struct_applications[left_id].clone();
-                let right_application = self.lowerer.struct_applications[right_id].clone();
-                self.equal_nominal_arguments(
-                    left_application.template == right_application.template,
-                    left,
-                    right,
-                    left_application.arguments,
-                    right_application.arguments,
-                    origin,
-                )
-            }
-            (Type::Class(left_id), Type::Class(right_id)) => {
-                let left_application = self.lowerer.class_applications[left_id].clone();
-                let right_application = self.lowerer.class_applications[right_id].clone();
-                self.equal_nominal_arguments(
-                    left_application.template == right_application.template,
-                    left,
-                    right,
-                    left_application.arguments,
-                    right_application.arguments,
-                    origin,
-                )
-            }
-            (Type::Interface(left_id), Type::Interface(right_id)) => {
-                let left_application = self.lowerer.interface_applications[left_id].clone();
-                let right_application = self.lowerer.interface_applications[right_id].clone();
-                self.equal_nominal_arguments(
-                    left_application.template == right_application.template,
-                    left,
-                    right,
-                    left_application.arguments,
-                    right_application.arguments,
-                    origin,
-                )
-            }
-            (Type::Enum(left_id), Type::Enum(right_id)) => {
-                let left_application = self.lowerer.enum_applications[left_id].clone();
-                let right_application = self.lowerer.enum_applications[right_id].clone();
-                self.equal_nominal_arguments(
-                    left_application.template == right_application.template,
-                    left,
-                    right,
-                    left_application.arguments,
-                    right_application.arguments,
-                    origin,
-                )
-            }
             (Type::Tuple(left_types), Type::Tuple(right_types))
                 if left_types.len() == right_types.len() =>
             {
@@ -294,83 +279,33 @@ impl RelationReducer<'_> {
         if matches!(self.lowerer.types[right_ty], Type::Any) {
             return Ok(());
         }
-        match (
-            self.lowerer.types[left_ty].clone(),
-            self.lowerer.types[right_ty].clone(),
-        ) {
-            (Type::Struct(left_id), Type::Struct(right_id)) => {
-                let left_application = self.lowerer.struct_applications[left_id].clone();
-                let right_application = self.lowerer.struct_applications[right_id].clone();
-                self.equal_nominal_arguments(
-                    left_application.template == right_application.template,
-                    left,
-                    right,
-                    left_application.arguments,
-                    right_application.arguments,
-                    origin,
-                )
-            }
-            (Type::Class(left_application_id), Type::Class(right_application_id)) => {
-                let left_application = self.lowerer.class_applications[left_application_id].clone();
-                let right_application =
-                    self.lowerer.class_applications[right_application_id].clone();
-                if left_application.template == right_application.template {
+        if let Some(target) = self.lowerer.nominal_application(right_ty) {
+            let mut pending = vec![left_ty];
+            let mut seen = std::collections::HashSet::new();
+            while let Some(candidate) = pending.pop() {
+                if !seen.insert(candidate) {
+                    continue;
+                }
+                if let Some(actual) = self.lowerer.nominal_application(candidate)
+                    && actual.template == target.template
+                {
                     return self.equal_nominal_arguments(
                         true,
                         left,
                         right,
-                        left_application.arguments,
-                        right_application.arguments,
+                        actual.arguments,
+                        target.arguments,
                         origin,
                     );
                 }
-                let Some(base) = self.lowerer.classes[left_application.template].base_class else {
-                    return Err(self.relation_failure(RelationKind::Subtype, left, right, origin));
-                };
-                let base = self
-                    .lowerer
-                    .instantiate_ty(base, &left_application.arguments);
-                self.subtype(nested_term(left, base), right, origin)
+                pending.extend(self.lowerer.direct_nominal_supertypes(candidate));
             }
-            (Type::Enum(left_id), Type::Enum(right_id)) => {
-                let left_application = self.lowerer.enum_applications[left_id].clone();
-                let right_application = self.lowerer.enum_applications[right_id].clone();
-                self.equal_nominal_arguments(
-                    left_application.template == right_application.template,
-                    left,
-                    right,
-                    left_application.arguments,
-                    right_application.arguments,
-                    origin,
-                )
-            }
-            (Type::Interface(left_application_id), Type::Interface(right_application_id)) => {
-                let left_application =
-                    self.lowerer.interface_applications[left_application_id].clone();
-                let right_application =
-                    self.lowerer.interface_applications[right_application_id].clone();
-                if left_application.template != right_application.template {
-                    return self.subtype_via_interface(
-                        left,
-                        left_ty,
-                        right_application.template,
-                        right,
-                        origin,
-                    );
-                }
-                for (left_argument, right_argument) in left_application
-                    .arguments
-                    .into_iter()
-                    .zip(right_application.arguments)
-                {
-                    self.equal(
-                        nested_term(left, left_argument),
-                        nested_term(right, right_argument),
-                        origin,
-                    )?;
-                }
-                Ok(())
-            }
+            return Err(self.relation_failure(RelationKind::Subtype, left, right, origin));
+        }
+        match (
+            self.lowerer.types[left_ty].clone(),
+            self.lowerer.types[right_ty].clone(),
+        ) {
             (Type::Function(left_id), Type::Function(right_id)) => {
                 let left_signature = self.lowerer.function_types[left_id].clone();
                 let right_signature = self.lowerer.function_types[right_id].clone();
@@ -440,10 +375,6 @@ impl RelationReducer<'_> {
                         )
                     })
             }
-            (_, Type::Interface(right_id)) => {
-                let right_application = self.lowerer.interface_applications[right_id].clone();
-                self.subtype_via_interface(left, left_ty, right_application.template, right, origin)
-            }
             _ if !term_contains_session_parameter(self.lowerer, self.session, left)
                 && !term_contains_session_parameter(self.lowerer, self.session, right)
                 && self.lowerer.is_subtype(left_ty, right_ty) =>
@@ -452,78 +383,6 @@ impl RelationReducer<'_> {
             }
             _ => Err(self.relation_failure(RelationKind::Subtype, left, right, origin)),
         }
-    }
-
-    fn subtype_via_interface(
-        &mut self,
-        left_term: TypeTerm,
-        left: hir::TypeId,
-        target: hir::InterfaceId,
-        right: TypeTerm,
-        origin: ConstraintOrigin,
-    ) -> Result<(), ConstraintFailure> {
-        let Some(arguments) = self.interface_application_as(left, target) else {
-            return Err(self.relation_failure(RelationKind::Subtype, left_term, right, origin));
-        };
-        let implemented = self.lowerer.intern_interface_application(target, arguments);
-        self.subtype(nested_term(left_term, implemented), right, origin)
-    }
-
-    fn interface_application_as(
-        &mut self,
-        ty: hir::TypeId,
-        target: hir::InterfaceId,
-    ) -> Option<Vec<hir::TypeId>> {
-        let direct = match self.lowerer.types[ty].clone() {
-            Type::Interface(_) => vec![ty],
-            Type::Integer(kind) => self
-                .lowerer
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Integer(kind)),
-            Type::Boolean => self
-                .lowerer
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::Boolean),
-            Type::String => self
-                .lowerer
-                .intrinsic_type_interfaces(hir::IntrinsicTypeKind::String),
-            Type::Class(application) => self.lowerer.class_interfaces_for_application(application),
-            Type::Struct(application) => {
-                let application = self.lowerer.struct_applications[application].clone();
-                self.lowerer.structs[application.template]
-                    .interfaces
-                    .clone()
-                    .into_iter()
-                    .map(|interface| {
-                        self.lowerer
-                            .instantiate_ty(interface, &application.arguments)
-                    })
-                    .collect()
-            }
-            Type::Enum(application) => {
-                let application = self.lowerer.enum_applications[application].clone();
-                self.lowerer.enums[application.template]
-                    .interfaces
-                    .clone()
-                    .into_iter()
-                    .map(|interface| {
-                        self.lowerer
-                            .instantiate_ty(interface, &application.arguments)
-                    })
-                    .collect()
-            }
-            _ => Vec::new(),
-        };
-        let mut closure = Vec::new();
-        for interface in direct {
-            self.lowerer
-                .append_interface_closure(interface, &mut closure);
-        }
-        closure.into_iter().find_map(|interface| {
-            let Type::Interface(application) = self.lowerer.types[interface] else {
-                return None;
-            };
-            let application = &self.lowerer.interface_applications[application];
-            (application.template == target).then(|| application.arguments.clone())
-        })
     }
 
     fn callable_shape(
@@ -668,11 +527,16 @@ fn term_contains_session_parameter(
     }
 }
 
-pub(super) fn type_contains_session_parameter(
+pub(crate) fn type_contains_session_parameter(
     lowerer: &Lowerer,
     session: &InferenceSession,
     ty: hir::TypeId,
 ) -> bool {
+    if let Some((_, arguments)) = lowerer.dependency_nominal_application(ty) {
+        return arguments
+            .iter()
+            .any(|argument| type_contains_session_parameter(lowerer, session, *argument));
+    }
     let children: Vec<hir::TypeId> = match &lowerer.types[ty] {
         Type::Param(parameter) => return session.variable_for(*parameter).is_some(),
         Type::Struct(application) => lowerer.struct_applications[*application].arguments.clone(),

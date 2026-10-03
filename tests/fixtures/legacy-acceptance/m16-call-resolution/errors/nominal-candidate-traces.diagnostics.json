@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `RefBox` in nominal constructor candidate layer:\n  - struct RefBox<T : ref>(value: T) — type argument `Int` for `T` must satisfy `ref`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 156,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 147
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `Bounded` in nominal constructor candidate layer:\n  - class Bounded<T : Marker>() — type argument `Int` for `T` must satisfy interface upper bound `Marker`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 172,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 169
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `Choice.Some` in nominal constructor candidate layer:\n  - variant Choice<T>.Some(_1: T) — expects 1 argument(s), but 0 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 193,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 180
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `Choice.None` in nominal constructor candidate layer:\n  - variant Choice<T>.None() — cannot infer a unique type argument for `T`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 209,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 205
+    },
+    "severity": "error"
+  }
+]

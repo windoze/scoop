@@ -1,7 +1,8 @@
 //! Hand-written lexer for the M6 source subset.
 //!
 //! Produces a flat token vector for the parser. Invalid characters and
-//! recoverable literal errors are skipped so one pass can report multiple
+//! recoverable literal errors become diagnostic-only error tokens so parser
+//! recovery retains declaration boundaries while one pass reports multiple
 //! independent lexical diagnostics. An unterminated block comment consumes
 //! the rest of the file and therefore ends recovery naturally.
 
@@ -63,7 +64,7 @@ impl<'a> Lexer<'a> {
                     if c == '"' || self.peek_char() == Some('"') {
                         self.skip_bad_string();
                     }
-                    continue;
+                    TokenKind::Error
                 }
             };
             tokens.push(Token {
@@ -521,6 +522,8 @@ impl<'a> Lexer<'a> {
             ));
         }
         let kind = match text {
+            "package" => TokenKind::Package,
+            "import" => TokenKind::Import,
             "suspend" => TokenKind::Suspend,
             "vararg" => TokenKind::Vararg,
             "fun" => TokenKind::Fun,

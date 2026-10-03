@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage sibling.right
+  ImportStar Local dependency.odr.*
+  public fun right(): String
+    =
+      Call constant<Int>
+  public fun rightOther(): String
+    =
+      Call otherConstant<Int>
+  public fun rightSelected(first: Boolean): String
+    =
+      Call selectedConstant<Int>
+        Var first
+  public fun distinct(): String
+    =
+      Call constant<Long>

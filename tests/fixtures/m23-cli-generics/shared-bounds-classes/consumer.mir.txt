@@ -1,0 +1,214 @@
+Module
+  class LocalChild<Int> vtable=0 itables=0
+  class LocalBase<Int> vtable=0 itables=0
+  class Child<Int> vtable=0 itables=0
+  class Base<Int> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn12 id=66b3bbe1a8c328cc5f578cbd7e96b15398c56547f10d68a288f5086de1d6c462
+  generated_exact_type get0 location=closure0 nominal_id=de865b90b0497c3d8f2f6219e945653b12cdac5501dc0c6499090886ebfc2fca exact_id=708db0debac684dfe1e9bddc5493595a44343cc93d925c099a4b3cda429ee326
+  generated_exact_type get1 location=class4 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn12 id=66b3bbe1a8c328cc5f578cbd7e96b15398c56547f10d68a288f5086de1d6c462
+  fun result @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $argument.1
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.seed
+        Type (Int) -> Int
+        Local $parameter.read
+      return
+        Type Int
+        Local $call.1
+  fun $lambda.0 @fn1($closure: (Int) -> Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun exercise @fn2(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local seed
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type LocalChild<Int>
+        ClassAlloc LocalChild<Int>
+      call @fn8 direct
+        Type LocalChild<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $argument.0: LocalChild<Int>
+        Type LocalChild<Int>
+        Local $new.1
+      val $parameter.source: LocalChild<Int>
+        Type LocalChild<Int>
+        Local $argument.0
+      call local: Int = @fn3 direct
+        Type LocalChild<Int>
+        Local $parameter.source
+      val $dependency.argument.0: Int
+        Type Int
+        Local local
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.2
+        Type Child<Int>
+        ClassAlloc Child<Int>
+      call @fn9 direct
+        Type Child<Int>
+        Local $new.2
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Child<Int>
+        Type Child<Int>
+        Local $new.2
+      val $dependency.parameter.value: Child<Int>
+        Type Child<Int>
+        Local $dependency.argument.0
+      call imported: Int = @fn4 direct
+        Type Child<Int>
+        Local $dependency.parameter.value
+      call $call.3: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local imported
+      return
+        Type Int
+        Local $call.3
+  fun readLocal @fn3(source: LocalChild<Int>) -> Int
+    bb0 entry
+      val $argument.0: LocalBase<Int>
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type LocalChild<Int>
+          Local source
+      val $parameter.source: LocalBase<Int>
+        Type LocalBase<Int>
+        Local $argument.0
+      call $call.1: Int = @fn5 direct
+        Type LocalBase<Int>
+        Local $parameter.source
+      return
+        Type Int
+        Local $call.1
+  fun readClass @fn4(value: Child<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Child<Int>
+        Type Child<Int>
+        Local value
+      call $call.1: Int = @fn6 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child<Int>
+          Local $dependency.local.1
+      return
+        Type Int
+        Local $call.1
+  fun readBase @fn5(source: LocalBase<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type LocalBase<Int>
+          Local source
+  fun read @fn6(this: Base<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn7 direct
+        Type Base<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun value @fn7(this: Base<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Base<Int>
+          Local this
+  fun init.LocalChild.$c1 @fn8(this: LocalChild<Int>, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn10 direct
+        Type LocalBase<Int>
+        Retype LocalBase<Int>
+          Type LocalChild<Int>
+          Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.Child.$c0 @fn9(this: Child<Int>, value: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call @fn11 direct
+        Type Base<Int>
+        Retype Base<Int>
+          Type Child<Int>
+          Local this
+        Type Int
+        Local $dependency.constructor.local.1
+      return
+  fun init.LocalBase.$c0 @fn10(this: LocalBase<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalBase<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Base.$c1 @fn11(this: Base<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Base<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn12($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- readLocal
+  instance mi2 function=@fn4 <- readClass
+  instance mi3 function=@fn5 <- readBase
+  instance mi4 function=@fn6 <- read
+  instance mi5 function=@fn7 <- value
+  output library

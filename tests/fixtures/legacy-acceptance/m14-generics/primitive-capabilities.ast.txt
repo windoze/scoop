@@ -1,0 +1,37 @@
+SourceFile
+  RootPackage
+  fun main()
+    Call println
+      IntLiteral 42
+    Call println
+      Call sizeOf<Int>
+    Call println
+      BoolLiteral true
+    Call println
+      StringLiteral "text"
+    Call println
+      Binary Eq
+        MethodCall hash
+          IntLiteral 42
+        MethodCall hash
+          IntLiteral 42
+    Call println
+      Binary Eq
+        MethodCall hash
+          Call sizeOf<Int>
+        MethodCall hash
+          Call sizeOf<Int>
+    Call println
+      Binary Eq
+        MethodCall hash
+          BoolLiteral true
+        MethodCall hash
+          BoolLiteral true
+    Call println
+      Binary Eq
+        MethodCall hash
+          StringLiteral "same"
+        MethodCall hash
+          Binary Add
+            StringLiteral "sa"
+            StringLiteral "me"

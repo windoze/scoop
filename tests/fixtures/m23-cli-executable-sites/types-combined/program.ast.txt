@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+          StringLiteral "remote"
+        Call dormant
+      throw
+        Call IllegalStateException

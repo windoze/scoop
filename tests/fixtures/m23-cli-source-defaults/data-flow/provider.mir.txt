@@ -1,0 +1,218 @@
+Module
+  struct FlowOther (first: Int, second: Int)
+  struct FlowPair<Int> (first: Int, second: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<FlowOther>
+    Completed(value: FlowOther)
+    Suspended()
+  enum CoroutineSlot<FlowOther>
+    Empty()
+    Value(value: FlowOther)
+  enum CoroutineStep<FlowHost>
+    Completed(value: FlowHost)
+    Suspended()
+  enum CoroutineSlot<FlowHost>
+    Empty()
+    Value(value: FlowHost)
+  class FlowHost vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<FlowOther> vtable=0 itables=0
+  interface Continuation<FlowOther>
+  interface SuspendTask<FlowOther>
+  interface SuspendRegistration<FlowOther>
+  interface Continuation<FlowHost>
+  interface SuspendTask<FlowHost>
+  interface SuspendRegistration<FlowHost>
+  generated_exact_type get0 location=enum1 nominal_id=6c31a7d6d9abd57378b308c3f1ead9a4055bf0c0d573a61fafa766b189499a26 exact_id=4191f718d2a22a0a7010f6d2b2781d2e2601c190843129f8b4de365427ce8111
+  generated_exact_type get1 location=enum4 nominal_id=02ee4f7106d38c55c2fa6e4cd636aa7b29a0acc88feee2c8e4bf8e3c917a6406 exact_id=b4d3138e88640d022a18e79c34652e7b1733edbd1bc29521030704a9a214efcc
+  generated_exact_type get2 location=enum2 nominal_id=413b0848ae838ade73cc1c5c2eefa0d4119b09a8c5e4209e79770b95655b4562 exact_id=c5585145e7d7995fbc132f86a4636008ab6526e7d5c2d4238fae5bb10fb6b388
+  generated_exact_type get3 location=enum3 nominal_id=ccf1664e0a3ad7334855f8487781dc75e6abe48a1397d9c1c6e235882f147e27 exact_id=f0931aa88e9c14e1f8801ab20f71856570ca87b43a9d6c04e38f52ca4a68242e
+  generated_exact_type get4 location=class4 nominal_id=bf0e8c2e35ef82582d0ddd755b799ec93b65dc87ca221a3adb8092bb5fbe82b7 exact_id=fb81dd266a786f04691079be1c9fd22df0dfc819101b6491fa9d2ddb3f077b3d
+  generated_callable gc0 function=@fn13 id=3309fc27206307460c4a6296a57a6e834c00600009669fa5fbfba39b9437733b
+  generated_callable gc1 function=@fn14 id=e5b2b852388107b3abccd53dc0c80129ffd26d09408d5b4e34dbd36172af5151
+  fun FlowOther.equals @fn0(this: FlowOther, other: FlowOther) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type FlowOther
+            Local this
+          Type Int
+          FieldAccess 0
+            Type FlowOther
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type FlowOther
+            Local this
+          Type Int
+          FieldAccess 1
+            Type FlowOther
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun FlowHost.scoped @fn1(this: FlowHost, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun FlowHost.loop @fn2(this: FlowHost, seed: FlowPair<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Continuation.resume @fn3(this: Continuation<FlowOther>, value: FlowOther) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<FlowOther>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<FlowOther>, $completion: Continuation<FlowOther>) -> CoroutineStep<FlowOther>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<FlowOther>, continuation: Continuation<FlowOther>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn7(this: Continuation<FlowHost>, value: FlowHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<FlowHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<FlowHost>, $completion: Continuation<FlowHost>) -> CoroutineStep<FlowHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<FlowHost>, continuation: Continuation<FlowHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.FlowHost.$c0 @fn11(this: FlowHost) -> Unit
+    bb0 entry
+      return
+  fun ctor.FlowOther.$c1 @fn12(first: Int, second: Int) -> FlowOther <no-gc>
+    bb0 entry
+      return
+        Type FlowOther
+        StructInit FlowOther
+          Type Int
+          Local first
+          Type Int
+          Local second
+  fun startCoroutine<FlowOther> @fn13(task: SuspendTask<FlowOther>, completion: Continuation<FlowOther>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<FlowOther>[0]
+        Type Continuation<FlowOther>
+        Local completion
+        Type FlowOther
+        EnumField v0 f0
+          Type CoroutineStep<FlowOther>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<FlowOther>[1]
+        Type Continuation<FlowOther>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<FlowOther> = @fn5 interface SuspendTask<FlowOther>[0]
+        Type SuspendTask<FlowOther>
+        Local task
+        Type Continuation<FlowOther>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<FlowOther>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<FlowHost> @fn14(task: SuspendTask<FlowHost>, completion: Continuation<FlowHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<FlowHost>[0]
+        Type Continuation<FlowHost>
+        Local completion
+        Type FlowHost
+        EnumField v0 f0
+          Type CoroutineStep<FlowHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<FlowHost>[1]
+        Type Continuation<FlowHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<FlowHost> = @fn9 interface SuspendTask<FlowHost>[0]
+        Type SuspendTask<FlowHost>
+        Local task
+        Type Continuation<FlowHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<FlowHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<FlowOther> result=FlowOther
+  coroutine_step cs1 CoroutineStep<FlowHost> result=FlowHost
+  coroutine_slot cl0 CoroutineSlot<FlowOther> value=FlowOther
+  coroutine_slot cl1 CoroutineSlot<FlowHost> value=FlowHost
+  coroutine_start ct0 result=FlowOther function=fn13
+  coroutine_start ct1 result=FlowHost function=fn14
+  coroutine_fn cf0 @fn5 source_return=FlowOther step=cs0 immediate
+  coroutine_fn cf1 @fn9 source_return=FlowHost step=cs1 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  instance mi4 function=@fn7 <- Continuation.resume
+  instance mi5 function=@fn8 <- Continuation.resumeWithException
+  instance mi6 function=@fn9 <- SuspendTask.run
+  instance mi7 function=@fn10 <- SuspendRegistration.register
+  output library

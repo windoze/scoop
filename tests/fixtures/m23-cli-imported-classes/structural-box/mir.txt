@@ -1,0 +1,84 @@
+Module
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class box<(Long, String)> vtable=0 itables=0
+  generated_exact_type get0 location=class3 nominal_id=78a227a0e71d7ecc142714fa0bf73506bf0853611f05ef7f2c1cc87e0720c3be exact_id=9f72187734698e55a84329a5685b0595bf525560ec04cf0ebd193a4a9d8b7969
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val number: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val boxed: Any
+        Type Any
+        Box
+          Type (Long, String)
+          TupleLiteral
+            Type Long
+            Local number
+            Type String
+            StringConst @str0
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance (Long, String)
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.1
+      throw
+        Type ClassCastException
+        Local $new.1
+    bb2 if.merge.2
+      val $ub.2: (Long, String)
+        Type (Long, String)
+        Unbox
+          Type Any
+          Local $cast.1
+      val $binding.subject.0: (Long, String)
+        Type (Long, String)
+        Local $ub.2
+      val $binding.projection.1: Long
+        Type Long
+        FieldAccess 0
+          Type (Long, String)
+          Local $binding.subject.0
+      val value: Long
+        Type Long
+        Local $binding.projection.1
+      val $binding.projection.2: String
+        Type String
+        FieldAccess 1
+          Type (Long, String)
+          Local $binding.subject.0
+      val text: String
+        Type String
+        Local $binding.projection.2
+      val $dependency.argument.0: Long
+        Type Long
+        Local value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  str @str0 "tuple"
+  output library

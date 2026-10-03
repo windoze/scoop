@@ -1,0 +1,12 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(defaultProviderChild().pick(3) == 3)
+    val base: ProviderBase = defaultProviderChild()
+    verifyDefault(base.pick(value = 9, seed = 3) == 9)
+    verifyDefault(defaultProviderApplied<Int>().pick((1, 2)) == (1, 2))
+    verifyDefault(defaultProviderApplied<String>().pick(("a", "b")) == ("a", "b"))
+    verifyDefault(defaultProviderGeneric<String>().copy("source", 4) == 4)
+    verifyDefault(defaultProviderStatic().copy(5) == 5)
+}

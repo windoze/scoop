@@ -1,0 +1,29 @@
+package consumer.ranges
+
+import dependency.ranges.ranged
+
+public fun result(): Int {
+    val longStart: Long = 0
+    val longEnd: Long = 7
+    val uintStart: UInt = 0u
+    val uintEnd: UInt = 7u
+    val ulongStart: ULong = 0uL
+    val ulongEnd: ULong = 7uL
+    var signed = 0
+    var unsigned = 0
+    var wideUnsigned = 0
+    for (value in longStart..<longEnd) { signed = signed + value.toInt32() }
+    for (value in uintStart..<uintEnd) { unsigned = unsigned + value.toInt32() }
+    for (value in ulongStart..<ulongEnd) { wideUnsigned = wideUnsigned + value.toInt32() }
+    return if (signed == 21 && unsigned == 21 && wideUnsigned == 21) { 42 } else { 0 }
+}
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    var last = 0
+    for (index in 0..<7) {
+        if (index == 0) { continue }
+        last = index
+        if (index == 6) { break }
+    }
+    return if (last == 6 && result() == 42) { ranged<T>(value, read) } else { 0 }
+}

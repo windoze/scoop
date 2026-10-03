@@ -1,0 +1,60 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.generics.identity
+  ImportExact Local dependency.generics.choose
+  ImportExact Local dependency.generics.echo
+  ImportExact Local dependency.generics.defaulted
+  ImportExact Local dependency.generics.nativeIdentity
+  ImportExact Local dependency.generics.recursive
+  ImportExact Local dependency.generics.pointerIdentity
+  struct LocalValue
+    field number: Int
+  public fun explicitAndInferred(): Int
+    =
+      Call identity<Int>
+        Call identity
+          IntLiteral 42
+  public fun consumerLocalValue(): Int
+    =
+      FieldAccess number
+        Call identity
+          Call LocalValue
+            IntLiteral 43
+  public fun relay<T>(value: T): T
+    =
+      Call choose
+        Var value
+        Call identity
+          Var value
+  public fun useRelay(): Int
+    =
+      Call relay
+        IntLiteral 44
+  public fun extension(): Int
+    =
+      MethodCall echo
+        IntLiteral 45
+  public fun defaults(): Int
+    =
+      Call defaulted
+        IntLiteral 46
+  public fun consumerLocalDefault(): Int
+    =
+      FieldAccess number
+        Call defaulted
+          Call LocalValue
+            IntLiteral 47
+    @NoGC
+  public fun nativeCall(): Int
+    =
+      Call nativeIdentity
+        IntLiteral 48
+  public fun recursiveCall(): Int
+    =
+      Call recursive
+        IntLiteral 49
+        BoolLiteral true
+  public fun pointerRoundtrip(pointer: Ptr<Int>): Ptr<Int>
+    =
+      Call pointerIdentity
+        Var pointer

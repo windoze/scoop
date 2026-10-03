@@ -1,0 +1,53 @@
+SourceFile
+  RootPackage
+  class Outer<T>()
+    nested class Nested
+    nested struct Pair
+    nested enum Flag
+    nested interface Marker
+    nested class Deep
+  class Marked(), Outer.Marker
+  fun markerId(value: Outer.Marker): Int
+    =
+      MethodCall id
+        Var value
+  fun main()
+    val nested: Outer.Nested<Int>
+      MethodCall Nested<Int>
+        Var Outer
+        IntLiteral 42
+    Call println
+      MethodCall get
+        Var nested
+    val pair: Outer.Pair<String>
+      MethodCall Pair<String>
+        Var Outer
+        StringLiteral "left"
+        StringLiteral "right"
+    Call println
+      FieldAccess first
+        Var pair
+    Call println
+      FieldAccess second
+        Var pair
+    val flag: Outer.Flag
+      FieldAccess Ready
+        FieldAccess Flag
+          Var Outer
+    Call println
+      Binary Eq
+        Var flag
+        FieldAccess Ready
+          FieldAccess Flag
+            Var Outer
+    val leaf: Outer.Deep.Leaf
+      MethodCall Leaf
+        FieldAccess Deep
+          Var Outer
+        IntLiteral 9
+    Call println
+      FieldAccess value
+        Var leaf
+    Call println
+      Call markerId
+        Call Marked

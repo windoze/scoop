@@ -1,7 +1,7 @@
 use super::*;
 
 #[test]
-fn generic_class_constructor_members_and_concrete_instances_are_complete() {
+fn generic_class_constructors_and_used_members_have_complete_instances() {
     let output = lower_user_output(file(vec![
         generic_class(
             "Box",
@@ -41,7 +41,9 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
         .export
         .class_applications
         .iter()
-        .filter(|(_, application)| application.template == export_box_id)
+        .filter(|(_, application)| {
+            application.template == output.export.nominal_identities[export_box_id].declaration_id()
+        })
         .collect::<Vec<_>>();
     assert_eq!(applications.len(), 3, "Box<T>, Box<Int>, Box<String>");
     assert!(applications.iter().all(|(id, application)| {
@@ -53,19 +55,17 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
         .local
         .classes
         .iter()
-        .filter(|(_, declaration)| declaration.name.starts_with("Box$"))
+        .filter(|(_, declaration)| declaration.name == "Box")
         .map(|(_, declaration)| declaration)
         .collect::<Vec<_>>();
     instances.sort_by(|left, right| left.name.cmp(&right.name));
     assert_eq!(instances.len(), 2);
-    let concrete_origin =
-        hir::concrete::ClassOriginId::from_raw(export_box_id.into_raw().into_u32());
+    let concrete_origin = &output.export.nominal_identities[export_box_id];
     assert!(instances.iter().all(|instance| {
-        instance.origin == concrete_origin
+        &instance.origin == concrete_origin
             && instance.type_arguments.len() == 1
             && instance.declared_fields().len() == 1
             && instance.declared_fields()[0].ty == instance.type_arguments[0]
-            && instance.methods.len() == 1
     }));
     assert!(instances.iter().any(|instance| {
         matches!(
@@ -79,6 +79,18 @@ fn generic_class_constructor_members_and_concrete_instances_are_complete() {
             hir::concrete::TypeKind::String
         )
     }));
+    let getters = output
+        .local
+        .functions
+        .iter()
+        .filter(|(_, function)| function.name == "Box.get")
+        .map(|(_, function)| function)
+        .collect::<Vec<_>>();
+    assert_eq!(getters.len(), 1, "only Box<Int>.get has an actual call");
+    assert!(matches!(
+        output.local.types[getters[0].return_ty].kind,
+        hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)
+    ));
 }
 
 #[test]
@@ -203,7 +215,7 @@ fn nominal_constructors_infer_the_unique_common_supertype() {
     ]))
     .expect("all nominal constructors must use subtype constraints");
 
-    let hir::FunctionKind::User(main) = &output.functions[output.entry].kind else {
+    let hir::FunctionKind::User(main) = &output.functions[output.entry()].kind else {
         panic!("main is a user function")
     };
     let local_type = |name: &str| {
@@ -269,10 +281,10 @@ fn generic_class_base_application_and_delegation_keep_typed_sources() {
         .local
         .classes
         .iter()
-        .find(|(_, declaration)| declaration.name.starts_with("Derived$"))
+        .find(|(_, declaration)| declaration.name == "Derived")
         .expect("Derived<Int> specialization");
     let base = derived.base_class().expect("typed concrete base");
-    assert!(output.local.classes[base].name.starts_with("Base$"));
+    assert_eq!(output.local.classes[base].name, "Base");
     let constructor = output
         .local
         .class_constructors
@@ -371,7 +383,7 @@ fn generic_base_substitution_preserves_nested_application_identity() {
         .local
         .classes
         .iter()
-        .find(|(_, declaration)| declaration.name.starts_with("Derived$"))
+        .find(|(_, declaration)| declaration.name == "Derived")
         .expect("Derived<Int> specialization")
         .1;
     let base = derived.base_class().expect("specialized base");
@@ -379,7 +391,7 @@ fn generic_base_substitution_preserves_nested_application_identity() {
     let hir::concrete::TypeKind::Struct(wrapper) = output.local.types[base_argument].kind else {
         panic!("Base argument must be the concrete Wrapper<Int> identity")
     };
-    assert!(output.local.structs[wrapper].name.starts_with("Wrapper$"));
+    assert_eq!(output.local.structs[wrapper].name, "Wrapper");
     assert!(matches!(
         output.local.types[output.local.structs[wrapper].type_arguments[0]].kind,
         hir::concrete::TypeKind::Integer(hir::IntegerKind::SIGNED_32)

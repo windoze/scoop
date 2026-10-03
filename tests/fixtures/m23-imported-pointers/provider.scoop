@@ -1,0 +1,34 @@
+package dependency.pointers
+
+public fun <T: value> bytes(): ULong = sizeOf<T>()
+public fun <T: value> alignment(): ULong = alignOf<T>()
+
+@Unsafe
+public fun <T: value> copy(value: T): T {
+    val pointer = addressOf(value)
+    return pointer.load()
+}
+
+@Unsafe
+public fun <T: value> replace(value: T, replacement: T): T {
+    val pointer = addressOf(value)
+    pointer.store(replacement)
+    return value
+}
+
+public fun <T: value> layoutDefault(size: ULong = sizeOf<T>(), alignment: ULong = alignOf<T>()): ULong = size + alignment
+
+@Unsafe
+public fun <T: value> loadDefault(value: T, next: T = addressOf(value).load()): T = next
+
+@Unsafe
+public fun <T: value> typeAddress(pointer: Ptr<Int>): ULong = pointer.cast<T>().toULong()
+
+public struct Slot<T: value>(val value: T) {
+    @Unsafe
+    public fun rewrite(next: T): T {
+        val pointer = addressOf(this)
+        pointer.store(Slot<T>(next))
+        return this.value
+    }
+}

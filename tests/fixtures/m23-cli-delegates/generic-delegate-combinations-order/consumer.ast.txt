@@ -1,0 +1,123 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportStar Local templates.delegateCombinations.*
+  private fun receiver<T>(value: T): Receiver<T>
+    assign .order
+      Var Trace
+      Binary Add
+        Binary Mul
+          FieldAccess order
+            Var Trace
+          IntLiteral 10
+        IntLiteral 1
+    return
+      Call Receiver<T>
+        Var value
+  private fun rhs(value: Int): Int
+    assign .order
+      Var Trace
+      Binary Add
+        Binary Mul
+          FieldAccess order
+            Var Trace
+          IntLiteral 10
+        IntLiteral 2
+    val allocated
+      Call Payload
+        Var value
+    return
+      FieldAccess value
+        Var allocated
+  public fun exercise<T>(value: T): Int
+    assign .order
+      Var Trace
+      IntLiteral 0
+    assign .ordered
+      Call receiver<T>
+        Var value
+      Call rhs
+        IntLiteral 42
+    if
+      Binary Ne
+        FieldAccess order
+          Var Trace
+        IntLiteral 12345
+      return
+        IntLiteral 1
+    assign .order
+      Var Trace
+      IntLiteral 0
+    compound-assign Add
+      Call receiver<T>
+        Var value
+      Call rhs
+        IntLiteral 2
+    if
+      Binary Ne
+        FieldAccess order
+          Var Trace
+        IntLiteral 134625
+      return
+        IntLiteral 2
+    assign .order
+      Var Trace
+      IntLiteral 0
+    val previous
+      Update Postfix Increment
+        Place .compound
+          Call receiver<T>
+            Var value
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess order
+            Var Trace
+          IntLiteral 165
+        Binary Ne
+          Var previous
+          IntLiteral 12
+      return
+        IntLiteral 3
+    assign .order
+      Var Trace
+      IntLiteral 0
+    val current
+      Update Prefix Increment
+        Place .compound
+          Call receiver<T>
+            Var value
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess order
+            Var Trace
+          IntLiteral 165
+        Binary Ne
+          Var current
+          IntLiteral 14
+      return
+        IntLiteral 4
+    assign .order
+      Var Trace
+      IntLiteral 0
+    val read
+      FieldAccess ordered
+        Call receiver<T>
+          Var value
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess order
+            Var Trace
+          IntLiteral 16
+        Binary Ne
+          Var read
+          IntLiteral 42
+      return
+        IntLiteral 5
+    return
+      Var read
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

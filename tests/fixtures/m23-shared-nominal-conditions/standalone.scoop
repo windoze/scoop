@@ -1,0 +1,29 @@
+package consumer.nominalConditions
+import upstream.nominalConditions.*
+
+@CLayout private struct Native(val value: Int)
+private typealias Safe = Scalar<Choice<Int>>
+
+private fun pointer(value: Pointer<Native>): Int = 42
+private fun cursor(value: Cursor<Native>): Int = 42
+private fun view(value: PointerView<Native>): Int = 42
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val wrapped = Wrapped(pack(value))
+    val carrier = Carrier(wrapped.scalar)
+    val choice: Choice<T> = Item(carrier.scalar.value)
+    val phantom: Scalar<Phantom<String>> = Scalar(Phantom<String>())
+    if (hidden(phantom) != 42) { return 1 }
+    return when (choice) {
+        Empty -> 2
+        Item(item) -> read(item)
+    }
+}
+
+public fun result(): Int {
+    val safe: Safe = Scalar(Item<Int>(42))
+    if (hidden(safe) != 42) { return 1 }
+    if (hiddenChoice(Unit) != 42) { return 2 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 3 }
+    return exercise<Int>(42, { item -> item })
+}

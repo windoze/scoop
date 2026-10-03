@@ -1,0 +1,6 @@
+fun verifyDomain(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDomain(surface().inspect())
+}

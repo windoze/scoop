@@ -1,0 +1,23 @@
+import startup.cycle.*
+@Extern(lib = "m23_runtime_images", name = "m23_trace") private fun trace(value: Long)
+private fun failure(): IllegalStateException = try {
+    readCycle()
+    throw IllegalStateException()
+} catch (error: IllegalStateException) { error }
+fun main() {
+    val first = failure()
+    val firstMessage = when (first.message) {
+        Some(value) -> value
+        None -> { throw IllegalStateException() }
+    }
+    val allocated = Box(42L)
+    val second = failure()
+    val secondMessage = when (second.message) {
+        Some(value) -> value
+        None -> { throw IllegalStateException() }
+    }
+    if (count() != 1 || firstMessage !== secondMessage) {
+        throw IllegalStateException()
+    }
+    @Unsafe { trace(allocated.value) }
+}

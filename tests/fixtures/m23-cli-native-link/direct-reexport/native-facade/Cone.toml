@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.programlink"
+name = "native-facade"
+version = "0.1.0"
+kind = "library"
+
+[dependencies]
+"dev.programlink:native-provider" = {"version" = "0.1.0", "path" = "../native-provider"}

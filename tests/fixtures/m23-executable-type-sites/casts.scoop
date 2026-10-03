@@ -1,0 +1,14 @@
+public fun prepOptionalInteger(value: Any): Option<Int> = value as? Int
+
+public fun <T> prepWithCast(value: Any, result: T = value as T): T = result
+public fun prepUseCast(value: Any): Int = prepWithCast<Int>(value)
+
+public fun <T> prepWithOptionalCast(value: Any, result: Option<T> = value as? T): Option<T> = result
+public fun prepUseOptionalCast(value: Any): Option<Int> = prepWithOptionalCast<Int>(value)
+
+fun main() {
+    val value: Any = 42
+    prepUseCast(value)
+    prepUseOptionalCast(value)
+    prepOptionalInteger(value)
+}

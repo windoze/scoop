@@ -1,0 +1,61 @@
+SourceFile
+  QualifiedPackage consumer.calls
+  ImportStar Local upstream.calls.*
+  ImportExact Local upstream.calls.identity as first
+  ImportExact Local upstream.calls.identity as second
+  public fun localIdentity<T>(value: T): T
+    =
+      Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val before
+      Call calls
+    val value
+      Call localIdentity<T>
+        Call defaulted<T>
+          Call first<T>
+            Var seed
+    val callback
+      Lambda 0 suspend=false
+        parameters omitted
+        Call second<T>
+          Var value
+    Call mark
+    if
+      Binary Ne
+        Call calls
+        Binary Add
+          Var before
+          IntLiteral 1
+      return
+        IntLiteral 1
+    return
+      Call action<T>
+        Call callback
+        Var read
+  public fun result(): Int
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "call"
+          Lambda 1 suspend=false
+            param value: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 2 suspend=false
+            param value: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 3 suspend=false
+          param value: _
+          Var value

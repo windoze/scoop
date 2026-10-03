@@ -7,6 +7,12 @@ impl Lowerer {
         sink: &mut Vec<hir::Statement>,
         expected: Option<TypeId>,
     ) -> Option<hir::Expr> {
+        if let Some(owner) = self
+            .resolve_imported_nominal_qualifier(&access.receiver)
+            .ok()?
+        {
+            return self.lower_imported_qualified_field(owner, access, expected);
+        }
         let direct_alias = match self.resolve_direct_alias_qualifier(&access.receiver) {
             Ok(alias) => alias,
             Err(()) => return None,
@@ -104,7 +110,27 @@ impl Lowerer {
                     access.span,
                 );
             }
-            match self.resolve_extension_property(receiver.clone(), field, sink, true) {
+            if let Some((field, ty)) = self
+                .struct_field(receiver.ty, &field.text)
+                .map(|field| (field.reference, field.ty))
+            {
+                return Some(hir::Expr {
+                    kind: ExprKind::FieldAccess {
+                        receiver: Box::new(receiver),
+                        field,
+                    },
+                    ty,
+                    span: access.span,
+                    origin: self.expression_origin(access.span),
+                });
+            }
+            if let Some(expression) = self
+                .lower_imported_member_property_read(&receiver, field, access.span, expected)
+                .ok()?
+            {
+                return Some(expression);
+            }
+            match self.resolve_extension_property_read(receiver.clone(), field, sink) {
                 crate::properties::ExtensionPropertyResolution::Resolved(property) => {
                     return Some(property.read);
                 }
@@ -214,12 +240,29 @@ impl Lowerer {
                     self.find_accessible_nominal_property(inner, &name.text)
                 {
                     self.lower_property_read(property, Some(owner), Some(unwrapped), ty, span)?
+                } else if let Some((field, ty)) = self
+                    .struct_field(inner, &name.text)
+                    .map(|field| (field.reference, field.ty))
+                {
+                    hir::Expr {
+                        kind: ExprKind::FieldAccess {
+                            receiver: Box::new(unwrapped),
+                            field,
+                        },
+                        ty,
+                        span,
+                        origin,
+                    }
+                } else if let Some(expression) = self
+                    .lower_imported_member_property_read(&unwrapped, name, span, None)
+                    .ok()?
+                {
+                    expression
                 } else {
-                    match self.resolve_extension_property(
+                    match self.resolve_extension_property_read(
                         unwrapped.clone(),
                         name,
                         &mut then_body,
-                        true,
                     ) {
                         crate::properties::ExtensionPropertyResolution::Resolved(property) => {
                             property.read
@@ -380,6 +423,13 @@ impl Lowerer {
             );
             return None;
         };
+        if let Err(error) = self.prepare_unwrap_exception_type() {
+            self.error(
+                span,
+                format!("cannot resolve unwrap exception type: {error:?}"),
+            );
+            return None;
+        }
         Some(hir::Expr {
             kind: ExprKind::Unwrap {
                 operand: Box::new(operand),
@@ -470,10 +520,30 @@ impl Lowerer {
         receiver_ty: TypeId,
         selector: &ast::FieldSelector,
     ) -> Option<(hir::FieldRef, TypeId)> {
+        if let Some(structure) = self.struct_fields(receiver_ty) {
+            let (name, span) = match selector {
+                ast::FieldSelector::Name(name) => {
+                    if let Some(field) = structure
+                        .fields
+                        .iter()
+                        .find(|field| field.name == name.text)
+                    {
+                        return Some((field.reference, field.ty));
+                    }
+                    (name.text.clone(), name.span)
+                }
+                ast::FieldSelector::Index(index, span) => (format!("_{index}"), *span),
+            };
+            self.error(
+                span,
+                format!("struct `{}` has no field `{name}`", structure.name),
+            );
+            return None;
+        }
         match self.types[receiver_ty].clone() {
             Type::Class(application) => {
                 let class_id = self.class_applications[application].template;
-                let class_name = self.classes[class_id].name.clone();
+                let class_name = self.nominal_template_name(class_id).to_owned();
                 match selector {
                     ast::FieldSelector::Name(field) => {
                         self.error(
@@ -491,40 +561,7 @@ impl Lowerer {
                     }
                 }
             }
-            Type::Struct(application) => {
-                let application_value = self.struct_applications[application].clone();
-                let struct_id = application_value.template;
-                let struct_name = self.structs[struct_id].name.clone();
-                match selector {
-                    ast::FieldSelector::Name(field) => {
-                        let fields = self.structs[struct_id].semantic_fields();
-                        let Some(index) = fields.iter().position(|f| f.name == field.text) else {
-                            self.error(
-                                field.span,
-                                format!("struct `{struct_name}` has no field `{}`", field.text),
-                            );
-                            return None;
-                        };
-                        let ty = fields[index].ty;
-                        let ty = self.instantiate_ty(ty, &application_value.arguments);
-                        let field = hir::AppliedStructFieldRef::checked(
-                            &self.structs,
-                            &self.struct_applications,
-                            application,
-                            index as u32,
-                        )
-                        .expect("the selected semantic struct field is in range");
-                        Some((hir::FieldRef::StructField(field), ty))
-                    }
-                    ast::FieldSelector::Index(index, span) => {
-                        self.error(
-                            *span,
-                            format!("struct `{struct_name}` has no field `_{index}`"),
-                        );
-                        None
-                    }
-                }
-            }
+
             Type::Tuple(elements) => match selector {
                 ast::FieldSelector::Index(index, span) => {
                     // Tuple indices are 1-based (`._1` is the first

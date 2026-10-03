@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+  class GateRegistration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  class SuspendedTask(val gate: Gate), SuspendTask<Int>
+    public suspend fun run
+  class RecordingCompletion(), Continuation<Int>
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val gate
+      Call Gate
+        Var None
+    Call startCoroutine
+      Call SuspendedTask
+        Var gate
+      Call RecordingCompletion
+    Call println
+      StringLiteral "returned"
+    MethodCall complete
+      Var gate
+      IntLiteral 41

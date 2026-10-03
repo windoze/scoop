@@ -19,17 +19,17 @@ use scoop_hir as hir;
 use ast::Span;
 use hir::{FunctionId, TypeId};
 
-use crate::call_resolution::arguments::{
-    ArgumentShapeFailure, CandidateArgumentMap, SourceInputKind,
-};
+use crate::call_resolution::arguments::{ArgumentShapeFailure, CandidateArgumentMap};
 use crate::call_resolution::candidates::CallableView;
 use crate::expr::ResolvedCallTypeArgument;
 use crate::{CallableCandidate, CallableCandidateSource, Lowerer};
 
 mod diagnostics;
-mod inference;
+mod named;
 mod probe;
 mod specificity;
+
+pub(crate) use named::{NamedCallReceiver, NamedCallableProbe};
 
 /// The winner of overload resolution, ready to be wrapped in an
 /// `ExprKind::Call` / `ExprKind::MethodCall` by the caller.
@@ -43,11 +43,17 @@ pub(crate) struct ResolvedCallee {
     /// Materialized instance receiver. Extension receivers are normalized to
     /// the hidden first direct-call argument instead.
     pub(crate) receiver: Option<hir::Expr>,
+    pub(crate) source_receiver: hir::SourceCallReceiver<TypeId>,
     pub(crate) return_ty: TypeId,
 }
 
 pub(crate) enum OverloadResolutionOutcome {
     NoApplicable,
+    /// This layer owns the callable spelling, but every matching declaration
+    /// is already rejected by the frozen declaration surface. The definition
+    /// diagnostic is sufficient; callers must stop without committing a new
+    /// layer diagnostic or probing a lower layer.
+    Blocked,
     Failed,
     Resolved(Box<ResolvedCallee>),
 }
@@ -56,7 +62,7 @@ impl OverloadResolutionOutcome {
     fn into_option(self) -> Option<ResolvedCallee> {
         match self {
             Self::Resolved(resolved) => Some(*resolved),
-            Self::NoApplicable | Self::Failed => None,
+            Self::NoApplicable | Self::Blocked | Self::Failed => None,
         }
     }
 }
@@ -117,9 +123,7 @@ struct Candidate {
     function: FunctionId,
     owner: crate::CallableCandidateOwner,
     source: CallableCandidateSource,
-    access: crate::CallableCandidateAccess,
     params: Vec<TypeId>,
-    return_ty: TypeId,
     /// Parameters declared by the function/method itself. Owner-only
     /// genericity does not make an otherwise concrete overload generic for
     /// MSC tie-breaking.
@@ -143,18 +147,6 @@ impl Lowerer {
         &mut self,
         resolved: &ResolvedCallee,
     ) -> hir::Callable {
-        match &resolved.target.access {
-            crate::CallableCandidateAccess::Lookup(witness) => {
-                debug_assert_eq!(
-                    witness.declaration,
-                    hir::AccessDeclaration::Function(resolved.target.function)
-                );
-            }
-            crate::CallableCandidateAccess::CompilerGenerated => {}
-            crate::CallableCandidateAccess::Inheritance => {
-                unreachable!("only accessible lookup candidates reach call materialization")
-            }
-        }
         self.materialize_candidate_callable(&resolved.target, &resolved.type_args)
     }
 
@@ -170,16 +162,22 @@ impl Lowerer {
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> Option<ResolvedCallee> {
+        self.resolve_overload_outcome(name, candidates, receiver_type_args, call, sink)
+            .into_option()
+    }
+
+    pub(crate) fn resolve_overload_outcome(
+        &mut self,
+        name: &str,
+        candidates: &[FunctionId],
+        receiver_type_args: &[TypeId],
+        call: OverloadCall<'_>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> OverloadResolutionOutcome {
         let candidates = candidates
             .iter()
             .copied()
-            .map(|function| {
-                CallableCandidate::function(
-                    function,
-                    receiver_type_args.to_vec(),
-                    self.function_lookup_witness(function),
-                )
-            })
+            .map(|function| CallableCandidate::function(function, receiver_type_args.to_vec()))
             .collect::<Vec<_>>();
         self.resolve_overload_with_receiver(
             name,
@@ -194,17 +192,16 @@ impl Lowerer {
             },
             sink,
         )
-        .into_option()
     }
 
-    pub(crate) fn resolve_member_overload(
+    pub(crate) fn resolve_member_overload_outcome(
         &mut self,
         name: &str,
         candidates: &[CallableCandidate],
         receiver: hir::Expr,
         call: OverloadCall<'_>,
         sink: &mut Vec<hir::Statement>,
-    ) -> Option<ResolvedCallee> {
+    ) -> OverloadResolutionOutcome {
         self.resolve_overload_with_receiver(
             name,
             candidates,
@@ -218,7 +215,6 @@ impl Lowerer {
             },
             sink,
         )
-        .into_option()
     }
 
     pub(crate) fn resolve_member_overload_lowered(
@@ -250,112 +246,6 @@ impl Lowerer {
         .into_option()
     }
 
-    /// Resolve an extension candidate layer. The already-lowered receiver is
-    /// the first inference argument and, for the selected extension, the first
-    /// direct-call argument. It is not part of the source argument count.
-    pub(crate) fn resolve_extension_overload(
-        &mut self,
-        name: &str,
-        candidates: &[FunctionId],
-        receiver: hir::Expr,
-        call: OverloadCall<'_>,
-        sink: &mut Vec<hir::Statement>,
-    ) -> Option<ResolvedCallee> {
-        let candidates = candidates
-            .iter()
-            .copied()
-            .map(|function| {
-                CallableCandidate::function(
-                    function,
-                    Vec::new(),
-                    self.function_lookup_witness(function),
-                )
-            })
-            .collect::<Vec<_>>();
-        self.resolve_overload_with_receiver(
-            name,
-            &candidates,
-            OverloadResolution {
-                receiver: OverloadReceiver::Extension(receiver),
-                explicit_type_args: call.explicit_type_args,
-                arguments: OverloadArguments::Source(call.arg_exprs),
-                span: call.span,
-                expected_result: call.expected_result,
-                argument_protocol: call.argument_protocol,
-            },
-            sink,
-        )
-        .into_option()
-    }
-
-    pub(crate) fn resolve_member_overload_lowered_outcome(
-        &mut self,
-        name: &str,
-        candidates: &[CallableCandidate],
-        call: LoweredOverloadCall,
-        sink: &mut Vec<hir::Statement>,
-    ) -> OverloadResolutionOutcome {
-        let LoweredOverloadCall {
-            explicit_type_args,
-            args,
-            span,
-            expected_result,
-        } = call;
-        self.resolve_overload_with_receiver(
-            name,
-            candidates,
-            OverloadResolution {
-                receiver: OverloadReceiver::Ordinary,
-                explicit_type_args: &explicit_type_args,
-                arguments: OverloadArguments::Lowered(args),
-                span,
-                expected_result,
-                argument_protocol: CallArgumentProtocol::Ordinary,
-            },
-            sink,
-        )
-    }
-
-    pub(crate) fn resolve_extension_overload_lowered_outcome(
-        &mut self,
-        name: &str,
-        candidates: &[FunctionId],
-        receiver: hir::Expr,
-        call: LoweredOverloadCall,
-        sink: &mut Vec<hir::Statement>,
-    ) -> OverloadResolutionOutcome {
-        let candidates = candidates
-            .iter()
-            .copied()
-            .map(|function| {
-                CallableCandidate::function(
-                    function,
-                    Vec::new(),
-                    self.function_lookup_witness(function),
-                )
-            })
-            .collect::<Vec<_>>();
-        let LoweredOverloadCall {
-            explicit_type_args,
-            args,
-            span,
-            expected_result,
-        } = call;
-        self.resolve_overload_with_receiver(
-            name,
-            &candidates,
-            OverloadResolution {
-                receiver: OverloadReceiver::Extension(receiver),
-                explicit_type_args: &explicit_type_args,
-                arguments: OverloadArguments::Lowered(args),
-                span,
-                expected_result,
-                argument_protocol: CallArgumentProtocol::Ordinary,
-            },
-            sink,
-        )
-    }
-
     fn resolve_overload_with_receiver(
         &mut self,
         name: &str,
@@ -363,6 +253,26 @@ impl Lowerer {
         resolution: OverloadResolution<'_>,
         sink: &mut Vec<hir::Statement>,
     ) -> OverloadResolutionOutcome {
+        let suppressed = candidates.iter().any(|candidate| {
+            self.declaration_surface
+                .rejects_function(candidate.function)
+        });
+        let candidates = candidates
+            .iter()
+            .filter(|candidate| {
+                !self
+                    .declaration_surface
+                    .rejects_function(candidate.function)
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        if candidates.is_empty() && suppressed {
+            // The duplicate-signature diagnostic is already attached to the
+            // declaration. This diagnostic-only blocker must stop a caller
+            // from probing a lower member/import layer, without manufacturing
+            // a semantic candidate from either rejected declaration.
+            return OverloadResolutionOutcome::Blocked;
+        }
         let OverloadResolution {
             receiver,
             explicit_type_args,
@@ -389,92 +299,14 @@ impl Lowerer {
         let prepared: Vec<Candidate> = candidates
             .iter()
             .map(|source| {
-                let view = self.callable_view(source, receiver_offset != 0);
-                let function = view.function();
-                let argument_map = match &arguments {
-                    OverloadArguments::Source(arguments) => match argument_protocol {
-                        CallArgumentProtocol::Ordinary => {
-                            CandidateArgumentMap::source(&view, arguments)
-                        }
-                        CallArgumentProtocol::OperatorSet => {
-                            CandidateArgumentMap::source_operator_set(&view, arguments)
-                        }
-                    },
-                    OverloadArguments::Lowered(arguments) => {
-                        CandidateArgumentMap::exact_lowered(&view, arguments.len())
-                    }
-                };
-                let mut params: Vec<_> = match &argument_map {
-                    Ok(argument_map) => argument_map
-                        .source_order
-                        .iter()
-                        .map(|input| {
-                            let (parameter, kind) = argument_map.source_binding(*input);
-                            let parameter = &view.value_parameters[parameter.index()];
-                            match (&parameter.calling, kind) {
-                                (
-                                    crate::defaults::SourceParameterCalling::Vararg {
-                                        element_type: element_ty,
-                                        ..
-                                    },
-                                    SourceInputKind::VarargElement,
-                                ) => *element_ty,
-                                (
-                                    crate::defaults::SourceParameterCalling::Vararg { .. },
-                                    SourceInputKind::VarargArray,
-                                )
-                                | (
-                                    crate::defaults::SourceParameterCalling::Required
-                                    | crate::defaults::SourceParameterCalling::Default(_),
-                                    SourceInputKind::Value,
-                                ) => parameter.ty,
-                                _ => unreachable!("argument mapping fixes each input shape"),
-                            }
-                        })
-                        .collect(),
-                    Err(_) => view
-                        .value_parameters
-                        .iter()
-                        .map(|parameter| parameter.ty)
-                        .collect(),
-                };
-                let signature = &self.signatures[&function];
-                debug_assert_eq!(view.effects.is_suspend, signature.is_suspend);
-                debug_assert_eq!(view.effects.attributes, signature.attributes);
-                debug_assert_eq!(view.declaration_span, self.functions[function].span);
-                debug_assert!(
-                    view.value_parameters
-                        .iter()
-                        .zip(&signature.params)
-                        .all(|(view, declaration)| view.name == declaration.name.text)
-                );
-                if receiver_offset != 0 {
-                    let crate::call_resolution::candidates::ReceiverShape::Extension(receiver) =
-                        view.receiver
-                    else {
-                        unreachable!("extension resolution builds extension callable views")
-                    };
-                    params.insert(0, receiver);
-                }
-                let owner_arguments = self.callable_candidate_owner_arguments(source);
-                debug_assert_eq!(view.owner_parameters.len(), owner_arguments.len());
-                let own_type_param_count = view.callable_parameters.len();
-                let explicit_arity_match = explicit_type_args.is_empty()
-                    || explicit_type_args.len() == own_type_param_count;
-                Candidate {
-                    argument_map,
-                    function,
-                    owner: source.owner.clone(),
-                    source: view.dispatch,
-                    access: source.access.clone(),
-                    params,
-                    return_ty: view.return_type,
-                    own_type_param_count,
-                    owner_arguments,
-                    explicit_arity_match,
-                    call_span: span,
-                    view,
-                }
+                self.prepare_overload_candidate(
+                    source,
+                    explicit_type_args,
+                    &arguments,
+                    argument_protocol,
+                    span,
+                    extension,
+                )
             })
             .collect();
 
@@ -484,31 +316,6 @@ impl Lowerer {
         let mut applicable = Vec::new();
         let mut failures = Vec::new();
         for (index, candidate) in prepared.iter().enumerate() {
-            if !candidate.explicit_arity_match {
-                failures.push(probe::CandidateProbeFailure {
-                    candidate: index,
-                    state: Box::new(self.clone()),
-                    arguments: Vec::new(),
-                    kind: probe::CandidateProbeFailureKind::Shape(
-                        probe::CandidateShapeFailure::TypeArgumentArity {
-                            expected: candidate.own_type_param_count,
-                            supplied: explicit_type_args.len(),
-                        },
-                    ),
-                });
-                continue;
-            }
-            if let Err(failure) = &candidate.argument_map {
-                failures.push(probe::CandidateProbeFailure {
-                    candidate: index,
-                    state: Box::new(self.clone()),
-                    arguments: Vec::new(),
-                    kind: probe::CandidateProbeFailureKind::Shape(
-                        probe::CandidateShapeFailure::Argument(failure.clone()),
-                    ),
-                });
-                continue;
-            }
             match self.probe_overload_candidate(
                 index,
                 candidate,
@@ -535,7 +342,11 @@ impl Lowerer {
                         span,
                     },
                 );
-                return OverloadResolutionOutcome::NoApplicable;
+                return if suppressed {
+                    OverloadResolutionOutcome::Failed
+                } else {
+                    OverloadResolutionOutcome::NoApplicable
+                };
             }
             1 => applicable[0].candidate,
             _ => {
@@ -547,11 +358,21 @@ impl Lowerer {
                 if tied.len() > 1
                     && let OverloadArguments::Source(source_arguments) = &arguments
                 {
-                    tied = literal_default_pareto(
+                    tied = crate::call_resolution::specificity::prefer_literal_defaults(
                         &tied,
-                        &applicable,
                         source_arguments,
-                        usize::from(inference_receiver.is_some()),
+                        |candidate, index| {
+                            let transaction = applicable
+                                .iter()
+                                .find(|value| value.candidate == candidate)
+                                .expect("every tied candidate has an applicability transaction");
+                            let value = &transaction.args
+                                [usize::from(inference_receiver.is_some()) + index];
+                            match transaction.state.types[value.ty] {
+                                hir::Type::Integer(kind) => Some(kind),
+                                _ => None,
+                            }
+                        },
                     );
                 }
                 if tied.len() != 1 {
@@ -573,141 +394,21 @@ impl Lowerer {
         };
 
         let candidate = &prepared[winner];
-        let function = candidate.function;
-        let owner = candidate.owner.clone();
-        let source = candidate.source;
-        let access = candidate.access.clone();
         let transaction_index = applicable
             .iter()
             .position(|candidate| candidate.candidate == winner)
             .expect("MSC winner has an applicability transaction");
         let transaction = applicable.swap_remove(transaction_index);
-        let probe::ApplicableCandidate {
-            state,
-            type_args,
-            mut args,
-            argument_sinks,
-            return_ty,
-            ..
-        } = transaction;
-        *self = *state;
-        let argument_map = candidate
-            .argument_map
-            .as_ref()
-            .expect("the winner has a complete argument map");
-        let (instance_receiver, args) = if matches!(arguments, OverloadArguments::Source(_)) {
-            let receiver = if extension {
-                Some(args.remove(0))
-            } else {
-                evaluation_receiver
-            };
-            let (materialized_receiver, mut args) = self.materialize_callable_arguments(
-                crate::argument_materialization::CallableArgumentMaterialization {
-                    function,
-                    argument_map,
-                    type_args: &type_args,
-                    receiver,
-                    source_args: args,
-                    argument_sinks,
-                    call_span: span,
-                },
-                sink,
-            );
-            if extension {
-                args.insert(
-                    0,
-                    materialized_receiver.expect("an extension receiver is materialized"),
-                );
-                (None, args)
-            } else {
-                (materialized_receiver, args)
-            }
-        } else {
-            for mut argument_sink in argument_sinks {
-                sink.append(&mut argument_sink);
-            }
-            if extension {
-                (None, args)
-            } else {
-                (evaluation_receiver, args)
-            }
-        };
-        // The complete owner-prefix plus method-suffix vector identifies
-        // the resolved generic entity stored on the HIR call.
-        let resolved_candidate = CallableCandidate {
-            function,
-            owner,
-            source,
-            access,
-        };
-        OverloadResolutionOutcome::Resolved(Box::new(ResolvedCallee {
-            target: resolved_candidate,
-            source,
-            type_args,
-            args,
-            receiver: instance_receiver,
-            return_ty,
-        }))
-    }
-}
-
-fn literal_default_pareto(
-    candidates: &[usize],
-    applicable: &[probe::ApplicableCandidate],
-    arguments: &[ast::CallArgument],
-    receiver_offset: usize,
-) -> Vec<usize> {
-    candidates
-        .iter()
-        .copied()
-        .filter(|candidate| {
-            !candidates.iter().copied().any(|other| {
-                other != *candidate
-                    && literal_default_dominates(
-                        applicable
-                            .iter()
-                            .find(|transaction| transaction.candidate == other)
-                            .expect("every tied candidate has an applicability transaction"),
-                        applicable
-                            .iter()
-                            .find(|transaction| transaction.candidate == *candidate)
-                            .expect("every tied candidate has an applicability transaction"),
-                        arguments,
-                        receiver_offset,
-                    )
-            })
-        })
-        .collect()
-}
-
-fn literal_default_dominates(
-    preferred: &probe::ApplicableCandidate,
-    other: &probe::ApplicableCandidate,
-    arguments: &[ast::CallArgument],
-    receiver_offset: usize,
-) -> bool {
-    let mut strictly_better = false;
-    for (source_index, argument) in arguments.iter().enumerate() {
-        let Some(default_kind) = crate::expr::integer_literal_default_kind(&argument.expression)
-        else {
-            continue;
-        };
-        let preferred_ty = preferred.args[receiver_offset + source_index].ty;
-        let other_ty = other.args[receiver_offset + source_index].ty;
-        let (hir::Type::Integer(preferred_kind), hir::Type::Integer(other_kind)) = (
-            &preferred.state.types[preferred_ty],
-            &other.state.types[other_ty],
-        ) else {
-            continue;
-        };
-        if preferred_kind == other_kind {
-            continue;
-        }
-        match (*preferred_kind == default_kind, *other_kind == default_kind) {
-            (true, false) => strictly_better = true,
-            (false, true) => return false,
-            (true, true) | (false, false) => {}
+        match self.commit_overload_candidate(
+            candidate,
+            transaction,
+            evaluation_receiver,
+            extension,
+            matches!(arguments, OverloadArguments::Source(_)),
+            sink,
+        ) {
+            Some(resolved) => OverloadResolutionOutcome::Resolved(Box::new(resolved)),
+            None => OverloadResolutionOutcome::Failed,
         }
     }
-    strictly_better
 }

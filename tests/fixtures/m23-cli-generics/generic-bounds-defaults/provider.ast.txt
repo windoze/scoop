@@ -1,0 +1,100 @@
+SourceFile
+  QualifiedPackage templates.bounds
+  public interface Readable
+    fun read
+  public interface Extra
+    fun extra
+  public interface Marker
+  public interface Holder<T>
+    fun get
+  public interface ChildHolder<T> : Holder<T>
+  public interface DefaultHolder<T> : ChildHolder<T>
+    fun stored
+    fun get
+  public struct StoredHolder<T> : DefaultHolder<T>
+    field payload: T
+    public fun stored
+  public interface DefaultReadable : Readable
+    fun read
+  public struct DefaultValue<T> : DefaultReadable
+    field payload: T
+  public enum DefaultTag<T> : DefaultReadable
+    Empty
+    Payload(T)
+  public fun defaultTag<T>(value: T): DefaultTag<T>
+    =
+      MethodCall Payload
+        Var DefaultTag
+        Var value
+  public abstract class AbstractReader<T>(), Readable
+  public class ActualReader<T>(val payload: T) : AbstractReader<T>(<0 args>)
+    public fun read
+  public struct Value : Readable, Extra
+    field number: Int
+    public fun read
+    public fun extra
+  public struct GenericValue<T> : Readable
+    field payload: T
+    field number: Int
+    public fun read
+  public open class PlainBase(), Readable, Marker
+    public fun read
+  public class PlainDerived() : PlainBase(<0 args>)
+    public fun read
+  public open class Base<T>(val payload: T), Readable, Marker
+    public fun read
+    public fun get
+  public class Derived<T>(payload: T) : Base<T>(<1 args>)
+    public fun read
+  public class HolderImpl<T>(val payload: T), ChildHolder<T>
+    public fun get
+  public fun readBound<T : Readable>(value: T): Int
+    =
+      MethodCall read
+        Var value
+  public fun readReference<T : Readable>(value: T): () -> Int
+    =
+      CallableReference 0 read
+        Var value
+  public fun combined<T>(value: T): Int where T : Readable, T : Extra
+    =
+      Binary Add
+        MethodCall read
+          Var value
+        MethodCall extra
+          Var value
+  public fun classBound<T>(value: T): Int where T : PlainBase, T : Marker
+    =
+      MethodCall read
+        Var value
+  public fun classReference<T>(value: T): () -> Int where T : PlainBase
+    =
+      CallableReference 1 read
+        Var value
+  public fun genericClassGet<T, U>(value: T): U where T : Base<U>
+    =
+      MethodCall get
+        Var value
+  public fun genericClassReference<T, U>(value: T): () -> U where T : Base<U>
+    =
+      CallableReference 2 get
+        Var value
+  public fun genericInterfaceGet<T, U>(value: T): U where T : Holder<U>
+    =
+      MethodCall get
+        Var value
+  public fun inheritedReference<T, U>(value: T): () -> U where T : ChildHolder<U>
+    =
+      CallableReference 3 get
+        Var value
+  public fun defaultRead<T : Readable>(value: T, answer: Int = <expr>): Int
+    =
+      Var answer
+  public fun stringBound<T : ToString>(value: T): String
+    =
+      MethodCall toString
+        Var value
+  public fun hashBound<T : Hash>(value: T): Long
+    =
+      MethodCall hash
+        Var value

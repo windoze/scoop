@@ -1,0 +1,6 @@
+import dependency.classes.ChildReader
+import dependency.classes.ParentReader
+
+public class LocalReader public constructor(): ChildReader {
+    public fun answer(): Long = super<ParentReader>.parent()
+}

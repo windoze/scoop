@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `ambiguous` is ambiguous in current-unit top-level candidate layer:\n  - fun ambiguous(first: Int, second: Any, extra: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `first` = Int, argument for `second` = Int\n  - fun ambiguous(first: Any, second: Int): Int — tied after pairwise declaration forwarding; requires integer literal exact commits: argument for `first` = Int, argument for `second` = Int",
+    "notes": [],
+    "origin": {
+      "cone": "1f76eba04ae46494bf0ea77073b0a1ba5d523cb2c77cff811d9434eca9579757",
+      "end": 173,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 156
+    },
+    "severity": "error"
+  }
+]

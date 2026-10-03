@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.ProtectedParent
+  public class Derived() : ProtectedParent(<1 args>)
+    public fun exposed
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall exposed
+          Call Derived

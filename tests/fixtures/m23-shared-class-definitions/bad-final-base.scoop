@@ -1,0 +1,3 @@
+import upstream.classDefinitions.*
+
+public class Invalid(): Link<Int>(42)

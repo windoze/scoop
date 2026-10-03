@@ -1,0 +1,10 @@
+package exactEquality
+
+public struct Parts(val labels: (String, String), val count: Int)
+public struct Slot<T>(val value: T)
+public enum Container { Empty, Item(Parts) }
+
+public fun parts(): Parts = Parts(("left", "right"), 42)
+public fun slot(): Slot<(String, Int)> = Slot(("slot", 42))
+public fun sameSlots(left: Slot<(String, Int)>, right: Slot<(String, Int)>): Boolean =
+    left == right

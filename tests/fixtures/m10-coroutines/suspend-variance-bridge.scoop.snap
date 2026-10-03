@@ -1,9 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m10-coroutines/suspend-variance-bridge.scoop:38:42: error: initializer of `immediate` must be of type SuspendTask<Animal>, found ImmediateDogTask; nominal application `SuspendTask` is invariant: first differing type argument 1 (`T`) is `Dog` in `SuspendTask<Dog>`, but `Animal` in `SuspendTask<Animal>`; construct the target application directly or convert explicitly
-m10-coroutines/suspend-variance-bridge.scoop:39:20: error: unknown variable `immediate`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation
-m10-coroutines/suspend-variance-bridge.scoop:42:42: error: initializer of `suspended` must be of type SuspendTask<Animal>, found SuspendedDogTask; nominal application `SuspendTask` is invariant: first differing type argument 1 (`T`) is `Dog` in `SuspendTask<Dog>`, but `Animal` in `SuspendTask<Animal>`; construct the target application directly or convert explicitly
-m10-coroutines/suspend-variance-bridge.scoop:43:20: error: unknown variable `suspended`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

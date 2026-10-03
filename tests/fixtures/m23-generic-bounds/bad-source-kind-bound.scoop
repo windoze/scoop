@@ -1,0 +1,4 @@
+import templates.bounds.Readable
+
+public fun <T : value> kindFirst(value: T): Int where T : Readable = 0
+public fun <T : Readable> nominalFirst(value: T): Int where T : value = 0

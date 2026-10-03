@@ -1,0 +1,872 @@
+Module
+  class ArithmeticException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val a: Int8
+        Type Int8
+        IntegerLiteral Int8 value=43 bits=0x2b
+      val b: Int16
+        Type Int16
+        IntegerLiteral Int16 value=43 bits=0x002b
+      val c: Int
+        Type Int
+        IntegerLiteral Int value=43 bits=0x0000002b
+      val d: Long
+        Type Long
+        IntegerLiteral Long value=43 bits=0x000000000000002b
+      val e: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=43 bits=0x2b
+      val f: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=43 bits=0x002b
+      val g: UInt
+        Type UInt
+        IntegerLiteral UInt value=43 bits=0x0000002b
+      val h: ULong
+        Type ULong
+        IntegerLiteral ULong value=43 bits=0x000000000000002b
+      val $dependency.receiver: Int8
+        Type Int8
+        Local a
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=2 bits=0x02
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      val $div.1: Int8
+        Type Int8
+        Local $dependency.receiver
+      val $div.2: Int8
+        Type Int8
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.2
+          Type Int8
+          IntegerLiteral Int8 value=0 bits=0x00
+    bb1 if.then.1
+      assign $new.1
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.1
+      throw
+        Type ArithmeticException
+        Local $new.1
+    bb2 if.merge.2
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.1
+          Type Int8
+          IntegerLiteral Int8 value=-128 bits=0x80
+    bb3 logic.rhs.3
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.2
+          Type Int8
+          IntegerLiteral Int8 value=-1 bits=0xff
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.2
+    bb6 if.then.6
+      assign $div.result.3
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      goto bb8
+    bb7 if.else.7
+      assign $div.result.3
+        Type Int8
+        SafeIntegerDivRem divide kind=Int8
+          Type Int8
+          Local $div.1
+          Type Int8
+          Local $div.2
+      goto bb8
+    bb8 if.merge.8
+      val $dependency.receiver: Int8
+        Type Int8
+        Local $div.result.3
+      val $dependency.receiver: Long
+        Type Long
+        IntegerConversion Int8 -> Long
+          Type Int8
+          Local $dependency.receiver
+      val $dependency.receiver: Int16
+        Type Int16
+        Local b
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=2 bits=0x0002
+      val $dependency.parameter.other: Int16
+        Type Int16
+        Local $dependency.argument.0
+      val $div.4: Int16
+        Type Int16
+        Local $dependency.receiver
+      val $div.5: Int16
+        Type Int16
+        Local $dependency.parameter.other
+      branch bb9 bb10
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $div.5
+          Type Int16
+          IntegerLiteral Int16 value=0 bits=0x0000
+    bb9 if.then.9
+      assign $new.3
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.3
+      throw
+        Type ArithmeticException
+        Local $new.3
+    bb10 if.merge.10
+      branch bb11 bb12
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $div.4
+          Type Int16
+          IntegerLiteral Int16 value=-32768 bits=0x8000
+    bb11 logic.rhs.11
+      assign $logic.4
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $div.5
+          Type Int16
+          IntegerLiteral Int16 value=-1 bits=0xffff
+      goto bb13
+    bb12 logic.short.12
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb13
+    bb13 logic.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $logic.4
+    bb14 if.then.14
+      assign $div.result.6
+        Type Int16
+        IntegerLiteral Int16 value=-32768 bits=0x8000
+      goto bb16
+    bb15 if.else.15
+      assign $div.result.6
+        Type Int16
+        SafeIntegerDivRem divide kind=Int16
+          Type Int16
+          Local $div.4
+          Type Int16
+          Local $div.5
+      goto bb16
+    bb16 if.merge.16
+      val $dependency.receiver: Int16
+        Type Int16
+        Local $div.result.6
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion Int16 -> Long
+          Type Int16
+          Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        Local c
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $div.7: Int
+        Type Int
+        Local $dependency.receiver
+      val $div.8: Int
+        Type Int
+        Local $dependency.parameter.other
+      branch bb17 bb18
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.8
+          Type Int
+          IntegerLiteral Int value=0 bits=0x00000000
+    bb17 if.then.17
+      assign $new.5
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.5
+      throw
+        Type ArithmeticException
+        Local $new.5
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.7
+          Type Int
+          IntegerLiteral Int value=-2147483648 bits=0x80000000
+    bb19 logic.rhs.19
+      assign $logic.6
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $div.8
+          Type Int
+          IntegerLiteral Int value=-1 bits=0xffffffff
+      goto bb21
+    bb20 logic.short.20
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $logic.6
+    bb22 if.then.22
+      assign $div.result.9
+        Type Int
+        IntegerLiteral Int value=-2147483648 bits=0x80000000
+      goto bb24
+    bb23 if.else.23
+      assign $div.result.9
+        Type Int
+        SafeIntegerDivRem divide kind=Int
+          Type Int
+          Local $div.7
+          Type Int
+          Local $div.8
+      goto bb24
+    bb24 if.merge.24
+      val $dependency.receiver: Int
+        Type Int
+        Local $div.result.9
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion Int -> Long
+          Type Int
+          Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: Long
+        Type Long
+        Local d
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $div.10: Long
+        Type Long
+        Local $dependency.receiver
+      val $div.11: Long
+        Type Long
+        Local $dependency.parameter.other
+      branch bb25 bb26
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.11
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb25 if.then.25
+      assign $new.7
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.7
+      throw
+        Type ArithmeticException
+        Local $new.7
+    bb26 if.merge.26
+      branch bb27 bb28
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.10
+          Type Long
+          IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+    bb27 logic.rhs.27
+      assign $logic.8
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $div.11
+          Type Long
+          IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      goto bb29
+    bb28 logic.short.28
+      assign $logic.8
+        Type Boolean
+        BoolLiteral false
+      goto bb29
+    bb29 logic.merge.29
+      branch bb30 bb31
+        Type Boolean
+        Local $logic.8
+    bb30 if.then.30
+      assign $div.result.12
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      goto bb32
+    bb31 if.else.31
+      assign $div.result.12
+        Type Long
+        SafeIntegerDivRem divide kind=Long
+          Type Long
+          Local $div.10
+          Type Long
+          Local $div.11
+      goto bb32
+    bb32 if.merge.32
+      val $dependency.argument.0: Long
+        Type Long
+        Local $div.result.12
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: UInt8
+        Type UInt8
+        Local e
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=2 bits=0x02
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      val $div.13: UInt8
+        Type UInt8
+        Local $dependency.receiver
+      val $div.14: UInt8
+        Type UInt8
+        Local $dependency.parameter.other
+      branch bb33 bb34
+        Type Boolean
+        IntegerCompare equal operands=UInt8 result=Boolean
+          Type UInt8
+          Local $div.14
+          Type UInt8
+          IntegerLiteral UInt8 value=0 bits=0x00
+    bb33 if.then.33
+      assign $new.9
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.9
+      throw
+        Type ArithmeticException
+        Local $new.9
+    bb34 if.merge.34
+      val $dependency.receiver: UInt8
+        Type UInt8
+        SafeIntegerDivRem divide kind=UInt8
+          Type UInt8
+          Local $div.13
+          Type UInt8
+          Local $div.14
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion UInt8 -> Long
+          Type UInt8
+          Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: UInt16
+        Type UInt16
+        Local f
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=2 bits=0x0002
+      val $dependency.parameter.other: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      val $div.15: UInt16
+        Type UInt16
+        Local $dependency.receiver
+      val $div.16: UInt16
+        Type UInt16
+        Local $dependency.parameter.other
+      branch bb35 bb36
+        Type Boolean
+        IntegerCompare equal operands=UInt16 result=Boolean
+          Type UInt16
+          Local $div.16
+          Type UInt16
+          IntegerLiteral UInt16 value=0 bits=0x0000
+    bb35 if.then.35
+      assign $new.10
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.10
+      throw
+        Type ArithmeticException
+        Local $new.10
+    bb36 if.merge.36
+      val $dependency.receiver: UInt16
+        Type UInt16
+        SafeIntegerDivRem divide kind=UInt16
+          Type UInt16
+          Local $div.15
+          Type UInt16
+          Local $div.16
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion UInt16 -> Long
+          Type UInt16
+          Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: UInt
+        Type UInt
+        Local g
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=2 bits=0x00000002
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      val $div.17: UInt
+        Type UInt
+        Local $dependency.receiver
+      val $div.18: UInt
+        Type UInt
+        Local $dependency.parameter.other
+      branch bb37 bb38
+        Type Boolean
+        IntegerCompare equal operands=UInt result=Boolean
+          Type UInt
+          Local $div.18
+          Type UInt
+          IntegerLiteral UInt value=0 bits=0x00000000
+    bb37 if.then.37
+      assign $new.11
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.11
+      throw
+        Type ArithmeticException
+        Local $new.11
+    bb38 if.merge.38
+      val $dependency.receiver: UInt
+        Type UInt
+        SafeIntegerDivRem divide kind=UInt
+          Type UInt
+          Local $div.17
+          Type UInt
+          Local $div.18
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion UInt -> Long
+          Type UInt
+          Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: ULong
+        Type ULong
+        Local h
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=2 bits=0x0000000000000002
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $div.19: ULong
+        Type ULong
+        Local $dependency.receiver
+      val $div.20: ULong
+        Type ULong
+        Local $dependency.parameter.other
+      branch bb39 bb40
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $div.20
+          Type ULong
+          IntegerLiteral ULong value=0 bits=0x0000000000000000
+    bb39 if.then.39
+      assign $new.12
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.12
+      throw
+        Type ArithmeticException
+        Local $new.12
+    bb40 if.merge.40
+      val $dependency.receiver: ULong
+        Type ULong
+        SafeIntegerDivRem divide kind=ULong
+          Type ULong
+          Local $div.19
+          Type ULong
+          Local $div.20
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerConversion ULong -> Long
+          Type ULong
+          Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val total: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val minimum: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      val minusOne: Int8
+        Type Int8
+        IntegerLiteral Int8 value=-1 bits=0xff
+      val $dependency.receiver: Int8
+        Type Int8
+        Local minimum
+      val $dependency.argument.0: Int8
+        Type Int8
+        Local minusOne
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      val $div.21: Int8
+        Type Int8
+        Local $dependency.receiver
+      val $div.22: Int8
+        Type Int8
+        Local $dependency.parameter.other
+      branch bb41 bb42
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.22
+          Type Int8
+          IntegerLiteral Int8 value=0 bits=0x00
+    bb41 if.then.41
+      assign $new.13
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.13
+      throw
+        Type ArithmeticException
+        Local $new.13
+    bb42 if.merge.42
+      branch bb43 bb44
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.21
+          Type Int8
+          IntegerLiteral Int8 value=-128 bits=0x80
+    bb43 logic.rhs.43
+      assign $logic.14
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.22
+          Type Int8
+          IntegerLiteral Int8 value=-1 bits=0xff
+      goto bb45
+    bb44 logic.short.44
+      assign $logic.14
+        Type Boolean
+        BoolLiteral false
+      goto bb45
+    bb45 logic.merge.45
+      branch bb46 bb47
+        Type Boolean
+        Local $logic.14
+    bb46 if.then.46
+      assign $div.result.23
+        Type Int8
+        IntegerLiteral Int8 value=-128 bits=0x80
+      goto bb48
+    bb47 if.else.47
+      assign $div.result.23
+        Type Int8
+        SafeIntegerDivRem divide kind=Int8
+          Type Int8
+          Local $div.21
+          Type Int8
+          Local $div.22
+      goto bb48
+    bb48 if.merge.48
+      val $dependency.receiver: Int8
+        Type Int8
+        Local $div.result.23
+      val $dependency.argument.0: Int8
+        Type Int8
+        Local minimum
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      branch bb49 bb50
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int8 result=Boolean
+            Type Int8
+            Local $dependency.receiver
+            Type Int8
+            Local $dependency.parameter.other
+    bb49 if.then.49
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb51
+    bb50 if.else.50
+      val $dependency.receiver: Int8
+        Type Int8
+        Local minimum
+      val $dependency.argument.0: Int8
+        Type Int8
+        Local minusOne
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      val $div.24: Int8
+        Type Int8
+        Local $dependency.receiver
+      val $div.25: Int8
+        Type Int8
+        Local $dependency.parameter.other
+      branch bb52 bb53
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.25
+          Type Int8
+          IntegerLiteral Int8 value=0 bits=0x00
+    bb51 if.merge.51
+      branch bb60 bb61
+        Type Boolean
+        Local $shortCircuit.0
+    bb52 if.then.52
+      assign $new.15
+        Type ArithmeticException
+        ClassAlloc ArithmeticException
+      call external1 direct
+        Type ArithmeticException
+        Local $new.15
+      throw
+        Type ArithmeticException
+        Local $new.15
+    bb53 if.merge.53
+      branch bb54 bb55
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.24
+          Type Int8
+          IntegerLiteral Int8 value=-128 bits=0x80
+    bb54 logic.rhs.54
+      assign $logic.16
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $div.25
+          Type Int8
+          IntegerLiteral Int8 value=-1 bits=0xff
+      goto bb56
+    bb55 logic.short.55
+      assign $logic.16
+        Type Boolean
+        BoolLiteral false
+      goto bb56
+    bb56 logic.merge.56
+      branch bb57 bb58
+        Type Boolean
+        Local $logic.16
+    bb57 if.then.57
+      assign $div.result.26
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      goto bb59
+    bb58 if.else.58
+      assign $div.result.26
+        Type Int8
+        SafeIntegerDivRem remainder kind=Int8
+          Type Int8
+          Local $div.24
+          Type Int8
+          Local $div.25
+      goto bb59
+    bb59 if.merge.59
+      val $dependency.receiver: Int8
+        Type Int8
+        Local $div.result.26
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=0 bits=0x00
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int8 result=Boolean
+            Type Int8
+            Local $dependency.receiver
+            Type Int8
+            Local $dependency.parameter.other
+      goto bb51
+    bb60 if.then.60
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.17
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.17
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.17
+    bb61 if.merge.61
+      val $dependency.receiver: Long
+        Type Long
+        Local total
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=168 bits=0x00000000000000a8
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb62 bb63
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb62 if.then.62
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.18
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.18
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.18
+    bb63 if.merge.63
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.19
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.19
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.19
+  output library

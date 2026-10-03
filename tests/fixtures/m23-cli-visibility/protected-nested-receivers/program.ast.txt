@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  public open class Outer()
+    protected nested class Hidden
+    protected nested interface View
+    protected nested struct Value
+    protected nested enum Flag
+    protected nested object Cache
+    nested class NestedUse
+  class Derived() : Outer(<0 args>)
+    private nested class Sub
+    private fun read
+    private fun create
+    companion object
+      private fun read
+  fun main()

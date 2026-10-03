@@ -3,7 +3,10 @@ use scoop_hir as hir;
 use crate::Lowerer;
 
 use super::TypeOccurrence;
-use super::types::{collect_callable_types, collect_field_ref_types, collect_method_callee_types};
+use super::types::{
+    collect_callable_target_types, collect_field_ref_types, collect_method_callee_types,
+    collect_reference_target_types,
+};
 
 /// Collect source-backed type occurrences for diagnostics. Unlike the
 /// inference walkers, this deliberately omits local-arena types and records
@@ -37,6 +40,12 @@ pub(in super::super) fn collect_statement_type_occurrences(
 ) {
     for statement in statements {
         match &statement.kind {
+            hir::StatementKind::GenericDelegateEnsure(reference) => push_types_at(
+                file,
+                statement.span,
+                |types| types.extend(reference.arguments.iter().copied()),
+                out,
+            ),
             hir::StatementKind::InitializationEnsure(_)
             | hir::StatementKind::LocalFunction(_)
             | hir::StatementKind::Break { .. }
@@ -55,6 +64,12 @@ pub(in super::super) fn collect_statement_type_occurrences(
             }
             hir::StatementKind::Assign { target, value } => {
                 match target {
+                    hir::AssignTarget::GenericDelegateStorage(reference) => push_types_at(
+                        file,
+                        statement.span,
+                        |types| types.extend(reference.arguments.iter().copied()),
+                        out,
+                    ),
                     hir::AssignTarget::Local(_)
                     | hir::AssignTarget::Global(_)
                     | hir::AssignTarget::SingletonPublishedRoot(_) => {}
@@ -66,19 +81,15 @@ pub(in super::super) fn collect_statement_type_occurrences(
                         push_types_at(
                             file,
                             statement.span,
-                            |types| collect_field_ref_types(lowerer, *field, types),
+                            |types| collect_field_ref_types(*field, types),
                             out,
                         );
                         collect_expr_type_occurrences(lowerer, receiver, out);
                     }
-                    hir::AssignTarget::InitializingClassField {
-                        application,
-                        origin,
-                        ..
-                    } => {
+                    hir::AssignTarget::InitializingClassField { field, origin, .. } => {
                         let evaluation = origin.concrete().evaluation;
                         out.push(TypeOccurrence {
-                            ty: lowerer.class_applications[*application].canonical_type,
+                            ty: field.owner,
                             file: evaluation.file as usize,
                             span: evaluation.span,
                         });
@@ -106,60 +117,6 @@ pub(in super::super) fn collect_statement_type_occurrences(
                 collect_statement_type_occurrences(lowerer, condition_setup, file, out);
                 collect_expr_type_occurrences(lowerer, cond, out);
                 collect_statement_type_occurrences(lowerer, body, file, out);
-            }
-            hir::StatementKind::For(plan) => {
-                collect_statement_type_occurrences(lowerer, plan.source_setup(), file, out);
-                push_type_at_expression(plan.source().ty, plan.source_init(), out);
-                collect_expr_type_occurrences(lowerer, plan.source_init(), out);
-                collect_statement_type_occurrences(lowerer, plan.iterator_setup(), file, out);
-                collect_expr_type_occurrences(lowerer, plan.iterator_call(), out);
-                let conformance = plan.conformance();
-                push_type_at_expression(conformance.source().ty, plan.iterator_call(), out);
-                push_type_at_origin(conformance.iterator().ty, conformance.origin(), out);
-                push_type_at_origin(
-                    lowerer.interface_applications[conformance.application()].canonical_type,
-                    conformance.origin(),
-                    out,
-                );
-                let next = plan.next();
-                push_types_at_origin(
-                    next.origin(),
-                    |types| {
-                        collect_callable_types(
-                            lowerer,
-                            hir::Callable::Method(next.callable()),
-                            types,
-                        )
-                    },
-                    out,
-                );
-                push_type_at_origin(next.result().ty, next.origin(), out);
-                let option = next.option();
-                push_type_at_origin(
-                    lowerer.enum_applications[option.application()].canonical_type,
-                    next.origin(),
-                    out,
-                );
-                push_type_at_origin(
-                    lowerer.enum_applications[option.some_payload().variant().application()]
-                        .canonical_type,
-                    next.origin(),
-                    out,
-                );
-                push_type_at_origin(
-                    lowerer.enum_applications[option.none().application()].canonical_type,
-                    next.origin(),
-                    out,
-                );
-                push_type_at_origin(next.element().ty, next.origin(), out);
-                collect_binding_plan_type_occurrences(
-                    lowerer,
-                    plan.binding(),
-                    file,
-                    statement.span,
-                    out,
-                );
-                collect_statement_type_occurrences(lowerer, plan.body(), file, out);
             }
             hir::StatementKind::When(when) => {
                 collect_expr_type_occurrences(lowerer, &when.subject, out);
@@ -193,101 +150,6 @@ pub(in super::super) fn collect_statement_type_occurrences(
     }
 }
 
-fn collect_binding_plan_type_occurrences(
-    lowerer: &Lowerer,
-    plan: &hir::IrrefutableBindingPlan,
-    file: usize,
-    span: scoop_ast::Span,
-    out: &mut Vec<TypeOccurrence>,
-) {
-    push_types_at(
-        file,
-        span,
-        |types| {
-            types.push(plan.subject.ty);
-            collect_binding_shape_types(lowerer, &plan.shape, types);
-        },
-        out,
-    );
-    for action in &plan.actions {
-        match action {
-            hir::IrrefutableBindingAction::Project {
-                source,
-                result,
-                projection,
-                origin,
-                ..
-            } => {
-                push_type_at_origin(source.ty, *origin, out);
-                push_type_at_origin(result.ty, *origin, out);
-                if let hir::BindingProjection::StructField(field) = projection {
-                    push_type_at_origin(
-                        lowerer.struct_applications[field.application()].canonical_type,
-                        *origin,
-                        out,
-                    );
-                }
-            }
-            hir::IrrefutableBindingAction::Component {
-                source,
-                result,
-                setup,
-                call,
-                ..
-            } => {
-                push_type_at_expression(source.ty, call, out);
-                push_type_at_expression(result.ty, call, out);
-                collect_statement_type_occurrences(lowerer, setup, file, out);
-                collect_expr_type_occurrences(lowerer, call, out);
-            }
-            hir::IrrefutableBindingAction::Bind {
-                source,
-                target,
-                origin,
-                ..
-            } => {
-                push_type_at_origin(source.ty, *origin, out);
-                push_type_at_origin(target.ty, *origin, out);
-            }
-        }
-    }
-}
-
-fn collect_binding_shape_types(
-    lowerer: &Lowerer,
-    shape: &hir::IrrefutableBindingShape,
-    out: &mut Vec<hir::TypeId>,
-) {
-    match shape {
-        hir::IrrefutableBindingShape::Binding(binding) => out.push(binding.ty),
-        hir::IrrefutableBindingShape::Wildcard => {}
-        hir::IrrefutableBindingShape::Tuple(elements) => {
-            for element in elements {
-                collect_binding_shape_types(lowerer, element, out);
-            }
-        }
-        hir::IrrefutableBindingShape::Struct {
-            application,
-            fields,
-        } => {
-            out.push(lowerer.struct_applications[*application].canonical_type);
-            for (field, shape) in fields {
-                out.push(lowerer.struct_applications[field.application()].canonical_type);
-                collect_binding_shape_types(lowerer, shape, out);
-            }
-        }
-        hir::IrrefutableBindingShape::Class {
-            application,
-            components,
-        } => {
-            out.push(lowerer.class_applications[*application].canonical_type);
-            for (_, shape) in components {
-                collect_binding_shape_types(lowerer, shape, out);
-            }
-        }
-    }
-}
-
 fn collect_pattern_type_occurrences(
     lowerer: &Lowerer,
     pattern: &hir::Pattern,
@@ -306,7 +168,7 @@ fn collect_pattern_type_occurrences(
             if let hir::LiteralPatternEquality::Ordinary { equals } = equality {
                 push_types_at_expression(
                     value,
-                    |types| collect_callable_types(lowerer, *equals, types),
+                    |types| collect_callable_target_types(lowerer, *equals, types),
                     out,
                 );
             }
@@ -318,7 +180,7 @@ fn collect_pattern_type_occurrences(
             ..
         } => {
             out.push(TypeOccurrence {
-                ty: lowerer.enum_applications[*application].canonical_type,
+                ty: application.owner,
                 file,
                 span,
             });
@@ -331,12 +193,9 @@ fn collect_pattern_type_occurrences(
                 collect_pattern_type_occurrences(lowerer, element, file, span, out);
             }
         }
-        hir::Pattern::Struct {
-            application,
-            fields,
-        } => {
+        hir::Pattern::Struct { owner, fields } => {
             out.push(TypeOccurrence {
-                ty: lowerer.struct_applications[*application].canonical_type,
+                ty: *owner,
                 file,
                 span,
             });
@@ -356,10 +215,16 @@ pub(in super::super) fn collect_expr_type_occurrences(
 
     use hir::ExprKind;
     match &expression.kind {
-        ExprKind::StringLiteral(_)
+        ExprKind::GenericDelegateStorageRead(reference) => {
+            for argument in reference.arguments.iter() {
+                push_type_at_expression(*argument, expression, out);
+            }
+        }
+        ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
+        | ExprKind::ConstructorReceiver
         | ExprKind::ConstructorParam(_)
         | ExprKind::Local(_)
         | ExprKind::GlobalRead(_)
@@ -409,38 +274,52 @@ pub(in super::super) fn collect_expr_type_occurrences(
             }
         }
         ExprKind::VariantConstruct { variant, args } => {
-            push_type_at_expression(
-                lowerer.enum_applications[variant.application()].canonical_type,
-                expression,
-                out,
-            );
+            push_type_at_expression(variant.owner, expression, out);
             for argument in args {
                 collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
         ExprKind::VariantTest { operand, variant } => {
-            push_type_at_expression(
-                lowerer.enum_applications[variant.application()].canonical_type,
-                expression,
-                out,
-            );
+            push_type_at_expression(variant.owner, expression, out);
             collect_expr_type_occurrences(lowerer, operand, out);
         }
         ExprKind::VariantPayloadProject { operand, field } => {
-            push_type_at_expression(
-                lowerer.enum_applications[field.variant().application()].canonical_type,
-                expression,
-                out,
-            );
+            push_type_at_expression(field.variant.owner, expression, out);
             collect_expr_type_occurrences(lowerer, operand, out);
         }
-        ExprKind::Lambda(lambda) => {
-            for capture in &lowerer.lambdas[*lambda].captures {
+        ExprKind::Lambda(id) => {
+            let closure = &lowerer.lambdas[*id];
+            push_types_at_expression(
+                expression,
+                |types| {
+                    if let hir::CallableBodyTypeArguments::Explicit(arguments) =
+                        &closure.body_type_arguments
+                    {
+                        types.extend(arguments.iter().copied());
+                    }
+                    types.extend(closure.captures.iter().map(|capture| capture.ty));
+                },
+                out,
+            );
+            for capture in &closure.captures {
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
         }
-        ExprKind::AnonymousFunction(function) => {
-            for capture in &lowerer.anonymous_functions[*function].captures {
+        ExprKind::AnonymousFunction(id) => {
+            let closure = &lowerer.anonymous_functions[*id];
+            push_types_at_expression(
+                expression,
+                |types| {
+                    if let hir::CallableBodyTypeArguments::Explicit(arguments) =
+                        &closure.body_type_arguments
+                    {
+                        types.extend(arguments.iter().copied());
+                    }
+                    types.extend(closure.captures.iter().map(|capture| capture.ty));
+                },
+                out,
+            );
+            for capture in &closure.captures {
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
         }
@@ -449,31 +328,17 @@ pub(in super::super) fn collect_expr_type_occurrences(
             for capture in &reference.captures {
                 collect_expr_type_occurrences(lowerer, &capture.source, out);
             }
-            match &reference.target {
-                hir::CallableReferenceTarget::Named(callee)
-                | hir::CallableReferenceTarget::Local { callee, .. } => {
-                    push_types_at_expression(
-                        expression,
-                        |types| collect_callable_types(lowerer, *callee, types),
-                        out,
-                    );
-                }
-                hir::CallableReferenceTarget::BoundMember { receiver, callee } => {
-                    push_types_at_expression(
-                        expression,
-                        |types| collect_method_callee_types(lowerer, *callee, types),
-                        out,
-                    );
-                    collect_expr_type_occurrences(lowerer, receiver, out);
-                }
-                hir::CallableReferenceTarget::BoundExtension { receiver, callee } => {
-                    push_types_at_expression(
-                        expression,
-                        |types| collect_callable_types(lowerer, *callee, types),
-                        out,
-                    );
-                    collect_expr_type_occurrences(lowerer, receiver, out);
-                }
+            push_types_at_expression(
+                expression,
+                |types| {
+                    collect_reference_target_types(lowerer, &reference.target, types);
+                    types.extend(reference.owner_type_arguments.iter().copied());
+                    types.extend(reference.captures.iter().map(|capture| capture.ty));
+                },
+                out,
+            );
+            if let Some(receiver) = reference.target.receiver() {
+                collect_expr_type_occurrences(lowerer, receiver, out);
             }
         }
         ExprKind::FunctionCoercion { source, .. }
@@ -482,6 +347,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         | ExprKind::PtrCast(source)
         | ExprKind::Box(source)
         | ExprKind::Unbox(source)
+        | ExprKind::ReferenceUpcast(source)
         | ExprKind::IsInstance {
             operand: source, ..
         }
@@ -568,24 +434,16 @@ pub(in super::super) fn collect_expr_type_occurrences(
         ExprKind::FieldAccess { receiver, field } => {
             push_types_at_expression(
                 expression,
-                |types| collect_field_ref_types(lowerer, *field, types),
+                |types| collect_field_ref_types(*field, types),
                 out,
             );
             collect_expr_type_occurrences(lowerer, receiver, out);
         }
-        ExprKind::InitializingClassFieldAccess { application, .. } => {
-            push_type_at_expression(
-                lowerer.class_applications[*application].canonical_type,
-                expression,
-                out,
-            );
+        ExprKind::InitializingClassFieldAccess { field, .. } => {
+            push_type_at_expression(field.owner, expression, out);
         }
-        ExprKind::InitializingStructFieldAccess { application, .. } => {
-            push_type_at_expression(
-                lowerer.struct_applications[*application].canonical_type,
-                expression,
-                out,
-            );
+        ExprKind::InitializingStructFieldAccess { owner, .. } => {
+            push_type_at_expression(*owner, expression, out);
         }
         ExprKind::MethodCall {
             receiver,
@@ -609,11 +467,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         }
         ExprKind::ArrayAssembly(assembly) => {
             push_type_at_expression(assembly.element_type, expression, out);
-            push_type_at_expression(
-                lowerer.class_applications[assembly.result_type].canonical_type,
-                expression,
-                out,
-            );
+            push_type_at_expression(assembly.result_type, expression, out);
             for part in &assembly.parts {
                 match part {
                     hir::ArrayAssemblyPart::Element(value)
@@ -633,29 +487,24 @@ pub(in super::super) fn collect_expr_type_occurrences(
             collect_expr_type_occurrences(lowerer, index, out);
             collect_expr_type_occurrences(lowerer, value, out);
         }
-        ExprKind::Call { callee, args } => {
-            push_types_at_expression(
-                expression,
-                |types| collect_callable_types(lowerer, *callee, types),
-                out,
-            );
-            for argument in args {
-                collect_expr_type_occurrences(lowerer, argument, out);
-            }
-        }
-        ExprKind::LocalFunctionCall {
+        ExprKind::Call {
             callee,
-            captures,
             args,
+            receiver,
             ..
         } => {
             push_types_at_expression(
                 expression,
-                |types| collect_callable_types(lowerer, *callee, types),
+                |types| {
+                    collect_callable_target_types(lowerer, *callee, types);
+                    if let hir::SourceCallReceiver::Receiver { static_type } = receiver {
+                        types.push(*static_type);
+                    }
+                },
                 out,
             );
-            for value in captures.iter().chain(args) {
-                collect_expr_type_occurrences(lowerer, value, out);
+            for argument in args {
+                collect_expr_type_occurrences(lowerer, argument, out);
             }
         }
         ExprKind::CallableCall { callee, args, .. } => {

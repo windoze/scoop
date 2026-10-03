@@ -1,0 +1,37 @@
+SourceFile
+  RootPackage
+  public fun ownerLocal<Unused, T>(seed: T, value: T = <expr>): T
+    =
+      Var value
+  public class OwnerLocalHost()
+    internal fun forward
+  public fun ownerBridge<X, Y>(seed: X, value: X = <expr>): X
+    =
+      Var value
+  public class OwnerCombinationHost()
+    internal fun swapped
+    internal fun repeated
+    internal fun layered
+  fun main()
+    val direct
+      Call OwnerLocalHost
+    MethodCall forward
+      Var direct
+      IntLiteral 1
+      StringLiteral "first"
+    MethodCall forward
+      Var direct
+      StringLiteral "unused"
+      StringLiteral "second"
+    val combined
+      Call OwnerCombinationHost
+    MethodCall swapped
+      Var combined
+      StringLiteral "third"
+      IntLiteral 2
+    MethodCall repeated
+      Var combined
+      StringLiteral "fourth"
+    MethodCall layered
+      Var combined
+      StringLiteral "fifth"

@@ -16,13 +16,18 @@ impl Lowerer {
         let expected_arguments = expected.and_then(|ty| match self.types[ty].clone() {
             Type::Enum(application) => {
                 let application = &self.enum_applications[application];
-                (application.template == enum_id && application.arguments.len() == arity)
+                (application.template
+                    == self
+                        .nominal_identity(crate::Owner::Enum(enum_id))
+                        .declaration_id()
+                    && application.arguments.len() == arity)
                     .then(|| application.arguments.clone())
             }
             _ => None,
         });
         let view = self.nominal_constructor_view(
             crate::call_resolution::candidates::NominalConstructorSource::Variant(target),
+            name.span,
         );
         let argument_map = crate::call_resolution::arguments::CandidateArgumentMap::positional(
             0,
@@ -47,6 +52,9 @@ impl Lowerer {
         let variant = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             application,
             target,
         )
@@ -54,7 +62,7 @@ impl Lowerer {
         let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                variant,
+                variant: self.enum_variant_reference(variant),
                 args: Vec::new(),
             },
             ty,
@@ -97,6 +105,7 @@ impl Lowerer {
         } = call;
         let view = self.nominal_constructor_view(
             crate::call_resolution::candidates::NominalConstructorSource::Variant(target),
+            span,
         );
         let argument_map =
             match crate::call_resolution::arguments::CandidateArgumentMap::source_nominal(
@@ -110,7 +119,7 @@ impl Lowerer {
             };
 
         let explicit_type_args = self.resolve_call_type_args(type_arg_refs)?;
-        let type_param_count = view.owner_parameters.len();
+        let type_param_count = view.signature.owner_parameters.len();
         if !explicit_type_args.is_empty() && explicit_type_args.len() != type_param_count {
             self.diagnose_nominal_shape_failure(
                 &view,
@@ -127,7 +136,11 @@ impl Lowerer {
                 return None;
             };
             let application = &self.enum_applications[application];
-            (application.template == enum_id && application.arguments.len() == type_param_count)
+            (application.template
+                == self
+                    .nominal_identity(crate::Owner::Enum(enum_id))
+                    .declaration_id()
+                && application.arguments.len() == type_param_count)
                 .then(|| application.arguments.clone())
         });
         let inferred = self.lower_nominal_arguments(NominalArgumentInput {
@@ -149,12 +162,15 @@ impl Lowerer {
                 call_span: span,
             },
             sink,
-        );
+        )?;
 
         let application = self.enum_application_id(enum_id, type_args);
         let variant = hir::AppliedEnumVariantRef::checked(
             &self.enums,
             &self.enum_applications,
+            self.nominal_identities
+                .as_ref()
+                .expect("nominal identities precede application references"),
             application,
             target,
         )
@@ -162,7 +178,7 @@ impl Lowerer {
         let ty = self.enum_applications[application].canonical_type;
         Some(hir::Expr {
             kind: ExprKind::VariantConstruct {
-                variant,
+                variant: self.enum_variant_reference(variant),
                 args: lowered,
             },
             ty,

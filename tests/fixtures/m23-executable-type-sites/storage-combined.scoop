@@ -1,0 +1,13 @@
+private enum HiddenStorage {
+    Empty,
+    Value(Int8)
+}
+public struct StoragePair(val flag: Boolean, val text: String)
+public class StorageOwner(val pair: StoragePair) {
+    private var hidden: Int = 7
+}
+public object StorageSingleton {
+    public val text: String = "singleton"
+}
+public val storageReady: Boolean = true
+public fun storageValue(): Any = HiddenStorage.Empty

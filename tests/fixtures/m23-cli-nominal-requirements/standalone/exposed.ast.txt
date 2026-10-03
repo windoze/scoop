@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  public fun storage(): Storage
+    =
+      Call Storage
+SourceFile
+  RootPackage
+  public struct Pair
+    field left: Int
+    field right: Int
+  public enum Choice
+    Empty
+    Text(String)
+    Count(Int)
+  public class Storage()
+    public fun read
+    private val first: Int = <expr>
+      IntLiteral 1
+    private var second: Int = <expr>
+      IntLiteral 2

@@ -1,0 +1,96 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class SourceBase<Int> vtable=0 itables=0
+  fun verifyDomain @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.receiver: SourceBase<Int> = external1 direct
+      call $dependency.receiver: Int = @fn2 direct
+        Type SourceBase<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun inspect @fn2(this: SourceBase<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: SourceBase<Int>
+        Type SourceBase<Int>
+        Local this
+      val $dependency.local.2: Int
+        Type Int
+        FieldAccess 0
+          Type SourceBase<Int>
+          Local $dependency.local.1
+      call $call.1: Int = @fn3 direct
+        Type SourceBase<Int>
+        Local $dependency.local.1
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        Local $call.1
+  fun read @fn3(this: SourceBase<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  instance mi0 function=@fn2 <- inspect
+  instance mi1 function=@fn3 <- read
+  str @str0 "illegal state"
+  output executable @fn1

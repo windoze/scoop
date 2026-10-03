@@ -1,0 +1,3 @@
+import facade.nesting.Outer.Box
+
+public fun invalid(value: Box<Int, Int>): Int = 42

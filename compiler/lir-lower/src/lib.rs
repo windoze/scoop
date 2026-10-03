@@ -12,7 +12,9 @@
 //! SSA construction is left to LLVM's mem2reg. Struct / tuple / Unit values are LLVM literal
 //! structs, and the type layouts — including reference-field offsets,
 //! which the M9 GC depends on — are computed into the LIR meta. This
-//! stage never fails: all errors were already reported by hir-lower.
+//! The strong production entry can still reject a persistent materialization
+//! that requires ODR ownership. This is a target-profile capability error,
+//! not a source-language type error.
 //!
 //! M3: function signatures. Parameters are SSA values (`Value::Param`),
 //! not stack slots — they are immutable, so no store ever targets them.
@@ -68,9 +70,8 @@
 //!   therefore independent of its final linker symbol and cannot be
 //!   confused with an ordinary global. Codegen resolves that typed
 //!   reference directly from `LirMeta::type_descriptors`.
-//!   For `scoop_rt_box` codegen materializes the by-value aggregate
-//!   payload behind a stack pointer (the "临时 alloca 取地址" of the
-//!   lowering contract).
+//!   Boxing carries a refined BoxedValue descriptor and a complete typed
+//!   payload local or logical ZST. Unboxing validates exact runtime identity.
 //!
 //! M19's `mir::ExprKind::ClassAlloc` is the exact allocation primitive and
 //! only calls `scoop_rt_alloc(td, size)`. Initializer functions receive the
@@ -132,152 +133,46 @@ use scoop_lir as lir;
 
 use scoop_mir as mir;
 
-/// Lower MIR to LIR.
-pub fn lower(module: &mir::Module, target_profile: lir::LirTargetProfile) -> lir::Module {
-    module
-        .validate()
-        .unwrap_or_else(|error| panic!("invalid MIR input to lir-lower: {error}"));
-    match module.meta.mangling_schema {
-        mir::ManglingSchemaIdentity::CompactV2 => {}
-    }
-    let context = LoweringContext::new(target_profile);
-    // Every MIR string constant becomes a global with the same symbol.
-    let mut globals = Arena::new();
-    let mut string_global_map: HashMap<mir::StringConstId, lir::GlobalId> = HashMap::new();
-    for (id, string) in module.strings.iter() {
-        let global = globals.alloc(lir::Global {
-            symbol: string.symbol.clone(),
-            address_kind: lir::PointerKind::Managed,
-            scan: lir::RefScan::None,
-            init: lir::GlobalInit::StringConst(string.value.clone()),
-        });
-        string_global_map.insert(id, global);
-    }
+mod error;
+pub use error::*;
 
-    // Enum definitions with fixed representations, in the MIR arena's
-    // order: `mir::EnumId` and `lir::EnumDefId` align.
-    let enums = lower_enums(&context, module);
-    // Struct ids also transpose 1:1. Their definitions retain the exact
-    // physical layout needed by codegen and C bridge generation.
-    let structs = lower_structs(&context, module, &enums);
-    // Classify every final MIR function before any body is lowered. Callee
-    // definitions and all statically selected call sites reuse these exact
-    // signatures rather than independently rebuilding a physical ABI.
-    let function_signatures = module
-        .functions
-        .iter()
-        .map(|(id, function)| {
-            let signature = abi::classify_mir_signature(
-                &context,
-                function.params.iter().map(|parameter| &parameter.ty),
-                &function.return_ty,
-                &structs,
-                &enums,
-            );
-            (id, signature)
-        })
-        .collect::<HashMap<_, _>>();
-    let (extern_functions, extern_function_refs) =
-        lower_extern_functions(&context, module, &structs, &enums);
-    let (storage_globals, native_globals, native_global_bridges) = lower_globals(
-        &context,
-        module,
-        &mut globals,
-        &structs,
-        &enums,
-        &string_global_map,
-    );
-    let callback_bridges = lower_callback_bridges(module, &structs, &enums);
-    let foreign_callback_families = lower_foreign_callback_families(module, &enums);
-    let foreign_callback_bridges = lower_foreign_callback_bridges(module, &structs, &enums);
-    let mut local_function_identities = lir::LocalFunctionIdentities::default();
-    let local_function_map = module
-        .top_level
-        .iter()
-        .map(|id| {
-            let reference = match module.functions[*id].gc_effect {
-                mir::GcEffect::Managed => {
-                    lir::LocalFunctionRef::Managed(local_function_identities.alloc_managed())
-                }
-                mir::GcEffect::NoGc => {
-                    lir::LocalFunctionRef::NoGc(local_function_identities.alloc_no_gc())
-                }
-            };
-            (*id, reference)
-        })
-        .collect::<HashMap<_, _>>();
-    let initialization_units =
-        lower_initialization_units(module, &storage_globals, &local_function_map);
-    let (type_descriptors, type_descriptor_refs, well_known_type_descriptors) =
-        type_descriptors(&context, module, &enums, &local_function_map);
-    let (arrays, array_type_map) = array_types(&context, module, &enums, &type_descriptor_refs);
+mod identity_roots;
+use identity_roots::IdentityRoots;
 
-    // Tuple types encountered while mapping value types, in
-    // first-appearance order; each one gets a meta layout.
-    let mut layout_types = Vec::new();
-    // Trap message globals (`scoop.cstr.N`), numbered in creation order.
-    let mut cstr_count = 0usize;
-    let mut safepoint_ids = safepoints::SafepointIds::default();
-    let mut lowered_functions = module
-        .top_level
-        .iter()
-        .map(|&id| {
-            lower_function(
-                &context,
-                module,
-                &module.functions[id],
-                &function_signatures[&id],
-                &string_global_map,
-                &storage_globals,
-                &mut globals,
-                &mut cstr_count,
-                &mut layout_types,
-                &structs,
-                &enums,
-                &array_type_map,
-                &type_descriptor_refs,
-                &local_function_map,
-                &function_signatures,
-                &extern_functions,
-                &extern_function_refs,
-                &mut safepoint_ids,
-            )
-        })
-        .collect::<Vec<_>>();
-    for function in &mut lowered_functions {
-        safepoints::complete_function(&context, function, &structs, &enums, &mut safepoint_ids);
-    }
-    let functions = lowered_functions
-        .into_iter()
-        .map(|function| function.function)
-        .collect();
+mod capability;
+use capability::validate_strong_materialization;
+pub use capability::{StrongLirCapabilityError, StrongLirMaterializationRequirement};
 
-    let (layouts, well_known_layouts) = layouts(&context, module, &enums, &layout_types);
-    lir::Module {
-        globals,
-        initialization_units,
-        structs,
-        enums,
-        functions,
-        extern_functions,
-        native_globals,
-        native_global_bridges,
-        callback_bridges,
-        foreign_callback_families,
-        foreign_callback_bridges,
-        entry_symbol: module.functions[module.entry].symbol.clone(),
-        meta: lir::LirMeta {
-            target_profile: context.target_profile(),
-            well_known_layouts,
-            well_known_type_descriptors,
-            arrays,
-            layouts,
-            type_descriptors,
-            external_type_descriptors: Arena::new(),
-            external_callables: Arena::new(),
-        },
-    }
-}
+mod callable_abi;
+pub use callable_abi::CallableAbiProjectionError;
+
+mod cross_cone_bridge;
+pub use cross_cone_bridge::{CrossConeLirBridgeLoweringError, lower_cross_cone_bridge_section};
+
+mod exact_layouts;
+pub use exact_layouts::{ExactLayoutLoweringError, lower_exact_layout_exports};
+
+mod exact_callable_abi;
+pub use exact_callable_abi::{ExactCallableAbiLoweringError, lower_exact_callable_abi_export};
+
+mod layout_exports;
+pub use layout_exports::{
+    LayoutAbiDependencyLoweringError, LayoutAbiExportDependenciesV1, LayoutAbiExportInputV1,
+    LayoutAbiExportLoweringError, lower_layout_abi_dependencies, lower_layout_abi_exports,
+};
+
+mod external_callables;
+use external_callables::lower_external_callables;
+mod dependency_types;
+
+mod strong_production_v2;
+pub use strong_production_v2::{
+    StrongProductionV2ProjectionError, project_external_initialization_uses_v2,
+};
+
+mod lower_profile;
+mod lowering;
+pub use lower_profile::{lower, lower_with_diagnostics, lower_with_layout_dependencies};
 
 mod abi;
 mod callbacks;
@@ -286,6 +181,8 @@ mod globals;
 mod initialization;
 mod locals;
 mod metadata;
+mod native_abi;
+mod production;
 mod runtime;
 mod safepoints;
 mod target;
@@ -297,6 +194,9 @@ use initialization::*;
 use metadata::*;
 use runtime::*;
 use target::*;
+
+pub use production::lower_entry_production_source;
+use production::{lower_initialization_startup_gateway, lower_root_artifacts};
 
 mod function;
 use function::lower_function;

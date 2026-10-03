@@ -1,0 +1,21 @@
+package consumer.calls
+import upstream.calls.*
+import upstream.calls.identity as first
+import upstream.calls.identity as second
+
+public fun <T> localIdentity(value: T): T = value
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val before = calls()
+    val value = localIdentity<T>(defaulted<T>(first<T>(seed)))
+    val callback = { second<T>(value) }
+    mark()
+    if (calls() != before + 1) { return 1 }
+    return action<T>(callback(), read)
+}
+
+public fun result(): Int {
+    if (exercise<String>("call", { value -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { value -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { value -> value })
+}

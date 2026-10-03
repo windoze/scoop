@@ -2,7 +2,7 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn normalize_primitive_method_call(
-        &self,
+        &mut self,
         function: hir::FunctionId,
         receiver: hir::Expr,
         args: &[hir::Expr],
@@ -14,9 +14,7 @@ impl Lowerer {
         };
         let kind = match intrinsic.kind {
             hir::IntrinsicFunctionKind::Integer(kind) => {
-                return Some(
-                    self.normalize_integer_method_call(function, kind, receiver, args, ty, span),
-                );
+                return Some(self.normalize_integer_method_call(kind, receiver, args, ty, span));
             }
             hir::IntrinsicFunctionKind::PrimitiveUnary(kind) => {
                 debug_assert!(args.is_empty());
@@ -45,9 +43,8 @@ impl Lowerer {
         })
     }
 
-    fn normalize_integer_method_call(
-        &self,
-        function: hir::FunctionId,
+    pub(in crate::expr) fn normalize_integer_method_call(
+        &mut self,
         intrinsic: hir::IntegerIntrinsicKind,
         receiver: hir::Expr,
         args: &[hir::Expr],
@@ -56,26 +53,17 @@ impl Lowerer {
     ) -> hir::Expr {
         let kind = match intrinsic {
             hir::IntegerIntrinsicKind::NoGcOperation { kind, operation } => {
-                let target = hir::NoGcCallableRef::try_from_function(function, &self.functions)
-                    .expect("core validation proves the integer intrinsic effect");
                 ExprKind::IntegerOperation {
-                    operation: hir::IntegerOperation::NoGc {
-                        kind,
-                        operation,
-                        target,
-                    },
+                    operation: hir::IntegerOperation::NoGc { kind, operation },
                     arguments: integer_operation_arguments(operation.arity(), receiver, args),
                 }
             }
             hir::IntegerIntrinsicKind::ManagedOperation { kind, operation } => {
-                let target = hir::ManagedCallableRef::try_from_function(function, &self.functions)
-                    .expect("core validation proves the integer intrinsic effect");
+                if let Err(error) = self.prepare_arithmetic_exception_type() {
+                    self.error(span, error.diagnostic("integer division exception type"));
+                }
                 ExprKind::IntegerOperation {
-                    operation: hir::IntegerOperation::Managed {
-                        kind,
-                        operation,
-                        target,
-                    },
+                    operation: hir::IntegerOperation::Managed { kind, operation },
                     arguments: integer_operation_arguments(
                         hir::IntegerOperationArity::Binary,
                         receiver,
@@ -87,14 +75,11 @@ impl Lowerer {
                 source,
                 target_kind,
             } => {
-                let target = hir::NoGcCallableRef::try_from_function(function, &self.functions)
-                    .expect("core validation proves the integer conversion effect");
                 debug_assert!(args.is_empty());
                 ExprKind::IntegerConversion {
                     conversion: hir::IntegerConversion {
                         source,
                         target_kind,
-                        target,
                     },
                     operand: Box::new(receiver),
                 }

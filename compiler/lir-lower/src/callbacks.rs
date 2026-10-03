@@ -4,14 +4,68 @@ pub(super) fn lower_callback_bridges(
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
-) -> Arena<lir::CallbackBridge> {
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    external_callables: &HashMap<mir::ExternalCallableUseId, lir::ExternalCallableId>,
+    callback_signatures: &HashMap<
+        mir::FunctionTypeId,
+        scoop_identity::CanonicalCAbiSignatureFingerprint,
+    >,
+) -> (
+    Arena<lir::CallbackBridge>,
+    HashMap<mir::CallbackBridgeId, lir::CallbackBridgeId>,
+) {
+    let mut requested = std::collections::HashSet::new();
+    for (_, function) in module.functions.iter() {
+        for (_, block) in function.body.blocks.iter() {
+            mir::visit_block_exprs(block, &mut |expression| {
+                if let mir::ExprKind::FunctionAddress { callback } = expression.kind {
+                    requested.insert(callback);
+                }
+            });
+        }
+    }
     let mut callbacks = Arena::new();
+    let mut mapping = HashMap::new();
     for (id, callback) in module.callback_bridges.iter() {
+        if !requested.contains(&id) {
+            continue;
+        }
         let signature = &module.function_types[callback.signature];
-        callbacks.alloc(lir::CallbackBridge {
-            source_name: module.functions[callback.source].name.clone(),
-            bridge_symbol: module.functions[callback.bridge_function].symbol.clone(),
-            trampoline_symbol: format!("scoop_c_callback_{}", id.into_raw().into_u32()),
+        let (source_name, bridge) = match callback.target {
+            mir::StaticCallbackTarget::Local {
+                source,
+                bridge_function,
+            } => {
+                let lir::LocalFunctionRef::NoGc(bridge) = local_functions[&bridge_function] else {
+                    unreachable!("validated static callback bridges are NoGC")
+                };
+                (
+                    module.functions[source].name.clone(),
+                    lir::StaticCallbackTarget::Local(bridge),
+                )
+            }
+            mir::StaticCallbackTarget::External {
+                source,
+                bridge_function,
+            } => (
+                format!(
+                    "{:?}",
+                    module.meta.external_callables[source]
+                        .reference()
+                        .implementation()
+                ),
+                lir::StaticCallbackTarget::External(external_callables[&bridge_function]),
+            ),
+        };
+        let lowered = callbacks.alloc(lir::CallbackBridge {
+            source_name,
+            bridge,
+            trampoline: lir::StaticCallbackTrampolineIdentity::new(
+                module.cone,
+                callback.identity().storage_bridge(),
+                callback_signatures[&callback.signature],
+            )
+            .expect("validated static callback trampoline identities are encodable"),
             params: signature
                 .parameter_types
                 .iter()
@@ -19,39 +73,50 @@ pub(super) fn lower_callback_bridges(
                 .collect(),
             return_type: c_return_type(module, structs, enums, &signature.return_type),
         });
+        mapping.insert(id, lowered);
     }
-    callbacks
+    (callbacks, mapping)
 }
 
 pub(super) fn lower_foreign_callback_bridges(
     module: &mir::Module,
     structs: &lir::StructDefs,
     enums: &lir::EnumDefs,
+    local_functions: &HashMap<mir::FunctionId, lir::LocalFunctionRef>,
+    callback_signatures: &HashMap<
+        mir::FunctionTypeId,
+        scoop_identity::CanonicalCAbiSignatureFingerprint,
+    >,
 ) -> Arena<lir::ForeignCallbackBridge> {
     let mut bridges = Arena::new();
-    let mut shared_trampolines: HashMap<(mir::FunctionTypeId, u32), (String, String)> =
-        HashMap::new();
+    let mut shared_trampolines: HashMap<_, lir::ManagedCallbackTrampolineIdentity> = HashMap::new();
     for (_, bridge) in module.foreign_callback_bridges.iter() {
         let signature = &module.function_types[bridge.native_signature];
         let adapter = &module.foreign_callback_adapters[bridge.adapter];
-        let key = (bridge.native_signature, bridge.context_index);
-        let (trampoline_symbol, signature_symbol) =
-            if let Some(symbols) = shared_trampolines.get(&key) {
-                symbols.clone()
-            } else {
-                let raw = shared_trampolines.len();
-                let symbols = (
-                    format!("scoop_foreign_callback_{raw}"),
-                    format!("scoop_foreign_callback_signature_{raw}"),
-                );
-                shared_trampolines.insert(key, symbols.clone());
-                symbols
-            };
+        let signature_fingerprint = callback_signatures[&bridge.native_signature];
+        let context_index = scoop_identity::CallbackParameterIndex::new(bridge.context_index);
+        let key = (signature_fingerprint, context_index);
+        let trampoline = if let Some(identity) = shared_trampolines.get(&key) {
+            identity.clone()
+        } else {
+            let identity = lir::ManagedCallbackTrampolineIdentity::new(
+                module.cone,
+                signature_fingerprint,
+                context_index,
+            )
+            .expect("validated foreign callback bridge identities are encodable");
+            shared_trampolines.insert(key, identity.clone());
+            identity
+        };
+        let lir::LocalFunctionRef::Managed(adapter_function) = local_functions[&adapter.function]
+        else {
+            unreachable!("validated foreign callback adapters are managed")
+        };
         bridges.alloc(lir::ForeignCallbackBridge {
+            application: bridge.application(),
             family: lir::ForeignCallbackFamilyId::from_raw(bridge.family.into_raw()),
-            adapter_symbol: module.functions[adapter.function].symbol.clone(),
-            trampoline_symbol,
-            signature_symbol,
+            adapter: adapter_function,
+            trampoline,
             params: signature
                 .parameter_types
                 .iter()

@@ -8,8 +8,10 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) structs: &'a StructDefs,
     pub(crate) enums: &'a EnumDefs,
     pub(crate) extern_functions: &'a ExternFunctions,
+    pub(crate) external_callables: &'a Arena<scoop_lir::ExternalCallable>,
     pub(crate) native_globals: &'a Arena<NativeGlobal>,
     pub(crate) native_global_bridges: &'a scoop_lir::NativeGlobalBridges,
+    pub(crate) callback_bridges: &'a Arena<scoop_lir::CallbackBridge>,
     pub(crate) foreign_callback_families: &'a Arena<scoop_lir::ForeignCallbackFamily>,
     pub(crate) foreign_callback_bridges: &'a Arena<scoop_lir::ForeignCallbackBridge>,
     pub(crate) globals_arena: &'a Arena<Global>,
@@ -20,8 +22,6 @@ pub(crate) struct ModuleCtx<'a, 'ctx> {
     pub(crate) type_tds: &'a [GlobalValue<'ctx>],
     pub(crate) external_type_tds: &'a [GlobalValue<'ctx>],
     pub(crate) target_data: &'a inkwell::targets::TargetData,
-    pub(crate) bounds_message: Option<GlobalValue<'ctx>>,
-    pub(crate) array_size_message: Option<GlobalValue<'ctx>>,
 }
 
 fn compiler_root_source_key(source: scoop_lir::CallerRootSource) -> (u8, u32) {
@@ -40,7 +40,8 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                 Instruction::ManagedPoll { site } => {
                     sources.extend(site.live.as_slice().iter().map(|value| value.source));
                 }
-                Instruction::ArrayAlloc { live, .. }
+                Instruction::BoxValue { live, .. }
+                | Instruction::ArrayAlloc { live, .. }
                 | Instruction::ArrayAssembly { live, .. }
                 | Instruction::ArrayClone { live, .. } => {
                     sources.extend(live.as_slice().iter().map(|value| value.source));
@@ -81,7 +82,12 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
 
 pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId>; 2] {
     let first = match instruction {
-        Instruction::BinOp { out, .. }
+        Instruction::UnboxValue { result, .. } => match result {
+            scoop_lir::UnboxResult::ZeroSized { out, .. } => Some(*out),
+            scoop_lir::UnboxResult::NonZero(_) => None,
+        },
+        Instruction::BoxValue { out, .. }
+        | Instruction::BinOp { out, .. }
         | Instruction::UnaryOp { out, .. }
         | Instruction::IntegerUnary { out, .. }
         | Instruction::IntegerBinary { out, .. }
@@ -91,6 +97,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::IntegerShift { out, .. }
         | Instruction::IntegerConvert { out, .. }
         | Instruction::MakeAggregate { out, .. }
+        | Instruction::MakeZstValue { out, .. }
         | Instruction::ExtractValue { out, .. }
         | Instruction::HeapLoad { out, .. }
         | Instruction::MachineHeapLoad { out, .. }

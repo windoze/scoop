@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  public class Mimics()
+    public nested struct Array
+    public nested struct MutableArray
+    public nested struct Option
+    public nested struct ForeignCallback
+  public class Combinations()
+    public fun array
+    public fun mutable
+    public fun option
+    public fun callback
+    public fun nested
+    public fun mimicArray
+    public fun mimicMutable
+    public fun mimicOption
+    public fun mimicCallback
+    public fun tuple

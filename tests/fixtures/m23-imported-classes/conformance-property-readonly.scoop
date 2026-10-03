@@ -1,0 +1,17 @@
+import dependency.classes.Counter
+import dependency.classes.Valued
+
+public struct LocalValue(val input: Long): Valued {
+    public override val value: Long
+        get() = input
+}
+public enum Marker: Valued {
+    Only
+    public override val value: Long
+        get() = 1
+}
+public fun primary(): Counter {
+    val value: Valued = LocalValue(20)
+    val marker: Valued = Marker.Only
+    return Counter(value.value + marker.value)
+}

@@ -1,0 +1,97 @@
+Module
+  class Counter vtable=0 itables=0
+  class box<Long> vtable=0 itables=0
+  class box<Boolean> vtable=0 itables=0
+  interface RebuiltDefaults
+  interface ToString
+  interface Hash
+  interface RebuiltReadable
+  generated_exact_type get0 location=class2 nominal_id=3536333a8ba0aaed76b3bec081995b49af64f164523f6560324f8e64e7ef08e0 exact_id=c4a33308c9b1a4e41424f4d1ffe01aa6e97556fe61c06a7387e42b4ddf522d17
+  generated_exact_type get1 location=class1 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val integer: Long
+        Type Long
+        IntegerLiteral Long value=9 bits=0x0000000000000009
+      val boolean: Boolean
+        Type Boolean
+        BoolLiteral true
+      val text: String
+        Type String
+        StringConst @str0
+      val selected: RebuiltDefaults
+        Type RebuiltDefaults
+        Box
+          Type Long
+          Local integer
+      val $dependency.receiver: RebuiltDefaults
+        Type RebuiltDefaults
+        Local selected
+      call $dependency.receiver: Long = external0 interface RebuiltDefaults[0]
+        Type RebuiltDefaults
+        Local $dependency.receiver
+      val $dependency.receiver: RebuiltDefaults
+        Type RebuiltDefaults
+        Box
+          Type Boolean
+          Local boolean
+      call $dependency.argument.0: Long = external0 interface RebuiltDefaults[0]
+        Type RebuiltDefaults
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.receiver: RebuiltDefaults
+        Type RebuiltDefaults
+        Retype RebuiltDefaults
+          Type String
+          Local text
+      call $dependency.argument.0: Long = external0 interface RebuiltDefaults[0]
+        Type RebuiltDefaults
+        Local $dependency.receiver
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerBinary subtract kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.1
+  str @str0 "mixed"
+  output library

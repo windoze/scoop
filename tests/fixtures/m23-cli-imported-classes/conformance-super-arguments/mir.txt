@@ -1,0 +1,160 @@
+Module
+  struct Token ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LocalArguments>
+    Completed(value: LocalArguments)
+    Suspended()
+  enum CoroutineSlot<LocalArguments>
+    Empty()
+    Value(value: LocalArguments)
+  class LocalArguments vtable=0 itables=1
+  class Counter vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface DefaultArguments
+  interface Continuation<LocalArguments>
+  interface SuspendTask<LocalArguments>
+  interface SuspendRegistration<LocalArguments>
+  generated_exact_type get0 location=enum2 nominal_id=12d10a9be38e722739a0cf46eeda2f4ec1fee5f2a3951bcc1a23daeb2e2ba872 exact_id=048464f79a1d877dbda02c3dc2bb875e811fcbc8b737548bb7686de76a0ef12b
+  generated_exact_type get1 location=enum1 nominal_id=d7afb5acb313b040395dddee5b2d80474285b5c9a16e2fb151b412dc404ed4cd exact_id=f83e8d8a4b89af52e876aee12108c8875634c99d7a01d20a537c97c4d59b999c
+  generated_callable gc0 function=@fn7 id=78ce566babdbcea2528ed7391e94a33c08cbf77ce4064eff3640a6a04b3ea54b
+  fun LocalArguments.answer @fn0(this: LocalArguments) -> Long
+    bb0 entry
+      val $dependency.receiver: DefaultArguments
+        Type DefaultArguments
+        Retype DefaultArguments
+          Type LocalArguments
+          Local this
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Counter
+        Type Counter
+        Local $new.1
+      call $dependency.parameter.marker: Token = external2 direct
+      val $dependency.parameter.input: Counter
+        Type Counter
+        Local $dependency.argument.0
+      val $dependency.parameter.extra: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $call.2: Long = external0 direct
+        Type DefaultArguments
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.marker
+        Type Counter
+        Local $dependency.parameter.input
+        Type Long
+        Local $dependency.parameter.extra
+      return
+        Type Long
+        Local $call.2
+  fun primary @fn1() -> Counter
+    bb0 entry
+      assign $new.1
+        Type LocalArguments
+        ClassAlloc LocalArguments
+      call @fn6 direct
+        Type LocalArguments
+        Local $new.1
+      val $receiver: LocalArguments
+        Type LocalArguments
+        Local $new.1
+      call $dependency.argument.0: Long = @fn0 direct
+        Type LocalArguments
+        Local $receiver
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  fun Continuation.resume @fn2(this: Continuation<LocalArguments>, value: LocalArguments) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn3(this: Continuation<LocalArguments>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn4(this: SuspendTask<LocalArguments>, $completion: Continuation<LocalArguments>) -> CoroutineStep<LocalArguments>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn5(this: SuspendRegistration<LocalArguments>, continuation: Continuation<LocalArguments>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.LocalArguments.$c0 @fn6(this: LocalArguments) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<LocalArguments> @fn7(task: SuspendTask<LocalArguments>, completion: Continuation<LocalArguments>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn2 interface Continuation<LocalArguments>[0]
+        Type Continuation<LocalArguments>
+        Local completion
+        Type LocalArguments
+        EnumField v0 f0
+          Type CoroutineStep<LocalArguments>
+          Local $step
+      return
+    bb2 failed
+      call @fn3 interface Continuation<LocalArguments>[1]
+        Type Continuation<LocalArguments>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocalArguments> = @fn4 interface SuspendTask<LocalArguments>[0]
+        Type SuspendTask<LocalArguments>
+        Local task
+        Type Continuation<LocalArguments>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocalArguments>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<LocalArguments> result=LocalArguments
+  coroutine_slot cl0 CoroutineSlot<LocalArguments> value=LocalArguments
+  coroutine_start ct0 result=LocalArguments function=fn7
+  coroutine_fn cf0 @fn4 source_return=LocalArguments step=cs0 immediate
+  instance mi0 function=@fn2 <- Continuation.resume
+  instance mi1 function=@fn3 <- Continuation.resumeWithException
+  instance mi2 function=@fn4 <- SuspendTask.run
+  instance mi3 function=@fn5 <- SuspendRegistration.register
+  output library

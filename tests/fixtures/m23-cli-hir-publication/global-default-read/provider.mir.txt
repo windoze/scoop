@@ -1,0 +1,42 @@
+Module
+  global0 globalDefaultValue: Int global initial=encoded(Int:0x7)
+  global1 threadDefaultValue: Int thread_local initial=encoded(Int:0xd)
+  global2 nativeDefaultValue: Int extern m23_default_value
+  fun readGlobalDefault @fn0(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun readThreadDefault @fn1(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun readNativeDefault @fn2(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $get$globalDefaultValue @fn3() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead globalDefaultValue
+  fun $set$globalDefaultValue @fn4(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign globalDefaultValue
+        Type Int
+        Local value
+      return
+  fun $get$threadDefaultValue @fn5() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead threadDefaultValue
+  fun $set$threadDefaultValue @fn6(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign threadDefaultValue
+        Type Int
+        Local value
+      return
+  output library

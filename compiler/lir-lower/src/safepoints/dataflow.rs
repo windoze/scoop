@@ -5,6 +5,12 @@ pub(super) fn instruction_uses(
     function: &lir::Function,
 ) -> Vec<lir::Value> {
     match instruction {
+        lir::Instruction::BoxValue { payload, .. } => payload
+            .source()
+            .map(lir::Value::Local)
+            .into_iter()
+            .collect(),
+        lir::Instruction::UnboxValue { object, .. } => vec![*object],
         lir::Instruction::BinOp { lhs, rhs, .. }
         | lir::Instruction::IntegerBinary { lhs, rhs, .. }
         | lir::Instruction::SafeIntegerDivRem { lhs, rhs, .. }
@@ -89,7 +95,8 @@ pub(super) fn instruction_uses(
             ..
         } => vec![*array, *index, *value],
         lir::Instruction::EnumWrap { fields, .. } => fields.clone(),
-        lir::Instruction::GlobalLoad { .. }
+        lir::Instruction::MakeZstValue { .. }
+        | lir::Instruction::GlobalLoad { .. }
         | lir::Instruction::GlobalAddress { .. }
         | lir::Instruction::NativeGlobalLoad { .. }
         | lir::Instruction::NativeGlobalAddress { .. }
@@ -117,7 +124,14 @@ pub(super) fn call_uses(
 
 pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue> {
     let out = match instruction {
-        lir::Instruction::BinOp { out, .. }
+        lir::Instruction::UnboxValue { result, .. } => {
+            return match result {
+                lir::UnboxResult::ZeroSized { out, .. } => vec![LiveValue::Temp(*out)],
+                lir::UnboxResult::NonZero(place) => vec![LiveValue::Local(place.local())],
+            };
+        }
+        lir::Instruction::BoxValue { out, .. }
+        | lir::Instruction::BinOp { out, .. }
         | lir::Instruction::UnaryOp { out, .. }
         | lir::Instruction::IntegerUnary { out, .. }
         | lir::Instruction::IntegerBinary { out, .. }
@@ -127,6 +141,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::IntegerShift { out, .. }
         | lir::Instruction::IntegerConvert { out, .. }
         | lir::Instruction::MakeAggregate { out, .. }
+        | lir::Instruction::MakeZstValue { out, .. }
         | lir::Instruction::ExtractValue { out, .. }
         | lir::Instruction::HeapLoad { out, .. }
         | lir::Instruction::MachineHeapLoad { out, .. }
@@ -224,10 +239,34 @@ pub(super) fn block_successors(block: &lir::BasicBlock) -> Vec<lir::BlockId> {
 mod tests {
     use super::*;
 
+    fn callable_body() -> lir::CallableBodyIdentity {
+        let site = scoop_identity::SourceDeclarationSite::new(
+            scoop_identity::ConeIdentity::SINGLE_FILE,
+            scoop_identity::PackagePath::root(),
+            scoop_identity::DefinitionOwnerChain::top_level(),
+            scoop_identity::DeclarationScope::ConeWide,
+        )
+        .unwrap();
+        let declaration = scoop_identity::SourceDeclarationKey::function(
+            site,
+            scoop_identity::CanonicalIdentifier::new("dataflowTest").unwrap(),
+            0,
+            None,
+            Vec::new(),
+        );
+        let function =
+            scoop_identity::PersistentFunctionId::from_source_declaration(&declaration).unwrap();
+        lir::CallableBodyIdentity::for_function(function).unwrap()
+    }
+
     #[test]
     fn variant_primitives_track_their_operand_use_and_temp_definition() {
         let mut enums = lir::EnumDefs::default();
         let enum_id = enums.alloc(lir::EnumDef {
+            exact_type: crate::tests::test_physical_exact(
+                "Tracked",
+                scoop_identity::SourceNominalKind::Enum,
+            ),
             name: "Tracked".to_string(),
             repr: lir::EnumRepr::Tagged {
                 variants: vec![lir::EnumVariantRepr {
@@ -264,8 +303,8 @@ mod tests {
             terminator: lir::Terminator::Unreachable,
         });
         let function = lir::Function {
+            callable_body: callable_body(),
             gc_effect: lir::GcEffect::Managed,
-            symbol: "scoop.dataflow.variant".to_string(),
             signature: lir::ScoopAbiSignature::new(
                 vec![lir::AbiArgument::Indirect(
                     lir::AbiValue::new(
@@ -279,6 +318,7 @@ mod tests {
                 lir::CallingConvention::Cdecl,
             ),
             call_targets: lir::CallTargets::default(),
+            safepoints: lir::SafepointIdentities::default(),
             locals: Arena::default(),
             temps,
             blocks,

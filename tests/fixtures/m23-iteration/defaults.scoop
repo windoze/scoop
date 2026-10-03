@@ -1,0 +1,22 @@
+package consumer.iteration
+
+import upstream.iteration.*
+import upstream.iteration.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+private fun readInt(value: Int): Int = value
+
+private class Reference(public val value: Int)
+private fun readReference(value: Reference): Int = value.value
+
+public fun result(): Int {
+    if (defaultPick<Int>([20, 42], 0) != 42) { return 1 }
+    val chosen = Reference(42)
+    val fallback = Reference(0)
+    if (defaultPick<Reference>([fallback, chosen], fallback) !== chosen) { return 2 }
+    if (defaultPick<Reference>([], fallback) !== fallback) { return 6 }
+    if (totalPack<Int>(20, *[22], read = ::readInt) != 42) { return 3 }
+    if (totalPack<Int>(values = [20, 22], read = ::readInt) != 42) { return 4 }
+    if (totalPack<Int>(*[], read = ::readInt) != 0) { return 5 }
+    return exercise<Int>(42, ::readInt)
+}

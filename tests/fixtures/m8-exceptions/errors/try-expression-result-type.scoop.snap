@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m8-exceptions/errors/try-expression-result-type.scoop:5:9: error: try branch result must be of type Int, found String

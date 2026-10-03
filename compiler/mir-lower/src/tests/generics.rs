@@ -1,101 +1,134 @@
 //! Generic nominal specialization and ordinary generic core calls.
 
 use super::*;
-use crate::instances::LoweredFunctionInstance;
 
 #[test]
-fn monomorphization_metadata_preserves_typed_sources_and_argument_groups() {
+fn monomorphization_metadata_preserves_persistent_materializations() {
+    use scoop_identity::{
+        CallableApplicationKey, CallableInstantiationOwner, CallableMaterialization,
+        CallableMaterializationContext, CallableTemplateOwner, CanonicalIdentifier,
+        CborIdentityRecord, ConeIdentity, CoreBuiltinNominal, DeclarationScope,
+        DefinitionOwnerChain, ExactTypeKey, NonEmptyVec, PackagePath, SourceDeclarationKey,
+        SourceDeclarationSite,
+    };
+
+    let site = || {
+        SourceDeclarationSite::new(
+            ConeIdentity::SINGLE_FILE,
+            PackagePath::root(),
+            DefinitionOwnerChain::top_level(),
+            DeclarationScope::ConeWide,
+        )
+        .unwrap()
+    };
+    let source = |name: &str, type_parameters| {
+        SourceDeclarationKey::function(
+            site(),
+            CanonicalIdentifier::new(name).unwrap(),
+            type_parameters,
+            None,
+            Vec::new(),
+        )
+    };
+    let generic = match scoop_hir::HirSourceFunctionIdentity::from_declaration(source(
+        "identity", 1,
+    ))
+    .unwrap()
+    {
+        scoop_hir::HirSourceFunctionIdentity::Generic(record) => record.id(),
+        scoop_hir::HirSourceFunctionIdentity::Plain(_) => unreachable!(),
+    };
+    let method =
+        match scoop_hir::HirSourceFunctionIdentity::from_declaration(source("get", 0)).unwrap() {
+            scoop_hir::HirSourceFunctionIdentity::Plain(record) => record.id(),
+            scoop_hir::HirSourceFunctionIdentity::Generic(_) => unreachable!(),
+        };
+    let generic_method =
+        match scoop_hir::HirSourceFunctionIdentity::from_declaration(source("convert", 1)).unwrap()
+        {
+            scoop_hir::HirSourceFunctionIdentity::Generic(record) => record.id(),
+            scoop_hir::HirSourceFunctionIdentity::Plain(_) => unreachable!(),
+        };
+    let exact = |nominal: CoreBuiltinNominal| {
+        CborIdentityRecord::from_key(ExactTypeKey::Nominal(nominal.identity_record().id()))
+            .unwrap()
+            .id()
+    };
+    let unit = exact(CoreBuiltinNominal::Unit);
+    let any = exact(CoreBuiltinNominal::Any);
+    let application = |key: &CallableApplicationKey| {
+        scoop_identity::PersistentCallableApplicationId::from_key(key).unwrap()
+    };
+    let identity_unit = CallableApplicationKey::for_generic_function(
+        generic,
+        CallableInstantiationOwner::NoOwner,
+        NonEmptyVec::from_first(unit, []),
+    );
+    let identity_any = CallableApplicationKey::for_generic_function(
+        generic,
+        CallableInstantiationOwner::NoOwner,
+        NonEmptyVec::from_first(any, []),
+    );
+    let get = CallableApplicationKey::for_function(
+        method,
+        CallableInstantiationOwner::ExactNominalOwner(any),
+    );
+    let convert = CallableApplicationKey::for_generic_function(
+        generic_method,
+        CallableInstantiationOwner::ExactNominalOwner(any),
+        NonEmptyVec::from_first(unit, []),
+    );
+    let materialization = |template, key: &CallableApplicationKey| {
+        CallableMaterialization::new(
+            template,
+            CallableMaterializationContext::Application(application(key)),
+        )
+    };
+    let materializations = [
+        materialization(
+            CallableTemplateOwner::GenericFunction(generic),
+            &identity_unit,
+        ),
+        materialization(
+            CallableTemplateOwner::GenericFunction(generic),
+            &identity_any,
+        ),
+        materialization(CallableTemplateOwner::Function(method), &get),
+        materialization(
+            CallableTemplateOwner::GenericFunction(generic_method),
+            &convert,
+        ),
+    ];
+
     let mut registry = InstanceRegistry::default();
     let hir_function = |raw: u32| hir::concrete::FunctionId::from_raw(raw.into());
     let mir_function = |raw: u32| mir::FunctionId::from_raw(raw.into());
-    let arguments = |first, rest| mir::NonEmptyTypeArguments::new(first, rest);
+    for (index, name) in ["identity", "identity", "Box.get", "Host.convert"]
+        .into_iter()
+        .enumerate()
+    {
+        registry.record(
+            hir_function(index as u32),
+            mir_function(index as u32),
+            name.to_string(),
+            materializations[index],
+        );
+    }
 
-    registry.record(
-        hir_function(0),
-        mir_function(0),
-        "scoop.identity$I32".to_string(),
-        "identity".to_string(),
-        LoweredFunctionInstance::GenericFunction {
-            origin: hir::concrete::GenericFunctionOriginId::from_raw(7),
-            arguments: arguments(mir::Type::Integer(mir::IntegerKind::SIGNED_32), Vec::new()),
-        },
-    );
-    registry.record(
-        hir_function(1),
-        mir_function(1),
-        "scoop.identity$S".to_string(),
-        "identity".to_string(),
-        LoweredFunctionInstance::GenericFunction {
-            origin: hir::concrete::GenericFunctionOriginId::from_raw(7),
-            arguments: arguments(mir::Type::String, Vec::new()),
-        },
-    );
-    registry.record(
-        hir_function(2),
-        mir_function(2),
-        "scoop.Box$I32.get$I32".to_string(),
-        "Box.get".to_string(),
-        LoweredFunctionInstance::ParameterizedMethod {
-            origin: hir::concrete::OwnerParameterizedMethodOriginId::from_raw(11),
-            owner: mir::MonomorphizedMethodOwner::Class(mir::ClassId::from_raw(3_u32.into())),
-            owner_arguments: arguments(mir::Type::Integer(mir::IntegerKind::SIGNED_32), Vec::new()),
-        },
-    );
-    registry.record(
-        hir_function(3),
-        mir_function(3),
-        "scoop.Host.convert$S".to_string(),
-        "Host.convert".to_string(),
-        LoweredFunctionInstance::GenericMethod {
-            origin: hir::concrete::GenericMethodOriginId::from_raw(13),
-            owner: mir::MonomorphizedMethodOwner::Class(mir::ClassId::from_raw(4_u32.into())),
-            owner_arguments: Vec::new(),
-            method_arguments: arguments(mir::Type::String, Vec::new()),
-        },
-    );
-
-    assert_eq!(registry.generic_function_sources.len(), 1);
-    assert_eq!(registry.parameterized_method_sources.len(), 1);
-    assert_eq!(registry.generic_method_sources.len(), 1);
     assert_eq!(registry.meta.len(), 4);
-
-    let mir::MonomorphizedSource::GenericFunction { source, arguments } =
-        &registry.meta[mir::MonomorphizedFunctionId::from_raw(1_u32.into())].source
-    else {
-        panic!("the second instance must retain its free-function category")
-    };
+    for (index, expected) in materializations.into_iter().enumerate() {
+        let instance = &registry.meta
+            [mir::MonomorphizedFunctionId::from_raw(u32::try_from(index).unwrap().into())];
+        assert_eq!(instance.materialization, expected);
+    }
     assert_eq!(
-        registry.generic_function_sources[*source].display_name,
+        registry.meta[mir::MonomorphizedFunctionId::from_raw(1_u32.into())].display_name,
         "identity"
     );
-    assert_eq!(arguments.to_vec(), vec![mir::Type::String]);
-
-    let mir::MonomorphizedSource::ParameterizedMethod {
-        owner,
-        owner_arguments,
-        ..
-    } = &registry.meta[mir::MonomorphizedFunctionId::from_raw(2_u32.into())].source
-    else {
-        panic!("the owner-parameterized method category must be retained")
-    };
-    assert!(matches!(owner, mir::MonomorphizedMethodOwner::Class(_)));
     assert_eq!(
-        owner_arguments.to_vec(),
-        vec![mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+        registry.get(hir_function(3)),
+        Some(mir::MonomorphizedFunctionId::from_raw(3_u32.into()))
     );
-
-    let mir::MonomorphizedSource::GenericMethod {
-        owner,
-        owner_arguments,
-        method_arguments,
-        ..
-    } = &registry.meta[mir::MonomorphizedFunctionId::from_raw(3_u32.into())].source
-    else {
-        panic!("the generic-method category must be retained")
-    };
-    assert!(matches!(owner, mir::MonomorphizedMethodOwner::Class(_)));
-    assert!(owner_arguments.is_empty());
-    assert_eq!(method_arguments.to_vec(), vec![mir::Type::String]);
 }
 
 #[test]
@@ -135,10 +168,9 @@ fn generic_structs_instantiate_per_argument_list() {
     );
     let module = lower(&h.finish(main));
 
-    // One instance per (struct, args): `PinnedPtr$V32` once,
-    // `PinnedPtr$S` once despite two uses, `Box2$S` once — named
-    // like the enum instances. Generic definitions themselves do
-    // not survive into MIR: MIR contains no generic types.
+    // One instance per typed argument list. The source declaration name is
+    // display-only; concrete arguments, not an encoded name, distinguish the
+    // two PinnedPtr instances.
     let defs = |name: &str| {
         module
             .structs
@@ -147,28 +179,52 @@ fn generic_structs_instantiate_per_argument_list() {
             .map(|(_, def)| def)
             .collect::<Vec<_>>()
     };
-    assert!(defs("PinnedPtr").is_empty());
-    assert!(defs("Box2").is_empty());
-    assert_eq!(defs("PinnedPtr$V32").len(), 1);
+    let pinned = defs("PinnedPtr");
+    assert_eq!(pinned.len(), 2);
+    let pinned_uint = pinned
+        .iter()
+        .find(|definition| {
+            definition.type_arguments == [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+        })
+        .expect("PinnedPtr<UInt>");
     assert_eq!(
-        defs("PinnedPtr$V32")[0].declared_fields()[0].ty,
+        pinned_uint.declared_fields()[0].ty,
         mir::Type::Integer(mir::IntegerKind::UNSIGNED_64)
     );
-    assert!(defs("PinnedPtr$V32")[0].gc_free);
-    assert_eq!(defs("PinnedPtr$S").len(), 1);
-    assert!(defs("PinnedPtr$S")[0].gc_free);
-    assert_eq!(defs("Box2$S").len(), 1);
+    assert!(pinned_uint.gc_free);
+    let pinned_string = pinned
+        .iter()
+        .find(|definition| definition.type_arguments == [mir::Type::String])
+        .expect("PinnedPtr<String>");
+    assert!(pinned_string.gc_free);
+    assert_eq!(
+        pinned_uint.declared_fields()[0].identity,
+        pinned_string.declared_fields()[0].identity,
+        "specializations of one source struct retain one source field identity"
+    );
+    let box2 = defs("Box2");
+    assert_eq!(box2.len(), 1);
+    assert_eq!(box2[0].type_arguments, [mir::Type::String]);
     // Field substitution: `Box2<String>`'s `x` is `String`.
-    assert_eq!(defs("Box2$S")[0].declared_fields()[0].ty, mir::Type::String);
-    assert!(!defs("Box2$S")[0].gc_free);
+    assert_eq!(box2[0].declared_fields()[0].ty, mir::Type::String);
+    assert_ne!(
+        box2[0].declared_fields()[0].identity,
+        pinned_uint.declared_fields()[0].identity,
+        "fields owned by different source structs remain distinct"
+    );
+    assert!(!box2[0].gc_free);
 
     // Locals and StructInits resolve to the instances.
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let instance_of = |local: mir::LocalId| {
         let mir::Type::Struct(id) = &body.locals[local].ty else {
             panic!("a struct local")
         };
-        module.structs[*id].name.as_str()
+        &module.structs[*id]
     };
     let (first_constructor, la) = statement_call(&entry_statements(body)[0]);
     let (_, lb) = statement_call(&entry_statements(body)[1]);
@@ -180,13 +236,54 @@ fn generic_structs_instantiate_per_argument_list() {
         lc.expect("struct constructor returns its value"),
         ld.expect("struct constructor returns its value"),
     );
-    assert_eq!(instance_of(la), "PinnedPtr$V32");
-    assert_eq!(instance_of(lb), "PinnedPtr$S");
-    assert_eq!(instance_of(lc), "PinnedPtr$S");
-    assert_eq!(instance_of(ld), "Box2$S");
+    assert_eq!(instance_of(la).name, "PinnedPtr");
+    assert_eq!(
+        instance_of(la).type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+    );
+    assert_eq!(instance_of(lb).name, "PinnedPtr");
+    assert_eq!(instance_of(lb).type_arguments, [mir::Type::String]);
+    assert_eq!(instance_of(lc).name, "PinnedPtr");
+    assert_eq!(instance_of(lc).type_arguments, [mir::Type::String]);
+    assert_eq!(instance_of(ld).name, "Box2");
+    assert_eq!(instance_of(ld).type_arguments, [mir::Type::String]);
     let mir::Callee::User(first_constructor) = first_constructor.target.callee else {
         panic!("a struct constructor is a direct user function")
     };
+    let constructor_source = module
+        .meta
+        .source_callable_materializations
+        .get(first_constructor)
+        .expect("the struct constructor has an exact MIR location");
+    assert!(matches!(
+        constructor_source.materialization().template(),
+        scoop_identity::CallableTemplateOwner::Constructor(_)
+    ));
+    let constructor = &module.functions[first_constructor];
+    let signature = constructor_source.signature_record().signature();
+    let parameters = constructor
+        .params
+        .iter()
+        .map(|parameter| {
+            module
+                .meta
+                .source_exact_types
+                .get(&parameter.ty)
+                .unwrap()
+                .identity_record()
+                .id()
+        })
+        .collect::<Vec<_>>();
+    let result = module
+        .meta
+        .source_exact_types
+        .get(&constructor.return_ty)
+        .unwrap()
+        .identity_record()
+        .id();
+    assert!(!signature.receiver().is_present());
+    assert_eq!(signature.parameters(), parameters);
+    assert_eq!(signature.result(), result);
     assert_eq!(
         module.functions[first_constructor].gc_effect,
         mir::GcEffect::NoGc,
@@ -204,7 +301,11 @@ fn generic_structs_instantiate_per_argument_list() {
     else {
         panic!("a primary struct constructor returns a StructInit")
     };
-    assert_eq!(module.structs[*struct_id].name, "PinnedPtr$V32");
+    assert_eq!(module.structs[*struct_id].name, "PinnedPtr");
+    assert_eq!(
+        module.structs[*struct_id].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+    );
 }
 
 #[test]
@@ -227,19 +328,40 @@ fn generic_interface_applications_get_distinct_mir_identities() {
     let (int, string) = (h.int, h.string);
     let int_channel = h.interface_app(interface, vec![int]);
     let string_channel = h.interface_app(interface, vec![string]);
-    h.declare_class(
+    let ints = h.declare_class(
         "Ints",
         hir::ClassModifier::Final,
         &[],
         None,
         vec![int_channel],
     );
-    h.declare_class(
+    let strings = h.declare_class(
         "Strings",
         hir::ClassModifier::Final,
         &[],
         None,
         vec![string_channel],
+    );
+    let mut locals = Arena::new();
+    let parameters = [ints, strings]
+        .into_iter()
+        .enumerate()
+        .map(|(index, owner)| {
+            let ty = h.class_ty(owner);
+            let name = format!("value{index}");
+            let value = locals.alloc(local(&name, ty));
+            param(&name, ty, value)
+        })
+        .collect();
+    h.user_fn_full(
+        "observeChannels",
+        Vec::new(),
+        parameters,
+        h.unit,
+        hir::Body {
+            locals,
+            statements: Vec::new(),
+        },
     );
     let main = h.user_fn(
         "main",
@@ -250,12 +372,17 @@ fn generic_interface_applications_get_distinct_mir_identities() {
     );
     let module = lower(&h.finish(main));
 
-    let names: Vec<_> = module
+    let channels = module
         .interfaces
         .iter()
-        .map(|(_, interface)| interface.name.as_str())
-        .collect();
-    assert_eq!(names, ["Channel$I32", "Channel$S"]);
+        .filter_map(|(_, interface)| (interface.name == "Channel").then_some(interface))
+        .collect::<Vec<_>>();
+    assert_eq!(channels.len(), 2);
+    assert_eq!(
+        channels[0].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
+    assert_eq!(channels[1].type_arguments, [mir::Type::String]);
     let class_interfaces: Vec<_> = module
         .classes
         .iter()
@@ -263,6 +390,76 @@ fn generic_interface_applications_get_distinct_mir_identities() {
         .map(|(_, class)| class.interfaces[0])
         .collect();
     assert_ne!(class_interfaces[0], class_interfaces[1]);
+}
+
+#[test]
+fn generic_interface_signature_types_follow_typed_interface_order() {
+    let mut h = Harness::new();
+    let parameter = hir::TypeParamId::from_raw(0);
+    let t = h.types.alloc(hir::Type::Param(parameter));
+    let option_t = h.option(t);
+    let source = h.declare_interface(
+        "Source",
+        vec![hir::TypeParamDecl {
+            id: parameter,
+            name: "T".to_string(),
+            bounds: hir::TypeParamBounds::Unconstrained,
+            span: SPAN,
+        }],
+        vec![t],
+        vec![hir::MethodSig {
+            name: "next".to_string(),
+            is_suspend: false,
+            attributes: hir::FunctionAttributes::default(),
+            type_params: Vec::new(),
+            params: Vec::new(),
+            return_ty: option_t,
+            span: SPAN,
+        }],
+    );
+    let (int, uint) = (h.int, h.uint);
+    let int_source = h.interface_app(source, vec![int]);
+    let uint_source = h.interface_app(source, vec![uint]);
+    let mut locals = Arena::new();
+    locals.alloc(local("ints", int_source));
+    locals.alloc(local("uints", uint_source));
+    let main = h.user_fn(
+        "main",
+        hir::Body {
+            locals,
+            statements: Vec::new(),
+        },
+    );
+    let module = lower(&h.finish(main));
+
+    let sources = module
+        .interfaces
+        .iter()
+        .filter_map(|(_, interface)| (interface.name == "Source").then_some(interface))
+        .collect::<Vec<_>>();
+    assert_eq!(sources.len(), 2);
+    assert_eq!(
+        sources[0].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
+    assert_eq!(
+        sources[1].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+    );
+    let options = module
+        .enums
+        .iter()
+        .filter_map(|(_, enumeration)| (enumeration.name == "Option").then_some(enumeration))
+        .collect::<Vec<_>>();
+    assert_eq!(options.len(), 2);
+    assert_eq!(
+        options[0].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::SIGNED_32)]
+    );
+    assert_eq!(
+        options[1].type_arguments,
+        [mir::Type::Integer(mir::IntegerKind::UNSIGNED_32)]
+    );
 }
 
 #[test]
@@ -293,7 +490,11 @@ fn print_overloads_are_ordinary_calls() {
     );
     let module = lower(&h.finish(main));
 
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let callees: Vec<mir::FunctionId> = entry_statements(body)
         .iter()
         .map(|statement| {
@@ -304,23 +505,21 @@ fn print_overloads_are_ordinary_calls() {
             id
         })
         .collect();
-    // The overloads are the first six MIR functions (declaration
-    // order: the three `print`s, then the three `println`s), and
-    // each overload's symbol carries the parameter encoding.
-    assert_eq!(callees, module.top_level[..6]);
-    let symbols: Vec<&str> = callees
+    // Each call retains the overload selected by HIR. Extern provider
+    // entries also occur in the ordinary declaration order.
+    let overloads = module
+        .top_level
         .iter()
-        .map(|&id| module.functions[id].symbol.as_str())
+        .copied()
+        .filter(|&id| matches!(module.functions[id].name.as_str(), "print" | "println"))
+        .collect::<Vec<_>>();
+    assert_eq!(callees, overloads);
+    let names: Vec<&str> = callees
+        .iter()
+        .map(|&id| module.functions[id].name.as_str())
         .collect();
     assert_eq!(
-        symbols,
-        [
-            "scoop.print.S",
-            "scoop.print.I32",
-            "scoop.print.B",
-            "scoop.println.S",
-            "scoop.println.I32",
-            "scoop.println.B",
-        ]
+        names,
+        ["print", "print", "print", "println", "println", "println",]
     );
 }

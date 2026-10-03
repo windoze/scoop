@@ -1,0 +1,2 @@
+public struct SharedDigestValue(val value: Int)
+public fun sharedDigestEcho(value: SharedDigestValue): SharedDigestValue = value

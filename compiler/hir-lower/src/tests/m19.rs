@@ -64,7 +64,12 @@ fn super_call_keeps_a_direct_base_target_in_both_hir_products() {
     let hir::ExprKind::DirectSuperMethodCall { callee, .. } = value.kind else {
         panic!("Export HIR must preserve the direct-super proof")
     };
-    assert_eq!(output.export.callable_function(callee), base);
+    assert_eq!(
+        output
+            .export
+            .callable_function(crate::tests::local_method_callable(&output.export, callee)),
+        base
+    );
     assert!(matches!(
         output.export.functions[base]
             .method

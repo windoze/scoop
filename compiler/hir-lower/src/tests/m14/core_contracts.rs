@@ -92,7 +92,7 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
     )]))
     .expect("defaulted and explicit compiler exception construction must lower");
 
-    let export = output.export.exception_core;
+    let export = defined_export_core(output.export.module()).exceptions;
     let export_names = [
         export.throwable,
         export.unwrap_exception,
@@ -114,7 +114,7 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
         ]
     );
 
-    let local = output.local.exception_core;
+    let local = defined_concrete_core(&output.local).exceptions;
     let local_exceptions = [
         local.throwable,
         local.unwrap_exception,
@@ -152,16 +152,79 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
             interface.owner == hir::ExportParameterOwner::ClassConstructor(source_constructor)
         })
         .expect("the source constructor exports its default protocol");
-    assert!(matches!(
-        parameter_interface.parameters[0].calling,
-        hir::ExportParameterCalling::Default { .. }
-    ));
+    let hir::ExportParameterCalling::Default { source, .. } =
+        parameter_interface.parameters[0].calling
+    else {
+        panic!("compiler exception source constructor default");
+    };
+    let expression = output.export.export_default_sources[source]
+        .declared()
+        .unwrap()
+        .0;
+    assert_eq!(
+        output.export.export_default_exprs[expression].definition_root,
+        hir::LexicalDefinitionRoot::ClassConstructor(source_constructor)
+    );
     assert!(
         output.export.class_constructors[export.illegal_state_exception.callable()]
             .parameters
             .is_empty(),
         "compiler control flow receives a physical zero-parameter adapter"
     );
+
+    let export_cycle_thrower = &output.export.functions[export.initialization_cycle_thrower];
+    assert_eq!(export_cycle_thrower.name, "__scoopThrowInitializationCycle");
+    assert_eq!(
+        export_cycle_thrower.access.declared,
+        hir::DeclaredVisibility::Internal
+    );
+    assert_eq!(export_cycle_thrower.params.len(), 1);
+    assert_eq!(export_cycle_thrower.params[0].ty, output.export.string);
+    assert_eq!(export_cycle_thrower.return_ty, output.export.unit);
+
+    let local_cycle_thrower = &output.local.functions[local.initialization_cycle_thrower];
+    assert_eq!(local_cycle_thrower.name, export_cycle_thrower.name);
+    assert_eq!(local_cycle_thrower.params.len(), 1);
+    assert_eq!(local_cycle_thrower.params[0].ty, output.local.string);
+    assert_eq!(local_cycle_thrower.return_ty, output.local.unit);
+}
+
+#[test]
+fn compiler_exception_core_rejects_a_missing_or_public_initialization_cycle_thrower() {
+    const NAME: &str = "__scoopThrowInitializationCycle";
+
+    let mut missing = core_file();
+    missing.declarations.retain(
+        |declaration| !matches!(declaration, Decl::Function(function) if function.name.text == NAME),
+    );
+    let errors = lower(&[missing, file(vec![fun("main", vec![])])])
+        .expect_err("a missing initialization cycle thrower must reject the core");
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "scoop.core must define exactly one internal function `__scoopThrowInitializationCycle(message: String): Unit`"
+    }));
+
+    let mut public = core_file();
+    let declaration = public
+        .declarations
+        .iter_mut()
+        .find(|declaration| {
+            matches!(declaration, Decl::Function(function) if function.name.text == NAME)
+        })
+        .expect("core test fixture declares the initialization cycle thrower");
+    let Decl::Function(function) = declaration else {
+        unreachable!("the selected declaration is a function")
+    };
+    function.visibility = ast::VisibilitySyntax::Explicit {
+        visibility: ast::DeclaredVisibility::Public,
+        span: sp(),
+    };
+    let errors = lower(&[public, file(vec![fun("main", vec![])])])
+        .expect_err("a public initialization cycle thrower must reject the core");
+    assert!(errors.iter().any(|error| {
+        error.message
+            == "function `__scoopThrowInitializationCycle` in scoop.core must be internal, non-generic, non-suspend, managed, and have signature `(String) -> Unit`"
+    }));
 }
 
 #[test]

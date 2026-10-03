@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `pack`: conflicting types for `T`: Any and Reference",
+    "notes": [],
+    "origin": {
+      "cone": "41e20b4be5b4f728a40a914eb763069b807653c75b58f55b47865b9a28b778f6",
+      "end": 128,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 121
+    },
+    "severity": "error"
+  }
+]

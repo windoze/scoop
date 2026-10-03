@@ -1,0 +1,29 @@
+SourceFile
+  QualifiedPackage consumer.constructors
+  ImportStar Local templates.constructors.*
+  public fun result(): Int
+    val pair
+      Call Pair<Int>
+        IntLiteral 20
+        IntLiteral 20
+    val doubled
+      Call Pair<Int>
+        FieldAccess first
+          Var pair
+    val box
+      Call Box<Int>
+        FieldAccess second
+          Var doubled
+    return
+      Binary Add
+        Binary Add
+          FieldAccess value
+            Var box
+          FieldAccess second
+            Var pair
+        FieldAccess count
+          Var box
+  public fun make<T>(value: T): Box<T>
+    =
+      Call Box<T>
+        Var value

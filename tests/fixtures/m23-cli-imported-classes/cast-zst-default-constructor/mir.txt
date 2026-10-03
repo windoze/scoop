@@ -1,0 +1,70 @@
+Module
+  struct Token ()
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class box<Token> vtable=0 itables=0
+  generated_exact_type get0 location=class3 nominal_id=1abd97a169592efd586c6c177ebb36cbd11277968078b689724fcdfaa73376aa exact_id=b17e7538b9fc6ad19e8df8a8cad201b62cb76c07a2dc6305149bc0fbdc714847
+  fun primary @fn0() -> Counter
+    bb0 entry
+      call $call.1: Token = external0 direct
+      val value: Any
+        Type Any
+        Box
+          Type Token
+          Local $call.1
+      val $cast.1: Any
+        Type Any
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Token
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external2 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val $ub.2: Token
+        Type Token
+        Unbox
+          Type Any
+          Local $cast.1
+      val marker: Token
+        Type Token
+        Local $ub.2
+      val $dependency.argument.0: Token
+        Type Token
+        Local marker
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.marker: Token
+        Type Token
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.1
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external1 direct
+        Type Counter
+        Local $new.3
+        Type Token
+        Local $dependency.parameter.marker
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.3
+  output library

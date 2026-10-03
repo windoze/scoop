@@ -1,0 +1,846 @@
+Module
+  global0 v0: Long managed initial=zeroed-for-runtime-unit
+  global1 v1: Long managed initial=zeroed-for-runtime-unit
+  global2 v2: Long managed initial=zeroed-for-runtime-unit
+  global3 v3: Long managed initial=zeroed-for-runtime-unit
+  global4 v4: Long managed initial=zeroed-for-runtime-unit
+  global5 v5: Long managed initial=zeroed-for-runtime-unit
+  global6 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global7 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  global8 $init$failure$2: Any managed initial=zeroed-for-runtime-unit
+  global9 $init$failure$3: Any managed initial=zeroed-for-runtime-unit
+  global10 $init$failure$4: Any managed initial=zeroed-for-runtime-unit
+  global11 $init$failure$5: Any managed initial=zeroed-for-runtime-unit
+  init0 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v0 eager global0 initializer=@fn4 ensure=@fn5 failure=6 deps=[1]
+  init1 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v1 eager global1 initializer=@fn7 ensure=@fn8 failure=7 deps=[2]
+  init2 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v2 eager global2 initializer=@fn10 ensure=@fn11 failure=8 deps=[3]
+  init3 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v3 eager global3 initializer=@fn13 ensure=@fn14 failure=9 deps=[4]
+  init4 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v4 eager global4 initializer=@fn16 ensure=@fn17 failure=10 deps=[5]
+  init5 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v5 eager global5 initializer=@fn19 ensure=@fn20 failure=11 deps=[]
+  extern ef0 trace @m23_trace(Long) -> Unit <abi=c no-gc lib=m23_runtime_images>
+  class Number vtable=0 itables=0
+  fun trace @fn0(arg0: Long) -> Unit
+    bb0 entry
+      call extern0 @m23_trace direct
+        Type Long
+        Local arg0
+      return
+  fun ready @fn1(marker: Long, value: Long) -> Long
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        Local marker
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call extern0 @m23_trace direct
+        Type Long
+        Local $parameter.value
+      val $dependency.receiver: Long
+        Type Long
+        Local value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun last @fn2() -> Long
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.1
+        Type Number
+        ClassAlloc Number
+      call @fn22 direct
+        Type Number
+        Local $new.1
+        Type Long
+        Local $parameter.value
+      val retained: Number
+        Type Number
+        Local $new.1
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $argument.1: Long
+        Type Long
+        FieldAccess 0
+          Type Number
+          Local retained
+      val $parameter.marker: Long
+        Type Long
+        Local $argument.0
+      val $parameter.value: Long
+        Type Long
+        Local $argument.1
+      call $call.2: Long = @fn1 direct
+        Type Long
+        Local $parameter.marker
+        Type Long
+        Local $parameter.value
+      return
+        Type Long
+        Local $call.2
+  fun answer @fn3() -> Long
+    bb0 entry
+      call $call.1: Long = @fn6 direct
+      return
+        Type Long
+        Local $call.1
+  fun $init$body$0 @fn4() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $argument.1: Long = @fn9 direct
+      val $parameter.marker: Long
+        Type Long
+        Local $argument.0
+      val $parameter.value: Long
+        Type Long
+        Local $argument.1
+      call $call.1: Long = @fn1 direct
+        Type Long
+        Local $parameter.marker
+        Type Long
+        Local $parameter.value
+      global_assign v0
+        Type Long
+        Local $call.1
+      return
+  fun $init$ensure$0 @fn5() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v0
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn4 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v0
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v0
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v0
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v0
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$v0 @fn6() -> Long
+    bb0 entry
+      call @fn5 direct
+      return
+        Type Long
+        GlobalRead v0
+  fun $init$body$1 @fn7() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      call $argument.1: Long = @fn12 direct
+      val $parameter.marker: Long
+        Type Long
+        Local $argument.0
+      val $parameter.value: Long
+        Type Long
+        Local $argument.1
+      call $call.1: Long = @fn1 direct
+        Type Long
+        Local $parameter.marker
+        Type Long
+        Local $parameter.value
+      global_assign v1
+        Type Long
+        Local $call.1
+      return
+  fun $init$ensure$1 @fn8() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v1
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn7 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v1
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v1
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v1
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v1
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$v1 @fn9() -> Long
+    bb0 entry
+      call @fn8 direct
+      return
+        Type Long
+        GlobalRead v1
+  fun $init$body$2 @fn10() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      call $argument.1: Long = @fn15 direct
+      val $parameter.marker: Long
+        Type Long
+        Local $argument.0
+      val $parameter.value: Long
+        Type Long
+        Local $argument.1
+      call $call.1: Long = @fn1 direct
+        Type Long
+        Local $parameter.marker
+        Type Long
+        Local $parameter.value
+      global_assign v2
+        Type Long
+        Local $call.1
+      return
+  fun $init$ensure$2 @fn11() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v2
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn10 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v2
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v2
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v2
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init2 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v2
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$v2 @fn12() -> Long
+    bb0 entry
+      call @fn11 direct
+      return
+        Type Long
+        GlobalRead v2
+  fun $init$body$3 @fn13() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      call $argument.1: Long = @fn18 direct
+      val $parameter.marker: Long
+        Type Long
+        Local $argument.0
+      val $parameter.value: Long
+        Type Long
+        Local $argument.1
+      call $call.1: Long = @fn1 direct
+        Type Long
+        Local $parameter.marker
+        Type Long
+        Local $parameter.value
+      global_assign v3
+        Type Long
+        Local $call.1
+      return
+  fun $init$ensure$3 @fn14() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v3
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn13 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v3
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v3
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v3
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init3 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v3
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$v3 @fn15() -> Long
+    bb0 entry
+      call @fn14 direct
+      return
+        Type Long
+        GlobalRead v3
+  fun $init$body$4 @fn16() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      call $argument.1: Long = @fn21 direct
+      val $parameter.marker: Long
+        Type Long
+        Local $argument.0
+      val $parameter.value: Long
+        Type Long
+        Local $argument.1
+      call $call.1: Long = @fn1 direct
+        Type Long
+        Local $parameter.marker
+        Type Long
+        Local $parameter.value
+      global_assign v4
+        Type Long
+        Local $call.1
+      return
+  fun $init$ensure$4 @fn17() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v4
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn16 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v4
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v4
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v4
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init4 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v4
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$v4 @fn18() -> Long
+    bb0 entry
+      call @fn17 direct
+      return
+        Type Long
+        GlobalRead v4
+  fun $init$body$5 @fn19() -> Unit
+    bb0 entry
+      call $call.1: Long = @fn2 direct
+      global_assign v5
+        Type Long
+        Local $call.1
+      return
+  fun $init$ensure$5 @fn20() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init5 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v5
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn19 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init5 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v5
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init5 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v5
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init5 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v5
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init5 top-level-private:dev.example:early-chain:0.1.0/src/main.scoop:v5
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$v5 @fn21() -> Long
+    bb0 entry
+      call @fn20 direct
+      return
+        Type Long
+        GlobalRead v5
+  fun init.Number.$c0 @fn22(this: Number, value: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type Number
+        Local this
+        Type Long
+        Local value
+      return
+  output library

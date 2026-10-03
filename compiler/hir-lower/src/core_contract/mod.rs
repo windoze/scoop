@@ -12,6 +12,7 @@ mod common;
 mod coroutines;
 mod exceptions;
 mod ffi;
+mod gc_control;
 mod intrinsics;
 mod iteration;
 mod operators;

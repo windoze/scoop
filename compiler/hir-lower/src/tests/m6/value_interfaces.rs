@@ -64,7 +64,9 @@ fn struct_implements_interface_and_boxes() {
     match &returned(body_of(&module, "show")).kind {
         hir::ExprKind::MethodCall { callee, .. } => {
             assert_eq!(
-                module.functions[module.callable_function(*callee)].name,
+                module.functions[module
+                    .callable_function(crate::tests::local_method_callable(&module, *callee))]
+                .name,
                 "Describable.describe"
             );
         }

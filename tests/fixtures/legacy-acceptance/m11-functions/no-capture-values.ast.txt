@@ -1,0 +1,84 @@
+SourceFile
+  RootPackage
+  fun increment(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  fun apply(value: Int, operation: (Int) -> Int): Int
+    =
+      Call operation
+        Var value
+  fun main()
+    val lambda: (Int) -> Int
+      Lambda 0 suspend=false
+        param value: _
+        Binary Add
+          Var value
+          IntLiteral 1
+    val reference: (Int) -> Int
+      CallableReference 0 increment
+    val secondReference: (Int) -> Int
+      CallableReference 1 increment
+    val standalone
+      Lambda 1 suspend=false
+        param value: Int
+        Binary Add
+          Var value
+          IntLiteral 3
+    val implicit: (Int) -> Int
+      Lambda 2 suspend=false
+        parameters omitted
+        Binary Add
+          Var it
+          IntLiteral 1
+    val zero
+      Lambda 3 suspend=false
+        parameters omitted
+        IntLiteral 42
+    val discard: (Int) -> Unit
+      Lambda 4 suspend=false
+        param value: _
+        Binary Add
+          Var value
+          IntLiteral 1
+    Call gcCollect
+    Call println
+      Call lambda
+        IntLiteral 40
+    Call println
+      MethodCall invoke
+        Var reference
+        IntLiteral 40
+    Call println
+      Call apply
+        IntLiteral 40
+        Lambda 5 suspend=false
+          param value: Int
+          Binary Add
+            Var value
+            IntLiteral 2
+    Call println
+      Call standalone
+        IntLiteral 39
+    Call println
+      Call implicit
+        IntLiteral 40
+    Call println
+      Call zero
+    Call println
+      Invoke
+        Lambda 6 suspend=false
+          param value: Int
+          Binary Add
+            Var value
+            IntLiteral 1
+        IntLiteral 40
+    Call println
+      Binary RefEq
+        Var reference
+        Var secondReference
+    Call discard
+      IntLiteral 41
+    Call println
+      StringLiteral "discarded"

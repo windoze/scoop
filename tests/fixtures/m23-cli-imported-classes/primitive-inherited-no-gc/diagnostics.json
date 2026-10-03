@@ -1,0 +1,67 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `answer` has local `$dependency.receiver` of non-GC-free type RebuiltDefaults",
+    "notes": [],
+    "origin": {
+      "cone": "bb70a7073b4dc5f34bd2fdd2865008f56d27ad5099281bf6afab5f6eab42ab28",
+      "end": 84,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 0
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type RebuiltDefaults is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "bb70a7073b4dc5f34bd2fdd2865008f56d27ad5099281bf6afab5f6eab42ab28",
+      "end": 74,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 69
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "boxing and unboxing are not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "bb70a7073b4dc5f34bd2fdd2865008f56d27ad5099281bf6afab5f6eab42ab28",
+      "end": 74,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 69
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "managed dependency calls are not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "bb70a7073b4dc5f34bd2fdd2865008f56d27ad5099281bf6afab5f6eab42ab28",
+      "end": 82,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 69
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type RebuiltDefaults is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "bb70a7073b4dc5f34bd2fdd2865008f56d27ad5099281bf6afab5f6eab42ab28",
+      "end": 82,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 69
+    },
+    "severity": "error"
+  }
+]

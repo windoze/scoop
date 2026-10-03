@@ -1,0 +1,137 @@
+SourceFile
+  RootPackage
+  fun safeDefault(): Int
+    Call println
+      StringLiteral "safe-default"
+    return
+      IntLiteral 7
+  fun safeArgument(): Int
+    Call println
+      StringLiteral "safe-argument"
+    return
+      IntLiteral 5
+  fun makeProbe(): Probe?
+    Call println
+      StringLiteral "safe-receiver"
+    return
+      Call Some
+        Call Probe
+          StringLiteral "made-"
+  class Probe(val prefix: String)
+    fun send
+    fun nested
+    fun touch
+  fun Probe.extend(value: Int): String
+    =
+      Binary Add
+        Var prefix
+        MethodCall toString
+          Var value
+  struct Handler
+    field prefix: String
+    operator fun invoke
+  class Service(val handler: Handler)
+  fun printStringOption(value: String?)
+    when
+      Var value
+      arm Some(text)
+        Call println
+          Var text
+      arm None
+        Call println
+          StringLiteral "none"
+  fun main()
+    val some: Probe?
+      Call Some
+        Call Probe
+          StringLiteral "some-"
+    val none: Probe?
+      Var None
+    val explicit
+      MethodCall ?send
+        Var some
+        Call safeArgument
+    Call printStringOption
+      Var explicit
+    val skippedArgument
+      MethodCall ?send
+        Var none
+        Call safeArgument
+    Call printStringOption
+      Var skippedArgument
+    val defaulted
+      MethodCall ?send
+        Var some
+    Call printStringOption
+      Var defaulted
+    val skippedDefault
+      MethodCall ?send
+        Var none
+    Call printStringOption
+      Var skippedDefault
+    val made
+      MethodCall ?send
+        Call makeProbe
+        IntLiteral 8
+    Call printStringOption
+      Var made
+    val extension
+      MethodCall ?extend
+        Var some
+        IntLiteral 9
+    Call printStringOption
+      Var extension
+    val skippedExtension
+      MethodCall ?extend
+        Var none
+        IntLiteral 9
+    Call printStringOption
+      Var skippedExtension
+    val nested: String??
+      MethodCall ?nested
+        Var some
+    when
+      Var nested
+      arm Some(inner)
+        Call printStringOption
+          Var inner
+      arm None
+        Call println
+          StringLiteral "outer-none"
+    val unitResult: Unit?
+      MethodCall ?touch
+        Var some
+    when
+      Var unitResult
+      arm Some(value)
+        Call println
+          StringLiteral "unit-some"
+      arm None
+        Call println
+          StringLiteral "unit-none"
+    val maybeService: Service?
+      Call Some
+        Call Service
+          Call Handler
+            StringLiteral "field-"
+    Call printStringOption
+      MethodCall ?handler
+        Var maybeService
+        IntLiteral 10
+    val maybeFunction: ((Int) -> Int)?
+      Call Some
+        Lambda 0 suspend=false
+          param value: Int
+          Binary Add
+            Var value
+            IntLiteral 1
+    when
+      MethodCall ?invoke
+        Var maybeFunction
+        IntLiteral 41
+      arm Some(value)
+        Call println
+          Var value
+      arm None
+        Call println
+          IntLiteral 0

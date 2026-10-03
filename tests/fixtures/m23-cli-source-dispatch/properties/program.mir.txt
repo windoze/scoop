@@ -1,0 +1,363 @@
+Module
+  struct Value ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Store vtable=2 itables=1
+  class Child vtable=2 itables=1
+  interface View
+  fun verifyDispatch @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.receiver: Store = external4 direct
+      call $call.1: (Int, Int, Int, Int, Int, Int, Int, Int) = external5 direct
+        Type Store
+        Local $dependency.receiver
+      call $argument.0: Boolean = @fn2 direct
+        Type (Int, Int, Int, Int, Int, Int, Int, Int)
+        Local $call.1
+        Type (Int, Int, Int, Int, Int, Int, Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=11 bits=0x0000000b
+          Type Int
+          IntegerLiteral Int value=11 bits=0x0000000b
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+          Type Int
+          IntegerLiteral Int value=4 bits=0x00000004
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+          Type Int
+          IntegerLiteral Int value=8 bits=0x00000008
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.2: Child = external8 direct
+      val $dependency.receiver: Store
+        Type Store
+        Retype Store
+          Type Child
+          Local $call.2
+      call $call.3: (Int, Int, Int, Int, Int, Int, Int, Int) = external5 direct
+        Type Store
+        Local $dependency.receiver
+      call $argument.0: Boolean = @fn2 direct
+        Type (Int, Int, Int, Int, Int, Int, Int, Int)
+        Local $call.3
+        Type (Int, Int, Int, Int, Int, Int, Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=11 bits=0x0000000b
+          Type Int
+          IntegerLiteral Int value=11 bits=0x0000000b
+          Type Int
+          IntegerLiteral Int value=2 bits=0x00000002
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+          Type Int
+          IntegerLiteral Int value=4 bits=0x00000004
+          Type Int
+          IntegerLiteral Int value=9 bits=0x00000009
+          Type Int
+          IntegerLiteral Int value=8 bits=0x00000008
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.4: Child = external8 direct
+      val value: View
+        Type View
+        Retype View
+          Type Child
+          Local $call.4
+      call $dependency.receiver: Int = external3 interface View[0]
+        Type View
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.5: Value = external10 direct
+      call $dependency.receiver: Int = external9 direct
+        Type Value
+        Local $call.5
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $derived.equals.0 @fn2(this: (Int, Int, Int, Int, Int, Int, Int, Int), other: (Int, Int, Int, Int, Int, Int, Int, Int)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 2
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 2
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.2
+    bb7 logic.rhs.7
+      assign $logic.3
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 3
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 3
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local other
+      goto bb9
+    bb8 logic.short.8
+      assign $logic.3
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 logic.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $logic.3
+    bb10 logic.rhs.10
+      assign $logic.4
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 4
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 4
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local other
+      goto bb12
+    bb11 logic.short.11
+      assign $logic.4
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 logic.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $logic.4
+    bb13 logic.rhs.13
+      assign $logic.5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 5
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 5
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local other
+      goto bb15
+    bb14 logic.short.14
+      assign $logic.5
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 logic.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $logic.5
+    bb16 logic.rhs.16
+      assign $logic.6
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 6
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 6
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local other
+      goto bb18
+    bb17 logic.short.17
+      assign $logic.6
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 logic.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $logic.6
+    bb19 logic.rhs.19
+      assign $logic.7
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 7
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local this
+          Type Int
+          FieldAccess 7
+            Type (Int, Int, Int, Int, Int, Int, Int, Int)
+            Local other
+      goto bb21
+    bb20 logic.short.20
+      assign $logic.7
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 logic.merge.21
+      return
+        Type Boolean
+        Local $logic.7
+  str @str0 "illegal state"
+  output executable @fn1

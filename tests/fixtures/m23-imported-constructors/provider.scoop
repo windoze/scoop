@@ -1,0 +1,37 @@
+package dependency.constructors
+
+public struct Token()
+public struct Other()
+public struct Wide(val first: Long, val second: Long, val third: Long, val marker: Token = Token()) {
+    @NoGC public constructor(seed: Long, step: Long = 2): this(seed, seed + step, seed + step + step, Token()) {}
+    @NoGC public constructor(values: (Token, (Long, Long, Long), Token)): this(values._2._1, values._2._2, values._2._3, values._1) {}
+    @NoGC private constructor(token: Token): this(1, 2, 3, token) {}
+    public constructor(flag: Boolean): this(1, 2, 3, Token()) {}
+    @NoGC public fun sum(): Long = first + second + third
+}
+@NoGC public fun defaultWide(value: Wide = Wide(3, 4, 5)): Long = value.sum()
+
+public typealias Packet = Wide
+public typealias Marker = Token
+public typealias Scalar = Long
+
+@NoGC public fun tupleIdentity(value: (Long, Token, Long)): (Long, Token, Long) = value
+@NoGC public fun tupleDefault(value: (Long, Token, Long) = (3, Token(), 9)): Long = value._1 + value._3
+@NoGC public fun tupleProjection(value: (Long, Token, Long), selected: Long = value._1 + value._3): Long = selected
+public struct TupleOps() {
+    @NoGC public fun nested(value: (Token, (Long, Long, Long), Token)): (Token, (Long, Long, Long), Token) = value
+    @NoGC public fun sum(value: (Long, Token, Long)): Long = value._1 + value._3
+    public val pair: (Long, Token, Long)
+        @NoGC get() = (3, Token(), 9)
+}
+
+public struct TupleBox(val elements: (Token, (Long, Long, Long), Token))
+public struct TupleMarker(val elements: (Token, Token))
+public enum TupleChoice { Empty, Full((Long, Token, Long)) }
+@NoGC public fun tupleChoiceSum(value: (Long, Token, Long)): Long {
+    val choice = TupleChoice.Full(value)
+    return when (choice) {
+        Empty -> 0
+        Full(fields) -> fields._1 + fields._3
+    }
+}

@@ -1,0 +1,35 @@
+public open class Cell public constructor(private var backing: Int = 1) {
+    public var value: Int
+        get() = backing
+        set(next) { backing = next }
+    public fun read(value: Int): Int = value
+    public fun <T> keep(value: T): T = value
+    public fun <T> many(vararg values: T): Int = backing
+    public suspend fun <T> await(value: T): T = value
+}
+public class Child public constructor() : Cell(1) {}
+public struct Packet(val value: Int)
+public enum Choice { None, Some(val value: Int) }
+public class Empty public constructor() {}
+public class Required public constructor(value: Int) {}
+public class Variadic<T> public constructor(vararg values: T) {}
+public class DefaultVariadic<T> public constructor(vararg values: T = []) {}
+public class Samples {
+    public fun method(cell: Cell, value: Int = cell.read(2)): Int = value
+    public fun inherited(child: Child, value: Int = child.read(2)): Int = value
+    public fun <T> generic(cell: Cell, seed: T, value: T = cell.keep<T>(seed)): T = value
+    public fun getter(cell: Cell, value: Int = cell.value): Int = value
+    public fun setter(cell: Cell, value: Int = if (true) {
+        cell.value = 4
+        cell.value
+    } else { 5 }): Int = value
+    public fun <T> variadicCall(cell: Cell, seed: T, value: Int = cell.many<T>(seed, seed)): Int = value
+    public suspend fun <T> suspended(cell: Cell, seed: T, value: T = cell.await<T>(seed)): T = value
+    public fun cell(value: Cell = Cell(2)): Cell = value
+    public fun packet(value: Packet = Packet(3)): Packet = value
+    public fun variant(value: Choice = Choice.Some(4)): Choice = value
+    public fun empty(value: Empty = Empty()): Empty = value
+    public fun required(value: Required = Required(1)): Required = value
+    public fun <T> variadic(seed: T, value: Variadic<T> = Variadic<T>(seed, seed)): Variadic<T> = value
+    public fun <T> defaultVariadic(value: DefaultVariadic<T> = DefaultVariadic<T>()): DefaultVariadic<T> = value
+}

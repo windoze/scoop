@@ -1,0 +1,10 @@
+SourceFile
+  QualifiedPackage consumer
+  ImportExact Local dependency.api.run as directRun
+  ImportExact Local facade.api.run as exportedRun
+  public fun dormant(value: Boolean = <expr>): Boolean
+    =
+      Var value
+  public fun invoke(): Boolean
+    =
+      Call directRun

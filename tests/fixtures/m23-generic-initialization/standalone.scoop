@@ -1,0 +1,35 @@
+package templates.initialization
+
+private fun <T> keep(value: T): T = value
+private fun initialNumber(): Int = 1
+
+public struct Value<T>(val item: T) {
+    public constructor(item: T, checked: Boolean) : this(keep(item)) {
+        if (checked) {
+            keep(this.item)
+        }
+    }
+}
+
+public class Box<T> public constructor(seed: T, public val marker: Int) {
+    public val item: T = keep(seed)
+    public var number: Int = initialNumber()
+
+    init {
+        this.number = this.number + marker
+    }
+
+    public constructor(seed: T) : this(keep(seed), 1) {}
+
+    public constructor(seed: T, marker: Int, extra: Int) : this(seed, marker) {
+        this.number = this.number + extra
+    }
+}
+
+private class Unused<T>(val item: T)
+
+public fun result(): Int {
+    val value = Value<Int>(40, true)
+    val box = Box<Int>(value.item)
+    return box.item + box.number
+}

@@ -1,6 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m18-operators/errors/update-non-place.scoop:2:8: error: update operand must be an assignable place

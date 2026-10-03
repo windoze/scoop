@@ -1,4 +1,5 @@
-use crate::{ClassId, EnumId, FunctionId, InterfaceId, IntrinsicProviderId, StructId, TypeId};
+use crate::{ClassId, EnumId, FunctionId, InterfaceId, StructId};
+use scoop_identity::{ConeIdentity, SourceIdentity};
 
 /// Source visibility after AST omission has been normalized. There is no
 /// `Omitted` state in HIR: every declaration has made the language default
@@ -11,34 +12,15 @@ pub enum DeclaredVisibility {
     Protected,
 }
 
-/// Stable identity of one source file inside a provider/Cone. A file number
-/// alone is deliberately insufficient at an export boundary.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct VisibilityFile {
-    pub provider: IntrinsicProviderId,
-    pub index: u32,
-}
-
-/// Nominal lexical owner used by member-private access. Kinds remain distinct
-/// so a coincident arena index cannot grant access to another declaration.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum VisibilityOwner {
-    Class(ClassId),
-    Interface(InterfaceId),
-    Struct(StructId),
-    Enum(EnumId),
-    Object(crate::ObjectId),
-}
-
 /// One conjunct of an access set. Domains are normalized conjunctions rather
 /// than visibility ranks: file, lexical-owner and inheritance regions are
 /// incomparable and may be intersected with a Cone restriction.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum AccessConstraint {
-    Cone(IntrinsicProviderId),
-    File(VisibilityFile),
-    LexicalOwner(VisibilityOwner),
-    SubclassesOf(ClassId),
+    Cone(ConeIdentity),
+    File(SourceIdentity),
+    LexicalOwner(crate::SourceNominalId),
+    SubclassesOf(crate::SourceNominalId),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -69,7 +51,7 @@ impl AccessDomain {
                 normalized.push(constraint);
             }
         }
-        normalized.sort_by_key(access_constraint_sort_key);
+        normalized.sort();
         Self {
             inhabited: true,
             constraints: normalized,
@@ -80,7 +62,7 @@ impl AccessDomain {
         if !self.inhabited || !other.inhabited {
             return Self::empty();
         }
-        Self::from_constraints(self.constraints.iter().chain(&other.constraints).copied())
+        Self::from_constraints(self.constraints.iter().chain(&other.constraints).cloned())
     }
 
     pub fn constraints(&self) -> &[AccessConstraint] {
@@ -99,7 +81,9 @@ impl AccessDomain {
 /// Authoritative cross-Cone declaration surface. The enclosing Export HIR
 /// retains the complete current-Cone graph for concretization, but consumers
 /// may discover source declarations only through these explicitly public
-/// identities. M23 serializes this surface and its typed dependency closure.
+/// identities with universal lookup domains. Implementations reachable only
+/// through inherited public slots remain in the complete graph, not here.
+/// M23 serializes this surface and its typed dependency closure.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct PublicSemanticSurface {
     pub functions: Vec<FunctionId>,
@@ -122,21 +106,6 @@ pub struct PublicSemanticSurface {
     pub type_aliases: Vec<crate::ExportTypeAliasId>,
 }
 
-fn access_constraint_sort_key(constraint: &AccessConstraint) -> (u8, u32, u32) {
-    match *constraint {
-        AccessConstraint::Cone(provider) => (0, provider.into_raw(), 0),
-        AccessConstraint::File(file) => (1, file.provider.into_raw(), file.index),
-        AccessConstraint::LexicalOwner(owner) => match owner {
-            VisibilityOwner::Class(id) => (2, 0, id.into_raw().into_u32()),
-            VisibilityOwner::Interface(id) => (2, 1, id.into_raw().into_u32()),
-            VisibilityOwner::Struct(id) => (2, 2, id.into_raw().into_u32()),
-            VisibilityOwner::Enum(id) => (2, 3, id.into_raw().into_u32()),
-            VisibilityOwner::Object(id) => (2, 4, id.into_raw().into_u32()),
-        },
-        AccessConstraint::SubclassesOf(id) => (3, id.into_raw().into_u32(), 0),
-    }
-}
-
 /// Domain used for direct name/member lookup after intersecting every owner.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EffectiveLookupDomain(pub AccessDomain);
@@ -152,19 +121,10 @@ pub struct InheritanceDomain(pub AccessDomain);
 pub struct SlotContractDomain(pub AccessDomain);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PropertyOverrideAccessWitness {
-    pub overriding: crate::PropertyId,
-    pub inherited: crate::PropertyId,
-    pub required: SlotContractDomain,
-    pub provided: SlotContractDomain,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeclarationAccess {
     pub declared: DeclaredVisibility,
     pub lookup: EffectiveLookupDomain,
     pub slot: Option<SlotContractDomain>,
-    pub signature: Vec<SignatureExposureWitness>,
 }
 
 impl DeclarationAccess {
@@ -173,7 +133,6 @@ impl DeclarationAccess {
             declared: DeclaredVisibility::Public,
             lookup: EffectiveLookupDomain(AccessDomain::universal()),
             slot: None,
-            signature: Vec::new(),
         }
     }
 }
@@ -183,7 +142,6 @@ pub struct NominalAccess {
     pub declared: DeclaredVisibility,
     pub lookup: EffectiveLookupDomain,
     pub inheritance: InheritanceDomain,
-    pub signature: Vec<SignatureExposureWitness>,
 }
 
 impl NominalAccess {
@@ -192,44 +150,39 @@ impl NominalAccess {
             declared: DeclaredVisibility::Public,
             lookup: EffectiveLookupDomain(AccessDomain::universal()),
             inheritance: InheritanceDomain(AccessDomain::universal()),
-            signature: Vec::new(),
         }
     }
 }
 
-/// Proof stored on a successful direct lookup. The declaration id stays
-/// separate so this witness cannot be reused as an override proof.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LookupAccessWitness {
-    pub declaration: AccessDeclaration,
-    pub domain: EffectiveLookupDomain,
-    pub site: VisibilityFile,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scoop_identity::{ConeCoordinate, NormalizedSourcePath};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum AccessDeclaration {
-    Function(FunctionId),
-    TypeAlias(crate::ExportTypeAliasId),
-    Class(ClassId),
-    Interface(InterfaceId),
-    Struct(StructId),
-    Enum(EnumId),
-}
+    fn source(cone: &str, path: &str) -> SourceIdentity {
+        let cone = ConeCoordinate::new("test", cone, "0.0.0")
+            .unwrap()
+            .identity()
+            .unwrap();
+        SourceIdentity::new(cone, NormalizedSourcePath::new(path).unwrap()).unwrap()
+    }
 
-/// Proof that an override declaration covers one inherited slot contract.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OverrideAccessWitness {
-    pub overriding: FunctionId,
-    pub inherited: FunctionId,
-    pub required: SlotContractDomain,
-    pub provided: SlotContractDomain,
-}
-
-/// Proof that one signature dependency covers both direct lookup and slot
-/// consumers. It is distinct from lookup/default witnesses by construction.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct SignatureExposureWitness {
-    pub dependency: TypeId,
-    pub required: AccessDomain,
-    pub provided: AccessDomain,
+    #[test]
+    fn visibility_distinguishes_semantic_source_identities() {
+        let current = |path| source("current", path);
+        let first = current("src/first.scoop");
+        let second = current("src/second.scoop");
+        let core = source("core", "src/first.scoop");
+        assert_ne!(first, second);
+        assert_ne!(first, core);
+        let constraints = [
+            AccessConstraint::File(second.clone()),
+            AccessConstraint::File(core.clone()),
+            AccessConstraint::File(first.clone()),
+        ];
+        let forward = AccessDomain::from_constraints(constraints.clone());
+        let reverse = AccessDomain::from_constraints(constraints.into_iter().rev());
+        assert_eq!(forward, reverse);
+        assert_eq!(forward.constraints().len(), 3);
+    }
 }

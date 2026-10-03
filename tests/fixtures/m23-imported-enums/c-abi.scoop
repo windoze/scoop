@@ -1,0 +1,6 @@
+package consumer.enums
+
+import dependency.enums.Choice
+
+@Extern(lib = "fixture_native", name = "echo_choice")
+fun cEcho(value: Choice): Choice

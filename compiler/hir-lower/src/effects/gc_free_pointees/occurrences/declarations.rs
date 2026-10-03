@@ -58,8 +58,7 @@ fn collect_class_initialization_types(
 ) {
     for step in initialization {
         match step {
-            hir::ClassInitializationStep::StoredProperty { initializer, .. }
-            | hir::ClassInitializationStep::DelegatedProperty { initializer, .. } => {
+            hir::ClassInitializationStep::Field { initializer, .. } => {
                 collect_constructor_expression_types(lowerer, initializer, out)
             }
             hir::ClassInitializationStep::InitBlock { body, .. } => {
@@ -96,7 +95,10 @@ pub(in super::super) fn collect_struct_constructor_type_occurrences(
     constructor: &hir::StructConstructor,
     out: &mut Vec<TypeOccurrence>,
 ) {
-    let hir::StructConstructorKind::Secondary { delegation, body } = &constructor.kind else {
+    let hir::StructConstructorKind::Secondary {
+        delegation, body, ..
+    } = &constructor.kind
+    else {
         return;
     };
     let file = constructor.origin.file as usize;
@@ -166,8 +168,7 @@ fn collect_class_initialization_type_occurrences(
 ) {
     for step in initialization {
         match step {
-            hir::ClassInitializationStep::StoredProperty { initializer, .. }
-            | hir::ClassInitializationStep::DelegatedProperty { initializer, .. } => {
+            hir::ClassInitializationStep::Field { initializer, .. } => {
                 collect_statement_type_occurrences(lowerer, &initializer.statements, file, out);
                 collect_expr_type_occurrences(lowerer, &initializer.value, out);
             }

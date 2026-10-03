@@ -1,4 +1,5 @@
 use super::*;
+use crate::imports::lookup::values::{ResolvedValueTarget, ValueTarget};
 
 impl Lowerer {
     /// A bare identifier in expression position. Ordinary lexical/member/
@@ -73,63 +74,61 @@ impl Lowerer {
             if let Some(expr) = self.bare_member_fallback(name) {
                 return Some(expr);
             }
-            if self.initialization_context.is_none()
-                && let Some(receiver) = self.lower_current_this(name.span)
-            {
-                match self.resolve_extension_property(receiver, name, sink, true) {
-                    crate::properties::ExtensionPropertyResolution::Resolved(property) => {
-                        return Some(property.read);
-                    }
-                    crate::properties::ExtensionPropertyResolution::Failed => return None,
-                    crate::properties::ExtensionPropertyResolution::NoCandidate => {}
-                }
-            }
-            if let Some(property) = self.visible_property(&name.text, None) {
-                let ty = self.properties[property].ty;
-                return self.lower_property_read(property, None, None, ty, name.span);
-            }
-            if let Some(object) = self
-                .lexical_nested_nominal_target(&name.text)
-                .or_else(|| self.top_level_nominal_target(&name.text))
-                .and_then(|target| match target {
-                    crate::NominalTarget::Object(object) => Some(object),
-                    _ => None,
-                })
+            if let Some(object) =
+                self.lexical_nested_nominal_target(&name.text)
+                    .and_then(|target| match target {
+                        crate::NominalTarget::Object(object) => Some(object),
+                        _ => None,
+                    })
             {
                 return self.lower_singleton_value(object, name.span);
             }
-            let prelude = self.core_prelude_variant_refs(&name.text).to_vec();
-            let mut prelude_successes = Vec::new();
-            let mut prelude_failure = None;
-            let mut payload_only_prelude = Vec::new();
-            for target in prelude {
-                if self.resolved_variant_style(target) != VariantStyle::Unit {
-                    payload_only_prelude.push(target);
-                    continue;
-                }
-                match self
-                    .probe_expr_layer(|state, _| state.lower_unit_variant(name, target, expected))
-                {
-                    Ok(layer) => prelude_successes.push((target, layer)),
-                    Err(failure) => {
-                        prelude_failure.get_or_insert(failure);
+            let mut implicit_failure = None;
+            let selected_value = if self.initialization_context.is_none()
+                && let Some(receiver) = self.lower_current_this(name.span)
+            {
+                match self.resolve_implicit_value_read(receiver, name, sink) {
+                    crate::properties::ImplicitValueResolution::ExtensionProperty(property) => {
+                        return Some(property.read);
+                    }
+                    crate::properties::ImplicitValueResolution::Value { target, layer } => {
+                        Some((target, layer))
+                    }
+                    crate::properties::ImplicitValueResolution::NoApplicable(failure) => {
+                        implicit_failure = Some(failure);
+                        None
+                    }
+                    crate::properties::ImplicitValueResolution::Failed => return None,
+                    crate::properties::ImplicitValueResolution::NoCandidate => {
+                        self.resolve_value_name_with_layer(name).ok()?
                     }
                 }
+            } else {
+                self.resolve_value_name_with_layer(name).ok()?
+            };
+            let mut prelude_failure = None;
+            if let Some((target, selected_layer)) = selected_value {
+                let core_variant = selected_layer == crate::imports::ImportLookupLayer::CorePrelude
+                    && match &target {
+                        ResolvedValueTarget::Materialized(ValueTarget::Variant(_)) => true,
+                        ResolvedValueTarget::Dependency(binding) => {
+                            matches!(binding.target(), hir::ImportedTarget::EnumVariant(_))
+                        }
+                        _ => false,
+                    };
+                if core_variant {
+                    match self.probe_expr_layer(|state, _| {
+                        state.lower_resolved_value_target(name, target, expected)
+                    }) {
+                        Ok(layer) => return Some(self.commit_expr_layer(layer, sink)),
+                        Err(failure) => prelude_failure = Some(failure),
+                    }
+                } else {
+                    return self.lower_resolved_value_target(name, target, expected);
+                }
             }
-            match prelude_successes.len() {
-                1 => {
-                    let (_, layer) = prelude_successes.pop().expect("one prelude winner");
-                    return Some(self.commit_expr_layer(layer, sink));
-                }
-                2.. => {
-                    let targets = prelude_successes
-                        .iter()
-                        .map(|(target, _)| *target)
-                        .collect::<Vec<_>>();
-                    self.ambiguous_prelude_variant(name, &targets);
-                    return None;
-                }
-                0 => {}
+            if let Some((owner, index)) = self.contextual_imported_variant(&name.text, expected) {
+                return self.lower_imported_unit_variant(owner, index, name);
             }
             if let Some(target) = self.contextual_variant_ref(&name.text, expected) {
                 let enumeration = target.enumeration();
@@ -155,24 +154,17 @@ impl Lowerer {
                 );
                 return None;
             }
+            if let Some(failure) = implicit_failure {
+                self.commit_layer_diagnostics(*failure);
+                return None;
+            }
             if let Some(failure) = prelude_failure {
                 self.commit_layer_diagnostics(*failure);
                 return None;
             }
-            if let Some(target) = payload_only_prelude.first() {
-                let enumeration = target.enumeration();
-                self.error(
-                    name.span,
-                    format!(
-                        "variant `{}` of `{}` takes arguments; use `{}(...)` to construct it",
-                        name.text, self.enums[enumeration].name, name.text
-                    ),
-                );
-                return None;
-            }
             if !self.local_function_scopes.lookup(&name.text).is_empty()
-                || self.functions_by_name.contains_key(&name.text)
-                || self.extensions_by_name.contains_key(&name.text)
+                || self.has_top_level_function_candidate(&name.text)
+                || self.has_top_level_extension_candidate(&name.text)
             {
                 self.error(
                     name.span,
@@ -259,6 +251,66 @@ impl Lowerer {
         })
     }
 
+    pub(crate) fn lower_named_value_target(
+        &mut self,
+        name: &ast::Ident,
+        target: ValueTarget,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        match target {
+            ValueTarget::Property(property) => {
+                let (owner, receiver) = self.named_property_receiver(property, name.span)?.parts();
+                self.lower_property_read(
+                    property,
+                    owner,
+                    receiver,
+                    self.properties[property].ty,
+                    name.span,
+                )
+            }
+            ValueTarget::Object(object) => self.lower_singleton_value(object, name.span),
+            ValueTarget::Variant(target) => {
+                if self.resolved_variant_style(target) != VariantStyle::Unit {
+                    self.error(
+                        name.span,
+                        format!(
+                            "variant `{}` of `{}` takes arguments; use `{}(...)` to construct it",
+                            name.text,
+                            self.enums[target.enumeration()].name,
+                            name.text
+                        ),
+                    );
+                    return None;
+                }
+                self.lower_unit_variant(name, target, expected)
+            }
+        }
+    }
+
+    pub(in crate::expr) fn lower_resolved_value_target(
+        &mut self,
+        name: &ast::Ident,
+        target: ResolvedValueTarget,
+        expected: Option<TypeId>,
+    ) -> Option<hir::Expr> {
+        match target {
+            ResolvedValueTarget::Materialized(target) => {
+                self.lower_named_value_target(name, target, expected)
+            }
+            ResolvedValueTarget::Dependency(binding) => match binding.target() {
+                hir::ImportedTarget::ObjectValue(value) => {
+                    self.lower_imported_singleton(value.persistent(), name.span)
+                }
+                hir::ImportedTarget::EnumVariant(_) => {
+                    self.lower_imported_variant_binding(&binding, name, expected)
+                }
+                _ => self
+                    .lower_imported_dependency_property_read(&binding, None, name.span)
+                    .map(|property| property.expression),
+            },
+        }
+    }
+
     pub(in crate::expr) fn ambiguous_prelude_variant(
         &mut self,
         name: &ast::Ident,
@@ -291,7 +343,7 @@ impl Lowerer {
         span: ast::Span,
     ) -> Option<hir::Expr> {
         let declaration = self.objects[object].clone();
-        if !self.access_domain_allows(&declaration.access.lookup.0, None) {
+        if !self.access_domain_allows(&declaration.access.lookup.0) {
             let kind = match declaration.kind {
                 hir::ObjectKind::Standalone => "object",
                 hir::ObjectKind::Companion(_) => "companion object",
@@ -316,7 +368,9 @@ impl Lowerer {
             }
         }
         Some(hir::Expr {
-            kind: hir::ExprKind::SingletonValue(declaration.singleton_value),
+            kind: hir::ExprKind::SingletonValue(hir::SingletonValueTarget::Local(
+                declaration.singleton_value,
+            )),
             ty: self.object_types[declaration.object_type].canonical_type,
             span,
             origin: self.expression_origin(span),
@@ -340,7 +394,11 @@ impl Lowerer {
             let receiver = self.lower_current_this(name.span)?;
             return self.lower_property_read(property, Some(owner), Some(receiver), ty, name.span);
         }
-        None
+        let property = self
+            .resolve_imported_member_property(receiver_ty, name)
+            .ok()??;
+        let receiver = self.lower_current_this(name.span)?;
+        self.emit_imported_member_property_read(&property, receiver, name.span)
     }
 
     /// Smart-cast candidates established by `cond` evaluating to

@@ -38,8 +38,9 @@ fn stackmap_qualification_module() -> Module {
             },
         });
         Function {
+            callable_body: callable_body(symbol),
+            safepoints: test_safepoints(symbol, &blocks, entry),
             gc_effect: GcEffect::Managed,
-            symbol: symbol.to_string(),
             signature: plain_scoop_signature(params, return_ty),
             call_targets,
             locals: Arena::default(),
@@ -51,6 +52,7 @@ fn stackmap_qualification_module() -> Module {
 
     let pair = LirType::Aggregate(vec![MANAGED_PTR, MANAGED_PTR]);
     Module {
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
@@ -95,12 +97,18 @@ fn stackmap_qualification_module() -> Module {
                 Some(Value::Param(0)),
             ),
         ],
-        entry_symbol: "scoop_qualification_zero".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta: string_metadata(),
     }
 }
 
-fn assert_aarch64_frame_disassembly(object: &std::path::Path, optimization: &str) {
+fn assert_aarch64_frame_disassembly(
+    object: &std::path::Path,
+    optimization: &str,
+    functions: &[Function],
+) {
     let output = std::process::Command::new("otool")
         .arg("-tvV")
         .arg(object)
@@ -112,13 +120,12 @@ fn assert_aarch64_frame_disassembly(object: &std::path::Path, optimization: &str
         String::from_utf8_lossy(&output.stderr)
     );
     let disassembly = String::from_utf8_lossy(&output.stdout);
-    for symbol in [
-        "_scoop_qualification_zero:",
-        "_scoop_qualification_one:",
-        "_scoop_qualification_many:",
-    ] {
+    for symbol in functions[..3]
+        .iter()
+        .map(|function| format!("_{}:", function.symbol()))
+    {
         let start = disassembly
-            .find(symbol)
+            .find(&symbol)
             .unwrap_or_else(|| panic!("{optimization}: missing {symbol}:\n{disassembly}"));
         let body = &disassembly[start..];
         let end = body[1..]
@@ -145,9 +152,22 @@ fn aarch64_statepoint_artifacts_are_qualified_at_o0_and_o2() {
     let module = stackmap_qualification_module();
     let expected = statepoint::expectations(&module).expect("complete safepoint manifest");
     let expected_eh = artifact::eh_expectations(&module).expect("complete EH manifest");
-    assert_eq!(expected.root_count(1), Some(0));
-    assert_eq!(expected.root_count(2), Some(1));
-    assert_eq!(expected.root_count(3), Some(2));
+    let runtime_ids = module
+        .functions
+        .iter()
+        .map(|function| {
+            function
+                .safepoints
+                .iter()
+                .next()
+                .expect("qualification function has one poll")
+                .runtime_id()
+                .get()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(expected.root_count(runtime_ids[0]), Some(0));
+    assert_eq!(expected.root_count(runtime_ids[1]), Some(1));
+    assert_eq!(expected.root_count(runtime_ids[2]), Some(2));
     let profile = host_profile();
     for (name, optimization) in [
         ("o0", OptimizationLevel::None),
@@ -179,7 +199,7 @@ fn aarch64_statepoint_artifacts_are_qualified_at_o0_and_o2() {
         profile
             .verify_object(&output, &expected, &expected_eh)
             .unwrap_or_else(|error| panic!("{name}: {error}"));
-        assert_aarch64_frame_disassembly(&output, name);
+        assert_aarch64_frame_disassembly(&output, name, &module.functions);
         std::fs::remove_file(&output).ok();
     }
 }

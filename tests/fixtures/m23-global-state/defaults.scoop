@@ -1,0 +1,12 @@
+package consumer.globals
+import templates.globals.*
+
+public fun <T> exercise(value: T): Int {
+    reset()
+    if (defaults<T>(value) != 42 || defaults<T>(value, 10) != 12) { return 1 }
+    base = 10
+    val changed = defaults<T>(value)
+    base = 40
+    return if (changed == 12) { 42 } else { 2 }
+}
+public fun result(): Int = exercise<Int>(0)

@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  public struct Point
+  public fun nestedDefault(left: (Point, (Unit, Unit)), right: (Point, (Unit, Unit)), equal: Boolean = <expr>): Boolean
+    =
+      Var equal
+  public open class Base()
+    public fun same
+  public class Child() : Base(<0 args>)
+    public fun same
+  public class Holder(val equal: Boolean = <expr>)

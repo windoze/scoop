@@ -1,0 +1,8 @@
+public interface FiniteMarker {
+    public fun code(): Int = 7
+}
+public struct FiniteLabel(val text: String): FiniteMarker {}
+public enum FiniteChoice { Empty, Data(val value: FiniteLabel) }
+public class FiniteHolder(val value: FiniteLabel)
+private struct FiniteHidden(val value: Int)
+public fun hiddenValue(): Any = FiniteHidden(1)

@@ -10,8 +10,13 @@ impl Lowerer {
     pub(crate) fn finalize_boxed(&mut self, module: &hir::Module, index: usize) {
         let class_id = self.boxed.order[index];
         let payload = self.classes[class_id].declared_fields()[0].ty.clone();
-        let encoded = mir::encode_type(&self.shell, &payload)
-            .expect("boxed payloads are source-level MIR types");
+        if matches!(
+            self.source_exact_types.get(&payload).map(|source| source.owner()),
+            Some(mir::SourceExactTypeOwner::Cone(provider)) if provider != module.cone
+        ) {
+            return;
+        }
+        let payload_name = mir::type_name(&self.shell, &payload);
         debug_assert!(self.classes[class_id].vtable.is_empty());
         let interfaces = self.classes[class_id].interfaces.clone();
         for iface in interfaces {
@@ -23,14 +28,29 @@ impl Lowerer {
                 .map(|(index, _)| index)
                 .collect();
             let mut slots = Vec::new();
+            let mut identities = Vec::new();
             for index in method_indices {
-                let thunk = self.build_thunk(module, &payload, &encoded, iface, index);
+                let (thunk, target, identity) =
+                    self.build_thunk(module, &payload, &payload_name, iface, index);
                 slots.push(mir::TableSlot::Function(thunk));
+                identities.push((index, thunk, target, identity));
             }
             self.classes[class_id].itables.push(mir::ItableRecord {
                 interface: iface,
                 slots,
             });
+            for (slot, function, target, identity) in identities {
+                self.boxing_adjusts.push(mir::BoxingAdjust::new(
+                    mir::BoxingAdjustLocation::new(
+                        class_id,
+                        iface,
+                        u32::try_from(slot).expect("interface method indices fit in u32"),
+                        function,
+                    ),
+                    target,
+                    identity,
+                ));
+            }
         }
     }
 
@@ -41,16 +61,19 @@ impl Lowerer {
     /// take `this` by value at MIR; the pointer convention of the receiver is
     /// a codegen ABI matter. The implementation
     /// is selected by its typed concrete-HIR conformance entry, so overloads
-    /// never require a name/signature search. The thunk symbol carries the
-    /// parameter encoding when the interface overloads the name.
+    /// never require a name/signature search.
     pub(crate) fn build_thunk(
         &mut self,
         module: &hir::Module,
         payload: &mir::Type,
-        encoded: &str,
+        payload_name: &str,
         iface: mir::InterfaceId,
         method_index: usize,
-    ) -> mir::FunctionId {
+    ) -> (
+        mir::FunctionId,
+        mir::BoxingAdjustTarget,
+        mir::BoxingAdjustIdentity,
+    ) {
         let (hir_iface, _) = self.interfaces.source(iface);
         let signature = &module.interfaces[hir_iface].methods[method_index];
         let types = Types {
@@ -61,12 +84,12 @@ impl Lowerer {
         let mut locals = Arena::new();
         let this = locals.alloc(mir::Local {
             name: "this".to_string(),
-            ty: mir::Type::Any,
+            ty: mir::Type::Interface(iface),
             mutable: false,
         });
         let mut params = vec![mir::Param {
             name: "this".to_string(),
-            ty: mir::Type::Any,
+            ty: mir::Type::Interface(iface),
             local: this,
         }];
         let mut args = Vec::new();
@@ -75,6 +98,7 @@ impl Lowerer {
         for param in &signature.params {
             let ty = types.lower(
                 param.ty,
+                &mut self.source_exact_types,
                 &mut self.enums,
                 &mut self.structs,
                 &mut self.interfaces,
@@ -95,11 +119,48 @@ impl Lowerer {
         }
         let return_ty = types.lower(
             signature.return_ty,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
             &mut self.shell,
         );
+        let payload_source = self
+            .source_exact_types
+            .get(payload)
+            .expect("boxed payloads retain their local-concrete exact identity");
+        let interface_source = self
+            .source_exact_types
+            .get(&mir::Type::Interface(iface))
+            .expect("boxed interfaces retain their local-concrete exact identity");
+        let exact_signature = hir::ExactCallableSignature::new(
+            if signature.is_suspend {
+                hir::Effect::Suspend
+            } else {
+                hir::Effect::Ordinary
+            },
+            Some(interface_source.identity_record().id()),
+            signature
+                .params
+                .iter()
+                .map(|parameter| module.exact_type_identities[parameter.ty].id())
+                .collect(),
+            module.exact_type_identities[signature.return_ty].id(),
+        );
+        let slot = module.dispatch_slot_identities.interface_slot(
+            hir_iface,
+            hir::InterfaceMethodSlot::from_raw(
+                u32::try_from(method_index).expect("interface method indices fit in u32"),
+            ),
+        );
+        let identity = mir::BoxingAdjustIdentity::new(
+            payload_source.identity_record(),
+            payload_source.nominal_specialization(),
+            slot,
+            interface_source.identity_record(),
+            exact_signature,
+        )
+        .expect("validated interface slots and exact types form one boxing-adjust identity");
         let implementations = self
             .value_interface_implementations(module, payload)
             .to_vec();
@@ -107,7 +168,7 @@ impl Lowerer {
             .into_iter()
             .find(|implementation| {
                 let source = self.interfaces.mir_id(implementation.interface);
-                self.interface_is_subtype(module, source, iface)
+                source == iface
             })
             .expect("concrete HIR supplies the boxed value's target conformance");
         let implementation = source_implementation
@@ -115,20 +176,55 @@ impl Lowerer {
             .into_iter()
             .find(|implementation| implementation.slot.into_raw() as usize == method_index)
             .expect("concrete HIR supplies every boxed itable slot");
-        let implementation = match implementation.target {
-            hir::InterfaceImplementationTarget::Method(function) => function,
-            hir::InterfaceImplementationTarget::Abstract { .. } => {
-                unreachable!("value-type interface implementations are always concrete")
+        let (callee, implementation_params, implementation_result) = match implementation.target {
+            hir::InterfaceImplementationTarget::Method(function) => {
+                let implementation = &module.functions[function];
+                (
+                    mir::Callee::User(self.function_map[&function]),
+                    implementation
+                        .params
+                        .iter()
+                        .map(|param| param.ty)
+                        .collect::<Vec<_>>(),
+                    implementation.return_ty,
+                )
+            }
+            hir::InterfaceImplementationTarget::Imported(callable) => {
+                let target = &self.imported_dependency_callable_map[&callable];
+                let signature = &target.signature;
+                let receiver = signature
+                    .receiver()
+                    .into_option()
+                    .expect("a selected boxed dispatch target has a receiver");
+                let local_type = |exact| {
+                    module
+                        .exact_type_identities
+                        .type_for_identity(exact)
+                        .expect("selected callable signatures retain their exact HIR types")
+                };
+                let params = std::iter::once(receiver)
+                    .chain(signature.parameters().iter().copied())
+                    .map(local_type)
+                    .collect();
+                (
+                    mir::Callee::External(target.callable),
+                    params,
+                    local_type(signature.result()),
+                )
+            }
+            hir::InterfaceImplementationTarget::Abstract { .. }
+            | hir::InterfaceImplementationTarget::ImportedAbstract { .. } => {
+                unreachable!("value-type interface implementations are concrete")
             }
         };
-        let implementation_function = &module.functions[implementation];
         let source_types = Types {
             module,
             struct_map: &self.struct_map,
             class_map: &self.class_map,
         };
         let receiver_ty = source_types.lower(
-            implementation_function.params[0].ty,
+            implementation_params[0],
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
@@ -137,7 +233,10 @@ impl Lowerer {
         let receiver = if receiver_ty == *payload {
             smir::Expr::new(
                 payload.clone(),
-                smir::ExprKind::Unbox(Box::new(smir::Expr::local(this, mir::Type::Any))),
+                smir::ExprKind::Unbox(Box::new(smir::Expr::local(
+                    this,
+                    mir::Type::Interface(iface),
+                ))),
             )
         } else {
             assert!(
@@ -147,19 +246,19 @@ impl Lowerer {
             smir::Expr::new(
                 receiver_ty.clone(),
                 smir::ExprKind::Retype {
-                    operand: Box::new(smir::Expr::local(this, mir::Type::Any)),
+                    operand: Box::new(smir::Expr::local(this, mir::Type::Interface(iface))),
                     ty: Box::new(receiver_ty),
                 },
             )
         };
         args.push(receiver);
-        let source_params = implementation_function
-            .params
+        let source_params = implementation_params
             .iter()
             .skip(1)
             .map(|param| {
                 source_types.lower(
-                    param.ty,
+                    *param,
+                    &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
                     &mut self.interfaces,
@@ -168,20 +267,24 @@ impl Lowerer {
             })
             .collect::<Vec<_>>();
         let implementation_return = source_types.lower(
-            implementation_function.return_ty,
+            implementation_result,
+            &mut self.source_exact_types,
             &mut self.enums,
             &mut self.structs,
             &mut self.interfaces,
             &mut self.shell,
         );
-        for ((local, target_ty), source_ty) in argument_locals
+        for (index, ((local, target_ty), source_ty)) in argument_locals
             .into_iter()
             .zip(&target_params)
             .zip(&source_params)
+            .enumerate()
         {
             args.push(self.adapt_variance_bridge(
+                module,
                 smir::Expr::local(local, target_ty.clone()),
                 target_ty,
+                module.exact_type_identities[signature.params[index].ty].id(),
                 source_ty,
             ));
         }
@@ -190,7 +293,7 @@ impl Lowerer {
             smir::ExprKind::Call(smir::Call {
                 target: mir::CallTarget {
                     kind: mir::CallKind::Direct,
-                    callee: mir::Callee::User(self.function_map[&implementation]),
+                    callee,
                 },
                 args,
                 return_ty: implementation_return.clone(),
@@ -200,26 +303,26 @@ impl Lowerer {
             smir::StatementKind::Expr(call)
         } else {
             smir::StatementKind::Return {
-                value: Some(self.adapt_variance_bridge(call, &implementation_return, &return_ty)),
+                value: Some(self.adapt_variance_bridge(
+                    module,
+                    call,
+                    &implementation_return,
+                    module.exact_type_identities[implementation_result].id(),
+                    &return_ty,
+                )),
             }
         };
-        let encoding = mir::encode_params(&self.shell, &target_params)
-            .expect("interface method parameters are source-level MIR types");
-        let iface_name = self.interfaces.defs[iface].name.clone();
-        // An interface overloading the method name needs the parameter
-        // encoding to keep the thunk symbols distinct.
-        let overloaded = module.interfaces[hir_iface]
-            .methods
+        let parameter_names = target_params
             .iter()
-            .filter(|sig| sig.name == signature.name)
-            .count()
-            > 1;
-        let name = if overloaded {
-            format!("thunk.{encoded}.{iface_name}.{}.{encoding}", signature.name)
-        } else {
-            format!("thunk.{encoded}.{iface_name}.{}", signature.name)
-        };
-        let body = cfg::lower(
+            .map(|ty| mir::type_name(&self.shell, ty))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let iface_name = self.interfaces.defs[iface].name.clone();
+        let name = format!(
+            "thunk<{payload_name}> {iface_name}.{}({parameter_names})",
+            signature.name
+        );
+        let lowered = cfg::lower(
             smir::Body {
                 locals,
                 statements: vec![smir::Statement {
@@ -233,21 +336,44 @@ impl Lowerer {
         );
         let id = self.functions.alloc(mir::Function {
             gc_effect: mir::GcEffect::Managed,
-            symbol: format!("scoop.{name}"),
             name,
             params,
             return_ty: return_ty.clone(),
-            body,
+            body: lowered.body,
         });
+        self.local_values.record_generated_dispatch_parameters(
+            id,
+            identity.materialization(),
+            &self.functions[id].params,
+        );
+        self.local_values.record_generated(
+            id,
+            identity.materialization(),
+            &lowered.generated_values,
+        );
+        self.coroutines.record_call_sites(id, lowered.call_sites);
         self.top_level.push(id);
         if signature.is_suspend {
             self.suspend_sources.push(SuspendSource {
                 function: id,
+                materialization: identity.materialization(),
+                odr_group: identity
+                    .root()
+                    .member_record()
+                    .map(|member| member.key().group()),
+                logical_signature: identity.signature_record().signature().clone(),
                 source_return: return_ty,
-                instance: None,
             });
         }
-        id
+        (
+            id,
+            match callee {
+                mir::Callee::User(function) => mir::BoxingAdjustTarget::Local(function),
+                mir::Callee::External(callable) => mir::BoxingAdjustTarget::External(callable),
+                _ => unreachable!("boxing adjust targets are ordinary Scoop callables"),
+            },
+            identity,
+        )
     }
 
     pub(crate) fn value_interfaces(
@@ -275,6 +401,7 @@ impl Lowerer {
             .map(|ty| {
                 let lowered = types.lower(
                     ty,
+                    &mut self.source_exact_types,
                     &mut self.enums,
                     &mut self.structs,
                     &mut self.interfaces,
@@ -313,13 +440,24 @@ impl Lowerer {
         payload: &mir::Type,
     ) -> Option<hir::StructId> {
         match payload {
-            mir::Type::Integer(kind) => Some(
-                module
-                    .intrinsic_type_core
-                    .integers
-                    .owner(raise_integer_kind(*kind)),
-            ),
-            mir::Type::Boolean => Some(module.intrinsic_type_core.boolean),
+            mir::Type::Integer(_) | mir::Type::Boolean => {
+                let exact = self
+                    .source_exact_types
+                    .get(payload)
+                    .expect("boxed payloads retain their HIR exact type")
+                    .identity_record()
+                    .id();
+                Some(
+                    module
+                        .structs
+                        .iter()
+                        .find_map(|(id, declaration)| {
+                            (module.exact_type_identities[declaration.canonical_type].id() == exact)
+                                .then_some(id)
+                        })
+                        .expect("primitive HIR types retain their actual struct declarations"),
+                )
+            }
             mir::Type::Struct(mir_id) => Some(self.structs.hir_ids[mir_id]),
             _ => None,
         }

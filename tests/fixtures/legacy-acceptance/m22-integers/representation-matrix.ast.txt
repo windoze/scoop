@@ -1,0 +1,433 @@
+SourceFile
+  RootPackage
+  struct Widths
+    field i8: Int8
+    field i16: Int16
+    field i32: Int
+    field i64: Long
+    field u8: UInt8
+    field u16: UInt16
+    field u32: UInt
+    field u64: ULong
+  enum WidthValue
+    I8(Int8)
+    I16(Int16)
+    I32(Int)
+    I64(Long)
+    U8(UInt8)
+    U16(UInt16)
+    U32(UInt)
+    U64(ULong)
+  fun keep<T>(value: T): T
+    =
+      Var value
+  fun render<T : ToString>(value: T): String
+    =
+      MethodCall toString
+        Var value
+  fun equalValuesHaveEqualHashes<T : Hash>(left: T, right: T): Boolean
+    =
+      Binary Eq
+        MethodCall hash
+          Var left
+        MethodCall hash
+          Var right
+  fun renderWidth(value: WidthValue): String
+    =
+      WhenExpression
+        Var value
+        arm I8(number)
+          MethodCall toString
+            Var number
+        arm I16(number)
+          MethodCall toString
+            Var number
+        arm I32(number)
+          MethodCall toString
+            Var number
+        arm I64(number)
+          MethodCall toString
+            Var number
+        arm U8(number)
+          MethodCall toString
+            Var number
+        arm U16(number)
+          MethodCall toString
+            Var number
+        arm U32(number)
+          MethodCall toString
+            Var number
+        arm U64(number)
+          MethodCall toString
+            Var number
+  fun main()
+    Call println
+      Call sizeOf<Int8>
+    Call println
+      Call alignOf<Int8>
+    Call println
+      Call sizeOf<Int16>
+    Call println
+      Call alignOf<Int16>
+    Call println
+      Call sizeOf<Int>
+    Call println
+      Call alignOf<Int>
+    Call println
+      Call sizeOf<Long>
+    Call println
+      Call alignOf<Long>
+    Call println
+      Call sizeOf<UInt8>
+    Call println
+      Call alignOf<UInt8>
+    Call println
+      Call sizeOf<UInt16>
+    Call println
+      Call alignOf<UInt16>
+    Call println
+      Call sizeOf<UInt>
+    Call println
+      Call alignOf<UInt>
+    Call println
+      Call sizeOf<ULong>
+    Call println
+      Call alignOf<ULong>
+    val widths
+      Call Widths
+        Unary Neg
+          IntLiteral 1
+        Unary Neg
+          IntLiteral 257
+        Unary Neg
+          IntLiteral 65537
+        Unary Neg
+          IntLiteral 4294967297L
+        IntLiteral 255u
+        IntLiteral 65535u
+        IntLiteral 4294967295u
+        IntLiteral 18446744073709551615u
+    Call println
+      FieldAccess i8
+        Var widths
+    Call println
+      FieldAccess i16
+        Var widths
+    Call println
+      FieldAccess i32
+        Var widths
+    Call println
+      FieldAccess i64
+        Var widths
+    Call println
+      FieldAccess u8
+        Var widths
+    Call println
+      FieldAccess u16
+        Var widths
+    Call println
+      FieldAccess u32
+        Var widths
+    Call println
+      FieldAccess u64
+        Var widths
+    Call println
+      Call sizeOf<Widths>
+    Call println
+      Call alignOf<Widths>
+    val tuple
+      TupleLiteral
+        FieldAccess i8
+          Var widths
+        FieldAccess i16
+          Var widths
+        FieldAccess i32
+          Var widths
+        FieldAccess i64
+          Var widths
+        FieldAccess u8
+          Var widths
+        FieldAccess u16
+          Var widths
+        FieldAccess u32
+          Var widths
+        FieldAccess u64
+          Var widths
+    val (tupleI8, tupleI16, tupleI32, tupleI64, tupleU8, tupleU16, tupleU32, tupleU64)
+      Var tuple
+    Call println
+      Var tupleI8
+    Call println
+      Var tupleI16
+    Call println
+      Var tupleI32
+    Call println
+      Var tupleI64
+    Call println
+      Var tupleU8
+    Call println
+      Var tupleU16
+    Call println
+      Var tupleU32
+    Call println
+      Var tupleU64
+    val i8s: Array<Int8>
+      ArrayLiteral
+        Unary Neg
+          IntLiteral 1
+        IntLiteral 0
+    val i16s: Array<Int16>
+      ArrayLiteral
+        Unary Neg
+          IntLiteral 257
+        IntLiteral 0
+    val i32s: Array<Int>
+      ArrayLiteral
+        Unary Neg
+          IntLiteral 65537
+        IntLiteral 0
+    val i64s: Array<Long>
+      ArrayLiteral
+        Unary Neg
+          IntLiteral 4294967297L
+        IntLiteral 0L
+    val u8s: Array<UInt8>
+      ArrayLiteral
+        IntLiteral 255u
+        IntLiteral 0u
+    val u16s: Array<UInt16>
+      ArrayLiteral
+        IntLiteral 65535u
+        IntLiteral 0u
+    val u32s: Array<UInt>
+      ArrayLiteral
+        IntLiteral 4294967295u
+        IntLiteral 0u
+    val u64s: Array<ULong>
+      ArrayLiteral
+        IntLiteral 18446744073709551615u
+        IntLiteral 0u
+    Call println
+      Index
+        Var i8s
+        IntLiteral 0L
+    Call println
+      Index
+        Var i16s
+        IntLiteral 0L
+    Call println
+      Index
+        Var i32s
+        IntLiteral 0L
+    Call println
+      Index
+        Var i64s
+        IntLiteral 0L
+    Call println
+      Index
+        Var u8s
+        IntLiteral 0L
+    Call println
+      Index
+        Var u16s
+        IntLiteral 0L
+    Call println
+      Index
+        Var u32s
+        IntLiteral 0L
+    Call println
+      Index
+        Var u64s
+        IntLiteral 0L
+    Call println
+      Call keep<Int8>
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Call keep<Int16>
+        Unary Neg
+          IntLiteral 257
+    Call println
+      Call keep<Int>
+        Unary Neg
+          IntLiteral 65537
+    Call println
+      Call keep<Long>
+        Unary Neg
+          IntLiteral 4294967297L
+    Call println
+      Call keep<UInt8>
+        IntLiteral 255u
+    Call println
+      Call keep<UInt16>
+        IntLiteral 65535u
+    Call println
+      Call keep<UInt>
+        IntLiteral 4294967295u
+    Call println
+      Call keep<ULong>
+        IntLiteral 18446744073709551615u
+    Call println
+      Call render<Int8>
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Call render<Int16>
+        Unary Neg
+          IntLiteral 257
+    Call println
+      Call render<Int>
+        Unary Neg
+          IntLiteral 65537
+    Call println
+      Call render<Long>
+        Unary Neg
+          IntLiteral 4294967297L
+    Call println
+      Call render<UInt8>
+        IntLiteral 255u
+    Call println
+      Call render<UInt16>
+        IntLiteral 65535u
+    Call println
+      Call render<UInt>
+        IntLiteral 4294967295u
+    Call println
+      Call render<ULong>
+        IntLiteral 18446744073709551615u
+    Call println
+      Call equalValuesHaveEqualHashes<Int8>
+        FieldAccess i8
+          Var widths
+        Unary Neg
+          IntLiteral 1
+    Call println
+      Call equalValuesHaveEqualHashes<Int16>
+        FieldAccess i16
+          Var widths
+        Unary Neg
+          IntLiteral 257
+    Call println
+      Call equalValuesHaveEqualHashes<Int>
+        FieldAccess i32
+          Var widths
+        Unary Neg
+          IntLiteral 65537
+    Call println
+      Call equalValuesHaveEqualHashes<Long>
+        FieldAccess i64
+          Var widths
+        Unary Neg
+          IntLiteral 4294967297L
+    Call println
+      Call equalValuesHaveEqualHashes<UInt8>
+        FieldAccess u8
+          Var widths
+        IntLiteral 255u
+    Call println
+      Call equalValuesHaveEqualHashes<UInt16>
+        FieldAccess u16
+          Var widths
+        IntLiteral 65535u
+    Call println
+      Call equalValuesHaveEqualHashes<UInt>
+        FieldAccess u32
+          Var widths
+        IntLiteral 4294967295u
+    Call println
+      Call equalValuesHaveEqualHashes<ULong>
+        FieldAccess u64
+          Var widths
+        IntLiteral 18446744073709551615u
+    val boxedI8: Any
+      FieldAccess i8
+        Var widths
+    val boxedI16: Any
+      FieldAccess i16
+        Var widths
+    val boxedI32: Any
+      FieldAccess i32
+        Var widths
+    val boxedI64: Any
+      FieldAccess i64
+        Var widths
+    val boxedU8: Any
+      FieldAccess u8
+        Var widths
+    val boxedU16: Any
+      FieldAccess u16
+        Var widths
+    val boxedU32: Any
+      FieldAccess u32
+        Var widths
+    val boxedU64: Any
+      FieldAccess u64
+        Var widths
+    Call println
+      Cast Int8 optional=false
+        Var boxedI8
+    Call println
+      Cast Int16 optional=false
+        Var boxedI16
+    Call println
+      Cast Int optional=false
+        Var boxedI32
+    Call println
+      Cast Long optional=false
+        Var boxedI64
+    Call println
+      Cast UInt8 optional=false
+        Var boxedU8
+    Call println
+      Cast UInt16 optional=false
+        Var boxedU16
+    Call println
+      Cast UInt optional=false
+        Var boxedU32
+    Call println
+      Cast ULong optional=false
+        Var boxedU64
+    Call println
+      Call renderWidth
+        MethodCall I8
+          Var WidthValue
+          Unary Neg
+            IntLiteral 1
+    Call println
+      Call renderWidth
+        MethodCall I16
+          Var WidthValue
+          Unary Neg
+            IntLiteral 257
+    Call println
+      Call renderWidth
+        MethodCall I32
+          Var WidthValue
+          Unary Neg
+            IntLiteral 65537
+    Call println
+      Call renderWidth
+        MethodCall I64
+          Var WidthValue
+          Unary Neg
+            IntLiteral 4294967297L
+    Call println
+      Call renderWidth
+        MethodCall U8
+          Var WidthValue
+          IntLiteral 255u
+    Call println
+      Call renderWidth
+        MethodCall U16
+          Var WidthValue
+          IntLiteral 65535u
+    Call println
+      Call renderWidth
+        MethodCall U32
+          Var WidthValue
+          IntLiteral 4294967295u
+    Call println
+      Call renderWidth
+        MethodCall U64
+          Var WidthValue
+          IntLiteral 18446744073709551615u

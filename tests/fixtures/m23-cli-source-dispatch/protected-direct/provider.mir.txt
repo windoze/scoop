@@ -1,0 +1,91 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Vault>
+    Completed(value: Vault)
+    Suspended()
+  enum CoroutineSlot<Vault>
+    Empty()
+    Value(value: Vault)
+  class Vault vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Vault>
+  interface SuspendTask<Vault>
+  interface SuspendRegistration<Vault>
+  generated_exact_type get0 location=enum2 nominal_id=5ee9b07e03c61646b9e09f052190afd2b8d00d6b1616b4ea3da4a841c1a2dd11 exact_id=845a3afd75d28b6d6b8aadf657011e84a1a7b9836003b1802b9f2c6d48fccfc8
+  generated_exact_type get1 location=enum1 nominal_id=79c77e7bb4047ec4477f618fea5667788991c3b511624ca93bf505c17d4de287 exact_id=ad763900212dedb63cdc5683b681a134b2c4f53676d8ef37ca19f3f5d9ffbfd2
+  generated_callable gc0 function=@fn6 id=547202d86fae5218d3f1f453cd4ccab8463c472bd7888831eeb0a2f5daa73343
+  fun Vault.read @fn0(this: Vault, value: Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        Local value
+  fun Continuation.resume @fn1(this: Continuation<Vault>, value: Vault) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn2(this: Continuation<Vault>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn3(this: SuspendTask<Vault>, $completion: Continuation<Vault>) -> CoroutineStep<Vault>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn4(this: SuspendRegistration<Vault>, continuation: Continuation<Vault>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Vault.$c0 @fn5(this: Vault) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<Vault> @fn6(task: SuspendTask<Vault>, completion: Continuation<Vault>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn1 interface Continuation<Vault>[0]
+        Type Continuation<Vault>
+        Local completion
+        Type Vault
+        EnumField v0 f0
+          Type CoroutineStep<Vault>
+          Local $step
+      return
+    bb2 failed
+      call @fn2 interface Continuation<Vault>[1]
+        Type Continuation<Vault>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Vault> = @fn3 interface SuspendTask<Vault>[0]
+        Type SuspendTask<Vault>
+        Local task
+        Type Continuation<Vault>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Vault>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Vault> result=Vault
+  coroutine_slot cl0 CoroutineSlot<Vault> value=Vault
+  coroutine_start ct0 result=Vault function=fn6
+  coroutine_fn cf0 @fn3 source_return=Vault step=cs0 immediate
+  instance mi0 function=@fn1 <- Continuation.resume
+  instance mi1 function=@fn2 <- Continuation.resumeWithException
+  instance mi2 function=@fn3 <- SuspendTask.run
+  instance mi3 function=@fn4 <- SuspendRegistration.register
+  output library

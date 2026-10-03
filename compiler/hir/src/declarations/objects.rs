@@ -48,6 +48,14 @@ pub struct ObjectType {
     pub canonical_type: TypeId,
 }
 
+/// A selected singleton value retains this IR's declaration handle or its
+/// original dependency identity. Initialization and storage stay with that owner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SingletonValueTarget {
+    Local(SingletonValueId),
+    Dependency(scoop_identity::PersistentObjectValueId),
+}
+
 /// The unique source value denoted by an object name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SingletonValue {
@@ -64,5 +72,4 @@ pub struct SingletonValue {
 pub struct SingletonPublishedRoot {
     pub value: SingletonValueId,
     pub ty: TypeId,
-    pub link_name: String,
 }

@@ -1,0 +1,17 @@
+package consumer.iteration
+
+import upstream.iteration.*
+import upstream.iteration.exercise as providerExercise
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int = providerExercise<T>(seed, read)
+
+public fun result(): Int {
+    resetCalls()
+    var sum = 0
+    for (value in Items<Int>([20, 22])) { sum = sum + value }
+    if (sum != 42 || iteratorCalls != 1 || nextCalls != 3) { return 1 }
+    resetCalls()
+    sum = 0
+    for (value in ValueItems<Int>([20, 22])) { sum = sum + value }
+    return if (sum == 42 && iteratorCalls == 1 && nextCalls == 3) { 42 } else { 2 }
+}

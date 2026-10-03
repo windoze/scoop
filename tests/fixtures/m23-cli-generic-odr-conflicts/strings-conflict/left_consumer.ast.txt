@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.conflict.text
+  public fun result(): String
+    =
+      Call text<Int>

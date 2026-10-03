@@ -9,8 +9,8 @@ use super::*;
 
 /// The `(name, type name)` pairs of `main`'s body locals, in
 /// allocation order.
-fn main_local_types(module: &hir::Module) -> Vec<(String, String)> {
-    let main = &module.functions[module.entry];
+fn main_local_types(module: &hir::ExportHirOutput) -> Vec<(String, String)> {
+    let main = &module.functions[module.entry()];
     let hir::FunctionKind::User(body) = &main.kind else {
         panic!("main is a user function")
     };
@@ -21,7 +21,7 @@ fn main_local_types(module: &hir::Module) -> Vec<(String, String)> {
 }
 
 /// The type name of one of `main`'s locals.
-fn local_ty(module: &hir::Module, name: &str) -> String {
+fn local_ty(module: &hir::ExportHirOutput, name: &str) -> String {
     main_local_types(module)
         .into_iter()
         .find(|(local, _)| local == name)

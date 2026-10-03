@@ -1,0 +1,42 @@
+SourceFile
+  RootPackage
+  struct S
+    field f1: Int
+    field f2: Int
+    field f3: Int
+  fun main()
+    val t
+      TupleLiteral
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+        IntLiteral 4
+    val (x, y, ..@99)
+      Var t
+    Call println
+      Binary Add
+        Var x
+        Var y
+    val s
+      Call S
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+    val S{f1, ..}
+      Var s
+    Call println
+      Var f1
+    val (n, S{f2, ..})
+      TupleLiteral
+        IntLiteral 9
+        Var s
+    Call println
+      Binary Add
+        Var n
+        Var f2
+    val S(a, _, c)
+      Var s
+    Call println
+      Binary Add
+        Var a
+        Var c

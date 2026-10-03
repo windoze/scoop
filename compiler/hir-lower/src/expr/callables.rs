@@ -2,6 +2,8 @@
 
 use super::*;
 
+mod values;
+
 impl Lowerer {
     pub(super) fn lower_value_invoke(
         &mut self,
@@ -63,21 +65,47 @@ impl Lowerer {
         if matches!(self.types[ty], Type::Function(_)) {
             return !require_infix;
         }
-        let matching = |modifiers: hir::CallableModifiers| {
-            modifiers.operator == Some(hir::OperatorKind::Invoke)
-                && (!require_infix || modifiers.is_infix)
+        let required = RequiredCallableModifiers {
+            operator: Some(hir::OperatorKind::Invoke),
+            infix: require_infix,
+            ..Default::default()
         };
         if self
             .methods_by_name(ty, "invoke")
             .into_iter()
-            .any(|candidate| matching(self.signatures[&candidate.function].modifiers))
+            .any(|candidate| {
+                Self::matches_required_modifiers(
+                    self.signatures[&candidate.function].modifiers,
+                    required,
+                )
+            })
         {
             return true;
         }
-        self.extension_candidate_layers("invoke")
+        // Lookup failures enter ordinary member resolution for their diagnostic.
+        if self.resolve_imported_member_receiver_type(ty).is_err()
+            || self
+                .imported_member_candidates(
+                    ty,
+                    hir::ImportedMemberLookup::Operator(hir::CallableOperatorRoleV1::Language(
+                        crate::imports::lookup::calls::wire_operator(hir::OperatorKind::Invoke),
+                    )),
+                )
+                .map_or(true, |candidates| {
+                    use hir::ImportedCallableSource;
+                    candidates.iter().any(|candidate| {
+                        !require_infix
+                            || candidate.interface().effects().infix()
+                                == hir::CallableInfixV1::Infix
+                    })
+                })
+        {
+            return true;
+        }
+        self.named_executable_extension_operator_layers(hir::OperatorKind::Invoke)
             .into_iter()
-            .flatten()
-            .any(|function| matching(self.signatures[&function].modifiers))
+            .flat_map(|layer| layer.candidates)
+            .any(|target| self.extension_call_target_matches_required(&target, required))
     }
 
     /// `Name(args...)` in call position: a variant or struct
@@ -145,42 +173,14 @@ impl Lowerer {
                 );
             }
         }
-        let constructor = self.classify_constructor(&call.callee)?;
-        if !matches!(&constructor, Constructor::Unmatched) {
-            if call.callee.text.contains('.') {
-                return self.lower_nominal_constructor_call(constructor, call, sink, expected);
-            }
-            return match self.probe_expr_layer(move |state, layer_sink| {
-                state.lower_nominal_constructor_call(constructor, call, layer_sink, expected)
-            }) {
-                Ok(layer) => Some(self.commit_expr_layer(layer, sink)),
-                Err(failure) => self.lower_function_call(call, sink, expected, Some(failure)),
-            };
+        if call.callee.text.contains('.') {
+            let constructor = self.classify_constructor(&call.callee)?;
+            return self.lower_nominal_constructor_call(constructor, call, sink, expected);
         }
-
-        let object = self
-            .lexical_nested_nominal_target(&call.callee.text)
-            .or_else(|| self.top_level_nominal_target(&call.callee.text))
-            .and_then(|target| match target {
-                crate::NominalTarget::Object(object) => Some(object),
-                _ => None,
-            });
-        let object_failure = object.map(|object| {
-            let kind = match self.objects[object].kind {
-                hir::ObjectKind::Standalone => "object",
-                hir::ObjectKind::Companion(_) => "companion object",
-            };
-            let mut failure = self.clone();
-            failure.error(
-                call.span,
-                format!("{kind} `{}` cannot be constructed", call.callee.text),
-            );
-            Box::new(failure)
-        });
-        self.lower_function_call(call, sink, expected, object_failure)
+        self.lower_layered_named_call(call, sink, expected)
     }
 
-    fn lower_nominal_constructor_call(
+    pub(in crate::expr) fn lower_nominal_constructor_call(
         &mut self,
         constructor: Constructor,
         call: &ast::CallExpr,
@@ -248,106 +248,5 @@ impl Lowerer {
             }
             Constructor::Unmatched => None,
         }
-    }
-
-    pub(super) fn lower_callable_call(
-        &mut self,
-        callee: hir::Expr,
-        args: &[ast::CallArgument],
-        span: Span,
-        sink: &mut Vec<hir::Statement>,
-    ) -> Option<hir::Expr> {
-        let Type::Function(function_type) = self.types[callee.ty] else {
-            let found = self.type_name(callee.ty);
-            self.error(
-                callee.span,
-                format!("value of type {found} is not callable"),
-            );
-            return None;
-        };
-        let signature = self.function_types[function_type].clone();
-        if let Some(argument) = args
-            .iter()
-            .find(|argument| !matches!(argument.name, ast::CallArgumentName::Positional))
-        {
-            self.error(
-                argument.span,
-                "function values do not accept named arguments".to_string(),
-            );
-            return None;
-        }
-        if let Some(argument) = args
-            .iter()
-            .find(|argument| matches!(argument.spread, ast::SpreadSyntax::Spread(_)))
-        {
-            self.error(
-                argument.span,
-                "function values do not accept spread arguments".to_string(),
-            );
-            return None;
-        }
-        if signature.parameter_types.len() != args.len() {
-            self.error(
-                span,
-                format!(
-                    "function value takes exactly {} argument(s), but {} were supplied",
-                    signature.parameter_types.len(),
-                    args.len()
-                ),
-            );
-            return None;
-        }
-        if signature.is_suspend {
-            let context = *self
-                .suspension_contexts
-                .last()
-                .expect("the suspension context stack is initialized");
-            if let SuspensionContext::Forbidden(reason) = context {
-                let location = match reason {
-                    ForbiddenSuspendContext::TopLevel => "a non-suspend declaration".to_string(),
-                    ForbiddenSuspendContext::Function => {
-                        format!("non-suspend function `{}`", self.current_fn_name)
-                    }
-                    ForbiddenSuspendContext::DefaultExpression => {
-                        format!("non-suspend default expression {}", self.current_fn_name)
-                    }
-                    ForbiddenSuspendContext::ConstructorDelegation => {
-                        "constructor delegation".to_string()
-                    }
-                    ForbiddenSuspendContext::ConstructorInitialization => {
-                        "constructor initialization".to_string()
-                    }
-                };
-                self.error(
-                    span,
-                    format!("suspend function value cannot be called from {location}"),
-                );
-                return None;
-            }
-        }
-        let mut lowered = Vec::with_capacity(args.len());
-        for (arg, &parameter_ty) in args.iter().zip(&signature.parameter_types) {
-            let value = self.lower_expr(&arg.expression, sink, Some(parameter_ty))?;
-            if !self.is_subtype(value.ty, parameter_ty) {
-                let expected = self.type_name(parameter_ty);
-                let found = self.type_name(value.ty);
-                self.error(
-                    arg.span,
-                    format!("function argument must be of type {expected}, found {found}"),
-                );
-                return None;
-            }
-            lowered.push(self.adapt_to(value, parameter_ty));
-        }
-        Some(hir::Expr {
-            kind: ExprKind::CallableCall {
-                callee: Box::new(callee),
-                function_type,
-                args: lowered,
-            },
-            ty: signature.return_type,
-            span,
-            origin: self.expression_origin(span),
-        })
     }
 }

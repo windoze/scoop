@@ -1,18 +1,47 @@
 use super::*;
+use crate::ImportedCoreProtocolCallable;
 
 #[derive(Debug, Clone)]
 pub struct Module {
+    /// Producer Cone preserved from Export HIR. Generated definitions must
+    /// use this identity rather than a request-local source or arena id.
+    pub cone: scoop_identity::ConeIdentity,
     pub types: Arena<Type>,
+    /// Total persistent identity relation aligned with `types`. Local-
+    /// concrete HIR cannot represent an open type, so every entry is exact.
+    pub exact_type_identities: ExactTypeIdentities,
+    /// Total persistent identity relation for every callable-local value in
+    /// this fully materialized graph.
+    pub local_value_identities: LocalValueIdentities,
+    /// Total mapping from LocalConcrete virtual/interface slot ids to their
+    /// declaration-level persistent identities.
+    pub dispatch_slot_identities: DispatchSlotIdentities,
+    /// Canonical application identities referenced by callable
+    /// materializations in this local graph.
+    pub callable_applications: CallableApplicationIdentities,
+    /// Generated keys whose exact owners become known during concretization.
+    pub generated_callable_identities: Vec<GeneratedCallableRecord>,
+    /// Canonical callback applications referenced by concrete callback
+    /// registrations in this local graph.
+    pub callback_applications: CallbackApplicationIdentities,
     pub function_types: Arena<FunctionType>,
+    pub native_callback_signatures: Vec<NativeCallbackSignature>,
+    /// Complete instances of the actual core coroutine declarations.
+    pub coroutine_protocols: Vec<CoroutineProtocol>,
     pub lambdas: Arena<Lambda>,
     pub anonymous_functions: Arena<AnonymousFunction>,
     pub local_functions: Arena<LocalFunction>,
     pub callable_references: Arena<CallableReference>,
+    /// Ordinary dependency callable uses transposed one-to-one from Export
+    /// HIR into their own LocalConcrete arena-id domain.
+    pub imported_derived_equalities: Arena<ImportedDerivedEqualityUse>,
+    pub imported_dependency_callables: Arena<ImportedDependencyCallableUse>,
     pub function_coercions: Arena<FunctionCoercion>,
     pub foreign_callback_registrations: Arena<ForeignCallbackRegistration>,
     pub functions: Arena<Function>,
     pub extern_functions: Arena<ExternFunction>,
     pub globals: Arena<Global>,
+    pub generic_delegate_specializations: Arena<GenericDelegateStorageSpecialization>,
     pub initialization_units: Arena<InitializationUnit>,
     pub initialization_failure_roots: Arena<InitializationFailureRoot>,
     pub objects: Arena<ObjectDecl>,
@@ -35,36 +64,78 @@ pub struct Module {
     pub unit: TypeId,
     pub boolean: TypeId,
     pub string: TypeId,
-    pub option_core: Vec<OptionCore>,
-    pub exception_core: CompilerExceptionCore,
-    pub coroutine_protocols: Vec<CoroutineProtocol>,
-    pub foreign_callback_core: ForeignCallbackCore,
-    /// Nominal owners of the fixed compiler-represented types. Generic
-    /// intrinsic families are represented by each concrete class instance,
-    /// so no parameterized template can leak into this local graph.
-    pub intrinsic_type_core: IntrinsicTypeCore,
-    pub entry: FunctionId,
+    /// The single compiler-protocol authority for this LocalConcrete graph.
+    ///
+    /// Bootstrap graphs define the complete protocol product locally;
+    /// ordinary graphs retain the imported authority without copying core
+    /// declarations into this Cone's arenas.
+    pub core_protocols: ConcreteCoreProtocols,
 }
 
 impl Module {
     pub fn option_core(&self, enumeration: EnumId) -> Option<OptionCore> {
-        self.option_core
-            .iter()
-            .copied()
-            .find(|option| option.enumeration() == enumeration)
+        match &self.core_protocols {
+            ConcreteCoreProtocols::Defined(protocols) => protocols
+                .option
+                .iter()
+                .copied()
+                .find(|option| option.enumeration() == enumeration),
+            ConcreteCoreProtocols::Imported(protocols) => {
+                let protocol = protocols.option();
+                let definition = &self.enums[enumeration];
+                if definition.origin.generic_type_id() != Some(protocol.option().persistent()) {
+                    return None;
+                }
+                let variant = |identity| {
+                    let index = definition
+                        .variants
+                        .iter()
+                        .position(|variant| variant.identity == identity)?;
+                    EnumVariantRef::checked(
+                        &self.enums,
+                        enumeration,
+                        VariantId::from_raw(index as u32),
+                    )
+                };
+                let some = variant(protocol.some().persistent())?;
+                let none = variant(protocol.none().persistent())?;
+                let field = definition.variants[some.variant().into_raw() as usize]
+                    .fields
+                    .iter()
+                    .position(|field| field.identity == protocol.some_payload().persistent())?;
+                let payload = EnumVariantFieldRef::checked(&self.enums, some, field as u32)?;
+                OptionCore::checked(&self.enums, payload, none)
+            }
+        }
     }
+}
+
+/// Closed compiler-protocol authority carried by one LocalConcrete HIR graph.
+///
+/// The variants are intentionally disjoint: imported persistent subjects
+/// cannot be represented as declarations owned by the current Cone.
+#[derive(Debug, Clone)]
+pub enum ConcreteCoreProtocols {
+    Defined(Box<DefinedConcreteCoreProtocols>),
+    Imported(std::sync::Arc<crate::ImportedCoreProtocols>),
+}
+
+/// Closed local-concrete compiler protocol product. Its fields are kept
+/// together so a defining graph cannot replace or omit one protocol family
+/// independently of the others.
+#[derive(Debug, Clone)]
+pub struct DefinedConcreteCoreProtocols {
+    pub option: Vec<OptionCore>,
+    pub exceptions: CompilerExceptionCore,
+    pub foreign_callbacks: ForeignCallbackCore,
+    /// Nominal owners of the fixed compiler-represented types. Generic
+    /// intrinsic families are represented by each concrete class instance,
+    /// so no parameterized template can leak into this local graph.
+    pub fundamental_types: IntrinsicTypeCore,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ZeroArgClassConstructor {
-    pub class: ClassId,
-    pub callable: ClassConstructorId,
-}
-
-/// A constructor whose only physical parameter is the exact core
-/// `Option<String>` application used for initialization-cycle messages.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MessageClassConstructor {
     pub class: ClassId,
     pub callable: ClassConstructorId,
 }
@@ -94,19 +165,32 @@ pub struct CompilerExceptionCore {
     pub arithmetic_exception: CompilerException,
     pub index_out_of_bounds_exception: CompilerException,
     pub illegal_state_exception: CompilerException,
-    pub illegal_state_message_constructor: MessageClassConstructor,
+    pub initialization_cycle_thrower: FunctionId,
 }
 
 #[derive(Debug, Clone)]
 pub struct InitializationUnit {
-    pub stable_key: String,
+    pub identity: InitializationUnitIdentityRecord,
+    pub display_name: String,
     pub schedule: InitializationSchedule,
     pub kind: InitializationUnitKind,
     pub initializer: FunctionId,
     pub ensure: FunctionId,
     pub failure_root: InitializationFailureRootId,
     pub dependencies: Vec<InitializationDependency>,
+    pub cycle_thrower: InitializationCycleThrower,
 }
+
+/// Fully selected cycle-error exit for one concrete initialization unit.
+/// Retains a local function or the actual dependency callable declaration.
+#[derive(Debug, Clone)]
+pub enum InitializationCycleThrower {
+    Local(FunctionId),
+    Imported(ImportedCoreProtocolCallable),
+}
+
+pub type InitializationUnitIdentityRecord =
+    CborIdentityRecord<PersistentInitializationUnitId, InitializationUnitKey>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InitializationSchedule {
@@ -118,6 +202,9 @@ pub enum InitializationSchedule {
 pub enum InitializationUnitKind {
     EagerTopLevel {
         storage: GlobalId,
+    },
+    GenericDelegatedExtension {
+        specialization: GenericDelegateStorageSpecializationId,
     },
     LazySingleton {
         value: SingletonValueId,
@@ -321,11 +408,13 @@ pub struct IntrinsicTypeCore {
 
 #[derive(Debug, Clone)]
 pub struct ForeignCallbackRegistration {
+    /// Persistent identity of this fully concrete callback conversion.
+    pub application: PersistentCallbackApplicationId,
     pub callback: StructId,
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,
     pub context_index: u32,
-    pub mode: EnumVariantRef,
+    pub mode: scoop_identity::CallbackMode,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

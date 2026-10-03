@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "typealias `IntPointer` is not generic",
+    "notes": [],
+    "origin": {
+      "cone": "2bff5f0af9aa8aa5df2ba98b25cec5dcc878e6b4ddbb8c18431b8f08a163e987",
+      "end": 103,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 93
+    },
+    "severity": "error"
+  }
+]

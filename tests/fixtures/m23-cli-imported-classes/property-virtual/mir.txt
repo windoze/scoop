@@ -1,0 +1,103 @@
+Module
+  class MutableBase vtable=2 itables=1
+  class ComputedValue vtable=2 itables=1
+  class Counter vtable=0 itables=0
+  interface MutableValue
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.initial: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type ComputedValue
+        ClassAlloc ComputedValue
+      call external4 direct
+        Type ComputedValue
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.initial
+      val cell: MutableBase
+        Type MutableBase
+        Retype MutableBase
+          Type ComputedValue
+          Local $new.1
+      val $place.0: MutableBase
+        Type MutableBase
+        Local cell
+      call external1 virtual[1]
+        Type MutableBase
+        Local $place.0
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $place.1: MutableBase
+        Type MutableBase
+        Local cell
+      call $old.2: Long = external0 virtual[0]
+        Type MutableBase
+        Local $place.1
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.2
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call external1 virtual[1]
+        Type MutableBase
+        Local $place.1
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      call $dependency.receiver: Long = external0 virtual[0]
+        Type MutableBase
+        Local cell
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=45 bits=0x000000000000002d
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      assign $result.3
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      goto bb3
+    bb2 if.else.2
+      assign $result.3
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb3
+    bb3 if.merge.3
+      val $dependency.argument.0: Long
+        Type Long
+        Local $result.3
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external5 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+  output library

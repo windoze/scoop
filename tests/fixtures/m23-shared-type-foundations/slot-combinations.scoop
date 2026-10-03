@@ -1,0 +1,54 @@
+package dependency.slotCombinations
+
+public interface Root {
+    public fun evaluate(): Int = 1
+    public val value: Int
+        get() = 2
+}
+public interface Refined : Root {
+    public override fun evaluate(): Int = 3
+}
+public interface Obligation : Refined {
+    public override fun evaluate(): Int
+}
+public abstract class Pending public constructor() : Obligation
+public class Complete public constructor() : Pending() {
+    public override fun evaluate(): Int = 4
+}
+public open class Winner public constructor() : Refined {
+    public open override fun evaluate(): Int = 5
+    public open override val value: Int
+        get() = 6
+}
+public object Singleton : Winner()
+public struct Value() : Root {
+    public override fun evaluate(): Int = 7
+}
+public enum Choice : Root {
+    One
+    public override fun evaluate(): Int = 8
+}
+public open class Virtual public constructor() {
+    public open fun compute(): Int = 9
+}
+public abstract class Reabstract public constructor() : Virtual() {
+    public abstract override fun compute(): Int
+}
+public class Final public constructor() : Reabstract() {
+    public final override fun compute(): Int = 10
+}
+public interface MutableRoot {
+    public var size: Int
+        get() = 11
+        set(value) {}
+}
+public interface MutableSpecific : MutableRoot {
+    public override var size: Int
+        get() = 12
+        set(value) {}
+}
+public class MutableWinner public constructor() : MutableSpecific {
+    public override var size: Int
+        get() = 13
+        set(value) {}
+}

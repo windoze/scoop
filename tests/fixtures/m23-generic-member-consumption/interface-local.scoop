@@ -1,0 +1,19 @@
+package consumer.members
+
+import templates.members.*
+
+public class LocalReader<T> public constructor(public val value: T): Reader<T> {
+    public override fun get(): T = this.value
+    public fun readBase(): T = super<Reader<T>>.read()
+}
+
+public class LocalItem<T> public constructor(public val value: T): AbstractReader<T>() {
+    public override fun get(): T = this.value
+}
+
+public fun result(): Int = LocalReader<Int>(20).readBase() + LocalItem<Int>(22).get()
+
+public fun <T> make(value: T): T {
+    val reader: Reader<T> = LocalItem<T>(value)
+    return reader.read()
+}

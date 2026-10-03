@@ -1,0 +1,43 @@
+SourceFile
+  RootPackage
+  public open class AccessBase()
+    protected var inherited: Int = <expr>
+      IntLiteral 1
+      private set(value)
+        assign field
+          Var value
+  public class DomainCases() : AccessBase(<0 args>)
+    public var visible: Int = <expr>
+      IntLiteral 2
+      internal set(value)
+        assign field
+          Var value
+    protected var narrower: Int = <expr>
+      IntLiteral 8
+      private set(value)
+        assign field
+          Var value
+    internal nested class InternalOwner
+    protected nested class ProtectedOwner
+  public open class GenericBase<T>()
+  public class GenericOwner<T>() : GenericBase<T>(<0 args>)
+    protected var guarded: Int = <expr>
+      IntLiteral 6
+      private set(value)
+        assign field
+          Var value
+  public object Registry
+    public var visible: Int = <expr>
+      IntLiteral 7
+      private set(value)
+        assign field
+          Var value
+  private open class FileOwner()
+    internal var guarded: Int = <expr>
+      IntLiteral 9
+      protected set(value)
+        assign field
+          Var value
+  public class FileHolder()
+    private val owner: FileOwner = <expr>
+      Call FileOwner

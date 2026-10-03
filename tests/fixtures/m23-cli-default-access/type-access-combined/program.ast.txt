@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        Call accessCombined<Int>
+          IntLiteral 7
+        IntLiteral 7
+    Call verifyDefault
+      Binary Eq
+        Call accessCombined<String>
+          StringLiteral "value"
+        StringLiteral "value"
+    Call verifyDefault
+      Binary Eq
+        Call accessCombined<Int>
+          IntLiteral 1
+          Argument box=
+            Call AccessBox
+              IntLiteral 11
+        IntLiteral 11

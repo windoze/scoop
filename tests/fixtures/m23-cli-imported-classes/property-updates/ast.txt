@@ -1,0 +1,72 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.classes.*
+  fun receiver(trace: PropertyTrace): MutableCell
+    compound-assign Add
+      Var trace
+      IntLiteral 1
+    return
+      FieldAccess cell
+        Var trace
+  fun argument(trace: PropertyTrace): Long
+    compound-assign Add
+      Var trace
+      IntLiteral 1
+    return
+      IfExpression
+        Binary Eq
+          FieldAccess receivers
+            Var trace
+          FieldAccess arguments
+            Var trace
+        IntLiteral 20
+        else
+        IntLiteral 100
+  public fun primary(): Counter
+    val trace
+      Call PropertyTrace
+        Call MutableCell
+          IntLiteral 0
+    assign .value
+      Call receiver
+        Var trace
+      Call argument
+        Var trace
+    compound-assign Add
+      Call receiver
+        Var trace
+      Call argument
+        Var trace
+    val old
+      Update Postfix Increment
+        Place .value
+          Call receiver
+            Var trace
+    val next
+      Update Prefix Increment
+        Place .value
+          Call receiver
+            Var trace
+    return
+      Call Counter
+        IfExpression
+          Binary And
+            Binary And
+              Binary And
+                Binary Eq
+                  Var old
+                  IntLiteral 40
+                Binary Eq
+                  Var next
+                  IntLiteral 42
+              Binary Eq
+                FieldAccess receivers
+                  Var trace
+                IntLiteral 4
+            Binary Eq
+              FieldAccess arguments
+                Var trace
+              IntLiteral 2
+          IntLiteral 21
+          else
+          IntLiteral 0

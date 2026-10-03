@@ -6,26 +6,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "scoop_rt.h"
 #include "gc/gc_internal.h"
 #include "managed_entries.h"
+#include "scoop_rt.h"
 #include "thread.h"
 
-void scoop_rt_gc_init(void) {
-    scoop_gc_stackmaps_init();
-    scoop_gc_register_image_roots(
-        scoop_image_managed_globals, scoop_image_managed_global_count,
-        scoop_image_immortal_objects, scoop_image_immortal_object_count);
+void scoop_rt_gc_init(const ScoopImageRegistry *registry) {
+    scoop_gc_stackmaps_init(&registry->stackmaps);
     scoop_gc_heap_init();
 }
 
 void *scoop_runtime_alloc_slow_impl(const ScoopTypeDescriptor *td, size_t size,
-                                    uintptr_t return_pc,
-                                    uintptr_t stack_pointer,
+                                    uintptr_t return_pc, uintptr_t stack_pointer,
                                     uintptr_t frame_pointer) {
     ScoopManagedAnchor anchor;
-    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer,
-                                     frame_pointer);
+    scoop_thread_push_managed_anchor(&anchor, return_pc, stack_pointer, frame_pointer);
     scoop_thread_poll();
     void *object = scoop_gc_alloc_internal(td, size);
     scoop_thread_pop_managed_anchor(&anchor);

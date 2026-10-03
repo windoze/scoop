@@ -1,0 +1,42 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportStar Local templates.members.*
+  public class Derived<T>(value: T) : ProtectedBox<T>(<1 args>)
+    public open override var state: T = <expr>
+      Var value
+      protected set(next)
+        assign field
+          Var next
+  public fun result(): Int
+    val value
+      Call Derived<Int>
+        IntLiteral 20
+    val base: ProtectedBox<Int>
+      Var value
+    val previous
+      MethodCall replaceVirtual
+        Var base
+        IntLiteral 22
+    if
+      Binary Ne
+        FieldAccess state
+          Var base
+        FieldAccess state
+          Var value
+      return
+        IntLiteral 0
+    return
+      Binary Add
+        Var previous
+        FieldAccess state
+          Var value
+  public fun make<T>(value: T): T
+    val holder: ProtectedBox<T>
+      Call Derived<T>
+        Var value
+    MethodCall replaceVirtual
+      Var holder
+      Var value
+    return
+      FieldAccess state
+        Var holder

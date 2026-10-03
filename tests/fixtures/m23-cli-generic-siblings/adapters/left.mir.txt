@@ -1,0 +1,105 @@
+Module
+  class Payload vtable=0 itables=0
+  class Marker<Int> vtable=0 itables=1
+  interface Readable
+  closure cc0 $Closure$adapter$(Any) -> Payload$(Payload) -> Any type=function_type0 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn5 id=640488ba5fbf75926ffe2e0dfd4438717400492ff0509bfe04e9b083a0ba7495
+  generated_exact_type get0 location=closure0 nominal_id=420de768a9c0d917aecc4b475e7ea6ef08cc2110d6bf0ece587e6fcee24a6270 exact_id=46d99e9a8ff0a66debe46ff58b860e615c79013a83252f680ddfba83e73c64a0
+  generated_callable gc0 function=@fn5 id=640488ba5fbf75926ffe2e0dfd4438717400492ff0509bfe04e9b083a0ba7495
+  generated_callable gc1 function=@fn4 id=835a68c5f8d1f0071b3eb65c9b6ff53a1ce0d774622d3d3fb7be03ac41049efb
+  adapter ca0 class=cc0 source=function_type2 target=function_type0
+  fun action @fn0() -> (Payload) -> Any
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call external0 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.number
+      val $dependency.argument.0: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.parameter.value: Payload
+        Type Payload
+        Local $dependency.argument.0
+      call $call.2: (Any) -> Payload = external1 direct
+        Type Payload
+        Local $dependency.parameter.value
+      return
+        Type (Payload) -> Any
+        ClosureAlloc cc0 $Closure$adapter$(Any) -> Payload$(Payload) -> Any
+          CaptureInit field=0
+            Type (Any) -> Payload
+            Local $call.2
+  fun sameType @fn1() -> Any
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=20 bits=0x00000014
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Marker<Int>
+        ClassAlloc Marker<Int>
+      call @fn3 direct
+        Type Marker<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Any
+        Retype Any
+          Type Marker<Int>
+          Local $new.1
+  fun read @fn2(this: Marker<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun init.Marker.$c0 @fn3(this: Marker<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Marker<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun $adapter.(Any) -> Payload.(Payload) -> Any @fn4($closure: (Payload) -> Any, arg0: Payload) -> Any
+    bb0 entry
+      call $call.1: Payload = <closure:function_type2> closure[function_type2]
+        Type (Any) -> Payload
+        ClosureCapture cc0 0
+          Type (Payload) -> Any
+          Local $closure
+        Type Any
+        Retype Any
+          Type Payload
+          Local arg0
+      return
+        Type Any
+        Retype Any
+          Type Payload
+          Local $call.1
+  fun function_bridge.$Closure$adapter$(Any) -> Payload$(Payload) -> Any.(Any) -> Any @fn5($source: (Payload) -> Any, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Any = <closure:function_type0> closure[function_type0]
+        Type (Payload) -> Any
+        Local $source
+        Type Payload
+        Retype Payload
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Local $call.1
+  instance mi0 function=@fn2 <- read
+  output library

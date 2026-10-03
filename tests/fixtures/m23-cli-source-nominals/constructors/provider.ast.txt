@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public open class Envelope(count: Int = <expr>)
+    constructor(flag: Boolean) : this(<1 args>)
+    constructor(value: Long) : this(<1 args>)
+    constructor(text: String) : this(<1 args>)
+    protected nested class Box
+    protected nested struct Pair
+    protected nested class Outer
+    protected nested object Singleton
+  public struct Empty
+    constructor(flag: Boolean) : this(<0 args>)

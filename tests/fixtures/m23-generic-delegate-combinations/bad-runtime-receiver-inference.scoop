@@ -1,0 +1,6 @@
+import templates.delegateCombinations.*
+
+fun wrong(): Int {
+    val erased: Any = Receiver<Int>(1)
+    return erased.zero
+}

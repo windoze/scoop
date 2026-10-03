@@ -1,0 +1,68 @@
+package consumer.references
+import upstream.references.*
+
+private fun <T, U> localCaptured(seed: T, inspect: (T) -> Int): () -> Int {
+    fun <V> value(ignored: V): Int = inspect(seed)
+    val first: (Int) -> Int = ::value
+    val repeated: (Int) -> Int = ::value
+    val alternate: (Unit) -> Int = ::value
+    return { first(0) + repeated(0) + alternate(Unit) - 84 }
+}
+
+public fun <T> exercise(seed: T, inspect: (T) -> Int): Int {
+    if (localSelfReference(42) != 42) { return 7 }
+    if (localGenericSelfReference<T>(seed, inspect) != inspect(seed)) { return 8 }
+    if (localRecursiveReference<T>(seed, inspect) != inspect(seed)) { return 6 }
+    val plain: () -> Int = ::answer
+    val copy: (T) -> T = ::identity
+    val bound: () -> T = seed::retain
+    val unbound: (T) -> T = ::retain
+    val member: () -> T = Box<T>(seed)::read
+    val intrinsic: (Int) -> Boolean = 42::equals
+    if (plain() != 42 || !intrinsic(42) || intrinsic(1)) { return 1 }
+    if (inspect(copy(seed)) != inspect(bound())) { return 2 }
+    if (inspect(unbound(seed)) != inspect(member())) { return 3 }
+    val first = localCaptured<Int, T>(42, { value -> value })
+    val second = localCaptured<Int, T>(43, { value -> value })
+    if (first() != 42 || second() != 45) { return 4 }
+    val inherited = localCaptured<T, Int>(seed, inspect)
+    val distinct = localCaptured<T, Unit>(seed, inspect)
+    if (inherited() != distinct()) { return 5 }
+    return inherited()
+}
+
+private fun <T> localRecursiveReference(seed: T, inspect: (T) -> Int): Int {
+    fun descend(depth: Int): Box<T> {
+        if (depth > 0) {
+            val read: () -> T = descend(depth - 1)::read
+            return Box<T>(read())
+        }
+        return Box<T>(seed)
+    }
+    return inspect(descend(2).read())
+}
+
+private fun localSelfReference(seed: Int): Int {
+    fun recur(depth: Int): Int {
+        if (depth > 0) {
+            val next: (Int) -> Int = ::recur
+            return next(depth - 1)
+        }
+        return seed
+    }
+    return recur(2)
+}
+
+private fun <T> localGenericSelfReference(seed: T, inspect: (T) -> Int): Int {
+    val limit = 0
+    fun <U> recur(ignored: U, depth: Int): T {
+        if (depth > limit) {
+            val next: (U, Int) -> T = ::recur
+            return next(ignored, depth - 1)
+        }
+        return seed
+    }
+    return inspect(recur<Unit>(Unit, 2)) + inspect(recur<Int>(0, 2)) - inspect(seed)
+}
+
+public fun result(): Int = exercise<Int>(42, { value -> value })

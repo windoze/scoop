@@ -77,11 +77,13 @@ fn reference_elements_infer_their_representable_lob() {
         ),
     ]);
     let module = lower_user(file).expect("reference LOB inference must lower");
-    let body = match &module.functions[module.entry].kind {
+    let body = match &module.functions[module.entry()].kind {
         hir::FunctionKind::User(body) => body,
         hir::FunctionKind::Intrinsic(_)
         | hir::FunctionKind::Extern(_)
-        | hir::FunctionKind::DerivedEquality => {
+        | hir::FunctionKind::DerivedEquality
+        | hir::FunctionKind::Abstract { .. }
+        | hir::FunctionKind::InitializationEnsure => {
             panic!("main is a user function")
         }
     };

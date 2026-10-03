@@ -1,0 +1,16 @@
+schema = 1
+name = "legacy-m22-pointers-errors-c-pointer-pointee-representation"
+root = "../../../m22-pointers/errors/c-pointer-pointee-representation.scoop"
+inputs = ["../../../m22-pointers/errors/c-pointer-pointee-representation.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-pointers", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "c-pointer-pointee-representation.diagnostics.json"}

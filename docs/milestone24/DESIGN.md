@@ -2,7 +2,7 @@
 
 状态：设计完成，待实现  
 日期：2026-09-07  
-依赖：M15 moving GC、M19 class 构造、M23 typed runtime metadata、M25 自有异常 ABI
+依赖：M15 moving GC、M19 class 构造、M23-10 artifact/runtime/link闭包、M25 自有异常 ABI
 
 ## 0. 结论
 
@@ -187,7 +187,7 @@ ReleasePolicy<Target> = None
 
 `ExportHir`中的generic owner保存typed release template、其 `ReleaseFieldRef` 集合、`ReleaseSafe` call graph edge及`RequiresReleaseValue` type-argument条件；param-free owner保存完整hook body。`LocalConcreteHir`只含fully substituted `ConcreteReleasePolicy`，其中hook target、每个field exact type及所有call target都已确定；不能保留源码名称、nullable body或“稍后检查ReleaseValue”的flag。
 
-release block使用独立的 `ExportReleaseHookId` / `ConcreteReleaseHookId`。它们不能与function、method、constructor、accessor或ordinary callable id混用。跨Cone body进入generic hidden support closure，但不进入public lookup surface。
+release block使用独立的stage-local `ExportReleaseHookId` / `ConcreteReleaseHookId`。它们不能与function、method、constructor、accessor或ordinary callable id混用，但也**不是**persistent identity：M24不定义`PersistentReleaseHookId`，不为它分配新mangler kind。跨Cone template body进入generic hidden support closure但不进入public lookup surface；具体machine body只由第4.2节`PersistentCallableBodyId`标识，generic ODR归组复用M23已冻结的`OdrMemberRole::ReleaseHook=16`。
 
 ### 3.2 MIR
 
@@ -218,9 +218,86 @@ concrete type的release policy使用完备sum；物理nullable函数指针只在
 
 ### 4.1 TypeDescriptor扩展
 
-M24 bump runtime ABI fingerprint与`.slib`的HIR/MIR/LIR三层wire schema；旧M23 `.slib`必须重建，不做兼容读取。M23的program/image/entry/core及六类registration record继续使用原`abi_version == 1`、原字段顺序与精确size，不增加nullable尾字段；TypeDescriptor本身没有prefix，它在现有字段末尾追加：
+M24 bump runtime ABI fingerprint与`.slib`的HIR/MIR/LIR三层wire schema；旧M23 `.slib`必须重建，不做兼容读取。image、root entry及六类registration record继承 [M23-8](../milestone23/stage8/DESIGN.md) 的 `abi_version == 3`、原字段顺序与精确size，不恢复已删除的program/core descriptor，不增加nullable尾字段。TypeDescriptor本身没有prefix，在现有144-byte固定部分之后、`related_types[]`尾表之前增加release hook：
 
-`.slib`仍使用M23定义的v1 deterministic-`ar` container，container version不变；M24把manifest中HIR/MIR/LIR三层wire schema version全部固定为2。任一层为v1或三层版本不一致时，reader都执行明确的incompatible-artifact诊断，不尝试逐字段升级。runtime ABI没有可协商兼容模式，最终程序中的compiler、core、所有Cone与runtime必须提供同一新fingerprint。
+`.slib` 仍使用 M23 的 deterministic-ar container schema 1、bootstrap manifest schema 1、persistent identity schema 1 与 persistent-v1 mangler。M24 将 compatibility 中的 HIR/MIR/LIR schema 与各 outer envelope 全部升至 2；混代或 outer/compatibility 不一致均拒绝。foundation capability 分别使用 `org.scoop-lang.hir/identity-foundation/4`、`org.scoop-lang.mir/identity-foundation/2`、`org.scoop-lang.lir/identity-foundation/3`：HIR 承接 M23-6 的 /3，LIR 承接 [M23-7](../milestone23/stage7/DESIGN.md) 的 /2。正式生产 profile 承接 M23-8 的 `cross-cone-generic/2`，升至 `/3` 并列出完整新 required section；不恢复 identity-only profile。同一 capability/profile 的旧、新 major 不得混入同一 artifact 或依赖 world，outer 升代不能代替 section 检查。
+
+各层新 major 的 identity foundation 沿用 M23-7 delta table 的 kind 与未退役 field tag，LIR callable-body table整体改存body-v2 runtime key；HIR release template、MIR release body/publish relation、LIR release policy/definition与object proof分别由major 2的closed payload/required capability承载，不能给`/1` product加nullable field。runtime ABI没有可协商兼容模式，最终程序中的compiler、core、所有Cone与runtime必须提供同一新fingerprint。
+
+M24不另造`LanguageAbiContractV2`、`RuntimeAbiContractV2`或新hash domain；它沿用M23已冻结的V1 contract product与`DomainSeparatedCborHash`，只为既有closed enum分配新tag：
+
+```text
+LanguageAbiContractV1 {
+    revision: M24ReleaseHook = 2,                         // field 1
+}
+
+RuntimeAbiContractV1 {
+    object_and_gc_contract: M24ReleaseReadyImmixV1 = 2, // field 1
+    runtime_metadata_record_abi: u32 = 3,                // field 2
+    type_descriptor_contract: M24ReleaseHookV1 = 2,     // field 3
+}
+
+LanguageAbiFingerprint =
+    DomainSeparatedCborHash("scoop-language-abi-contract-v1",
+                            LanguageAbiContractV1)
+
+RuntimeAbiFingerprint =
+    DomainSeparatedCborHash("scoop-runtime-abi-contract-v1",
+                            RuntimeAbiContractV1)
+```
+
+`M24ReleaseReadyImmixV1=2`承诺本设计的header ready bit、publish/搬迁保留、logical-death分类及nonnull hook claim/reclaim顺序；`M24ReleaseHookV1=2`承诺TypeDescriptor新增的hook字段、精确布局与policy/nullability映射。两项必须同时取2，不能只提升TD而让collector仍按M23 header/GC contract解释，或只提升GC contract却按无hook TD读取。八类prefixed runtime metadata record的字段/size承接M23-8，field 2保持3。
+
+两份deterministic Wire CBOR与fingerprint golden精确为：
+
+```text
+LanguageAbiContractV1 CBOR = a10102
+LanguageAbiFingerprint =
+    634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391
+
+RuntimeAbiContractV1 CBOR = a3010202030302
+RuntimeAbiFingerprint =
+    61de273fbed4096c67678145902deeed00a6ff59b6dcd2e75ce6a142aa50d6d8
+```
+
+compatibility field 12仍以M23的`IdentityAbiDescriptorV1`和原domain重算。M24 descriptor的完整值如下；除language/runtime leaf、callable body与三层wire schema外，其余字段逐项保持M23值：
+
+```text
+IdentityAbiDescriptorV1 {
+    language_abi: 634ec02192ba1541f603b8b56f8c9e63
+                  dfc31d86ca5d4443a626f6afc9005391, // field 1
+    runtime_abi:  61de273fbed4096c67678145902deeed
+                  00a6ff59b6dcd2e75ce6a142aa50d6d8, // field 2
+    identity_schema: 1,                               // field 3
+    wire_cbor_schema: 1,                              // field 4
+    hash_framing_schema: 1,                           // field 5
+    callable_body_schema: 2,                          // field 6
+    mangling_schema: "persistent-v1",                 // field 7
+    runtime_type_id_derivation_schema: 1,             // field 8
+    safepoint_id_derivation_schema: 1,                // field 9
+    runtime_metadata_encoder_abi: 1,                  // field 10
+    hir_schema: 2,                                    // field 11
+    mir_schema: 2,                                    // field 12
+    lir_schema: 2,                                    // field 13
+}
+
+CompositeIdentityAbiFingerprint =
+    DomainSeparatedCborHash("scoop-composite-identity-abi-v1",
+                            IdentityAbiDescriptorV1)
+```
+
+其canonical CBOR与fingerprint golden为：
+
+```text
+ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391
+02582061de273fbed4096c67678145902deeed00a6ff59b6dcd2e75ce6a142aa50d6d8
+0301040105010602076d70657273697374656e742d7631080109010a010b020c020d02
+
+CompositeIdentityAbiFingerprint =
+    e2a81ba2d311e7a11fec472671efc15b3e7b770ebd32048d6bfa7688cdc97856
+```
+
+上面的CBOR换行只为排版，实际输入是三行hex无分隔符拼接后的bytes。writer、reader、runtime registry与program-link必须使用这些exact values；兼容检查不能只比较outer schema或producer version，也不能接受M23 language/runtime leaf与M24 descriptor字段的任意混搭。
 
 ```c
 typedef void (*ScoopReleaseHookV1)(void *object_start);
@@ -234,11 +311,15 @@ struct ScoopTypeDescriptor {
     const ScoopItableEntryV1 *itables;
     uint64_t itable_count;
     ScoopByteSpanV1 diagnostic_name;
+    uint32_t relation_kind;
+    uint32_t related_type_count;
+    const ScoopTypeDescriptor *function_result;
     ScoopReleaseHookV1 release_hook;
+    const ScoopTypeDescriptor *related_types[];
 };
 ```
 
-物理编码固定为：
+在现有64-bit target上，`release_hook`位于offset 144，固定部分与`related_types[]`起点均为152 bytes；M23-8仍为144 bytes。物理编码固定为：
 
 - `ReleasePolicy::None` → `release_hook == NULL`；
 - `ReleasePolicy::SynchronousGcFree` → 非null且指向该exact type唯一的已登记release thunk；
@@ -249,28 +330,43 @@ collector只读已经验证的physical field，不从type name、field layout、
 
 ### 4.2 持久身份与fingerprint
 
-M24为release block增加独立persistent identity，并把 `CallableBodyKey` 扩为第五个封闭variant：
+M24不增加release专用persistent id，只把所有machine body统一切换到一个新的runtime-encoded key代际：
 
 ```text
-ReleaseHook { owner: PersistentExactTypeId }
+CallableBodyKeyV2 =
+    Strong { owner: StrongCallableDefinitionOwner }                 // tag 1
+  | Odr { member: CallableOdrMemberId }                              // tag 2
+  | RootGateway { root_cone: ConeIdentity, main: MainCallableBodyId }// tag 3
+  | InitializationStartupGateway { unit: PersistentInitializationUnitId } // tag 4
+  | ReleaseHook { owner: PersistentExactTypeId }                     // tag 5
+
+PersistentCallableBodyId =
+    SHA-256(ByteSpan("scoop-callable-body-v2") ||
+            RuntimeEncode(CallableBodyKeyV2))
 ```
 
-M24把所有machine body identity统一bump为`SHA-256(ByteSpan("scoop-callable-body-v2") || canonical(CallableBodyKey))`，五个`u32`小端tag依次为Strong=1、Odr=2、RootGateway=3、InitializationStartupGateway=4、ReleaseHook=5；旧v1 artifact整体重建。ReleaseHook payload只有owner exact type id，因而runtime可从type registration的`PersistentExactTypeId`重算唯一合法body id，再要求该callable entry与TypeDescriptor函数指针逐bit一致。param-free class的hook由定义Cone强定义；generic exact application的hook、TypeDescriptor、layout/scan、diagnostic atom及相关release-safe specialization进入同一个nominal ODR group。多个consumer materialize同一application时必须逐member coalesce为同一TD和hook地址。
+`RuntimeEncode`沿用M23 runtime metadata encoder：tag为little-endian `u32`，product按声明序编码，typed id写固定32 bytes；这里绝不是Wire CBOR，也不在key bytes外再套一层CBOR或host struct。所有五个variant都使用v2 domain，旧v1 artifact整体重建。`ReleaseHook` payload只有owner exact type id，因此runtime可从type registration的`PersistentExactTypeId`重算唯一合法body id，再要求该callable entry与TypeDescriptor函数指针逐bit一致。
 
-`PersistentExactTypeId`、其他declaration identity及`persistent-v1` mangling schema不改变；manifest的composite identity-ABI fingerprint必须改为包含callable-body-v2并与M23值不同。由body id派生的link symbol、safepoint owner/site identity及缓存key全部重新生成，不能只给新增ReleaseHook使用v2而保留其他body的v1 id。
+param-free source class不构造ReleaseHook ODR member；其hook body使用上述精确`ReleaseHook(owner)` body key，但definition plan走Strong owner并与同一个exact source subject的TypeDescriptor、callable registration一起由定义Cone发射，默认`ConeStrong`。若M23-7已经对整个subject取得完整template-support hidden proof，它们可以整体继承`TemplateSupportHidden`，但仍属于Strong侧而不是ODR；不得只把hook、registration或TD中的一个改成hidden。
+
+generic exact application使用M23已冻结的nominal specialization group，且恰有一个`OdrMemberKey { group=owner的Nominal组, role=ReleaseHook(16), discriminator=ExactType(owner) }`。validator逐字段证明group的origin/arguments等于owner的`ExactTypeKey::NominalApplication`；hook body仍是`CallableBodyKeyV2::ReleaseHook(owner)`，其`cb` symbol与ObjectDefinitionPlan primary由该ReleaseHook member拥有并取`OdrWeak`。同组另有且只有一个`RegistrationRecord/CallableBody(body id)` member供`cr`使用；不能再制造`CallableBody` role member、`od`第二primary、safepoint或`sr`。TD的hook relocation必须命中该`cb` entry。多个consumer materialize同一application时逐member证明并coalesce为同一TD、registration和hook地址。
+
+hook调用verified pure C leaf bridge时，canonical LIR definition、object relocation fingerprint与ODR digest只引用M23的`GeneratedBridgeSemanticTarget { unit }`；各producer实际指向本Cone `PrimaryEntry(unit)` atom，object verifier必须再规范化回unit。producer-local atom id不能进入generic hook fingerprint，否则两个consumer会为同一release specialization得到不同definition。
+
+`PersistentExactTypeId`、其他declaration identity、`PersistentCallableApplicationId`、`OdrGroupId`、M23已分配的ReleaseHook role 16及`persistent-v1` mangling schema不改变；以CallableApplication/GeneratedCallable为discriminator的primary callable member identity也不因body schema改变。manifest的composite identity-ABI fingerprint必须改为包含callable-body-v2并与M23值不同。由body id派生的link symbol、safepoint owner/site identity、以CallableBody/SafepointSite为discriminator的派生`OdrMemberId`、registration symbol/member set、ODR fingerprint及缓存key全部重新生成，不能只给新增ReleaseHook使用v2而保留其他body的v1 id。
 
 canonical source/HIR/MIR/LIR fingerprint覆盖release body、读取的typed field、`ReleaseValue`条件和call graph；`CanonicalLirDefinition`覆盖release policy与hook body id。TypeDescriptor的object definition覆盖physical hook relocation role及对应body definition fingerprint；RuntimeImage type/callable record双向关联owner exact type、entry与producer。修改hook body、field type/offset、callee或policy必须使相应artifact和下游缓存失效。
 
 ### 4.3 artifact验证
 
-在任何managed代码运行前，M23 registry流程额外验证：
+在任何managed代码运行前，M23-8 registry流程额外验证：
 
-- 每个非null `release_hook`恰好命中一个同producer或同ODR group、role为ReleaseHook的executable callable entry；
+- 每个非null `release_hook`恰好命中一个`CallableBodyKeyV2::ReleaseHook(owner exact type)`的`cb` executable entry；param-free owner要求同producer Strong plan，generic owner要求同nominal ODR group唯一的ReleaseHook/ExactType member，不能把“同producer或同group”当作任选其一；
 - callable body id的owner exact type等于TypeDescriptor registration的exact type；
 - pointer为正确ABI/alignment的函数入口，不与ordinary managed/native gateway共址或混用registration；
 - TD physical nullability与typed release policy完全一致；
 - hook body产物不含statepoint/stackmap/LSDA/personality、managed pointer relocation、禁止runtime入口或未声明native symbol；
-- ODR重复的policy、hook member set、body/layout/descriptor fingerprint及最终地址全部一致。
+- generic ODR重复的policy、唯一ReleaseHook member、唯一RegistrationRecord/CallableBody member、body/layout/descriptor fingerprint及最终地址全部一致；param-free则禁止出现ReleaseHook ODR member。
 
 runtime不反汇编任意函数来重新证明GC-free；该证明由typed IR validator与object verifier建立，runtime只消费经过完整program registry commit的数据。
 
@@ -291,22 +387,30 @@ forwarding关系继续位于arena外side metadata，不占用或覆盖ready。ev
 
 ### 5.2 reclaim集成
 
-release调用应集中在唯一runtime helper中，使small object、large object、普通sweep、evacuation source清理及stress poison共同使用同一顺序：
+release调用应集中在唯一runtime helper中，使small object、large object、普通sweep、evacuation source清理及stress poison共同使用同一分支顺序：
 
 ```text
 classify logical death
-  -> atomically clear-and-test release-ready
-  -> call TypeDescriptor.release_hook(raw object start)
+  -> load and validate TypeDescriptor.release_hook
+  -> if hook == NULL:
+         require RELEASE_READY == 0
+         skip claim and call
+     else:
+         atomically clear-and-test release-ready
+         if old ready == 1:
+             call hook(raw object start)
+         else:
+             skip call
   -> retire object-start / poison / free / unmap
 ```
 
-hook执行期间world保持stopped，collector metadata处于不可重入状态。hook不得请求collection、attach/detach线程或重新进入managed代码。对象存储不是root，也不能被hook发布；允许读取它只是reclaim helper提供的短暂raw lifetime，该lifetime在hook返回时立即结束。
+null分支绝不能先clear一个不应存在的ready位再静默继续；观察到`hook == NULL && ready == 1`是fatal ABI invariant error。non-null分支也只有clear-and-test返回旧ready=1的唯一winner可以调用，旧值为0时直接回收。hook执行期间world保持stopped，collector metadata处于不可重入状态。hook不得请求collection、attach/detach线程或重新进入managed代码。对象存储不是root，也不能被hook发布；允许读取它只是reclaim helper提供的短暂raw lifetime，该lifetime在hook返回时立即结束。
 
 调用顺序不按地址、type、allocation时间、引用图或Cone排序。循环引用中的多个死对象各自至多调用一次，但一个hook不能读取或依赖另一个managed对象仍然存在。
 
 ### 5.3 shutdown
 
-M23/M25既有shutdown协议保持不变：停止新attach/registration并等待活动入口后直接销毁runtime状态，不运行“最后一次GC”，不遍历live object，也不补调release hook。需要确定性关闭的core/IO组件必须在正常控制流中显式关闭。
+M23-8/M25既有shutdown协议保持不变：停止新attach/registration并等待活动入口后直接销毁runtime状态，不运行“最后一次GC”，不遍历live object，也不补调release hook。需要确定性关闭的core/IO组件必须在正常控制流中显式关闭。
 
 ## 6. 诊断与测试
 
@@ -321,7 +425,8 @@ M23/M25既有shutdown协议保持不变：停止新attach/registration并等待�
 - field write、receiver逃逸、capture、boxing、ordinary managed call、Scoop ABI extern/dispatch、native transition、root/handle/pin/thread/GC API、throw/suspend；
 - 仅 `@NoGC` 但不满足传递 `ReleaseSafe` 的callee；
 - `@ThreadLocal`依赖与不合法C ABI extern；
-- malformed `.slib` / object中的policy、hook pointer、body owner、fingerprint、registration及ODR不一致。
+- malformed `.slib` / object中的policy、hook pointer、body owner、fingerprint、registration及ODR不一致；
+- outer schema `1/2/1`混代、`/2` outer搭配foundation/profile `/1`、同world混入body-v1，以及ReleaseHook role/discriminator或额外CallableBody/`od` primary错误。
 
 诊断必须指向release block、具体field/callsite或generic application来源；不能在MIR/codegen以“unsupported”兜底。
 
@@ -333,11 +438,13 @@ M23/M25既有shutdown协议保持不变：停止新attach/registration并等待�
 - 显式close先置inert state，GC后不发生double free；重复close保持no-op；
 - lazy resource acquisition在构造完成后仍由hook观察；
 - constructor成功时publish一次，constructor失败时不publish、不调用hook；
+- null hook且ready=0直接回收，null hook且ready=1 fatal；non-null hook且ready=0跳过，non-null hook且ready=1只有clear-and-test winner调用一次；
 - live root、pin、`GcHandle`与active native root保活期间不调用，解除后回收时调用；
 - normal moving与每次allocation compaction stress下，live对象搬迁不调用、from-space旧副本不调用、最终死亡对象调用一次；
 - small/large object、partial source block、整块quarantine/unmap均保证hook先于存储失效；
 - 多个互相引用的dead owner各调用一次且测试不依赖顺序；
 - generic owner跨Cone materialize、钻石复用与ODR coalesce得到唯一TD/hook；
+- param-free owner使用Strong plan且无ReleaseHook ODR member；generic owner恰有ReleaseHook/ExactType与RegistrationRecord/CallableBody两个所需member、无第二CallableBody/`od`/`sr`；
 - hook内直接C extern leaf及传递ReleaseSafe Scoop helper；
 - hook目标object code不含statepoint、stackmap、LSDA、managed pointer或thread transition；
 - shutdown不补调仍live对象的hook。

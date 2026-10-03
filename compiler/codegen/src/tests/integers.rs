@@ -2,14 +2,15 @@ use super::*;
 use scoop_lir::LirIntegerConstant;
 
 fn module_with_functions(functions: Vec<Function>) -> Module {
-    let entry_symbol = functions
+    let entry_effect = functions
         .first()
         .expect("integer test module has a function")
-        .symbol
-        .clone();
+        .gc_effect;
     let mut module = values_module();
     module.functions = functions;
-    module.entry_symbol = entry_symbol;
+    module.output = scoop_lir::LirOutput::Executable {
+        entry: local_function_ref(0, entry_effect),
+    };
     module
 }
 
@@ -23,8 +24,9 @@ fn constant_function(symbol: &str, constant: LirIntegerConstant) -> Function {
         },
     });
     Function {
+        callable_body: callable_body(symbol),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
-        symbol: symbol.to_string(),
         signature: plain_scoop_signature(Vec::new(), constant.scalar_type()),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -51,8 +53,9 @@ fn instruction_module(
         terminator: Terminator::Return { value: None },
     });
     module_with_functions(vec![Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::NoGc,
-        symbol: "integer_test".to_string(),
         signature: plain_scoop_signature(params, LirType::Void),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -88,9 +91,12 @@ fn emits_all_eight_integer_kinds_with_exact_llvm_scalars_and_constants() {
             .collect(),
     );
     let ir = ir_of(&module);
-    for (symbol, _, llvm_ty, value) in cases {
+    for ((symbol, _, llvm_ty, value), function) in cases.into_iter().zip(&module.functions) {
         assert!(
-            ir.contains(&format!("define {llvm_ty} @{symbol}()")),
+            ir.contains(&format!(
+                "define {llvm_ty} {}()",
+                llvm_function_symbol(function)
+            )),
             "missing exact scalar signature for {symbol}:\n{ir}"
         );
         assert!(
@@ -106,6 +112,10 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
     let offsets = [0, 2, 4, 8, 16, 18, 20, 24];
     let aligns = [1, 2, 4, 8, 1, 2, 4, 8];
     module.structs.alloc_c(
+        crate::tests::test_physical_exact(
+            "AllFixedWidthIntegers",
+            scoop_identity::SourceNominalKind::Struct,
+        ),
         "AllFixedWidthIntegers".to_string(),
         32,
         8,
@@ -119,15 +129,23 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
             .copied()
             .zip(offsets)
             .zip(aligns)
-            .map(|((kind, offset), access_align)| scoop_lir::CStructField {
-                ty: scoop_lir::CType::Integer(kind),
-                layout: scoop_lir::FieldLayout {
-                    offset,
-                    access_align,
+            .enumerate()
+            .map(
+                |(index, ((kind, offset), access_align))| scoop_lir::CStructField {
+                    identity: test_field_identity(
+                        "AllFixedWidthIntegers",
+                        &format!("field{index}"),
+                    ),
+                    ty: scoop_lir::CType::Integer(kind),
+                    layout: scoop_lir::FieldLayout {
+                        offset,
+                        access_align,
+                    },
                 },
-            })
+            )
             .collect(),
     );
+    install_test_native_function_contract(&mut module, 1);
     module.extern_functions.alloc_c(scoop_lir::CExternFunction {
         identity: scoop_lir::ExternFunctionIdentity {
             source_name: "integerWidths".to_string(),
@@ -135,7 +153,7 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
             library: "fixture".to_string(),
             calling_convention: scoop_lir::CallingConvention::Cdecl,
         },
-        bridge_symbol: "scoop_c_bridge_integer_widths".to_string(),
+        bridge: outbound_bridge(1),
         signature: scoop_lir::CFunctionType {
             params: IntegerKind::ALL
                 .iter()
@@ -146,9 +164,11 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
         },
     });
 
-    let source = c_bridge_source(&module)
-        .expect("valid integer C bridge")
-        .expect("C extern produces a bridge");
+    let assertions = c_layout_assertions(&module).expect("integer C layout assertions");
+    let bridge_sources = crate::c_bridge::render_c_bridge_source_set_for_module(&module)
+        .expect("C extern produces a bridge source");
+    assert_eq!(bridge_sources.units().len(), 1);
+    let source = bridge_sources.units()[0].source();
     assert!(source.contains("#include <stdint.h>"), "{source}");
     for (index, spelling) in [
         "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t", "uint32_t", "uint64_t",
@@ -157,8 +177,8 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
     .enumerate()
     {
         assert!(
-            source.contains(&format!("{spelling} _field_{index};")),
-            "C-layout field {index} lost its exact integer spelling:\n{source}"
+            assertions.contains(&format!("{spelling} _field_{index};")),
+            "C-layout field {index} lost its exact integer spelling:\n{assertions}"
         );
     }
     assert!(
@@ -172,7 +192,7 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
         "scoop_fixed_width_integer_bridge_{}.c",
         std::process::id()
     ));
-    std::fs::write(&bridge_source, &source).expect("write generated integer bridge C");
+    std::fs::write(&bridge_source, source).expect("write generated integer bridge C");
     let status = std::process::Command::new("cc")
         .args(["-std=c11", "-Wall", "-Wextra", "-Werror", "-fsyntax-only"])
         .arg(&bridge_source)
@@ -186,6 +206,7 @@ fn c_bridge_uses_exact_stdint_spelling_for_all_integer_kinds() {
 fn compiler_pointer_shell_cannot_be_emitted_as_an_aggregate_struct() {
     let mut structs = scoop_lir::StructDefs::default();
     let shell = structs.alloc_intrinsic(
+        crate::tests::test_physical_exact("Ptr<Int>", scoop_identity::SourceNominalKind::Struct),
         "Ptr<Int>".to_string(),
         8,
         8,

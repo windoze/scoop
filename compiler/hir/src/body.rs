@@ -9,9 +9,23 @@ pub struct Body {
 #[derive(Debug, Clone)]
 pub struct Local {
     pub binding: BindingId,
+    /// Template-local semantic selector. LocalConcrete HIR combines this
+    /// selector with the callable's exact materialization context instead of
+    /// deriving persistent value identity from a name or arena position.
+    pub selector: scoop_identity::LocalValueSelector,
+    /// Closed classification of the local's definition site. Source-backed
+    /// values retain their exact source origin; compiler-created temporaries
+    /// cannot be mistaken for source definitions.
+    pub definition: LocalValueDefinitionSite,
     pub name: String,
     pub ty: TypeId,
     pub mutable: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LocalValueDefinitionSite {
+    Source(DefinitionOrigin),
+    Synthetic,
 }
 
 #[derive(Debug, Clone)]
@@ -24,9 +38,10 @@ pub struct Statement {
 pub enum StatementKind {
     Expr(Expr),
     /// Enter the exactly-once gate before a runtime-backed accessor touches
-    /// its storage. LocalConcrete HIR enriches this with the exact cycle
-    /// exception constructor.
+    /// its storage. LocalConcrete's unit declaration carries the exact cycle
+    /// throw target selected for the current core-authority branch.
     InitializationEnsure(InitializationUnitId),
+    GenericDelegateEnsure(GenericDelegateReference),
     /// Compile-time declaration marker. The lifted body lives in
     /// `Module::local_functions`; executing this statement has no effect.
     LocalFunction(LocalFunctionId),
@@ -54,9 +69,6 @@ pub enum StatementKind {
         cond: Expr,
         body: Vec<Statement>,
     },
-    /// Source iteration remains explicit only in Export HIR. The complete
-    /// typed plan is expanded before LocalConcrete HIR reaches MIR.
-    For(Box<ForIterationPlan>),
     Break {
         target: LoopId,
     },
@@ -90,6 +102,7 @@ pub struct CatchClause {
 pub enum AssignTarget {
     Local(LocalId),
     Global(GlobalId),
+    GenericDelegateStorage(GenericDelegateReference),
     /// Publish a fully constructed singleton into its moving-GC-aware root.
     SingletonPublishedRoot(SingletonPublishedRootId),
     /// `array[index] = value` (only `MutableArray`, checked at HIR).
@@ -102,12 +115,10 @@ pub enum AssignTarget {
         receiver: Box<Expr>,
         field: FieldRef,
     },
-    /// Direct write through the non-escaping receiver capability while a
-    /// constructor is being checked. Concretization replaces the capability
-    /// with its hidden initializer receiver before LocalConcrete HIR.
+    /// Direct write through the non-escaping constructor receiver.
+    /// Concretization supplies the hidden initializer receiver.
     InitializingClassField {
-        application: ClassApplicationId,
-        field: ClassFieldId,
+        field: InitializingClassFieldRef,
         origin: ExpressionOrigin,
     },
 }
@@ -139,10 +150,7 @@ pub enum ExhaustivenessProof {
     PatternMatrix { subject_ty: TypeId },
     /// Every constructor of this exact enum application, including each
     /// constructor's recursive payload matrix, is covered.
-    EnumPatternMatrix {
-        subject_ty: TypeId,
-        application: EnumApplicationId,
-    },
+    EnumPatternMatrix { subject_ty: TypeId },
 }
 
 #[derive(Debug, Clone)]
@@ -178,15 +186,14 @@ pub enum Pattern {
         subject_ty: TypeId,
     },
     Variant {
-        application: EnumApplicationId,
-        /// Variant index in declaration order.
-        variant: u32,
-        /// `(field index, subpattern)` in declaration order.
+        application: EnumVariantApplication,
+        /// Selected payload fields in declaration order.
         fields: Vec<(u32, Pattern)>,
     },
     Tuple(Vec<Pattern>),
     Struct {
-        application: StructApplicationId,
+        /// Complete subject application, preserving its original declaration.
+        owner: TypeId,
         fields: Vec<(u32, Pattern)>,
     },
 }
@@ -196,13 +203,8 @@ pub enum Pattern {
 /// a typed comparison; every other literal kind keeps its ordinary callable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiteralPatternEquality {
-    Integer {
-        kind: IntegerKind,
-        target: NoGcCallableRef,
-    },
-    Ordinary {
-        equals: Callable,
-    },
+    Integer { kind: IntegerKind },
+    Ordinary { equals: CallableTarget },
 }
 
 #[derive(Debug, Clone)]
@@ -215,7 +217,10 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
-    StringLiteral(String),
+    StringLiteral {
+        value: String,
+        owner: StringConstantOwner<PropertyId>,
+    },
     IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
     UnitLiteral,
@@ -242,25 +247,27 @@ pub enum ExprKind {
     /// Read of a primary-constructor parameter inside a base-constructor
     /// delegation expression.
     ConstructorParam(ConstructorParamId),
+    ConstructorReceiver,
     /// Variant construction (`Some(x)`, `Color.Red`, `E.Named(f = 1)`);
     /// `args` are the variant's fields in declaration order, with
     /// constructor-style defaults already filled in.
     VariantConstruct {
-        variant: AppliedEnumVariantRef,
+        variant: EnumVariantApplication,
         args: Vec<Expr>,
     },
     VariantTest {
         operand: Box<Expr>,
-        variant: AppliedEnumVariantRef,
+        variant: EnumVariantApplication,
     },
     VariantPayloadProject {
         operand: Box<Expr>,
-        field: AppliedEnumVariantFieldRef,
+        field: EnumVariantFieldApplication,
     },
     Local(LocalId),
     GlobalRead(GlobalId),
+    GenericDelegateStorageRead(GenericDelegateReference),
     /// Read the unique value after passing its exactly-once gate.
-    SingletonValue(SingletonValueId),
+    SingletonValue(SingletonValueTarget),
     /// Read one immutable binding from the current closure environment. The
     /// binding identity is resolved to a concrete field by closure conversion.
     Capture(BindingId),
@@ -298,7 +305,7 @@ pub enum ExprKind {
     SizeOf(TypeId),
     AlignOf(TypeId),
     /// Native C callback address selected contextually from `::name`.
-    FunctionAddress(FunctionId),
+    FunctionAddress(CallableTarget),
     ForeignCallbackRegister {
         registration: ForeignCallbackRegistrationId,
         closure: Box<Expr>,
@@ -313,14 +320,13 @@ pub enum ExprKind {
     },
     /// Direct read through the non-escaping class initializer receiver.
     InitializingClassFieldAccess {
-        application: ClassApplicationId,
-        field: ClassFieldId,
+        field: InitializingClassFieldRef,
     },
     /// Direct read from the fully formed struct value owned by a secondary
     /// constructor. The value itself never becomes an expression.
     InitializingStructFieldAccess {
-        application: StructApplicationId,
-        index: u32,
+        owner: TypeId,
+        field: scoop_identity::PersistentFieldId,
     },
     /// A resolved method call; the dispatch kind (direct / virtual /
     /// interface) is decided at MIR from the receiver's static type.
@@ -343,6 +349,8 @@ pub enum ExprKind {
     /// Unbox a reference back to a value type (from `as` / `as?` /
     /// smart cast). The result type is `Expr::ty`.
     Unbox(Box<Expr>),
+    /// Preserve the operand's type while viewing its reference as a supertype.
+    ReferenceUpcast(Box<Expr>),
     /// `expr is T`; result is `Boolean`. The checked type is in
     /// `check_ty`.
     IsInstance {
@@ -350,10 +358,11 @@ pub enum ExprKind {
         check_ty: TypeId,
     },
     /// `as` (trap on failure; M8: `ClassCastException`) or `as?`
-    /// (`optional` — result `Option<T>`). The target type is
-    /// `Expr::ty` (or its payload for `as?`).
+    /// (`optional` — result `Option<T>`). The checked target remains
+    /// explicit even when the result wraps that type in `Option`.
     Cast {
         operand: Box<Expr>,
+        check_ty: TypeId,
         optional: bool,
     },
     /// `[e1, ...]`; the kind (Array vs MutableArray) is in `Expr::ty`.
@@ -384,16 +393,12 @@ pub enum ExprKind {
     /// kind is in `Expr::ty`.
     ArrayClone(Box<Expr>),
     Call {
-        callee: Callable,
+        callee: CallableTarget,
+        /// Namespace lookup routes when this occurrence used an import.
+        /// A member is resolved directly from its nominal declaration.
+        binding: Option<std::sync::Arc<DirectImportedTargetBinding>>,
         args: Vec<Expr>,
-    },
-    /// Direct call of a lifted local function. Hidden capture arguments are
-    /// explicit and precede source arguments in the lowered ABI.
-    LocalFunctionCall {
-        local_function: LocalFunctionId,
-        callee: Callable,
-        captures: Vec<Expr>,
-        args: Vec<Expr>,
+        receiver: crate::SourceCallReceiver<TypeId>,
     },
     /// Calling a managed function value. The callee expression is kept
     /// distinct from direct/virtual/interface named call targets.
@@ -449,6 +454,18 @@ pub enum ExprKind {
     },
 }
 
+/// Semantic owner selected before a string constant reaches MIR.
+///
+/// Ordinary expression literals are completed with the concrete callable (or
+/// initialization unit) that materializes their body. A folded property
+/// constant instead retains the property declaration that owns its one
+/// canonical immutable object, independent of how many use sites inline it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StringConstantOwner<P> {
+    CurrentDefinition,
+    Property(P),
+}
+
 #[derive(Debug, Clone)]
 pub enum HirIntegerOperationArguments {
     Unary(Box<Expr>),
@@ -459,7 +476,7 @@ pub enum HirIntegerOperationArguments {
 pub struct ArrayAssembly {
     pub element_type: TypeId,
     pub parts: Vec<ArrayAssemblyPart>,
-    pub result_type: ClassApplicationId,
+    pub result_type: TypeId,
 }
 
 #[derive(Debug, Clone)]
@@ -468,19 +485,40 @@ pub enum ArrayAssemblyPart {
     CopyArray(Expr),
 }
 
+/// Dispatch requested by member syntax before its HIR node is built.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemberCallKind {
+    Ordinary,
+    DirectSuper,
+}
+
 /// Source-level method target. Ordinary receivers already name a resolved
 /// callable. A type-parameter receiver instead names a typed upper-bound
 /// member that must disappear during HIR concretization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MethodCallee {
-    Callable(Callable),
+    Callable(CallableTarget),
     Bound(BoundCallableRefId),
     DerivedEquality(DerivedEqualityApplicationId),
+    ImportedDerivedEquality {
+        target: ImportedDerivedEqualityUseId,
+        owner: TypeId,
+    },
+}
+
+impl MethodCallee {
+    pub fn declared_callable(self, bounds: &Arena<BoundCallableRef>) -> Option<CallableTarget> {
+        match self {
+            Self::Callable(callable) => Some(callable),
+            Self::Bound(bound) => Some(bounds[bound].declared_callable()),
+            Self::DerivedEquality(_) | Self::ImportedDerivedEquality { .. } => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BoundCallableRef {
-    pub receiver_parameter: TypeParamId,
+    pub receiver_type: TypeId,
     pub source: BoundCallableSource,
     pub instantiated_signature: FunctionTypeId,
 }
@@ -489,33 +527,56 @@ pub struct BoundCallableRef {
 pub enum BoundCallableSource {
     Class {
         bound: ClassApplicationId,
-        callable: Callable,
+        callable: CallableTarget,
     },
     Interface {
         bound: InterfaceApplicationId,
-        member: InterfaceMethodId,
+        member: InterfaceMethodReference,
+        declared: CallableTarget,
     },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+impl BoundCallableRef {
+    pub fn declared_callable(&self) -> CallableTarget {
+        match self.source {
+            BoundCallableSource::Class { callable, .. } => callable,
+            BoundCallableSource::Interface { declared, .. } => declared,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Place {
     Local(LocalId),
     Global(GlobalId),
+    /// A provider-owned extern property, using the ordinary native contract.
+    ExternalGlobal {
+        property: scoop_identity::PersistentPropertyId,
+        source_contract: std::sync::Arc<scoop_identity::SourceNativeExternalContractRecord>,
+        ty: TypeId,
+    },
+}
+
+/// A ready backing field reached through the current initializer receiver.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InitializingClassFieldRef {
+    pub owner: TypeId,
+    pub field: scoop_identity::PersistentFieldId,
 }
 
 /// A fully resolved field access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FieldRef {
-    /// Field `index` of one complete struct application.
-    StructField(AppliedStructFieldRef),
+    StructField {
+        owner: TypeId,
+        field: scoop_identity::PersistentFieldId,
+    },
+    ClassField {
+        owner: TypeId,
+        field: scoop_identity::PersistentFieldId,
+    },
     /// Element `index` (0-based) of a tuple.
     TupleIndex(u32),
-    /// Source field of one complete declaring-class application. Layout is a
-    /// downstream typed mapping and is never used as source identity.
-    ClassField {
-        application: ClassApplicationId,
-        field: ClassFieldId,
-    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -534,4 +595,18 @@ pub enum BinOp {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UnOp {
     Not,
+}
+
+/// An original variant in one complete, possibly symbolic enum application.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EnumVariantApplication {
+    pub owner: TypeId,
+    pub variant: scoop_identity::PersistentEnumVariantId,
+}
+
+/// A payload field retains its original variant and field identities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EnumVariantFieldApplication {
+    pub variant: EnumVariantApplication,
+    pub field: scoop_identity::PersistentEnumVariantFieldId,
 }

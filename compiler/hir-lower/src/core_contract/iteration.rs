@@ -28,6 +28,7 @@ impl Lowerer {
                 &self.enums,
                 &self.enum_applications,
                 &self.types,
+                self.nominal_identities.as_ref().expect("nominal declarations precede core protocols"),
                 option,
                 iterator,
                 *next,
@@ -87,16 +88,16 @@ impl Lowerer {
         let Some(method) = function.method else {
             return false;
         };
-        let hir::FunctionKind::User(body) = &function.kind else {
+        let hir::FunctionKind::Abstract { locals } = &function.kind else {
             return false;
         };
         let [receiver] = function.params.as_slice() else {
             return false;
         };
-        if receiver.local.into_raw().into_u32() as usize >= body.locals.len() {
+        if receiver.local.into_raw().into_u32() as usize >= locals.len() {
             return false;
         }
-        let receiver_local = &body.locals[receiver.local];
+        let receiver_local = &locals[receiver.local];
 
         declaration.name == "Iterable"
             && declaration.owner.is_none()
@@ -106,7 +107,10 @@ impl Lowerer {
             && declaration.parents.is_empty()
             && declaration.private_methods.is_empty()
             && declaration.properties.is_empty()
-            && self_application.template == iterable
+            && self_application.template
+                == self
+                    .nominal_identity(crate::Owner::Interface(iterable))
+                    .declaration_id()
             && matches!(self_application.arguments.as_slice(), [argument] if matches!(self.types[*argument], Type::Param(found) if found == parameter.id))
             && self_application.canonical_type == receiver.ty
             && matches!(self.types[self_application.canonical_type], Type::Interface(found) if found == declaration.self_application)
@@ -116,7 +120,6 @@ impl Lowerer {
             && relation.overrides.is_empty()
             && function.name.rsplit('.').next() == Some("iterator")
             && function.access.declared == hir::DeclaredVisibility::Public
-            && function.override_access.is_empty()
             && !function.is_suspend
             && function.attributes == hir::FunctionAttributes::default()
             && function.modifiers
@@ -134,9 +137,11 @@ impl Lowerer {
             && receiver_local.name == receiver.name
             && receiver_local.ty == receiver.ty
             && !receiver_local.mutable
-            && body.locals.len() == 1
-            && body.statements.is_empty()
-            && result.template == core.iterator()
+            && locals.len() == 1
+            && result.template
+                == self
+                    .nominal_identity(crate::Owner::Interface(core.iterator()))
+                    .declaration_id()
             && result.arguments.as_slice() == self_application.arguments.as_slice()
             && result.canonical_type == function.return_ty
             && matches!(self.types[result.canonical_type], Type::Interface(found) if found == result_id)

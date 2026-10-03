@@ -1,9 +1,30 @@
 use super::*;
 
 /// An M5-shaped module: ArrayAlloc with i64 and aggregate (Point)
-/// elements, ArrayLen, bounds-checked ArrayGet / ArraySet, and
+/// elements, ArrayLen, prechecked ArrayGet / ArraySet, and
 /// ArrayClone on both element shapes.
-fn arrays_module() -> Module {
+pub(super) fn arrays_module() -> Module {
+    let callable_body = callable_body("scoop_main");
+    let mut globals = Arena::default();
+    let overflow_message = globals.alloc(Global {
+        address_kind: PointerKind::Raw,
+        scan: RefScan::None,
+        init: GlobalInit::CString {
+            identity: scoop_lir::CallableCStringIdentity::new(
+                scoop_identity::ConeIdentity::SINGLE_FILE,
+                &callable_body,
+                scoop_identity::StructuralDefinitionPath::from_first(
+                    scoop_identity::StructuralPathSegment::new(
+                        scoop_identity::StructuralDefinitionSiteRole::StringConstant,
+                        0,
+                    ),
+                    [],
+                ),
+            )
+            .unwrap(),
+            value: "array size overflow".to_string(),
+        },
+    });
     let point = LirType::Aggregate(vec![LirType::I64, LirType::I64]);
     let mut meta = string_metadata();
     let int_array = array_type(
@@ -44,10 +65,7 @@ fn arrays_module() -> Module {
     );
 
     let mut locals = Arena::default();
-    let numbers = locals.alloc(Local {
-        name: "numbers".to_string(),
-        ty: MANAGED_PTR,
-    });
+    let numbers = locals.alloc(test_local("numbers", MANAGED_PTR));
 
     let mut temps = Arena::default();
     let t0 = temps.alloc(Temp { ty: MANAGED_PTR }); // array_alloc (1, 2, 3)
@@ -98,6 +116,7 @@ fn arrays_module() -> Module {
             Instruction::ArrayClone {
                 out: t3,
                 operand: Value::Local(numbers),
+                source_type: int_array,
                 array_type: mutable_int_array,
                 safepoint: test_safepoint(2),
                 live: statepoint_live(vec![statepoint_value(
@@ -141,6 +160,7 @@ fn arrays_module() -> Module {
             Instruction::ArrayClone {
                 out: t8,
                 operand: Value::Temp(t5),
+                source_type: point_array,
                 array_type: mutable_point_array,
                 safepoint: test_safepoint(4),
                 live: statepoint_live(vec![
@@ -169,6 +189,7 @@ fn arrays_module() -> Module {
             },
             Instruction::ArrayAssembly {
                 out: t10,
+                overflow_message,
                 parts: vec![
                     scoop_lir::ArrayAssemblyPart::Element(signed64(9)),
                     scoop_lir::ArrayAssemblyPart::CopyArray(Value::Local(numbers)),
@@ -191,7 +212,8 @@ fn arrays_module() -> Module {
     });
 
     Module {
-        globals: Arena::default(),
+        cone: scoop_identity::ConeIdentity::SINGLE_FILE,
+        globals,
         initialization_units: Arena::default(),
         structs: scoop_lir::StructDefs::default(),
         enums: scoop_lir::EnumDefs::default(),
@@ -202,8 +224,9 @@ fn arrays_module() -> Module {
         foreign_callback_families: Arena::default(),
         foreign_callback_bridges: Arena::default(),
         functions: vec![Function {
+            callable_body,
+            safepoints: test_safepoints("scoop_main", &blocks, entry),
             gc_effect: GcEffect::Managed,
-            symbol: "scoop_main".to_string(),
             signature: plain_scoop_signature(vec![], LirType::Void),
             call_targets: CallTargets::default(),
             locals,
@@ -211,7 +234,9 @@ fn arrays_module() -> Module {
             blocks,
             entry,
         }],
-        entry_symbol: "scoop_main".to_string(),
+        output: scoop_lir::LirOutput::Executable {
+            entry: managed_function_ref(0),
+        },
         meta,
     }
 }
@@ -219,11 +244,13 @@ fn arrays_module() -> Module {
 #[test]
 fn emits_m5_arrays() {
     let module = arrays_module();
+    let int_array_symbol = type_descriptor_symbol(&module, "MutableArray<Int>");
+    let point_array_symbol = type_descriptor_symbol(&module, "MutableArray<Point>");
     let ir = ir_of(&module);
     assert!(
         ir.lines().any(|line| {
             line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
-                && line.contains("scoop_td_MutableArray<Int>")
+                && line.contains(&int_array_symbol)
         }),
         "Int clone must receive the target nominal descriptor:\n{ir}"
     );
@@ -234,17 +261,19 @@ fn emits_m5_arrays() {
         "ArrayAssembly must check its dynamic size and copy spread elements:\n{ir}"
     );
     assert!(
+        !ir.contains("out_of_bounds") && !ir.contains("bounds_trap"),
+        "array access must consume MIR's existing language bounds check:\n{ir}"
+    );
+    assert!(
         ir.lines().any(|line| {
             line.contains("call ptr addrspace(1) @scoop_rt_array_clone")
-                && line.contains("scoop_td_MutableArray<Point>")
+                && line.contains(&point_array_symbol)
         }),
         "Point clone must receive the target nominal descriptor:\n{ir}"
     );
     let output =
         std::env::temp_dir().join(format!("scoop_codegen_m5_test_{}.o", std::process::id()));
-    // `emit_object` verifies the LLVM module before writing, so a
-    // successful return means `module.verify()` passed.
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();

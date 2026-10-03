@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.classes.Counter
+  ImportExact Local dependency.classes.defaultQuotient
+  public fun primary(): Counter
+    =
+      Call Counter
+        Call defaultQuotient

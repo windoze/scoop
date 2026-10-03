@@ -1,0 +1,267 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Plain vtable=1 itables=0
+  class Generic<Int> vtable=0 itables=0
+  class Generic<String> vtable=0 itables=0
+  class Static vtable=0 itables=0
+  class Child vtable=1 itables=0
+  fun verifyDefault @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.receiver: Plain = external2 direct
+      call $dependency.receiver: Int = external3 direct
+        Type Plain
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Plain = external2 direct
+      call $dependency.receiver: Int = external4 direct
+        Type Plain
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.1: Child = external6 direct
+      val $dependency.receiver: Plain
+        Type Plain
+        Retype Plain
+          Type Child
+          Local $call.1
+      call $dependency.receiver: Int = external4 direct
+        Type Plain
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Generic<Int> = @fn2 direct
+      call $dependency.receiver: Int = @fn3 direct
+        Type Generic<Int>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Generic<String> = @fn4 direct
+      call $dependency.receiver: Int = @fn5 direct
+        Type Generic<String>
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Static = external7 direct
+      call $dependency.receiver: Int = external8 direct
+        Type Static
+        Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun defaultGeneric @fn2() -> Generic<Int>
+    bb0 entry
+      assign $new.1
+        Type Generic<Int>
+        ClassAlloc Generic<Int>
+      call @fn8 direct
+        Type Generic<Int>
+        Local $new.1
+      return
+        Type Generic<Int>
+        Local $new.1
+  fun checkOwner @fn3(this: Generic<Int>) -> Int
+    bb0 entry
+      val $dependency.local.1: Generic<Int>
+        Type Generic<Int>
+        Local this
+      call $dependency.local.2: Int = external9 direct
+      call $call.1: Int = @fn6 direct
+        Type Generic<Int>
+        Local $dependency.local.1
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        Local $call.1
+  fun defaultGeneric @fn4() -> Generic<String>
+    bb0 entry
+      assign $new.1
+        Type Generic<String>
+        ClassAlloc Generic<String>
+      call @fn9 direct
+        Type Generic<String>
+        Local $new.1
+      return
+        Type Generic<String>
+        Local $new.1
+  fun checkOwner @fn5(this: Generic<String>) -> Int
+    bb0 entry
+      val $dependency.local.1: Generic<String>
+        Type Generic<String>
+        Local this
+      call $dependency.local.2: Int = external9 direct
+      call $call.1: Int = @fn7 direct
+        Type Generic<String>
+        Local $dependency.local.1
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        Local $call.1
+  fun fromOwner @fn6(this: Generic<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun fromOwner @fn7(this: Generic<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun init.Generic.$c0 @fn8(this: Generic<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.Generic.$c0 @fn9(this: Generic<String>) -> Unit
+    bb0 entry
+      return
+  instance mi0 function=@fn2 <- defaultGeneric
+  instance mi1 function=@fn3 <- checkOwner
+  instance mi2 function=@fn4 <- defaultGeneric
+  instance mi3 function=@fn5 <- checkOwner
+  instance mi4 function=@fn6 <- fromOwner
+  instance mi5 function=@fn7 <- fromOwner
+  str @str0 "illegal state"
+  output executable @fn1

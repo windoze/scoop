@@ -1,0 +1,2 @@
+public fun withDefault(value: Long = 42 / 2): Long = value
+public fun primary(): Long = withDefault(21)

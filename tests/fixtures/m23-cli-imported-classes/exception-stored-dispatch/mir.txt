@@ -1,0 +1,275 @@
+Module
+  struct StructReader (value: Long)
+  class Saved vtable=0 itables=0
+  class RebuiltFailure vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class box<StructReader> vtable=0 itables=0
+  interface Readable
+  generated_exact_type get0 location=class4 nominal_id=137fbb61b95eeca5cf307f8329cd7cdaaf67bc37460e8986e538acdcc0965ccc exact_id=139041762888b86ad8d540ea75aef5205e9f5fc5f0a9d9f5bfd876bd8d05c779
+  fun saved @fn0() -> Saved
+    bb0 entry
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb9 bb10
+        Type Boolean
+        IsInstance RebuiltFailure
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      return
+        Type Saved
+        Local $result.0
+    bb8 try.body.8 unwind bb1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.code: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type RebuiltFailure
+        ClassAlloc RebuiltFailure
+      call external0 direct
+        Type RebuiltFailure
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.code
+      val $dependency.argument.0: Throwable
+        Type Throwable
+        Retype Throwable
+          Type RebuiltFailure
+          Local $new.1
+      val $dependency.parameter.value: Throwable
+        Type Throwable
+        Local $dependency.argument.0
+      call external1 direct
+        Type Throwable
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.code: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type RebuiltFailure
+        ClassAlloc RebuiltFailure
+      call external0 direct
+        Type RebuiltFailure
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.code
+      val $argument.0: RebuiltFailure
+        Type RebuiltFailure
+        Local $new.2
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.3: StructReader = external2 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.1: Readable
+        Type Readable
+        Box
+          Type StructReader
+          Local $call.3
+      val $parameter.error: RebuiltFailure
+        Type RebuiltFailure
+        Local $argument.0
+      val $parameter.reader: Readable
+        Type Readable
+        Local $argument.1
+      assign $new.4
+        Type Saved
+        ClassAlloc Saved
+      call @fn2 direct
+        Type Saved
+        Local $new.4
+        Type RebuiltFailure
+        Local $parameter.error
+        Type Readable
+        Local $parameter.reader
+      assign $result.0
+        Type Saved
+        Local $new.4
+      goto bb7
+    bb9 try.catch.9
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: RebuiltFailure
+        Type RebuiltFailure
+        Retype RebuiltFailure
+          Type Any
+          Local $catch.5
+      goto bb11
+    bb10 try.next.10
+      rethrow unwind bb5
+    bb11 scope.11 unwind bb3
+      val $argument.0: RebuiltFailure
+        Type RebuiltFailure
+        Local error
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call $call.6: StructReader = external2 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.1: Readable
+        Type Readable
+        Box
+          Type StructReader
+          Local $call.6
+      val $parameter.error: RebuiltFailure
+        Type RebuiltFailure
+        Local $argument.0
+      val $parameter.reader: Readable
+        Type Readable
+        Local $argument.1
+      assign $new.7
+        Type Saved
+        ClassAlloc Saved
+      call @fn2 direct
+        Type Saved
+        Local $new.7
+        Type RebuiltFailure
+        Local $parameter.error
+        Type Readable
+        Local $parameter.reader
+      assign $result.0
+        Type Saved
+        Local $new.7
+      end_catch
+      goto bb12
+    bb12 scope.12
+      goto bb7
+  fun primary @fn1() -> Counter
+    bb0 entry
+      call value: Saved = @fn0 direct
+      val $dependency.receiver: Readable
+        Type Readable
+        FieldAccess 1
+          Type Saved
+          Local value
+      val $dependency.parameter.extra: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      call $dependency.argument.0: Long = external3 interface Readable[1]
+        Type Readable
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.extra
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.1
+        Type Counter
+        ClassAlloc Counter
+      call external4 direct
+        Type Counter
+        Local $new.1
+        Type Long
+        Local $dependency.parameter.value
+      val allocated: Counter
+        Type Counter
+        Local $new.1
+      val $dependency.receiver: Counter
+        Type Counter
+        Local allocated
+      call $dependency.receiver: Long = external5 direct
+        Type Counter
+        Local $dependency.receiver
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=42 bits=0x000000000000002a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      call $dependency.argument.0: Long = external6 direct
+        Type RebuiltFailure
+        FieldAccess 0
+          Type Saved
+          Local value
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external4 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      assign $result.1
+        Type Counter
+        Local $new.2
+      goto bb3
+    bb2 if.else.2
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.3
+        Type Counter
+        ClassAlloc Counter
+      call external4 direct
+        Type Counter
+        Local $new.3
+        Type Long
+        Local $dependency.parameter.value
+      assign $result.1
+        Type Counter
+        Local $new.3
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Counter
+        Local $result.1
+  fun init.Saved.$c0 @fn2(this: Saved, error: RebuiltFailure, reader: Readable) -> Unit
+    bb0 entry
+      field_set 0
+        Type Saved
+        Local this
+        Type RebuiltFailure
+        Local error
+      field_set 1
+        Type Saved
+        Local this
+        Type Readable
+        Local reader
+      return
+  output library

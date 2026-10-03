@@ -1,0 +1,15 @@
+public class Box<T> public constructor(public val seed: T) {
+    public fun echo(value: T): T = value
+    public fun <U> pair(value: U): (T, U) = (seed, value)
+}
+public class Outer<T> {
+    public object Static {
+        public fun take(value: Int): Int = value
+    }
+}
+public class Samples {
+    public fun <X, Y> method(box: Box<Y>, seed: X, value: (Y, X) = box.pair<X>(seed)): (Y, X) = value
+    public fun <X> echo(box: Box<X>, seed: X, value: X = box.echo(seed)): X = value
+    public fun <X> constructed(seed: X, value: Box<X> = Box<X>(seed)): Box<X> = value
+    public fun nested(value: Int = Outer.Static.take(3)): Int = value
+}

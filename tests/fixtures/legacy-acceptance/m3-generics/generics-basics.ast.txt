@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  fun identity<T>(x: T): T
+    =
+      Var x
+  fun first<T, U>(a: T, b: U): T
+    =
+      Var a
+  fun main()
+    Call println
+      Call identity
+        IntLiteral 42
+    Call println
+      Call identity
+        StringLiteral "hi"
+    Call println
+      Call identity
+        BoolLiteral true
+    Call println
+      Call first
+        IntLiteral 1
+        StringLiteral "two"

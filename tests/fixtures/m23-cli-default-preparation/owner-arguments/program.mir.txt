@@ -1,0 +1,559 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<OwnerLocalHost>
+    Completed(value: OwnerLocalHost)
+    Suspended()
+  enum CoroutineSlot<OwnerLocalHost>
+    Empty()
+    Value(value: OwnerLocalHost)
+  enum CoroutineStep<OwnerCombinationHost>
+    Completed(value: OwnerCombinationHost)
+    Suspended()
+  enum CoroutineSlot<OwnerCombinationHost>
+    Empty()
+    Value(value: OwnerCombinationHost)
+  class OwnerLocalHost vtable=0 itables=0
+  class OwnerCombinationHost vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<OwnerLocalHost>
+  interface SuspendTask<OwnerLocalHost>
+  interface SuspendRegistration<OwnerLocalHost>
+  interface Continuation<OwnerCombinationHost>
+  interface SuspendTask<OwnerCombinationHost>
+  interface SuspendRegistration<OwnerCombinationHost>
+  generated_exact_type get0 location=enum3 nominal_id=50330625e5f35d9d3e6bf90116da3fb0f54889da799e59ac3626437ce1cc5dcf exact_id=2edb49f3afef69161ce7a1eece8b868bc5ea67b8957204273309ede3b4327d0f
+  generated_exact_type get1 location=enum4 nominal_id=8a311291c34e96322fa0a910113a466f5eefcc7e20a2e15c463cdd2085493b34 exact_id=48010d896c585340b44ad96e33c871c1f1f5b63248efc76e03cdf1652a5196e6
+  generated_exact_type get2 location=enum2 nominal_id=fc0292ae488e4991b68a54614c0f358b346322a6bbfcb95aa3c490d95b19827b exact_id=6eacce47c24c00529b10db68c4bcd908d8d20aa62e436f842bc1a5dcad93add4
+  generated_exact_type get3 location=enum1 nominal_id=de304d19da952f9e72a66861cb72982838895a8eb6998f19a523d3d9179fa790 exact_id=eed44d9247623ccd395c23e8c165a0b36998ada8e5210875fb4bbf570fb61d0a
+  generated_callable gc0 function=@fn21 id=4ae6628de661dccaa4e511c3d3941152203d22c6174375ad72e2bf347a9294fd
+  generated_callable gc1 function=@fn22 id=bee983fe8d606cca3f15c35eab033366c546b220e713e9a9d9e2bf3de17824b7
+  fun main @fn0() -> Unit
+    bb0 entry
+      assign $new.1
+        Type OwnerLocalHost
+        ClassAlloc OwnerLocalHost
+      call @fn19 direct
+        Type OwnerLocalHost
+        Local $new.1
+      val direct: OwnerLocalHost
+        Type OwnerLocalHost
+        Local $new.1
+      val $receiver: OwnerLocalHost
+        Type OwnerLocalHost
+        Local direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: String
+        Type String
+        StringConst @str0
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      call $call.2: String = @fn1 direct
+        Type String
+        Local $parameter.seed
+      assign $result.0
+        Type String
+        Local $call.2
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type String
+        Local $parameter.seed
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: String
+        Type String
+        Local $result.0
+      call $parameter.value: String = @fn2 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      call $call.3: String = @fn3 direct
+        Type OwnerLocalHost
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type String
+        Local $parameter.value
+      val $receiver: OwnerLocalHost
+        Type OwnerLocalHost
+        Local direct
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $argument.1: String
+        Type String
+        StringConst @str2
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: String
+        Type String
+        Local $argument.1
+      val $argument.0: String
+        Type String
+        Local $parameter.second
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb4 bb5
+        Type Boolean
+        BoolLiteral true
+    bb4 if.then.4
+      call $call.4: String = @fn4 direct
+        Type String
+        Local $parameter.seed
+      assign $result.0
+        Type String
+        Local $call.4
+      goto bb6
+    bb5 if.else.5
+      assign $result.0
+        Type String
+        Local $parameter.seed
+      goto bb6
+    bb6 if.merge.6
+      val $parameter.value: String
+        Type String
+        Local $result.0
+      call $parameter.value: String = @fn5 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      call $call.5: String = @fn6 direct
+        Type OwnerLocalHost
+        Local $receiver
+        Type String
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type String
+        Local $parameter.value
+      assign $new.6
+        Type OwnerCombinationHost
+        ClassAlloc OwnerCombinationHost
+      call @fn20 direct
+        Type OwnerCombinationHost
+        Local $new.6
+      val combined: OwnerCombinationHost
+        Type OwnerCombinationHost
+        Local $new.6
+      val $receiver: OwnerCombinationHost
+        Type OwnerCombinationHost
+        Local combined
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.first: String
+        Type String
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      val $argument.0: String
+        Type String
+        Local $parameter.first
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb7 bb8
+        Type Boolean
+        BoolLiteral true
+    bb7 if.then.7
+      call $call.7: String = @fn1 direct
+        Type String
+        Local $parameter.seed
+      assign $result.0
+        Type String
+        Local $call.7
+      goto bb9
+    bb8 if.else.8
+      assign $result.0
+        Type String
+        Local $parameter.seed
+      goto bb9
+    bb9 if.merge.9
+      val $parameter.value: String
+        Type String
+        Local $result.0
+      call $parameter.value: String = @fn2 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      call $call.8: String = @fn7 direct
+        Type OwnerCombinationHost
+        Local $receiver
+        Type String
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type String
+        Local $parameter.value
+      val $receiver: OwnerCombinationHost
+        Type OwnerCombinationHost
+        Local combined
+      val $argument.0: String
+        Type String
+        StringConst @str4
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $argument.0: String
+        Type String
+        Local $parameter.seed
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb10 bb11
+        Type Boolean
+        BoolLiteral true
+    bb10 if.then.10
+      call $call.9: String = @fn4 direct
+        Type String
+        Local $parameter.seed
+      assign $result.0
+        Type String
+        Local $call.9
+      goto bb12
+    bb11 if.else.11
+      assign $result.0
+        Type String
+        Local $parameter.seed
+      goto bb12
+    bb12 if.merge.12
+      val $parameter.value: String
+        Type String
+        Local $result.0
+      val $argument.0: String
+        Type String
+        Local $parameter.seed
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb13 bb14
+        Type Boolean
+        BoolLiteral true
+    bb13 if.then.13
+      call $call.10: String = @fn1 direct
+        Type String
+        Local $parameter.seed
+      assign $result.0
+        Type String
+        Local $call.10
+      goto bb15
+    bb14 if.else.14
+      assign $result.0
+        Type String
+        Local $parameter.seed
+      goto bb15
+    bb15 if.merge.15
+      val $parameter.value: String
+        Type String
+        Local $result.0
+      call $call.11: String = @fn5 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      call $call.12: String = @fn2 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      val $parameter.value: (String, String)
+        Type (String, String)
+        TupleLiteral
+          Type String
+          Local $call.11
+          Type String
+          Local $call.12
+      call $call.13: (String, String) = @fn8 direct
+        Type OwnerCombinationHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type (String, String)
+        Local $parameter.value
+      val $receiver: OwnerCombinationHost
+        Type OwnerCombinationHost
+        Local combined
+      val $argument.0: String
+        Type String
+        StringConst @str5
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $argument.0: String
+        Type String
+        Local $parameter.seed
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $argument.0: String
+        Type String
+        Local $parameter.seed
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      branch bb16 bb17
+        Type Boolean
+        BoolLiteral true
+    bb16 if.then.16
+      call $call.14: String = @fn4 direct
+        Type String
+        Local $parameter.seed
+      assign $result.0
+        Type String
+        Local $call.14
+      goto bb18
+    bb17 if.else.17
+      assign $result.0
+        Type String
+        Local $parameter.seed
+      goto bb18
+    bb18 if.merge.18
+      val $parameter.value: String
+        Type String
+        Local $result.0
+      call $parameter.value: String = @fn5 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      call $parameter.value: String = @fn9 direct
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      call $call.15: String = @fn10 direct
+        Type OwnerCombinationHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type String
+        Local $parameter.value
+      return
+  fun $local.0.copy @fn1($capture.seed: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun ownerLocal @fn2(seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun OwnerLocalHost.forward @fn3(this: OwnerLocalHost, first: Int, second: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun $local.0.copy @fn4($capture.seed: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local $capture.seed
+  fun ownerLocal @fn5(seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun OwnerLocalHost.forward @fn6(this: OwnerLocalHost, first: String, second: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun OwnerCombinationHost.swapped @fn7(this: OwnerCombinationHost, first: String, second: Int, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun OwnerCombinationHost.repeated @fn8(this: OwnerCombinationHost, seed: String, value: (String, String)) -> (String, String)
+    bb0 entry
+      return
+        Type (String, String)
+        Local value
+  fun ownerBridge @fn9(seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun OwnerCombinationHost.layered @fn10(this: OwnerCombinationHost, seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun Continuation.resume @fn11(this: Continuation<OwnerLocalHost>, value: OwnerLocalHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<OwnerLocalHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<OwnerLocalHost>, $completion: Continuation<OwnerLocalHost>) -> CoroutineStep<OwnerLocalHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<OwnerLocalHost>, continuation: Continuation<OwnerLocalHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<OwnerCombinationHost>, value: OwnerCombinationHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<OwnerCombinationHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<OwnerCombinationHost>, $completion: Continuation<OwnerCombinationHost>) -> CoroutineStep<OwnerCombinationHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<OwnerCombinationHost>, continuation: Continuation<OwnerCombinationHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.OwnerLocalHost.$c0 @fn19(this: OwnerLocalHost) -> Unit
+    bb0 entry
+      return
+  fun init.OwnerCombinationHost.$c1 @fn20(this: OwnerCombinationHost) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<OwnerLocalHost> @fn21(task: SuspendTask<OwnerLocalHost>, completion: Continuation<OwnerLocalHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<OwnerLocalHost>[0]
+        Type Continuation<OwnerLocalHost>
+        Local completion
+        Type OwnerLocalHost
+        EnumField v0 f0
+          Type CoroutineStep<OwnerLocalHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<OwnerLocalHost>[1]
+        Type Continuation<OwnerLocalHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<OwnerLocalHost> = @fn13 interface SuspendTask<OwnerLocalHost>[0]
+        Type SuspendTask<OwnerLocalHost>
+        Local task
+        Type Continuation<OwnerLocalHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<OwnerLocalHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<OwnerCombinationHost> @fn22(task: SuspendTask<OwnerCombinationHost>, completion: Continuation<OwnerCombinationHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<OwnerCombinationHost>[0]
+        Type Continuation<OwnerCombinationHost>
+        Local completion
+        Type OwnerCombinationHost
+        EnumField v0 f0
+          Type CoroutineStep<OwnerCombinationHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<OwnerCombinationHost>[1]
+        Type Continuation<OwnerCombinationHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<OwnerCombinationHost> = @fn17 interface SuspendTask<OwnerCombinationHost>[0]
+        Type SuspendTask<OwnerCombinationHost>
+        Local task
+        Type Continuation<OwnerCombinationHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<OwnerCombinationHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<OwnerLocalHost> result=OwnerLocalHost
+  coroutine_step cs1 CoroutineStep<OwnerCombinationHost> result=OwnerCombinationHost
+  coroutine_slot cl0 CoroutineSlot<OwnerLocalHost> value=OwnerLocalHost
+  coroutine_slot cl1 CoroutineSlot<OwnerCombinationHost> value=OwnerCombinationHost
+  coroutine_start ct0 result=OwnerLocalHost function=fn21
+  coroutine_start ct1 result=OwnerCombinationHost function=fn22
+  coroutine_fn cf0 @fn13 source_return=OwnerLocalHost step=cs0 immediate
+  coroutine_fn cf1 @fn17 source_return=OwnerCombinationHost step=cs1 immediate
+  instance mi0 function=@fn1 <- $local.0.copy
+  instance mi1 function=@fn2 <- ownerLocal
+  instance mi2 function=@fn3 <- OwnerLocalHost.forward
+  instance mi3 function=@fn4 <- $local.0.copy
+  instance mi4 function=@fn5 <- ownerLocal
+  instance mi5 function=@fn6 <- OwnerLocalHost.forward
+  instance mi6 function=@fn7 <- OwnerCombinationHost.swapped
+  instance mi7 function=@fn8 <- OwnerCombinationHost.repeated
+  instance mi8 function=@fn9 <- ownerBridge
+  instance mi9 function=@fn10 <- OwnerCombinationHost.layered
+  instance mi10 function=@fn11 <- Continuation.resume
+  instance mi11 function=@fn12 <- Continuation.resumeWithException
+  instance mi12 function=@fn13 <- SuspendTask.run
+  instance mi13 function=@fn14 <- SuspendRegistration.register
+  instance mi14 function=@fn15 <- Continuation.resume
+  instance mi15 function=@fn16 <- Continuation.resumeWithException
+  instance mi16 function=@fn17 <- SuspendTask.run
+  instance mi17 function=@fn18 <- SuspendRegistration.register
+  str @str0 "first"
+  str @str1 "unused"
+  str @str2 "second"
+  str @str3 "third"
+  str @str4 "fourth"
+  str @str5 "fifth"
+  output executable @fn0

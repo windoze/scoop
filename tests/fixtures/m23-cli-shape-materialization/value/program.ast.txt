@@ -1,0 +1,30 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call Payload
+        IntLiteral 17
+    Call verifyType
+      Binary Eq
+        FieldAccess value
+          Var value
+        IntLiteral 17
+    Call verifyType
+      Binary Eq
+        Var value
+        Call Payload
+          IntLiteral 17
+    val erased: Any
+      Var value
+    Call verifyType
+      Binary Eq
+        FieldAccess value
+          Cast Payload optional=false
+            Var erased
+        IntLiteral 17

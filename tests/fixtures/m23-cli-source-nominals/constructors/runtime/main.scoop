@@ -1,0 +1,14 @@
+fun verifyNominal(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    val value = defaultEnvelope()
+    verifyNominal(value.observed == 1)
+    verifyNominal(internalEnvelope().observed == 3)
+    verifyNominal(Envelope.Companion.privateEnvelope().observed == 2)
+    @Unsafe { verifyNominal(Envelope("text").observed == 4) }
+    verifyNominal(value.boxes() == 6)
+    verifyNominal(value.pairs() == 6)
+    verifyNominal(value.singleton())
+    verifyNominal(Empty() == Empty(true))
+}

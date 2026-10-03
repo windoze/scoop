@@ -1,0 +1,106 @@
+SourceFile
+  QualifiedPackage consumer.inference
+  ImportStar Local dependency.inference.*
+  ImportExact Local dependency.inference.exercise as providerExercise
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    assign trace
+      IntLiteral 0
+    val selected
+      Call ordered
+        Call deferredEmpty
+          IntLiteral 1
+        Call mark
+          IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Var selected
+          IntLiteral 42
+        Binary Ne
+          Var trace
+          IntLiteral 1234
+      return
+        IntLiteral 1
+    assign trace
+      IntLiteral 0
+    val packed
+      Call orderedPack
+        Argument *
+          Call deferredEmpty
+            IntLiteral 1
+        Call mark
+          IntLiteral 2
+        Argument *
+          Call markedArray
+            IntLiteral 3
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              FieldAccess size
+                Var packed
+              IntLiteral 2L
+            Binary Ne
+              Index
+                Var packed
+                IntLiteral 0L
+              IntLiteral 42
+          Binary Ne
+            Index
+              Var packed
+              IntLiteral 1L
+            IntLiteral 42
+        Binary Ne
+          Var trace
+          IntLiteral 12345
+      return
+        IntLiteral 2
+    assign trace
+      IntLiteral 0
+    val named
+      Call whole
+        Argument values=
+          Call deferredEmpty
+            IntLiteral 1
+        Argument seed=
+          Call mark
+            IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            Var named
+          IntLiteral 0L
+        Binary Ne
+          Var trace
+          IntLiteral 12
+      return
+        IntLiteral 3
+    assign trace
+      IntLiteral 0
+    val callback
+      Call applyTo
+        Lambda 0 suspend=false
+          param value: _
+          Call mark
+            IntLiteral 3
+        Call mark
+          IntLiteral 2
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            Var callback
+            IntLiteral 42
+          Binary Eq
+            Var trace
+            IntLiteral 23
+        IntLiteral 42
+        else
+        IntLiteral 4

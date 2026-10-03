@@ -1,0 +1,1017 @@
+Module
+  global0 extension:Receiver<T0>:ordered$delegate: OrderedSlot<Int> managed initial=zeroed-for-runtime-unit
+  global1 extension:Receiver<T0>:compound$delegate: OrderedSlot<Int> managed initial=zeroed-for-runtime-unit
+  global2 $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce: Trace imported provider=db7ae4f18a6559b5f50bdbe4793388614cc4615b56078554e93d0f9e9b5fa72f storage=f8cec4510d4459538b46f0979dfd5ce1c39b1d23a5ad58fccced24eb224457b7
+  global3 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global4 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 extension:Receiver<T0>:ordered generic-delegate lazy global0 initializer=@fn9 ensure=@fn10 failure=3 deps=[]
+  init1 extension:Receiver<T0>:compound generic-delegate lazy global1 initializer=@fn12 ensure=@fn13 failure=4 deps=[]
+  class Trace vtable=0 itables=0
+  class Payload vtable=0 itables=0
+  class Receiver<Int> vtable=0 itables=0
+  class OrderedSlot<Int> vtable=0 itables=0
+  class Starter<Int> vtable=0 itables=0
+  fun rhs @fn0(value: Int) -> Int
+    bb0 entry
+      call external6 direct
+      val $property_receiver.1: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      call external6 direct
+      call $dependency.receiver: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call external1 direct
+        Type Trace
+        Local $property_receiver.1
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call external2 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val allocated: Payload
+        Type Payload
+        Local $new.1
+      call $call.2: Int = external3 direct
+        Type Payload
+        Local allocated
+      return
+        Type Int
+        Local $call.2
+  fun result @fn1() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Int = @fn2 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun exercise @fn2(value: Int) -> Int
+    bb0 entry
+      call external6 direct
+      val $property_receiver.2: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      call external1 direct
+        Type Trace
+        Local $property_receiver.2
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Receiver<Int> = @fn4 direct
+        Type Int
+        Local $parameter.value
+      call $call.2: Int = @fn0 direct
+        Type Int
+        Local $parameter.value
+      call @fn3 direct
+        Type Receiver<Int>
+        Local $call.1
+        Type Int
+        Local $call.2
+      call external6 direct
+      call $dependency.receiver: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12345 bits=0x00003039
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      call external6 direct
+      val $property_receiver.3: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      call external1 direct
+        Type Trace
+        Local $property_receiver.3
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $place.4: Receiver<Int> = @fn4 direct
+        Type Int
+        Local $parameter.value
+      call $old.5: Int = @fn5 direct
+        Type Receiver<Int>
+        Local $place.4
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.5
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Receiver<Int>
+        Local $place.4
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call external6 direct
+      call $dependency.receiver: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=134625 bits=0x00020de1
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      call external6 direct
+      val $property_receiver.6: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      call external1 direct
+        Type Trace
+        Local $property_receiver.6
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $place.7: Receiver<Int> = @fn4 direct
+        Type Int
+        Local $parameter.value
+      call $old.8: Int = @fn5 direct
+        Type Receiver<Int>
+        Local $place.7
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.8
+      val $new.9: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      call @fn6 direct
+        Type Receiver<Int>
+        Local $place.7
+        Type Int
+        Local $new.9
+      val previous: Int
+        Type Int
+        Local $old.8
+      call external6 direct
+      call $dependency.receiver: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=165 bits=0x000000a5
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb7
+    bb6 if.else.6
+      val $dependency.receiver: Int
+        Type Int
+        Local previous
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=12 bits=0x0000000c
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.10: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb7
+    bb7 if.merge.7
+      branch bb8 bb9
+        Type Boolean
+        Local $shortCircuit.10
+    bb8 if.then.8
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb9 if.merge.9
+      call external6 direct
+      val $property_receiver.11: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      call external1 direct
+        Type Trace
+        Local $property_receiver.11
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $place.12: Receiver<Int> = @fn4 direct
+        Type Int
+        Local $parameter.value
+      call $old.13: Int = @fn5 direct
+        Type Receiver<Int>
+        Local $place.12
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.13
+      val $new.14: Int
+        Type Int
+        IntegerUnary increment kind=Int
+          Type Int
+          Local $dependency.receiver
+      call @fn6 direct
+        Type Receiver<Int>
+        Local $place.12
+        Type Int
+        Local $new.14
+      val current: Int
+        Type Int
+        Local $new.14
+      call external6 direct
+      call $dependency.receiver: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=165 bits=0x000000a5
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb10 bb11
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb10 if.then.10
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb12
+    bb11 if.else.11
+      val $dependency.receiver: Int
+        Type Int
+        Local current
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.15
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb14 if.merge.14
+      call external6 direct
+      val $property_receiver.16: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      call external1 direct
+        Type Trace
+        Local $property_receiver.16
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.3: Receiver<Int> = @fn4 direct
+        Type Int
+        Local $parameter.value
+      call read: Int = @fn7 direct
+        Type Receiver<Int>
+        Local $call.3
+      call external6 direct
+      call $dependency.receiver: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=16 bits=0x00000010
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb15 bb16
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb15 if.then.15
+      val $shortCircuit.17: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb17
+    bb16 if.else.16
+      val $dependency.receiver: Int
+        Type Int
+        Local read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.17: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb17
+    bb17 if.merge.17
+      branch bb18 bb19
+        Type Boolean
+        Local $shortCircuit.17
+    bb18 if.then.18
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb19 if.merge.19
+      return
+        Type Int
+        Local read
+  fun $extension.ordered @fn3(this: Receiver<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn10 direct
+      call @fn8 direct
+        Type OrderedSlot<Int>
+        GlobalRead extension:Receiver<T0>:ordered$delegate
+        Type Receiver<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun receiver @fn4(value: Int) -> Receiver<Int>
+    bb0 entry
+      call external6 direct
+      val $property_receiver.0: Trace
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      call external6 direct
+      call $dependency.receiver: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      call external1 direct
+        Type Trace
+        Local $property_receiver.0
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Receiver<Int>
+        ClassAlloc Receiver<Int>
+      call @fn16 direct
+        Type Receiver<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      return
+        Type Receiver<Int>
+        Local $new.1
+  fun $extension.compound @fn5(this: Receiver<Int>) -> Int
+    bb0 entry
+      call @fn13 direct
+      call $call.1: Int = @fn11 direct
+        Type OrderedSlot<Int>
+        GlobalRead extension:Receiver<T0>:compound$delegate
+        Type Receiver<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun $extension.compound @fn6(this: Receiver<Int>, value: Int) -> Unit
+    bb0 entry
+      call @fn13 direct
+      call @fn8 direct
+        Type OrderedSlot<Int>
+        GlobalRead extension:Receiver<T0>:compound$delegate
+        Type Receiver<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun $extension.ordered @fn7(this: Receiver<Int>) -> Int
+    bb0 entry
+      call @fn10 direct
+      call $call.1: Int = @fn11 direct
+        Type OrderedSlot<Int>
+        GlobalRead extension:Receiver<T0>:ordered$delegate
+        Type Receiver<Int>
+        Local this
+      return
+        Type Int
+        Local $call.1
+  fun setValue @fn8(this: OrderedSlot<Int>, thisRef: Receiver<Int>, value: Int) -> Unit
+    bb0 entry
+      call external6 direct
+      call $dependency.local.3: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+      val $dependency.local.7: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.7
+      call external6 direct
+      call external1 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.6
+          Type Int
+          Local $dependency.local.8
+      call external4 direct
+        Type Payload
+        FieldAccess 0
+          Type OrderedSlot<Int>
+          Local this
+        Type Int
+        Local value
+      return
+  fun extension:Receiver<T0>:ordered$initialize @fn9() -> Unit
+    bb0 entry
+      call $call.1: Starter<Int> = @fn14 direct
+      call $call.2: OrderedSlot<Int> = @fn15 direct
+        Type Starter<Int>
+        Local $call.1
+      global_assign extension:Receiver<T0>:ordered$delegate
+        Type OrderedSlot<Int>
+        Local $call.2
+      return
+  fun extension:Receiver<T0>:ordered$ensure @fn10() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:ordered
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn9 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:ordered
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:ordered
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:ordered
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 extension:Receiver<T0>:ordered
+      call external5 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun getValue @fn11(this: OrderedSlot<Int>, thisRef: Receiver<Int>) -> Int
+    bb0 entry
+      call external6 direct
+      call $dependency.local.2: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.2
+          Type Int
+          Local $dependency.local.4
+      val $dependency.local.6: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.local.7: Int
+        Type Int
+        Local $dependency.local.6
+      call external6 direct
+      call external1 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.5
+          Type Int
+          Local $dependency.local.7
+      call $call.1: Int = external3 direct
+        Type Payload
+        FieldAccess 0
+          Type OrderedSlot<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun extension:Receiver<T0>:compound$initialize @fn12() -> Unit
+    bb0 entry
+      call $call.1: Starter<Int> = @fn14 direct
+      call $call.2: OrderedSlot<Int> = @fn15 direct
+        Type Starter<Int>
+        Local $call.1
+      global_assign extension:Receiver<T0>:compound$delegate
+        Type OrderedSlot<Int>
+        Local $call.2
+      return
+  fun extension:Receiver<T0>:compound$ensure @fn13() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:compound
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn12 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:compound
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:compound
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:compound
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 extension:Receiver<T0>:compound
+      call external5 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun start @fn14() -> Starter<Int>
+    bb0 entry
+      call external6 direct
+      call $dependency.local.0: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.local.1: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.0
+          Type Int
+          Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      call external6 direct
+      call external1 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+      assign $new.1
+        Type Starter<Int>
+        ClassAlloc Starter<Int>
+      call @fn17 direct
+        Type Starter<Int>
+        Local $new.1
+      return
+        Type Starter<Int>
+        Local $new.1
+  fun provideDelegate @fn15(this: Starter<Int>) -> OrderedSlot<Int>
+    bb0 entry
+      call external6 direct
+      call $dependency.local.1: Int = external0 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+      val $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.2
+      val $dependency.local.4: Int
+        Type Int
+        IntegerBinary multiply kind=Int
+          Type Int
+          Local $dependency.local.1
+          Type Int
+          Local $dependency.local.3
+      val $dependency.local.5: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.5
+      call external6 direct
+      call external1 direct
+        Type Trace
+        GlobalRead $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.4
+          Type Int
+          Local $dependency.local.6
+      val $dependency.local.7: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.8: Int
+        Type Int
+        Local $dependency.local.7
+      assign $new.1
+        Type Payload
+        ClassAlloc Payload
+      call external2 direct
+        Type Payload
+        Local $new.1
+        Type Int
+        Local $dependency.local.8
+      val $dependency.local.9: Payload
+        Type Payload
+        Local $new.1
+      val $dependency.local.10: Payload
+        Type Payload
+        Local $dependency.local.9
+      assign $new.2
+        Type OrderedSlot<Int>
+        ClassAlloc OrderedSlot<Int>
+      call @fn18 direct
+        Type OrderedSlot<Int>
+        Local $new.2
+        Type Payload
+        Local $dependency.local.10
+      return
+        Type OrderedSlot<Int>
+        Local $new.2
+  fun init.Receiver.$c0 @fn16(this: Receiver<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Receiver<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Starter.$c1 @fn17(this: Starter<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.OrderedSlot.$c2 @fn18(this: OrderedSlot<Int>, payload: Payload) -> Unit
+    bb0 entry
+      field_set 0
+        Type OrderedSlot<Int>
+        Local this
+        Type Payload
+        Local payload
+      return
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn3 <- $extension.ordered
+  instance mi2 function=@fn4 <- receiver
+  instance mi3 function=@fn5 <- $extension.compound
+  instance mi4 function=@fn6 <- $extension.compound
+  instance mi5 function=@fn7 <- $extension.ordered
+  instance mi6 function=@fn8 <- setValue
+  instance mi7 function=@fn9 <- extension:Receiver<T0>:ordered$initialize
+  instance mi8 function=@fn10 <- extension:Receiver<T0>:ordered$ensure
+  instance mi9 function=@fn11 <- getValue
+  instance mi10 function=@fn12 <- extension:Receiver<T0>:compound$initialize
+  instance mi11 function=@fn13 <- extension:Receiver<T0>:compound$ensure
+  instance mi12 function=@fn14 <- start
+  instance mi13 function=@fn15 <- provideDelegate
+  output library

@@ -1,0 +1,59 @@
+SourceFile
+  QualifiedPackage tls.consumer
+  ImportStar Local tls.facade.*
+    @Extern(lib = "fixture_native", name = "run_tls_workers")
+  fun runWorkers(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>): Int
+  fun main()
+    Call println
+      Call step
+    @Unsafe block
+      val callback
+        Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+          Lambda 0 suspend=false
+            param value: Int
+            val count
+              Call zeroStep
+            val expected
+              IfExpression
+                Binary Eq
+                  Binary Rem
+                    Var value
+                    IntLiteral 2
+                  IntLiteral 1
+                IntLiteral 0
+                else
+                IntLiteral 1
+            if
+              Binary Ne
+                Var count
+                Var expected
+              throw
+                Call IllegalStateException
+                  Call Some
+                    StringLiteral "TLS zero state leaked"
+            Call step
+              Var value
+          IntLiteral 1
+          FieldAccess Reusable
+            Var ForeignCallbackMode
+      Call println
+        Call runWorkers
+          FieldAccess function
+            Var callback
+          FieldAccess context
+            Var callback
+      Call println
+        Binary Eq
+          Call foreignCallbackState
+            Var callback
+          FieldAccess Registered
+            Var ForeignCallbackState
+      Call releaseForeignCallback
+        Var callback
+    Call println
+      Call step
+        IntLiteral 43
+    Call println
+      Call zeroStep
+    Call println
+      Call zeroStep

@@ -8,6 +8,7 @@ use scoop_hir as hir;
 use crate::{Lowerer, Owner};
 
 mod arguments;
+mod constructors;
 mod functions;
 
 use arguments::is_core_annotation;

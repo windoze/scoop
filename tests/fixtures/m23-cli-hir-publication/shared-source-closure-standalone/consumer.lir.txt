@@ -1,0 +1,22 @@
+Module
+  fun @scoop$1$cb$766738915821e389f0fe518130dbe6af8ea761a6b8702b1f416c7d05cc7f737f() -> i32
+    local %0 $dependency.receiver: ptr<managed>
+    local %1 $dependency.receiver: i32
+    local %2 $dependency.argument.0: i32
+    local %3 $dependency.parameter.other: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> external-fn0()
+    store t0 -> local0
+    call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0] t1 = sig=direct1 (ptr<managed>) -> i32 external-fn1(local0)
+    store t1 -> local1
+    store integer<Int>(0x0000000f) -> local2
+    store local2 -> local3
+    t2 = integer_compare_Equal<Int> local1, local3 : i1
+    t3 = Not t2 : i1
+    cbr t3 then @if.then.1 else @if.merge.2
+  block if.then.1
+    ret integer<Int>(0x00000001)
+  block if.merge.2
+    ret integer<Int>(0x0000002a)
+  output library

@@ -1,0 +1,155 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Unary Not
+              Call equalInt8
+                IntLiteral 1
+            Unary Not
+              Call equalInt16
+                IntLiteral 1
+          Unary Not
+            Call equalInt
+              IntLiteral 1
+        Unary Not
+          Call equalLong
+            IntLiteral 1L
+      throw
+        Call IllegalStateException
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Call equalInt8
+              IntLiteral 2
+            Call equalInt16
+              IntLiteral 2
+          Call equalInt
+            IntLiteral 2
+        Call equalLong
+          IntLiteral 2L
+      throw
+        Call IllegalStateException
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Unary Not
+              Call equalUInt8
+                IntLiteral 2u
+            Unary Not
+              Call equalUInt16
+                IntLiteral 2u
+          Unary Not
+            Call equalUInt
+              IntLiteral 2u
+        Unary Not
+          Call equalULong
+            IntLiteral 2uL
+      throw
+        Call IllegalStateException
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Call equalUInt8
+              IntLiteral 1u
+            Call equalUInt16
+              IntLiteral 1u
+          Call equalUInt
+            IntLiteral 1u
+        Call equalULong
+          IntLiteral 1uL
+      throw
+        Call IllegalStateException
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Call literalEquality
+            Unary Not
+              Call contextualLeft
+                IntLiteral 1
+          Call contextualLeft
+            IntLiteral 2
+        Call singleEvaluation
+      throw
+        Call IllegalStateException
+SourceFile
+  RootPackage
+    @NoGC
+  fun equalInt8(value: Int8): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalInt16(value: Int16): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalInt(value: Int): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalLong(value: Long): Boolean
+    =
+      Binary Eq
+        Var value
+        IntLiteral 1
+    @NoGC
+  fun equalUInt8(value: UInt8): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun equalUInt16(value: UInt16): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun equalUInt(value: UInt): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+    @NoGC
+  fun equalULong(value: ULong): Boolean
+    =
+      Binary Ne
+        Var value
+        IntLiteral 1u
+  fun literalEquality(): Boolean
+    =
+      Binary Eq
+        IntLiteral 7
+        IntLiteral 3
+  fun contextualLeft(value: Int8): Boolean
+    =
+      Binary Eq
+        IntLiteral 1
+        Var value
+  fun leftOperand(): Int
+    =
+      IntLiteral 1
+  fun middleOperand(): Int
+    =
+      IntLiteral 2
+  fun rightOperand(value: Int): Int
+    =
+      Var value
+  fun singleEvaluation(): Boolean
+    =
+      Binary Eq
+        Call leftOperand
+        Call rightOperand
+          Call middleOperand

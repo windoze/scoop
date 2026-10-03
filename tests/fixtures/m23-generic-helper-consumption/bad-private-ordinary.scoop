@@ -1,0 +1,5 @@
+package consumer.helpers
+
+import dependency.helpers.offset
+
+public fun retained(): Int = offset()

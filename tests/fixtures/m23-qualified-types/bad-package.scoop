@@ -1,0 +1,1 @@
+public fun consume(value: dependency.paths): Int = 42

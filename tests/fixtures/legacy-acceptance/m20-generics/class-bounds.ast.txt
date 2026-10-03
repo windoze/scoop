@@ -1,0 +1,45 @@
+SourceFile
+  RootPackage
+  interface Named
+    fun name
+  interface Left
+  interface Right
+  open class Node<T>(val value: T), Named, Left, Right
+    fun name
+    fun read
+    fun tag
+  class StringNode(value: String) : Node<String>(<1 args>)
+    fun name
+    fun read
+  fun direct<T>(node: T): String where T : Node<String>
+    =
+      MethodCall tag
+        Var node
+  fun virtual<T>(node: T): String where T : Node<String>
+    =
+      MethodCall read
+        Var node
+  fun inheritedInterface<T>(node: T): String where T : Node<String>
+    =
+      MethodCall name
+        Var node
+  fun combined<T>(node: T): String where T : Node<String>, T : Left, T : Right
+    =
+      MethodCall tag
+        Var node
+  fun main()
+    val node
+      Call StringNode
+        StringLiteral "value"
+    Call println
+      Call direct
+        Var node
+    Call println
+      Call virtual
+        Var node
+    Call println
+      Call inheritedInterface
+        Var node
+    Call println
+      Call combined
+        Var node

@@ -18,7 +18,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let [descriptor, requested_size] = args else {
             return Err(CodegenError(format!(
                 "scoop_rt_alloc @{}: expected descriptor and size",
-                self.function.symbol
+                self.function.symbol()
             )));
         };
         let descriptor = self.value(*descriptor)?.into_pointer_value();
@@ -41,44 +41,64 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let managed_ptr = managed_ptr_ty(context, self.managed_address_space);
         let i64_ty = context.i64_type();
 
-        let below_header = builder
-            .build_int_compare(
-                IntPredicate::ULT,
-                requested_size,
-                i64_ty.const_int(16, false),
-                "alloc_below_header",
+        let metadata = crate::runtime_metadata_v1::RuntimeMetadataV1Types::new(context);
+        let shape = builder
+            .build_struct_gep(
+                metadata.type_descriptor(),
+                descriptor,
+                1,
+                "allocation_shape",
             )
-            .map_err(|error| CodegenError(format!("allocation size check: {error}")))?;
-        let at_least_header = builder
-            .build_select(
-                below_header,
-                i64_ty.const_int(16, false),
-                requested_size,
-                "alloc_min_size",
+            .map_err(|error| CodegenError(format!("allocation descriptor shape: {error}")))?;
+        let alignment_slot = builder
+            .build_struct_gep(
+                metadata.type_instance_shape(),
+                shape,
+                3,
+                "allocation_alignment_ptr",
             )
-            .map_err(|error| CodegenError(format!("normalize allocation size: {error}")))?
+            .map_err(|error| CodegenError(format!("allocation descriptor alignment: {error}")))?;
+        let alignment = builder
+            .build_load(i64_ty, alignment_slot, "allocation_alignment")
+            .map_err(|error| CodegenError(format!("load allocation alignment: {error}")))?
             .into_int_value();
-        let aligned_size = builder
-            .build_and(
-                builder
-                    .build_int_add(
-                        at_least_header,
-                        i64_ty.const_int(7, false),
-                        "alloc_size_plus_align",
-                    )
-                    .map_err(|error| CodegenError(format!("align allocation size: {error}")))?,
-                i64_ty.const_int(!7_u64, false),
-                "alloc_size",
+        let alignment_mask = builder
+            .build_int_sub(
+                alignment,
+                i64_ty.const_int(1, false),
+                "allocation_alignment_mask",
             )
-            .map_err(|error| CodegenError(format!("mask allocation size: {error}")))?;
+            .map_err(|error| CodegenError(format!("allocation alignment mask: {error}")))?;
+        let inverse_mask = builder
+            .build_not(alignment_mask, "allocation_alignment_inverse")
+            .map_err(|error| CodegenError(format!("allocation alignment mask: {error}")))?;
+        let maximum_size = builder
+            .build_int_sub(
+                i64_ty.const_int(i64::MAX as u64, false),
+                alignment_mask,
+                "allocation_maximum_size",
+            )
+            .map_err(|error| CodegenError(format!("allocation maximum size: {error}")))?;
+        let size_valid = builder
+            .build_int_compare(
+                IntPredicate::ULE,
+                requested_size,
+                maximum_size,
+                "allocation_size_valid",
+            )
+            .map_err(|error| CodegenError(format!("allocation size overflow: {error}")))?;
+        let aligned_size = builder
+            .build_int_add(requested_size, alignment_mask, "alloc_size_plus_align")
+            .and_then(|size| builder.build_and(size, inverse_mask, "alloc_size"))
+            .map_err(|error| CodegenError(format!("allocation size alignment: {error}")))?;
 
+        let allocation_context_symbol =
+            scoop_lir::RuntimeAbiSymbolV1::AllocationContext.logical_symbol();
         let allocation_global = self
             .llvm
-            .get_global("scoop_rt_allocation_context")
+            .get_global(allocation_context_symbol)
             .unwrap_or_else(|| {
-                let global = self
-                    .llvm
-                    .add_global(ptr, None, "scoop_rt_allocation_context");
+                let global = self.llvm.add_global(ptr, None, allocation_context_symbol);
                 global.set_thread_local(true);
                 global
             });
@@ -111,6 +131,10 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let limit_int = builder
             .build_ptr_to_int(limit, i64_ty, "tlab_limit_int")
             .map_err(|error| CodegenError(format!("convert TLAB limit: {error}")))?;
+        let cursor_int = builder
+            .build_int_add(cursor_int, alignment_mask, "tlab_cursor_plus_align")
+            .and_then(|cursor| builder.build_and(cursor, inverse_mask, "tlab_aligned_cursor"))
+            .map_err(|error| CodegenError(format!("align TLAB object start: {error}")))?;
         let cursor_end = builder
             .build_int_add(cursor_int, aligned_size, "tlab_cursor_end")
             .map_err(|error| CodegenError(format!("advance TLAB cursor: {error}")))?;
@@ -155,7 +179,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .map_err(|error| CodegenError(format!("check TLAB limit: {error}")))?;
         let fast = builder
             .build_and(has_tlab, is_small, "alloc_has_small_tlab")
-            .and_then(|condition| builder.build_and(condition, within_limit, "alloc_fast_path"))
+            .and_then(|condition| builder.build_and(condition, within_limit, "alloc_within_limit"))
+            .and_then(|condition| builder.build_and(condition, size_valid, "alloc_fast_path"))
             .map_err(|error| CodegenError(format!("combine TLAB checks: {error}")))?;
 
         let index = self.allocation_index;
@@ -188,7 +213,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .build_store(cursor_slot, next)
             .map_err(|error| CodegenError(format!("publish TLAB cursor: {error}")))?;
         let finish = self.runtime_fn(
-            "scoop_runtime_finish_tlab_alloc",
+            scoop_lir::RuntimeAbiSymbolV1::FinishTlabAllocation.logical_symbol(),
             context
                 .void_type()
                 .fn_type(&[managed_ptr.into(), ptr.into(), i64_ty.into()], false),
@@ -214,7 +239,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
 
         builder.position_at_end(slow_block);
         let slow = self.runtime_fn(
-            "scoop_runtime_alloc_slow",
+            scoop_lir::RuntimeAbiSymbolV1::AllocateSlow.logical_symbol(),
             managed_ptr.fn_type(&[ptr.into(), i64_ty.into()], false),
         );
         slow.add_attribute(
@@ -224,7 +249,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
         let slow_call = builder
             .build_call(
                 slow,
-                &[descriptor.into(), aligned_size.into()],
+                &[descriptor.into(), requested_size.into()],
                 "slow_object",
             )
             .map_err(|error| CodegenError(format!("slow allocation: {error}")))?;

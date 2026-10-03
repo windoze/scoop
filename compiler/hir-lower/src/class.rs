@@ -27,8 +27,8 @@
 //!
 //! Object layout decision (see the crate docs): a subclass object is
 //! laid out as the base class's fields followed by its own, with
-//! consecutive indices — `FieldRef::ClassField::index` is the absolute
-//! layout index and `class_id` the class that declared the property.
+//! consecutive indices. Export HIR keeps the original field identity and
+//! full declaring type; concrete HIR assigns the absolute layout index.
 //! This is orthogonal to the vtable layout (mir-lower's job).
 
 use scoop_ast as ast;
@@ -39,6 +39,7 @@ use hir::{ClassId, FunctionId, Type, TypeId};
 use crate::{FnParam, FnSig, ForbiddenSuspendContext, Lowerer, Owner, SuspensionContext};
 
 mod construction;
+pub(crate) use construction::ConstructorSource;
 mod declarations;
 mod hierarchy;
 mod inheritance;

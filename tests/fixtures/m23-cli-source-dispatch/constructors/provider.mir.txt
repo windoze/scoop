@@ -1,0 +1,802 @@
+Module
+  global0 $singleton$Singleton: Singleton managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Singleton singleton lazy global0 initializer=@fn1 ensure=@fn2 failure=1 deps=[]
+  struct Pair (left: Int, right: Long)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Defaults>
+    Completed(value: Defaults)
+    Suspended()
+  enum CoroutineSlot<Defaults>
+    Empty()
+    Value(value: Defaults)
+  enum CoroutineStep<Marker>
+    Completed(value: Marker)
+    Suspended()
+  enum CoroutineSlot<Marker>
+    Empty()
+    Value(value: Marker)
+  enum CoroutineStep<Singleton>
+    Completed(value: Singleton)
+    Suspended()
+  enum CoroutineSlot<Singleton>
+    Empty()
+    Value(value: Singleton)
+  enum CoroutineStep<HiddenConstructors>
+    Completed(value: HiddenConstructors)
+    Suspended()
+  enum CoroutineSlot<HiddenConstructors>
+    Empty()
+    Value(value: HiddenConstructors)
+  enum CoroutineStep<Pair>
+    Completed(value: Pair)
+    Suspended()
+  enum CoroutineSlot<Pair>
+    Empty()
+    Value(value: Pair)
+  enum CoroutineStep<Factory>
+    Completed(value: Factory)
+    Suspended()
+  enum CoroutineSlot<Factory>
+    Empty()
+    Value(value: Factory)
+  enum CoroutineStep<Product>
+    Completed(value: Product)
+    Suspended()
+  enum CoroutineSlot<Product>
+    Empty()
+    Value(value: Product)
+  class Factory vtable=0 itables=1
+  class Product vtable=0 itables=1
+  class Defaults vtable=0 itables=0
+  class HiddenConstructors vtable=0 itables=0
+  class Singleton vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Pair> vtable=0 itables=0
+  interface Marker
+  interface Continuation<Pair>
+  interface SuspendTask<Pair>
+  interface SuspendRegistration<Pair>
+  interface Continuation<Marker>
+  interface SuspendTask<Marker>
+  interface SuspendRegistration<Marker>
+  interface Continuation<Factory>
+  interface SuspendTask<Factory>
+  interface SuspendRegistration<Factory>
+  interface Continuation<Product>
+  interface SuspendTask<Product>
+  interface SuspendRegistration<Product>
+  interface Continuation<Defaults>
+  interface SuspendTask<Defaults>
+  interface SuspendRegistration<Defaults>
+  interface Continuation<HiddenConstructors>
+  interface SuspendTask<HiddenConstructors>
+  interface SuspendRegistration<HiddenConstructors>
+  interface Continuation<Singleton>
+  interface SuspendTask<Singleton>
+  interface SuspendRegistration<Singleton>
+  generated_exact_type get0 location=enum13 nominal_id=b8f8e1cb40aa778d44f994a9b1189c84292154f7417644175dfc4b4407890fcd exact_id=104fecb0d3888d8ee41cf1196a164896006e265bfbaffd8771d06b2e13193ea9
+  generated_exact_type get1 location=enum14 nominal_id=f30f2958d80a8eb0bce79dc5cbe09f977b8e25d3c9f87ce1f224ce41e75722ea exact_id=1109799b5b0186471ba2a8c509851cc098a44722d154abd86e1cc0a435c015e7
+  generated_exact_type get2 location=enum11 nominal_id=80baaee2ff8c0c0592fcfdf076bd8efc4b60351245d167fa41a7791f0d53b575 exact_id=1dfb95e68d0e64fc94454832a014cb603302543db1c975a1fb4a81b5488f7273
+  generated_exact_type get3 location=enum6 nominal_id=062efa823867feb269d384465cb179aee34fb2843ea33e83e82831ae75e6b577 exact_id=20ffa97a804132f1f02988b2f46cd0245914a607c60886cd29515e5635f50122
+  generated_exact_type get4 location=enum3 nominal_id=36a26286a1d78fad658b4fca9863264f1f461208e827747744955aae31fa6d2e exact_id=7f412fba5be990682f749f495b4a571f0858529579285912e2904a43bd38c7aa
+  generated_exact_type get5 location=enum12 nominal_id=44acb943f9bbaa95c0c4aa5bb8f7a5a0a48468cf971064ec422f3b47266c25a7 exact_id=82f6914fa73368bdaa826b9b3eed8a40063c8c73d043882e8781a1fdb507fcc4
+  generated_exact_type get6 location=class8 nominal_id=be701c6aafb440471ad413cfca9299465eeecca980b4cdd653bdda0c2408ba16 exact_id=864146f2c369a97218198a8568db20cc712092fd16eb07883372c11f0ddad5c9
+  generated_exact_type get7 location=enum7 nominal_id=72239a0dcbe7ee0ae4b7bde1359c6f0c0eaa0c81dbb7912b3cc21e01512374cd exact_id=a83e58e44e29456974a0888f83465f62ffbbb60f70e8a40b23dea06289dc063a
+  generated_exact_type get8 location=enum10 nominal_id=af6498d8eaf2b3b26e3a9bea04e5ee2ce0bdad85acaaa366bbef2979cb9144cc exact_id=a9b8c34c02f875e3308d5b0b094e637f6c291a8ea126e34af5ff33e87a45c9d9
+  generated_exact_type get9 location=enum4 nominal_id=4a62ba9efae4d2019accc447b47b00354dff43124c83a890d6431b220543352e exact_id=bb3e60f3135ba7f266adcad6da3b53af0ce3dd6cda07bc3dda352c6c14e7fa88
+  generated_exact_type get10 location=enum1 nominal_id=588d9ec5d580658654c82c96b9c5f53db66c5d665a0cd5794e4ce216f0cf54df exact_id=bcb25fbb2125d2a081b289fa58b577ebfa5a6162eba4ec5cb34107c2e8ef2548
+  generated_exact_type get11 location=enum2 nominal_id=c92f6ade02c9693419a5db9783ba748944c0434edf5e7b0782b1d9214db6e60d exact_id=d82a3ede15784166437b394769fdb4d28f84d5e667f95d3058f8a89e7926a389
+  generated_exact_type get12 location=enum5 nominal_id=349a1e42596e5b4b951c9017511d68221236a0fe8c63d32278f4c851f1f9320a exact_id=ea82ba66b91f02c5bc9fe0e2e1730aa8e7a05c181ef340476f56f316bb910931
+  generated_exact_type get13 location=enum8 nominal_id=e77d52a0759157ac483b339c2b13636acf0e9c0487cf97d2f4420e667d1b049f exact_id=f14187855fc69967fbf93368a9c96bbe6d766ce98dc0a881b31c7bc8baa81f3b
+  generated_exact_type get14 location=enum9 nominal_id=07b4087664bc136f510bb8769d66ae5e3e22af71adc30fca419253858c1f6e4a exact_id=f9f288dcc9e31e69b215e1fa3fb2a93917fe9645083a542406dbb3846bf28c25
+  generated_callable gc0 function=@fn47 id=0d12a1e6c51347254accee37d6b91cbbec08afa03782631bdb63733d368ff66e
+  generated_callable gc1 function=@fn44 id=256ed06f6fbd9bd1910b9c19afbdcb26d28c1ec5c3df4ff007708c0d7f5e0cc5
+  generated_callable gc2 function=@fn48 id=2a4c32473cee953315e7328efc14bd51d6717dbfb36703795e5f667bdd837f66
+  generated_callable gc3 function=@fn43 id=2cc01ab9f6bcbcbb49560fe89955bdf5c02a2ee33899e3c04b544a8ec0135004
+  generated_callable gc4 function=@fn45 id=b6e1b75f86031195ee233965c05c82e1c57b104efd4044bf628954a233bd2d07
+  generated_callable gc5 function=@fn46 id=cea90ef30d6733c64eee0d15b1ee7d6d251cad3a288d9a4d32800b465bdc4491
+  generated_callable gc6 function=@fn42 id=ea0875363d45e13427a2b4691a35654c8cf176dd61419502b2f1d0234464dcdc
+  fun Pair.equals @fn0(this: Pair, other: Pair) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type Pair
+            Local this
+          Type Int
+          FieldAccess 0
+            Type Pair
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type Pair
+            Local this
+          Type Long
+          FieldAccess 1
+            Type Pair
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun $init$body$0 @fn1() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Singleton
+        ClassAlloc Singleton
+      call @fn39 direct
+        Type Singleton
+        Local $new.1
+      global_assign $singleton$Singleton
+        Type Singleton
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn2() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn1 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Singleton
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Continuation.resume @fn3(this: Continuation<Pair>, value: Pair) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn4(this: Continuation<Pair>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn5(this: SuspendTask<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn6(this: SuspendRegistration<Pair>, continuation: Continuation<Pair>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn7(this: Continuation<Marker>, value: Marker) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<Marker>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<Marker>, $completion: Continuation<Marker>) -> CoroutineStep<Marker>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<Marker>, continuation: Continuation<Marker>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn11(this: Continuation<Factory>, value: Factory) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn12(this: Continuation<Factory>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn13(this: SuspendTask<Factory>, $completion: Continuation<Factory>) -> CoroutineStep<Factory>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn14(this: SuspendRegistration<Factory>, continuation: Continuation<Factory>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn15(this: Continuation<Product>, value: Product) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn16(this: Continuation<Product>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn17(this: SuspendTask<Product>, $completion: Continuation<Product>) -> CoroutineStep<Product>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn18(this: SuspendRegistration<Product>, continuation: Continuation<Product>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn19(this: Continuation<Defaults>, value: Defaults) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn20(this: Continuation<Defaults>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn21(this: SuspendTask<Defaults>, $completion: Continuation<Defaults>) -> CoroutineStep<Defaults>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Defaults>, continuation: Continuation<Defaults>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn23(this: Continuation<HiddenConstructors>, value: HiddenConstructors) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn24(this: Continuation<HiddenConstructors>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn25(this: SuspendTask<HiddenConstructors>, $completion: Continuation<HiddenConstructors>) -> CoroutineStep<HiddenConstructors>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<HiddenConstructors>, continuation: Continuation<HiddenConstructors>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn27(this: Continuation<Singleton>, value: Singleton) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn28(this: Continuation<Singleton>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn29(this: SuspendTask<Singleton>, $completion: Continuation<Singleton>) -> CoroutineStep<Singleton>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Singleton>, continuation: Continuation<Singleton>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Marker.tag @fn31(this: Marker) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun init.Factory.$c0 @fn32(this: Factory, seed: Int) -> Unit
+    bb0 entry
+      return
+  fun init.Factory.$c1 @fn33(this: Factory, text: String) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      call @fn32 direct
+        Type Factory
+        Local this
+        Type Int
+        Local $parameter.seed
+      return
+  fun init.Factory.$c2 @fn34(this: Factory, flag: Boolean) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      call @fn32 direct
+        Type Factory
+        Local this
+        Type Int
+        Local $parameter.seed
+      return
+  fun init.Factory.$c3 @fn35(this: Factory, value: Long) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      call @fn32 direct
+        Type Factory
+        Local this
+        Type Int
+        Local $parameter.seed
+      return
+  fun init.Product.$c4 @fn36(this: Product, count: Int, label: String) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local count
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      call @fn32 direct
+        Type Factory
+        Retype Factory
+          Type Product
+          Local this
+        Type Int
+        Local $parameter.seed
+      return
+  fun init.Defaults.$c5 @fn37(this: Defaults, value: Int) -> Unit
+    bb0 entry
+      return
+  fun init.HiddenConstructors.$c6 @fn38(this: HiddenConstructors) -> Unit
+    bb0 entry
+      return
+  fun init.Singleton.$c7 @fn39(this: Singleton) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      call @fn32 direct
+        Type Factory
+        Retype Factory
+          Type Singleton
+          Local this
+        Type Int
+        Local $parameter.seed
+      return
+  fun ctor.Pair.$c0 @fn40(left: Int, right: Long) -> Pair <no-gc>
+    bb0 entry
+      return
+        Type Pair
+        StructInit Pair
+          Type Int
+          Local left
+          Type Long
+          Local right
+  fun ctor.Pair.$c1 @fn41(text: String) -> Pair
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $parameter.left: Int
+        Type Int
+        Local $argument.0
+      val $parameter.right: Long
+        Type Long
+        Local $argument.1
+      call $this: Pair = @fn40 direct
+        Type Int
+        Local $parameter.left
+        Type Long
+        Local $parameter.right
+      return
+        Type Pair
+        Local $this
+  fun startCoroutine<Defaults> @fn42(task: SuspendTask<Defaults>, completion: Continuation<Defaults>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn19 interface Continuation<Defaults>[0]
+        Type Continuation<Defaults>
+        Local completion
+        Type Defaults
+        EnumField v0 f0
+          Type CoroutineStep<Defaults>
+          Local $step
+      return
+    bb2 failed
+      call @fn20 interface Continuation<Defaults>[1]
+        Type Continuation<Defaults>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Defaults> = @fn21 interface SuspendTask<Defaults>[0]
+        Type SuspendTask<Defaults>
+        Local task
+        Type Continuation<Defaults>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Defaults>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Marker> @fn43(task: SuspendTask<Marker>, completion: Continuation<Marker>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<Marker>[0]
+        Type Continuation<Marker>
+        Local completion
+        Type Marker
+        EnumField v0 f0
+          Type CoroutineStep<Marker>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<Marker>[1]
+        Type Continuation<Marker>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Marker> = @fn9 interface SuspendTask<Marker>[0]
+        Type SuspendTask<Marker>
+        Local task
+        Type Continuation<Marker>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Marker>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Singleton> @fn44(task: SuspendTask<Singleton>, completion: Continuation<Singleton>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn27 interface Continuation<Singleton>[0]
+        Type Continuation<Singleton>
+        Local completion
+        Type Singleton
+        EnumField v0 f0
+          Type CoroutineStep<Singleton>
+          Local $step
+      return
+    bb2 failed
+      call @fn28 interface Continuation<Singleton>[1]
+        Type Continuation<Singleton>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Singleton> = @fn29 interface SuspendTask<Singleton>[0]
+        Type SuspendTask<Singleton>
+        Local task
+        Type Continuation<Singleton>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Singleton>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<HiddenConstructors> @fn45(task: SuspendTask<HiddenConstructors>, completion: Continuation<HiddenConstructors>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn23 interface Continuation<HiddenConstructors>[0]
+        Type Continuation<HiddenConstructors>
+        Local completion
+        Type HiddenConstructors
+        EnumField v0 f0
+          Type CoroutineStep<HiddenConstructors>
+          Local $step
+      return
+    bb2 failed
+      call @fn24 interface Continuation<HiddenConstructors>[1]
+        Type Continuation<HiddenConstructors>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<HiddenConstructors> = @fn25 interface SuspendTask<HiddenConstructors>[0]
+        Type SuspendTask<HiddenConstructors>
+        Local task
+        Type Continuation<HiddenConstructors>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<HiddenConstructors>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Pair> @fn46(task: SuspendTask<Pair>, completion: Continuation<Pair>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn3 interface Continuation<Pair>[0]
+        Type Continuation<Pair>
+        Local completion
+        Type Pair
+        EnumField v0 f0
+          Type CoroutineStep<Pair>
+          Local $step
+      return
+    bb2 failed
+      call @fn4 interface Continuation<Pair>[1]
+        Type Continuation<Pair>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Pair> = @fn5 interface SuspendTask<Pair>[0]
+        Type SuspendTask<Pair>
+        Local task
+        Type Continuation<Pair>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Pair>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Factory> @fn47(task: SuspendTask<Factory>, completion: Continuation<Factory>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn11 interface Continuation<Factory>[0]
+        Type Continuation<Factory>
+        Local completion
+        Type Factory
+        EnumField v0 f0
+          Type CoroutineStep<Factory>
+          Local $step
+      return
+    bb2 failed
+      call @fn12 interface Continuation<Factory>[1]
+        Type Continuation<Factory>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Factory> = @fn13 interface SuspendTask<Factory>[0]
+        Type SuspendTask<Factory>
+        Local task
+        Type Continuation<Factory>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Factory>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Product> @fn48(task: SuspendTask<Product>, completion: Continuation<Product>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn15 interface Continuation<Product>[0]
+        Type Continuation<Product>
+        Local completion
+        Type Product
+        EnumField v0 f0
+          Type CoroutineStep<Product>
+          Local $step
+      return
+    bb2 failed
+      call @fn16 interface Continuation<Product>[1]
+        Type Continuation<Product>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Product> = @fn17 interface SuspendTask<Product>[0]
+        Type SuspendTask<Product>
+        Local task
+        Type Continuation<Product>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Product>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Defaults> result=Defaults
+  coroutine_step cs1 CoroutineStep<Marker> result=Marker
+  coroutine_step cs2 CoroutineStep<Singleton> result=Singleton
+  coroutine_step cs3 CoroutineStep<HiddenConstructors> result=HiddenConstructors
+  coroutine_step cs4 CoroutineStep<Pair> result=Pair
+  coroutine_step cs5 CoroutineStep<Factory> result=Factory
+  coroutine_step cs6 CoroutineStep<Product> result=Product
+  coroutine_slot cl0 CoroutineSlot<Defaults> value=Defaults
+  coroutine_slot cl1 CoroutineSlot<Marker> value=Marker
+  coroutine_slot cl2 CoroutineSlot<Singleton> value=Singleton
+  coroutine_slot cl3 CoroutineSlot<HiddenConstructors> value=HiddenConstructors
+  coroutine_slot cl4 CoroutineSlot<Pair> value=Pair
+  coroutine_slot cl5 CoroutineSlot<Factory> value=Factory
+  coroutine_slot cl6 CoroutineSlot<Product> value=Product
+  coroutine_start ct0 result=Defaults function=fn42
+  coroutine_start ct1 result=Marker function=fn43
+  coroutine_start ct2 result=Singleton function=fn44
+  coroutine_start ct3 result=HiddenConstructors function=fn45
+  coroutine_start ct4 result=Pair function=fn46
+  coroutine_start ct5 result=Factory function=fn47
+  coroutine_start ct6 result=Product function=fn48
+  coroutine_fn cf0 @fn5 source_return=Pair step=cs4 immediate
+  coroutine_fn cf1 @fn9 source_return=Marker step=cs1 immediate
+  coroutine_fn cf2 @fn13 source_return=Factory step=cs5 immediate
+  coroutine_fn cf3 @fn17 source_return=Product step=cs6 immediate
+  coroutine_fn cf4 @fn21 source_return=Defaults step=cs0 immediate
+  coroutine_fn cf5 @fn25 source_return=HiddenConstructors step=cs3 immediate
+  coroutine_fn cf6 @fn29 source_return=Singleton step=cs2 immediate
+  instance mi0 function=@fn3 <- Continuation.resume
+  instance mi1 function=@fn4 <- Continuation.resumeWithException
+  instance mi2 function=@fn5 <- SuspendTask.run
+  instance mi3 function=@fn6 <- SuspendRegistration.register
+  instance mi4 function=@fn7 <- Continuation.resume
+  instance mi5 function=@fn8 <- Continuation.resumeWithException
+  instance mi6 function=@fn9 <- SuspendTask.run
+  instance mi7 function=@fn10 <- SuspendRegistration.register
+  instance mi8 function=@fn11 <- Continuation.resume
+  instance mi9 function=@fn12 <- Continuation.resumeWithException
+  instance mi10 function=@fn13 <- SuspendTask.run
+  instance mi11 function=@fn14 <- SuspendRegistration.register
+  instance mi12 function=@fn15 <- Continuation.resume
+  instance mi13 function=@fn16 <- Continuation.resumeWithException
+  instance mi14 function=@fn17 <- SuspendTask.run
+  instance mi15 function=@fn18 <- SuspendRegistration.register
+  instance mi16 function=@fn19 <- Continuation.resume
+  instance mi17 function=@fn20 <- Continuation.resumeWithException
+  instance mi18 function=@fn21 <- SuspendTask.run
+  instance mi19 function=@fn22 <- SuspendRegistration.register
+  instance mi20 function=@fn23 <- Continuation.resume
+  instance mi21 function=@fn24 <- Continuation.resumeWithException
+  instance mi22 function=@fn25 <- SuspendTask.run
+  instance mi23 function=@fn26 <- SuspendRegistration.register
+  instance mi24 function=@fn27 <- Continuation.resume
+  instance mi25 function=@fn28 <- Continuation.resumeWithException
+  instance mi26 function=@fn29 <- SuspendTask.run
+  instance mi27 function=@fn30 <- SuspendRegistration.register
+  output library

@@ -1,0 +1,184 @@
+Module
+  struct ReadyValue (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<ReadyValue>
+    Completed(value: ReadyValue)
+    Suspended()
+  enum CoroutineSlot<ReadyValue>
+    Empty()
+    Value(value: ReadyValue)
+  enum CoroutineStep<DeferredRoot>
+    Completed(value: DeferredRoot)
+    Suspended()
+  enum CoroutineSlot<DeferredRoot>
+    Empty()
+    Value(value: DeferredRoot)
+  class DeferredRoot vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<ReadyValue> vtable=0 itables=0
+  interface DeferredGeneric<Int>
+  interface Continuation<ReadyValue>
+  interface SuspendTask<ReadyValue>
+  interface SuspendRegistration<ReadyValue>
+  interface Continuation<DeferredRoot>
+  interface SuspendTask<DeferredRoot>
+  interface SuspendRegistration<DeferredRoot>
+  generated_exact_type get0 location=enum2 nominal_id=326a53533e99a2e2c51fc47f4d671af729e0c534d4d1da47caa6d963d1dbe720 exact_id=42f8d36fc11f38c206aea8547225fb3371c2673704b5b15553c251e9050a7b3b
+  generated_exact_type get1 location=enum4 nominal_id=42edd2f0652dbc3ee0fe757be1e299965fa5f19623169af419f58b8782c59679 exact_id=9aadcb9ca69c4f582ad6059b79918063c9d73ba70f2abd8294fdfcebc0d60a65
+  generated_exact_type get2 location=enum3 nominal_id=139fa68b6252c08c44717147ec6fa7d0860707d390c8398e95b16ac730403536 exact_id=d188898ca68d7cac30b22c87392ccef42442b4d82da272ef86c59c5aa53d6d7c
+  generated_exact_type get3 location=class4 nominal_id=47258c81201d652e01eae3d2bec0a9eb7a9261a685b17105500a9582249bceda exact_id=f5d7398f7d4f38292555734519e9057f303485276517b7406ed74d8838effd30
+  generated_exact_type get4 location=enum1 nominal_id=84798bdd3a8783b6e4784351a81453dc9b686ed01d6f7609628133f2e64f84f7 exact_id=f99c98b068fac48ac6810bbd59b2fa18642d32ef7d0ce7a62157d129eea9adf7
+  generated_callable gc0 function=@fn11 id=27128be61805644d55a59bb88e52b6786e10ed63b8120ac1dfc25deafc554cb0
+  generated_callable gc1 function=@fn12 id=f8312771625f5622456be26bab247ad15f47d45d0bc36551803f4899c41c92ab
+  fun ReadyValue.equals @fn0(this: ReadyValue, other: ReadyValue) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type ReadyValue
+            Local this
+          Type Int
+          FieldAccess 0
+            Type ReadyValue
+            Local other
+  fun Continuation.resume @fn1(this: Continuation<ReadyValue>, value: ReadyValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn2(this: Continuation<ReadyValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn3(this: SuspendTask<ReadyValue>, $completion: Continuation<ReadyValue>) -> CoroutineStep<ReadyValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn4(this: SuspendRegistration<ReadyValue>, continuation: Continuation<ReadyValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn5(this: Continuation<DeferredRoot>, value: DeferredRoot) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<DeferredRoot>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<DeferredRoot>, $completion: Continuation<DeferredRoot>) -> CoroutineStep<DeferredRoot>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<DeferredRoot>, continuation: Continuation<DeferredRoot>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.DeferredRoot.$c0 @fn9(this: DeferredRoot) -> Unit
+    bb0 entry
+      return
+  fun ctor.ReadyValue.$c0 @fn10(value: Int) -> ReadyValue <no-gc>
+    bb0 entry
+      return
+        Type ReadyValue
+        StructInit ReadyValue
+          Type Int
+          Local value
+  fun startCoroutine<ReadyValue> @fn11(task: SuspendTask<ReadyValue>, completion: Continuation<ReadyValue>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn1 interface Continuation<ReadyValue>[0]
+        Type Continuation<ReadyValue>
+        Local completion
+        Type ReadyValue
+        EnumField v0 f0
+          Type CoroutineStep<ReadyValue>
+          Local $step
+      return
+    bb2 failed
+      call @fn2 interface Continuation<ReadyValue>[1]
+        Type Continuation<ReadyValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ReadyValue> = @fn3 interface SuspendTask<ReadyValue>[0]
+        Type SuspendTask<ReadyValue>
+        Local task
+        Type Continuation<ReadyValue>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ReadyValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DeferredRoot> @fn12(task: SuspendTask<DeferredRoot>, completion: Continuation<DeferredRoot>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<DeferredRoot>[0]
+        Type Continuation<DeferredRoot>
+        Local completion
+        Type DeferredRoot
+        EnumField v0 f0
+          Type CoroutineStep<DeferredRoot>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<DeferredRoot>[1]
+        Type Continuation<DeferredRoot>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DeferredRoot> = @fn7 interface SuspendTask<DeferredRoot>[0]
+        Type SuspendTask<DeferredRoot>
+        Local task
+        Type Continuation<DeferredRoot>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DeferredRoot>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<ReadyValue> result=ReadyValue
+  coroutine_step cs1 CoroutineStep<DeferredRoot> result=DeferredRoot
+  coroutine_slot cl0 CoroutineSlot<ReadyValue> value=ReadyValue
+  coroutine_slot cl1 CoroutineSlot<DeferredRoot> value=DeferredRoot
+  coroutine_start ct0 result=ReadyValue function=fn11
+  coroutine_start ct1 result=DeferredRoot function=fn12
+  coroutine_fn cf0 @fn3 source_return=ReadyValue step=cs0 immediate
+  coroutine_fn cf1 @fn7 source_return=DeferredRoot step=cs1 immediate
+  instance mi0 function=@fn1 <- Continuation.resume
+  instance mi1 function=@fn2 <- Continuation.resumeWithException
+  instance mi2 function=@fn3 <- SuspendTask.run
+  instance mi3 function=@fn4 <- SuspendRegistration.register
+  instance mi4 function=@fn5 <- Continuation.resume
+  instance mi5 function=@fn6 <- Continuation.resumeWithException
+  instance mi6 function=@fn7 <- SuspendTask.run
+  instance mi7 function=@fn8 <- SuspendRegistration.register
+  output library

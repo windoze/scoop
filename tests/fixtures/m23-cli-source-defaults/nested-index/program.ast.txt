@@ -1,0 +1,33 @@
+SourceFile
+  RootPackage
+  public fun String.indexCopy(): String
+    =
+      This
+  public class NestedIndexHost()
+    internal fun bound
+    internal fun local
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val host
+      Call NestedIndexHost
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall bound
+            Var host
+            StringLiteral "bound"
+        StringLiteral "bound"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall local
+            Var host
+            StringLiteral "local"
+        StringLiteral "local"

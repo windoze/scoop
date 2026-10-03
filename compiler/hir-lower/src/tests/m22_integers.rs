@@ -18,8 +18,8 @@ fn suffixed_integer(magnitude: u64, suffix: ast::IntegerSuffix) -> Expr {
     })
 }
 
-fn main_body(module: &hir::Module) -> &hir::Body {
-    let hir::FunctionKind::User(body) = &module.functions[module.entry].kind else {
+fn main_body(module: &hir::ExportHirOutput) -> &hir::Body {
+    let hir::FunctionKind::User(body) = &module.functions[module.entry()].kind else {
         panic!("main must have a user body")
     };
     body
@@ -133,7 +133,11 @@ fn overload_resolution_prefers_the_literal_default_kind_only_when_present() {
     .expect("literal default kinds must break only the default-width overload tie");
     let body = main_body(&module);
     for (name, expected_parameter) in [("signed", "Int"), ("unsigned", "UInt")] {
-        let hir::ExprKind::Call { callee, .. } = local_init(body, name).kind else {
+        let hir::ExprKind::Call {
+            callee: hir::CallableTarget::Local(callee),
+            ..
+        } = local_init(body, name).kind
+        else {
             panic!("selection must be a direct call")
         };
         let function = &module.functions[module.callable_function(callee)];
@@ -191,7 +195,11 @@ fn literal_default_preference_is_a_per_argument_pareto_tie_break() {
         ),
     ]))
     .expect("one differing default-exact literal parameter must dominate");
-    let hir::ExprKind::Call { callee, .. } = local_init(main_body(&module), "selected").kind else {
+    let hir::ExprKind::Call {
+        callee: hir::CallableTarget::Local(callee),
+        ..
+    } = local_init(main_body(&module), "selected").kind
+    else {
         panic!("selected must be a direct call")
     };
     let selected = &module.functions[module.callable_function(callee)];
@@ -380,25 +388,13 @@ fn literal_pattern_equality_plan_separates_every_integer_kind_from_ordinary_lite
 
     for (pattern, expected_kind) in patterns.iter().take(8).zip(hir::IntegerKind::ALL) {
         let hir::Pattern::Literal {
-            equality: hir::LiteralPatternEquality::Integer { kind, target },
+            equality: hir::LiteralPatternEquality::Integer { kind },
             ..
         } = pattern
         else {
             panic!("integer literal patterns use their typed intrinsic plan");
         };
         assert_eq!(*kind, expected_kind);
-        assert!(matches!(
-            module.functions[target.function()].kind,
-            hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
-                kind: hir::IntrinsicFunctionKind::Integer(
-                    hir::IntegerIntrinsicKind::NoGcOperation {
-                        kind,
-                        operation: hir::NoGcIntegerOperation::Equals,
-                    }
-                ),
-                ..
-            }) if kind == expected_kind
-        ));
     }
 
     let ordinary_patterns = patterns[8..].iter().enumerate().map(|(index, pattern)| {
@@ -409,7 +405,10 @@ fn literal_pattern_equality_plan_separates_every_integer_kind_from_ordinary_lite
     });
     for (pattern, expected_name) in ordinary_patterns.zip(["Boolean.equals", "String.equals"]) {
         let hir::Pattern::Literal {
-            equality: hir::LiteralPatternEquality::Ordinary { equals },
+            equality:
+                hir::LiteralPatternEquality::Ordinary {
+                    equals: hir::CallableTarget::Local(equals),
+                },
             ..
         } = pattern
         else {

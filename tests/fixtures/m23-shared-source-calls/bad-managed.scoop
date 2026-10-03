@@ -1,0 +1,2 @@
+import upstream.sourcecalls.identity
+@NoGC public fun broken(value: Int): Int = identity<Int>(value)

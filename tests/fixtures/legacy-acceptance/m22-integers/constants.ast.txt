@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  public val MAX_UNSIGNED: ULong <const> = <expr>
+  val WRAPPED_SIGNED8: Int8 <const> = <expr>
+  val MASKED_UNSIGNED8: UInt8 <const> = <expr>
+  val SHIFTED_SIGNED32: Int <const> = <expr>
+  val LOGICAL_SIGNED32: Int <const> = <expr>
+  val NARROWED_UNSIGNED8: UInt8 <const> = <expr>
+  val WRAPPED_UNSIGNED8: UInt8 <const> = <expr>
+  val STATIC_MAX_UNSIGNED: ULong = <expr>
+  fun withDefault(value: ULong = <expr>): ULong
+    =
+      Var value
+  fun main()
+    Call println
+      Var MAX_UNSIGNED
+    Call println
+      Var WRAPPED_SIGNED8
+    Call println
+      Var MASKED_UNSIGNED8
+    Call println
+      Var SHIFTED_SIGNED32
+    Call println
+      Var LOGICAL_SIGNED32
+    Call println
+      Var NARROWED_UNSIGNED8
+    Call println
+      Var WRAPPED_UNSIGNED8
+    Call println
+      Var STATIC_MAX_UNSIGNED
+    Call println
+      Call withDefault

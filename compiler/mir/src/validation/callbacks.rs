@@ -1,5 +1,14 @@
 use super::*;
 
+use std::collections::HashSet;
+
+mod static_callbacks;
+pub(super) use static_callbacks::validate_static_callback_metadata;
+
+fn arena_get<T>(arena: &la_arena::Arena<T>, id: la_arena::Idx<T>) -> Option<&T> {
+    ((id.into_raw().into_u32() as usize) < arena.len()).then(|| &arena[id])
+}
+
 pub(super) fn validate_foreign_callback_metadata(
     module: &Module,
 ) -> Result<(), MirValidationError> {
@@ -81,11 +90,23 @@ pub(super) fn validate_foreign_callback_metadata(
         protocol = Some(identity);
     }
 
+    let mut applications = HashSet::new();
     for (bridge_id, bridge) in module.foreign_callback_bridges.iter() {
         let fail = |reason| MirValidationError {
             location: MirValidationLocation::ForeignCallbackBridge { bridge: bridge_id },
             kind: MirValidationErrorKind::InvalidForeignCallbackBridge { reason },
         };
+        let application_id = bridge.application();
+        if bridge.application_identity.id() != application_id {
+            return Err(fail(
+                "callback application identity and semantic record disagree",
+            ));
+        }
+        if !applications.insert(application_id) {
+            return Err(fail(
+                "callback application is materialized by more than one bridge",
+            ));
+        }
         if bridge.family.into_raw().into_u32() as usize >= module.foreign_callback_families.len() {
             return Err(fail("family reference is out of bounds"));
         }
@@ -103,8 +124,50 @@ pub(super) fn validate_foreign_callback_metadata(
         if adapter.managed_signature.into_raw().into_u32() as usize >= module.function_types.len() {
             return Err(fail("adapter managed signature reference is out of bounds"));
         }
+        if !matches!(
+            adapter.identity_record().key(),
+            scoop_identity::GeneratedCallableKey::ForeignCallbackManagedAdapter { application }
+                if *application == application_id
+        ) {
+            return Err(fail(
+                "adapter persistent identity does not match the callback application",
+            ));
+        }
+        let expects_odr = bridge.application_identity.key().context()
+            != scoop_identity::CallableMaterializationContext::NoSubstitution;
+        if adapter.odr_member_record().is_some() != expects_odr {
+            return Err(fail(
+                "adapter definition subject does not match the callback materialization context",
+            ));
+        }
+        if bridge.application_record.managed_adapter() != adapter.signature_subject() {
+            return Err(fail(
+                "callback application record names a different managed adapter",
+            ));
+        }
+        let managed_signature = &module.function_types[adapter.managed_signature];
+        let exact_managed_signature = bridge.application_record.managed_signature();
+        if managed_signature.is_suspend
+            || exact_managed_signature.effect() != scoop_identity::Effect::Ordinary
+            || exact_managed_signature.receiver().is_present()
+            || exact_managed_signature.parameters().len() != managed_signature.parameter_types.len()
+        {
+            return Err(fail(
+                "adapter exact managed signature has an invalid callback shape",
+            ));
+        }
         if bridge.native_signature.into_raw().into_u32() as usize >= module.function_types.len() {
             return Err(fail("native signature reference is out of bounds"));
+        }
+        let expected_callback_mode = if bridge.mode == family.modes.reusable() {
+            scoop_identity::CallbackMode::Reusable
+        } else {
+            scoop_identity::CallbackMode::OneShot
+        };
+        if bridge.application_record.mode() != expected_callback_mode {
+            return Err(fail(
+                "persistent callback mode does not match the protocol variant",
+            ));
         }
         if bridge.context_index as usize
             >= module.function_types[bridge.native_signature]

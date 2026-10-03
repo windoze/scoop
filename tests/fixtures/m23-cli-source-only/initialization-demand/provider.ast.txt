@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  public interface DeferredSuspend
+    suspend fun fetch
+  public object DeferredRegistry
+    public suspend fun fetch
+  public class DeferredHost<T>()
+    public companion object ReadyFactory
+      public val seed: Int = <expr>
+        IntLiteral 6
+      public fun read
+  public object ReadyRegistry
+    public val count: Int = <expr>
+      Binary Add
+        MethodCall read
+          Var DeferredHost
+        IntLiteral 1
+    public fun read
+  public val eager: Int = <expr>

@@ -27,6 +27,18 @@ impl LoweredCallDestination {
             }
         }
     }
+
+    pub(in crate::function) fn external(
+        function: lir::ExternalCallableId,
+        effect: lir::GcEffect,
+    ) -> Self {
+        match effect {
+            lir::GcEffect::Managed => {
+                Self::Managed(lir::ManagedCallDestination::external(function))
+            }
+            lir::GcEffect::NoGc => Self::NoGc(lir::NoGcCallDestination::external(function)),
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -141,7 +153,7 @@ impl<'a> FunctionLowerer<'a> {
         &self,
         parameter_types: Vec<lir::LirType>,
         result_type: lir::LirType,
-    ) -> lir::ScoopAbiSignature {
+    ) -> StorageResult<lir::ScoopAbiSignature> {
         abi::classify_signature(
             self.context,
             parameter_types,
@@ -156,8 +168,8 @@ impl<'a> FunctionLowerer<'a> {
         parameter_types: Vec<lir::LirType>,
         result_type: lir::LirType,
         args: Vec<lir::Value>,
-    ) -> (PendingTypedCall, Option<lir::Value>) {
-        let signature = self.classified_call_signature(parameter_types, result_type);
+    ) -> StorageResult<(PendingTypedCall, Option<lir::Value>)> {
+        let signature = self.classified_call_signature(parameter_types, result_type)?;
         self.typed_call_with_signature(&signature, args)
     }
 
@@ -165,7 +177,7 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         signature: &lir::ScoopAbiSignature,
         args: Vec<lir::Value>,
-    ) -> (PendingTypedCall, Option<lir::Value>) {
+    ) -> StorageResult<(PendingTypedCall, Option<lir::Value>)> {
         assert_eq!(
             signature.logical_argument_count(),
             args.len(),
@@ -177,13 +189,13 @@ impl<'a> FunctionLowerer<'a> {
                 lir::AbiArgument::ElidedZst(_) => lir::AbiCallArgument::ElidedZst(value),
                 lir::AbiArgument::Direct(_) => lir::AbiCallArgument::Direct(value),
                 lir::AbiArgument::Indirect(expected) => {
-                    let storage = self.new_hidden_local(expected.storage_type().clone());
+                    let storage = self.new_hidden_local(expected.storage_type().clone())?;
                     self.push(lir::Instruction::Store {
                         local: storage,
                         value,
                     });
                     lir::AbiCallArgument::Indirect(
-                        lir::AbiArgumentStorage::new(storage, &self.locals[storage].ty, expected)
+                        lir::AbiArgumentStorage::new(storage, self.locals[storage].ty(), expected)
                             .expect("fresh indirect argument storage has its exact ABI type"),
                     )
                 }
@@ -192,7 +204,7 @@ impl<'a> FunctionLowerer<'a> {
 
         let arguments = signature.arguments().to_vec();
         let calling_convention = signature.calling_convention();
-        match signature.result() {
+        Ok(match signature.result() {
             lir::AbiReturn::UnitVoid => {
                 let signature = self
                     .call_targets
@@ -240,7 +252,7 @@ impl<'a> FunctionLowerer<'a> {
                 )
             }
             lir::AbiReturn::Indirect(result) => {
-                let storage = self.new_hidden_local(result.storage_type().clone());
+                let storage = self.new_hidden_local(result.storage_type().clone())?;
                 let signature = self.call_targets.indirect_result_signatures.alloc(
                     lir::IndirectResultCallSignature::scoop_sret(
                         arguments,
@@ -257,7 +269,7 @@ impl<'a> FunctionLowerer<'a> {
                     Some(lir::Value::Local(storage)),
                 )
             }
-        }
+        })
     }
 
     pub(in crate::function) fn call_site(
@@ -273,7 +285,7 @@ impl<'a> FunctionLowerer<'a> {
                         destination,
                         call,
                     ),
-                    safepoint: self.safepoint_ids.allocate(),
+                    safepoint: self.new_safepoint(lir::SafepointSiteRole::ManagedCall),
                     live: lir::StatepointLiveSet::default(),
                 })
             }
@@ -287,8 +299,8 @@ impl<'a> FunctionLowerer<'a> {
         &mut self,
         destination: NativeCallDestination,
         call: PendingTypedCall,
-    ) -> lir::CallSite {
-        match destination {
+    ) -> StorageResult<lir::CallSite> {
+        Ok(match destination {
             NativeCallDestination::Safe(destination) => {
                 assert_eq!(
                     call.result_scan(&self.call_targets),
@@ -301,7 +313,7 @@ impl<'a> FunctionLowerer<'a> {
                         destination,
                         call,
                     ),
-                    safepoint: self.safepoint_ids.allocate(),
+                    safepoint: self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition),
                     roots: lir::NativeSafeRootSet::default(),
                 })
             }
@@ -319,7 +331,7 @@ impl<'a> FunctionLowerer<'a> {
                                     .result()
                                     .storage_type()
                                     .clone();
-                                self.new_hidden_local(ty)
+                                self.new_hidden_local(ty)?
                             }
                             PendingTypedCall::IndirectResult { storage, .. } => *storage,
                         };
@@ -334,11 +346,11 @@ impl<'a> FunctionLowerer<'a> {
                 let call = self.call_targets.bind_native_borrowed_call(call, result);
                 lir::CallSite::NativeBorrowed(lir::NativeBorrowedCallSite {
                     call,
-                    safepoint: self.safepoint_ids.allocate(),
+                    safepoint: self.new_safepoint(lir::SafepointSiteRole::NativeBorrowedTransition),
                     roots: lir::NativeBorrowedRootSet::default(),
                 })
             }
-        }
+        })
     }
 
     pub(in crate::function) fn invoke_site(
@@ -356,7 +368,7 @@ impl<'a> FunctionLowerer<'a> {
                         destination,
                         call,
                     ),
-                    safepoint: self.safepoint_ids.allocate(),
+                    safepoint: self.new_safepoint(lir::SafepointSiteRole::ManagedInvoke),
                     roots: lir::ExceptionalRootSet::default(),
                     normal,
                     unwind,
@@ -408,118 +420,5 @@ impl<'a> FunctionLowerer<'a> {
                 LoweredCallDestination::NoGc(lir::NoGcCallDestination::dispatch(table, slot))
             }
         }
-    }
-
-    pub(in crate::function) fn emit_non_native_call_with_signature(
-        &mut self,
-        destination: LoweredCallDestination,
-        signature: &lir::ScoopAbiSignature,
-        args: Vec<lir::Value>,
-    ) -> lir::Value {
-        let (call, value) = self.typed_call_with_signature(signature, args);
-        if let Some(unwind) = self.current_unwind {
-            let normal = self.new_block("invoke.normal");
-            let site = self.invoke_site(destination, call, normal, unwind);
-            self.push(lir::Instruction::Invoke { site });
-            self.seal(lir::Terminator::Br(normal));
-            self.enter(normal);
-        } else {
-            let site = self.call_site(destination, call);
-            self.push(lir::Instruction::Call { site });
-        }
-        value.unwrap_or_else(|| self.unit_value())
-    }
-
-    pub(in crate::function) fn emit_plain_call(
-        &mut self,
-        destination: LoweredCallDestination,
-        parameter_types: Vec<lir::LirType>,
-        result_type: lir::LirType,
-        args: Vec<lir::Value>,
-    ) -> lir::Value {
-        let (call, value) = self.typed_call(parameter_types, result_type, args);
-        let site = self.call_site(destination, call);
-        self.push(lir::Instruction::Call { site });
-        value.unwrap_or_else(|| self.unit_value())
-    }
-
-    pub(in crate::function) fn emit_native_call(
-        &mut self,
-        destination: NativeCallDestination,
-        parameter_types: Vec<lir::LirType>,
-        result_type: lir::LirType,
-        args: Vec<lir::Value>,
-    ) -> lir::Value {
-        let (call, value) = self.typed_call(parameter_types, result_type, args);
-        let site = self.native_call_site(destination, call);
-        self.push(lir::Instruction::Call { site });
-        value.unwrap_or_else(|| self.unit_value())
-    }
-
-    pub(in crate::function) fn emit_native_call_with_signature(
-        &mut self,
-        destination: NativeCallDestination,
-        signature: &lir::ScoopAbiSignature,
-        args: Vec<lir::Value>,
-    ) -> lir::Value {
-        let (call, value) = self.typed_call_with_signature(signature, args);
-        let site = self.native_call_site(destination, call);
-        self.push(lir::Instruction::Call { site });
-        value.unwrap_or_else(|| self.unit_value())
-    }
-
-    pub(in crate::function) fn emit_native_storage_call(
-        &mut self,
-        destination: NativeCallDestination,
-        parameter_types: Vec<lir::LirType>,
-        result_type: lir::LirType,
-        result_scan: lir::RefScan,
-        args: Vec<lir::Value>,
-    ) -> lir::Value {
-        assert_ne!(result_type, lir::LirType::Void);
-        assert_eq!(parameter_types.len(), args.len(), "typed call arity");
-        let arguments = parameter_types
-            .into_iter()
-            .map(|ty| abi::classify_argument(self.context, ty, self.structs, self.enums))
-            .collect::<Vec<_>>();
-        assert!(
-            arguments
-                .iter()
-                .all(|argument| matches!(argument, lir::AbiArgument::Direct(_))),
-            "C storage bridges receive only direct raw storage pointers"
-        );
-        let result = match abi::classify_return(
-            self.context,
-            Some(result_type.clone()),
-            self.structs,
-            self.enums,
-        ) {
-            lir::AbiReturn::Direct(result) | lir::AbiReturn::Indirect(result) => result,
-            lir::AbiReturn::UnitVoid | lir::AbiReturn::ElidedZst(_) => {
-                unreachable!("C storage bridge result must have non-zero storage")
-            }
-        };
-        assert_eq!(
-            result.scan(),
-            &result_scan,
-            "C storage bridge result scan must match its exact storage type"
-        );
-        let signature = self.call_targets.indirect_result_signatures.alloc(
-            lir::IndirectResultCallSignature::c_storage_pointer(
-                arguments,
-                result,
-                lir::CallingConvention::Cdecl,
-            ),
-        );
-        let storage = self.new_hidden_local(result_type);
-        let args = args.into_iter().map(lir::AbiCallArgument::Direct).collect();
-        let call = PendingTypedCall::IndirectResult {
-            signature,
-            storage,
-            args,
-        };
-        let site = self.native_call_site(destination, call);
-        self.push(lir::Instruction::Call { site });
-        lir::Value::Local(storage)
     }
 }

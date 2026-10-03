@@ -1,0 +1,24 @@
+schema = 1
+name = "legacy-m22-integers-fixed-width"
+root = "../../m22-integers/fixed-width.scoop"
+inputs = ["../../m22-integers/fixed-width.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["legacy", "m22-integers", "single-file", "run"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--runtime-root", "${runtime}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [{"file" = "${work}/dump/${build.result.root.identity}/ast.txt", "snapshot" = "fixed-width.ast.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/hir.txt", "snapshot" = "fixed-width.hir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/mir.txt", "snapshot" = "fixed-width.mir.txt"}, {"file" = "${work}/dump/${build.result.root.identity}/lir.txt", "snapshot" = "fixed-width.lir.txt"}]
+
+[[steps]]
+name = "run"
+argv = ["${build.result.output}"]
+exit = 0
+stdout = "-128\n-32768\n-2147483648\n-9223372036854775808\n0\n0\n0\n0\n240\n32767\n1\n4294967295\n127\n-2\n-128\n127\n127\n-128\n-128\n0\n-2147483648\n0\ndivision-by-zero\n-127\nfalse\ntrue\n1\ntrue\ntrue\nunsigned-minus-pattern\n-2147483648\n2147483647\n1\n-1\n18446744073709551488\n1\n-1\n4294967295\nInt\nLong\nUInt\nULong\n2147483648\n1\n2147483649\n2147483648\n1\n1\n168\n168\n"
+stderr = ""

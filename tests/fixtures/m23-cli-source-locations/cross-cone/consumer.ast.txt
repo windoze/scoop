@@ -1,0 +1,72 @@
+SourceFile
+  RootPackage
+  ImportExact Local locations.facade.body
+  ImportExact Local locations.facade.defaultBody
+  ImportExact Local locations.facade.Reporter
+  ImportExact Local locations.facade.relay
+  ImportExact Local locations.facade.ordinary
+  ImportExact Local locations.facade.GenericReporter
+  ImportExact Local locations.facade.closureBody
+  fun show(label: String, location: SourceLocation)
+    Call println
+      Var label
+    Call println
+      FieldAccess file
+        Var location
+    Call println
+      FieldAccess line
+        Var location
+    Call println
+      FieldAccess column
+        Var location
+    Call println
+      FieldAccess functionName
+        Var location
+    Call println
+      FieldAccess typeName
+        Var location
+  fun main()
+    Call show
+      StringLiteral "直接"
+      Call getCurrentSourceLocation
+    Call show
+      StringLiteral "default"
+      Call defaultBody
+        IntLiteral 1
+    Call show
+      StringLiteral "forwarded"
+      Call relay
+        IntLiteral 1
+    Call show
+      StringLiteral "generic-body"
+      Call body
+        StringLiteral "value"
+    val reporter
+      Call Reporter
+    Call show
+      StringLiteral "member-body"
+      MethodCall body
+        Var reporter
+    Call show
+      StringLiteral "member-default"
+      MethodCall trace
+        Var reporter
+    Call show
+      StringLiteral "facade-body"
+      Call ordinary
+    Call show
+      StringLiteral "closure-body"
+      Call closureBody
+        IntLiteral 1
+    val generic
+      Call GenericReporter
+        StringLiteral "value"
+    Call show
+      StringLiteral "generic-member"
+      MethodCall body
+        Var generic
+    Call show
+      StringLiteral "member-closure"
+      Invoke
+        MethodCall closure
+          Var generic

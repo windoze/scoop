@@ -1,0 +1,9 @@
+import templates.equality.single
+
+private class Missing()
+
+public fun check(): Boolean {
+    val left = single(Missing())
+    val right = single(Missing())
+    return left == right
+}

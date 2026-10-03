@@ -1,0 +1,27 @@
+Module
+  struct Token ()
+  fun consume @fn0() -> Boolean
+    bb0 entry
+      call $dependency.argument.0: Token = external0 direct
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $dependency.argument.0: Token = external1 direct
+        Type Token
+        Local $dependency.parameter.value
+      call $dependency.argument.1: Token = external0 direct
+      val $dependency.parameter.left: Token
+        Type Token
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Token
+        Type Token
+        Local $dependency.argument.1
+      call $call.1: Boolean = external2 direct
+        Type Token
+        Local $dependency.parameter.left
+        Type Token
+        Local $dependency.parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  output library

@@ -1,0 +1,87 @@
+SourceFile
+  QualifiedPackage consumer.members
+  ImportExact Local dependency.members.Token
+  ImportExact Local dependency.members.Wide
+  ImportExact Local dependency.members.Nested
+  ImportExact Local dependency.members.defaultField
+  ImportExact Local dependency.members.defaultMember
+  ImportExact Local dependency.members.defaultProperty
+  ImportExact Local dependency.members.defaultMarker
+    @NoGC
+  public fun keepToken(value: Token): Token
+    =
+      MethodCall sameToken
+        Var value
+        Var value
+    @NoGC
+  public fun keepWide(value: Wide): Wide
+    =
+      MethodCall copyWide
+        Var value
+        Var value
+    @NoGC
+  public fun total(value: Wide): Long
+    =
+      MethodCall total
+        Var value
+        IntLiteral 7
+    @NoGC
+  public fun fieldSum(value: Wide): Long
+    =
+      Binary Add
+        Binary Add
+          Binary Add
+            FieldAccess first
+              Var value
+            FieldAccess second
+              Var value
+          FieldAccess third
+            Var value
+        IntLiteral 7
+    @NoGC
+  public fun computedTotal(value: Wide): Long
+    =
+      Binary Add
+        FieldAccess calculated
+          Var value
+        IntLiteral 7
+    @NoGC
+  public fun first(value: Wide): Long
+    =
+      FieldAccess first
+        Var value
+    @NoGC
+  public fun marker(value: Nested): Token
+    =
+      FieldAccess marker
+        Var value
+    @NoGC
+  public fun nestedFirst(value: Nested): Long
+    =
+      FieldAccess first
+        FieldAccess value
+          Var value
+    @NoGC
+  public fun fromField(value: Wide): Long
+    =
+      Call defaultField
+        Var value
+    @NoGC
+  public fun fromMember(value: Wide): Long
+    =
+      Call defaultMember
+        Var value
+    @NoGC
+  public fun fromProperty(value: Wide): Long
+    =
+      Call defaultProperty
+        Var value
+    @NoGC
+  public fun fromMarker(value: Nested): Token
+    =
+      Call defaultMarker
+        Var value
+    @NoGC
+  public fun republished(value: Wide, selected: Long = <expr>): Long
+    =
+      Var selected

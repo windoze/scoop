@@ -1,0 +1,96 @@
+Module
+  fun @scoop$1$cb$d5676ed89d8c9341a124caefba7c45a862e24ad628809e1d6a6dae504f1de6b6() -> ptr<managed>
+    local %0 $dependency.argument.0: i64
+    local %1 $dependency.parameter.value: i64
+    local %2 value: ptr<managed>
+    local %3 error: ptr<managed>
+    local %4 $dependency.argument.0: i64
+    local %5 $dependency.parameter.value: i64
+    local %6 $cast.1: ptr<managed>
+    local %7 $new.1: ptr<managed>
+    local %8 $new.2: ptr<managed>
+    local %9 $catch.3: ptr<managed>
+    local %10 $new.4: ptr<managed>
+    local %11 $return.5: ptr<managed>
+    local %12 $sc.1: exception_record
+    local %13 $sc.2: ptr<raw>
+    local %14 $sc.3: ptr<managed>
+  block entry
+    poll managed-void-target3 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000000) -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    store t0 -> local7
+    call managed-void-target0 sp<managed-call:1> live=[local7:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn0(local7, local1)
+    t1 = aggregate () : {}
+    store local7 -> local2
+    br @try.body.8
+  block try.unwind.1
+    (t2, t3) = landingpad : (exception_record, ptr<raw>)
+    store t2 -> local12
+    store t3 -> local13
+    br @try.dispatch.2
+  block try.dispatch.2
+    t4 = begin_catch local13 : ptr<managed>
+    store t4 -> local14
+    call no-gc-direct-target0 t5 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local14, external-td0)
+    cbr t5 then @try.catch.11 else @try.next.12
+  block try.handler_pad.3
+    (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)
+    store t6 -> local12
+    store t7 -> local13
+    br @try.handler_cleanup.4
+  block try.handler_cleanup.4
+    end_catch
+    resume local12
+  block try.exit_pad.5
+    (t8, t9) = cleanup_pad : (exception_record, ptr<raw>)
+    store t8 -> local12
+    store t9 -> local13
+    br @try.exit_cleanup.6
+  block try.exit_cleanup.6
+    end_catch
+    resume local12
+  block try.body.8
+    store local2 -> local6
+    call no-gc-direct-target1 t10 = sig=direct2 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local6, external-td3)
+    t11 = Not t10 : i1
+    cbr t11 then @if.then.9 else @if.merge.10
+  block if.then.9
+    call managed-direct-target1 sp<managed-call:2> live=[] t12 = sig=direct3 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(16)))
+    store t12 -> local8
+    invoke managed-void-target1 sp<managed-invoke:0> roots=[local8:normal] sig=void1 (ptr<managed>) external-fn2(local8) normal @invoke.normal.1 unwind @try.unwind.1
+    br @invoke.normal.1
+  block if.merge.10
+    ret local6
+  block try.catch.11
+    call managed-direct-target2 sp<managed-call:3> live=[local14:ptr<managed>@0] t14 = sig=direct4 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local14)
+    store t14 -> local9
+    store local9 -> local3
+    br @scope.13
+  block try.next.12
+    invoke no-gc-void-target1 sig=void3 () runtime @scoop_rt_rethrow() normal @rethrow.normal.3 unwind @try.exit_pad.5
+    br @rethrow.normal.3
+  block scope.13
+    store integer<Long>(0x0000000000000015) -> local4
+    store local4 -> local5
+    call managed-direct-target3 sp<managed-call:4> live=[] t15 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    store t15 -> local10
+    invoke managed-void-target2 sp<managed-invoke:1> roots=[local10:normal] sig=void4 (ptr<managed>, i64) external-fn1(local10, local5) normal @invoke.normal.4 unwind @try.handler_pad.3
+    br @invoke.normal.4
+  block scope.14
+    ret local11
+  block invoke.normal.1
+    t13 = aggregate () : {}
+    invoke no-gc-void-target0 sig=void2 (ptr<managed>) runtime @scoop_rt_throw(local8) normal @throw.normal.2 unwind @try.unwind.1
+    br @throw.normal.2
+  block throw.normal.2
+    unreachable
+  block rethrow.normal.3
+    unreachable
+  block invoke.normal.4
+    t16 = aggregate () : {}
+    store local10 -> local11
+    end_catch
+    br @scope.14
+  output library

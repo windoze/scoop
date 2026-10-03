@@ -1,0 +1,14 @@
+SourceFile
+  QualifiedPackage upstream.constructors
+  public struct Pair<T, U>
+    field value: T
+    field adjustment: Int = <expr>
+    constructor(value: T, flag: Boolean) : this(<2 args>)
+  public open class Box<T, U>(var value: T, val adjustment: Int = <expr>)
+    public val copied: T = <expr>
+      Var value
+    constructor(value: T, flag: Boolean) : this(<2 args>)
+  public fun selected<T, U>(value: T, box: Box<T, U> = <expr>): T
+    =
+      FieldAccess value
+        Var box

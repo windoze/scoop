@@ -1,0 +1,29 @@
+package consumer.nominalConditions
+import upstream.nominalConditions.*
+
+@NoGC private struct Local(val value: Int, val unit: Unit)
+@NoGC private enum State<T> { Unset, Set(Scalar<T>) }
+
+private fun <T> local(value: T): Scalar<T> = Scalar(value)
+
+public fun <T> exercise(value: T, read: (T) -> Int): Int {
+    val record = Carrier(pack(local(value)))
+    val copied = record.scalar.value
+    val state: State<T> = Set(copied)
+    val selected: Option<Scalar<T>> = when (state) {
+        Unset -> None
+        Set(item) -> Some(item)
+    }
+    val phantom: Phantom<Managed> = Phantom<Managed>()
+    if (hidden(phantom) != 42) { return 1 }
+    return when (selected) {
+        None -> 2
+        Some(item) -> read(item.value)
+    }
+}
+
+public fun result(): Int {
+    if (exercise<Local>(Local(42, Unit), { item -> item.value }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { item -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { item -> item })
+}

@@ -11,7 +11,7 @@
 extern const ScoopManagedFrameOps scoop_darwin_aarch64_managed_frame_ops;
 
 typedef struct TestBuffer {
-    uint8_t bytes[512];
+    uint8_t bytes[1024];
     size_t length;
     size_t first_record;
     size_t first_padding;
@@ -184,6 +184,29 @@ static void test_valid_section(void) {
     scoop_stackmap_dispose_index(&index);
 }
 
+static void test_concatenated_contributions(void) {
+    TestBuffer first = valid_section();
+    TestBuffer second = valid_section();
+    set_u64(&second, 16, 0x1100);
+    set_u64(&second, second.first_record, 19);
+    set_u64(&second, second.second_record, 17);
+    size_t offset = first.length;
+    memcpy(first.bytes + offset, second.bytes, second.length);
+    first.length += second.length;
+    ScoopStackMapIndex index;
+    assert(parse(&first, first.length, &index) == SCOOP_STACKMAP_OK);
+    assert(index.record_count == 4);
+    assert(scoop_stackmap_lookup(&index, 0x1020)->safepoint_id == 9);
+    assert(scoop_stackmap_lookup(&index, 0x1120)->safepoint_id == 19);
+    scoop_stackmap_dispose_index(&index);
+    assert(parse(&first, first.length - 1, &index) == SCOOP_STACKMAP_TRUNCATED);
+    set_u64(&first, offset + second.first_record, 9);
+    expect_error(first, SCOOP_STACKMAP_DUPLICATE_SAFEPOINT_ID);
+    set_u64(&first, offset + second.first_record, 19);
+    set_u64(&first, offset + 16, 0x1000);
+    expect_error(first, SCOOP_STACKMAP_DUPLICATE_RETURN_PC);
+}
+
 static void test_every_truncation_is_rejected(void) {
     TestBuffer buffer = valid_section();
     for (size_t length = 0; length < buffer.length; length++) {
@@ -333,6 +356,7 @@ static void test_aarch64_stack_only_profile(void) {
 
 int main(void) {
     test_valid_section();
+    test_concatenated_contributions();
     test_every_truncation_is_rejected();
     test_corrupt_sections_are_rejected();
     test_aarch64_stack_only_profile();

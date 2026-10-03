@@ -31,6 +31,12 @@ impl IntegerLiteralLexeme {
 /// by text where they are meaningful.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum TokenKind {
+    /// A lexeme that already produced a lexical diagnostic. This token exists
+    /// only so parser recovery retains source boundaries; any source that
+    /// contains one is rejected before a successful AST can be returned.
+    Error,
+    Package,
+    Import,
     Suspend,
     Vararg,
     Fun,
@@ -119,6 +125,9 @@ impl Token {
     /// `end of file`.
     pub fn describe(&self) -> String {
         match &self.kind {
+            TokenKind::Error => "invalid token".to_string(),
+            TokenKind::Package => "`package`".to_string(),
+            TokenKind::Import => "`import`".to_string(),
             TokenKind::Suspend => "`suspend`".to_string(),
             TokenKind::Vararg => "`vararg`".to_string(),
             TokenKind::Fun => "`fun`".to_string(),

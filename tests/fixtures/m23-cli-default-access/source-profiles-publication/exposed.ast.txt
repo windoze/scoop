@@ -1,0 +1,31 @@
+SourceFile
+  RootPackage
+  public fun defaultPlain(): Plain
+    =
+      Call Plain
+  public fun defaultChild(): Child
+    =
+      Call Child
+  public fun defaultGeneric<T>(): Generic<T>
+    =
+      Call Generic<T>
+  public fun defaultGenericStatic(): Generic.Static
+    =
+      MethodCall Static
+        Var Generic
+SourceFile
+  RootPackage
+  public fun sharedDefault(): Int
+    =
+      IntLiteral 9
+  public open class Plain()
+    public fun checkOwn
+    public fun checkInherited
+    protected fun own
+    protected fun inherited
+  public class Child() : Plain(<0 args>)
+    protected fun inherited
+  public class Generic<T>()
+    public fun checkOwner
+    protected fun fromOwner
+    public nested class Static

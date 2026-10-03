@@ -1,0 +1,37 @@
+SourceFile
+  QualifiedPackage consumer.adapters
+  ImportStar Local templates.adapters.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    var storage: Int
+      IntLiteral 0
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var storage
+      val action
+        Call staticPointer
+          Var seed
+          Var read
+          Var pointer
+      val result
+        Cast Ptr<Int> optional=false
+          Call action
+            Var pointer
+      if
+        Binary Ne
+          MethodCall toULong
+            Var result
+          MethodCall toULong
+            Var pointer
+        return
+          IntLiteral 1
+      return
+        MethodCall load
+          Var result
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value

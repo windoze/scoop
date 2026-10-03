@@ -1,0 +1,129 @@
+Module
+  class ClassCastException vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Counter vtable=0 itables=0
+  class box<Int8> vtable=0 itables=0
+  class box<UInt8> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class4 nominal_id=ea29b4b462ff68321554b9a22923fb4511a95fbd8a9db3ae48d8e354df33f1dd exact_id=bb6274a8ad942aaa9e497e7cf9cedec226cd43a70f4602c59619ea3af8ce965e
+  generated_exact_type get1 location=class3 nominal_id=de537a479a9750a662a38e8bc8144b7035afa0c1849733a99c565fd3a7bc87b1 exact_id=db9e3cb3d8fc84aff6fadcd13ed41bfabfeba931a2091e153f787fa001f8bcd3
+  fun primary @fn0() -> Counter
+    bb0 entry
+      val signed: Int8
+        Type Int8
+        IntegerLiteral Int8 value=21 bits=0x15
+      val value: Any
+        Type Any
+        Box
+          Type Int8
+          Local signed
+      goto bb8
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      branch bb11 bb12
+        Type Boolean
+        IsInstance ClassCastException
+          Type Any
+          CaughtException
+    bb3 try.handler_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.handler_cleanup.4
+      end_catch
+      resume
+    bb5 try.exit_pad.5
+      landing_pad cleanup=true
+      goto bb6
+    bb6 try.exit_cleanup.6
+      end_catch
+      resume
+    bb7 try.end.7
+      unreachable
+    bb8 try.body.8 unwind bb1
+      val $cast.1: Any
+        Type Any
+        Local value
+      branch bb9 bb10
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance UInt8
+            Type Any
+            Local $cast.1
+    bb9 if.then.9 unwind bb1
+      assign $new.1
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external1 direct
+        Type ClassCastException
+        Local $new.1
+      throw unwind bb1
+        Type ClassCastException
+        Local $new.1
+    bb10 if.merge.10 unwind bb1
+      val $ub.2: UInt8
+        Type UInt8
+        Unbox
+          Type Any
+          Local $cast.1
+      val invalid: UInt8
+        Type UInt8
+        Local $ub.2
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.2
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.2
+        Type Long
+        Local $dependency.parameter.value
+      return
+        Type Counter
+        Local $new.2
+    bb11 try.catch.11
+      call $catch.3: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: ClassCastException
+        Type ClassCastException
+        Retype ClassCastException
+          Type Any
+          Local $catch.3
+      goto bb13
+    bb12 try.next.12
+      rethrow unwind bb5
+    bb13 scope.13 unwind bb3
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      assign $new.4
+        Type Counter
+        ClassAlloc Counter
+      call external0 direct
+        Type Counter
+        Local $new.4
+        Type Long
+        Local $dependency.parameter.value
+      val $return.5: Counter
+        Type Counter
+        Local $new.4
+      end_catch
+      goto bb14
+    bb14 scope.14
+      return
+        Type Counter
+        Local $return.5
+  output library

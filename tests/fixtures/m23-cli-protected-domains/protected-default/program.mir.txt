@@ -1,0 +1,111 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class ConsumerChild vtable=0 itables=0
+  class Base vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun verifyDomain @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external1 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      assign $new.1
+        Type ConsumerChild
+        ClassAlloc ConsumerChild
+      call @fn2 direct
+        Type ConsumerChild
+        Local $new.1
+      val first: ConsumerChild
+        Type ConsumerChild
+        Local $new.1
+      assign $new.2
+        Type ConsumerChild
+        ClassAlloc ConsumerChild
+      call @fn2 direct
+        Type ConsumerChild
+        Local $new.2
+      val second: ConsumerChild
+        Type ConsumerChild
+        Local $new.2
+      val base: Base
+        Type Base
+        Retype Base
+          Type ConsumerChild
+          Local first
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type ConsumerChild
+          Local first
+          Type ConsumerChild
+          Local second
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Base
+          Local base
+          Type ConsumerChild
+          Local first
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun init.ConsumerChild.$c0 @fn2(this: ConsumerChild) -> Unit
+    bb0 entry
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call external0 direct
+        Type Base
+        Retype Base
+          Type ConsumerChild
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

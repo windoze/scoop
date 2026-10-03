@@ -1,7 +1,0 @@
----
-source: compiler/driver/tests/fixtures.rs
-expression: snapshot
----
-== diagnostics ==
-m11-functions/errors/variance-incompatible.scoop:5:38: error: initializer of `badParameter` must be of type (Any) -> Int, found (Int) -> Int
-m11-functions/errors/variance-incompatible.scoop:6:38: error: initializer of `badReturn` must be of type (Int) -> String, found (Int) -> Int

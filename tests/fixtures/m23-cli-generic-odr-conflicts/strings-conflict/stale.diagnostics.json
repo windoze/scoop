@@ -1,0 +1,14 @@
+[
+  {
+    "code": "SCOOP_LINK_FAILED",
+    "message": "StaleDependency: Cone 57b12e469a33f437c737db48551fb6b4630b9b9e1d94563d49779a2d57b04261 requires dev.example:generic-odr-conflict-provider:0.1.0 (1e2239bc79a3c007ee6d55622e94d97671a0b1daf138a4636a7e7d01aa9b01f2); recorded HIR/MIR/LIR b6127aaf14762ae9d639b81ab0fb7b1c9047358c635810d3b8ae08b586912ee0/af14b67a5883ca8fb54caa1b3a87d33c1a2741bf6c749c6955a57ea56a8f0c71/094805893551fc5ec6d378ba697a422f3cd6f0d564f25d32250ca6b263fbc384, actual 6921e8047285b0c082b85246583ef47dd86ebd85e385abb7fbabe3d7f7905503/af14b67a5883ca8fb54caa1b3a87d33c1a2741bf6c749c6955a57ea56a8f0c71/094805893551fc5ec6d378ba697a422f3cd6f0d564f25d32250ca6b263fbc384",
+    "notes": [],
+    "origin": {
+      "kind": "artifact",
+      "member": "manifest:direct_dependencies",
+      "path": "${work}/left/artifacts/dev.example/generic-odr-conflict-left/0.1.0/cone.slib"
+    },
+    "phase": "FinalLink",
+    "severity": "error"
+  }
+]

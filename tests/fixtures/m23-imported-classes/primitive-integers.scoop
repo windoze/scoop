@@ -1,0 +1,25 @@
+import dependency.classes.Counter
+
+public fun primary(): Counter {
+    val s8: Int8 = 21
+    val s16: Int16 = 21
+    val s32: Int = 21
+    val s64: Long = 21
+    val u8: UInt8 = 21u
+    val u16: UInt16 = 21u
+    val u32: UInt = 21u
+    val u64: ULong = 21u
+    val b8: Any = s8
+    val b16: Any = s16
+    val b32: Any = s32
+    val b64: Any = s64
+    val c8: Any = u8
+    val c16: Any = u16
+    val c32: Any = u32
+    val c64: Any = u64
+    val correct = (b8 as Int8) == 21 && (b16 as Int16) == 21 &&
+        (b32 as Int) == 21 && (b64 as Long) == 21 &&
+        (c8 as UInt8) == 21u && (c16 as UInt16) == 21u &&
+        (c32 as UInt) == 21u && (c64 as ULong) == 21u
+    return Counter(if (correct) { 21 } else { 0 })
+}

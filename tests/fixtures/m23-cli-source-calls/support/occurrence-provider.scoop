@@ -1,0 +1,8 @@
+package dependency.api
+
+@Global private var mode: Boolean = false
+@Global private var calls: Int = 0
+
+public fun configure(value: Boolean) { mode = value; calls = 0 }
+public fun callCount(): Int = calls
+public fun run(): Boolean { calls += 1; return mode }

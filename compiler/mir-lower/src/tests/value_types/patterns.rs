@@ -54,8 +54,7 @@ fn when_lowers_to_a_decision_sequence() {
                     vec![
                         arm(
                             hir::Pattern::Variant {
-                                application: option_application,
-                                variant: 0,
+                                application: h.enum_variant_ref(option_application, 0),
                                 fields: vec![(0, hir::Pattern::Binding { local: x })],
                             },
                             None,
@@ -63,8 +62,7 @@ fn when_lowers_to_a_decision_sequence() {
                         ),
                         arm(
                             hir::Pattern::Variant {
-                                application: option_application,
-                                variant: 1,
+                                application: h.enum_variant_ref(option_application, 1),
                                 fields: Vec::new(),
                             },
                             None,
@@ -77,7 +75,6 @@ fn when_lowers_to_a_decision_sequence() {
                     ],
                     hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
                         subject_ty: option_int,
-                        application: option_application,
                     }),
                 ),
             ],
@@ -91,86 +88,7 @@ fn when_lowers_to_a_decision_sequence() {
     // edge unreachable. (`print` /
     // `println` are ordinary core functions — M7 — so the arms
     // call the overloads, not runtime shims.)
-    let expected = "\
-Module mangling=compact-v2
-  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
-  enum Option$I32
-    Some(_1: Int)
-    None()
-  fun print @scoop.print(message: Int) -> Unit
-    bb0 entry
-      call $call.1: String = extern1 @scoop_rt_long_to_string direct
-        Type Long
-        IntegerConversion Int -> Long
-          Type Int
-          Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local $call.1
-      return
-  fun println @scoop.println(message: String) -> Unit
-    bb0 entry
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        StringConst @scoop.str.0
-      return
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val o: Option$I32<Int>
-        Type Option$I32<Int>
-        VariantConstruct Option$I32<Int> v0
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-      val $when.1: Option$I32<Int>
-        Type Option$I32<Int>
-        Local o
-      val $pattern.subject.2: Option$I32<Int>
-        Type Option$I32<Int>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val x: Int
-        Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
-          Local $pattern.subject.2
-      call @scoop.print direct
-        Type Int
-        Local x
-      goto bb3
-    bb2 pattern.else.2
-      val $pattern.subject.3: Option$I32<Int>
-        Type Option$I32<Int>
-        Local $when.1
-      branch bb4 bb5
-        Type Boolean
-        VariantTest Option$I32 v1
-          Type Option$I32<Int>
-          Local $pattern.subject.3
-    bb3 pattern.merge.3
-      return
-    bb4 pattern.pass.4
-      call @scoop.println direct
-        Type String
-        StringConst @scoop.str.1
-      goto bb6
-    bb5 pattern.else.5
-      unreachable
-    bb6 pattern.merge.6
-      goto bb3
-  str @scoop.str.0 \"\\n\"
-  str @scoop.str.1 \"none\"
-  entry @scoop_main
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("when_lowers_to_a_decision_sequence", &module);
     assert_eq!(module.validate(), Ok(()));
 }
 
@@ -182,7 +100,6 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
     let inner_application = h.enum_application_of(inner);
     let record = h.strukt("Record", &[("nested", inner), ("ignored", int)]);
     let record_ty = h.struct_ty(record);
-    let record_application = h.struct_application_of(record_ty);
     let outer = h.option(record_ty);
     let outer_application = h.enum_application_of(outer);
 
@@ -212,18 +129,16 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
                 call_typed(producer, vec![local_ref(source, outer)], outer),
                 vec![arm(
                     hir::Pattern::Variant {
-                        application: outer_application,
-                        variant: 0,
+                        application: h.enum_variant_ref(outer_application, 0),
                         fields: vec![(
                             0,
                             hir::Pattern::Struct {
-                                application: record_application,
+                                owner: record_ty,
                                 fields: vec![
                                     (
                                         0,
                                         hir::Pattern::Variant {
-                                            application: inner_application,
-                                            variant: 0,
+                                            application: h.enum_variant_ref(inner_application, 0),
                                             fields: vec![(
                                                 0,
                                                 hir::Pattern::Binding { local: value },
@@ -243,7 +158,11 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
         },
     );
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
     let producer = module
         .functions
         .iter()
@@ -344,8 +263,12 @@ fn recursive_fields_guard_payload_projection_and_evaluate_the_subject_once() {
     assert!(matches!(operand.kind, mir::ExprKind::Local(local) if local == nested_local));
     assert_eq!(module.validate(), Ok(()));
     let rendered = dump(&module);
-    assert!(!rendered.contains("MachineEq(EnumTag)"));
-    assert!(!rendered.contains("EnumField v"));
+    let main = rendered
+        .split("  fun ")
+        .find(|function| function.starts_with("main "))
+        .unwrap();
+    assert!(!main.contains("MachineEq(EnumTag)"));
+    assert!(!main.contains("EnumField v"));
 }
 
 #[test]
@@ -367,8 +290,7 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
                     vec![
                         arm(
                             hir::Pattern::Variant {
-                                application,
-                                variant: 1,
+                                application: h.enum_variant_ref(application, 1),
                                 fields: Vec::new(),
                             },
                             None,
@@ -376,8 +298,7 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
                         ),
                         arm(
                             hir::Pattern::Variant {
-                                application,
-                                variant: 0,
+                                application: h.enum_variant_ref(application, 0),
                                 fields: vec![(0, hir::Pattern::Binding { local: value })],
                             },
                             None,
@@ -389,7 +310,6 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
                     } else {
                         hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
                             subject_ty: option_int,
-                            application,
                         })
                     },
                 )],
@@ -401,7 +321,11 @@ fn final_refutable_arm_keeps_its_test_and_only_the_proven_false_edge_is_unreacha
     for explicit_else in [false, true] {
         let module = lower_case(explicit_else);
         assert_eq!(module.validate(), Ok(()));
-        let body = &module.functions[module.entry].body;
+        let body = &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body;
         let branches = body
             .blocks
             .iter()
@@ -475,6 +399,7 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
         Vec::new(),
         vec![hir::Variant {
             name: "V".to_string(),
+            style: hir::VariantStyle::Named,
             fields: vec![hir::Field {
                 name: "value".to_string(),
                 ty: boolean,
@@ -524,14 +449,15 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
                 local_ref(subject, single_ty),
                 vec![arm(
                     hir::Pattern::Variant {
-                        application,
-                        variant: 0,
+                        application: h.enum_variant_ref(application, 0),
                         fields: vec![(
                             0,
                             hir::Pattern::Literal {
                                 value: bool_lit(&h, true),
                                 equality: hir::LiteralPatternEquality::Ordinary {
-                                    equals: hir::Callable::Function(equality),
+                                    equals: hir::CallableTarget::Local(hir::Callable::Function(
+                                        equality,
+                                    )),
                                 },
                                 subject_ty: boolean,
                             },
@@ -546,7 +472,11 @@ fn single_variant_final_arm_keeps_its_nested_boolean_literal_test() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     let function_named = |name: &str| {
         module
@@ -641,11 +571,11 @@ fn zero_arm_impossible_when_terminates_with_unreachable() {
     let mut h = Harness::new();
     let never = h.declare_enum("Never", Vec::new(), Vec::new(), Vec::new());
     let never_ty = h.enum_ty(never);
-    let application = h.enum_application_of(never_ty);
     let mut locals = Arena::new();
     let subject = locals.alloc(local("subject", never_ty));
-    let main = h.user_fn_full(
-        "main",
+    let impossible_name = "zeroArmImpossible";
+    h.user_fn_full(
+        impossible_name,
         Vec::new(),
         vec![param("subject", never_ty, subject)],
         h.unit,
@@ -656,13 +586,18 @@ fn zero_arm_impossible_when_terminates_with_unreachable() {
                 Vec::new(),
                 hir::WhenFallback::Impossible(hir::ExhaustivenessProof::EnumPatternMatrix {
                     subject_ty: never_ty,
-                    application,
                 }),
             )],
         },
     );
+    let main = empty_main(&mut h);
     let module = lower(&h.finish(main));
-    let body = &module.functions[module.entry].body;
+    let body = &module
+        .functions
+        .iter()
+        .find_map(|(_, function)| (function.name == impossible_name).then_some(function))
+        .expect("the ordinary zero-arm test function reaches MIR")
+        .body;
 
     assert!(matches!(
         body.blocks[body.entry].terminator,
@@ -692,8 +627,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     );
     let mut guarded_arm = arm(
         hir::Pattern::Variant {
-            application: option_application,
-            variant: 0,
+            application: h.enum_variant_ref(option_application, 0),
             fields: vec![(0, hir::Pattern::Binding { local: x })],
         },
         Some(binary(
@@ -733,91 +667,7 @@ fn a_failed_guard_falls_through_to_the_next_arm() {
     // The guard nests inside the typed variant test's then branch; failing
     // it falls through to the next arm — the `else` body here,
     // which is lowered once per fallthrough edge.
-    let expected = "\
-Module mangling=compact-v2
-  extern ef0 write @scoop_rt_write(String) -> Unit <abi=scoop managed>
-  extern ef1 coreLongToString @scoop_rt_long_to_string(Long) -> String <abi=scoop managed>
-  enum Option$I32
-    Some(_1: Int)
-    None()
-  fun print @scoop.print(message: Int) -> Unit
-    bb0 entry
-      call $call.1: String = extern1 @scoop_rt_long_to_string direct
-        Type Long
-        IntegerConversion Int -> Long
-          Type Int
-          Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local $call.1
-      return
-  fun println @scoop.println(message: String) -> Unit
-    bb0 entry
-      call extern0 @scoop_rt_write direct
-        Type String
-        Local message
-      call extern0 @scoop_rt_write direct
-        Type String
-        StringConst @scoop.str.0
-      return
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val $when.1: Option$I32<Int>
-        Type Option$I32<Int>
-        Local o
-      val $pattern.subject.2: Option$I32<Int>
-        Type Option$I32<Int>
-        Local $when.1
-      branch bb1 bb2
-        Type Boolean
-        VariantTest Option$I32 v0
-          Type Option$I32<Int>
-          Local $pattern.subject.2
-    bb1 pattern.pass.1
-      val x: Int
-        Type Int
-        VariantPayloadProject Option$I32 v0 f0
-          Type Option$I32<Int>
-          Local $pattern.subject.2
-      val threshold: Int
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
-      branch bb4 bb5
-        Type Boolean
-        IntegerCompare greater-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Int result=Long
-            Type Int
-            Local x
-            Type Int
-            Local threshold
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 pattern.else.2
-      call @scoop.println direct
-        Type String
-        StringConst @scoop.str.2
-      goto bb3
-    bb3 pattern.merge.3
-      return
-    bb4 if.then.4
-      call @scoop.print direct
-        Type Int
-        Local x
-      goto bb6
-    bb5 if.else.5
-      call @scoop.println direct
-        Type String
-        StringConst @scoop.str.1
-      goto bb6
-    bb6 if.merge.6
-      goto bb3
-  str @scoop.str.0 \"\\n\"
-  str @scoop.str.1 \"neg\"
-  str @scoop.str.2 \"neg\"
-  entry @scoop_main
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("a_failed_guard_falls_through_to_the_next_arm", &module);
     assert_eq!(module.validate(), Ok(()));
 }
 
@@ -895,14 +745,18 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
                         hir::Pattern::Literal {
                             value: bool_lit(&h, true),
                             equality: hir::LiteralPatternEquality::Ordinary {
-                                equals: hir::Callable::Function(first_equals),
+                                equals: hir::CallableTarget::Local(hir::Callable::Function(
+                                    first_equals,
+                                )),
                             },
                             subject_ty: boolean,
                         },
                         hir::Pattern::Literal {
                             value: bool_lit(&h, false),
                             equality: hir::LiteralPatternEquality::Ordinary {
-                                equals: hir::Callable::Function(second_equals),
+                                equals: hir::CallableTarget::Local(hir::Callable::Function(
+                                    second_equals,
+                                )),
                             },
                             subject_ty: boolean,
                         },
@@ -917,7 +771,11 @@ fn pattern_tests_bindings_and_guard_preserve_source_order_and_evaluate_once() {
     );
     let module = lower(&h.finish(main));
     assert_eq!(module.validate(), Ok(()));
-    let body = &module.functions[module.entry].body;
+    let body = &module.functions[module
+        .output
+        .executable_entry()
+        .expect("test module is executable")]
+    .body;
 
     let mut current = body.entry;
     let mut calls = Vec::new();
@@ -1030,7 +888,7 @@ fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
                         hir::Pattern::Literal {
                             value: literal,
                             equality: hir::LiteralPatternEquality::Ordinary {
-                                equals: hir::Callable::Function(equals),
+                                equals: hir::CallableTarget::Local(hir::Callable::Function(equals)),
                             },
                             subject_ty: ty,
                         },
@@ -1046,7 +904,11 @@ fn ordinary_literal_patterns_call_the_selected_string_and_boolean_equality() {
 
     for string in [false, true] {
         let (module, expected_name) = lower_case(string);
-        let body = &module.functions[module.entry].body;
+        let body = &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body;
         let (call, result) = entry_statements(body)
             .iter()
             .find_map(|statement| {
@@ -1075,20 +937,6 @@ fn integer_literal_patterns_lower_to_exact_typed_comparisons() {
         let mut h = Harness::new();
         let ty = h.integer(source_kind);
         let literal = integer_lit(&h, source_kind, 1);
-        let equality_expr = integer_binary(
-            &mut h,
-            source_kind,
-            hir::NoGcIntegerOperation::Equals,
-            literal.clone(),
-            literal.clone(),
-        );
-        let hir::ExprKind::IntegerOperation {
-            operation: hir::IntegerOperation::NoGc { target, .. },
-            ..
-        } = equality_expr.kind
-        else {
-            panic!("test harness constructs typed integer equals");
-        };
         let mut locals = Arena::new();
         let subject = locals.alloc(local("subject", ty));
         let main = h.user_fn(
@@ -1100,10 +948,7 @@ fn integer_literal_patterns_lower_to_exact_typed_comparisons() {
                     vec![arm(
                         hir::Pattern::Literal {
                             value: literal,
-                            equality: hir::LiteralPatternEquality::Integer {
-                                kind: source_kind,
-                                target,
-                            },
+                            equality: hir::LiteralPatternEquality::Integer { kind: source_kind },
                             subject_ty: ty,
                         },
                         None,
@@ -1114,7 +959,11 @@ fn integer_literal_patterns_lower_to_exact_typed_comparisons() {
             },
         );
         let module = lower(&h.finish(main));
-        let body = &module.functions[module.entry].body;
+        let body = &module.functions[module
+            .output
+            .executable_entry()
+            .expect("test module is executable")]
+        .body;
         assert!(
             body.locals
                 .iter()
@@ -1156,7 +1005,6 @@ fn destructuring_val_declarations_extract_bindings() {
     let (int, string) = (h.int, h.string);
     let point = h.strukt("Point", &[("x", int), ("y", int)]);
     let point_ty = h.struct_ty(point);
-    let point_application = h.struct_application_of(point_ty);
     let pair = h.tuple(&[int, string]);
     let mut locals = Arena::new();
     let a = locals.alloc(local("a", int));
@@ -1184,7 +1032,7 @@ fn destructuring_val_declarations_extract_bindings() {
                 ),
                 stmt(hir::StatementKind::ValDecl {
                     pattern: hir::Pattern::Struct {
-                        application: point_application,
+                        owner: point_ty,
                         fields: vec![(0, hir::Pattern::Binding { local: x })],
                     },
                     init: local_ref(p, point_ty),
@@ -1196,53 +1044,5 @@ fn destructuring_val_declarations_extract_bindings() {
 
     // Each destructuring declaration evaluates its init once into
     // a hidden local, then binds the extracted fields.
-    let expected = "\
-Module mangling=compact-v2
-  struct Point (x: Int, y: Int)
-  fun main @scoop_main() -> Unit
-    bb0 entry
-      val $bind.1: (Int, String)
-        Type (Int, String)
-        TupleLiteral
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-          Type String
-          StringConst @scoop.str.0
-      val a: Int
-        Type Int
-        FieldAccess 0
-          Type (Int, String)
-          Local $bind.1
-      val b: String
-        Type String
-        FieldAccess 1
-          Type (Int, String)
-          Local $bind.1
-      call p: Point = @scoop.ctor.Point.$c0 direct
-        Type Int
-        IntegerLiteral Int value=3 bits=0x00000003
-        Type Int
-        IntegerLiteral Int value=4 bits=0x00000004
-      val $bind.2: Point
-        Type Point
-        Local p
-      val x: Int
-        Type Int
-        FieldAccess 0
-          Type Point
-          Local $bind.2
-      return
-  fun ctor.Point.$c0 @scoop.ctor.Point.$c0(x: Int, y: Int) -> Point <no-gc>
-    bb0 entry
-      return
-        Type Point
-        StructInit Point
-          Type Int
-          Local x
-          Type Int
-          Local y
-  str @scoop.str.0 \"x\"
-  entry @scoop_main
-";
-    assert_eq!(dump(&module), expected);
+    check_mir_snapshot("destructuring_val_declarations_extract_bindings", &module);
 }

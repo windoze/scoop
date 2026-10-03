@@ -1,0 +1,13 @@
+@CLayout(aligned = 8, packed = 1)
+struct Packed(val flag: Boolean, val value: Int)
+
+@Extern(lib = "m23_cabi", name = "m23_packed")
+fun transform(value: Packed): Packed
+
+fun main() {
+    @Unsafe {
+        val result = transform(Packed(true, 41))
+        println(result.flag)
+        println(result.value)
+    }
+}

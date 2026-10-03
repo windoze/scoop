@@ -1,0 +1,262 @@
+SourceFile
+  RootPackage
+  enum Signal
+    Ready
+    Payload(Int)
+  struct OriginalBundle
+    field optional: Int?
+    field signal: Signal
+    field nested: (Signal, Int?)
+  struct Nested24Box
+    field marker: Int
+    field nested: (Signal, Long)
+  struct ManagedAggregate
+    field first: String
+    field nested: (String, Long)
+    @NoGC
+  fun signalValue(value: Signal): Int
+    =
+      WhenExpression
+        Var value
+        arm Ready
+          IntLiteral 0
+        arm Payload(number)
+          Var number
+    @NoGC
+  fun optionValue(value: Int?): Int
+    =
+      WhenExpression
+        Var value
+        arm None
+          IntLiteral 0
+        arm Some(number)
+          Var number
+    @NoGC
+  fun noGcNested24(value: (Signal, Long)): (Int, Long)
+    =
+      TupleLiteral
+        Call signalValue
+          FieldAccess _1
+            Var value
+        FieldAccess _2
+          Var value
+    @NoGC
+  fun noGcFlat32(value: (Long, Long, Long, Long)): Long
+    =
+      Binary Add
+        Binary Add
+          Binary Add
+            FieldAccess _1
+              Var value
+            FieldAccess _2
+              Var value
+          FieldAccess _3
+            Var value
+        FieldAccess _4
+          Var value
+  fun genericRoundTrip<T>(value: T): T
+    =
+      Var value
+  fun makeText(left: String, right: String): String
+    =
+      Binary Add
+        Var left
+        Var right
+  fun managedRoundTrip(value: ManagedAggregate): ManagedAggregate
+    Call gcCollect
+    return
+      Var value
+  fun managedMaybeThrow(value: ManagedAggregate, shouldThrow: Boolean): ManagedAggregate
+    Call gcCollect
+    if
+      Var shouldThrow
+      throw
+        Call UnwrapException
+    return
+      Var value
+  fun main()
+    Call println
+      StringLiteral "original-nested-32"
+    val original
+      Call OriginalBundle
+        Call Some
+          IntLiteral 3
+        FieldAccess Ready
+          Var Signal
+        TupleLiteral
+          MethodCall Payload
+            Var Signal
+            IntLiteral 4
+          Var None
+    Call println
+      Call optionValue
+        FieldAccess optional
+          Var original
+    Call println
+      Call signalValue
+        FieldAccess signal
+          Var original
+    Call println
+      Call signalValue
+        FieldAccess _1
+          FieldAccess nested
+            Var original
+    Call println
+      Call optionValue
+        FieldAccess _2
+          FieldAccess nested
+            Var original
+    Call println
+      StringLiteral "nested-24-constructor"
+    val nested24Box
+      Call Nested24Box
+        IntLiteral 3
+        TupleLiteral
+          MethodCall Payload
+            Var Signal
+            IntLiteral 4
+          IntLiteral 55L
+    Call println
+      FieldAccess marker
+        Var nested24Box
+    Call println
+      Call signalValue
+        FieldAccess _1
+          FieldAccess nested
+            Var nested24Box
+    Call println
+      FieldAccess _2
+        FieldAccess nested
+          Var nested24Box
+    Call println
+      StringLiteral "nested-24-nogc"
+    val nested24
+      TupleLiteral
+        MethodCall Payload
+          Var Signal
+          IntLiteral 40
+        IntLiteral 55L
+    val inspected24
+      Call noGcNested24
+        Var nested24
+    Call println
+      FieldAccess _1
+        Var inspected24
+    Call println
+      FieldAccess _2
+        Var inspected24
+    Call println
+      StringLiteral "generic-specialization-24"
+    val generic24
+      Call genericRoundTrip
+        TupleLiteral
+          MethodCall Payload
+            Var Signal
+            IntLiteral 60
+          IntLiteral 70L
+    Call println
+      Call signalValue
+        FieldAccess _1
+          Var generic24
+    Call println
+      FieldAccess _2
+        Var generic24
+    Call println
+      StringLiteral "flat-32-control"
+    Call println
+      Call noGcFlat32
+        TupleLiteral
+          IntLiteral 10L
+          IntLiteral 20L
+          IntLiteral 30L
+          IntLiteral 40L
+    val managed
+      Call ManagedAggregate
+        Call makeText
+          StringLiteral "alpha"
+          StringLiteral "-live"
+        TupleLiteral
+          Call makeText
+            StringLiteral "beta"
+            StringLiteral "-live"
+          IntLiteral 700L
+    Call println
+      StringLiteral "managed-call"
+    val roundTrip
+      Call managedRoundTrip
+        Var managed
+    Call println
+      FieldAccess first
+        Var roundTrip
+    Call println
+      FieldAccess _1
+        FieldAccess nested
+          Var roundTrip
+    Call println
+      FieldAccess _2
+        FieldAccess nested
+          Var roundTrip
+    Call println
+      StringLiteral "managed-invoke-normal"
+    try
+      val normal
+        Call managedMaybeThrow
+          Var managed
+          BoolLiteral false
+      Call println
+        FieldAccess first
+          Var normal
+      Call println
+        FieldAccess _1
+          FieldAccess nested
+            Var normal
+      Call println
+        FieldAccess _2
+          FieldAccess nested
+            Var normal
+    catch exception: UnwrapException
+      Call println
+        StringLiteral "unexpected-normal-catch"
+    Call println
+      StringLiteral "managed-invoke-throw"
+    try
+      val ignored
+        Call managedMaybeThrow
+          Var managed
+          BoolLiteral true
+      Call println
+        FieldAccess first
+          Var ignored
+      Call println
+        StringLiteral "unexpected-throw-return"
+    catch exception: UnwrapException
+      Call println
+        StringLiteral "caught-managed-invoke"
+    Call println
+      StringLiteral "closure-hidden-receiver-24"
+    val bias
+      IntLiteral 1000L
+    val closure: ((Signal, Long)) -> (Int, Long)
+      Lambda 0 suspend=false
+        param (signal, number): _
+        Call gcCollect
+        TupleLiteral
+          Call signalValue
+            Var signal
+          Binary Add
+            Var bias
+            Var number
+    val closureResult
+      MethodCall invoke
+        Var closure
+        TupleLiteral
+          MethodCall Payload
+            Var Signal
+            IntLiteral 9
+          IntLiteral 90L
+    Call println
+      FieldAccess _1
+        Var closureResult
+    Call println
+      FieldAccess _2
+        Var closureResult

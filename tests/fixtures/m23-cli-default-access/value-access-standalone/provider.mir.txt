@@ -1,0 +1,19 @@
+Module
+  global0 ACCESS_GLOBAL: Int global initial=encoded(Int:0x7)
+  fun accessValue @fn0(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $get$ACCESS_GLOBAL @fn1() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead ACCESS_GLOBAL
+  fun $set$ACCESS_GLOBAL @fn2(value: Int) -> Unit <no-gc>
+    bb0 entry
+      global_assign ACCESS_GLOBAL
+        Type Int
+        Local value
+      return
+  output library

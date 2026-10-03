@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.classes.*
+  public class LocalDefaults(), ParameterSource
+    public fun base
+    public fun answer
+  public fun primary(): Counter
+    =
+      Call Counter
+        MethodCall answer
+          Call LocalDefaults

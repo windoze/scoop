@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "typealias `IntSnapshot` is not generic",
+    "notes": [],
+    "origin": {
+      "cone": "eb7c5640d5030047ead6c2b15bcee1752861b1c16f6b91b4055fd7ed535544bb",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 93
+    },
+    "severity": "error"
+  }
+]

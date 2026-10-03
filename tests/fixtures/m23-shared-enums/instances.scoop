@@ -1,0 +1,34 @@
+package consumer.enums
+import upstream.enums.*
+import upstream.enums.Choice as ReusedChoice
+
+private enum LocalChoice<T> {
+    Empty,
+    Pair(T, T?),
+    Box(Choice<T>)
+}
+
+public fun <T> exercise(seed: T, read: (T) -> Int): Int {
+    val local: LocalChoice<T> = LocalChoice.Pair(seed, Some(seed))
+    val first = when (local) {
+        Pair(value, Some(other)) -> read(value) + read(other) - 42
+        else -> 1
+    }
+    if (first != 42) { return 2 }
+    val original: Choice<T> = Choice.Item(seed)
+    val alias: ReusedChoice<T> = pack(seed)
+    val wrapped: LocalChoice<T> = LocalChoice.Box(original)
+    val second = when (wrapped) {
+        Box(Choice.Item(value)) -> read(value)
+        else -> 3
+    }
+    if (second != 42) { return 4 }
+    if (score(alias, read) != 42) { return 5 }
+    return first
+}
+
+public fun result(): Int {
+    if (exercise<String>("value", { value -> 42 }) != 42) { return 1 }
+    if (exercise<Unit>(Unit, { value -> 42 }) != 42) { return 2 }
+    return exercise<Int>(42, { value -> value })
+}

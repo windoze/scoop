@@ -1,0 +1,130 @@
+SourceFile
+  QualifiedPackage consumer.inference
+  ImportStar Local dependency.inference.*
+  ImportExact Local dependency.inference.exercise as providerExercise
+  private class Reference(val number: Int)
+  private struct Large
+    field first: Reference
+    field second: Reference
+    field third: Reference
+  private enum Payload<T>
+    Data <ctor>
+      value: T
+    Empty
+  private fun readLarge(value: Large): Int
+    =
+      Binary Add
+        Binary Add
+          FieldAccess number
+            FieldAccess first
+              Var value
+          FieldAccess number
+            FieldAccess second
+              Var value
+        FieldAccess number
+          FieldAccess third
+            Var value
+  private fun readPayload(value: Payload<Large>): Int
+    =
+      WhenExpression
+        Var value
+        arm Data(inner)
+          Call readLarge
+            Var inner
+        arm Empty
+          IntLiteral 0
+  private fun readUnit(value: Unit): Int
+    =
+      IntLiteral 42
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    val large
+      Call Large
+        Call Reference
+          IntLiteral 10
+        Call Reference
+          IntLiteral 12
+        Call Reference
+          IntLiteral 20
+    if
+      Binary Ne
+        Call exercise<Large>
+          Var large
+          CallableReference 0 readLarge
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Payload<Large>>
+          MethodCall Data
+            Var Payload
+            Var large
+          CallableReference 1 readPayload
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          CallableReference 2 readUnit
+        IntLiteral 42
+      return
+        IntLiteral 3
+    val values
+      Call pack
+        Argument *
+          ArrayLiteral
+        Var large
+    val wrapped
+      Call Pair
+        ArrayLiteral
+        Var large
+    val nested
+      Call pack
+        Argument *
+          ArrayLiteral
+        Var values
+    val units
+      Call pack
+        Argument *
+          ArrayLiteral
+        UnitLiteral
+        UnitLiteral
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess size
+              FieldAccess values
+                Var wrapped
+            IntLiteral 0L
+          Binary Ne
+            FieldAccess size
+              Var units
+            IntLiteral 2L
+        Binary Ne
+          Call readLarge
+            FieldAccess seed
+              Var wrapped
+          IntLiteral 42
+      return
+        IntLiteral 4
+    val allocated
+      Call Reference
+        IntLiteral 0
+    return
+      Binary Add
+        Call readLarge
+          Index
+            Index
+              Var nested
+              IntLiteral 0L
+            IntLiteral 0L
+        FieldAccess number
+          Var allocated

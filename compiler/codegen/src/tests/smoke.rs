@@ -8,12 +8,57 @@ mod integers;
 fn emits_non_empty_object_file() {
     let module = values_module();
     let output = std::env::temp_dir().join(format!("scoop_codegen_test_{}.o", std::process::id()));
-    emit_object(&module, &output, host_profile()).expect("emit object");
+    write_verified_test_object(&module, &output);
     let len = std::fs::metadata(&output)
         .expect("object file exists")
         .len();
     assert!(len > 0, "object file is empty");
     std::fs::remove_file(&output).ok();
+}
+
+#[test]
+fn shared_codegen_preserves_odr_callable_linkage() {
+    let mut module = values_module();
+    module.functions[0].callable_body = odr_callable_body("shared_function");
+    refresh_test_safepoints(&mut module.functions[0]);
+    let machine = host_target_machine().expect("target machine");
+    let context = Context::create();
+    let llvm = emit_llvm_module(&context, &module, &machine, host_profile()).unwrap();
+    let function = llvm.get_function(module.functions[0].symbol()).unwrap();
+    assert_eq!(function.get_linkage(), inkwell::module::Linkage::WeakODR);
+    assert_eq!(
+        function.as_global_value().get_unnamed_address(),
+        inkwell::values::UnnamedAddress::None
+    );
+    llvm.verify().unwrap();
+}
+
+#[test]
+fn executable_emits_only_the_typed_persistent_entry_body() {
+    let module = values_module();
+    let entry = &module.functions[module
+        .executable_entry()
+        .expect("test module is executable")
+        .declaration()
+        .into_u32() as usize];
+
+    let ir = ir_of(&module);
+
+    assert!(!ir.contains("define void @scoop_main()"), "{ir}");
+    assert!(
+        ir.contains(&format!("define void @\"{}\"()", entry.symbol())),
+        "{ir}"
+    );
+}
+
+#[test]
+fn library_does_not_emit_a_fixed_entry_symbol() {
+    let mut module = values_module();
+    module.output = scoop_lir::LirOutput::Library;
+
+    let ir = ir_of(&module);
+
+    assert!(!ir.contains("@scoop_main"), "{ir}");
 }
 
 #[test]
@@ -272,7 +317,12 @@ fn raw_load_rejects_machine_scalar_result() {
         Instruction::RawLoad {
             out,
             pointer: Value::Temp(pointer),
-            align: 8,
+            pointee: abi_value_with_layout(
+                LirType::MachineScalar(MachineScalarKind::EnumTag),
+                8,
+                8,
+                RefScan::None,
+            ),
         },
     ]);
 
@@ -300,7 +350,12 @@ fn raw_store_rejects_machine_scalar_value() {
         Instruction::RawStore {
             pointer: Value::Temp(pointer),
             value: Value::MachineScalar(MachineScalarValue::EnumTag(0)),
-            align: 8,
+            pointee: abi_value_with_layout(
+                LirType::MachineScalar(MachineScalarKind::EnumTag),
+                8,
+                8,
+                RefScan::None,
+            ),
         },
     ]);
 
@@ -318,10 +373,10 @@ fn raw_store_rejects_machine_scalar_value() {
 fn local_address_rejects_machine_scalar_storage() {
     let mut module = values_module();
     let function = &mut module.functions[0];
-    let local = function.locals.alloc(Local {
-        name: "machine_state".to_string(),
-        ty: LirType::MachineScalar(MachineScalarKind::CoroutineFrameState),
-    });
+    let local = function.locals.alloc(test_local(
+        "machine_state",
+        LirType::MachineScalar(MachineScalarKind::CoroutineFrameState),
+    ));
     let out = function.temps.alloc(Temp { ty: RAW_PTR });
     function.blocks[function.entry]
         .instructions
@@ -353,7 +408,7 @@ fn pointer_element_offset_scales_by_the_declared_element_size() {
             out,
             pointer: Value::Temp(pointer),
             element_offset: Value::MachineScalar(MachineScalarValue::PointerElementOffset(2)),
-            element_size: 8,
+            element_size: std::num::NonZeroU64::new(8).unwrap(),
             subtract: false,
         },
     ]);
@@ -386,8 +441,9 @@ fn local_call_signature_cannot_relabel_machine_result_as_i64() {
         },
     });
     module.functions.push(Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "machine_adapter".to_string(),
         signature: plain_scoop_signature(vec![], machine_result),
         call_targets: CallTargets::default(),
         locals: Arena::default(),
@@ -419,7 +475,7 @@ fn local_call_signature_cannot_relabel_machine_result_as_i64() {
         .expect_err("a local call must use its declaration's logical result domain");
     assert!(
         error.0.contains("typed local call")
-            && error.0.contains("machine_adapter")
+            && error.0.contains(module.functions[1].symbol())
             && error.0.contains("machine<foreign-callback-status>"),
         "unexpected error: {error}"
     );
@@ -460,6 +516,7 @@ fn dispatch_signature_rejects_machine_scalar_domains() {
     function.blocks[function.entry]
         .instructions
         .push(Instruction::Call { site: call });
+    refresh_test_safepoints(function);
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
@@ -523,6 +580,7 @@ fn runtime_call_signature_cannot_relabel_a_machine_result() {
     function.blocks[function.entry]
         .instructions
         .push(Instruction::Call { site: call });
+    refresh_test_safepoints(function);
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();
@@ -579,8 +637,9 @@ fn dispatch_table_cannot_hide_a_machine_scalar_local_signature() {
         },
     });
     module.functions.push(Function {
+        callable_body: callable_body_at(file!(), line!()),
+        safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
-        symbol: "machine_dispatch_adapter".to_string(),
         signature: plain_scoop_signature(
             vec![],
             LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
@@ -599,6 +658,7 @@ fn dispatch_table_cannot_hide_a_machine_scalar_local_signature() {
         .expect("values module has the String descriptor")
         .1
         .vtable
+        .slots_mut()
         .push(DispatchEntry {
             callable: CallableRef::Local(function_id),
         });
@@ -608,10 +668,10 @@ fn dispatch_table_cannot_hide_a_machine_scalar_local_signature() {
     let error = emit_llvm_module(&context, &module, &machine, host_profile())
         .expect_err("dispatch metadata must not expose a machine-scalar local function");
     assert!(
-        error
-            .0
-            .contains("dispatches to local function @machine_dispatch_adapter")
-            && error.0.contains("machine scalar"),
+        error.0.contains(&format!(
+            "dispatches to local function @{}",
+            module.functions[function_id.into_u32() as usize].symbol()
+        )) && error.0.contains("machine scalar"),
         "unexpected error: {error}"
     );
 }
@@ -644,10 +704,10 @@ fn foreign_callback_operation_rejects_machine_scalar_operand_before_llvm_cast() 
 fn statepoint_plan_cannot_publish_a_machine_scalar_as_a_managed_root() {
     let mut module = values_module();
     let function = &mut module.functions[0];
-    let local = function.locals.alloc(Local {
-        name: "machine_root".to_string(),
-        ty: LirType::MachineScalar(MachineScalarKind::EnumTag),
-    });
+    let local = function.locals.alloc(test_local(
+        "machine_root",
+        LirType::MachineScalar(MachineScalarKind::EnumTag),
+    ));
     let mut call = void_site(
         &mut function.call_targets,
         TestCallProtocol::Managed {
@@ -668,6 +728,7 @@ fn statepoint_plan_cannot_publish_a_machine_scalar_as_a_managed_root() {
     function.blocks[function.entry]
         .instructions
         .push(Instruction::Call { site: call });
+    refresh_test_safepoints(function);
 
     let machine = host_target_machine().expect("target machine");
     let context = Context::create();

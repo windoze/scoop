@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  fun main()
+    Call println
+      IntLiteral 43

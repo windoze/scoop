@@ -1,6 +1,5 @@
-//! Overload mangling and typed overload dispatch.
+//! Typed overload dispatch.
 
 use super::*;
 
 mod dispatch;
-mod symbols;

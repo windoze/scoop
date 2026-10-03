@@ -1,0 +1,98 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.odr.*
+  ImportStar Local sibling.left.*
+  ImportStar Local sibling.right.*
+  private class Later(val value: Int)
+  public fun check(): Int
+    val value
+      Call left
+    if
+      Binary RefNe
+        Var value
+        Call right
+      return
+        IntLiteral 1
+    if
+      Binary RefEq
+        Var value
+        Call distinct
+      return
+        IntLiteral 2
+    if
+      Binary RefNe
+        Call leftMethod
+        Call rightMethod
+      return
+        IntLiteral 3
+    if
+      Binary RefNe
+        Call leftExtension
+        Call rightExtension
+      return
+        IntLiteral 4
+    if
+      Binary RefNe
+        Call leftNested
+        Call rightNested
+      return
+        IntLiteral 5
+    if
+      Binary RefEq
+        Var value
+        Call leftMethod
+      return
+        IntLiteral 6
+    if
+      Binary RefEq
+        Call leftMethod
+        Call leftExtension
+      return
+        IntLiteral 7
+    if
+      Binary RefEq
+        Call leftNested
+        Call leftExtension
+      return
+        IntLiteral 8
+    if
+      Binary RefNe
+        Call forwarded<Int>
+          IntLiteral 1
+        Call leftMethod
+      return
+        IntLiteral 9
+    val first
+      Call Later
+        IntLiteral 20
+    val label
+      Call forwarded<Later>
+        Var first
+    val second
+      Call Later
+        IntLiteral 22
+    if
+      Binary RefNe
+        Var label
+        Call forwarded<Later>
+          Var second
+      return
+        IntLiteral 10
+    if
+      Binary RefEq
+        Var label
+        Call leftMethod
+      return
+        IntLiteral 11
+    if
+      Binary Ne
+        Var value
+        StringLiteral "generic constant"
+      return
+        IntLiteral 12
+    return
+      Binary Add
+        FieldAccess value
+          Var first
+        FieldAccess value
+          Var second

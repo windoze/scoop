@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Unary Not
+        Call testInteger
+          Call boxInteger
+            IntLiteral 42
+      throw
+        Call IllegalStateException

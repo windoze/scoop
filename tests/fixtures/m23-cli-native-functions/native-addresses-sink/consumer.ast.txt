@@ -1,0 +1,21 @@
+SourceFile
+  QualifiedPackage consumer.nativeAddresses
+  ImportExact Local dependency.nativeAddresses.sink
+    @Extern(lib = "m23_native_calls", name = "m23_call_sink")
+  private fun nativeSink(callback: FunPtr<(Ptr<Long>) -> Unit>): Long
+  public fun callSink(callback: FunPtr<(Ptr<Long>) -> Unit>): Long
+    @Unsafe block
+      return
+        Call nativeSink
+          Var callback
+  public fun exercise<T>(value: T): Long
+    @Unsafe block
+      val callback: FunPtr<(Ptr<Long>) -> Unit>
+        CallableReference 0 sink
+      return
+        Call callSink
+          Var callback
+  public fun result(): Long
+    =
+      Call exercise<Int>
+        IntLiteral 0
