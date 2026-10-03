@@ -17,3 +17,4 @@
 | 原内部测试 | 正式 CLI 用例 | 进程／四阶段 golden | 产物核对 |
 | --- | --- | --- | --- |
 | `actual_core_sources_produce_closed_mir_and_lir_export_tables` | `base`、`standalone`、`combined` | 6／24 | 逐字相同 |
+| `actual_layout_artifacts_retain_alias_chains_and_combined_member_signatures` | `shared-aliases-standalone`、`shared-aliases-combined` | 4／16 | 逐字相同 |
