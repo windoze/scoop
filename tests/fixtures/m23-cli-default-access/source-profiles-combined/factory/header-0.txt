@@ -1,0 +1,2 @@
+public open class Envelope<T> {
+    public fun checkConfined(): Int = ProtectedStatic().confined()

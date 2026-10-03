@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  public fun sharedDefault(): Int
+    =
+      IntLiteral 9
+  public open class Envelope<T>()
+    public nested class PublicStatic
+    protected nested class ProtectedStatic
+    public nested enum Choice
+  public open class Base()
+    public fun inherited
+  public class Child() : Base(<0 args>)
+    public fun inherited

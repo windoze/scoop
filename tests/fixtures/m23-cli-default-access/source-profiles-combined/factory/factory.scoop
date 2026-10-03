@@ -1,0 +1,3 @@
+public fun defaultChild(): Child = Child()
+public fun defaultPublicStatic(): Envelope.PublicStatic = Envelope.PublicStatic()
+public fun <T> defaultEnvelope(): Envelope<T> = Envelope<T>()
