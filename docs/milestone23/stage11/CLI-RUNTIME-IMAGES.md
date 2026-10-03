@@ -9,3 +9,4 @@
 | 原功能 | CLI 用例 | 进程／golden | 保留的断言 |
 | --- | --- | --- | --- |
 | `multi_image_startup_runs_empty_ordinary_and_nogc_roots` | `empty`、`ordinary`、`nogc` | 20／27 | empty／ordinary／NoGC root；完整三 image 图，原输出和两种 GC 模式 |
+| `multi_image_startup_uses_the_current_ready_set_and_complete_roots` | `schedule-root` | 11／21 | base → next 与 peer → join → root；实际输出严格为 10、20、30、40、50 |

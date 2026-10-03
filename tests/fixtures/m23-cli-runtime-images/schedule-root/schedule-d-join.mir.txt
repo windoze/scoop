@@ -1,0 +1,186 @@
+Module
+  global0 joined: Long managed initial=zeroed-for-runtime-unit
+  global1 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 top-level:joined eager global0 initializer=@fn2 ensure=@fn3 failure=1 deps=[]
+  extern ef0 trace @m23_trace(Long) -> Unit <abi=c no-gc lib=m23_runtime_images>
+  fun trace @fn0(arg0: Long) -> Unit
+    bb0 entry
+      call extern0 @m23_trace direct
+        Type Long
+        Local arg0
+      return
+  fun initialize @fn1() -> Long
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=40 bits=0x0000000000000028
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call extern0 @m23_trace direct
+        Type Long
+        Local $parameter.value
+      call $dependency.receiver: Long = external0 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      call $dependency.receiver: String = external1 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.0: Boolean = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=40 bits=0x0000000000000028
+      goto bb6
+    bb5 if.else.5
+      assign $result.1
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb6
+    bb6 if.merge.6
+      return
+        Type Long
+        Local $result.1
+  fun $init$body$0 @fn2() -> Unit
+    bb0 entry
+      call $call.1: Long = @fn1 direct
+      global_assign joined
+        Type Long
+        Local $call.1
+      return
+  fun $init$ensure$0 @fn3() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:joined
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn2 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:joined
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:joined
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:joined
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 top-level:joined
+      call external3 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun $get$joined @fn4() -> Long
+    bb0 entry
+      call @fn3 direct
+      return
+        Type Long
+        GlobalRead joined
+  str @str0 "cpeer"
+  output library

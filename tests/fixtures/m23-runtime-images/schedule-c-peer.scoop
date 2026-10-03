@@ -1,6 +1,6 @@
 package schedule.peer
 
-@Extern(name = "m23_trace")
+@Extern(lib = "m23_runtime_images", name = "m23_trace")
 private fun trace(value: Long)
 
 private fun initialize(): String {

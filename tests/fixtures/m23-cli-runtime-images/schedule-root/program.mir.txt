@@ -1,0 +1,32 @@
+Module
+  extern ef0 trace @m23_trace(Long) -> Unit <abi=c no-gc lib=m23_runtime_images>
+  fun trace @fn0(arg0: Long) -> Unit
+    bb0 entry
+      call extern0 @m23_trace direct
+        Type Long
+        Local arg0
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $dependency.receiver: Long = external0 direct
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $argument.0: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      call extern0 @m23_trace direct
+        Type Long
+        Local $parameter.value
+      return
+  output executable @fn1
