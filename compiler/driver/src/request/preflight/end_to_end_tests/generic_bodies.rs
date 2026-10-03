@@ -14,7 +14,6 @@ mod publication;
 mod qualified_types;
 mod rebuilt_core;
 mod reexported_namespaces;
-mod shared_bounds;
 mod shared_classes;
 mod shared_closures;
 mod shared_defaults;

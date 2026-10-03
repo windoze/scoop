@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `same`: conflicting types for `T`: Int and String",
+    "notes": [],
+    "origin": {
+      "cone": "c48874212295c69669fbdf85ecbf3129bae6cb646d94cf1cef237d8a7b3d01bf",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 81
+    },
+    "severity": "error"
+  }
+]

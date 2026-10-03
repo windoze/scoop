@@ -405,3 +405,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `source_callable_references_republish_and_execute_from_artifacts` | `m23-source-callable-references` | 14／13 | 207／182 | 42 份阶段、13 份诊断逐项相同 |
 | `shared_specificity_survives_artifact_republication` | `m23-shared-selection` | 3／6 | 54／39 | 9 份阶段、6 份诊断逐项相同 |
 | `shared_bounds_propagate_through_source_and_artifact_calls` | `m23-shared-bounds` | 3／0 | 36／39 | 9 份阶段、0 份诊断逐项相同 |
+| `shared_bounds_reject_conflicts_and_unconstrained_parameters` | `m23-shared-bounds` | 0／4 | 12／0 | 0 份阶段、4 份诊断逐项相同 |

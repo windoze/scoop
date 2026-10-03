@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `readBound`: T0 is not a subtype of BothReader<T>",
+    "notes": [],
+    "origin": {
+      "cone": "bc51d7669170688a03c3be1616104300089348c0243d07fc9fb0a0a8588cb3f0",
+      "end": 96,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 80
+    },
+    "severity": "error"
+  }
+]
