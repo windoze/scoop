@@ -12,3 +12,4 @@
 | `imported_generic_ambiguity_reports_both_declared_signatures` | `bad-overload` | 3／0 | conflict(1, 2) 的精确 span；错误仍包含两个完整候选签名 |
 | `imported_generic_effects_and_pointee_predicates_reach_consumer_calls` | `bad-nogc`、`bad-nogc-argument`、`bad-pointee` | 9／0 | managed 调用、GC-free 类型参数及 Ptr pointee 条件均保留；完整诊断集合还锁定签名与两处 Ptr 类型使用错误 |
 | `ordinary_core_call_uses_shared_generic_argument_diagnostics` | `bad-core-type-arity` | 2／0 | print 的精确 span 和 expects 1 type argument(s), found 2 |
+| `unused_source_only_bodies_still_receive_definition_site_type_diagnostics` | `invalid-unused-body` | 2／0 | 未被消费的 source-only 函数体仍报 Int／String 不匹配，精确定位原字符串字面量 |

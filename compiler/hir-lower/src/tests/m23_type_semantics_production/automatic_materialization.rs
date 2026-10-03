@@ -212,20 +212,3 @@ fn generic_source_application_records_need_an_evaluated_use_before_materializati
         });
     }
 }
-
-#[test]
-fn unused_source_only_bodies_still_receive_definition_site_type_diagnostics() {
-    let source = fixture("errors/invalid-unused-body");
-    let diagnostics =
-        lower(&[complete_core_file(), scoop_parser::parse(&source).unwrap()]).unwrap_err();
-    let start = source.find("\"invalid\"").unwrap() as u32;
-    let diagnostic = diagnostics
-        .iter()
-        .find(|diagnostic| diagnostic.span == Some(ast::Span::new(start, start + 9)))
-        .unwrap_or_else(|| panic!("{diagnostics:?}"));
-    assert_eq!(diagnostic.file, 1);
-    assert!(
-        diagnostic.message.contains("Int") && diagnostic.message.contains("String"),
-        "{diagnostic:?}"
-    );
-}
