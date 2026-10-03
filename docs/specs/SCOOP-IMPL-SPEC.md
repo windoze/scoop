@@ -198,6 +198,8 @@ M24起class body member sum增加独立`ReleaseBlock`。`release`只在class mem
 
 ### 2.2 HIR
 
+同一 Cone 的继承检查使用已解析的 class/interface 父类型关系，按父声明先于派生声明的顺序完成属性覆盖、accessor 和普通方法检查。基类的 virtual family 与父接口的覆盖关系须在派生声明消费之前建立；同一 owner 内保持源码成员顺序。源码文件的排序、发现顺序及派生类型在文件中先出现都不能改变合法性或槽身份。依赖声明已携带完整关系，直接复用；该调度不改变声明身份、产物格式或 runtime ABI。
+
 隐式 receiver 的属性预查询用于区分值名称与类型限定名，复用完整 nominal application 的既有属性与可见性查询。宿主可以来自当前源码、依赖或完整 class 上界；不能假定 class 声明必有本地 arena ID，也不另建一套按裸 class ID 遍历继承的属性规则。预查询不提交候选或诊断，实际访问继续走普通 getter／setter 与成员调用路径。
 
 数组的隐式 application 从当前 core 声明或已导入 core 协议取得同一 typed owner，不复制外来声明到本地 class arena。Export HIR 的数组 assembly 保存完整 `TypeId` 作为结果类型，允许本地与外来数组 application；LocalConcrete HIR 再统一解析为具体 class。依赖调用的实参映射保留每个元素／spread 的源码索引，命名整数组直接使用显式值，省略时按实际协议选择默认模板或新空数组；所有显式表达式先求值，再按形参序物化参数。共有模板消费直接重建已有数组节点与实际成员调用，复用普通具体化、数组表示和运行时操作，不增加数组专用产物格式、来源资格或第二套布局验证。

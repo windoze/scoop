@@ -1,0 +1,28 @@
+SourceFile
+  RootPackage
+  public class Leaf<T>(val item: T) : Middle<T>(<0 args>)
+    public fun value
+    public open override val property: T <computed>
+      get()
+        Var item
+  public fun leaf<T>(value: T): Base<T>
+    =
+      Call Leaf
+        Var value
+  public fun reader<T>(value: T): Reader<T>
+    =
+      Call Leaf
+        Var value
+SourceFile
+  RootPackage
+  public abstract class Middle<T>() : Base<T>(<0 args>)
+    public fun value
+    public abstract override val property: T <abstract>
+SourceFile
+  RootPackage
+  public interface Reader<T>
+    fun value
+    public open val property: T <computed>
+  public abstract class Base<T>(), Reader<T>
+    public fun value
+    public abstract override val property: T <abstract>

@@ -1,0 +1,51 @@
+SourceFile
+  RootPackage
+  private class Concrete<T>(val item: T) : Abstract<T>(<0 args>)
+    public fun value
+  public fun base(): Base
+    =
+      Call Base
+  public fun abstractValue<T>(value: T): Abstract<T>
+    =
+      Call Concrete
+        Var value
+  public fun finalValue<T>(value: T): T
+    =
+      FieldAccess item
+        Call Final
+          Var value
+  public fun defaultNumber(value: Defaults): Int
+    =
+      FieldAccess number
+        Var value
+  public fun internalDefault(): Defaults
+    =
+      Call Defaults
+        BoolLiteral true
+SourceFile
+  RootPackage
+  public interface Marker
+    fun mark
+    fun helper
+  public open class Base()
+    public fun inherited
+  public abstract class Abstract<T>()
+    public fun value
+  public class Final<T>(val item: T)
+  public struct Pair<T>
+    field second: T
+    field first: Int
+  public enum Choice<T>
+    Empty
+    Positional(T)
+    Named <named>
+      value: T
+    Constructed <ctor>
+      value: T
+  public object Singleton
+    private val secret: Int = <expr>
+      IntLiteral 7
+    public fun read
+  public class Defaults(val number: Int = <expr>)
+    constructor(text: String) : this(<1 args>)
+    constructor(flag: Boolean) : this(<1 args>)

@@ -1,0 +1,6 @@
+public class Leaf<T>(private val item: T) : Middle<T>() {
+    public override fun value(): T = item
+    public override val property: T get() = item
+}
+public fun <T> leaf(value: T): Base<T> = Leaf(value)
+public fun <T> reader(value: T): Reader<T> = Leaf(value)
