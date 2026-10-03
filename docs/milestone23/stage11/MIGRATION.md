@@ -397,3 +397,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `imported_pointer_construction_templates_accept_downstream_pointees` | `m23-imported-pointer-construction` | 1／0 | 12／13 | 3 份阶段、0 份诊断逐项相同 |
 | `imported_pointer_intrinsics_republish_and_execute_from_artifacts` | `m23-imported-pointers` | 8／13 | 135／104 | 24 份阶段、13 份诊断逐项相同 |
 | `imported_pointer_templates_accept_downstream_pointees` | `m23-imported-pointers` | 1／0 | 12／13 | 3 份阶段、0 份诊断逐项相同 |
+| `qualified_dependency_types_republish_and_execute_from_artifacts` | `m23-qualified-types` | 4／13 | 87／52 | 12 份阶段、13 份诊断逐项相同 |

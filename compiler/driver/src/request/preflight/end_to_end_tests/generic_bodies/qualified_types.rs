@@ -2,30 +2,6 @@ use super::members::check_fixture_cases;
 use super::*;
 
 #[test]
-fn qualified_dependency_types_republish_and_execute_from_artifacts() {
-    check_fixture_cases(
-        "m23-qualified-types",
-        &["ordinary", "aliases", "nested", "bounds"],
-        &[
-            "bad-alias-arguments",
-            "bad-arity",
-            "bad-missing-arguments",
-            "bad-nongeneric",
-            "bad-hidden",
-            "bad-package",
-            "bad-current-longer",
-            "bad-conflict",
-            "bad-nested-arity",
-            "bad-nested-missing",
-            "bad-nested-private",
-            "bad-nested-bound",
-            "bad-namespace-alias-cycle",
-        ],
-        "downstream",
-    );
-}
-
-#[test]
 fn qualified_dependency_types_merge_current_package_contributions() {
     check_fixture_cases(
         "m23-qualified-types",

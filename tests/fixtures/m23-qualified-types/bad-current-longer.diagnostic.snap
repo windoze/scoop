@@ -1,3 +1,0 @@
-span=74..79
-expression=Point
-`dependency.paths.Point` names a package, not a type
