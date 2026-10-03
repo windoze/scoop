@@ -79,6 +79,11 @@ fn build_request(
         CurrentConeInput::Manifest { root } => BuildRootInput::manifest(root).map_err(config)?,
         CurrentConeInput::SingleFile { source } => BuildRootInput::single_file(source),
     };
+    if root.single_file_source().is_some() && !args.cone_path.is_empty() {
+        return Err(config(
+            "--cone-path is not accepted for a single-file input",
+        ));
+    }
     let compiler = match args.scoopc {
         Some(path) => path,
         None => std::env::current_exe()
