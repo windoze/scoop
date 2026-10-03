@@ -1,15 +1,4 @@
-use super::members::check_fixture_cases;
 use super::*;
-
-#[test]
-fn qualified_dependency_types_merge_current_package_contributions() {
-    check_fixture_cases(
-        "m23-qualified-types",
-        &["split-package"],
-        &[],
-        "split-downstream",
-    );
-}
 
 #[test]
 fn qualified_dependency_types_respect_direct_package_visibility() {

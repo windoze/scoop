@@ -6,6 +6,13 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Local> tagged size=16 align=8 variants=(struct0)@8+4 ()@8+0
   enum CoroutineSlot<Local> tagged size=16 align=8 variants=()@8+0 (struct0)@8+4
+  fun @scoop$1$cb$840c92dedbe32f93d6df7aad083b9eb1b197a14bc5c1f59c6061ed9819992760(indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i32
+    t1 = extract param1, 0 : i32
+    t2 = integer_compare_Equal<Int> t0, t1 : i1
+    ret t2
   fun @scoop$1$cb$8d35f7edfe1f3ec3afd105560a0893d5937bb83bb45d4c41668aae624908b061() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
@@ -14,7 +21,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000000) -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn2(local1)
     store t0 -> local2
     ret local2
   fun @scoop$1$cb$2f8585af0a15a46fc74250116a6af63b7670b2dbfa8914ccc936f8633ed81352(i32) -> i32
@@ -33,7 +40,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000028) -> local0
     store local0 -> local1
-    call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn6(local1)
+    call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct0 size=4 align=4 scan=none, i32) local-fn7(local1)
     store local9 -> local2
     store integer<Int>(0x00000002) -> local3
     store local3 -> local4

@@ -1,0 +1,21 @@
+SourceFile
+  QualifiedPackage dependency.paths
+  public struct Local
+    field number: Int
+  public fun exercise<T>(value: T): Int
+    val own: dependency.paths.Local
+      Call Local
+        IntLiteral 40
+    val foreign: dependency.paths.Point
+      Call Point
+        IntLiteral 2
+    return
+      Binary Add
+        FieldAccess number
+          Var own
+        FieldAccess number
+          Var foreign
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0
