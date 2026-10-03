@@ -1,7 +1,6 @@
 use super::*;
 
 mod adapters;
-mod concrete_calls;
 mod constructor_applications;
 mod constructor_bodies;
 mod constructor_requests;
