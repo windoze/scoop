@@ -1,0 +1,83 @@
+SourceFile
+  RootPackage
+  public fun ownerSeed(): String
+    =
+      StringLiteral "source"
+  public fun referenceProvider<T>(seed: T, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  public fun referenceBridge<X, Y>(first: X, second: Y, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  fun forwardReference<X, Y>(first: X, second: Y): () -> String
+    =
+      Call referenceBridge
+        Var second
+        Var first
+  public fun lambdaProvider<T>(seed: T, value: () -> T = <expr>): () -> T
+    =
+      Var value
+  public fun anonymousProvider<T>(seed: T, value: () -> T = <expr>): () -> T
+    =
+      Var value
+  public fun closureBridge<X, Y>(first: X, second: Y, left: () -> Y = <expr>, right: () -> Y = <expr>): Y
+    =
+      Call left
+  public fun localReference<A, B>(seed: A, ignored: B, value: () -> A = <expr>): () -> A
+    =
+      Var value
+  fun forwardLocal<X, Y>(first: X, second: Y): () -> Y
+    =
+      Call localReference
+        Var second
+        Var first
+  public class ReferenceBox(val value: String)
+    public fun read
+  public fun String.ownerText(): String
+    =
+      This
+  public fun boundMember<T>(unused: T, receiver: ReferenceBox, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  public fun boundExtension<T>(unused: T, receiver: String, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  public class ReferenceConstructor<T>(seed: T, val callback: () -> String = <expr>)
+  fun main()
+    Invoke
+      Call forwardReference
+        StringLiteral "kept"
+        IntLiteral 1
+    Invoke
+      Call forwardReference
+        IntLiteral 2
+        StringLiteral "ignored"
+    Call closureBridge
+      IntLiteral 1
+      StringLiteral "lambda"
+    Call closureBridge
+      StringLiteral "ignored"
+      IntLiteral 2
+    Invoke
+      Call forwardLocal
+        IntLiteral 1
+        StringLiteral "local"
+    Invoke
+      Call forwardLocal
+        StringLiteral "ignored"
+        IntLiteral 2
+    Invoke
+      Call boundMember
+        IntLiteral 1
+        Call ReferenceBox
+          StringLiteral "member"
+    Invoke
+      Call boundExtension
+        StringLiteral "unused"
+        StringLiteral "extension"
+    MethodCall callback
+      Call ReferenceConstructor
+        IntLiteral 1
+    MethodCall callback
+      Call ReferenceConstructor
+        StringLiteral "unused"
