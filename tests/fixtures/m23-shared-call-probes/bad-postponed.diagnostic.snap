@@ -1,3 +1,0 @@
-span=99..119
-expression={ value -> "wrong" }
-lambda result must be of type Int, found String

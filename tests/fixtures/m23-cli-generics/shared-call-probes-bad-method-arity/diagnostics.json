@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `identity` expects 1 type argument(s), found 2",
+    "notes": [],
+    "origin": {
+      "cone": "c455bbe523542511104e2ae1ba92d45ad99232d0f70e30e050b8d7913791c72d",
+      "end": 106,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  }
+]

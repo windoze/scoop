@@ -1,7 +1,6 @@
 use super::*;
 
 mod adapters;
-mod call_probes;
 mod callable_order;
 mod callable_signatures;
 mod concrete_calls;

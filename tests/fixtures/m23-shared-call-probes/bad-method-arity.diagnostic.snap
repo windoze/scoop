@@ -1,3 +1,0 @@
-span=98..106
-expression=identity
-dependency function `identity` expects 1 type argument(s), found 2

@@ -1,0 +1,31 @@
+SourceFile
+  QualifiedPackage upstream.callprobes
+  public class Counter()
+    public var calls: Int = <expr>
+      IntLiteral 0
+  public class Empty<T>()
+    public fun identity
+  public class Pair<T, U>(val first: T, val second: U)
+  public class Holder<T>(val value: T)
+    public fun apply
+  public enum Packet<T>
+    Item <ctor>
+      value: T
+    Missing
+  public class Reference<T : ref>(val value: T)
+  public fun map<T, R>(operation: (T) -> R, value: T): R
+    =
+      Call operation
+        Var value
+  public fun choose<T>(value: T, operation: (T) -> Int): Int
+    =
+      Call operation
+        Var value
+  public fun choose(value: Int, operation: (String) -> Int): Int
+    =
+      Call operation
+        StringLiteral "rejected"
+  public fun plain(value: Int, operation: (Int) -> Int): Int
+    =
+      Call operation
+        Var value
