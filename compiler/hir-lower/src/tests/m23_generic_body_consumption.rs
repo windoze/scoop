@@ -53,10 +53,6 @@ const CONSUMER: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-generic-body-consumption/consumer.scoop"
 ));
-const BAD_KIND: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m23-generic-body-consumption/bad-kind.scoop"
-));
 
 fn lower_consumer(source: &str) -> Result<hir::DependencyHirOutput, Vec<crate::Diagnostic>> {
     with_consumer(source, |output, _, _, _, _| output)
@@ -176,22 +172,6 @@ fn imported_generic_bodies_infer_and_materialize_provider_templates() {
         scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, Vec::new()).unwrap();
     scoop_mir_lower::lower_current_cone(&output, dependencies)
         .expect("dependency templates lower through the ordinary MIR body path");
-}
-
-#[test]
-fn imported_generic_kind_bound_reports_the_consumer_argument() {
-    let errors = lower_consumer(BAD_KIND)
-        .err()
-        .expect("a class cannot satisfy a value bound");
-    let error = errors
-        .iter()
-        .find(|error| error.message.contains("must satisfy `value`"))
-        .expect("the normal kind constraint reports the failure");
-    let span = error.span.unwrap();
-    assert_eq!(
-        &BAD_KIND[span.start as usize..span.end as usize],
-        "valueOnly(ReferenceValue())"
-    );
 }
 
 #[test]

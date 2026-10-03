@@ -8,3 +8,4 @@
 | --- | --- | --- | --- |
 | materialization | `consumer` | 12／9 | 原 HIR／MIR 两份快照逐字相同；显式／推断类型、局部值、relay、extension、默认值、NoGC 与递归实际运行，原 HIR template 数量与 typed 正文断言继续保留 |
 | overload | `overload` | 12／9 | tuple 选择双参数泛型声明，运行结果为 2；原单一胜出 template 与 tuple 参数断言继续保留 |
+| `imported_generic_kind_bound_reports_the_consumer_argument` | `bad-kind` | 3／0 | value 约束错误定位完整 valueOnly 调用，保留额外的公开签名可见性错误 |
