@@ -1,6 +1,5 @@
 use super::*;
 
-mod errors;
 mod render;
 
 fn lower_source(source: &str) -> Result<hir::Output, Vec<ast::Diagnostic>> {

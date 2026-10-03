@@ -1,0 +1,19 @@
+schema = 1
+name = "constructor-nogc-error-class-primary"
+root = "class-primary.scoop"
+inputs = ["class-primary.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["constructors", "constructor-nogc", "single-file", "negative"]
+
+[[steps]]
+name = "build"
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target", "--message-format", "json", "-o", "${work}/rejected"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "class-primary.diagnostics.json"}
+checks = [
+  {"file" = "${work}/rejected", "exists" = false},
+]
