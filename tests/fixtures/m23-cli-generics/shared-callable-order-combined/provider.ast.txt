@@ -1,0 +1,25 @@
+SourceFile
+  QualifiedPackage upstream.callableorder
+  public class Tape()
+    public var log: Int = <expr>
+      IntLiteral 0
+    public fun mark
+    public fun reset
+  public fun prepare<T>(tape: Tape, seed: T): (Int, Int) -> T
+    MethodCall mark
+      Var tape
+      IntLiteral 1
+    return
+      Lambda 0 suspend=false
+        param first: _
+        param second: _
+        MethodCall mark
+          Var tape
+          IntLiteral 4
+        Var seed
+  public fun argument(tape: Tape, value: Int = <expr>): Int
+    =
+      Var value
+  public fun fail(tape: Tape, value: Int = <expr>): Int
+    throw
+      Call ArithmeticException

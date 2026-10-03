@@ -1,0 +1,39 @@
+SourceFile
+  QualifiedPackage downstream.callableorder
+  ImportStar Local consumer.callableorder.*
+  private class Later(val value: Int)
+  public fun check(): Int
+    if
+      Binary Ne
+        Call exercise<Later>
+          Call Later
+            IntLiteral 42
+          Lambda 0 suspend=false
+            param value: _
+            FieldAccess value
+              Var value
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "order"
+          Lambda 1 suspend=false
+            param value: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 2 suspend=false
+            param value: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 3
+    return
+      Call result
