@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.runtimeValue
+  public val localValue: Int = <expr>
+  public fun outside(): Int
+    =
+      Var runtimeValue

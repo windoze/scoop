@@ -1,0 +1,17 @@
+# M23-11 初始化、调用与布局依赖的 CLI 迁移
+
+`m23-cli-layout-dependencies` 通过正式 `scoop build` 生产 core、普通 provider 和 consumer，再移走它们的源码，由独立下游消费 `.slib`。20 项只读验证全部通过，共 65 次进程执行、176 份阶段 golden。19 项成功，`ordinary-any-wrong-result` 保留 Any 不能隐式收窄为 String 的完整 canonical 诊断、源码区间及无产物断言。
+
+原源码及坐标保持：core 的 `src/layout_probe.scoop` 使用原初始化 provider；shape／LIR 依赖用例仍包含原本只有注释的 `base.scoop`，因为它也是实际 source inventory 的一部分。普通初始化和 Any provider 分别为 `test:property-provider:1.0.0`、`test:any-calls:1.0.0`；普通 consumer 为 `test:scoop-hir-lower:0.0.0`。
+
+迁移核对采用实际原 producer 产物与 CLI 产物：两个 core、十个初始化／调用／对象 consumer、四个 shape／LIR consumer，共 16 份归档逐字节一致。TOML 固定检查 45 个实际 artifact fingerprint，保留原对象、Code、runtime image、符号与依赖内容的整体约束。
+
+34 份旧阶段输出中 24 份逐字一致；其余十份 core consumer LIR 只增加最终产物已有的初始化依赖边（独立例一条、组合例三条）。旧 Rust dump 发生在连接这些边之前，原 typed 断言与最终产物已包含它们。shape／LIR 的四份下游 HIR 在补回原 `base.scoop` 后，局部 `ImportedIdentityId` 索引随 source inventory 增加一项而移动，其余全文相同。
+
+五个普通 consumer 的实际 CLI HIR 产物另经原摘要对照：初始化 use 数量分别为 1／4／0，Any 调用数量 1／9、receiver 数量 0／4、展开默认值数量 0／1，原摘要逐行一致。Any 参数与结果仍保留完整 exact type，String receiver 仍是原 core 名义类型。
+
+旧对象／调用统计中 core 多出的三个派生 equals 及相应指纹变化沿用 [core 布局迁移记录](CLI-CORE-LAYOUTS.md) 中已核实的 `edde2400a` 修正。本次没有提交旧快照更新，也没有改变对应语言规则。
+
+| 功能 | 正式 CLI 用例 | 进程／阶段 golden |
+| --- | --- | --- |
+| 属性初始化、展开默认值与不活跃正文 | `core-initialization-combined`、`core-initialization-standalone`、`ordinary-initialization-combined`、`ordinary-initialization-inactive`、`ordinary-initialization-standalone` | 18／52 |
