@@ -1,0 +1,42 @@
+SourceFile
+  RootPackage
+  public interface View<T>
+    fun readSecret
+    fun reset
+    private open val secret: Int <computed>
+      get()
+        IntLiteral 1
+    private open var cache: T <computed>
+      get()
+        Var item
+      set(value)
+    public open val item: T <computed>
+    public open var current: T <computed>
+      get()
+        Var cache
+      private set(value)
+        assign cache
+          Var value
+  public class Implement(), View<Int>
+    public open override val item: Int <computed>
+      get()
+        IntLiteral 7
+  fun main()
+    val reader: View<Int>
+      Call Implement
+    MethodCall reset
+      Var reader
+      IntLiteral 9
+    val owner: Owner<Int>
+      Call Owner
+        IntLiteral 3
+    val result: Int
+      FieldAccess value
+        Var owner
+  public open class Owner<T>(var current: T)
+    public open var value: T <computed>
+      get()
+        Var current
+      private set(next)
+        assign current
+          Var next
