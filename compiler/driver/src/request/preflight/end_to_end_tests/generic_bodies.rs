@@ -1,6 +1,5 @@
 use super::*;
 
-mod initialization;
 mod machine;
 mod native_addresses;
 mod siblings;
