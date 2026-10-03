@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  ImportExact Local typeSites.withDefault
+  private fun annotate(value: String): String
+    =
+      Var value
+  public fun inspect(): String
+    val message
+      Call withDefault
+    val copy
+      Call annotate
+        Var message
+    return
+      Var copy
+  public fun dormant(value: String = <expr>): Boolean
+    =
+      BoolLiteral false

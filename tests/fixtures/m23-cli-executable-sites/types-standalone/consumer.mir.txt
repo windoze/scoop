@@ -1,0 +1,7 @@
+Module
+  fun literal @fn0() -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  output library

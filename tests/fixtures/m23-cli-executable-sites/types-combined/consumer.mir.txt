@@ -1,0 +1,30 @@
+Module
+  fun annotate @fn0(value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun inspect @fn1() -> String
+    bb0 entry
+      call $dependency.parameter.value: String = external0 direct
+      call message: String = external1 direct
+        Type String
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        Local message
+      val $parameter.value: String
+        Type String
+        Local $argument.0
+      call copy: String = @fn0 direct
+        Type String
+        Local $parameter.value
+      return
+        Type String
+        Local copy
+  fun dormant @fn2(value: String) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral false
+  output library

@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public fun inspect(value: Any): Boolean
+    =
+      Is String false
+        Var value
+  public fun dormant(value: UInt16 = <expr>): Boolean
+    =
+      BoolLiteral false
