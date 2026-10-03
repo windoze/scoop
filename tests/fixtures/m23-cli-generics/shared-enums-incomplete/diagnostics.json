@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "non-exhaustive when: missing pattern Defaults(-2147483648, -2147483648)",
+    "notes": [],
+    "origin": {
+      "cone": "2a13ce962f750650715ecd0ffa0a5e3e6b6addcc24559f04793d64f7380a81d0",
+      "end": 185,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 75
+    },
+    "severity": "error"
+  }
+]
