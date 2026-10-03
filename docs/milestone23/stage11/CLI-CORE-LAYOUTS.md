@@ -33,3 +33,4 @@
 | `shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituents` | `shared-td-standalone`、`shared-td-combined` | 4／16 | 逐字相同 |
 | `shared_lir_shape_support_replays_finite_helpers_from_checked_mir_roots` | `shared-shapes-standalone`、`shared-shapes-combined` | 4／16 | 逐字相同 |
 | `shared_ordinary_lir_bridges_replay_source_gc_and_layout_abis` | `shared-ordinary-standalone`、`shared-ordinary-combined` | 4／16 | 逐字相同 |
+| `shared_initialization_abi_replays_the_protocol_role_and_complete_layout_contract` | `shared-init-abi-standalone`、`shared-init-abi-combined` | 4／16 | 逐字相同 |
