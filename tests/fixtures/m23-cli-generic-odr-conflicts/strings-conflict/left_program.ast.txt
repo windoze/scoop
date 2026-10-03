@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Ne
+        Call result
+        StringLiteral "left value"
+      throw
+        Call IllegalStateException

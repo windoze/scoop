@@ -1,0 +1,5 @@
+SourceFile
+  QualifiedPackage dependency.conflict
+  public fun text<T>(): String
+    =
+      StringLiteral "left value"

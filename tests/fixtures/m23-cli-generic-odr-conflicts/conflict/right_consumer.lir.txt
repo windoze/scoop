@@ -1,0 +1,28 @@
+Module
+  fun @scoop$1$cb$86bc954a00a417e032c5f133cc99fcc171ea946362635c5d7ad35d61620ea590() -> i32
+    local %0 $dependency.argument.0: i32
+    local %1 $dependency.argument.1: i32
+    local %2 $dependency.parameter.value: i32
+    local %3 $dependency.parameter.delta: i32
+    local %4 $call.1: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Int>(0x00000000) -> local0
+    store integer<Int>(0x00000028) -> local1
+    store local0 -> local2
+    store local1 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i32) -> i32 local-fn1(local2, local3)
+    store t0 -> local4
+    ret local4
+  fun @scoop$1$cb$861d9a949d1ef95f532f6c6b53e9335fc8c328c9b4dd3c7bc742f519716cc277(i32, i32) -> i32
+    local %0 $dependency.local.2: i32
+    local %1 $dependency.local.3: i32
+    local %2 $dependency.local.4: i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param1 -> local0
+    store integer<Int>(0x00000002) -> local1
+    store local1 -> local2
+    t0 = integer_Add<Int> local0, local2 : i32
+    ret t0
+  output library

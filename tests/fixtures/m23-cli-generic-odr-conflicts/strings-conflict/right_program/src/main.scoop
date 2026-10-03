@@ -1,0 +1,3 @@
+fun main() {
+    if (result() != "next value") { throw IllegalStateException() }
+}

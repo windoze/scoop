@@ -1,0 +1,7 @@
+SourceFile
+  QualifiedPackage dependency.odr
+  public fun adjusted<T>(value: T, delta: Int): Int
+    =
+      Binary Add
+        Var delta
+        IntLiteral 2
