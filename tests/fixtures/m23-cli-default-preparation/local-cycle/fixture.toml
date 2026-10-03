@@ -1,0 +1,47 @@
+schema = 1
+name = "default-preparation-local-cycle"
+inputs = ["../../m23-default-preparation/errors/local-cycle.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["default-preparation", "single-file", "negative"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+checks = []
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "5ecaed3d2f76be07ff2e14408b8ea5bce684a4cf52240268cbc55ce0d4b09301"},
+]
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/empty-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"remove" = {"path" = "${work}/core-source"}},
+  {"concat" = {"path" = "${work}/sources/program.scoop", "parts" = [{"file" = "${fixture}/../../m23-default-preparation/errors/local-cycle.scoop"}]}},
+]
+checks = []
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/program.scoop", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/built-program"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/built-program", "exists" = false},
+]
