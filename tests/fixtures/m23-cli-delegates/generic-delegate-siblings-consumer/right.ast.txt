@@ -1,0 +1,43 @@
+SourceFile
+  QualifiedPackage siblings.delegates.right
+  ImportStar Local templates.delegateSiblings.*
+  public fun read(): Int
+    =
+      FieldAccess shared
+        Call Receiver<Int, Boolean>
+          IntLiteral 2
+          BoolLiteral false
+  public fun otherFirst(): Int
+    =
+      FieldAccess shared
+        Call Receiver<Boolean, Boolean>
+          BoolLiteral true
+          BoolLiteral false
+  public fun otherSecond(): Int
+    =
+      FieldAccess shared
+        Call Receiver<Int, Int>
+          IntLiteral 1
+          IntLiteral 2
+  public fun failure(): Failure
+    try
+      FieldAccess broken
+        Call Receiver<Int, Boolean>
+          IntLiteral 2
+          BoolLiteral false
+    catch error: Failure
+      return
+        Var error
+    throw
+      Call IllegalStateException
+  public fun otherFailure(): Failure
+    try
+      FieldAccess broken
+        Call Receiver<Boolean, Boolean>
+          BoolLiteral true
+          BoolLiteral false
+    catch error: Failure
+      return
+        Var error
+    throw
+      Call IllegalStateException

@@ -1,0 +1,34 @@
+SourceFile
+  QualifiedPackage templates.delegateSiblings
+  public object State
+    public var builds: Int = <expr>
+      IntLiteral 0
+    public var provides: Int = <expr>
+      IntLiteral 0
+    public var failures: Int = <expr>
+      IntLiteral 0
+  public class Receiver<A, B>(val left: A, val right: B)
+  public class Payload(var value: Int)
+  public class Failure(val payload: Payload) : Throwable(<0 args>)
+  public class Slot<A, B>(val payload: Payload)
+    public operator fun getValue
+    public operator fun setValue
+  public class Starter<A, B>()
+    public operator fun provideDelegate
+  public fun start<A, B>(): Starter<A, B>
+    compound-assign Add
+      Var State
+      IntLiteral 1
+    return
+      Call Starter<A, B>
+  public fun fail<A, B>(): Slot<A, B>
+    compound-assign Add
+      Var State
+      IntLiteral 1
+    throw
+      Call Failure
+        Call Payload
+          FieldAccess failures
+            Var State
+  public var <A, B>Receiver<A, B>.shared: Int by <expr>
+  public val <A, B>Receiver<A, B>.broken: Int by <expr>
