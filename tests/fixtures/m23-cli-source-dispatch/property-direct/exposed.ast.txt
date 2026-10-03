@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  public fun store(): Store
+    =
+      Call Store
+SourceFile
+  RootPackage
+  public class Store()
+    public fun write
+    public var visible: Int <computed>
+      get()
+        IntLiteral 1
+      protected set(value)
