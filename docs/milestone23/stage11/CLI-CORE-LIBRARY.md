@@ -33,3 +33,28 @@
 别名选择数量、binding witness 与本地 shadow 的 Boolean 类型检查继续保留。
 删除 driver 中已由 CLI 覆盖的三段纯消费者构建，保留核心 producer／reader 检查。
 清理后两项 alias HIR 测试和 core 综合 producer 测试通过，格式化及 workspace lint 通过。
+
+## 直接输入与发布失败
+
+| 功能 | case | 用例／进程／golden | 保留的验证 |
+| --- | --- | --- | --- |
+| 直接 library 输入 | `direct-standalone` | 1／8／9 | 原 manifest；显式与隐式 core 的 scoopc 产物和公开 build 逐字节一致 |
+| 直接依赖组合 | `direct-combined` | 1／10／13 | 原 helper 与 combined 源码；显式依赖重排、隐式 core、实际下游消费 |
+| core 发布失败 | `publication-core` | 1／6／9 | 当前 warning 与最终发布错误按原顺序保留；失败输出仍为空目录 |
+| 普通 library 发布失败 | `publication-ordinary` | 1／8／13 | warm 构建仍有当前 warning；不重播预构建 core 的 warning；重建后消费运行 |
+
+直接输入用例把实际 `scoopc build` 产生的字节交给下游，删除所有 provider 和
+consumer 源码后独立链接，分别以普通与移动 GC 运行。原独立 library、helper 和
+组合 library 的 manifest 与源码保持不变；隐式 core 来自已构建的 sysroot 产物。
+删除原 Rust 外部进程编排模块，直接输入分类与拒绝规则继续由 typed 单元测试检查。
+
+发布用例保留 `publication-warning.scoop` 的完整 warning、source span 108–113
+和逻辑文件路径，按完整 JSON 集合检查 `SCOOP_OUTPUT_WRITE` 发布错误。
+公开 `scoop build` 验证最终发布失败；原 producer 单元测试在解析成功之后
+故意改变输出路径，继续检查具体 `CurrentConeProductionFailure::Publication`
+及其 warning 对象。这两个实际边界不同，保留后者的内部故障检查，不再因目标缺失
+提前返回。普通 library 的额外运行检查文件调用原 `describe`，验证两个 enum 分支。
+
+本批增加 13 个 artifact 指纹；最终只读运行共 **13 用例／70 进程／82 份 golden**，
+30 个产物指纹全部匹配。core 综合 producer 与发布失败单元测试通过，格式化、
+Python lint 和完整 workspace clippy 通过。本批没有启用快照更新。
