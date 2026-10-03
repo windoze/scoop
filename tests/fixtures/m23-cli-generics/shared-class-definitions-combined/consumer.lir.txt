@@ -17,7 +17,7 @@ Module
   global @scoop$1$bs$87b91a10d34a151935591a4bb93ad5f726267124d4e250543e4db8822a5e8bf9 = c"call to abstract method `Continuation.resumeWithException`"
   global @scoop$1$bs$645639f3af50fe76617b469c87d6405b8d48aa7822374e0bf5b9757369261ef2 = c"call to abstract method `SuspendTask.run`"
   global @scoop$1$bs$b997c871246e2941ae614b7dc27b86abc1f211642d4ea2aef1ade3aff9a454ed = c"call to abstract method `SuspendRegistration.register`"
-  init0 object-private:main.scoop:State lazy storage=@scoop$1$ss$2d46beca3a2acc6b0f1172a784517f6ed99080bf44af41d1a840af9d409fa6ad failure=@scoop$1$ss$eceef971ab8bb5537b7087465e48b0bbbd5e8292dd08287ca52e2c8a0ccc0f13 initializer=@scoop$1$cb$9a200decb7a4b96143fcb6c0537e58426cafcb54eb0e9d8f1c05b22337143214 ensure=@scoop$1$cb$6d5443c0592a333ecf7aae51dd853fb552eb50a3aa3b3ba2d02e7c2ba273366b deps=[]
+  init0 object-private:dev.example:generic-member-combined:0.1.0/src/main.scoop:State lazy storage=@scoop$1$ss$2d46beca3a2acc6b0f1172a784517f6ed99080bf44af41d1a840af9d409fa6ad failure=@scoop$1$ss$eceef971ab8bb5537b7087465e48b0bbbd5e8292dd08287ca52e2c8a0ccc0f13 initializer=@scoop$1$cb$9a200decb7a4b96143fcb6c0537e58426cafcb54eb0e9d8f1c05b22337143214 ensure=@scoop$1$cb$6d5443c0592a333ecf7aae51dd853fb552eb50a3aa3b3ba2d02e7c2ba273366b deps=[]
   enum Option niche(kind=managed,payload_variant=0)
   enum Option niche(kind=managed,payload_variant=0)
   enum Option niche(kind=managed,payload_variant=0)

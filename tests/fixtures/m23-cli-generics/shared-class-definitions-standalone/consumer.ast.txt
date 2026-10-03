@@ -1,0 +1,127 @@
+SourceFile
+  QualifiedPackage consumer.classDefinitions
+  ImportStar Local upstream.classDefinitions.*
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val leaf: Link<T>
+      Call make
+        Var value
+    val head
+      Call Link
+        Var value
+        Call Some
+          Var leaf
+    assign .next
+      Var leaf
+      Call Some
+        Var head
+    val wrapped
+      Call Wrapper
+        Var head
+    if
+      Binary Ne
+        Call read
+          FieldAccess value
+            NullAssert
+              FieldAccess next
+                FieldAccess head
+                  Var wrapped
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call read
+          FieldAccess value
+            NullAssert
+              FieldAccess next
+                Var leaf
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val remote
+      Call Remote
+        Var value
+    val base: Base<Unit, T>
+      Var remote
+    val view: Readable<T>
+      Var remote
+    if
+      Binary Ne
+        Call read
+          FieldAccess echoed
+            Var remote
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call read
+          MethodCall select
+            Var base
+        IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Ne
+        MethodCall apply
+          Var view
+          Var read
+        IntLiteral 42
+      return
+        IntLiteral 5
+    val source: Array<Link<T>>
+      ArrayLiteral
+        Var leaf
+        Var head
+    val links
+      Call MutableArray
+        Var source
+    assign []
+      Var links
+      IntLiteral 0L
+      Var head
+    if
+      Binary Ne
+        Call read
+          FieldAccess value
+            Index
+              Var links
+              IntLiteral 0L
+        IntLiteral 42
+      return
+        IntLiteral 6
+    return
+      Call read
+        Call readLink
+          Var value
+  public fun result(): Int
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 0 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 1 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    val alias: IntChain
+      Call make
+        IntLiteral 42
+    return
+      Call exercise<Int>
+        FieldAccess value
+          Var alias
+        Lambda 2 suspend=false
+          param item: _
+          Var item

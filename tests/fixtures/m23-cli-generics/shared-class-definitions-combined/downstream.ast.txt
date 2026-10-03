@@ -1,0 +1,49 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.classDefinitions.result
+  ImportExact Local consumer.classDefinitions.exercise
+  private class Later(val value: Int)
+  public fun check(): Int
+    val value
+      Call Later
+        Call result
+    if
+      Binary Ne
+        Call exercise<Later>
+          Var value
+          Lambda 0 suspend=false
+            param item: _
+            FieldAccess value
+              Var item
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<Int>
+          IntLiteral 42
+          Lambda 1 suspend=false
+            param item: _
+            Var item
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 2 suspend=false
+            param item: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 3
+    val allocation
+      Call Later
+        IntLiteral 0
+    return
+      Binary Add
+        FieldAccess value
+          Var value
+        FieldAccess value
+          Var allocation
