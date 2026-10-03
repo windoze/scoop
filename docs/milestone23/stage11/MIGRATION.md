@@ -394,3 +394,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `imported_options_republish_and_execute_from_artifacts` | `m23-imported-options` | 8／15 | 141／104 | 24 份阶段、15 份诊断逐项相同 |
 | `closed_generic_parents_survive_artifact_republication` | `m23-shared-parents` | 3／3 | 45／39 | 9 份阶段、3 份诊断逐项相同 |
 | `imported_pointer_construction_republishes_and_executes_from_artifacts` | `m23-imported-pointer-construction` | 7／21 | 147／91 | 21 份阶段、21 份诊断逐项相同 |
+| `imported_pointer_construction_templates_accept_downstream_pointees` | `m23-imported-pointer-construction` | 1／0 | 12／13 | 3 份阶段、0 份诊断逐项相同 |
