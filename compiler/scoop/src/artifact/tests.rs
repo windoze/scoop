@@ -92,3 +92,55 @@ fn dependency_first_invariant_is_rechecked_by_the_closure_gate() {
         }) if dependent == root && dependency == core
     ));
 }
+
+#[test]
+fn completed_nodes_retain_shared_bytes_without_reopening_paths() {
+    use scoop_slib::{ArtifactCapabilityProfile, ArtifactSnapshot, ConeRecord};
+    use std::sync::Arc;
+
+    let coordinate = ConeCoordinate::reserved_core();
+    let core = coordinate.identity().unwrap();
+    let plan = ArtifactClosurePlan::new(
+        core,
+        ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1,
+        vec![core],
+        BTreeMap::from([(core, node(coordinate.clone()))]),
+        [],
+    );
+    let archive = crate::test_artifacts::manifest_archive(
+        ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
+        ConeRecord::new(coordinate, ConeKind::Library, ConeSourceForm::Manifest).unwrap(),
+        "retained-snapshot",
+        Vec::new(),
+    );
+    let snapshot = Arc::new(ArtifactSnapshot::from_bytes(archive.as_bytes().to_vec()));
+    let completed = complete_compiled_candidate(
+        &plan,
+        core,
+        Arc::clone(&snapshot),
+        "unused-staging/candidate.slib".into(),
+        &[],
+        Vec::new(),
+    )
+    .unwrap();
+    assert!(Arc::ptr_eq(completed.artifact().snapshot(), &snapshot));
+    let cached = CompletedNode::from_cache_hit(
+        core,
+        completed.shared_artifact(),
+        completed.closure().clone(),
+        "unused-staging/cache.slib".into(),
+        "unused-cache/artifact.slib".into(),
+        Vec::new(),
+    );
+    let retained = [completed.clone(), cached];
+    drop(completed);
+    drop(snapshot);
+    drop(plan);
+
+    for node in retained {
+        let artifact = node.closure().artifact(core).unwrap();
+        assert!(std::ptr::eq(artifact, node.artifact()));
+        assert_eq!(artifact.summary().cone().identity(), core);
+        assert_eq!(artifact.snapshot().as_bytes(), archive.as_bytes());
+    }
+}

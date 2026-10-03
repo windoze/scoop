@@ -42,3 +42,10 @@
 | `real_process_builds_and_reuses_manifest_executable` | `process-manifest-executable` | 5／4 |
 | `real_process_builds_and_reuses_single_file` | `process-single-file` | 5／4 |
 | `real_process_diamond_invokes_shared_core_once_in_canonical_order` | `process-diamond` | 3／4 |
+| `real_process_builds_and_reuses_a_source_dependency` | `process-observations` | 8／4 |
+
+`process-observations` 保留原 dependency／consumer 文本与坐标：cold 三个 child，warm 零 child，请求根四阶段观察时只有 root 一个 child，且产物 bytes 不变、dump 目录只有该根。把完成的三个产物复制给真实 artifact consumer 后，普通与 moving GC 程序均返回 1。随后加入原 `Raedy` warning 并把 root 改为原 `missingName` 错误，连续两次失败保留相同的两条完整诊断；warning 仍属于 dependency 的 `src/warning.scoop`，根错误仍属于 root 的 `src/main.scoop`，旧产物保持不变。
+
+完成这项迁移后，`snapshot/prepared/tests/process.rs` 及其子模块、真实进程 recording runner、core 复制、临时 protocol 请求和手工路径断言 helper 全部删除。原共享对象与生存期断言迁到 `artifact::tests::completed_nodes_retain_shared_bytes_without_reopening_paths`：只在内存中构造已有的 manifest 容器，确认 compiled／cache 完成节点和其闭包复用同一 snapshot／artifact，并在原句柄释放后保留相同 bytes；不构建源码、不启动外部进程、不读取 fixture。
+
+上述五项进程迁移各自先格式化与全 workspace lint，再只读验收并独立提交，共 5 个用例、5 个变体、24 次进程、20 次 golden 比较。共享数据单元测试也通过；`scoop` crate 已没有依赖配套 compiler 环境变量而隐式跳过的旧真实进程测试。
