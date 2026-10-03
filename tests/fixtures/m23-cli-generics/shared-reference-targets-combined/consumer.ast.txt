@@ -1,0 +1,157 @@
+SourceFile
+  QualifiedPackage consumer.references
+  ImportStar Local upstream.references.*
+  private class LocalValue(val value: Int)
+  private fun throughDefault<T>(value: T, copy: (T) -> T = <expr>): T
+    =
+      Call copy
+        Var value
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    if
+      Binary Ne
+        Call selfReference
+          IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 9
+    if
+      Binary Ne
+        Call genericSelfReference<T>
+          Var seed
+          Var inspect
+        Call inspect
+          Var seed
+      return
+        IntLiteral 10
+    if
+      Binary Ne
+        Call recursiveReference<T>
+          Var seed
+          Var inspect
+        Call inspect
+          Var seed
+      return
+        IntLiteral 8
+    if
+      Binary Ne
+        Call inspect
+          Call declarationOnly<T>
+            Var seed
+        Call inspect
+          Var seed
+      return
+        IntLiteral 7
+    val inherited
+      Call captured<T, Int>
+        Var seed
+        Var inspect
+    val distinct
+      Call captured<T, Unit>
+        Var seed
+        Var inspect
+    val first
+      Call captured<LocalValue, T>
+        Call LocalValue
+          IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          FieldAccess value
+            Var value
+    val second
+      Call captured<LocalValue, T>
+        Call LocalValue
+          IntLiteral 43
+        Lambda 1 suspend=false
+          param value: _
+          FieldAccess value
+            Var value
+    if
+      Binary Or
+        Binary Ne
+          Call first
+          IntLiteral 42
+        Binary Ne
+          Call second
+          IntLiteral 45
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call inherited
+        Call distinct
+      return
+        IntLiteral 2
+    val defaulted
+      Call fromDefault<T, Int>
+        Var seed
+        IntLiteral 0
+    val defaultedAgain
+      Call fromDefault<T, Unit>
+        Var seed
+        UnitLiteral
+    if
+      Binary Ne
+        Call inspect
+          Var defaulted
+        Call inspect
+          Var defaultedAgain
+      return
+        IntLiteral 3
+    var owner
+      Call Box<Int>
+        IntLiteral 42
+    val snapshot: () -> Int
+      CallableReference 1 read
+        Var owner
+    assign owner
+      Call Box<Int>
+        IntLiteral 43
+    val next: () -> Int
+      CallableReference 2 read
+        Var owner
+    if
+      Binary Or
+        Binary Ne
+          Call snapshot
+          IntLiteral 42
+        Binary Ne
+          Call next
+          IntLiteral 43
+      return
+        IntLiteral 4
+    val box
+      Call Box<T>
+        Call throughDefault<T>
+          Var seed
+    if
+      Binary Ne
+        Call inspect
+          Call memberDefault<T>
+            Var box
+        Call inspect
+          Call copyDefault<T>
+            Var seed
+      return
+        IntLiteral 5
+    val retained: () -> T
+      CallableReference 3 retain
+        Call fromDefault<T, Unit>
+          Var seed
+          UnitLiteral
+    if
+      Binary Ne
+        Call inspect
+          Call retained
+        Call inspect
+          Var seed
+      return
+        IntLiteral 6
+    return
+      Call inherited
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 2 suspend=false
+          param value: _
+          Var value

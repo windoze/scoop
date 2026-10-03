@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "default expression references a callable outside the callable's complete call domain",
+    "notes": [],
+    "origin": {
+      "cone": "9a1bf2f88fbe5cdb0dca6892dfdc2cb2013bef415e6cb710c914855590d69093",
+      "end": 104,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 96
+    },
+    "severity": "error"
+  }
+]
