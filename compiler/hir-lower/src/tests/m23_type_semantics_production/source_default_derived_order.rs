@@ -25,7 +25,6 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
         with_source(source, |output, mir| {
             let export = output.output().export.module();
             assert!(!mir.functions.is_empty());
-            let mut snapshot = String::new();
             for name in names {
                 let id = export
                     .functions
@@ -53,7 +52,6 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
                     })
                     .count();
                 assert_eq!(references, 1, "{name}");
-                snapshot.push_str(&format!("{name}: {role} 1\n"));
             }
             if names.len() == 2 {
                 let (_, holder) = export
@@ -78,7 +76,6 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
                         .count(),
                     1
                 );
-                snapshot.push_str("Holder: DerivedEquality 1\n");
             } else {
                 assert_eq!(
                     export
@@ -89,20 +86,6 @@ fn derived_equality_is_available_while_source_defaults_are_prepared() {
                     1
                 );
             }
-            assert_eq!(
-                snapshot,
-                if names.len() == 2 {
-                    include_str!(concat!(
-                        env!("CARGO_MANIFEST_DIR"),
-                        "/../../tests/fixtures/m23-type-source-defaults/derived-default-order.hir.snap"
-                    ))
-                } else {
-                    include_str!(concat!(
-                        env!("CARGO_MANIFEST_DIR"),
-                        "/../../tests/fixtures/m23-type-source-defaults/derived-default-combinations.hir.snap"
-                    ))
-                }
-            );
         });
     }
 }

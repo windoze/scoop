@@ -1,6 +1,0 @@
-unitDefault: DerivedEquality Universal
-tupleDefault: DerivedEquality Universal
-nestedDefault: DerivedEquality Universal
-Base.same: DerivedEquality Universal
-Child.same: DerivedEquality Universal
-Holder: DerivedEquality Universal

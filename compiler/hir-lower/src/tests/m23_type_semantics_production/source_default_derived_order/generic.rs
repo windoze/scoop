@@ -94,15 +94,6 @@ fn open_default_equality_keeps_source_applications_and_exact_executable_bindings
                 ));
             }
         }
-        let snapshot = format!(
-            "open applications: {open}\nexact applications (nominal, tuple, Unit): {exact}\nopen-only functions: {open_only}\n"
-        );
-        assert_eq!(
-            snapshot,
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-type-source-defaults/derived-generic-defaults.hir.snap"
-            ))
-        );
+        assert_eq!((open, exact, open_only), (3, 3, 1));
     });
 }
