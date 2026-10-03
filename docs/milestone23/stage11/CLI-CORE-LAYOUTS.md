@@ -35,3 +35,4 @@
 | `shared_ordinary_lir_bridges_replay_source_gc_and_layout_abis` | `shared-ordinary-standalone`、`shared-ordinary-combined` | 4／16 | 逐字相同 |
 | `shared_initialization_abi_replays_the_protocol_role_and_complete_layout_contract` | `shared-init-abi-standalone`、`shared-init-abi-combined` | 4／16 | 逐字相同 |
 | `shared_strong_digests_replay_complete_runtime_registration_roles` | `shared-digests-standalone`、`shared-digests-combined` | 4／16 | 逐字相同 |
+| `shared_strong_reader_replays_complete_sections_from_actual_artifact_bytes` | `shared-production-standalone`、`shared-production-combined` | 4／16 | 逐字相同 |
