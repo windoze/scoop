@@ -1,0 +1,84 @@
+Module
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$reference0 type=function_type4 invoke=@fn6 captures=0
+    bridge function_type3 -> @fn7 id=f48b4e68aa1c43f71d47a4f7526f038ed31599a94c3c0d774ec0b29c4cbc5680
+  generated_exact_type get0 location=closure0 nominal_id=516d607f291c154e0d8e5d1170ac4640975085f9715b0b78f04c2b80f40cacf3 exact_id=a80ef4d834b398f4f58a5e605a4b2fd889dfe9f9c89b356124254d8055e7c694
+  generated_exact_type get1 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn7 id=f48b4e68aa1c43f71d47a4f7526f038ed31599a94c3c0d774ec0b29c4cbc5680
+  fun advance @fn0(value: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun plain @fn1(value: Int, next: () -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local next
+      return
+        Type Int
+        Local $call.1
+  fun reference @fn2(value: Int, next: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local next
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun readAny @fn3(value: Any) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun reader @fn4() -> (Any) -> Int
+    bb0 entry
+      return
+        Type (Any) -> Int
+        ClosureAlloc cc0 $Closure$reference0
+  fun coerced @fn5(value: Int, next: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local next
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  fun $reference.0 @fn6($closure: (Any) -> Int, arg0: Any) -> Int
+    bb0 entry
+      call $call.1: Int = @fn3 direct
+        Type Any
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn7($source: (Any) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type4> closure[function_type4]
+        Type (Any) -> Int
+        Local $source
+        Type Any
+        Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  output library

@@ -1,0 +1,38 @@
+SourceFile
+  QualifiedPackage upstream.defaults
+  public fun advance(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 2
+  public fun plain(value: Int = <expr>, next: () -> Int = <expr>): Int
+    =
+      Call next
+  public fun reference(value: Int = <expr>, next: (Int) -> Int = <expr>): Int
+    =
+      Call next
+        Var value
+  private fun readAny(value: Any): Int
+    =
+      IntLiteral 42
+  public fun reader(): (Any) -> Int
+    =
+      CallableReference 1 readAny
+  public fun coerced(value: Int = <expr>, next: (Int) -> Int = <expr>): Int
+    =
+      Call next
+        Var value
+  public fun generic<T>(value: T, next: () -> T = <expr>): T
+    =
+      Call next
+  public fun anonymous<T>(value: T, next: () -> T = <expr>): T
+    =
+      Call next
+  public fun nested<T>(value: T, next: () -> T = <expr>): T
+    =
+      Call next
+  public fun chained<T>(value: T, first: () -> T = <expr>, second: () -> T = <expr>): T
+    =
+      Call second
+  public class Box<T>(val value: T, val read: () -> T = <expr>)
+    public fun select

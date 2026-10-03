@@ -1,3 +1,0 @@
-span=40..46
-expression=second
-unknown variable `second`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation
