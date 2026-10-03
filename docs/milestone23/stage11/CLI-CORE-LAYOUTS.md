@@ -38,3 +38,4 @@
 | `shared_strong_reader_replays_complete_sections_from_actual_artifact_bytes` | `shared-production-standalone`、`shared-production-combined` | 4／16 | 逐字相同 |
 | `property_initialization_uses_close_source_mir_lir_and_both_artifact_views` | `property-initialization-provider` | 2／8 | 逐字相同 |
 | `ordinary_library_exports_members_with_available_machine_signatures` | `ordinary` | 2／8 | 原内部断言通过；完整阶段输出保留到 CLI |
+| `ordinary_bridge_replays_real_dependency_function_and_getter_calls` | `ordinary-consumer` | 2／8 | 原内部断言通过；完整阶段输出保留到 CLI |
