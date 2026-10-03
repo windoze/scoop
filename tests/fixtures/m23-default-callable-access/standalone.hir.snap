@@ -1,8 +1,0 @@
-Module
-  fun callableSeed(): Int
-    return
-      IntegerLiteral 5 : Int
-  fun callableDefault<T>(value: Int): Int
-    return
-      Local value : Int
-  output library

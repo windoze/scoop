@@ -1,6 +1,0 @@
-Module
-  struct AccessToken
-  fun accessToken(value: AccessToken): AccessToken
-    return
-      Local value : AccessToken
-  output library

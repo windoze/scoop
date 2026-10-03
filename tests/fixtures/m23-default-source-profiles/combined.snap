@@ -1,5 +1,0 @@
-Base.inherited[0]: ParamFree inherited=false
-Child.inherited[0]: ParamFree inherited=true
-Choice.variant1[1]: GenericSourceMetadata inherited=false
-Envelope.ProtectedStatic.confined[0]: GenericSourceMetadata inherited=false
-Envelope.PublicStatic.exposed[0]: ParamFree inherited=false

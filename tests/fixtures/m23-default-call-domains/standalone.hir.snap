@@ -1,4 +1,0 @@
-Module
-  interface DomainSeed<T>
-    fun choose(seed: T0, value: T0): T0
-  output library
