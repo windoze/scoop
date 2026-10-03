@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  enum Signal
+    Idle
+    Pair(Int, Boolean)
+    Named <named>
+      count: Int
+      ready: Boolean
+    Defaulted <ctor>
+      count: Int = <expr>
+  fun consume(value: Signal)
+  fun main()
+    Call consume
+      MethodCall Pair
+        Var Signal
+        IntLiteral 1
+        BoolLiteral true
+    Call consume
+      MethodCall Defaulted
+        Var Signal

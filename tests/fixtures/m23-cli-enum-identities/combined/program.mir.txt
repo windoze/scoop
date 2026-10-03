@@ -1,0 +1,76 @@
+Module
+  struct Stamp ()
+  enum Bundle
+    Empty()
+    Record(data: Envelope<Int>, stamp: Stamp)
+    Text(_1: Envelope<String>)
+  enum Envelope<Int>
+    Absent()
+    Present(payload: Int, revision: Int)
+  enum Envelope<String>
+    Absent()
+    Present(payload: String, revision: Int)
+  fun inspect @fn0(value: Bundle, first: Envelope<Int>, second: Envelope<String>) -> Unit
+    bb0 entry
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Bundle
+        Type Bundle
+        VariantConstruct Bundle v0
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.payload: Int
+        Type Int
+        Local $argument.0
+      val $parameter.revision: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $argument.1: Envelope<Int>
+        Type Envelope<Int>
+        VariantConstruct Envelope<Int> v1
+          Type Int
+          Local $parameter.payload
+          Type Int
+          Local $parameter.revision
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.payload: String
+        Type String
+        Local $argument.0
+      val $parameter.revision: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $argument.2: Envelope<String>
+        Type Envelope<String>
+        VariantConstruct Envelope<String> v1
+          Type String
+          Local $parameter.payload
+          Type Int
+          Local $parameter.revision
+      val $parameter.value: Bundle
+        Type Bundle
+        Local $argument.0
+      val $parameter.first: Envelope<Int>
+        Type Envelope<Int>
+        Local $argument.1
+      val $parameter.second: Envelope<String>
+        Type Envelope<String>
+        Local $argument.2
+      call @fn0 direct
+        Type Bundle
+        Local $parameter.value
+        Type Envelope<Int>
+        Local $parameter.first
+        Type Envelope<String>
+        Local $parameter.second
+      return
+  fun ctor.Stamp.$c0 @fn2() -> Stamp <no-gc>
+    bb0 entry
+      return
+        Type Stamp
+        StructInit Stamp
+  str @str0 "text"
+  output executable @fn1
