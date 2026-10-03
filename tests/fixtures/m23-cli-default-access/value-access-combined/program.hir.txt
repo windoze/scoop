@@ -57,7 +57,7 @@ Module
     val local15
       Call external #1 : Int
     val local16
-      Call external #2 : Int
+      MethodCall external #2 : Int
         SingletonValue external 6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992 : AccessRegistry
     val local17
       Local $default.local.9 : Int
@@ -128,7 +128,7 @@ Module
     val local39
       Call external #1 : Int
     val local40
-      Call external #2 : Int
+      MethodCall external #2 : Int
         SingletonValue external 6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992 : AccessRegistry
     val local41
       Local $default.local.9 : Int
@@ -201,7 +201,7 @@ Module
     val local64
       Call external #1 : Int
     val local65
-      Call external #2 : Int
+      MethodCall external #2 : Int
         SingletonValue external 6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992 : AccessRegistry
     val local66
       Local $default.local.9 : Int
@@ -341,7 +341,7 @@ Module
     val local111
       Call external #1 : Int
     val local112
-      Call external #2 : Int
+      MethodCall external #2 : Int
         SingletonValue external 6f2f86c1ae28c033fc555e5631274973fe9865ceb2d57be79ead3af1844b1992 : AccessRegistry
     val local113
       Local $default.local.9 : Int

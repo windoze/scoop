@@ -22,4 +22,8 @@ golden／7 个产物指纹**，两项 Rust 测试通过。
 同时复验其余五个默认操作组合，已有 76 份 golden 完全相同；唯一已有文本
 变化是静态嵌套成员在 Export HIR 中从 Call 恢复为 MethodCall，MIR/LIR 不变。
 新增的十份 golden 来自此前失败用例缺少的程序阶段和链接计划。
+
+继续复验 `m23-cli-default-access/value-access-combined`，四处单例默认成员
+调用在 Export HIR 中同样恢复为 MethodCall；其余阶段与产物指纹不变。
+同步该文本预期后，用例只读通过 6 进程、9 份 golden、3 个指纹。
 本记录只覆盖本项修复，不代表 M23-11 全仓验收完成。
