@@ -1,0 +1,8 @@
+# M23-11 源码派发的正式 CLI 覆盖
+
+每例先以原 coordinate 和 logical source path 独立发布原始源码，再在临时工作副本内加入合法 owner 观察入口，发布产物供下游使用；原始 fixture 不变。每例保留原始 provider、补充入口后的 provider 和下游程序的完整 AST／HIR／MIR／LIR，以及正式链接计划与四份产物指纹。移走源码后独立链接，普通与 moving GC 均运行。
+
+| 功能 | 用例 | 只读进程／golden／指纹 | 保留的语义验证 |
+| --- | --- | --- | --- |
+| Suspend 与普通 callable 组合 | `callables`、`protected-callables` | 14／26／8 | unsafe、infix、operator、protected 与泛型调用；实际跨 Cone suspend 运行，见 [修复记录](CLI-SUSPEND-MEMBERS.md) |
+| 虚表与接口 | `virtual`、`interfaces` | 14／26／8 | 父虚表前缀、final override、protected accessor、菱形接口顺序、默认方法及 class／object／struct／enum 表；保留 typed slot 与 wire roundtrip，删除两份专用摘要快照 |

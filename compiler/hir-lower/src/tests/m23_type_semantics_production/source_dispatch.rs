@@ -61,13 +61,6 @@ fn source_vtable_keeps_base_prefix_final_override_and_protected_accessors() {
             singleton.slot_schemas().get(role).unwrap().slots(),
             derived_slots
         );
-        assert_eq!(
-            render(output, &inventory),
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-type-source-dispatch/virtual.scoop.snap"
-            ))
-        );
         roundtrip(output, &inventory);
     });
 }
@@ -109,13 +102,6 @@ fn source_interface_order_matches_concrete_diamond_override_and_value_tables() {
                 }
             }
         }
-        assert_eq!(
-            render(output, &inventory),
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../tests/fixtures/m23-type-source-dispatch/interfaces.scoop.snap"
-            ))
-        );
         roundtrip(output, &inventory);
     });
 }
