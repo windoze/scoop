@@ -10,3 +10,4 @@
 | 方法／属性 override 不得收窄已扩大的公开槽 | `error-protected-override-public` | 2／0 |
 | object／companion 的实际基类及 protected receiver | `object-protected`、`error-object-protected-receiver` | 7／5 |
 | 私有 accessor、接口正文和 setter 参数类型 | `private-property-accessors`、`error-private-abstract-property`、`error-interface-property-write-type` | 9／5 |
+| 嵌套词法域和私有 setter | `protected-lexical-scopes`、`error-protected-lexical-scopes` | 7／5 |
