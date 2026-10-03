@@ -24,3 +24,5 @@ load/store 使用该关联；未知写入、调用和 GC 站点使可取地址�
 对既有默认值、受保护域和默认操作的复验未发现本项改动引起的已有
 MIR/LIR 差异；闭包引用及继承 receiver 修复涉及的 HIR 预期另行同步。
 本记录不代表 M23-11 全仓验收完成。
+
+全仓复验另覆盖已有 `core-operations-const-operators` 与 `shared-native-calls-context`。两项的 AST／HIR／MIR 不变，LIR 各只移除一处已知布尔条件的死分支：前者的 `Not true` 直接选择 else，后者的 `true` 直接选择 then。原函数身份、返回值和其余指令保留；仅同步两份 LIR golden 及 const-operators 的实际 program artifact 指纹，运行和诊断期望不变。

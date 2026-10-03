@@ -189,10 +189,7 @@ Module
   block if.merge.25
     store true -> local40
     t24 = Not local40 : i1
-    cbr t24 then @if.then.26 else @if.else.27
-  block if.then.26
-    store true -> local42
-    br @if.merge.28
+    br @if.else.27
   block if.else.27
     store true -> local41
     t25 = Not local41 : i1
