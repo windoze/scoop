@@ -64,3 +64,4 @@ MIR/LIR golden 保留。
 | 初始化与普通 core 调用 | `initialization-call`、`initialization-combined` | 2／10／10 |
 | 常量与普通 core 调用组合 | `constant-combinations` | 1／5／5 |
 | 整数默认参数组合 | `integer-defaults` | 1／5／5 |
+| 托管整数默认值的异常布局 | `integer-exception` | 1／5／5 |
