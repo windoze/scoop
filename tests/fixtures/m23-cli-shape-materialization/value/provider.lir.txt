@@ -6,6 +6,13 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Payload> tagged size=16 align=8 variants=(struct0)@8+4 ()@8+0
   enum CoroutineSlot<Payload> tagged size=16 align=8 variants=()@8+0 (struct0)@8+4
+  fun @scoop$1$cb$3fe48660042b99ab9319af9298b9dc10124e07b76edcb081c5914bf72d72f140(indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    t0 = extract param0, 0 : i32
+    t1 = extract param1, 0 : i32
+    t2 = integer_compare_Equal<Int> t0, t1 : i1
+    ret t2
   fun @scoop$1$cb$23a35694addc288847bcb76cd1bd68f4b00e05de206f4c5df3d43bf799e354ea(ptr<managed>, indirect<struct0 size=4 align=4 scan=none>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]

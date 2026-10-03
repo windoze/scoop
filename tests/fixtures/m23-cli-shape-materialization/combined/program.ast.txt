@@ -1,0 +1,59 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call Combined
+        IntLiteral 17
+        StringLiteral "payload"
+    val alias: Again
+      Var value
+    val marker: Marker
+      Var value
+    Call verifyType
+      Binary And
+        Binary And
+          Binary Eq
+            FieldAccess value
+              Var alias
+            IntLiteral 17
+          Binary Eq
+            FieldAccess tag
+              Var marker
+            IntLiteral 7
+        Binary Eq
+          FieldAccess tag
+            Var value
+          IntLiteral 7
+    Call verifyType
+      Binary Eq
+        FieldAccess label
+          Call held
+            Call holder
+              Var value
+        StringLiteral "payload"
+    val choice
+      MethodCall Item
+        Var Choice
+        Var value
+    Call verifyType
+      WhenExpression
+        Var choice
+        arm None
+          BoolLiteral false
+        arm Item(payload)
+          Binary Eq
+            Var payload
+            Var value
+    val erased: Any
+      Var choice
+    Call verifyType
+      Binary Eq
+        Cast Choice optional=false
+          Var erased
+        Var choice

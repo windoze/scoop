@@ -1,0 +1,13 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = Combined(17, "payload")
+    val alias: Again = value
+    val marker: Marker = value
+    verifyType(alias.value == 17 && marker.tag == 7 && value.tag == 7)
+    verifyType(held(holder(value)).label == "payload")
+    val choice = Choice.Item(value)
+    verifyType(when (choice) { None -> false; Item(payload) -> payload == value })
+    val erased: Any = choice
+    verifyType((erased as Choice) == choice)
+}

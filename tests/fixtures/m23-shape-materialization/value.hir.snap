@@ -1,5 +1,0 @@
-Module
-  struct Payload
-    field0 value: Int
-    property0 val value: Int getter0=storage <stored struct0-field0>
-  output library

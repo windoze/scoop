@@ -5,3 +5,6 @@
 | 功能 | 用例 | 只读进程／golden／指纹 | 覆盖和旧 infra 清理 |
 | --- | --- | --- | --- |
 | 隐式异常布局 | `runtime-layout-gates` 六例 | 36／54／18 | 成功／失败转换、实际 ClassCastException、除零 ArithmeticException、默认实参启用与显式实参抑制；六份原 MIR 逐字相同，删除旧文件编排模块 |
+| 名义形状物化 | `shape-materialization` 两例 | 13／22／7 | 值、class、enum、接口默认属性、alias、装箱；保留实际产物的 1／4 个 root、1／2 个 box 及六种支持角色断言，三阶段重复编译收敛为一次生产读取 |
+
+形状物化快照审阅：两例原 Export HIR 全文相同，新 HIR 同时显示 LocalConcrete 与 CrossCone。原 31 个 MIR 函数正文在统一函数 ID 后相同，新增 Payload／Combined／Choice 的既有派生 equality；LIR 只增加对应函数与更新函数引用编号。原逐 root 产物断言继续验证 layout、scan、descriptor、registration、coroutine step／slot，并将目标缺失改为明确失败。
