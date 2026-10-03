@@ -1,0 +1,10 @@
+SourceFile
+  QualifiedPackage consumer.leaf
+  ImportExact Local upstream.leaf.number
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    =
+      Call read
+        Var value
+  public fun result(): Int
+    =
+      Call number

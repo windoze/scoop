@@ -1,0 +1,25 @@
+SourceFile
+  QualifiedPackage consumer.leaf
+  ImportExact Local upstream.leaf.number
+  private object Cache
+    val answer: Int =
+      Call number
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    if
+      Binary Ne
+        FieldAccess answer
+          Var Cache
+        IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call read
+        Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        FieldAccess answer
+          Var Cache
+        Lambda 0 suspend=false
+          param value: _
+          Var value

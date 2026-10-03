@@ -381,3 +381,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `imported_coroutine_adapters_republish_and_execute` | `m23-coroutines` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
 | `imported_coroutine_lifecycle_republishes_and_executes` | `m23-coroutines` | 2／0 | 24／26 | 6 份阶段、0 份诊断逐项相同 |
 | `declaration_views_share_calls_and_reference_applicability` | `m23-shared-declaration-views` | 2／6 | 42／26 | 6 份阶段、6 份诊断逐项相同 |
+| `libraries_without_initialization_do_not_require_a_unit_result_record` | `m23-demanded-initialization` | 2／0 | 24／26 | 4 份阶段、0 份诊断逐项相同；combined 的私有 Cache 初始化诊断路径改为 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号、类型与指令逐字相同 |

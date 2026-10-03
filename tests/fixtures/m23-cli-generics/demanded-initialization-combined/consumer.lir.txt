@@ -5,7 +5,7 @@ Module
   global @scoop$1$bs$990d199890688860f239a0ce056108bad6a32d3d31e782d2dd650a8e9860fa0b = c"call to abstract method `Continuation.resumeWithException`"
   global @scoop$1$bs$aed45e9b0f6ba487a4007593ad73d02ef933d49a64c13c8adc21ae6ff8d7ed1f = c"call to abstract method `SuspendTask.run`"
   global @scoop$1$bs$89ef90fb882ec1f5e74347c5dadd5b0ff225f70b7e4ddc542c92d3688552a196 = c"call to abstract method `SuspendRegistration.register`"
-  init0 object-private:main.scoop:Cache lazy storage=@scoop$1$ss$713b7f562a9f38f4fef5c9f2a7494932a53608cecb28e5963f4d67aebfc20286 failure=@scoop$1$ss$416123b562df4147caba3bab68d0ca5ba97939dbfe1a2f5ac64558c69e085663 initializer=@scoop$1$cb$e1449d6d2e5ed2efbcca0c4f04647316937afcdb0fe7698fbfe82c142ac68e5d ensure=@scoop$1$cb$97b26cfd0b925d9fdf9d4c71dd876c4bdb9aeb45f87af0288f2c799195d257e5 deps=[]
+  init0 object-private:dev.example:generic-member-combined:0.1.0/src/main.scoop:Cache lazy storage=@scoop$1$ss$713b7f562a9f38f4fef5c9f2a7494932a53608cecb28e5963f4d67aebfc20286 failure=@scoop$1$ss$416123b562df4147caba3bab68d0ca5ba97939dbfe1a2f5ac64558c69e085663 initializer=@scoop$1$cb$e1449d6d2e5ed2efbcca0c4f04647316937afcdb0fe7698fbfe82c142ac68e5d ensure=@scoop$1$cb$97b26cfd0b925d9fdf9d4c71dd876c4bdb9aeb45f87af0288f2c799195d257e5 deps=[]
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Cache> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Cache> niche(kind=managed,payload_variant=1)
