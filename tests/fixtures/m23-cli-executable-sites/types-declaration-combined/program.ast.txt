@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Ne
+        Call declarationRead
+        StringLiteral "storage"
+      throw
+        Call IllegalStateException
+    assign declarationStorage
+      StringLiteral "changed"
+    if
+      Binary Ne
+        Call declarationRead
+        StringLiteral "changed"
+      throw
+        Call IllegalStateException

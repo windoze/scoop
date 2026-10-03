@@ -1,0 +1,5 @@
+Module
+  fun onlySignature @fn0(unused: Any) -> Unit
+    bb0 entry
+      return
+  output library

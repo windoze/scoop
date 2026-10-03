@@ -1,0 +1,20 @@
+Module
+  class box<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class0 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Any
+        Type Any
+        Box
+          Type Int
+          IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.unused: Any
+        Type Any
+        Local $dependency.argument.0
+      call external0 direct
+        Type Any
+        Local $dependency.parameter.unused
+      return
+  output executable @fn0

@@ -12,3 +12,4 @@
 | 功能 | 正式 CLI 用例 | 进程／golden |
 | --- | --- | --- |
 | 表达式类型位置、定义来源与未展开默认值 | `types-standalone`、`types-combined`、`types-type-test` | 20／35 |
+| 完整签名、局部值与声明类型位置 | `types-declaration-standalone`、`types-declaration-combined` | 14／26 |

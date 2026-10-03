@@ -1,0 +1,101 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      call $dependency.receiver: String = external0 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.2
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.2
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.2
+    bb2 if.merge.2
+      call external3 direct
+        Type String
+        StringConst @str2
+      call $dependency.receiver: String = external0 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.3: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
+    bb3 if.then.3
+      val $default.local.0: String
+        Type String
+        StringConst @str4
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.4
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external2 direct
+        Type IllegalStateException
+        Local $new.4
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.4
+    bb4 if.merge.4
+      return
+  str @str0 "storage"
+  str @str1 "illegal state"
+  str @str2 "changed"
+  str @str3 "changed"
+  str @str4 "illegal state"
+  output executable @fn0
