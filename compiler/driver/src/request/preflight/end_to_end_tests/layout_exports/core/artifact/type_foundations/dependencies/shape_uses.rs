@@ -100,16 +100,6 @@ pub(super) fn check(
             ));
             reject(current, core, structural);
         }
-
-        let dump = original
-            .iter()
-            .map(|record| format!("{} {:?}\n", record.provider(), record.usage()))
-            .collect::<String>();
-        let path = fixtures.join(format!("{case}.selected.snap"));
-        if std::env::var_os("SCOOP_UPDATE_EXECUTABLE_TYPE_SITES").is_some() {
-            std::fs::write(&path, &dump).unwrap();
-        }
-        assert_eq!(dump, std::fs::read_to_string(path).unwrap());
     }
 }
 

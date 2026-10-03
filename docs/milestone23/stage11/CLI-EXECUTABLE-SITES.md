@@ -20,3 +20,7 @@
 | 泛型／可选 cast、默认值展开及异常 | `types-casts`、`types-ordinary-cast-default` | 11／14 |
 | 不活跃默认值与未实例化泛型不选择机器正文 | `callables-standalone`、`callables-uninstantiated` | 16／34 |
 | 实际求值、re-export 路由、闭包和初始化调用 | `callables-evaluated`、`callables-routes`、`callables-metadata` | 24／51 |
+
+十五份旧快照及其 dump／更新／比较代码已删除，原源码保持。callable 测试保留 HIR concrete、MIR／LIR selected、Link imports、默认模板、八处实际调用及定义／求值来源的精确检查；类型测试保留声明用途、构造上下文、显式 checked type 和 shape 错误输入检查。必需 host target 不可用时，原 callable 内部测试现在明确失败，不再提前返回计作通过。
+
+清理后的格式化与完整 lint 通过；两个 driver producer／reader 测试和十个 HIR 类型／cast 测试均通过；19 项 CLI 已在关闭更新开关的条件下重新运行通过。本记录不代表 M23-11 的全仓验收已经完成。

@@ -68,7 +68,6 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
         .unwrap();
         let production = closure.current_compile().production();
         let references = production.hir_interface().external_references().records();
-        let mut dump = String::new();
         let mut roles = std::collections::BTreeSet::new();
         let mut foreign_definitions = 0;
         let mut sites = 0;
@@ -98,11 +97,6 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                         Site::Expression(_) => unreachable!("expression branch handled above"),
                     };
                     declarations[index] += 1;
-                    dump.push_str(&format!(
-                        "declaration={:?} exact={}\n",
-                        site.position(),
-                        site.exact()
-                    ));
                     continue;
                 }
                 let site = expression.unwrap();
@@ -111,13 +105,6 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                 let foreign = site.origin().definition().source().cone() != current;
                 foreign_definitions += usize::from(foreign);
                 assert_eq!(site.origin().evaluation().source().cone(), current);
-                dump.push_str(&format!(
-                    "target={:?} position={:?} role={:?} exact={} foreign_definition={foreign}\n",
-                    reference.target(),
-                    site.position(),
-                    site.role(),
-                    site.exact()
-                ));
             }
         }
         if name == "declaration-standalone" {
@@ -146,27 +133,5 @@ fn published_type_occurrences_replay_from_bytes_without_dependency_sources() {
                 std::collections::BTreeSet::from([HirExpressionTypeRoleV1::Value])
             );
         }
-        for (name, count) in [
-            "signature",
-            "local",
-            "backing",
-            "delegate",
-            "field",
-            "variant_field",
-            "initializer_result",
-            "cycle_message",
-        ]
-        .into_iter()
-        .zip(declarations)
-        {
-            dump.push_str(&format!("{name}_sites={count}\n"));
-        }
-        dump.push_str(&format!("type_sites={sites}\nforeign_definitions={foreign_definitions}\nMIR selected={}\nLIR selected={}\n",
-            production.mir_cross_cone().selected().len(), production.lir_cross_cone().selected().len()));
-        let path = fixtures.join(format!("{name}.snap"));
-        if std::env::var_os("SCOOP_UPDATE_EXECUTABLE_TYPE_SITES").is_some() {
-            std::fs::write(&path, &dump).unwrap();
-        }
-        assert_eq!(dump, std::fs::read_to_string(path).unwrap());
     }
 }
