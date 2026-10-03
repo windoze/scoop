@@ -21,5 +21,11 @@
 这轮 118 份 golden 中，105 份完全相同，10 份属于原先失败后未能产生的
 程序阶段与链接计划，3 份 HIR 只删除上述重复类型引用。
 
-常量条件在 LLVM statepoint 改写时暴露的另一处 CFG 问题保留为独立回归，
-不属于本项修复。本记录不代表 M23-11 全仓验收完成。
+继续复验 `default-preparation/capture-combinations` 与
+`source-defaults/nested-identities`，三份 HIR 各删除一个同类的 String 捕获
+重复引用，AST/MIR/LIR 与链接计划不变。同步三个受影响的产物指纹后，两项
+用例只读通过 11 进程、14 份 golden、5 个指纹。
+
+常量条件在 LLVM statepoint 改写时暴露的另一处 CFG 问题由
+[常量分支修复](CLI-CONSTANT-BRANCHES.md) 单独处理。
+本记录不代表 M23-11 全仓验收完成。

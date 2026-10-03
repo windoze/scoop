@@ -43,7 +43,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "bdf0a599416f11f34fa41f66b5d0805a977a6bf06860b8c6a9e45dd22fa35d72"},
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "378bdfc7fc8e13a26c748005917c497f68a2332e26af3653f79df70084289fd2"},
   {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
   {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
