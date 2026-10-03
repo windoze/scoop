@@ -9,7 +9,6 @@ mod members;
 mod native_addresses;
 mod nominals;
 mod options;
-mod publication;
 mod qualified_types;
 mod rebuilt_core;
 mod siblings;

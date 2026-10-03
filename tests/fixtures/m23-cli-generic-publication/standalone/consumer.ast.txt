@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.generics.identity
+  public fun primitive(): Int
+    =
+      Call identity
+        IntLiteral 40

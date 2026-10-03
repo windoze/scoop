@@ -1,0 +1,42 @@
+SourceFile
+  RootPackage
+  ImportExact Local primitive
+  ImportExact Local localValue
+  ImportExact Local relay
+  ImportExact Local relayValue
+  ImportExact Local recovery
+  ImportExact Local defaultValue
+  public fun check(): Int
+    if
+      Binary Ne
+        Call primitive
+        IntLiteral 41
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call localValue
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call relayValue
+        IntLiteral 43
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call recovery
+        IntLiteral 44
+      return
+        IntLiteral 4
+    if
+      Binary Ne
+        Call defaultValue
+        IntLiteral 45
+      return
+        IntLiteral 5
+    return
+      Call relay
+        IntLiteral 42
