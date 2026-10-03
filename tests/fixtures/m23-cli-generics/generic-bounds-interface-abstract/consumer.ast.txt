@@ -1,0 +1,23 @@
+SourceFile
+  QualifiedPackage consumer.bounds
+  ImportStar Local templates.bounds.*
+  public fun exercise<T>(value: T): Int
+    val receiver: AbstractReader<T>
+      Call ActualReader<T>
+        Var value
+    if
+      Binary Ne
+        Call readBound
+          Var receiver
+        IntLiteral 42
+      return
+        IntLiteral 1
+    val read
+      Call readReference
+        Var receiver
+    return
+      Call read
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

@@ -1,26 +1,4 @@
 #[test]
-fn generic_bound_calls_and_references_republish_and_execute() {
-    super::members::check_fixture_cases(
-        "m23-generic-bounds",
-        &[
-            "virtual",
-            "generic-virtual",
-            "generic-interface",
-            "generic-interface-default",
-            "interface-receiver",
-            "interface-default",
-            "interface-enum",
-            "interface-abstract",
-            "local-conformance",
-            "source-bounds",
-            "defaults",
-        ],
-        &[],
-        "downstream",
-    );
-}
-
-#[test]
 fn generic_bound_constraints_reject_invalid_calls_and_declarations() {
     super::members::check_fixture_cases(
         "m23-generic-bounds",
