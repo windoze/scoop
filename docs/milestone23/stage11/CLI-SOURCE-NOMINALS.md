@@ -15,6 +15,7 @@
 | `properties` | 泛型 getter/setter、接口默认属性、私有常量、静态嵌套类型与 object 状态 | 7／13／4 |
 | `c-layout-single` | 独立 CLayout 属性、字段读取与结构相等 | 7／13／4 |
 | `c-layout` | packed/aligned 嵌套布局、泛型 CLayout、保护域中的布局与结构相等 | 7／13／4 |
+| `roots` | 嵌套支持声明闭包、父接口视图、值类型与不同 object identity | 7／13／4 |
 
 表中各项只读通过。声明组合发现的实际覆盖检查顺序问题由
 [多文件继承修复](CLI-INHERITANCE-ORDER.md) 单独处理。
