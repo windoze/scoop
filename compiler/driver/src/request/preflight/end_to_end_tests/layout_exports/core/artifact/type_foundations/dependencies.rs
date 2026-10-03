@@ -7,7 +7,6 @@ mod decoded;
 mod defaults;
 mod dispatch;
 mod protected;
-mod protocols;
 mod selections;
 mod shape_uses;
 use decoded::DecodedTypes;
@@ -59,34 +58,10 @@ pub(in super::super) fn check(core: CheckedSharedTypeFoundationV1<'_>) {
     assert!(
         matches!(provider.check(&[core, core]), Err(Error::DuplicateProvider(provider)) if provider == core.provider())
     );
-    let mut dump = format!("provider={}\n", checked_provider.provider());
-    for fact in checked_provider.facts().records() {
-        dump.push_str(&format!(
-            "fact {} {:?} {:?}\n",
-            fact.exact(),
-            fact.kind(),
-            fact.gc()
-        ));
-    }
-    for record in checked_provider.section().inheritance().records() {
-        dump.push_str(&format!(
-            "inheritance {} {:?} {:?} {:?}\n",
-            record.owner(),
-            record.edges().modality(),
-            record.edges().direct_base(),
-            record.edges().direct_interfaces()
-        ));
-    }
-    let snapshot = fixtures.join("provider.snap");
-    if std::env::var_os("SCOOP_UPDATE_SHARED_TYPE_FOUNDATIONS").is_some() {
-        std::fs::write(&snapshot, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
     constructors::check(core, directory.path(), &target, &fixtures);
     dispatch::check(core, directory.path(), &target, &fixtures);
     selections::check(core, directory.path(), &target, &fixtures);
     protected::check(core, directory.path(), &target, &fixtures);
-    protocols::check(core, directory.path(), &target, &fixtures);
     defaults::check(core, directory.path(), &target, &fixtures);
     shape_uses::check(core, directory.path(), &target);
 }

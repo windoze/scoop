@@ -6,11 +6,10 @@ use hir::{
     InheritanceSlotContractV1, InheritanceSlotImplementationV1 as Implementation,
     InheritanceSlotTargetV1, NominalInheritanceInterfaceV1,
 };
-use scoop_identity::{CallableTemplateOrigin, SourceDeclarationKey};
+use scoop_identity::CallableTemplateOrigin;
 
 mod claims;
 mod shared;
-mod snapshot;
 
 pub(super) fn check(
     core: CheckedSharedTypeFoundationV1<'_>,
@@ -34,12 +33,6 @@ pub(super) fn check(
 
         claims::check(checked, core);
         shared::check(checked, core);
-        let dump = snapshot::render(checked);
-        let golden = fixtures.join(format!("{case}.snap"));
-        if std::env::var_os("SCOOP_UPDATE_SHARED_TYPE_FOUNDATIONS").is_some() {
-            std::fs::write(&golden, &dump).unwrap();
-        }
-        assert_eq!(dump, std::fs::read_to_string(golden).unwrap());
     }
 }
 

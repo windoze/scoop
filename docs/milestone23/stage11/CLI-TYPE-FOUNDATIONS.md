@@ -15,3 +15,5 @@
 | protected declarations | `protected-sources` | 3／8 |
 | parameter protocols | `source-protocols` | 3／8 |
 | inherited source defaults | `source-defaults`、`default-combinations` | 6／16 |
+
+旧十份摘要及其 snapshot 写入／比较 helper 已删除。只承担旧快照比较的 parameter protocol 入口和 selection 格式化模块一并退役；constructor 源码的正式编译和下游调用由 CLI 用例覆盖，原 inherited member corruption 单元检查保留。包含这些 reader 断言的 `actual_core_sources_produce_closed_mir_and_lir_export_tables` 已在删除后、关闭更新开关的条件下运行通过。
