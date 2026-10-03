@@ -1,0 +1,547 @@
+Module
+  struct Widths (i8: Int8, i16: Int16, i32: Int, i64: Long, u8: UInt8, u16: UInt16, u32: UInt, u64: ULong)
+  struct Empty ()
+  struct Packet (meta: (Boolean, Unit), message: String, empty: Empty)
+  struct NothingStored (pair: (Empty, Unit))
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Result
+    Ready(_0: Packet)
+    Missing()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Holder vtable=0 itables=0
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $dependency.argument.1: Int16
+        Type Int16
+        IntegerLiteral Int16 value=2 bits=0x0002
+      val $dependency.argument.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.argument.3: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $dependency.argument.4: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=5 bits=0x05
+      val $dependency.argument.5: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=6 bits=0x0006
+      val $dependency.argument.6: UInt
+        Type UInt
+        IntegerLiteral UInt value=7 bits=0x00000007
+      val $dependency.argument.7: ULong
+        Type ULong
+        IntegerLiteral ULong value=8 bits=0x0000000000000008
+      val $dependency.parameter.i8: Int8
+        Type Int8
+        Local $dependency.argument.0
+      val $dependency.parameter.i16: Int16
+        Type Int16
+        Local $dependency.argument.1
+      val $dependency.parameter.i32: Int
+        Type Int
+        Local $dependency.argument.2
+      val $dependency.parameter.i64: Long
+        Type Long
+        Local $dependency.argument.3
+      val $dependency.parameter.u8: UInt8
+        Type UInt8
+        Local $dependency.argument.4
+      val $dependency.parameter.u16: UInt16
+        Type UInt16
+        Local $dependency.argument.5
+      val $dependency.parameter.u32: UInt
+        Type UInt
+        Local $dependency.argument.6
+      val $dependency.parameter.u64: ULong
+        Type ULong
+        Local $dependency.argument.7
+      call widths: Widths = external1 direct
+        Type Int8
+        Local $dependency.parameter.i8
+        Type Int16
+        Local $dependency.parameter.i16
+        Type Int
+        Local $dependency.parameter.i32
+        Type Long
+        Local $dependency.parameter.i64
+        Type UInt8
+        Local $dependency.parameter.u8
+        Type UInt16
+        Local $dependency.parameter.u16
+        Type UInt
+        Local $dependency.parameter.u32
+        Type ULong
+        Local $dependency.parameter.u64
+      val $dependency.receiver: Int8
+        Type Int8
+        FieldAccess 0
+          Type Widths
+          Local widths
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=1 bits=0x01
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int8 result=Boolean
+          Type Int8
+          Local $dependency.receiver
+          Type Int8
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Int16
+        Type Int16
+        FieldAccess 1
+          Type Widths
+          Local widths
+      val $dependency.argument.0: Int16
+        Type Int16
+        IntegerLiteral Int16 value=2 bits=0x0002
+      val $dependency.parameter.other: Int16
+        Type Int16
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int16 result=Boolean
+          Type Int16
+          Local $dependency.receiver
+          Type Int16
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 2
+          Type Widths
+          Local widths
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 3
+          Type Widths
+          Local widths
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: UInt8
+        Type UInt8
+        FieldAccess 4
+          Type Widths
+          Local widths
+      val $dependency.argument.0: UInt8
+        Type UInt8
+        IntegerLiteral UInt8 value=5 bits=0x05
+      val $dependency.parameter.other: UInt8
+        Type UInt8
+        Local $dependency.argument.0
+      branch bb10 bb11
+        Type Boolean
+        IntegerCompare equal operands=UInt8 result=Boolean
+          Type UInt8
+          Local $dependency.receiver
+          Type UInt8
+          Local $dependency.parameter.other
+    bb10 if.then.10
+      val $dependency.receiver: UInt16
+        Type UInt16
+        FieldAccess 5
+          Type Widths
+          Local widths
+      val $dependency.argument.0: UInt16
+        Type UInt16
+        IntegerLiteral UInt16 value=6 bits=0x0006
+      val $dependency.parameter.other: UInt16
+        Type UInt16
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt16 result=Boolean
+          Type UInt16
+          Local $dependency.receiver
+          Type UInt16
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.3
+    bb13 if.then.13
+      val $dependency.receiver: UInt
+        Type UInt
+        FieldAccess 6
+          Type Widths
+          Local widths
+      val $dependency.argument.0: UInt
+        Type UInt
+        IntegerLiteral UInt value=7 bits=0x00000007
+      val $dependency.parameter.other: UInt
+        Type UInt
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=UInt result=Boolean
+          Type UInt
+          Local $dependency.receiver
+          Type UInt
+          Local $dependency.parameter.other
+      goto bb15
+    bb14 if.else.14
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb15
+    bb15 if.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $shortCircuit.4
+    bb16 if.then.16
+      val $dependency.receiver: ULong
+        Type ULong
+        FieldAccess 7
+          Type Widths
+          Local widths
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=8 bits=0x0000000000000008
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.receiver
+          Type ULong
+          Local $dependency.parameter.other
+      goto bb18
+    bb17 if.else.17
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb18
+    bb18 if.merge.18
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.5
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: (Boolean, Unit)
+        Type (Boolean, Unit)
+        TupleLiteral
+          Type Boolean
+          BoolLiteral true
+          Type Unit
+          UnitLiteral
+      val $dependency.argument.1: String
+        Type String
+        StringConst @str1
+      call $dependency.argument.2: Empty = external2 direct
+      val $dependency.parameter.meta: (Boolean, Unit)
+        Type (Boolean, Unit)
+        Local $dependency.argument.0
+      val $dependency.parameter.message: String
+        Type String
+        Local $dependency.argument.1
+      val $dependency.parameter.empty: Empty
+        Type Empty
+        Local $dependency.argument.2
+      call packet: Packet = external3 direct
+        Type (Boolean, Unit)
+        Local $dependency.parameter.meta
+        Type String
+        Local $dependency.parameter.message
+        Type Empty
+        Local $dependency.parameter.empty
+      branch bb19 bb20
+        Type Boolean
+        FieldAccess 0
+          Type (Boolean, Unit)
+          FieldAccess 0
+            Type Packet
+            Local packet
+    bb19 if.then.19
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 1
+          Type Packet
+          Local packet
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.6: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb21
+    bb20 if.else.20
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb21
+    bb21 if.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $shortCircuit.6
+    bb22 logic.rhs.22
+      call $call.2: Empty = external2 direct
+      call $call.3: Boolean = external10 direct
+        Type Empty
+        FieldAccess 2
+          Type Packet
+          Local packet
+        Type Empty
+        Local $call.2
+      assign $logic.1
+        Type Boolean
+        Local $call.3
+      goto bb24
+    bb23 logic.short.23
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb24
+    bb24 logic.merge.24
+      val $argument.0: Boolean
+        Type Boolean
+        Local $logic.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.4: Empty = external2 direct
+      val $dependency.argument.0: (Empty, Unit)
+        Type (Empty, Unit)
+        TupleLiteral
+          Type Empty
+          Local $call.4
+          Type Unit
+          UnitLiteral
+      val $dependency.parameter.pair: (Empty, Unit)
+        Type (Empty, Unit)
+        Local $dependency.argument.0
+      call $equality.lhs: NothingStored = external5 direct
+        Type (Empty, Unit)
+        Local $dependency.parameter.pair
+      call $call.5: Empty = external2 direct
+      val $dependency.argument.0: (Empty, Unit)
+        Type (Empty, Unit)
+        TupleLiteral
+          Type Empty
+          Local $call.5
+          Type Unit
+          UnitLiteral
+      val $dependency.parameter.pair: (Empty, Unit)
+        Type (Empty, Unit)
+        Local $dependency.argument.0
+      call $call.6: NothingStored = external5 direct
+        Type (Empty, Unit)
+        Local $dependency.parameter.pair
+      call $argument.0: Boolean = external9 direct
+        Type NothingStored
+        Local $equality.lhs
+        Type NothingStored
+        Local $call.6
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Packet
+        Type Packet
+        Local packet
+      val $dependency.parameter._1: Packet
+        Type Packet
+        Local $dependency.argument.0
+      val result: Result
+        Type Result
+        VariantConstruct Result v0
+          Type Packet
+          Local $dependency.parameter._1
+      val $when.1: Result
+        Type Result
+        Local result
+      val $pattern.subject.2: Result
+        Type Result
+        Local $when.1
+      branch bb25 bb26
+        Type Boolean
+        VariantTest Result v0
+          Type Result
+          Local $pattern.subject.2
+    bb25 pattern.pass.25
+      val value: Packet
+        Type Packet
+        VariantPayloadProject Result v0 f0
+          Type Result
+          Local $pattern.subject.2
+      call $call.7: Boolean = external8 direct
+        Type Packet
+        Local value
+        Type Packet
+        Local packet
+      assign $result.7
+        Type Boolean
+        Local $call.7
+      goto bb27
+    bb26 pattern.else.26
+      val $pattern.subject.3: Result
+        Type Result
+        Local $when.1
+      branch bb28 bb29
+        Type Boolean
+        VariantTest Result v1
+          Type Result
+          Local $pattern.subject.3
+    bb27 pattern.merge.27
+      val $argument.0: Boolean
+        Type Boolean
+        Local $result.7
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Holder = external6 direct
+      call $argument.0: Boolean = external7 direct
+        Type Holder
+        Local $dependency.receiver
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+    bb28 pattern.pass.28
+      assign $result.7
+        Type Boolean
+        BoolLiteral false
+      goto bb30
+    bb29 pattern.else.29
+      unreachable
+    bb30 pattern.merge.30
+      goto bb27
+  str @str0 "illegal state"
+  str @str1 "payload"
+  str @str2 "payload"
+  output executable @fn1

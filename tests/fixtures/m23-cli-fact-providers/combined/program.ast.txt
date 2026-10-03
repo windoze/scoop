@@ -1,0 +1,106 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val widths
+      Call Widths
+        IntLiteral 1
+        IntLiteral 2
+        IntLiteral 3
+        IntLiteral 4
+        IntLiteral 5u
+        IntLiteral 6u
+        IntLiteral 7u
+        IntLiteral 8u
+    Call verifyType
+      Binary And
+        Binary And
+          Binary And
+            Binary Eq
+              FieldAccess i8
+                Var widths
+              IntLiteral 1
+            Binary Eq
+              FieldAccess i16
+                Var widths
+              IntLiteral 2
+          Binary Eq
+            FieldAccess i32
+              Var widths
+            IntLiteral 3
+        Binary Eq
+          FieldAccess i64
+            Var widths
+          IntLiteral 4L
+    Call verifyType
+      Binary And
+        Binary And
+          Binary And
+            Binary Eq
+              FieldAccess u8
+                Var widths
+              IntLiteral 5u
+            Binary Eq
+              FieldAccess u16
+                Var widths
+              IntLiteral 6u
+          Binary Eq
+            FieldAccess u32
+              Var widths
+            IntLiteral 7u
+        Binary Eq
+          FieldAccess u64
+            Var widths
+          IntLiteral 8uL
+    val packet
+      Call Packet
+        TupleLiteral
+          BoolLiteral true
+          UnitLiteral
+        StringLiteral "payload"
+        Call Empty
+    Call verifyType
+      Binary And
+        Binary And
+          FieldAccess _1
+            FieldAccess meta
+              Var packet
+          Binary Eq
+            FieldAccess message
+              Var packet
+            StringLiteral "payload"
+        Binary Eq
+          FieldAccess empty
+            Var packet
+          Call Empty
+    Call verifyType
+      Binary Eq
+        Call NothingStored
+          TupleLiteral
+            Call Empty
+            UnitLiteral
+        Call NothingStored
+          TupleLiteral
+            Call Empty
+            UnitLiteral
+    val result
+      MethodCall Ready
+        Var Result
+        Var packet
+    Call verifyType
+      WhenExpression
+        Var result
+        arm Ready(value)
+          Binary Eq
+            Var value
+            Var packet
+        arm Missing
+          BoolLiteral false
+    Call verifyType
+      MethodCall read
+        Call holder

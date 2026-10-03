@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call FlagValue
+        BoolLiteral true
+        IntLiteral 17
+    Call verifyType
+      Binary And
+        FieldAccess enabled
+          Var value
+        Binary Eq
+          FieldAccess count
+            Var value
+          IntLiteral 17
+    Call verifyType
+      Binary Eq
+        Var value
+        Call FlagValue
+          BoolLiteral true
+          IntLiteral 17

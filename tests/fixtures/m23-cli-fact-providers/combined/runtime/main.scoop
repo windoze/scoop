@@ -1,0 +1,13 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val widths = Widths(1, 2, 3, 4, 5u, 6u, 7u, 8u)
+    verifyType(widths.i8 == 1 && widths.i16 == 2 && widths.i32 == 3 && widths.i64 == 4L)
+    verifyType(widths.u8 == 5u && widths.u16 == 6u && widths.u32 == 7u && widths.u64 == 8uL)
+    val packet = Packet((true, Unit), "payload", Empty())
+    verifyType(packet.meta._1 && packet.message == "payload" && packet.empty == Empty())
+    verifyType(NothingStored((Empty(), Unit)) == NothingStored((Empty(), Unit)))
+    val result = Result.Ready(packet)
+    verifyType(when (result) { Ready(value) -> value == packet; Missing -> false })
+    verifyType(holder().read())
+}
