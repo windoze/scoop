@@ -28,3 +28,4 @@
 | `shared_equality_replays_materialized_source_applications_and_default_only_keys` | `shared-equality-standalone`、`shared-equality-combined` | 4／16 | 逐字相同 |
 | `shared_initialization_units_replay_source_keys_and_complete_strong_pairs` | `shared-units-standalone`、`shared-units-combined` | 4／16 | 仅 combined 的 canonical 初始化显示名变化，详见上文 |
 | `shared_lir_layouts_replay_recursive_references_zst_and_base_prefixes` | `shared-layouts-standalone`、`shared-layouts-combined` | 4／16 | 逐字相同 |
+| `shared_lir_callable_abis_replay_zst_indirect_results_and_boxing_adjustments` | `shared-abi-standalone`、`shared-abi-combined` | 4／16 | 逐字相同 |
