@@ -1,0 +1,5 @@
+import checkCoreDependencyCalls
+
+fun main() {
+    if (checkCoreDependencyCalls() != 3) { throw IllegalStateException() }
+}

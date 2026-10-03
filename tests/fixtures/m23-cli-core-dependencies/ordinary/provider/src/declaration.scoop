@@ -1,0 +1,5 @@
+package dependency.api
+
+public object CallLog { public var count: Int = 0 }
+public fun run() { CallLog.count += 1 }
+public fun invocationCount(): Int = CallLog.count
