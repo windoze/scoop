@@ -1,6 +1,0 @@
-span=64..84
-expression=Pair { left: value }
-pattern does not list all fields of struct `Pair`; add `..` to ignore the rest
-span=115..120
-expression=value
-unknown variable `value`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation

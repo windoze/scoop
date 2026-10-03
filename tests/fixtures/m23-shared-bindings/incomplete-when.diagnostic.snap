@@ -1,5 +1,0 @@
-span=56..125
-expression=when (Pair<Int>(42, 0)) {
-    Pair(value, _) if (value == 42) -> 42
-}
-non-exhaustive when: missing pattern Pair { left: -2147483648, right: -2147483648 }; guarded arms do not contribute to exhaustiveness

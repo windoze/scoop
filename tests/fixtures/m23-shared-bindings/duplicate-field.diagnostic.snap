@@ -1,6 +1,0 @@
-span=84..88
-expression=left
-duplicate field `left` in pattern
-span=129..134
-expression=first
-unknown variable `first`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation
