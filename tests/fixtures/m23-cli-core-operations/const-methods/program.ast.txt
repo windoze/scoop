@@ -1,0 +1,49 @@
+SourceFile
+  RootPackage
+  ImportExact Local compared
+  ImportExact Local quotient
+  ImportExact Local remainder
+  ImportExact Local converted
+  ImportExact Local inverted
+  ImportExact Local shifted
+  ImportExact Local staticValue
+  fun main()
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Or
+                Binary Or
+                  Binary Ne
+                    Var compared
+                    IntLiteral 1L
+                  Binary Ne
+                    Var quotient
+                    IntLiteral 5
+                Binary Ne
+                  Var remainder
+                  IntLiteral 2
+              Binary Ne
+                Var converted
+                IntLiteral 5u
+            Binary Ne
+              Var inverted
+              Unary Neg
+                IntLiteral 1
+          Binary Ne
+            Var shifted
+            IntLiteral 12u
+        Binary Ne
+          Var staticValue
+          IntLiteral 1L
+      throw
+        Call IllegalStateException
+    assign staticValue
+      IntLiteral 9L
+    if
+      Binary Ne
+        Var staticValue
+        IntLiteral 9L
+      throw
+        Call IllegalStateException
