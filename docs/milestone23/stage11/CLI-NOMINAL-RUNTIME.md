@@ -17,3 +17,4 @@
 | `shared-nominal-declarations` | 3／21／39／12 | private storage、nested/generic/protected 声明、published object 与普通下游；保留真实产物的 public/support 数量及缺失关系诊断。 |
 | `shared-interior-mutability` | 2／13／22／7 | unsafe 构造、读取和装箱、CLayout、泛型以及嵌套私有结构；保留 source/shared/MIR interior_mutable 一致和是否实际物化的对应。 |
 | `type-slot-production` | 1／7／13／4 | abstract/open/final override、属性读写、internal 成员与 object，沿真实父类接收器执行虚调用；完整 HIR 锁定原槽布局。 |
+| `implicit-array-capability` | 6／37／58／19 | 普通库导入 core Array：函数/class/struct/enum varargs、空参数、spread、具名整数组、泛型与默认数组字面量。 |

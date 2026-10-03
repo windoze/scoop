@@ -1,0 +1,12 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val ints = Values<Int>()
+    val strings = Values<String>("constructor")
+    verifyType(ints.count() == 1 && ints.count(1, 2) == 1)
+    verifyType(strings.count("first", "second") == 1 && count<Int>() == 1)
+    verifyType(count("one", "two") == 1)
+    val values = [3, 4]
+    val batch = Batches.Items(1, *values, 5)
+    verifyType(when (batch) { Items(items) -> items.size == 4L && items[2] == 4 })
+}

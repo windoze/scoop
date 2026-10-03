@@ -1,0 +1,7 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(count() == 1 && count(1, 2, 3) == 1)
+    val values = [4, 5]
+    verifyType(count(*values) == 1 && count(values = values) == 1)
+}
