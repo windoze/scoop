@@ -1,4 +1,0 @@
-span=91..100
-expression=::generic
-no applicable candidate for native function reference `::generic` in dependency top-level candidate layer:
-  - dependency function `generic` — native addresses cannot target generic functions

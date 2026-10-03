@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for native function reference `::generic` in dependency top-level candidate layer:\n  - dependency function `generic` — native addresses cannot target generic functions",
+    "notes": [],
+    "origin": {
+      "cone": "6ff5ba14e29a863ebba0e4b36872b0b33a780f9a9343c48f879648d20de90ae1",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 91
+    },
+    "severity": "error"
+  }
+]

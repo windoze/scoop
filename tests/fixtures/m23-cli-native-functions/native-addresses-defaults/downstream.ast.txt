@@ -1,0 +1,19 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.nativeAddresses.result
+  ImportExact Local consumer.nativeAddresses.exercise
+  private class Later(val number: Long)
+  public fun check(): Long
+    val value
+      Call Later
+        Call result
+    return
+      IfExpression
+        Binary Eq
+          FieldAccess number
+            Var value
+          IntLiteral 42
+        Call exercise<Later>
+          Var value
+        else
+        IntLiteral 1

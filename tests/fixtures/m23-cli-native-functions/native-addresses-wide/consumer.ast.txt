@@ -1,0 +1,22 @@
+SourceFile
+  QualifiedPackage consumer.nativeAddresses
+  ImportExact Local dependency.nativeAddresses.Wide
+  ImportExact Local dependency.nativeAddresses.roundWide
+    @Extern(lib = "m23_native_calls", name = "m23_call_wide")
+  private fun nativeWide(callback: FunPtr<(Wide) -> Wide>): Long
+  public fun callWide(callback: FunPtr<(Wide) -> Wide>): Long
+    @Unsafe block
+      return
+        Call nativeWide
+          Var callback
+  public fun exercise<T>(value: T): Long
+    val callback: FunPtr<(Wide) -> Wide>
+      CallableReference 0 roundWide
+    @Unsafe block
+      return
+        Call callWide
+          Var callback
+  public fun result(): Long
+    =
+      Call exercise<Int>
+        IntLiteral 0

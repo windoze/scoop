@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for native function reference `::echo` in dependency top-level candidate layer:\n  - fun echo(value: Long): Long — Long is not equal to Boolean\n  - fun echo(value: Int): Int — Int is not equal to Boolean",
+    "notes": [],
+    "origin": {
+      "cone": "f90df195b1f81f21ef5d1cc8f87ebe13eb5fd43360cb660c1b1b22e4de45a00f",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 94
+    },
+    "severity": "error"
+  }
+]

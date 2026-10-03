@@ -1,35 +1,6 @@
 use super::*;
 
 #[test]
-fn imported_native_addresses_use_definition_owned_storage_bridges() {
-    super::members::check_fixture_cases(
-        "m23-native-addresses",
-        &[
-            "standalone",
-            "already-used",
-            "defaults",
-            "wide",
-            "sink",
-            "aliases",
-        ],
-        &[
-            "bad-managed",
-            "bad-signature",
-            "bad-generic",
-            "bad-unsafe",
-            "bad-private",
-        ],
-        "downstream",
-    );
-    super::members::check_fixture_cases(
-        "m23-native-addresses",
-        &["aliases"],
-        &[],
-        "alias-downstream",
-    );
-}
-
-#[test]
 fn native_storage_exports_do_not_emit_unused_c_trampolines() {
     let target = resolved_target().expect("native callback publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();

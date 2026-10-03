@@ -1,4 +1,0 @@
-span=91..100
-expression=::managed
-no applicable candidate for native function reference `::managed` in dependency top-level candidate layer:
-  - dependency function `managed` — native callbacks must be declared `@NoGC`
