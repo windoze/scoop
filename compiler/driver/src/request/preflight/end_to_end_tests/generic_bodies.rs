@@ -13,7 +13,6 @@ mod publication;
 mod qualified_types;
 mod rebuilt_core;
 mod reexported_namespaces;
-mod shared_literals;
 mod shared_requests;
 mod shared_singletons;
 mod shared_structs;
