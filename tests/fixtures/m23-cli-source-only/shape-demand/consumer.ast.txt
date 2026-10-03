@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public fun pass(value: DeferredStorage): DeferredStorage
+    =
+      Var value
+  public fun passEnum(value: DeferredEnum): DeferredEnum
+    =
+      Var value
