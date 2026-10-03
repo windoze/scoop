@@ -1,0 +1,671 @@
+Module
+  struct DomainValue<Int> ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class DomainDiamond<Int> vtable=0 itables=3
+  class DomainChild<Int> vtable=1 itables=0
+  class DomainBase<(Int, Int)> vtable=1 itables=0
+  class DomainUnusedChild<Int> vtable=1 itables=0
+  class DomainUnused<(Int, Int)> vtable=1 itables=0
+  class DomainUnusedChild<String> vtable=1 itables=0
+  class DomainUnused<(String, String)> vtable=1 itables=0
+  class Inner<String> vtable=1 itables=0
+  class box<DomainValue<Int>> vtable=0 itables=1
+  interface DomainRight<Int> : DomainReader<(Int, Int)>
+  interface DomainReader<(Int, Int)>
+  interface DomainLeft<Int> : DomainReader<(Int, Int)>
+  interface DomainReader<Int>
+  generated_exact_type get0 location=class11 nominal_id=15a8168cd18e76c783663d334c50735cb2bb19677ec67b48d5a5bebfc4964648 exact_id=700960860b800f42a8689540450aebf577d56afd565b8a7552fa1953fdec1b17
+  generated_callable gc0 function=@fn30 id=86ef967a9283ba5e854495dac25791d37fa35cd66b48e06e2539ba90b23dc3f5
+  fun verifyDefault @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call diamond: DomainDiamond<Int> = @fn10 direct
+      val $dependency.receiver: DomainDiamond<Int>
+        Type DomainDiamond<Int>
+        Local diamond
+      val $dependency.argument.0: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.seed: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.value: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+      call $call.1: (Int, Int) = @fn2 direct
+        Type DomainDiamond<Int>
+        Local $dependency.receiver
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+        Type (Int, Int)
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = @fn11 direct
+        Type (Int, Int)
+        Local $call.1
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=3 bits=0x00000003
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val left: DomainLeft<Int>
+        Type DomainLeft<Int>
+        Retype DomainLeft<Int>
+          Type DomainDiamond<Int>
+          Local diamond
+      val right: DomainRight<Int>
+        Type DomainRight<Int>
+        Retype DomainRight<Int>
+          Type DomainDiamond<Int>
+          Local diamond
+      val $dependency.receiver: DomainLeft<Int>
+        Type DomainLeft<Int>
+        Local left
+      val $dependency.argument.0: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+          Type Int
+          IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.seed: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.value: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+      call $call.2: (Int, Int) = @fn12 interface DomainLeft<Int>[0]
+        Type DomainLeft<Int>
+        Local $dependency.receiver
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+        Type (Int, Int)
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = @fn11 direct
+        Type (Int, Int)
+        Local $call.2
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=5 bits=0x00000005
+          Type Int
+          IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: DomainRight<Int>
+        Type DomainRight<Int>
+        Local right
+      val $dependency.argument.0: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=13 bits=0x0000000d
+          Type Int
+          IntegerLiteral Int value=17 bits=0x00000011
+      val $dependency.parameter.seed: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.value: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+      call $call.3: (Int, Int) = @fn13 interface DomainRight<Int>[0]
+        Type DomainRight<Int>
+        Local $dependency.receiver
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+        Type (Int, Int)
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = @fn11 direct
+        Type (Int, Int)
+        Local $call.3
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=13 bits=0x0000000d
+          Type Int
+          IntegerLiteral Int value=17 bits=0x00000011
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.4: DomainValue<Int> = @fn29 direct
+      val value: DomainReader<Int>
+        Type DomainReader<Int>
+        Box
+          Type DomainValue<Int>
+          Local $call.4
+      val $dependency.receiver: DomainReader<Int>
+        Type DomainReader<Int>
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.parameter.seed
+      call $dependency.receiver: Int = @fn15 interface DomainReader<Int>[0]
+        Type DomainReader<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=19 bits=0x00000013
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call child: DomainChild<Int> = @fn16 direct
+      val parent: DomainBase<(Int, Int)>
+        Type DomainBase<(Int, Int)>
+        Retype DomainBase<(Int, Int)>
+          Type DomainChild<Int>
+          Local child
+      val $dependency.receiver: DomainBase<(Int, Int)>
+        Type DomainBase<(Int, Int)>
+        Local parent
+      val $dependency.argument.0: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=23 bits=0x00000017
+          Type Int
+          IntegerLiteral Int value=29 bits=0x0000001d
+      val $dependency.parameter.seed: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.value: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+      call $call.5: (Int, Int) = @fn3 virtual[0]
+        Type DomainBase<(Int, Int)>
+        Local $dependency.receiver
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+        Type (Int, Int)
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = @fn11 direct
+        Type (Int, Int)
+        Local $call.5
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=23 bits=0x00000017
+          Type Int
+          IntegerLiteral Int value=29 bits=0x0000001d
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: DomainChild<Int>
+        Type DomainChild<Int>
+        Local child
+      val $dependency.argument.0: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=31 bits=0x0000001f
+          Type Int
+          IntegerLiteral Int value=37 bits=0x00000025
+      val $dependency.parameter.seed: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.argument.0
+      val $dependency.parameter.value: (Int, Int)
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+      call $call.6: (Int, Int) = @fn4 direct
+        Type DomainChild<Int>
+        Local $dependency.receiver
+        Type (Int, Int)
+        Local $dependency.parameter.seed
+        Type (Int, Int)
+        Local $dependency.parameter.value
+      call $argument.0: Boolean = @fn11 direct
+        Type (Int, Int)
+        Local $call.6
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          IntegerLiteral Int value=31 bits=0x0000001f
+          Type Int
+          IntegerLiteral Int value=37 bits=0x00000025
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: DomainBase<(Int, Int)>
+        Type DomainBase<(Int, Int)>
+        Retype DomainBase<(Int, Int)>
+          Type DomainChild<Int>
+          Local child
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.seed: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.parameter.seed
+      call $dependency.receiver: String = @fn17 direct
+        Type DomainBase<(Int, Int)>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.seed
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: DomainUnusedChild<Int> = @fn18 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      call $dependency.receiver: Int = @fn6 direct
+        Type DomainUnusedChild<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: DomainUnusedChild<String> = @fn19 direct
+      val $dependency.parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      call $dependency.receiver: Int = @fn8 direct
+        Type DomainUnusedChild<String>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $dependency.receiver: Inner<String> = @fn20 direct
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.seed: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.parameter.seed
+      call $dependency.receiver: String = @fn9 virtual[0]
+        Type Inner<String>
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.seed
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str4
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun choose @fn2(this: DomainDiamond<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      return
+        Type (Int, Int)
+        Local value
+  fun read @fn3(this: DomainBase<(Int, Int)>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      return
+        Type (Int, Int)
+        Local value
+  fun read @fn4(this: DomainChild<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      return
+        Type (Int, Int)
+        Local value
+  fun number @fn5(this: DomainUnused<(Int, Int)>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun number @fn6(this: DomainUnusedChild<Int>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun number @fn7(this: DomainUnused<(String, String)>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun number @fn8(this: DomainUnusedChild<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun nested @fn9(this: Inner<String>, seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun domainDiamond @fn10() -> DomainDiamond<Int>
+    bb0 entry
+      assign $new.1
+        Type DomainDiamond<Int>
+        ClassAlloc DomainDiamond<Int>
+      call @fn21 direct
+        Type DomainDiamond<Int>
+        Local $new.1
+      return
+        Type DomainDiamond<Int>
+        Local $new.1
+  fun $derived.equals.0 @fn11(this: (Int, Int), other: (Int, Int)) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 0
+            Type (Int, Int)
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local this
+          Type Int
+          FieldAccess 1
+            Type (Int, Int)
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      return
+        Type Boolean
+        Local $logic.1
+  fun DomainLeft.choose @fn12(this: DomainLeft<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      trap "call to abstract method `DomainLeft.choose`"
+  fun DomainRight.choose @fn13(this: DomainRight<Int>, seed: (Int, Int), value: (Int, Int)) -> (Int, Int)
+    bb0 entry
+      trap "call to abstract method `DomainRight.choose`"
+  fun choose @fn14(this: DomainValue<Int>, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun DomainReader.choose @fn15(this: DomainReader<Int>, seed: Int, value: Int) -> Int
+    bb0 entry
+      trap "call to abstract method `DomainReader.choose`"
+  fun domainChild @fn16() -> DomainChild<Int>
+    bb0 entry
+      assign $new.1
+        Type DomainChild<Int>
+        ClassAlloc DomainChild<Int>
+      call @fn22 direct
+        Type DomainChild<Int>
+        Local $new.1
+      return
+        Type DomainChild<Int>
+        Local $new.1
+  fun keep @fn17(this: DomainBase<(Int, Int)>, seed: String, value: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local value
+  fun domainUnusedChild @fn18() -> DomainUnusedChild<Int>
+    bb0 entry
+      assign $new.1
+        Type DomainUnusedChild<Int>
+        ClassAlloc DomainUnusedChild<Int>
+      call @fn23 direct
+        Type DomainUnusedChild<Int>
+        Local $new.1
+      return
+        Type DomainUnusedChild<Int>
+        Local $new.1
+  fun domainUnusedChild @fn19() -> DomainUnusedChild<String>
+    bb0 entry
+      assign $new.1
+        Type DomainUnusedChild<String>
+        ClassAlloc DomainUnusedChild<String>
+      call @fn24 direct
+        Type DomainUnusedChild<String>
+        Local $new.1
+      return
+        Type DomainUnusedChild<String>
+        Local $new.1
+  fun domainInner @fn20() -> Inner<String>
+    bb0 entry
+      assign $new.1
+        Type Inner<String>
+        ClassAlloc Inner<String>
+      call @fn25 direct
+        Type Inner<String>
+        Local $new.1
+      return
+        Type Inner<String>
+        Local $new.1
+  fun init.DomainDiamond.$c1 @fn21(this: DomainDiamond<Int>) -> Unit
+    bb0 entry
+      return
+  fun init.DomainChild.$c2 @fn22(this: DomainChild<Int>) -> Unit
+    bb0 entry
+      call @fn26 direct
+        Type DomainBase<(Int, Int)>
+        Retype DomainBase<(Int, Int)>
+          Type DomainChild<Int>
+          Local this
+      return
+  fun init.DomainUnusedChild.$c3 @fn23(this: DomainUnusedChild<Int>) -> Unit
+    bb0 entry
+      call @fn27 direct
+        Type DomainUnused<(Int, Int)>
+        Retype DomainUnused<(Int, Int)>
+          Type DomainUnusedChild<Int>
+          Local this
+      return
+  fun init.DomainUnusedChild.$c3 @fn24(this: DomainUnusedChild<String>) -> Unit
+    bb0 entry
+      call @fn28 direct
+        Type DomainUnused<(String, String)>
+        Retype DomainUnused<(String, String)>
+          Type DomainUnusedChild<String>
+          Local this
+      return
+  fun init.Inner.$c4 @fn25(this: Inner<String>) -> Unit
+    bb0 entry
+      return
+  fun init.DomainBase.$c5 @fn26(this: DomainBase<(Int, Int)>) -> Unit
+    bb0 entry
+      return
+  fun init.DomainUnused.$c6 @fn27(this: DomainUnused<(Int, Int)>) -> Unit
+    bb0 entry
+      return
+  fun init.DomainUnused.$c6 @fn28(this: DomainUnused<(String, String)>) -> Unit
+    bb0 entry
+      return
+  fun ctor.DomainValue.$c0 @fn29() -> DomainValue<Int> <no-gc>
+    bb0 entry
+      return
+        Type DomainValue<Int>
+        StructInit DomainValue<Int>
+  fun thunk<DomainValue<Int>> DomainReader.choose(Int, Int) @fn30(this: DomainReader<Int>, seed: Int, value: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn14 direct
+        Type DomainValue<Int>
+        Unbox
+          Type DomainReader<Int>
+          Local this
+        Type Int
+        Local seed
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn2 <- choose
+  instance mi1 function=@fn3 <- read
+  instance mi2 function=@fn4 <- read
+  instance mi3 function=@fn5 <- number
+  instance mi4 function=@fn6 <- number
+  instance mi5 function=@fn7 <- number
+  instance mi6 function=@fn8 <- number
+  instance mi7 function=@fn9 <- nested
+  instance mi8 function=@fn10 <- domainDiamond
+  instance mi9 function=@fn12 <- DomainLeft.choose
+  instance mi10 function=@fn13 <- DomainRight.choose
+  instance mi11 function=@fn14 <- choose
+  instance mi12 function=@fn15 <- DomainReader.choose
+  instance mi13 function=@fn16 <- domainChild
+  instance mi14 function=@fn17 <- keep
+  instance mi15 function=@fn18 <- domainUnusedChild
+  instance mi16 function=@fn19 <- domainUnusedChild
+  instance mi17 function=@fn20 <- domainInner
+  str @str0 "illegal state"
+  str @str1 "kept"
+  str @str2 "kept"
+  str @str3 "nested"
+  str @str4 "nested"
+  output executable @fn1

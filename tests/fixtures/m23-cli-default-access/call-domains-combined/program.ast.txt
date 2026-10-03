@@ -1,0 +1,99 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val diamond
+      Call domainDiamond<Int>
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Var diamond
+          TupleLiteral
+            IntLiteral 3
+            IntLiteral 7
+        TupleLiteral
+          IntLiteral 3
+          IntLiteral 7
+    val left: DomainLeft<Int>
+      Var diamond
+    val right: DomainRight<Int>
+      Var diamond
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Var left
+          TupleLiteral
+            IntLiteral 5
+            IntLiteral 11
+        TupleLiteral
+          IntLiteral 5
+          IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Var right
+          TupleLiteral
+            IntLiteral 13
+            IntLiteral 17
+        TupleLiteral
+          IntLiteral 13
+          IntLiteral 17
+    val value: DomainReader<Int>
+      Call DomainValue<Int>
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Var value
+          IntLiteral 19
+        IntLiteral 19
+    val child
+      Call domainChild<Int>
+    val parent: DomainBase<(Int, Int)>
+      Var child
+    Call verifyDefault
+      Binary Eq
+        MethodCall read
+          Var parent
+          TupleLiteral
+            IntLiteral 23
+            IntLiteral 29
+        TupleLiteral
+          IntLiteral 23
+          IntLiteral 29
+    Call verifyDefault
+      Binary Eq
+        MethodCall read
+          Var child
+          TupleLiteral
+            IntLiteral 31
+            IntLiteral 37
+        TupleLiteral
+          IntLiteral 31
+          IntLiteral 37
+    Call verifyDefault
+      Binary Eq
+        MethodCall keep<String>
+          Var child
+          StringLiteral "kept"
+        StringLiteral "kept"
+    Call verifyDefault
+      Binary Eq
+        MethodCall number
+          Call domainUnusedChild<Int>
+        IntLiteral 3
+    Call verifyDefault
+      Binary Eq
+        MethodCall number
+          Call domainUnusedChild<String>
+        IntLiteral 3
+    Call verifyDefault
+      Binary Eq
+        MethodCall nested
+          Call domainInner<String>
+          StringLiteral "nested"
+        StringLiteral "nested"

@@ -1,0 +1,38 @@
+SourceFile
+  RootPackage
+  public fun domainDiamond<T>(): DomainDiamond<T>
+    =
+      Call DomainDiamond<T>
+  public fun domainChild<T>(): DomainChild<T>
+    =
+      Call DomainChild<T>
+  public fun domainUnusedChild<T>(): DomainUnusedChild<T>
+    =
+      Call DomainUnusedChild<T>
+  public fun domainInner<T>(): DomainOuter.Inner<T>
+    =
+      MethodCall Inner<T>
+        Var DomainOuter
+SourceFile
+  RootPackage
+  public interface DomainReader<T>
+    fun choose
+  public interface DomainLeft<U> : DomainReader<(U, U)>
+    fun choose
+  public interface DomainRight<U> : DomainReader<(U, U)>
+    fun choose
+  public class DomainDiamond<V>(), DomainLeft<V>, DomainRight<V>
+    public fun choose
+  public struct DomainValue<T> : DomainReader<T>
+    public fun choose
+  public open class DomainBase<T>()
+    public fun read
+    public fun keep
+  public class DomainChild<U>() : DomainBase<(U, U)>(<0 args>)
+    public fun read
+  public open class DomainUnused<T>()
+    public fun number
+  public class DomainUnusedChild<U>() : DomainUnused<(U, U)>(<0 args>)
+    public fun number
+  public class DomainOuter<T>()
+    public nested class Inner

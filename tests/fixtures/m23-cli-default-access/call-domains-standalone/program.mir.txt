@@ -1,0 +1,165 @@
+Module
+  struct SeedReader ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<SeedReader> vtable=0 itables=1
+  interface DomainSeed<Int>
+  generated_exact_type get0 location=class3 nominal_id=b82e8294b679c75409c9f0db22f9386c956dbfa20d7450c7c963648dd29887c0 exact_id=beb86e117ce9caccc5d941038ab945951c350e648cda4f9bfe463ede1fba627b
+  generated_callable gc0 function=@fn5 id=d10c11fe4a9bfd9f7448ee3ee777bbb32bf33928051e8303bc4c5e4cfe607613
+  fun SeedReader.choose @fn0(this: SeedReader, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun verifyDefault @fn1(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      call $call.1: SeedReader = @fn4 direct
+      val reader: DomainSeed<Int>
+        Type DomainSeed<Int>
+        Box
+          Type SeedReader
+          Local $call.1
+      val $dependency.receiver: DomainSeed<Int>
+        Type DomainSeed<Int>
+        Local reader
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.parameter.seed
+      call $dependency.receiver: Int = @fn3 interface DomainSeed<Int>[0]
+        Type DomainSeed<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: DomainSeed<Int>
+        Type DomainSeed<Int>
+        Local reader
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn3 interface DomainSeed<Int>[0]
+        Type DomainSeed<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.seed
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn1 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun DomainSeed.choose @fn3(this: DomainSeed<Int>, seed: Int, value: Int) -> Int
+    bb0 entry
+      trap "call to abstract method `DomainSeed.choose`"
+  fun ctor.SeedReader.$c0 @fn4() -> SeedReader <no-gc>
+    bb0 entry
+      return
+        Type SeedReader
+        StructInit SeedReader
+  fun thunk<SeedReader> DomainSeed.choose(Int, Int) @fn5(this: DomainSeed<Int>, seed: Int, value: Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn0 direct
+        Type SeedReader
+        Unbox
+          Type DomainSeed<Int>
+          Local this
+        Type Int
+        Local seed
+        Type Int
+        Local value
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn3 <- DomainSeed.choose
+  str @str0 "illegal state"
+  output executable @fn2

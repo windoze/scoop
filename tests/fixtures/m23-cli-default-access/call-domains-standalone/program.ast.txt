@@ -1,0 +1,26 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  struct SeedReader : DomainSeed<Int>
+    public fun choose
+  fun main()
+    val reader: DomainSeed<Int>
+      Call SeedReader
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Var reader
+          IntLiteral 7
+        IntLiteral 7
+    Call verifyDefault
+      Binary Eq
+        MethodCall choose
+          Var reader
+          IntLiteral 7
+          IntLiteral 11
+        IntLiteral 11
