@@ -1,0 +1,51 @@
+SourceFile
+  QualifiedPackage downstream.methods
+  ImportStar Local consumer.methods.*
+  private class Later(val value: Int)
+  public fun check(): Int
+    val later
+      Call Later
+        IntLiteral 42
+    if
+      Binary Ne
+        Call exercise<Later>
+          Var later
+          Lambda 0 suspend=false
+            param value: _
+            FieldAccess value
+              Var value
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call exercise<String>
+          StringLiteral "value"
+          Lambda 1 suspend=false
+            param value: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call exercise<Unit>
+          UnitLiteral
+          Lambda 2 suspend=false
+            param value: _
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call exercise<Int>
+          IntLiteral 42
+          Lambda 3 suspend=false
+            param value: _
+            Var value
+        IntLiteral 42
+      return
+        IntLiteral 4
+    return
+      Call result

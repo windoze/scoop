@@ -1,3 +1,0 @@
-span=76..120
-expression=boundRead<Int, RemoteNumber>(RemoteNumber())
-dependency function `boundRead`: RemoteNumber is not a subtype of Reader<T>
