@@ -1,0 +1,46 @@
+SourceFile
+  RootPackage
+  public fun localDependency<T>(seed: T, value: T = <expr>): T
+    =
+      Var value
+  public class LocalDependencyHost()
+    internal fun apply
+  public fun dependencyLambda<T>(seed: T, value: () -> T = <expr>): () -> T
+    =
+      Var value
+  public fun dependencyAnonymous<T>(seed: T, value: () -> T = <expr>): () -> T
+    =
+      Var value
+  public fun dependencyReference<T>(seed: T, value: () -> T = <expr>): () -> T
+    =
+      Var value
+  public class DependencyCombinationHost()
+    internal fun callbacks
+    internal fun repeated
+  fun main()
+    val local
+      Call LocalDependencyHost
+    MethodCall apply
+      Var local
+      IntLiteral 1
+      StringLiteral "first"
+    MethodCall apply
+      Var local
+      StringLiteral "ignored"
+      IntLiteral 2
+    val combined
+      Call DependencyCombinationHost
+    MethodCall callbacks
+      Var combined
+      IntLiteral 1
+      StringLiteral "text"
+    MethodCall callbacks
+      Var combined
+      StringLiteral "ignored"
+      IntLiteral 2
+    MethodCall repeated
+      Var combined
+      StringLiteral "repeat"
+    MethodCall repeated
+      Var combined
+      IntLiteral 3
