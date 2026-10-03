@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    if
+      Binary Ne
+        MethodCall run
+          Call sourceContainer
+        IntLiteral 15
+      return
+        IntLiteral 1
+    return
+      IntLiteral 42

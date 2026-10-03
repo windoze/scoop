@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    if
+      Binary Ne
+        MethodCall run
+          Call sourceHostInt
+          IntLiteral 42
+        IntLiteral 55
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        MethodCall run
+          Call sourceHostString
+          StringLiteral "payload"
+        IntLiteral 55
+      return
+        IntLiteral 2
+    return
+      IntLiteral 42

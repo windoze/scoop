@@ -1,0 +1,153 @@
+Module
+  global0 sourceBias: Int managed initial=encoded(Int:0x4)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<SourceContainer>
+    Completed(value: SourceContainer)
+    Suspended()
+  enum CoroutineSlot<SourceContainer>
+    Empty()
+    Value(value: SourceContainer)
+  class SourceContainer vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<SourceContainer>
+  interface SuspendTask<SourceContainer>
+  interface SuspendRegistration<SourceContainer>
+  generated_exact_type get0 location=enum1 nominal_id=bf9b497129587213845198891d703bb197e75d695fd1f818c221d659908b0f5c exact_id=7fee9ad245389174595f844ced31fcf5e43fe4ffed0c539bd4fb5b696d6247ae
+  generated_exact_type get1 location=enum2 nominal_id=ca1e338d4b862d5b952a48928cb4a4ad80684eb5e1f063d3ade55654c8ee7596 exact_id=cbd4697bd752a91a723bc38c6b406b4360cd3b21797fdc66e8619dc4924332cf
+  generated_callable gc0 function=@fn12 id=50cd5d77b56d85987ebba20d59a02c8b75214da37ab8cece94b6161fe523f412
+  fun SourceContainer.hidden @fn0(this: SourceContainer, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun SourceContainer.run @fn1(this: SourceContainer) -> Int
+    bb0 entry
+      val $receiver: SourceContainer
+        Type SourceContainer
+        Local this
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        Local $parameter.value
+      call $dependency.argument.0: Int = @fn6 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $parameter.value: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      call $call.1: Int = @fn0 direct
+        Type SourceContainer
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      return
+        Type Int
+        Local $call.1
+  fun sourceSeed @fn2(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun unreachableLeft @fn3(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun unreachableRight @fn4(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun sourceContainer @fn5() -> SourceContainer
+    bb0 entry
+      assign $new.1
+        Type SourceContainer
+        ClassAlloc SourceContainer
+      call @fn11 direct
+        Type SourceContainer
+        Local $new.1
+      return
+        Type SourceContainer
+        Local $new.1
+  fun $get$sourceBias @fn6() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead sourceBias
+  fun Continuation.resume @fn7(this: Continuation<SourceContainer>, value: SourceContainer) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn8(this: Continuation<SourceContainer>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn9(this: SuspendTask<SourceContainer>, $completion: Continuation<SourceContainer>) -> CoroutineStep<SourceContainer>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn10(this: SuspendRegistration<SourceContainer>, continuation: Continuation<SourceContainer>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.SourceContainer.$c0 @fn11(this: SourceContainer) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<SourceContainer> @fn12(task: SuspendTask<SourceContainer>, completion: Continuation<SourceContainer>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn7 interface Continuation<SourceContainer>[0]
+        Type Continuation<SourceContainer>
+        Local completion
+        Type SourceContainer
+        EnumField v0 f0
+          Type CoroutineStep<SourceContainer>
+          Local $step
+      return
+    bb2 failed
+      call @fn8 interface Continuation<SourceContainer>[1]
+        Type Continuation<SourceContainer>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<SourceContainer> = @fn9 interface SuspendTask<SourceContainer>[0]
+        Type SuspendTask<SourceContainer>
+        Local task
+        Type Continuation<SourceContainer>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<SourceContainer>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<SourceContainer> result=SourceContainer
+  coroutine_slot cl0 CoroutineSlot<SourceContainer> value=SourceContainer
+  coroutine_start ct0 result=SourceContainer function=fn12
+  coroutine_fn cf0 @fn9 source_return=SourceContainer step=cs0 immediate
+  instance mi0 function=@fn7 <- Continuation.resume
+  instance mi1 function=@fn8 <- Continuation.resumeWithException
+  instance mi2 function=@fn9 <- SuspendTask.run
+  instance mi3 function=@fn10 <- SuspendRegistration.register
+  output library
