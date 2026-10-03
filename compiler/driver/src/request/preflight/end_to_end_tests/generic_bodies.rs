@@ -6,7 +6,6 @@ mod initialization;
 mod machine;
 mod native_addresses;
 mod nominals;
-mod options;
 mod qualified_types;
 mod rebuilt_core;
 mod siblings;

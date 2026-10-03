@@ -1,0 +1,1269 @@
+Module
+  enum Option<Later>
+    None()
+    Some(_0: Later)
+  enum Option<Int>
+    None()
+    Some(_0: Int)
+  enum Option<String>
+    None()
+    Some(_0: String)
+  enum Option<Option<Later>>
+    None()
+    Some(_0: Option<Later>)
+  enum Option<Cell>
+    None()
+    Some(_0: Cell)
+  enum Option<Option<Int>>
+    None()
+    Some(_0: Option<Int>)
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class Cell vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box<Option<Int>> vtable=0 itables=0
+  class box<Option<Later>> vtable=0 itables=0
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn19 id=546ca41aa83c13f4094eabab56602a99cf7539d788032977228edd7599e388bd
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn11 captures=1
+    bridge function_type1 -> @fn20 id=7372335e0ec44d18a61bf892675d94fa27828126edcb5661a0e68ced4160beff
+  generated_exact_type get0 location=closure1 nominal_id=fb210f27032952bbab47716a0542412f753aa9c995bc71d7808d1f143e69a6f2 exact_id=0464dfcfe184575a7f2a4a7e35ae4c39e78b583692197eb5f7447cc3ef3a33f1
+  generated_exact_type get1 location=enum6 nominal_id=b3b5d08027914113f16c0d39adf7a5cbd4c7c81a0c0a478239caf66425d33eba exact_id=737e2eca429a2ad46f4ac214a4c25a76331b5c33985104c9bc6365b0674fbea8
+  generated_exact_type get2 location=closure0 nominal_id=a97d2c6d325eb1418245cce21c30efc53f99c83d265d5fcbe3bac7fcd5c1887b exact_id=74908c2e0bbd37a2bbc9f439bebbad3aa6fca0511907eeba415339be38dc6990
+  generated_exact_type get3 location=class7 nominal_id=f9a076dc660e89cb8ce8865049f9168f05025606bc61ea25719b3f886f555df6 exact_id=ca630e79673290c595a5223c1fb81ae7b8547f15d73aea3af20f65e794fb27ac
+  generated_exact_type get4 location=class6 nominal_id=3395593155143e4a4592da790b768720098257cf53aae28356f8a2fc0b159f2c exact_id=ed1c904d9474aece883148a0c7c98672b8a78eb30b31357e10699e29c53a48b5
+  generated_exact_type get5 location=enum7 nominal_id=4afdb86065207b6cc54633d03d6d95c7294a69f87f703f3ac59cbbc827acd667 exact_id=fe942f8ff960067bb2a3ee0216b92f1ab4768ff7dddef48a1c7fcf0864802414
+  generated_callable gc0 function=@fn19 id=546ca41aa83c13f4094eabab56602a99cf7539d788032977228edd7599e388bd
+  generated_callable gc1 function=@fn20 id=7372335e0ec44d18a61bf892675d94fa27828126edcb5661a0e68ced4160beff
+  generated_callable gc2 function=@fn18 id=7e950f014c5ec30386e0b8e890e8dc45235eead7cc4bd1f124284712364eec77
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn17 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.number
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call answer: Int = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn17 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.number
+      val allocated: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocated
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb6 bb7
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb6 if.then.6
+      assign $result.1
+        Type Int
+        Local answer
+      goto bb8
+    bb7 if.else.7
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb8
+    bb8 if.merge.8
+      return
+        Type Int
+        Local $result.1
+  fun exercise @fn1(value: Later) -> Int
+    bb0 entry
+      call external1 direct
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+      val $dependency.local.13: Later
+        Type Later
+        Local value
+      val $dependency.local.14: Later
+        Type Later
+        Local $dependency.local.13
+      call $dependency.local.1: Option<Later> = @fn3 direct
+        Type Later
+        Local $dependency.local.14
+      val $dependency.local.15: Option<Later>
+        Type Option<Later>
+        Local $dependency.local.1
+      val $dependency.local.16: Option<Later>
+        Type Option<Later>
+        Local $dependency.local.15
+      val $dependency.local.2: Option<Option<Later>>
+        Type Option<Option<Later>>
+        VariantConstruct Option<Option<Later>> v1
+          Type Option<Later>
+          Local $dependency.local.16
+      val $dependency.local.3: Option<Later>
+        Type Option<Later>
+        VariantConstruct Option<Later> v0
+      val $dependency.local.4: () -> Option<Later>
+        Type () -> Option<Later>
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Later
+            Local value
+      call $dependency.local.17: Option<Later> = <closure:function_type0> closure[function_type0]
+        Type () -> Option<Later>
+        Local $dependency.local.4
+      val $dependency.local.18: Option<Later>
+        Type Option<Later>
+        Local $dependency.local.17
+      call $dependency.local.5: Later = @fn5 direct
+        Type Option<Later>
+        Local $dependency.local.18
+      val $dependency.local.19: Later
+        Type Later
+        Local value
+      val $dependency.local.20: Later
+        Type Later
+        Local $dependency.local.19
+      val $dependency.local.21: Later
+        Type Later
+        Local $dependency.local.20
+      val $dependency.local.22: Later
+        Type Later
+        Local $dependency.local.21
+      val $dependency.local.23: Option<Later>
+        Type Option<Later>
+        VariantConstruct Option<Later> v1
+          Type Later
+          Local $dependency.local.22
+      call $dependency.local.6: Later = @fn6 direct
+        Type Later
+        Local $dependency.local.20
+        Type Option<Later>
+        Local $dependency.local.23
+      val $when.1: Option<Option<Later>>
+        Type Option<Option<Later>>
+        Local $dependency.local.2
+      val $pattern.subject.2: Option<Option<Later>>
+        Type Option<Option<Later>>
+        Local $when.1
+      branch bb1 bb3
+        Type Boolean
+        VariantTest Option<Option<Later>> v1
+          Type Option<Option<Later>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $pattern.3: Option<Later>
+        Type Option<Later>
+        VariantPayloadProject Option<Option<Later>> v1 f0
+          Type Option<Option<Later>>
+          Local $pattern.subject.2
+      branch bb2 bb3
+        Type Boolean
+        VariantTest Option<Later> v1
+          Type Option<Later>
+          Local $pattern.3
+    bb2 pattern.pass.2
+      val $dependency.local.7: Later
+        Type Later
+        VariantPayloadProject Option<Later> v1 f0
+          Type Option<Later>
+          Local $pattern.3
+      assign $dependency.local.24
+        Type Boolean
+        BoolLiteral false
+      goto bb4
+    bb3 pattern.else.3
+      assign $dependency.local.24
+        Type Boolean
+        BoolLiteral true
+      goto bb4
+    bb4 pattern.merge.4
+      branch bb5 bb6
+        Type Boolean
+        Local $dependency.local.24
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb6 if.merge.6
+      val $when.4: Option<Later>
+        Type Option<Later>
+        Local $dependency.local.3
+      val $pattern.subject.5: Option<Later>
+        Type Option<Later>
+        Local $when.4
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Later> v1
+          Type Option<Later>
+          Local $pattern.subject.5
+    bb7 pattern.pass.7
+      val $dependency.local.8: Later
+        Type Later
+        VariantPayloadProject Option<Later> v1 f0
+          Type Option<Later>
+          Local $pattern.subject.5
+      assign $dependency.local.25
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.6: Option<Later>
+        Type Option<Later>
+        Local $when.4
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Later> v0
+          Type Option<Later>
+          Local $pattern.subject.6
+    bb9 pattern.merge.9
+      branch bb13 bb14
+        Type Boolean
+        Local $dependency.local.25
+    bb10 pattern.pass.10
+      assign $dependency.local.25
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      goto bb9
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb14 if.merge.14
+      call $dependency.local.26: Option<Int> = external2 direct
+      branch bb15 bb16
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $dependency.local.26
+    bb15 if.then.15
+      val $dependency.local.27: Int
+        Type Int
+        VariantPayloadProject Option<Int> v1 f0
+          Type Option<Int>
+          Local $dependency.local.26
+      goto bb17
+    bb16 if.else.16
+      val $dependency.local.27: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      goto bb17
+    bb17 if.merge.17
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.27
+      val $dependency.local.29: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.29
+      branch bb18 bb19
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.28
+            Type Int
+            Local $dependency.local.30
+    bb18 if.then.18
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb19 if.merge.19
+      val $dependency.local.31: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.local.32: Int
+        Type Int
+        Local $dependency.local.31
+      call external1 direct
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+          Type Int
+          Local $dependency.local.32
+      val $dependency.local.33: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.34: Int
+        Type Int
+        Local $dependency.local.33
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      call external3 direct
+        Type Cell
+        Local $new.1
+        Type Int
+        Local $dependency.local.34
+      val $dependency.local.35: Cell
+        Type Cell
+        Local $new.1
+      val $dependency.local.36: Cell
+        Type Cell
+        Local $dependency.local.35
+      call $dependency.local.9: Option<Cell> = @fn7 direct
+        Type Cell
+        Local $dependency.local.36
+      val $dependency.local.37: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      assign $new.2
+        Type Cell
+        ClassAlloc Cell
+      call external3 direct
+        Type Cell
+        Local $new.2
+        Type Int
+        Local $dependency.local.38
+      val $dependency.local.10: Cell
+        Type Cell
+        Local $new.2
+      var $dependency.local.11: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb20 try.unwind.20
+      landing_pad cleanup=false
+      goto bb21
+    bb21 try.dispatch.21
+      begin_catch
+      branch bb28 bb29
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb22 try.handler_pad.22
+      landing_pad cleanup=true
+      goto bb23
+    bb23 try.handler_cleanup.23
+      end_catch
+      resume
+    bb24 try.exit_pad.24
+      landing_pad cleanup=true
+      goto bb25
+    bb25 try.exit_cleanup.25
+      end_catch
+      resume
+    bb26 try.end.26
+      val $dependency.local.41: Boolean
+        Type Boolean
+        Local $dependency.local.11
+      branch bb32 bb33
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.41
+    bb27 try.body.27 unwind bb20
+      val $dependency.local.39: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+      val $dependency.local.40: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.39
+      call $call.3: Int = @fn8 direct
+        Type Option<Int>
+        Local $dependency.local.40
+      goto bb26
+    bb28 try.catch.28
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $dependency.local.12: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          Local $catch.4
+      goto bb30
+    bb29 try.next.29
+      rethrow unwind bb24
+    bb30 scope.30 unwind bb22
+      assign $dependency.local.11
+        Type Boolean
+        BoolLiteral true
+      end_catch
+      goto bb31
+    bb31 scope.31
+      goto bb26
+    bb32 if.then.32
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb33 if.merge.33
+      call $dependency.local.42: Option<Int> = external2 direct
+      branch bb34 bb35
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $dependency.local.42
+    bb34 if.then.34
+      val $dependency.local.43: Int
+        Type Int
+        VariantPayloadProject Option<Int> v1 f0
+          Type Option<Int>
+          Local $dependency.local.42
+      goto bb36
+    bb35 if.else.35
+      val $dependency.local.43: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb36
+    bb36 if.merge.36
+      val $dependency.local.46: Int
+        Type Int
+        Local $dependency.local.43
+      val $dependency.local.44: Option<Cell>
+        Type Option<Cell>
+        Local $dependency.local.9
+      val $dependency.local.45: Option<Cell>
+        Type Option<Cell>
+        Local $dependency.local.44
+      call $call.5: Cell = @fn9 direct
+        Type Option<Cell>
+        Local $dependency.local.45
+      val $dependency.local.47: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local $call.5
+      val $dependency.local.48: Int
+        Type Int
+        Local $dependency.local.47
+      val $dependency.local.49: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.46
+          Type Int
+          Local $dependency.local.48
+      val $dependency.local.50: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local $dependency.local.10
+      val $dependency.local.51: Int
+        Type Int
+        Local $dependency.local.50
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.49
+          Type Int
+          Local $dependency.local.51
+  fun exercise @fn2(value: Int) -> Int
+    bb0 entry
+      call external1 direct
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+      val $dependency.local.13: Int
+        Type Int
+        Local value
+      val $dependency.local.14: Int
+        Type Int
+        Local $dependency.local.13
+      call $dependency.local.1: Option<Int> = @fn10 direct
+        Type Int
+        Local $dependency.local.14
+      val $dependency.local.15: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.1
+      val $dependency.local.16: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.15
+      val $dependency.local.2: Option<Option<Int>>
+        Type Option<Option<Int>>
+        VariantConstruct Option<Option<Int>> v1
+          Type Option<Int>
+          Local $dependency.local.16
+      val $dependency.local.3: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+      val $dependency.local.4: () -> Option<Int>
+        Type () -> Option<Int>
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type Int
+            Local value
+      call $dependency.local.17: Option<Int> = <closure:function_type2> closure[function_type2]
+        Type () -> Option<Int>
+        Local $dependency.local.4
+      val $dependency.local.18: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.17
+      call $dependency.local.5: Int = @fn8 direct
+        Type Option<Int>
+        Local $dependency.local.18
+      val $dependency.local.19: Int
+        Type Int
+        Local value
+      val $dependency.local.20: Int
+        Type Int
+        Local $dependency.local.19
+      val $dependency.local.21: Int
+        Type Int
+        Local $dependency.local.20
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.21
+      val $dependency.local.23: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+          Type Int
+          Local $dependency.local.22
+      call $dependency.local.6: Int = @fn12 direct
+        Type Int
+        Local $dependency.local.20
+        Type Option<Int>
+        Local $dependency.local.23
+      val $when.1: Option<Option<Int>>
+        Type Option<Option<Int>>
+        Local $dependency.local.2
+      val $pattern.subject.2: Option<Option<Int>>
+        Type Option<Option<Int>>
+        Local $when.1
+      branch bb1 bb3
+        Type Boolean
+        VariantTest Option<Option<Int>> v1
+          Type Option<Option<Int>>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $pattern.3: Option<Int>
+        Type Option<Int>
+        VariantPayloadProject Option<Option<Int>> v1 f0
+          Type Option<Option<Int>>
+          Local $pattern.subject.2
+      branch bb2 bb3
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.3
+    bb2 pattern.pass.2
+      val $dependency.local.7: Int
+        Type Int
+        VariantPayloadProject Option<Int> v1 f0
+          Type Option<Int>
+          Local $pattern.3
+      assign $dependency.local.24
+        Type Boolean
+        BoolLiteral false
+      goto bb4
+    bb3 pattern.else.3
+      assign $dependency.local.24
+        Type Boolean
+        BoolLiteral true
+      goto bb4
+    bb4 pattern.merge.4
+      branch bb5 bb6
+        Type Boolean
+        Local $dependency.local.24
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb6 if.merge.6
+      val $when.4: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.3
+      val $pattern.subject.5: Option<Int>
+        Type Option<Int>
+        Local $when.4
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.5
+    bb7 pattern.pass.7
+      val $dependency.local.8: Int
+        Type Int
+        VariantPayloadProject Option<Int> v1 f0
+          Type Option<Int>
+          Local $pattern.subject.5
+      assign $dependency.local.25
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb8 pattern.else.8
+      val $pattern.subject.6: Option<Int>
+        Type Option<Int>
+        Local $when.4
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.6
+    bb9 pattern.merge.9
+      branch bb13 bb14
+        Type Boolean
+        Local $dependency.local.25
+    bb10 pattern.pass.10
+      assign $dependency.local.25
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb11 pattern.else.11
+      unreachable
+    bb12 pattern.merge.12
+      goto bb9
+    bb13 if.then.13
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb14 if.merge.14
+      call $dependency.local.26: Option<Int> = external2 direct
+      branch bb15 bb16
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $dependency.local.26
+    bb15 if.then.15
+      val $dependency.local.27: Int
+        Type Int
+        VariantPayloadProject Option<Int> v1 f0
+          Type Option<Int>
+          Local $dependency.local.26
+      goto bb17
+    bb16 if.else.16
+      val $dependency.local.27: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      goto bb17
+    bb17 if.merge.17
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.27
+      val $dependency.local.29: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.29
+      branch bb18 bb19
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.28
+            Type Int
+            Local $dependency.local.30
+    bb18 if.then.18
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb19 if.merge.19
+      val $dependency.local.31: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.local.32: Int
+        Type Int
+        Local $dependency.local.31
+      call external1 direct
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+          Type Int
+          Local $dependency.local.32
+      val $dependency.local.33: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.34: Int
+        Type Int
+        Local $dependency.local.33
+      assign $new.1
+        Type Cell
+        ClassAlloc Cell
+      call external3 direct
+        Type Cell
+        Local $new.1
+        Type Int
+        Local $dependency.local.34
+      val $dependency.local.35: Cell
+        Type Cell
+        Local $new.1
+      val $dependency.local.36: Cell
+        Type Cell
+        Local $dependency.local.35
+      call $dependency.local.9: Option<Cell> = @fn7 direct
+        Type Cell
+        Local $dependency.local.36
+      val $dependency.local.37: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      assign $new.2
+        Type Cell
+        ClassAlloc Cell
+      call external3 direct
+        Type Cell
+        Local $new.2
+        Type Int
+        Local $dependency.local.38
+      val $dependency.local.10: Cell
+        Type Cell
+        Local $new.2
+      var $dependency.local.11: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb20 try.unwind.20
+      landing_pad cleanup=false
+      goto bb21
+    bb21 try.dispatch.21
+      begin_catch
+      branch bb28 bb29
+        Type Boolean
+        IsInstance UnwrapException
+          Type Any
+          CaughtException
+    bb22 try.handler_pad.22
+      landing_pad cleanup=true
+      goto bb23
+    bb23 try.handler_cleanup.23
+      end_catch
+      resume
+    bb24 try.exit_pad.24
+      landing_pad cleanup=true
+      goto bb25
+    bb25 try.exit_cleanup.25
+      end_catch
+      resume
+    bb26 try.end.26
+      val $dependency.local.41: Boolean
+        Type Boolean
+        Local $dependency.local.11
+      branch bb32 bb33
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.local.41
+    bb27 try.body.27 unwind bb20
+      val $dependency.local.39: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+      val $dependency.local.40: Option<Int>
+        Type Option<Int>
+        Local $dependency.local.39
+      call $call.3: Int = @fn8 direct
+        Type Option<Int>
+        Local $dependency.local.40
+      goto bb26
+    bb28 try.catch.28
+      call $catch.4: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $dependency.local.12: UnwrapException
+        Type UnwrapException
+        Retype UnwrapException
+          Type Any
+          Local $catch.4
+      goto bb30
+    bb29 try.next.29
+      rethrow unwind bb24
+    bb30 scope.30 unwind bb22
+      assign $dependency.local.11
+        Type Boolean
+        BoolLiteral true
+      end_catch
+      goto bb31
+    bb31 scope.31
+      goto bb26
+    bb32 if.then.32
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb33 if.merge.33
+      call $dependency.local.42: Option<Int> = external2 direct
+      branch bb34 bb35
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $dependency.local.42
+    bb34 if.then.34
+      val $dependency.local.43: Int
+        Type Int
+        VariantPayloadProject Option<Int> v1 f0
+          Type Option<Int>
+          Local $dependency.local.42
+      goto bb36
+    bb35 if.else.35
+      val $dependency.local.43: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb36
+    bb36 if.merge.36
+      val $dependency.local.46: Int
+        Type Int
+        Local $dependency.local.43
+      val $dependency.local.44: Option<Cell>
+        Type Option<Cell>
+        Local $dependency.local.9
+      val $dependency.local.45: Option<Cell>
+        Type Option<Cell>
+        Local $dependency.local.44
+      call $call.5: Cell = @fn9 direct
+        Type Option<Cell>
+        Local $dependency.local.45
+      val $dependency.local.47: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local $call.5
+      val $dependency.local.48: Int
+        Type Int
+        Local $dependency.local.47
+      val $dependency.local.49: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.46
+          Type Int
+          Local $dependency.local.48
+      val $dependency.local.50: Int
+        Type Int
+        FieldAccess 0
+          Type Cell
+          Local $dependency.local.10
+      val $dependency.local.51: Int
+        Type Int
+        Local $dependency.local.50
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.49
+          Type Int
+          Local $dependency.local.51
+  fun reorderedWrap @fn3(value: Later) -> Option<Later>
+    bb0 entry
+      val $dependency.local.1: Later
+        Type Later
+        Local value
+      val $dependency.local.2: Later
+        Type Later
+        Local $dependency.local.1
+      return
+        Type Option<Later>
+        VariantConstruct Option<Later> v1
+          Type Later
+          Local $dependency.local.2
+  fun $lambda @fn4($argument.0: () -> Option<Later>) -> Option<Later>
+    bb0 entry
+      val $dependency.local.0: Later
+        Type Later
+        ClosureCapture cc0 0
+          Type () -> Option<Later>
+          Local $argument.0
+      val $dependency.local.1: Later
+        Type Later
+        Local $dependency.local.0
+      return
+        Type Option<Later>
+        VariantConstruct Option<Later> v1
+          Type Later
+          Local $dependency.local.1
+  fun reorderedForce @fn5(value: Option<Later>) -> Later
+    bb0 entry
+      val $opt.1: Option<Later>
+        Type Option<Later>
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Later> v1
+          Type Option<Later>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Later
+        Type Later
+        VariantPayloadProject Option<Later> v1 f0
+          Type Option<Later>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      return
+        Type Later
+        Local $uw.2
+  fun reorderedDefault @fn6(value: Later, wrapped: Option<Later>) -> Later
+    bb0 entry
+      val $dependency.local.2: Option<Later>
+        Type Option<Later>
+        Local wrapped
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Later> v1
+          Type Option<Later>
+          Local $dependency.local.2
+    bb1 if.then.1
+      val $dependency.local.3: Later
+        Type Later
+        VariantPayloadProject Option<Later> v1 f0
+          Type Option<Later>
+          Local $dependency.local.2
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.3: Later
+        Type Later
+        Local value
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Later
+        Local $dependency.local.3
+  fun reorderedWrap @fn7(value: Cell) -> Option<Cell>
+    bb0 entry
+      val $dependency.local.1: Cell
+        Type Cell
+        Local value
+      val $dependency.local.2: Cell
+        Type Cell
+        Local $dependency.local.1
+      return
+        Type Option<Cell>
+        VariantConstruct Option<Cell> v1
+          Type Cell
+          Local $dependency.local.2
+  fun reorderedForce @fn8(value: Option<Int>) -> Int
+    bb0 entry
+      val $opt.1: Option<Int>
+        Type Option<Int>
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Int
+        Type Int
+        VariantPayloadProject Option<Int> v1 f0
+          Type Option<Int>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $uw.2
+  fun reorderedForce @fn9(value: Option<Cell>) -> Cell
+    bb0 entry
+      val $opt.1: Option<Cell>
+        Type Option<Cell>
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Cell> v1
+          Type Option<Cell>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Cell
+        Type Cell
+        VariantPayloadProject Option<Cell> v1 f0
+          Type Option<Cell>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external4 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+    bb3 if.merge.3
+      return
+        Type Cell
+        Local $uw.2
+  fun reorderedWrap @fn10(value: Int) -> Option<Int>
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+          Type Int
+          Local $dependency.local.2
+  fun $lambda @fn11($argument.0: () -> Option<Int>) -> Option<Int>
+    bb0 entry
+      val $dependency.local.0: Int
+        Type Int
+        ClosureCapture cc1 0
+          Type () -> Option<Int>
+          Local $argument.0
+      val $dependency.local.1: Int
+        Type Int
+        Local $dependency.local.0
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+          Type Int
+          Local $dependency.local.1
+  fun reorderedDefault @fn12(value: Int, wrapped: Option<Int>) -> Int
+    bb0 entry
+      val $dependency.local.2: Option<Int>
+        Type Option<Int>
+        Local wrapped
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $dependency.local.2
+    bb1 if.then.1
+      val $dependency.local.3: Int
+        Type Int
+        VariantPayloadProject Option<Int> v1 f0
+          Type Option<Int>
+          Local $dependency.local.2
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.3: Int
+        Type Int
+        Local value
+      goto bb3
+    bb3 if.merge.3
+      return
+        Type Int
+        Local $dependency.local.3
+  fun Continuation.resume @fn13(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn14(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn15(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn16(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn17(this: Later, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local number
+      return
+  fun startCoroutine<Later> @fn18(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn13 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn14 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn15 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn19($source: () -> Option<Later>) -> Any
+    bb0 entry
+      call $call.1: Option<Later> = <closure:function_type0> closure[function_type0]
+        Type () -> Option<Later>
+        Local $source
+      return
+        Type Any
+        Box
+          Type Option<Later>
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn20($source: () -> Option<Int>) -> Any
+    bb0 entry
+      call $call.1: Option<Int> = <closure:function_type2> closure[function_type2]
+        Type () -> Option<Int>
+        Local $source
+      return
+        Type Any
+        Box
+          Type Option<Int>
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn18
+  coroutine_fn cf0 @fn15 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- exercise
+  instance mi2 function=@fn3 <- reorderedWrap
+  instance mi3 function=@fn4 <- $lambda
+  instance mi4 function=@fn5 <- reorderedForce
+  instance mi5 function=@fn6 <- reorderedDefault
+  instance mi6 function=@fn7 <- reorderedWrap
+  instance mi7 function=@fn8 <- reorderedForce
+  instance mi8 function=@fn9 <- reorderedForce
+  instance mi9 function=@fn10 <- reorderedWrap
+  instance mi10 function=@fn11 <- $lambda
+  instance mi11 function=@fn12 <- reorderedDefault
+  instance mi12 function=@fn13 <- Continuation.resume
+  instance mi13 function=@fn14 <- Continuation.resumeWithException
+  instance mi14 function=@fn15 <- SuspendTask.run
+  instance mi15 function=@fn16 <- SuspendRegistration.register
+  output library
