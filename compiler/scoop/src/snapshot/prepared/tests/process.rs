@@ -423,5 +423,4 @@ fn assert_manifest_current_identity(current: &CurrentConeRequestV1, identity: Co
     );
 }
 
-mod core_cache;
 mod core_locator;

@@ -17,3 +17,9 @@
 这项迁移发现公开构建此前只支持默认 core 源码。先修订语言规范 12.3、实现规范 2.7 与阶段设计，再接通默认产物定位：显式依赖优先，默认源码存在时继续使用源码，仅在目录不存在时消费目标平台的产物。新增 `core-default/` 用损坏的备用产物证明源码优先；七个负例覆盖错误 manifest、缺失 manifest、dangling 源码 symlink、损坏产物、错误 coordinate、目录产物与缺失产物。各项均比较完整 canonical 诊断，并确认旧输出保持不变。manifest 诊断保留实际 host path／文本范围，普通 I/O 不伪造 span，产物格式错误保留 semantic member。
 
 两个用例只读通过，共 2 个变体、15 次进程、12 次 golden 比较；12 项共有依赖发现单元测试通过。既有 19 项输入与 4 项基础 CLI 回归也全部只读通过（24 个变体、112 次进程、36 次 golden 比较）。格式化与全 workspace lint 通过；新增默认定位模块 31 行，沿已有 source／prebuilt 节点处理，没有额外编译或产物验证流程。
+
+## 默认 core 源码缓存
+
+`edited_core_rebuilds_through_the_common_cache_without_writing_sysroot_artifacts` 迁为 `core-source/`。保留原 extension 与 library consumer，cold 编译 core／root，warm 两者零 child；修改 core 的 `+ 1` 为 `+ 2` 后两个节点重编译，fingerprint／缓存键都变化，再构建命中新的条目。恢复原内容时直接命中原条目，证明两个版本的缓存都仍可用。各状态的普通与 moving GC 程序结果为 42、43、42；sysroot 始终没有 artifacts 目录。
+
+原 Rust 进程测试与注册已删除；已准备源码不受随后宿主文件修改影响的内部断言仍由 `core_uses_the_common_immutable_snapshot_and_cache_key` 及 `prepare_materializes_only_immutable_private_source_inputs` 保留。格式化与全 workspace lint 后，退役状态再次只读通过：1 个用例、1 个变体、14 次进程、8 次 golden 比较。
