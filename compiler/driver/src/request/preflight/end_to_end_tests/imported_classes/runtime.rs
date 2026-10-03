@@ -4,7 +4,7 @@ use std::process::Command;
 
 mod execution;
 mod runner;
-pub(in super::super) use execution::{execute, link_program};
+pub(in super::super) use execution::execute;
 
 pub(in super::super) fn build(
     target: &scoop_toolchain::ResolvedTargetProfile,

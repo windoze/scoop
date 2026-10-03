@@ -7,3 +7,11 @@
 | 原功能 | 用例 | 只读进程／golden |
 | --- | --- | --- |
 | `program_lifetime_rejects_restart_and_initializer_reentry` | `restart`、`reentry` | 16／18 |
+
+空 image 和缺失 core image 两例保留原 eager-failure／empty-provider 源码与真实产物。TOML 复制 runtime 到私有目录，只精确替换 `startup.c` 传给 `scoop_image_collect` 的数量或列表起点，分别传入空列表和去掉 core 的列表；其余 reader、启动逻辑及 descriptor 均保持原实现。正式链接仍生成包含全部三 image 的入口，测试在 runtime 消费边界注入错误输入，不放宽 native 自动初始化段限制。独立 link 前移走私有 runtime 源码。两例分别检查 `empty input closure` 与 `image dependency or root owner is absent`，且 abort 前没有 eager 的 11 输出。
+
+删除旧 Rust lifecycle 文件编排、support helper 和注册，以及失去调用者的 C main/image 模板。
+
+| 原功能 | 用例 | 只读进程／golden |
+| --- | --- | --- |
+| `incomplete_real_image_inputs_fail_before_any_eager_code` | `empty-images`、`missing-image` | 16／18 |
