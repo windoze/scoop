@@ -3,7 +3,6 @@ use super::*;
 mod adapters;
 mod constructors;
 mod coroutines;
-mod declaration_views;
 mod delegates;
 mod demanded_initialization;
 mod equality;

@@ -1,4 +1,0 @@
-span=142..151
-expression=::collect
-no applicable candidate for callable reference `::collect` in dependency top-level candidate layer:
-  - fun collect<T>(fallback: T, values: Array<T>): Array<T> — Array<T> is not equal to Int

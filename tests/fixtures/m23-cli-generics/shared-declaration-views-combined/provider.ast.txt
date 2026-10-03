@@ -1,0 +1,30 @@
+SourceFile
+  QualifiedPackage upstream.declarationviews
+  public class Counter()
+    public var calls: Int = <expr>
+      IntLiteral 0
+    public fun next
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  public fun T.retain<T>(): T
+    =
+      This
+  public fun select<T>(value: T): Int
+    =
+      IntLiteral 1
+  public fun select(value: Int): Int
+    =
+      Binary Add
+        Var value
+        IntLiteral 1
+  public fun collect<T>(fallback: T, vararg values: T = <expr>): Array<T>
+    =
+      Var values
+  public fun copy<T>(value: T, operation: (T) -> T = <expr>): T
+    =
+      Call operation
+        Var value
+  public class Box<T>(val value: T, val counter: Counter)
+    public fun read
+    public fun relay

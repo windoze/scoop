@@ -1,4 +1,0 @@
-span=811..820
-expression=box::read
-no applicable candidate for bound callable reference `receiver::read` in member candidate layer:
-  - fun Box<T>.read(ignored: Int): T — callable shape expects 0 parameter(s), but the actual type has 1
