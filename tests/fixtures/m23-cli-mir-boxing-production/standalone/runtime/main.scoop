@@ -1,0 +1,11 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val token = Token()
+    val contract: Contract = token
+    verifyType(contract.apply(token) == token && contract.token == token)
+    val hidden = hiddenContract()
+    verifyType(hidden.apply(token) == token && hidden.token == token)
+    val erased: Any = token
+    verifyType((erased as Token) == token)
+}

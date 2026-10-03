@@ -36,8 +36,8 @@ fn sources(
 #[test]
 fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
     for name in ["standalone", "combined"] {
-        let (directory, source) = fixture(name);
-        let (bytes, dump) = with_production(&source, |output, input, hir, graph, types| {
+        let (_, source) = fixture(name);
+        let bytes = with_production(&source, |output, input, hir, graph, types| {
             let unit = dependencies::unit(input, graph);
             let actual = complete_type_exports(output, input, hir, graph);
             let index = MirTypeBridgeTypeIndexV1::try_new(&[&actual, &unit]).unwrap();
@@ -54,19 +54,8 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
                     .unwrap(),
                 bindings
             );
-            let dump = assertions::dump(input, &bindings);
-            if name == "standalone" {
-                assert_eq!(bindings.entries().len(), 2);
-                assert!(dump.contains("Managed -> Managed"));
-                assert!(input.module().meta.boxing_adjusts.len() > bindings.entries().len());
-            } else {
-                assert!(dump.contains("Diamond.echo"));
-                assert!(dump.contains("Root.$get$token"));
-                assert!(dump.contains("Choice"));
-                assert!(dump.contains("Payload"));
-                assert!(!dump.contains("Singleton"));
-            }
-            (encode(&bindings).unwrap(), dump)
+            assertions::selection(output, input, &bindings, name);
+            encode(&bindings).unwrap()
         });
         with_production(
             &format!("private struct Unrelated() {{}}\n{source}"),
@@ -82,19 +71,6 @@ fn actual_boxing_callables_cover_value_members_defaults_and_diamonds() {
                 assert_eq!(encode(&bindings).unwrap(), bytes);
             },
         );
-        if let Some(path) = std::env::var_os("SCOOP_MIR_BOXING_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&path).unwrap();
-            std::fs::write(
-                std::path::Path::new(&path).join(format!("{name}.snap")),
-                dump,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                dump,
-                std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
-            );
-        }
     }
 }
 
