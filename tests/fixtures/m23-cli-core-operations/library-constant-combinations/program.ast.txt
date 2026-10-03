@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  typealias Small = Int8
+  public val compared: Long <const> = <expr>
+  public val wrapped: Small <const> = <expr>
+  public val shifted: UInt <const> = <expr>
+  public val combined: Boolean <const> = <expr>
+  public val converted: Int <const> = <expr>
+  fun main()
+    val value
+      Call userCoreOffset
+        Var converted

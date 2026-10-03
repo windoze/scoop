@@ -1,0 +1,96 @@
+schema = 1
+name = "core-operations-library-constant-combinations"
+inputs = ["../../core-library/extension.scoop", "../../core-library/metadata.scoop", "../../core-library/abi.scoop", "../../core-library/type-aliases.scoop", "../../core-library/integer-defaults.scoop", "../../core-library/default-data-flow.scoop", "../../m23-reference-source-fields/standalone.scoop", "../../m23-reference-source-fields/combined.scoop", "../../core-library/intrinsic-const-consumer.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["core-library-stages", "single-file", "stage-golden", "moving-gc"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/core-source/src/user_extension.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/metadata.scoop", "to" = "${work}/core-source/src/user_metadata.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/abi.scoop", "to" = "${work}/core-source/src/user_abi.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/type-aliases.scoop", "to" = "${work}/core-source/src/user_aliases.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/integer-defaults.scoop", "to" = "${work}/core-source/src/user_integer_defaults.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/default-data-flow.scoop", "to" = "${work}/core-source/src/user_default_data_flow.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reference-source-fields/standalone.scoop", "to" = "${work}/core-source/src/fields_standalone.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reference-source-fields/combined.scoop", "to" = "${work}/core-source/src/fields_combined.scoop"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "192e7855c5c37182693527164fc21de0842eab861d01fb648623b24db34e6d0f"},
+]
+
+[[steps]]
+name = "prepare_program"
+files = [
+  {"copy" = {"from" = "${core.result.root.path}", "to" = "${work}/empty-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"remove" = {"path" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/intrinsic-const-consumer.scoop", "to" = "${work}/sources/intrinsic-constants.scoop"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/intrinsic-constants.scoop", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--emit", "all", "--dump-dir", "${work}/dump/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "6d9d71cde3498ee9be8fd76a9be23023fa21826ed869a7c5b3c98c09caf77176"},
+  {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},
+  {"file" = "${work}/dump/program/${program.result.root.identity}/lir.txt", "snapshot" = "program.lir.txt"},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.dependencies.length}", "equals" = 1},
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
