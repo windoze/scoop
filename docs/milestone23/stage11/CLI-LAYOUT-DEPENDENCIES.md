@@ -17,3 +17,4 @@
 | 属性初始化、展开默认值与不活跃正文 | `core-initialization-combined`、`core-initialization-standalone`、`ordinary-initialization-combined`、`ordinary-initialization-inactive`、`ordinary-initialization-standalone` | 18／52 |
 | 外部 extension receiver | `core-extension-combined`、`core-extension-standalone` | 6／16 |
 | Any 调用签名、getter、默认值与错误结果类型 | `core-any-combined`、`core-any-standalone`、`ordinary-any-combined`、`ordinary-any-standalone`、`ordinary-any-wrong-result` | 17／44 |
+| 实际对象内容与物理引用 | `core-objects-combined`、`core-objects-standalone` | 6／16 |
