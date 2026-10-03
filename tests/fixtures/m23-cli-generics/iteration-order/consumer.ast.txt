@@ -1,0 +1,173 @@
+SourceFile
+  QualifiedPackage consumer.iteration
+  ImportStar Local upstream.iteration.*
+  ImportExact Local upstream.iteration.exercise as providerExercise
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  private class FailingSource()
+    public operator fun iterator
+  public fun result(): Int
+    Call resetCalls
+    var sum
+      IntLiteral 0
+    for value
+      Call marked<Int>
+        ArrayLiteral
+          IntLiteral 20
+          IntLiteral 22
+      assign sum
+        Binary Add
+          Var sum
+          Var value
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Var sum
+              IntLiteral 42
+            Binary Ne
+              Var sourceCalls
+              IntLiteral 1
+          Binary Ne
+            Var iteratorCalls
+            IntLiteral 1
+        Binary Ne
+          Var nextCalls
+          IntLiteral 3
+      return
+        IntLiteral 1
+    Call resetCalls
+    var cleaned
+      IntLiteral 0
+    var retained
+      IntLiteral 0
+    for value
+      Call marked<Int>
+        ArrayLiteral
+          IntLiteral 0
+          IntLiteral 20
+          IntLiteral 22
+      try
+        if
+          Binary Eq
+            Var value
+            IntLiteral 0
+          continue
+        if
+          Binary Eq
+            Var value
+            IntLiteral 22
+          break
+        assign retained
+          Binary Add
+            Var retained
+            Var value
+      finally
+        assign cleaned
+          Binary Add
+            Var cleaned
+            IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Ne
+                Var sourceCalls
+                IntLiteral 1
+              Binary Ne
+                Var iteratorCalls
+                IntLiteral 1
+            Binary Ne
+              Var nextCalls
+              IntLiteral 3
+          Binary Ne
+            Var cleaned
+            IntLiteral 3
+        Binary Ne
+          Var retained
+          IntLiteral 20
+      return
+        IntLiteral 2
+    var caught
+      IntLiteral 0
+    try
+      for value
+        Call Sequence<Int>
+          ArrayLiteral
+            IntLiteral 1
+        try
+          val fail
+            Index
+              ArrayLiteral
+                Var value
+              IntLiteral 1L
+        finally
+          assign cleaned
+            Binary Add
+              Var cleaned
+              IntLiteral 1
+    catch error: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      for value
+        Call FailingSource
+        assign caught
+          Unary Neg
+            IntLiteral 10
+    catch error: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    var nested
+      IntLiteral 0
+    for outer
+      ArrayLiteral
+        IntLiteral 1
+        IntLiteral 2
+      for inner
+        ArrayLiteral
+          IntLiteral 0
+          IntLiteral 1
+          IntLiteral 2
+        if
+          Binary Eq
+            Var inner
+            IntLiteral 0
+          continue
+        if
+          Binary Eq
+            Var inner
+            IntLiteral 2
+          break
+        assign nested
+          Binary Add
+            Var nested
+            Var outer
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary Eq
+              Var caught
+              IntLiteral 2
+            Binary Eq
+              Var cleaned
+              IntLiteral 4
+          Binary Eq
+            Var nested
+            IntLiteral 3
+        IntLiteral 42
+        else
+        IntLiteral 3

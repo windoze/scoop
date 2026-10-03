@@ -1,0 +1,96 @@
+SourceFile
+  QualifiedPackage consumer.iteration
+  ImportStar Local upstream.iteration.*
+  ImportExact Local upstream.iteration.exercise as providerExercise
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  private class Reference(val value: Int)
+  private fun readReference(value: Reference): Int
+    =
+      FieldAccess value
+        Var value
+  public fun result(): Int
+    val first
+      Call Reference
+        IntLiteral 20
+    val second
+      Call Reference
+        IntLiteral 22
+    val empty
+      Call Reference
+        IntLiteral 0
+    val readers: MutableArray<() -> Reference>
+      ArrayLiteral
+        Lambda 0 suspend=false
+          parameters omitted
+          Var empty
+        Lambda 1 suspend=false
+          parameters omitted
+          Var empty
+    Call installReaders<Reference>
+      ArrayLiteral
+        Call Entry
+          IntLiteral 0L
+          TupleLiteral
+            Var first
+            IntLiteral 1
+        Call Entry
+          IntLiteral 1L
+          TupleLiteral
+            Var second
+            IntLiteral 2
+      Var readers
+    val allocation
+      Call Reference
+        IntLiteral 0
+    if
+      Binary Or
+        Binary RefNe
+          Invoke
+            Index
+              Var readers
+              IntLiteral 0L
+          Var first
+        Binary RefNe
+          Invoke
+            Index
+              Var readers
+              IntLiteral 1L
+          Var second
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call componentTotal<Reference>
+          ArrayLiteral
+            Call Components
+              Var first
+              IntLiteral 1
+            Call Components
+              Var second
+              Unary Neg
+                IntLiteral 1
+          CallableReference 0 readReference
+        IntLiteral 42
+      return
+        IntLiteral 2
+    var sum
+      IntLiteral 0
+    for reader
+      Var readers
+      assign sum
+        Binary Add
+          Var sum
+          FieldAccess value
+            Call reader
+    return
+      Binary Add
+        Var sum
+        FieldAccess value
+          Var allocation

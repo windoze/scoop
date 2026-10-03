@@ -1,0 +1,225 @@
+SourceFile
+  QualifiedPackage upstream.iteration
+  public var sourceCalls: Int = <expr>
+  public var iteratorCalls: Int = <expr>
+  public var nextCalls: Int = <expr>
+  public fun resetCalls()
+    assign sourceCalls
+      IntLiteral 0
+    assign iteratorCalls
+      IntLiteral 0
+    assign nextCalls
+      IntLiteral 0
+  public open class Cursor<T>(val values: Array<T>), Iterator<T>
+    private var index: Long = <expr>
+      IntLiteral 0L
+    public fun next
+  public class Sequence<T>(val values: Array<T>), Iterable<T>
+    public operator fun iterator
+  public fun marked<T>(values: Array<T>): Sequence<T>
+    assign sourceCalls
+      Binary Add
+        Var sourceCalls
+        IntLiteral 1
+    return
+      Call Sequence<T>
+        Var values
+  public struct Direct<I>
+    field value: I
+    public operator fun iterator
+  public struct ValueCursor<T> : Iterator<T>
+    field inner: Cursor<T>
+    public fun next
+  public class Items<T>(val values: Array<T>)
+  public struct ValueItems<T>
+    field values: Array<T>
+  public operator fun Items<T>.iterator<T>(): Iterator<T>
+    assign iteratorCalls
+      Binary Add
+        Var iteratorCalls
+        IntLiteral 1
+    return
+      Call Cursor<T>
+        FieldAccess values
+          This
+  public operator fun ValueItems<T>.iterator<T>(): ValueCursor<T>
+    assign iteratorCalls
+      Binary Add
+        Var iteratorCalls
+        IntLiteral 1
+    return
+      Call ValueCursor<T>
+        Call Cursor<T>
+          FieldAccess values
+            This
+  public enum EnumCursor<T> : Iterator<T>
+    Items(Cursor<T>)
+  public interface Left<T> : Iterator<T>
+  public interface Right<T> : Iterator<T>
+  public interface Diamond<T> : Left<T>, Right<T>
+  public class DiamondCursor<T>(val inner: Cursor<T>), Diamond<T>
+    public fun next
+  public fun total<T>(values: Iterable<T>, read: (T) -> Int): Int
+    var sum
+      IntLiteral 0
+    for value
+      Var values
+      assign sum
+        Binary Add
+          Var sum
+          Call read
+            Var value
+    return
+      Var sum
+  public fun boundTotal<T, I : Iterator<T>>(iterator: I, read: (T) -> Int): Int
+    var sum
+      IntLiteral 0
+    for value
+      Call Direct<I>
+        Var iterator
+      assign sum
+        Binary Add
+          Var sum
+          Call read
+            Var value
+    return
+      Var sum
+  public fun classTotal<T, I : Cursor<T>>(iterator: I, read: (T) -> Int): Int
+    var sum
+      IntLiteral 0
+    for value
+      Call Direct<I>
+        Var iterator
+      assign sum
+        Binary Add
+          Var sum
+          Call read
+            Var value
+    return
+      Var sum
+  public fun diamondTotal<T, I : Diamond<T>>(iterator: I, read: (T) -> Int): Int
+    var sum
+      IntLiteral 0
+    for value
+      Call Direct<I>
+        Var iterator
+      assign sum
+        Binary Add
+          Var sum
+          Call read
+            Var value
+    return
+      Var sum
+  public fun defaultTotal<T>(values: Iterable<T>, read: (T) -> Int, compute: () -> Int = <expr>): Int
+    =
+      Call compute
+  public fun totalPack<T>(vararg values: T, read: (T) -> Int): Int
+    var sum
+      IntLiteral 0
+    for value
+      Var values
+      assign sum
+        Binary Add
+          Var sum
+          Call read
+            Var value
+    return
+      Var sum
+  public fun defaultPick<T>(values: Array<T>, fallback: T, chosen: T = <expr>): T
+    =
+      Var chosen
+  public struct Entry<T>
+    field slot: Long
+    field payload: (T, Int)
+  public fun installReaders<T>(entries: Array<Entry<T>>, readers: MutableArray<() -> T>)
+    for {slot, payload: (value, _)}
+      Var entries
+      assign []
+        Var readers
+        Var slot
+        Lambda 1 suspend=false
+          parameters omitted
+          Var value
+  public class Components<T>(val value: T, val extra: Int)
+    public operator fun component1
+    public operator fun component2
+  public fun componentTotal<T>(values: Array<Components<T>>, read: (T) -> Int): Int
+    var sum
+      IntLiteral 0
+    for (value, extra)
+      Var values
+      assign sum
+        Binary Add
+          Binary Add
+            Var sum
+            Call read
+              Var value
+          Var extra
+    return
+      Var sum
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val values
+      ArrayLiteral
+        Var seed
+    if
+      Binary Ne
+        Call total<T>
+          Var values
+          Var read
+        IntLiteral 42
+      return
+        IntLiteral 1
+    if
+      Binary Ne
+        Call defaultTotal<T>
+          Call Sequence<T>
+            Var values
+          Var read
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call totalPack<T>
+          Var seed
+          Argument read=
+            Var read
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call boundTotal<T, Cursor<T>>
+          Call Cursor<T>
+            Var values
+          Var read
+        IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Ne
+        Call boundTotal<T, ValueCursor<T>>
+          Call ValueCursor<T>
+            Call Cursor<T>
+              Var values
+          Var read
+        IntLiteral 42
+      return
+        IntLiteral 5
+    if
+      Binary Ne
+        Call boundTotal<T, EnumCursor<T>>
+          MethodCall Items
+            Var EnumCursor
+            Call Cursor<T>
+              Var values
+          Var read
+        IntLiteral 42
+      return
+        IntLiteral 6
+    return
+      Call diamondTotal<T, DiamondCursor<T>>
+        Call DiamondCursor<T>
+          Call Cursor<T>
+            Var values
+        Var read

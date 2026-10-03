@@ -1,23 +1,4 @@
 #[test]
-fn imported_iteration_republishes_and_executes_from_artifacts() {
-    super::members::check_fixture_cases(
-        "m23-iteration",
-        &[
-            "basic",
-            "bounds",
-            "inference",
-            "defaults",
-            "capture",
-            "abi",
-            "order",
-            "extensions",
-        ],
-        &[],
-        "downstream",
-    );
-}
-
-#[test]
 fn imported_iteration_rejections_have_source_diagnostics() {
     super::members::check_fixture_cases(
         "m23-iteration",

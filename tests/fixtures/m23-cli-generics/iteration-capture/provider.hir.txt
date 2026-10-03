@@ -1,0 +1,691 @@
+== Export ==
+Module
+  struct Direct<I>
+    field0 value: T0
+    property0 val value: T0 getter0=storage <stored struct0-field0>
+  struct ValueCursor<T> : Iterator<T0>
+    field0 inner: Cursor<T0>
+    property1 val inner: Cursor<T0> getter1=storage <stored struct1-field0>
+  struct ValueItems<T>
+    field0 values: Array<T0>
+    property2 val values: Array<T0> getter2=storage <stored struct2-field0>
+  struct Entry<T>
+    field0 slot: Long
+    field1 payload: (T0, Int)
+    property3 val slot: Long getter3=storage <stored struct3-field0>
+    property4 val payload: (T0, Int) getter4=storage <stored struct3-field1>
+  enum EnumCursor<T> : Iterator<T0>
+    Items(_1: Cursor<T0>)
+  open class Cursor<T>(values: Array<T0>) : Iterator<T0>
+    field0 property5: Array<T0>
+    field1 property6: Long
+    property5 val values: Array<T0> getter5=body(Cursor.$get$values) <stored field0 init=parameter5>
+    property6 var index: Long getter6=storage setter0=storage <stored field1 init=expression>
+  class Sequence<T>(values: Array<T0>) : Iterable<T0>
+    field2 property7: Array<T0>
+    property7 val values: Array<T0> getter7=body(Sequence.$get$values) <stored field2 init=parameter6>
+  class Items<T>(values: Array<T0>)
+    field3 property8: Array<T0>
+    property8 val values: Array<T0> getter8=body(Items.$get$values) <stored field3 init=parameter7>
+  class DiamondCursor<T>(inner: Cursor<T0>) : Diamond<T0>
+    field4 property9: Cursor<T0>
+    property9 val inner: Cursor<T0> getter9=body(DiamondCursor.$get$inner) <stored field4 init=parameter8>
+  class Components<T>(value: T0, extra: Int)
+    field5 property10: T0
+    field6 property11: Int
+    property10 val value: T0 getter10=body(Components.$get$value) <stored field5 init=parameter9>
+    property11 val extra: Int getter11=body(Components.$get$extra) <stored field6 init=parameter10>
+  interface Left<T> : Iterator<T0>
+  interface Right<T> : Iterator<T0>
+  interface Diamond<T> : Left<T0>, Right<T0>
+  property12 var sourceCalls: Int getter12=body($get$sourceCalls) setter1=body($set$sourceCalls) <stored global0 image>
+  property13 var iteratorCalls: Int getter13=body($get$iteratorCalls) setter2=body($set$iteratorCalls) <stored global1 image>
+  property14 var nextCalls: Int getter14=body($get$nextCalls) setter3=body($set$nextCalls) <stored global2 image>
+  var sourceCalls: Int <global0 managed>
+  var iteratorCalls: Int <global1 managed>
+  var nextCalls: Int <global2 managed>
+  fun resetCalls(): Unit
+    Call $set$sourceCalls : Unit
+      IntegerLiteral 0 : Int
+    Call $set$iteratorCalls : Unit
+      IntegerLiteral 0 : Int
+    Call $set$nextCalls : Unit
+      IntegerLiteral 0 : Int
+  fun marked<T>(values: Array<T0>): Sequence<T0>
+    val local1
+      Call $get$sourceCalls : Int
+    val local2
+      IntegerLiteral 1 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    Call $set$sourceCalls : Unit
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local4
+      Local values : Array<T0>
+    val local5
+      Local $argument.0 : Array<T0>
+    return
+      ClassInit Sequence<T0> : Sequence<T0>
+        Local $parameter.values : Array<T0>
+  operator fun iterator<T>(this: Items<T0>): Iterator<T0>
+    val local1
+      Call $get$iteratorCalls : Int
+    val local2
+      IntegerLiteral 1 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    Call $set$iteratorCalls : Unit
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local4
+      MethodCall Items.$get$values : Array<T0>
+        Local this : Items<T0>
+    val local5
+      Local $argument.0 : Array<T0>
+    return
+      ReferenceUpcast : Iterator<T0>
+        ClassInit Cursor<T0> : Cursor<T0>
+          Local $parameter.values : Array<T0>
+  operator fun iterator<T>(this: ValueItems<T0>): ValueCursor<T0>
+    val local1
+      Call $get$iteratorCalls : Int
+    val local2
+      IntegerLiteral 1 : Int
+    val local3
+      Local $dependency.argument.0 : Int
+    Call $set$iteratorCalls : Unit
+      IntegerOperation int.add <no-gc> : Int
+        Local $dependency.receiver : Int
+        Local $dependency.parameter.other : Int
+    val local4
+      FieldAccess field 0 : Array<T0>
+        Local this : ValueItems<T0>
+    val local5
+      Local $argument.0 : Array<T0>
+    val local6
+      ClassInit Cursor<T0> : Cursor<T0>
+        Local $parameter.values : Array<T0>
+    val local7
+      Local $argument.0 : Cursor<T0>
+    return
+      StructInit ValueCursor : ValueCursor<T0>
+        Local $parameter.inner : Cursor<T0>
+  fun total<T>(values: Iterable<T0>, read: (T0) -> Int): Int
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      Local values : Iterable<T0>
+    val local4
+      Local $for.source.11 : Iterable<T0>
+    val local5
+      MethodCall Iterable.iterator<T0> : Iterator<T0>
+        Local $dependency.receiver : Iterable<T0>
+    val local6
+      Local $for.iterator.result.12 : Iterator<T0>
+    while
+      condition setup
+        val local7
+          MethodCall Iterator.next<T0> : Option<T0>
+            Local $for.iterator.13 : Iterator<T0>
+      IsSome : Boolean
+        Local $for.next.14 : Option<T0>
+      val local8
+        Unwrap trap=false : T0
+          Local $for.next.14 : Option<T0>
+      val local9
+        Local $for.element.15 : T0
+      val local10
+        Local sum : Int
+      val local11
+        CallableCall function_type0 : Int
+          Local read : (T0) -> Int
+          Local value : T0
+      val local12
+        Local $dependency.argument.0 : Int
+      assign sum
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    return
+      Local sum : Int
+  fun boundTotal<T, I : Iterator<T>>(iterator: T1, read: (T0) -> Int): Int
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      Local iterator : T1
+    val local4
+      Local $argument.0 : T1
+    val local5
+      StructInit Direct : Direct<T1>
+        Local $parameter.value : T1
+    val local6
+      Local $for.source.16 : Direct<T1>
+    val local7
+      MethodCall Direct.iterator : T1
+        Local $receiver : Direct<T1>
+    val local8
+      Box : Iterator<T0>
+        Local $for.iterator.result.17 : T1
+    while
+      condition setup
+        val local9
+          MethodCall Iterator.next<T0> : Option<T0>
+            Local $for.iterator.18 : Iterator<T0>
+      IsSome : Boolean
+        Local $for.next.19 : Option<T0>
+      val local10
+        Unwrap trap=false : T0
+          Local $for.next.19 : Option<T0>
+      val local11
+        Local $for.element.20 : T0
+      val local12
+        Local sum : Int
+      val local13
+        CallableCall function_type1 : Int
+          Local read : (T0) -> Int
+          Local value : T0
+      val local14
+        Local $dependency.argument.0 : Int
+      assign sum
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    return
+      Local sum : Int
+  fun classTotal<T, I : Cursor<T>>(iterator: T1, read: (T0) -> Int): Int
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      Local iterator : T1
+    val local4
+      Local $argument.0 : T1
+    val local5
+      StructInit Direct : Direct<T1>
+        Local $parameter.value : T1
+    val local6
+      Local $for.source.21 : Direct<T1>
+    val local7
+      MethodCall Direct.iterator : T1
+        Local $receiver : Direct<T1>
+    val local8
+      ReferenceUpcast : Iterator<T0>
+        Local $for.iterator.result.22 : T1
+    while
+      condition setup
+        val local9
+          MethodCall Iterator.next<T0> : Option<T0>
+            Local $for.iterator.23 : Iterator<T0>
+      IsSome : Boolean
+        Local $for.next.24 : Option<T0>
+      val local10
+        Unwrap trap=false : T0
+          Local $for.next.24 : Option<T0>
+      val local11
+        Local $for.element.25 : T0
+      val local12
+        Local sum : Int
+      val local13
+        CallableCall function_type2 : Int
+          Local read : (T0) -> Int
+          Local value : T0
+      val local14
+        Local $dependency.argument.0 : Int
+      assign sum
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    return
+      Local sum : Int
+  fun diamondTotal<T, I : Diamond<T>>(iterator: T1, read: (T0) -> Int): Int
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      Local iterator : T1
+    val local4
+      Local $argument.0 : T1
+    val local5
+      StructInit Direct : Direct<T1>
+        Local $parameter.value : T1
+    val local6
+      Local $for.source.26 : Direct<T1>
+    val local7
+      MethodCall Direct.iterator : T1
+        Local $receiver : Direct<T1>
+    val local8
+      Box : Iterator<T0>
+        Local $for.iterator.result.27 : T1
+    while
+      condition setup
+        val local9
+          MethodCall Iterator.next<T0> : Option<T0>
+            Local $for.iterator.28 : Iterator<T0>
+      IsSome : Boolean
+        Local $for.next.29 : Option<T0>
+      val local10
+        Unwrap trap=false : T0
+          Local $for.next.29 : Option<T0>
+      val local11
+        Local $for.element.30 : T0
+      val local12
+        Local sum : Int
+      val local13
+        CallableCall function_type3 : Int
+          Local read : (T0) -> Int
+          Local value : T0
+      val local14
+        Local $dependency.argument.0 : Int
+      assign sum
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    return
+      Local sum : Int
+  fun defaultTotal<T>(values: Iterable<T0>, read: (T0) -> Int, compute: () -> Int): Int
+    return
+      CallableCall function_type5 : Int
+        Local compute : () -> Int
+  fun totalPack<T>(values: Array<T0>, read: (T0) -> Int): Int
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      Local values : Array<T0>
+    val local4
+      Local $for.source.31 : Array<T0>
+    val local5
+      MethodCall iterator<T0> : Iterator<T0>
+        Local $dependency.receiver : Array<T0>
+    val local6
+      Local $for.iterator.result.32 : Iterator<T0>
+    while
+      condition setup
+        val local7
+          MethodCall Iterator.next<T0> : Option<T0>
+            Local $for.iterator.33 : Iterator<T0>
+      IsSome : Boolean
+        Local $for.next.34 : Option<T0>
+      val local8
+        Unwrap trap=false : T0
+          Local $for.next.34 : Option<T0>
+      val local9
+        Local $for.element.35 : T0
+      val local10
+        Local sum : Int
+      val local11
+        CallableCall function_type6 : Int
+          Local read : (T0) -> Int
+          Local value : T0
+      val local12
+        Local $dependency.argument.0 : Int
+      assign sum
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    return
+      Local sum : Int
+  fun defaultPick<T>(values: Array<T0>, fallback: T0, chosen: T0): T0
+    return
+      Local chosen : T0
+  fun installReaders<T>(entries: Array<Entry<T0>>, readers: MutableArray<() -> T0>): Unit
+    val local2
+      Local entries : Array<Entry<T0>>
+    val local3
+      Local $for.source.36 : Array<Entry<T0>>
+    val local4
+      MethodCall iterator<Entry<T0>> : Iterator<Entry<T0>>
+        Local $dependency.receiver : Array<Entry<T0>>
+    val local5
+      Local $for.iterator.result.37 : Iterator<Entry<T0>>
+    while
+      condition setup
+        val local6
+          MethodCall Iterator.next<Entry<T0>> : Option<Entry<T0>>
+            Local $for.iterator.38 : Iterator<Entry<T0>>
+      IsSome : Boolean
+        Local $for.next.39 : Option<Entry<T0>>
+      val local7
+        Unwrap trap=false : Entry<T0>
+          Local $for.next.39 : Option<Entry<T0>>
+      val local8
+        FieldAccess field 0 : Long
+          Local $for.element.40 : Entry<T0>
+      val local9
+        Local $binding.projection.41 : Long
+      val local10
+        FieldAccess field 1 : (T0, Int)
+          Local $for.element.40 : Entry<T0>
+      val local11
+        FieldAccess _1 : T0
+          Local $binding.projection.42 : (T0, Int)
+      val local12
+        Local $binding.projection.43 : T0
+      val local13
+        Local readers : MutableArray<() -> T0>
+      val local14
+        Local slot : Long
+      val local15
+        Lambda lambda1 invoke=$lambda.1 captures=1 : () -> T0
+          capture value binding160 : T0
+      val local16
+        Local $dependency.argument.0 : Long
+      val local17
+        Local $dependency.argument.1 : () -> T0
+      ArraySet MutableSet : Unit
+        Local $dependency.receiver : MutableArray<() -> T0>
+        Local $dependency.parameter.index : Long
+        Local $dependency.parameter.value : () -> T0
+  fun componentTotal<T>(values: Array<Components<T0>>, read: (T0) -> Int): Int
+    val local2
+      IntegerLiteral 0 : Int
+    val local3
+      Local values : Array<Components<T0>>
+    val local4
+      Local $for.source.44 : Array<Components<T0>>
+    val local5
+      MethodCall iterator<Components<T0>> : Iterator<Components<T0>>
+        Local $dependency.receiver : Array<Components<T0>>
+    val local6
+      Local $for.iterator.result.45 : Iterator<Components<T0>>
+    while
+      condition setup
+        val local7
+          MethodCall Iterator.next<Components<T0>> : Option<Components<T0>>
+            Local $for.iterator.46 : Iterator<Components<T0>>
+      IsSome : Boolean
+        Local $for.next.47 : Option<Components<T0>>
+      val local8
+        Unwrap trap=false : Components<T0>
+          Local $for.next.47 : Option<Components<T0>>
+      val local9
+        Local $for.element.48 : Components<T0>
+      val local10
+        MethodCall Components.component1 : T0
+          Local $receiver : Components<T0>
+      val local11
+        Local $binding.component.49 : T0
+      val local12
+        Local $for.element.48 : Components<T0>
+      val local13
+        MethodCall Components.component2 : Int
+          Local $receiver : Components<T0>
+      val local14
+        Local $binding.component.50 : Int
+      val local15
+        Local sum : Int
+      val local16
+        CallableCall function_type8 : Int
+          Local read : (T0) -> Int
+          Local value : T0
+      val local17
+        Local $dependency.argument.0 : Int
+      val local18
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      val local19
+        Local extra : Int
+      val local20
+        Local $dependency.argument.0 : Int
+      assign sum
+        IntegerOperation int.add <no-gc> : Int
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+    return
+      Local sum : Int
+  fun exercise<T>(seed: T0, read: (T0) -> Int): Int
+    val local2
+      ArrayLiteral : Array<T0>
+        Local seed : T0
+    val local3
+      ReferenceUpcast : Iterable<T0>
+        Local values : Array<T0>
+    val local4
+      Local read : (T0) -> Int
+    val local5
+      Local $argument.0 : Iterable<T0>
+    val local6
+      Local $argument.1 : (T0) -> Int
+    val local7
+      Call total<T0> : Int
+        Local $parameter.values : Iterable<T0>
+        Local $parameter.read : (T0) -> Int
+    val local8
+      IntegerLiteral 42 : Int
+    val local9
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 1 : Int
+    val local10
+      Local values : Array<T0>
+    val local11
+      Local $argument.0 : Array<T0>
+    val local12
+      ReferenceUpcast : Iterable<T0>
+        ClassInit Sequence<T0> : Sequence<T0>
+          Local $parameter.values : Array<T0>
+    val local13
+      Local read : (T0) -> Int
+    val local14
+      Local $argument.0 : Iterable<T0>
+    val local15
+      Local $argument.1 : (T0) -> Int
+    val local16
+      Lambda lambda2 invoke=$lambda.0 captures=2 : () -> Int
+        capture values binding21 : Iterable<T0>
+        capture read binding22 : (T0) -> Int
+    val local17
+      Call defaultTotal<T0> : Int
+        Local $parameter.values : Iterable<T0>
+        Local $parameter.read : (T0) -> Int
+        Local $parameter.compute : () -> Int
+    val local18
+      IntegerLiteral 42 : Int
+    val local19
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 2 : Int
+    val local20
+      Local seed : T0
+    val local21
+      Local read : (T0) -> Int
+    val local22
+      ArrayAssembly : Array<T0>
+        Element
+          Local $argument.0 : T0
+    val local23
+      Local $argument.1 : (T0) -> Int
+    val local24
+      Call totalPack<T0> : Int
+        Local $parameter.values : Array<T0>
+        Local $parameter.read : (T0) -> Int
+    val local25
+      IntegerLiteral 42 : Int
+    val local26
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 3 : Int
+    val local27
+      Local values : Array<T0>
+    val local28
+      Local $argument.0 : Array<T0>
+    val local29
+      ClassInit Cursor<T0> : Cursor<T0>
+        Local $parameter.values : Array<T0>
+    val local30
+      Local read : (T0) -> Int
+    val local31
+      Local $argument.0 : Cursor<T0>
+    val local32
+      Local $argument.1 : (T0) -> Int
+    val local33
+      Call boundTotal<T0, Cursor<T0>> : Int
+        Local $parameter.iterator : Cursor<T0>
+        Local $parameter.read : (T0) -> Int
+    val local34
+      IntegerLiteral 42 : Int
+    val local35
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 4 : Int
+    val local36
+      Local values : Array<T0>
+    val local37
+      Local $argument.0 : Array<T0>
+    val local38
+      ClassInit Cursor<T0> : Cursor<T0>
+        Local $parameter.values : Array<T0>
+    val local39
+      Local $argument.0 : Cursor<T0>
+    val local40
+      StructInit ValueCursor : ValueCursor<T0>
+        Local $parameter.inner : Cursor<T0>
+    val local41
+      Local read : (T0) -> Int
+    val local42
+      Local $argument.0 : ValueCursor<T0>
+    val local43
+      Local $argument.1 : (T0) -> Int
+    val local44
+      Call boundTotal<T0, ValueCursor<T0>> : Int
+        Local $parameter.iterator : ValueCursor<T0>
+        Local $parameter.read : (T0) -> Int
+    val local45
+      IntegerLiteral 42 : Int
+    val local46
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 5 : Int
+    val local47
+      Local values : Array<T0>
+    val local48
+      Local $argument.0 : Array<T0>
+    val local49
+      ClassInit Cursor<T0> : Cursor<T0>
+        Local $parameter.values : Array<T0>
+    val local50
+      Local $argument.0 : Cursor<T0>
+    val local51
+      VariantConstruct EnumCursor.Items<T0> : EnumCursor<T0>
+        Local $parameter._1 : Cursor<T0>
+    val local52
+      Local read : (T0) -> Int
+    val local53
+      Local $argument.0 : EnumCursor<T0>
+    val local54
+      Local $argument.1 : (T0) -> Int
+    val local55
+      Call boundTotal<T0, EnumCursor<T0>> : Int
+        Local $parameter.iterator : EnumCursor<T0>
+        Local $parameter.read : (T0) -> Int
+    val local56
+      IntegerLiteral 42 : Int
+    val local57
+      Local $dependency.argument.0 : Int
+    if
+      Unary Not : Boolean
+        IntegerOperation int.equals <no-gc> : Boolean
+          Local $dependency.receiver : Int
+          Local $dependency.parameter.other : Int
+      return
+        IntegerLiteral 6 : Int
+    val local58
+      Local values : Array<T0>
+    val local59
+      Local $argument.0 : Array<T0>
+    val local60
+      ClassInit Cursor<T0> : Cursor<T0>
+        Local $parameter.values : Array<T0>
+    val local61
+      Local $argument.0 : Cursor<T0>
+    val local62
+      ClassInit DiamondCursor<T0> : DiamondCursor<T0>
+        Local $parameter.inner : Cursor<T0>
+    val local63
+      Local read : (T0) -> Int
+    val local64
+      Local $argument.0 : DiamondCursor<T0>
+    val local65
+      Local $argument.1 : (T0) -> Int
+    return
+      Call diamondTotal<T0, DiamondCursor<T0>> : Int
+        Local $parameter.iterator : DiamondCursor<T0>
+        Local $parameter.read : (T0) -> Int
+  fun $get$sourceCalls(): Int <no-gc cdecl>
+    return
+      GlobalRead sourceCalls : Int
+  fun $set$sourceCalls(value: Int): Unit <no-gc cdecl>
+    assign global sourceCalls
+      Local value : Int
+  fun $get$iteratorCalls(): Int <no-gc cdecl>
+    return
+      GlobalRead iteratorCalls : Int
+  fun $set$iteratorCalls(value: Int): Unit <no-gc cdecl>
+    assign global iteratorCalls
+      Local value : Int
+  fun $get$nextCalls(): Int <no-gc cdecl>
+    return
+      GlobalRead nextCalls : Int
+  fun $set$nextCalls(value: Int): Unit <no-gc cdecl>
+    assign global nextCalls
+      Local value : Int
+  output library
+  instance total<T0>
+  instance defaultTotal<T0>
+  instance totalPack<T0>
+  instance boundTotal<T0, Cursor<T0>>
+  instance boundTotal<T0, ValueCursor<T0>>
+  instance boundTotal<T0, EnumCursor<T0>>
+  instance diamondTotal<T0, DiamondCursor<T0>>
+== LocalConcrete ==
+LocalConcrete 51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5 Library
+  type Idx::<Type>(0) Type { kind: Unit, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]), key: Nominal(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57])) }
+  type Idx::<Type>(1) Type { kind: Integer(IntegerKind { signedness: Signed, width: W8 }), gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([71, 91, 210, 72, 171, 105, 182, 184, 240, 9, 15, 217, 37, 233, 158, 92, 62, 55, 32, 178, 247, 96, 218, 33, 152, 111, 223, 167, 149, 173, 209, 8]), key: Nominal(PersistentTypeId([170, 129, 66, 226, 176, 39, 231, 137, 86, 93, 221, 20, 168, 17, 173, 186, 239, 29, 56, 189, 184, 25, 104, 225, 14, 88, 123, 90, 239, 135, 144, 4])) }
+  type Idx::<Type>(2) Type { kind: Integer(IntegerKind { signedness: Signed, width: W16 }), gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([125, 192, 138, 231, 126, 3, 252, 184, 56, 77, 60, 236, 12, 50, 252, 156, 23, 107, 64, 62, 227, 115, 44, 141, 11, 80, 52, 220, 44, 91, 33, 157]), key: Nominal(PersistentTypeId([138, 190, 30, 8, 148, 198, 127, 170, 2, 118, 90, 21, 137, 107, 59, 94, 107, 177, 188, 159, 68, 121, 23, 228, 202, 104, 82, 87, 26, 179, 225, 70])) }
+  type Idx::<Type>(3) Type { kind: Integer(IntegerKind { signedness: Signed, width: W32 }), gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([91, 65, 115, 231, 102, 190, 185, 216, 193, 232, 2, 226, 103, 187, 9, 62, 199, 120, 14, 222, 201, 184, 60, 26, 155, 164, 6, 27, 168, 134, 245, 49]), key: Nominal(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247])) }
+  type Idx::<Type>(4) Type { kind: Integer(IntegerKind { signedness: Signed, width: W64 }), gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([165, 144, 23, 247, 115, 38, 142, 56, 110, 87, 100, 52, 249, 69, 17, 167, 159, 173, 219, 74, 114, 46, 49, 163, 76, 182, 66, 169, 98, 81, 249, 237]), key: Nominal(PersistentTypeId([114, 237, 157, 158, 63, 164, 101, 202, 137, 143, 42, 71, 116, 159, 150, 108, 20, 69, 82, 54, 127, 253, 217, 51, 1, 41, 206, 115, 102, 56, 141, 230])) }
+  type Idx::<Type>(5) Type { kind: Integer(IntegerKind { signedness: Unsigned, width: W8 }), gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([240, 87, 74, 5, 86, 115, 188, 35, 153, 117, 139, 21, 149, 49, 236, 189, 249, 84, 32, 39, 210, 254, 203, 156, 254, 24, 88, 241, 25, 13, 46, 0]), key: Nominal(PersistentTypeId([98, 103, 192, 168, 198, 60, 169, 224, 35, 209, 159, 132, 103, 221, 86, 146, 45, 63, 175, 237, 137, 171, 59, 151, 123, 202, 255, 192, 165, 179, 35, 216])) }
+  type Idx::<Type>(6) Type { kind: Integer(IntegerKind { signedness: Unsigned, width: W16 }), gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([4, 69, 229, 244, 187, 177, 30, 237, 93, 102, 63, 95, 164, 238, 85, 213, 211, 33, 216, 41, 52, 220, 160, 31, 227, 68, 223, 27, 223, 243, 119, 87]), key: Nominal(PersistentTypeId([26, 0, 170, 209, 130, 187, 23, 91, 191, 149, 76, 75, 239, 186, 195, 33, 207, 248, 29, 199, 151, 173, 99, 141, 144, 167, 214, 204, 140, 11, 197, 53])) }
+  type Idx::<Type>(7) Type { kind: Integer(IntegerKind { signedness: Unsigned, width: W32 }), gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([54, 124, 220, 27, 157, 52, 115, 177, 59, 92, 104, 153, 89, 155, 120, 36, 47, 27, 121, 44, 186, 48, 58, 54, 138, 197, 64, 54, 9, 74, 123, 174]), key: Nominal(PersistentTypeId([186, 34, 209, 51, 155, 251, 176, 102, 88, 210, 254, 107, 255, 44, 73, 60, 95, 83, 235, 92, 41, 123, 140, 239, 52, 23, 101, 44, 82, 53, 223, 75])) }
+  type Idx::<Type>(8) Type { kind: Integer(IntegerKind { signedness: Unsigned, width: W64 }), gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([7, 106, 143, 24, 123, 23, 82, 180, 19, 16, 57, 85, 215, 229, 239, 229, 109, 16, 244, 252, 69, 205, 100, 64, 161, 174, 100, 60, 124, 20, 105, 46]), key: Nominal(PersistentTypeId([106, 34, 77, 101, 93, 113, 112, 53, 87, 234, 65, 31, 28, 253, 139, 147, 55, 177, 16, 21, 45, 143, 13, 85, 172, 177, 198, 134, 106, 141, 22, 248])) }
+  type Idx::<Type>(9) Type { kind: Boolean, gc_free: true } CborIdentityRecord { id: PersistentExactTypeId([80, 162, 214, 250, 73, 96, 155, 234, 227, 128, 194, 79, 34, 76, 57, 23, 87, 5, 112, 40, 8, 223, 246, 201, 155, 217, 188, 202, 205, 77, 189, 211]), key: Nominal(PersistentTypeId([145, 19, 166, 72, 219, 59, 199, 25, 208, 36, 246, 157, 133, 12, 52, 17, 168, 61, 89, 70, 31, 221, 175, 64, 119, 208, 102, 40, 174, 116, 191, 114])) }
+  type Idx::<Type>(10) Type { kind: String, gc_free: false } CborIdentityRecord { id: PersistentExactTypeId([173, 58, 231, 167, 25, 232, 33, 1, 245, 71, 37, 123, 138, 138, 193, 133, 240, 85, 49, 193, 69, 4, 190, 129, 150, 34, 80, 86, 106, 62, 232, 104]), key: Nominal(PersistentTypeId([2, 82, 200, 101, 172, 201, 191, 7, 134, 167, 183, 226, 177, 202, 119, 127, 118, 174, 3, 138, 181, 27, 177, 89, 185, 166, 173, 150, 26, 173, 96, 151])) }
+  functions Idx::<Function>(0) Function { name: "resetCalls", materialization: CallableMaterialization { template: Function(PersistentFunctionId([56, 26, 33, 243, 208, 154, 238, 14, 112, 151, 22, 188, 189, 148, 73, 44, 151, 182, 13, 90, 105, 55, 30, 199, 176, 162, 207, 170, 9, 63, 36, 164])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [], capture_parameters: [], return_ty: Idx::<Type>(0), attributes: FunctionAttributes { safety: Safe, gc_effect: Managed, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 0, data: [] }, statements: [Statement { kind: Expr(Expr { kind: Call { callee: Local(Function(Idx::<Function>(2))), binding: None, args: [Expr { kind: IntegerLiteral(Signed32(0)), ty: Idx::<Type>(3), span: Span { start: 165, end: 166 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 165, end: 166 }, context: Idx::<SourceContext>(13) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 165, end: 166 }, context: Idx::<SourceContext>(13) } } }], receiver: NoReceiver }, ty: Idx::<Type>(0), span: Span { start: 151, end: 162 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 151, end: 162 }, context: Idx::<SourceContext>(13) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 151, end: 162 }, context: Idx::<SourceContext>(13) } } }), span: Span { start: 151, end: 166 } }, Statement { kind: Expr(Expr { kind: Call { callee: Local(Function(Idx::<Function>(4))), binding: None, args: [Expr { kind: IntegerLiteral(Signed32(0)), ty: Idx::<Type>(3), span: Span { start: 184, end: 185 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 184, end: 185 }, context: Idx::<SourceContext>(13) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 184, end: 185 }, context: Idx::<SourceContext>(13) } } }], receiver: NoReceiver }, ty: Idx::<Type>(0), span: Span { start: 168, end: 181 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 168, end: 181 }, context: Idx::<SourceContext>(13) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 168, end: 181 }, context: Idx::<SourceContext>(13) } } }), span: Span { start: 168, end: 185 } }, Statement { kind: Expr(Expr { kind: Call { callee: Local(Function(Idx::<Function>(6))), binding: None, args: [Expr { kind: IntegerLiteral(Signed32(0)), ty: Idx::<Type>(3), span: Span { start: 199, end: 200 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 199, end: 200 }, context: Idx::<SourceContext>(13) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 199, end: 200 }, context: Idx::<SourceContext>(13) } } }], receiver: NoReceiver }, ty: Idx::<Type>(0), span: Span { start: 187, end: 196 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 187, end: 196 }, context: Idx::<SourceContext>(13) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 187, end: 196 }, context: Idx::<SourceContext>(13) } } }), span: Span { start: 187, end: 200 } }] }), receiver: None, span: Span { start: 125, end: 202 } }
+  functions Idx::<Function>(1) Function { name: "$get$sourceCalls", materialization: CallableMaterialization { template: Accessor(PersistentPropertyAccessorId([7, 9, 106, 239, 151, 43, 99, 8, 87, 214, 56, 83, 109, 68, 219, 78, 56, 95, 212, 113, 178, 161, 226, 135, 103, 146, 198, 170, 171, 12, 137, 11])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [], capture_parameters: [], return_ty: Idx::<Type>(3), attributes: FunctionAttributes { safety: Safe, gc_effect: NoGc, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 0, data: [] }, statements: [Statement { kind: Return { value: Some(Expr { kind: GlobalRead(Idx::<Global>(0)), ty: Idx::<Type>(3), span: Span { start: 39, end: 50 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 39, end: 50 }, context: Idx::<SourceContext>(41) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 39, end: 50 }, context: Idx::<SourceContext>(41) } } }) }, span: Span { start: 39, end: 50 } }] }), receiver: None, span: Span { start: 28, end: 59 } }
+  functions Idx::<Function>(2) Function { name: "$set$sourceCalls", materialization: CallableMaterialization { template: Accessor(PersistentPropertyAccessorId([29, 140, 4, 25, 206, 254, 95, 179, 52, 102, 17, 162, 185, 238, 68, 113, 61, 123, 148, 192, 114, 246, 249, 235, 56, 89, 5, 226, 250, 216, 29, 96])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [Param { name: "value", ty: Idx::<Type>(3), local: Idx::<Local>(0) }], capture_parameters: [], return_ty: Idx::<Type>(0), attributes: FunctionAttributes { safety: Safe, gc_effect: NoGc, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 1, data: [Local { binding: BindingId(293), selector: Parameter { declaration_index: 0 }, definition: Source(DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 39, end: 50 }, context: Idx::<SourceContext>(42) }), name: "value", ty: Idx::<Type>(3), mutable: false }] }, statements: [Statement { kind: Assign { target: Global(Idx::<Global>(0)), value: Expr { kind: Local(Idx::<Local>(0)), ty: Idx::<Type>(3), span: Span { start: 39, end: 50 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 39, end: 50 }, context: Idx::<SourceContext>(42) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 39, end: 50 }, context: Idx::<SourceContext>(42) } } } }, span: Span { start: 39, end: 50 } }] }), receiver: None, span: Span { start: 28, end: 59 } }
+  functions Idx::<Function>(3) Function { name: "$get$iteratorCalls", materialization: CallableMaterialization { template: Accessor(PersistentPropertyAccessorId([185, 6, 87, 148, 2, 184, 108, 139, 116, 132, 208, 9, 1, 84, 238, 142, 250, 15, 130, 120, 191, 209, 91, 234, 118, 213, 145, 167, 106, 87, 255, 253])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [], capture_parameters: [], return_ty: Idx::<Type>(3), attributes: FunctionAttributes { safety: Safe, gc_effect: NoGc, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 0, data: [] }, statements: [Statement { kind: Return { value: Some(Expr { kind: GlobalRead(Idx::<Global>(1)), ty: Idx::<Type>(3), span: Span { start: 71, end: 84 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 71, end: 84 }, context: Idx::<SourceContext>(43) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 71, end: 84 }, context: Idx::<SourceContext>(43) } } }) }, span: Span { start: 71, end: 84 } }] }), receiver: None, span: Span { start: 60, end: 93 } }
+  functions Idx::<Function>(4) Function { name: "$set$iteratorCalls", materialization: CallableMaterialization { template: Accessor(PersistentPropertyAccessorId([13, 98, 62, 3, 121, 63, 152, 251, 16, 56, 248, 193, 148, 140, 200, 204, 33, 9, 41, 126, 157, 166, 238, 70, 255, 134, 252, 110, 93, 58, 69, 206])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [Param { name: "value", ty: Idx::<Type>(3), local: Idx::<Local>(0) }], capture_parameters: [], return_ty: Idx::<Type>(0), attributes: FunctionAttributes { safety: Safe, gc_effect: NoGc, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 1, data: [Local { binding: BindingId(294), selector: Parameter { declaration_index: 0 }, definition: Source(DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 71, end: 84 }, context: Idx::<SourceContext>(44) }), name: "value", ty: Idx::<Type>(3), mutable: false }] }, statements: [Statement { kind: Assign { target: Global(Idx::<Global>(1)), value: Expr { kind: Local(Idx::<Local>(0)), ty: Idx::<Type>(3), span: Span { start: 71, end: 84 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 71, end: 84 }, context: Idx::<SourceContext>(44) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 71, end: 84 }, context: Idx::<SourceContext>(44) } } } }, span: Span { start: 71, end: 84 } }] }), receiver: None, span: Span { start: 60, end: 93 } }
+  functions Idx::<Function>(5) Function { name: "$get$nextCalls", materialization: CallableMaterialization { template: Accessor(PersistentPropertyAccessorId([57, 83, 23, 146, 68, 18, 121, 192, 226, 74, 121, 241, 18, 210, 10, 96, 203, 106, 140, 25, 87, 56, 20, 20, 21, 155, 14, 249, 159, 125, 110, 163])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [], capture_parameters: [], return_ty: Idx::<Type>(3), attributes: FunctionAttributes { safety: Safe, gc_effect: NoGc, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 0, data: [] }, statements: [Statement { kind: Return { value: Some(Expr { kind: GlobalRead(Idx::<Global>(2)), ty: Idx::<Type>(3), span: Span { start: 105, end: 114 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 105, end: 114 }, context: Idx::<SourceContext>(45) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 105, end: 114 }, context: Idx::<SourceContext>(45) } } }) }, span: Span { start: 105, end: 114 } }] }), receiver: None, span: Span { start: 94, end: 123 } }
+  functions Idx::<Function>(6) Function { name: "$set$nextCalls", materialization: CallableMaterialization { template: Accessor(PersistentPropertyAccessorId([43, 210, 115, 48, 237, 138, 155, 29, 129, 171, 4, 183, 0, 143, 245, 51, 194, 107, 172, 8, 201, 201, 50, 35, 31, 11, 232, 210, 70, 91, 56, 235])), context: NoSubstitution }, is_suspend: false, modifiers: CallableModifiers { operator: None, property_delegate_operator: None, is_infix: false }, params: [Param { name: "value", ty: Idx::<Type>(3), local: Idx::<Local>(0) }], capture_parameters: [], return_ty: Idx::<Type>(0), attributes: FunctionAttributes { safety: Safe, gc_effect: NoGc, calling_convention: Cdecl }, kind: User(Body { locals: Arena { len: 1, data: [Local { binding: BindingId(295), selector: Parameter { declaration_index: 0 }, definition: Source(DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 105, end: 114 }, context: Idx::<SourceContext>(46) }), name: "value", ty: Idx::<Type>(3), mutable: false }] }, statements: [Statement { kind: Assign { target: Global(Idx::<Global>(2)), value: Expr { kind: Local(Idx::<Local>(0)), ty: Idx::<Type>(3), span: Span { start: 105, end: 114 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 105, end: 114 }, context: Idx::<SourceContext>(46) }, evaluation: EvaluationOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 105, end: 114 }, context: Idx::<SourceContext>(46) } } } }, span: Span { start: 105, end: 114 } }] }), receiver: None, span: Span { start: 94, end: 123 } }
+  globals Idx::<Global>(0) Global { name: "sourceCalls", storage_owner: Backing(Property(PersistentPropertyId([85, 65, 101, 43, 168, 155, 5, 20, 171, 151, 62, 89, 92, 167, 123, 138, 109, 169, 161, 110, 249, 31, 154, 22, 236, 207, 230, 92, 45, 178, 7, 141]))), ty: Idx::<Type>(3), mutable: true, storage: Managed { state: EncodedStaticValue { payload: Integer(Signed32(0)) } }, span: Span { start: 28, end: 59 } }
+  globals Idx::<Global>(1) Global { name: "iteratorCalls", storage_owner: Backing(Property(PersistentPropertyId([52, 111, 147, 10, 136, 160, 72, 154, 73, 57, 110, 165, 204, 185, 18, 28, 112, 75, 177, 239, 48, 227, 103, 250, 70, 135, 242, 130, 81, 171, 218, 54]))), ty: Idx::<Type>(3), mutable: true, storage: Managed { state: EncodedStaticValue { payload: Integer(Signed32(0)) } }, span: Span { start: 60, end: 93 } }
+  globals Idx::<Global>(2) Global { name: "nextCalls", storage_owner: Backing(Property(PersistentPropertyId([214, 41, 130, 126, 125, 31, 94, 112, 223, 83, 97, 128, 198, 81, 32, 236, 112, 159, 36, 25, 124, 161, 46, 64, 63, 176, 11, 59, 165, 200, 71, 126]))), ty: Idx::<Type>(3), mutable: true, storage: Managed { state: EncodedStaticValue { payload: Integer(Signed32(0)) } }, span: Span { start: 94, end: 123 } }
+  generated []
+  callbacks []
+  coroutines []
