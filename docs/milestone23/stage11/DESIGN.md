@@ -1,6 +1,6 @@
 # M23-11 设计：公开 CLI、单文件模式与总验收
 
-状态：已设计，待实现（2026-10-02）。本文不表示实现或验收完成。
+状态：已完成并验收（2026-10-03）。实际交付、源码覆盖、分批迁移、清理及最终无筛选结果见 [验收记录](ACCEPTANCE.md)。
 
 前置条件：[M23-10 已完成验收](../stage10/ACCEPTANCE.md)，设计核对基线为 `0b180dde6`。沿用 [M23-6a](../stage6a/ACCEPTANCE.md) 的共同 HIR、[Stage 7](../stage7/ACCEPTANCE.md) 的机器定义与 ODR、[Stage 8](../stage8/ACCEPTANCE.md) 的多 image 启动，以及 [Stage 9](../stage9/ACCEPTANCE.md)／Stage 10 的正式产物链接。
 
@@ -30,9 +30,11 @@ scoop link --root-slib out/app.slib --dependency-slib out/core.slib \
 
 本阶段只支持既有 Darwin/AArch64、完整静态 Cone 图和一个主 executable。final-link cache、并行 Cone 调度、包管理／安装器、watch／daemon、C/C++ 源码编译接口、新的 runtime ABI 及 M24/M26/M27 功能不在范围内。
 
-### 1.2 已有能力和真实缺口
+### 1.2 设计时的基线与缺口
 
-| 位置 | 当前事实 | 本阶段工作 |
+下表保留 `0b180dde6` 设计基线的现状与实施分工；最终实现和迁移结果以验收记录为准。
+
+| 位置 | 基线事实 | 本阶段工作 |
 | --- | --- | --- |
 | [`scoop/src/lib.rs`](../../../compiler/scoop/src/lib.rs)、[`schedule.rs`](../../../compiler/scoop/src/schedule.rs) | 已有发现、DAG、快照、缓存和串行 child 调度；没有 `scoop` bin | 增加薄 CLI，将既有输出接到物化和执行 |
 | [`scoop/src/request.rs`](../../../compiler/scoop/src/request.rs)、[`manifest/src/single_file.rs`](../../../compiler/manifest/src/single_file.rs) | 已有 manifest／single-file 请求和唯一源码身份 | 补省略 root 的当前 manifest、构建 profile 与输出目录配置；复用已有分类与读取 |

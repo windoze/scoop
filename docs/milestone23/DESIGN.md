@@ -2194,7 +2194,7 @@ producer可输出任意非空数量的object，验证在全部member的联合定
 
 ### M23-6a：统一 HIR 语义模型、产物消费与具体化
 
-状态：实现中（2026-09-29 开始）。依赖 M23-6 的实际产物基线，详细设计与当前缺口见 [M23-6a](stage6a/DESIGN.md)，实际验证见 [进度记录](stage6a/PROGRESS.md)。已有 M23-7 实现和 fixture 作为迁移基线保留；6a 不要求先完成 Stage 7 的新增物理定义或完整 ODR 合并。
+状态：已完成并验收（2026-10-01）。依赖 M23-6 的实际产物基线，详细设计见 [M23-6a](stage6a/DESIGN.md)，实际交付与验证见 [验收记录](stage6a/ACCEPTANCE.md)，分批过程保留在 [进度记录](stage6a/PROGRESS.md)。已有 M23-7 实现和 fixture 作为迁移基线保留；6a 不要求先完成 Stage 7 的新增物理定义或完整 ODR 合并。
 
 统一当前／依赖声明的类型化身份、nominal application、字段／成员／conformance 查询和正文；源码与解码形成同结构 HIR，Export HIR 是语义图的导出投影。完整调用决议、默认值替换和具体化共用实际生产入口，删除 Imported 类型／操作、导入专用推断、transport→imported template 和本地 arena 假设。按完整 application 和真实需求闭合物化，修复封闭泛型父类型、整数范围 iterator 去重、外来类型解构及函数值默认参数等已确认缺口。
 
@@ -2236,7 +2236,7 @@ Link 直接复用原 foundation 身份／合同，完整机器 ABI／布局原�
 
 ### M23-11：umbrella CLI、single-file mode与总验收
 
-详细设计见 [M23-11](stage11/DESIGN.md)，状态：已设计，待实现（2026-10-02）。前置为已验收的 M23-10；本文中的完成门尚不能据此标记通过。
+详细设计见 [M23-11](stage11/DESIGN.md)，状态：已完成并验收（2026-10-03）。前置为已验收的 M23-10；公开 CLI、统一 fixture 迁移、旧 infra 清理和完整回归结果见 [验收记录](stage11/ACCEPTANCE.md)。最终 Rust 5197 项与 CLI 2067 个 fixture／2157 个变体均通过，下面的完成门已满足。
 
 CLI 只编排同一编译管线。总验收继承 6a 的源码／wire 等价、声明位置变化和双向泛型组合矩阵，并覆盖 Stage 7–10 的实际产物与运行；历史 fixture 不能通过旧本地/core 拼接入口掩盖依赖消费差异。
 
