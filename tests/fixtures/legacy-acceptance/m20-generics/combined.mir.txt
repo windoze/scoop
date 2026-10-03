@@ -33,27 +33,27 @@ Module
   enum CoroutineSlot<Named>
     Empty()
     Value(value: Named)
-  enum CoroutineStep<Int>
-    Completed(value: Int)
-    Suspended()
   enum CoroutineStep<String>
     Completed(value: String)
     Suspended()
-  enum CoroutineSlot<Gate>
-    Empty()
-    Value(value: Gate)
+  enum CoroutineStep<Int>
+    Completed(value: Int)
+    Suspended()
   enum CoroutineSlot<Int>
     Empty()
     Value(value: Int)
-  enum CoroutineSlot<Throwable>
-    Empty()
-    Value(value: Throwable)
   enum CoroutineSlot<String>
     Empty()
     Value(value: String)
   enum CoroutineSlot<CombinedTask>
     Empty()
     Value(value: CombinedTask)
+  enum CoroutineSlot<Throwable>
+    Empty()
+    Value(value: Throwable)
+  enum CoroutineSlot<Gate>
+    Empty()
+    Value(value: Gate)
   class Message vtable=1 itables=1
   class Record<String> vtable=1 itables=0
   class CombinedFailure vtable=0 itables=0
@@ -61,36 +61,36 @@ Module
   class Throwable vtable=0 itables=0
   class Gate vtable=0 itables=0
   class Registration vtable=0 itables=1
+  class CombinedTask vtable=0 itables=1
+  class GenericBox<Message, String> vtable=0 itables=0
   class RecordingCompletion vtable=0 itables=1
   class UnwrapException vtable=0 itables=0
-  class GenericBox<Message, String> vtable=0 itables=0
+  class ArrayIterator<String> vtable=0 itables=1
   class GenericBox<Record<String>, String> vtable=0 itables=0
   class GenericBox<Message, Named> vtable=0 itables=0
-  class CombinedTask vtable=0 itables=1
-  class ArrayIterator<String> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
   class ArrayIterator<Named> vtable=0 itables=1
   class ArrayIterator<Message> vtable=0 itables=1
   class ArrayIterator<NameToken> vtable=0 itables=1
-  class IndexOutOfBoundsException vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class box<NameToken> vtable=0 itables=1
-  class CoroutineFrame<awaitSignal> vtable=0 itables=0
-  class CoroutineAdapter<awaitSignal>$1 vtable=0 itables=1
   class CoroutineFrame<CombinedTask.run> vtable=0 itables=0
   class CoroutineAdapter<CombinedTask.run>$1 vtable=0 itables=1
+  class CoroutineFrame<awaitSignal> vtable=0 itables=0
+  class CoroutineAdapter<awaitSignal>$1 vtable=0 itables=1
   interface Named
   interface Continuation<Int>
   interface SuspendRegistration<Int>
-  interface Continuation<String>
   interface Iterable<String>
   interface Iterator<String>
+  interface SuspendTask<String>
+  interface Continuation<String>
   interface Iterable<Named>
   interface Iterator<Named>
   interface Iterable<Message>
   interface Iterator<Message>
   interface Iterable<NameToken>
   interface Iterator<NameToken>
-  interface SuspendTask<String>
   interface ToString
   interface Hash
   interface SuspendTask<Int>
@@ -104,35 +104,35 @@ Module
   interface Continuation<Message>
   interface SuspendTask<Message>
   interface SuspendRegistration<Message>
-  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn26 captures=1
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn16 captures=1
     bridge function_type1 -> @fn70 id=e2d6b15abd9a6b6277d633750d23d67fd054c376b81b0419d7c0c190595ccbbf
-  generated_exact_type get0 location=class27 nominal_id=0898fa2c1088ef98cb9bb1db5d6abe60c197203ba543ebcdc0abe2468c5a4dfc exact_id=07cf48fb16996bb39953dcbefe513c758e9515377dde606560b488010e780c9d
+  generated_exact_type get0 location=class25 nominal_id=0898fa2c1088ef98cb9bb1db5d6abe60c197203ba543ebcdc0abe2468c5a4dfc exact_id=07cf48fb16996bb39953dcbefe513c758e9515377dde606560b488010e780c9d
   generated_exact_type get1 location=class23 nominal_id=a53bfd031ff0c4c1a61dee8a11602e9bed12b4f9f88b8a2986a974772c371e24 exact_id=0ddd7ffe187768873dc5699e8f667f942d5080b588675e3173ffdb7d782fa51b
-  generated_exact_type get2 location=enum12 nominal_id=11095ad3fdb8a19e049d7d29a62d75e350d5ee778b3cd195021b9129aab33c6e exact_id=0e5d4d97d7f257c285a63651f7e787975762977458c4e8c056b56ddcec76465f
-  generated_exact_type get3 location=class26 nominal_id=13e59d44ac518929809e6c1dab3cf50bcccb9113ecb221a4ab2d13881cd68376 exact_id=1472da45bcf55da7c40ce6ede950a6485d2b06e1d572e2e9387584494c775447
+  generated_exact_type get2 location=enum11 nominal_id=11095ad3fdb8a19e049d7d29a62d75e350d5ee778b3cd195021b9129aab33c6e exact_id=0e5d4d97d7f257c285a63651f7e787975762977458c4e8c056b56ddcec76465f
+  generated_exact_type get3 location=class24 nominal_id=13e59d44ac518929809e6c1dab3cf50bcccb9113ecb221a4ab2d13881cd68376 exact_id=1472da45bcf55da7c40ce6ede950a6485d2b06e1d572e2e9387584494c775447
   generated_exact_type get4 location=closure0 nominal_id=c22a0767ab1134292d7d8f6c00dbd8f3d78ae2c54eeda7591379d03da6f1c5e5 exact_id=1c0065cb8cdf1e6b9c749ab536413f069a016e238a14e4fa26fcb84d8624054a
-  generated_exact_type get5 location=enum13 nominal_id=33251289c52c3da49a9afcb34853e2374bd21d464c8570cd34eba02f216358a9 exact_id=2ed8d8fce42e51489fa325cde4b48166447471f1b32e6d155b1d4cb7bf1eebd2
+  generated_exact_type get5 location=enum17 nominal_id=33251289c52c3da49a9afcb34853e2374bd21d464c8570cd34eba02f216358a9 exact_id=2ed8d8fce42e51489fa325cde4b48166447471f1b32e6d155b1d4cb7bf1eebd2
   generated_exact_type get6 location=enum6 nominal_id=71d4b1640722f558f1bf2b2ce07c7c7f9dfa83bad36e90cdafb2fbacc051e68f exact_id=3b94af839032d8b4241a9e67d3c9f9046ecc17bd084c22671ddf5087c6093830
-  generated_exact_type get7 location=enum16 nominal_id=eeb1d84288923e004d2d8db85c8d8bc8c4b8b03fa6711e3bcd50f05160977af8 exact_id=44657f98ec1c1750b51e149e4128f774f31fa7e7b4ab0e8ec72361fb464bdf5f
-  generated_exact_type get8 location=class24 nominal_id=da51fc7a761095fc9956c03a01cd5905d41361542fb7f5d12feffe60c70f4c24 exact_id=4cde99b61a993620636b4f614dcdf829ae33c82cf2ee6e4f09283cd95424837f
+  generated_exact_type get7 location=enum14 nominal_id=eeb1d84288923e004d2d8db85c8d8bc8c4b8b03fa6711e3bcd50f05160977af8 exact_id=44657f98ec1c1750b51e149e4128f774f31fa7e7b4ab0e8ec72361fb464bdf5f
+  generated_exact_type get8 location=class26 nominal_id=da51fc7a761095fc9956c03a01cd5905d41361542fb7f5d12feffe60c70f4c24 exact_id=4cde99b61a993620636b4f614dcdf829ae33c82cf2ee6e4f09283cd95424837f
   generated_exact_type get9 location=enum9 nominal_id=126e880653f3f9865ef0c3b8122aaeabbf6fa15cd0730a0ed881c8871c2a3b90 exact_id=4f352bbe28f103cf1923f0210f0ed6c9d4dc67390679e96e6108be0a864bb3bb
   generated_exact_type get10 location=enum10 nominal_id=93666cc01a1a2b21c3cb7c332d15e38c21bf1e950644dd354b82eb87266268bd exact_id=7577af9bc6a8af6971ad0008e0d6a4f1a3a59febd93ad3f53e2c6f1bcba81d8b
-  generated_exact_type get11 location=class25 nominal_id=7a383ec3736ed531d093e9e7d78c77600c885bc19e58aaaf9bb43aa153b51ee7 exact_id=8a964bac35b4550ff75a1d846c1db12b2b45486c65aa8678b2db73e60bc5102d
+  generated_exact_type get11 location=class27 nominal_id=7a383ec3736ed531d093e9e7d78c77600c885bc19e58aaaf9bb43aa153b51ee7 exact_id=8a964bac35b4550ff75a1d846c1db12b2b45486c65aa8678b2db73e60bc5102d
   generated_exact_type get12 location=enum7 nominal_id=6cc41ed0f13b07dade9330e48448d434e9b7d37b7b80c11f6043304140985298 exact_id=b1e035e969ad7add668c2c6de65b8080f7ce829f412eedc4839835443dc5083f
-  generated_exact_type get13 location=enum11 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
+  generated_exact_type get13 location=enum12 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
   generated_exact_type get14 location=enum5 nominal_id=d0f0ad19ce8600746bbebd29341df66c5666f1402bd4d9944592fab1fa6f6df8 exact_id=bb3319706583e5db2e5ba272c3f2a3529172b777b3a811ae2277aa754f5899a4
-  generated_exact_type get15 location=enum15 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
-  generated_exact_type get16 location=enum14 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
+  generated_exact_type get15 location=enum16 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
+  generated_exact_type get16 location=enum13 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
   generated_exact_type get17 location=enum8 nominal_id=a402ea5b3365c0285c2bf8ff84c97ce05fd6a56755705dcaa152f9644c1d28c6 exact_id=de41af934956e6b76bb0e50ede814e0580f874bf653a7477a9d4c26dad64aba0
-  generated_exact_type get18 location=enum17 nominal_id=33e7158499d13a7c8680bfa540f140af25f53d5fd07902e975970796f0bfc057 exact_id=e2bb105fc8e4452c475b386d2bd52b58bf6ce712ad18cf3995825917618765af
-  generated_callable gc0 function=@fn71 id=44a803121f6d7b59d1356f36afd3b3454e2f5690557f8e0dfd8d8313f0c4a1a3
-  generated_callable gc1 function=@fn72 id=47e1733ca36431b1abcec61deaf2501f2ca9630d5820b423de24bc40366b8dcf
-  generated_callable gc2 function=@fn75 id=4fec06f9d6aeb4c915e735affb86e075ebf0dfe11312641f20db8189d86768b1
-  generated_callable gc3 function=@fn73 id=7616a080644b791923f9825055f95d624a088a784b7229794156c53d11f612ab
+  generated_exact_type get18 location=enum15 nominal_id=33e7158499d13a7c8680bfa540f140af25f53d5fd07902e975970796f0bfc057 exact_id=e2bb105fc8e4452c475b386d2bd52b58bf6ce712ad18cf3995825917618765af
+  generated_callable gc0 function=@fn74 id=44a803121f6d7b59d1356f36afd3b3454e2f5690557f8e0dfd8d8313f0c4a1a3
+  generated_callable gc1 function=@fn75 id=47e1733ca36431b1abcec61deaf2501f2ca9630d5820b423de24bc40366b8dcf
+  generated_callable gc2 function=@fn72 id=4fec06f9d6aeb4c915e735affb86e075ebf0dfe11312641f20db8189d86768b1
+  generated_callable gc3 function=@fn76 id=7616a080644b791923f9825055f95d624a088a784b7229794156c53d11f612ab
   generated_callable gc4 function=@fn67 id=777e677e9347f8cc1be04414d32c314deda94f5d57e1d2b6c7328f417a5f1e05
   generated_callable gc5 function=@fn66 id=838e188a6791bc5ecb13bd6b17b25bb7d9641941833a952eac05b95b2b73fc12
-  generated_callable gc6 function=@fn74 id=84371259aecedcc47db28d4f77b1fab27beaad7b9549b00bed663d0be9039e0c
-  generated_callable gc7 function=@fn76 id=91bf78ba54dfbc4c31d1846617e729ec969e0bb2423670461c12980b0b25d0f3
+  generated_callable gc6 function=@fn71 id=84371259aecedcc47db28d4f77b1fab27beaad7b9549b00bed663d0be9039e0c
+  generated_callable gc7 function=@fn73 id=91bf78ba54dfbc4c31d1846617e729ec969e0bb2423670461c12980b0b25d0f3
   generated_callable gc8 function=@fn70 id=e2d6b15abd9a6b6277d633750d23d67fd054c376b81b0419d7c0c190595ccbbf
   generated_callable gc9 function=@fn69 id=f63bdb8d99fa0bcc9b6a1bd1d6c058a9f782c1095d8c20ada4cf1052c77829f4
   generated_callable gc10 function=@fn68 id=fdb3100ea6a3b250e8d8800f3e73c1da941bbad9453c857d072e7b5781eefd45
@@ -209,7 +209,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn12 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         Local $dependency.receiver
         Type Int
@@ -233,7 +233,81 @@ Module
           Type Continuation<Int>
           Local $dependency.parameter._1
       return
-  fun RecordingCompletion.resume @fn6(this: RecordingCompletion, value: String) -> Unit
+  fun iterator @fn6(this: Array<String>) -> Iterator<String>
+    bb0 entry
+      val $dependency.local.1: Array<String>
+        Type Array<String>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<String>
+        Type Array<String>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<String>
+        ClassAlloc ArrayIterator<String>
+      call @fn54 direct
+        Type ArrayIterator<String>
+        Local $new.1
+        Type Array<String>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<String>
+        Retype Iterator<String>
+          Type ArrayIterator<String>
+          Local $new.1
+  fun CombinedTask.run @fn7(this: CombinedTask, $completion: Continuation<String>) -> CoroutineStep<String>
+    bb0 entry
+      val $frame: CoroutineFrame<CombinedTask.run>
+        Type CoroutineFrame<CombinedTask.run>
+        ClassAlloc CoroutineFrame<CombinedTask.run>
+      field_set 0
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      field_set 1
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type Continuation<String>
+        Local $completion
+      field_set 2
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v0
+      field_set 3
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type CoroutineSlot<String>
+        VariantConstruct CoroutineSlot<String> v0
+      field_set 4
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type CoroutineSlot<CombinedTask>
+        VariantConstruct CoroutineSlot<CombinedTask> v1
+          Type CombinedTask
+          Local this
+      field_set 5
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      call $step: CoroutineStep<String> = @fn71 direct
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      return
+        Type CoroutineStep<String>
+        Local $step
+  fun RecordingCompletion.resume @fn8(this: RecordingCompletion, value: String) -> Unit
     bb0 entry
       val $dependency.argument.0: String
         Type String
@@ -243,7 +317,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn18 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -252,23 +326,23 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn18 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun RecordingCompletion.resumeWithException @fn7(this: RecordingCompletion, exception: Throwable) -> Unit
+  fun RecordingCompletion.resumeWithException @fn9(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
         Type String
-        StringConst @str1
+        StringConst @str3
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn18 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun rebuild @fn8(source: GenericBox<Message, String>) -> GenericBox<Record<String>, String>
+  fun rebuild @fn10(source: GenericBox<Message, String>) -> GenericBox<Record<String>, String>
     bb0 entry
       val $argument.0: Record<String>
         Type Record<String>
@@ -297,7 +371,7 @@ Module
       assign $new.1
         Type GenericBox<Record<String>, String>
         ClassAlloc GenericBox<Record<String>, String>
-      call @fn53 direct
+      call @fn55 direct
         Type GenericBox<Record<String>, String>
         Local $new.1
         Type Record<String>
@@ -311,7 +385,7 @@ Module
       return
         Type GenericBox<Record<String>, String>
         Local $new.1
-  fun awaitSignal @fn9(gate: Gate, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun awaitSignal @fn11(gate: Gate, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<awaitSignal>
         Type CoroutineFrame<awaitSignal>
@@ -343,7 +417,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Int> = @fn71 direct
+      call $step: CoroutineStep<Int> = @fn74 direct
         Type CoroutineFrame<awaitSignal>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -351,7 +425,7 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
-  fun makeGarbage @fn10() -> Unit
+  fun makeGarbage @fn12() -> Unit
     bb0 entry
       var index: Int
         Type Int
@@ -383,7 +457,7 @@ Module
     bb3 while.body.3
       val $argument.0: String
         Type String
-        StringConst @str2
+        StringConst @str4
       val $parameter.value: String
         Type String
         Local $argument.0
@@ -415,11 +489,11 @@ Module
           Type Int
           Local $dependency.parameter.other
       goto bb1
-  fun main @fn11() -> Unit
+  fun main @fn13() -> Unit
     bb0 entry
       val $argument.0: String
         Type String
-        StringConst @str3
+        StringConst @str5
       val $parameter.value: String
         Type String
         Local $argument.0
@@ -439,7 +513,7 @@ Module
         Local message
       val $argument.1: String
         Type String
-        StringConst @str4
+        StringConst @str6
       val $parameter.source: Message
         Type Message
         Local $argument.0
@@ -455,7 +529,7 @@ Module
       assign $new.2
         Type GenericBox<Message, String>
         ClassAlloc GenericBox<Message, String>
-      call @fn54 direct
+      call @fn56 direct
         Type GenericBox<Message, String>
         Local $new.2
         Type Message
@@ -474,16 +548,16 @@ Module
         Local message
       val $argument.1: String
         Type String
-        StringConst @str5
+        StringConst @str7
       val $argument.2: String
         Type String
-        StringConst @str6
+        StringConst @str8
       val $argument.3: String
         Type String
-        StringConst @str7
+        StringConst @str9
       val $argument.4: String
         Type String
-        StringConst @str8
+        StringConst @str10
       val $parameter.source: Message
         Type Message
         Local $argument.0
@@ -505,7 +579,7 @@ Module
       assign $new.3
         Type GenericBox<Message, String>
         ClassAlloc GenericBox<Message, String>
-      call @fn54 direct
+      call @fn56 direct
         Type GenericBox<Message, String>
         Local $new.3
         Type Message
@@ -521,7 +595,7 @@ Module
         Local $new.3
       val $argument.0: String
         Type String
-        StringConst @str9
+        StringConst @str11
       val $parameter.text: String
         Type String
         Local $argument.0
@@ -554,7 +628,7 @@ Module
       assign $new.5
         Type GenericBox<Message, Named>
         ClassAlloc GenericBox<Message, Named>
-      call @fn55 direct
+      call @fn57 direct
         Type GenericBox<Message, Named>
         Local $new.5
         Type Message
@@ -576,7 +650,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn18 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: Long
@@ -589,7 +663,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn18 direct
+      call @fn22 direct
         Type Long
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -600,7 +674,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn18 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: Long
@@ -613,7 +687,7 @@ Module
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn18 direct
+      call @fn22 direct
         Type Long
         Local $dependency.parameter.value
       val $argument.0: Array<Message>
@@ -624,18 +698,18 @@ Module
       val $parameter.values: Array<Message>
         Type Array<Message>
         Local $argument.0
-      call $dependency.argument.0: Long = @fn19 direct
+      call $dependency.argument.0: Long = @fn23 direct
         Type Array<Message>
         Local $parameter.values
       val $dependency.parameter.value: Long
         Type Long
         Local $dependency.argument.0
-      call @fn18 direct
+      call @fn22 direct
         Type Long
         Local $dependency.parameter.value
       val $argument.0: String
         Type String
-        StringConst @str10
+        StringConst @str12
       val $parameter.text: String
         Type String
         Local $argument.0
@@ -650,13 +724,13 @@ Module
       val $parameter.values: Array<NameToken>
         Type Array<NameToken>
         Local $argument.0
-      call $dependency.argument.0: String = @fn20 direct
+      call $dependency.argument.0: String = @fn24 direct
         Type Array<NameToken>
         Local $parameter.values
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn18 direct
         Type String
         Local $dependency.parameter.value
       val $argument.0: GenericBox<Message, String>
@@ -665,7 +739,7 @@ Module
       val $parameter.source: GenericBox<Message, String>
         Type GenericBox<Message, String>
         Local $argument.0
-      call $call.7: GenericBox<Record<String>, String> = @fn8 direct
+      call $call.7: GenericBox<Record<String>, String> = @fn10 direct
         Type GenericBox<Message, String>
         Local $parameter.source
       val $receiver: Record<String>
@@ -679,7 +753,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn18 direct
         Type String
         Local $dependency.parameter.value
       val $receiver: Named
@@ -693,7 +767,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn18 direct
         Type String
         Local $dependency.parameter.value
       val $argument.0: Option<Continuation<Int>>
@@ -745,7 +819,7 @@ Module
       assign $new.10
         Type CombinedTask
         ClassAlloc CombinedTask
-      call @fn56 direct
+      call @fn52 direct
         Type CombinedTask
         Local $new.10
         Type Gate
@@ -759,14 +833,14 @@ Module
           Local $new.10
       val $argument.0: String
         Type String
-        StringConst @str11
+        StringConst @str13
       val $parameter.label: String
         Type String
         Local $argument.0
       assign $new.11
         Type RecordingCompletion
         ClassAlloc RecordingCompletion
-      call @fn52 direct
+      call @fn53 direct
         Type RecordingCompletion
         Local $new.11
         Type String
@@ -802,7 +876,7 @@ Module
       assign $new.12
         Type CombinedTask
         ClassAlloc CombinedTask
-      call @fn56 direct
+      call @fn52 direct
         Type CombinedTask
         Local $new.12
         Type Gate
@@ -816,14 +890,14 @@ Module
           Local $new.12
       val $argument.0: String
         Type String
-        StringConst @str12
+        StringConst @str14
       val $parameter.label: String
         Type String
         Local $argument.0
       assign $new.13
         Type RecordingCompletion
         ClassAlloc RecordingCompletion
-      call @fn52 direct
+      call @fn53 direct
         Type RecordingCompletion
         Local $new.13
         Type String
@@ -846,15 +920,15 @@ Module
         Local $dependency.parameter.completion
       val $dependency.argument.0: String
         Type String
-        StringConst @str13
+        StringConst @str15
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn13 direct
+      call @fn18 direct
         Type String
         Local $dependency.parameter.value
       call @scoop_rt_gc_collect direct
-      call @fn10 direct
+      call @fn12 direct
       call @scoop_rt_gc_collect direct
       val $receiver: Gate
         Type Gate
@@ -885,294 +959,10 @@ Module
         Type Int
         Local $parameter.value
       return
-  fun Continuation.resume @fn12(this: Continuation<Int>, value: Int) -> Unit
+  fun Continuation.resume @fn14(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun println @fn13(value: String) -> Unit
-    bb0 entry
-      val $dependency.local.1: String
-        Type String
-        Local value
-      call $dependency.local.2: String = external2 direct
-        Type String
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external3 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str14
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external3 direct
-        Type String
-        Local $dependency.local.5
-      return
-  fun iterator @fn14(this: Array<String>) -> Iterator<String>
-    bb0 entry
-      val $dependency.local.1: Array<String>
-        Type Array<String>
-        Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<String>
-        Type Array<String>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<String>
-        ClassAlloc ArrayIterator<String>
-      call @fn57 direct
-        Type ArrayIterator<String>
-        Local $new.1
-        Type Array<String>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
-      return
-        Type Iterator<String>
-        Retype Iterator<String>
-          Type ArrayIterator<String>
-          Local $new.1
-  fun iterator @fn15(this: Array<Named>) -> Iterator<Named>
-    bb0 entry
-      val $dependency.local.1: Array<Named>
-        Type Array<Named>
-        Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Named>
-        Type Array<Named>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Named>
-        ClassAlloc ArrayIterator<Named>
-      call @fn58 direct
-        Type ArrayIterator<Named>
-        Local $new.1
-        Type Array<Named>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
-      return
-        Type Iterator<Named>
-        Retype Iterator<Named>
-          Type ArrayIterator<Named>
-          Local $new.1
-  fun iterator @fn16(this: Array<Message>) -> Iterator<Message>
-    bb0 entry
-      val $dependency.local.1: Array<Message>
-        Type Array<Message>
-        Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Message>
-        Type Array<Message>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Message>
-        ClassAlloc ArrayIterator<Message>
-      call @fn59 direct
-        Type ArrayIterator<Message>
-        Local $new.1
-        Type Array<Message>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
-      return
-        Type Iterator<Message>
-        Retype Iterator<Message>
-          Type ArrayIterator<Message>
-          Local $new.1
-  fun iterator @fn17(this: Array<NameToken>) -> Iterator<NameToken>
-    bb0 entry
-      val $dependency.local.1: Array<NameToken>
-        Type Array<NameToken>
-        Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<NameToken>
-        Type Array<NameToken>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<NameToken>
-        ClassAlloc ArrayIterator<NameToken>
-      call @fn60 direct
-        Type ArrayIterator<NameToken>
-        Local $new.1
-        Type Array<NameToken>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
-      return
-        Type Iterator<NameToken>
-        Retype Iterator<NameToken>
-          Type ArrayIterator<NameToken>
-          Local $new.1
-  fun println @fn18(value: Long) -> Unit
-    bb0 entry
-      val $dependency.local.1: Long
-        Type Long
-        Local value
-      call $dependency.local.2: String = external1 direct
-        Type Long
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external3 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str15
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external3 direct
-        Type String
-        Local $dependency.local.5
-      return
-  fun countRecords @fn19(values: Array<Message>) -> Long
-    bb0 entry
-      return
-        Type Long
-        ArrayLen Array<Message>
-          Type Array<Message>
-          Local values
-  fun firstName @fn20(values: Array<NameToken>) -> String
-    bb0 entry
-      val $dependency.receiver: Array<NameToken>
-        Type Array<NameToken>
-        Local values
-      val $dependency.argument.0: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.parameter.index: Long
-        Type Long
-        Local $dependency.argument.0
-      val $arr.1: Array<NameToken>
-        Type Array<NameToken>
-        Local $dependency.receiver
-      val $idx.2: Long
-        Type Long
-        Local $dependency.parameter.index
-      branch bb2 bb1
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 logic.rhs.1
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<NameToken>
-            Type Array<NameToken>
-            Local $arr.1
-      goto bb3
-    bb2 logic.short.2
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb3
-    bb3 logic.merge.3
-      branch bb4 bb5
-        Type Boolean
-        Local $logic.1
-    bb4 if.then.4
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external6 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb5 if.merge.5
-      val $receiver: NameToken
-        Type NameToken
-        ArrayGet Array<NameToken>
-          Type Array<NameToken>
-          Local $arr.1
-          Type Long
-          Local $idx.2
-      call $call.3: String = @fn0 direct
-        Type NameToken
-        Local $receiver
-      return
-        Type String
-        Local $call.3
-  fun CombinedTask.run @fn21(this: CombinedTask, $completion: Continuation<String>) -> CoroutineStep<String>
-    bb0 entry
-      val $frame: CoroutineFrame<CombinedTask.run>
-        Type CoroutineFrame<CombinedTask.run>
-        ClassAlloc CoroutineFrame<CombinedTask.run>
-      field_set 0
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      field_set 1
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type Continuation<String>
-        Local $completion
-      field_set 2
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type CoroutineSlot<Int>
-        VariantConstruct CoroutineSlot<Int> v0
-      field_set 3
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type CoroutineSlot<String>
-        VariantConstruct CoroutineSlot<String> v0
-      field_set 4
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type CoroutineSlot<CombinedTask>
-        VariantConstruct CoroutineSlot<CombinedTask> v1
-          Type CombinedTask
-          Local this
-      field_set 5
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type CoroutineSlot<Throwable>
-        VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<String> = @fn74 direct
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      return
-        Type CoroutineStep<String>
-        Local $step
-  fun next @fn22(this: ArrayIterator<String>) -> Option<String>
+  fun next @fn15(this: ArrayIterator<String>) -> Option<String>
     bb0 entry
       val $dependency.local.2: Long
         Type Long
@@ -1300,7 +1090,294 @@ Module
         VariantConstruct Option<String> v0
           Type String
           Local $dependency.local.12
-  fun next @fn23(this: ArrayIterator<Named>) -> Option<Named>
+  fun $lambda.0 @fn16($closure: (Message, String) -> String, item: Message, suffix: String) -> String
+    bb0 entry
+      val $dependency.receiver: String
+        Type String
+        ClosureCapture cc0 0
+          Type (Message, String) -> String
+          Local $closure
+      val $receiver: Message
+        Type Message
+        Local item
+      call $dependency.argument.0: String = @fn3 direct
+        Type Message
+        Local $receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.receiver: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $dependency.argument.0: String
+        Type String
+        Local suffix
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun combine @fn17(value: Message, suffix: String, transform: (Message, String) -> String) -> String
+    bb0 entry
+      val $receiver: Message
+        Type Message
+        Local value
+      call $dependency.receiver: String = @fn1 virtual[0]
+        Type Record<String>
+        Retype Record<String>
+          Type Message
+          Local $receiver
+      val $receiver: Message
+        Type Message
+        Local value
+      call $dependency.argument.0: String = @fn3 direct
+        Type Message
+        Local $receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $dependency.receiver: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
+        Type (Message, String) -> String
+        Local transform
+        Type Message
+        Local value
+        Type String
+        Local suffix
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      return
+        Type String
+        Local $call.1
+  fun println @fn18(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str16
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun iterator @fn19(this: Array<Named>) -> Iterator<Named>
+    bb0 entry
+      val $dependency.local.1: Array<Named>
+        Type Array<Named>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<Named>
+        Type Array<Named>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<Named>
+        ClassAlloc ArrayIterator<Named>
+      call @fn58 direct
+        Type ArrayIterator<Named>
+        Local $new.1
+        Type Array<Named>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<Named>
+        Retype Iterator<Named>
+          Type ArrayIterator<Named>
+          Local $new.1
+  fun iterator @fn20(this: Array<Message>) -> Iterator<Message>
+    bb0 entry
+      val $dependency.local.1: Array<Message>
+        Type Array<Message>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<Message>
+        Type Array<Message>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<Message>
+        ClassAlloc ArrayIterator<Message>
+      call @fn59 direct
+        Type ArrayIterator<Message>
+        Local $new.1
+        Type Array<Message>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<Message>
+        Retype Iterator<Message>
+          Type ArrayIterator<Message>
+          Local $new.1
+  fun iterator @fn21(this: Array<NameToken>) -> Iterator<NameToken>
+    bb0 entry
+      val $dependency.local.1: Array<NameToken>
+        Type Array<NameToken>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<NameToken>
+        Type Array<NameToken>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<NameToken>
+        ClassAlloc ArrayIterator<NameToken>
+      call @fn60 direct
+        Type ArrayIterator<NameToken>
+        Local $new.1
+        Type Array<NameToken>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<NameToken>
+        Retype Iterator<NameToken>
+          Type ArrayIterator<NameToken>
+          Local $new.1
+  fun println @fn22(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str17
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun countRecords @fn23(values: Array<Message>) -> Long
+    bb0 entry
+      return
+        Type Long
+        ArrayLen Array<Message>
+          Type Array<Message>
+          Local values
+  fun firstName @fn24(values: Array<NameToken>) -> String
+    bb0 entry
+      val $dependency.receiver: Array<NameToken>
+        Type Array<NameToken>
+        Local values
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $arr.1: Array<NameToken>
+        Type Array<NameToken>
+        Local $dependency.receiver
+      val $idx.2: Long
+        Type Long
+        Local $dependency.parameter.index
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<NameToken>
+            Type Array<NameToken>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external6 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      val $receiver: NameToken
+        Type NameToken
+        ArrayGet Array<NameToken>
+          Type Array<NameToken>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      call $call.3: String = @fn0 direct
+        Type NameToken
+        Local $receiver
+      return
+        Type String
+        Local $call.3
+  fun next @fn25(this: ArrayIterator<Named>) -> Option<Named>
     bb0 entry
       val $dependency.local.2: Long
         Type Long
@@ -1428,7 +1505,7 @@ Module
         VariantConstruct Option<Named> v0
           Type Named
           Local $dependency.local.12
-  fun next @fn24(this: ArrayIterator<Message>) -> Option<Message>
+  fun next @fn26(this: ArrayIterator<Message>) -> Option<Message>
     bb0 entry
       val $dependency.local.2: Long
         Type Long
@@ -1556,7 +1633,7 @@ Module
         VariantConstruct Option<Message> v0
           Type Message
           Local $dependency.local.12
-  fun next @fn25(this: ArrayIterator<NameToken>) -> Option<NameToken>
+  fun next @fn27(this: ArrayIterator<NameToken>) -> Option<NameToken>
     bb0 entry
       val $dependency.local.2: Long
         Type Long
@@ -1684,83 +1761,6 @@ Module
         VariantConstruct Option<NameToken> v0
           Type NameToken
           Local $dependency.local.12
-  fun $lambda.0 @fn26($closure: (Message, String) -> String, item: Message, suffix: String) -> String
-    bb0 entry
-      val $dependency.receiver: String
-        Type String
-        ClosureCapture cc0 0
-          Type (Message, String) -> String
-          Local $closure
-      val $receiver: Message
-        Type Message
-        Local item
-      call $dependency.argument.0: String = @fn3 direct
-        Type Message
-        Local $receiver
-      val $dependency.parameter.other: String
-        Type String
-        Local $dependency.argument.0
-      call $dependency.receiver: String = @scoop_rt_string_concat direct
-        Type String
-        Local $dependency.receiver
-        Type String
-        Local $dependency.parameter.other
-      val $dependency.argument.0: String
-        Type String
-        Local suffix
-      val $dependency.parameter.other: String
-        Type String
-        Local $dependency.argument.0
-      call $call.1: String = @scoop_rt_string_concat direct
-        Type String
-        Local $dependency.receiver
-        Type String
-        Local $dependency.parameter.other
-      return
-        Type String
-        Local $call.1
-  fun combine @fn27(value: Message, suffix: String, transform: (Message, String) -> String) -> String
-    bb0 entry
-      val $receiver: Message
-        Type Message
-        Local value
-      call $dependency.receiver: String = @fn1 virtual[0]
-        Type Record<String>
-        Retype Record<String>
-          Type Message
-          Local $receiver
-      val $receiver: Message
-        Type Message
-        Local value
-      call $dependency.argument.0: String = @fn3 direct
-        Type Message
-        Local $receiver
-      val $dependency.parameter.other: String
-        Type String
-        Local $dependency.argument.0
-      call $dependency.receiver: String = @scoop_rt_string_concat direct
-        Type String
-        Local $dependency.receiver
-        Type String
-        Local $dependency.parameter.other
-      call $dependency.argument.0: String = <closure:function_type0> closure[function_type0]
-        Type (Message, String) -> String
-        Local transform
-        Type Message
-        Local value
-        Type String
-        Local suffix
-      val $dependency.parameter.other: String
-        Type String
-        Local $dependency.argument.0
-      call $call.1: String = @scoop_rt_string_concat direct
-        Type String
-        Local $dependency.receiver
-        Type String
-        Local $dependency.parameter.other
-      return
-        Type String
-        Local $call.1
   fun Continuation.resumeWithException @fn28(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
@@ -1869,7 +1869,20 @@ Module
         Type Gate
         Local gate
       return
-  fun init.RecordingCompletion.$c8 @fn52(this: RecordingCompletion, label: String) -> Unit
+  fun init.CombinedTask.$c7 @fn52(this: CombinedTask, gate: Gate, box: GenericBox<Message, String>) -> Unit
+    bb0 entry
+      field_set 0
+        Type CombinedTask
+        Local this
+        Type Gate
+        Local gate
+      field_set 1
+        Type CombinedTask
+        Local this
+        Type GenericBox<Message, String>
+        Local box
+      return
+  fun init.RecordingCompletion.$c8 @fn53(this: RecordingCompletion, label: String) -> Unit
     bb0 entry
       field_set 0
         Type RecordingCompletion
@@ -1877,7 +1890,20 @@ Module
         Type String
         Local label
       return
-  fun init.GenericBox.$c3 @fn53(this: GenericBox<Record<String>, String>, source: Record<String>, fallback: String, label: String, rest: Array<String>) -> Unit
+  fun init.ArrayIterator.$c0 @fn54(this: ArrayIterator<String>, source: Array<String>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<String>
+        Local this
+        Type Array<String>
+        Local source
+      field_set 1
+        Type ArrayIterator<String>
+        Local this
+        Type Long
+        Local index
+      return
+  fun init.GenericBox.$c3 @fn55(this: GenericBox<Record<String>, String>, source: Record<String>, fallback: String, label: String, rest: Array<String>) -> Unit
     bb0 entry
       val $argument.0: Record<String>
         Type Record<String>
@@ -1908,7 +1934,7 @@ Module
         Local $parameter.rest
       call @scoop_rt_gc_collect direct
       return
-  fun init.GenericBox.$c3 @fn54(this: GenericBox<Message, String>, source: Message, fallback: String, label: String, rest: Array<String>) -> Unit
+  fun init.GenericBox.$c3 @fn56(this: GenericBox<Message, String>, source: Message, fallback: String, label: String, rest: Array<String>) -> Unit
     bb0 entry
       val $argument.0: Message
         Type Message
@@ -1939,7 +1965,7 @@ Module
         Local $parameter.rest
       call @scoop_rt_gc_collect direct
       return
-  fun init.GenericBox.$c3 @fn55(this: GenericBox<Message, Named>, source: Message, fallback: Named, label: Named, rest: Array<Named>) -> Unit
+  fun init.GenericBox.$c3 @fn57(this: GenericBox<Message, Named>, source: Message, fallback: Named, label: Named, rest: Array<Named>) -> Unit
     bb0 entry
       val $argument.0: Message
         Type Message
@@ -1969,32 +1995,6 @@ Module
         Type Array<Named>
         Local $parameter.rest
       call @scoop_rt_gc_collect direct
-      return
-  fun init.CombinedTask.$c7 @fn56(this: CombinedTask, gate: Gate, box: GenericBox<Message, String>) -> Unit
-    bb0 entry
-      field_set 0
-        Type CombinedTask
-        Local this
-        Type Gate
-        Local gate
-      field_set 1
-        Type CombinedTask
-        Local this
-        Type GenericBox<Message, String>
-        Local box
-      return
-  fun init.ArrayIterator.$c0 @fn57(this: ArrayIterator<String>, source: Array<String>, index: Long) -> Unit
-    bb0 entry
-      field_set 0
-        Type ArrayIterator<String>
-        Local this
-        Type Array<String>
-        Local source
-      field_set 1
-        Type ArrayIterator<String>
-        Local this
-        Type Long
-        Local index
       return
   fun init.ArrayIterator.$c0 @fn58(this: ArrayIterator<Named>, source: Array<Named>, index: Long) -> Unit
     bb0 entry
@@ -2258,7 +2258,619 @@ Module
         Retype Any
           Type String
           Local $call.1
-  fun awaitSignal$drive @fn71($frame: CoroutineFrame<awaitSignal>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
+  fun CombinedTask.run$drive @fn71($frame: CoroutineFrame<CombinedTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<String>
+    bb0 entry
+      val prefix: String
+        Type String
+        StringConst @str1
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      begin_catch
+      call $coroutine_exception.2: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb2 try.dispatch.2
+      branch bb9 bb10
+        Type Boolean
+        IsInstance CombinedFailure
+          Type Throwable
+          Local $coroutine_exception.2
+    bb3 try.handler_pad.3
+      landing_pad cleanup=false
+      begin_catch
+      call $coroutine_exception.1: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb4
+    bb4 try.handler_cleanup.4
+      throw
+        Type Throwable
+        Local $coroutine_exception.1
+    bb5 try.end.5
+      return
+        Type CoroutineStep<String>
+        VariantConstruct CoroutineStep<String> v0
+          Type String
+          Local $result.0
+    bb6 try.body.6 unwind bb1
+      val $argument.0: Gate
+        Type Gate
+        FieldAccess 0
+          Type CombinedTask
+          Local this
+      val $parameter.gate: Gate
+        Type Gate
+        Local $argument.0
+      field_set 4
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type CoroutineSlot<CombinedTask>
+        VariantConstruct CoroutineSlot<CombinedTask> v1
+          Type CombinedTask
+          Local this
+      field_set 3
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type CoroutineSlot<String>
+        VariantConstruct CoroutineSlot<String> v1
+          Type String
+          Local prefix
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+      val $adapter.1: CoroutineAdapter<CombinedTask.run>$1
+        Type CoroutineAdapter<CombinedTask.run>$1
+        ClassAlloc CoroutineAdapter<CombinedTask.run>$1
+      field_set 0
+        Type CoroutineAdapter<CombinedTask.run>$1
+        Local $adapter.1
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+      field_set 1
+        Type CoroutineAdapter<CombinedTask.run>$1
+        Local $adapter.1
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Waiting)
+      call $step.1: CoroutineStep<Int> = @fn11 direct
+        Type Gate
+        Local $parameter.gate
+        Type CoroutineAdapter<CombinedTask.run>$1
+        Local $adapter.1
+      branch bb16 bb17
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Int>
+            Local $step.1
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb7 if.then.7 unwind bb1
+      assign $new.3
+        Type CombinedFailure
+        ClassAlloc CombinedFailure
+      call @fn49 direct
+        Type CombinedFailure
+        Local $new.3
+      throw unwind bb1
+        Type CombinedFailure
+        Local $new.3
+    bb8 if.merge.8 unwind bb1
+      val $argument.0: Message
+        Type Message
+        FieldAccess 0
+          Type GenericBox<Message, String>
+          FieldAccess 1
+            Type CombinedTask
+            Local this
+      val $argument.1: String
+        Type String
+        FieldAccess 1
+          Type GenericBox<Message, String>
+          FieldAccess 1
+            Type CombinedTask
+            Local this
+      val $argument.2: (Message, String) -> String
+        Type (Message, String) -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local prefix
+      val $parameter.value: Message
+        Type Message
+        Local $argument.0
+      val $parameter.suffix: String
+        Type String
+        Local $argument.1
+      val $parameter.transform: (Message, String) -> String
+        Type (Message, String) -> String
+        Local $argument.2
+      call $dependency.receiver: String = @fn17 direct
+        Type Message
+        Local $parameter.value
+        Type String
+        Local $parameter.suffix
+        Type (Message, String) -> String
+        Local $parameter.transform
+      val $dependency.receiver: Long
+        Type Long
+        ArrayLen Array<String>
+          Type Array<String>
+          FieldAccess 2
+            Type GenericBox<Message, String>
+            FieldAccess 1
+              Type CombinedTask
+              Local this
+      call $dependency.argument.0: String = external1 direct
+        Type Long
+        Local $dependency.receiver
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.4: String = @scoop_rt_string_concat direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      assign $result.0
+        Type String
+        Local $call.4
+      goto bb5
+    bb9 try.catch.9
+      val error: CombinedFailure
+        Type CombinedFailure
+        Retype CombinedFailure
+          Type Throwable
+          Local $coroutine_exception.2
+      goto bb11
+    bb10 try.next.10
+      throw
+        Type Throwable
+        Local $coroutine_exception.2
+    bb11 scope.11 unwind bb3
+      assign $result.0
+        Type String
+        StringConst @str2
+      goto bb5
+    bb12 coroutine.post.1 unwind bb1
+      call @scoop_rt_gc_collect direct
+      val $dependency.receiver: Int
+        Type Int
+        Local signal
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb13 coroutine.completed.1 unwind bb1
+      val signal: Int
+        Type Int
+        EnumField v0 f0
+          Type CoroutineStep<Int>
+          Local $step.1
+      goto bb12
+    bb14 coroutine.protocol_error unwind bb1
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external5 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw unwind bb1
+        Type IllegalStateException
+        Local $protocol_error
+    bb15 coroutine.completed_claim_frame.1 unwind bb1
+      val $completed_frame_claim.1: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<CombinedTask.run>
+          Local $frame
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb13 bb14
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $completed_frame_claim.1
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb16 coroutine.completed_claim_adapter.1 unwind bb1
+      val $completed_adapter_claim.1: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local $adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Consumed)
+      branch bb15 bb14
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $completed_adapter_claim.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+    bb17 coroutine.suspended.1
+      return
+        Type CoroutineStep<String>
+        VariantConstruct CoroutineStep<String> v1
+    bb18 coroutine.resume.1 unwind bb1
+      assign this
+        Type CombinedTask
+        EnumField v1 f0
+          Type CoroutineSlot<CombinedTask>
+          FieldAccess 4
+            Type CoroutineFrame<CombinedTask.run>
+            Local $frame
+      assign prefix
+        Type String
+        EnumField v1 f0
+          Type CoroutineSlot<String>
+          FieldAccess 3
+            Type CoroutineFrame<CombinedTask.run>
+            Local $frame
+      assign signal
+        Type Int
+        EnumField v1 f0
+          Type CoroutineSlot<Int>
+          FieldAccess 2
+            Type CoroutineFrame<CombinedTask.run>
+            Local $frame
+      goto bb12
+    bb19 coroutine.failure.1 unwind bb1
+      assign this
+        Type CombinedTask
+        EnumField v1 f0
+          Type CoroutineSlot<CombinedTask>
+          FieldAccess 4
+            Type CoroutineFrame<CombinedTask.run>
+            Local $frame
+      assign prefix
+        Type String
+        EnumField v1 f0
+          Type CoroutineSlot<String>
+          FieldAccess 3
+            Type CoroutineFrame<CombinedTask.run>
+            Local $frame
+      throw unwind bb1
+        Type Throwable
+        EnumField v1 f0
+          Type CoroutineSlot<Throwable>
+          FieldAccess 5
+            Type CoroutineFrame<CombinedTask.run>
+            Local $frame
+    bb20 coroutine.initial
+      assign this
+        Type CombinedTask
+        EnumField v1 f0
+          Type CoroutineSlot<CombinedTask>
+          FieldAccess 4
+            Type CoroutineFrame<CombinedTask.run>
+            Local $frame
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<CombinedTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Running)
+      goto bb0
+    bb21 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external5 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb22 coroutine.dispatch.suspended.1
+      branch bb18 bb21
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $dispatch_state
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb23 coroutine.dispatch.resume_failure.1
+      branch bb19 bb22
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $dispatch_state
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
+    bb24 coroutine.dispatch.initial
+      branch bb20 bb23
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $dispatch_state
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Initial)
+  fun CoroutineAdapter.resume$1 @fn72(this: CoroutineAdapter<CombinedTask.run>$1, value: Int) -> Unit
+    bb0 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external5 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb1 completed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<CombinedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn31 interface Continuation<String>[0]
+        Type Continuation<String>
+        FieldAccess 1
+          Type CoroutineFrame<CombinedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<CombinedTask.run>$1
+            Local this
+        Type String
+        EnumField v0 f0
+          Type CoroutineStep<String>
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<CombinedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn32 interface Continuation<String>[1]
+        Type Continuation<String>
+        FieldAccess 1
+          Type CoroutineFrame<CombinedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<CombinedTask.run>$1
+            Local this
+        Type Throwable
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 2
+        Type CoroutineFrame<CombinedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v1
+          Type Int
+          Local value
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<CombinedTask.run>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      call $step: CoroutineStep<String> = @fn71 direct
+        Type CoroutineFrame<CombinedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<String>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb6 invalid_frame
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<CombinedTask.run>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      goto bb0
+    bb7 claim_frame
+      val $frame_claim: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<CombinedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<CombinedTask.run>$1
+            Local this
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb5 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $frame_claim
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb8 claim_waiting
+      val $adapter_claim: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
+      branch bb7 bb0
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $adapter_claim
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+  fun CoroutineAdapter.resumeWithException$1 @fn73(this: CoroutineAdapter<CombinedTask.run>$1, exception: Throwable) -> Unit
+    bb0 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external5 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb1 completed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<CombinedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn31 interface Continuation<String>[0]
+        Type Continuation<String>
+        FieldAccess 1
+          Type CoroutineFrame<CombinedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<CombinedTask.run>$1
+            Local this
+        Type String
+        EnumField v0 f0
+          Type CoroutineStep<String>
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<CombinedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn32 interface Continuation<String>[1]
+        Type Continuation<String>
+        FieldAccess 1
+          Type CoroutineFrame<CombinedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<CombinedTask.run>$1
+            Local this
+        Type Throwable
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 5
+        Type CoroutineFrame<CombinedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v1
+          Type Throwable
+          Local exception
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<CombinedTask.run>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      call $step: CoroutineStep<String> = @fn71 direct
+        Type CoroutineFrame<CombinedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<String>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb6 invalid_frame
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<CombinedTask.run>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      goto bb0
+    bb7 claim_frame
+      val $frame_claim: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<CombinedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<CombinedTask.run>$1
+            Local this
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb5 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $frame_claim
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb8 claim_waiting
+      val $adapter_claim: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<CombinedTask.run>$1
+          Local this
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
+      branch bb7 bb0
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $adapter_claim
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+  fun awaitSignal$drive @fn74($frame: CoroutineFrame<awaitSignal>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
       val $argument.0: Gate
         Type Gate
@@ -2616,7 +3228,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn72(this: CoroutineAdapter<awaitSignal>$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @fn75(this: CoroutineAdapter<awaitSignal>$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -2635,7 +3247,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn12 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitSignal>
@@ -2690,7 +3302,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Int> = @fn71 direct
+      call $step: CoroutineStep<Int> = @fn74 direct
         Type CoroutineFrame<awaitSignal>
         FieldAccess 0
           Type CoroutineAdapter<awaitSignal>$1
@@ -2780,7 +3392,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun CoroutineAdapter.resumeWithException$1 @fn73(this: CoroutineAdapter<awaitSignal>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn76(this: CoroutineAdapter<awaitSignal>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -2799,7 +3411,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn12 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitSignal>
@@ -2854,7 +3466,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Int> = @fn71 direct
+      call $step: CoroutineStep<Int> = @fn74 direct
         Type CoroutineFrame<awaitSignal>
         FieldAccess 0
           Type CoroutineAdapter<awaitSignal>$1
@@ -2944,675 +3556,63 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun CombinedTask.run$drive @fn74($frame: CoroutineFrame<CombinedTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<String>
-    bb0 entry
-      val prefix: String
-        Type String
-        StringConst @str16
-      goto bb6
-    bb1 try.unwind.1
-      landing_pad cleanup=false
-      begin_catch
-      call $coroutine_exception.2: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb2
-    bb2 try.dispatch.2
-      branch bb9 bb10
-        Type Boolean
-        IsInstance CombinedFailure
-          Type Throwable
-          Local $coroutine_exception.2
-    bb3 try.handler_pad.3
-      landing_pad cleanup=false
-      begin_catch
-      call $coroutine_exception.1: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb4
-    bb4 try.handler_cleanup.4
-      throw
-        Type Throwable
-        Local $coroutine_exception.1
-    bb5 try.end.5
-      return
-        Type CoroutineStep<String>
-        VariantConstruct CoroutineStep<String> v0
-          Type String
-          Local $result.0
-    bb6 try.body.6 unwind bb1
-      val $argument.0: Gate
-        Type Gate
-        FieldAccess 0
-          Type CombinedTask
-          Local this
-      val $parameter.gate: Gate
-        Type Gate
-        Local $argument.0
-      field_set 4
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type CoroutineSlot<CombinedTask>
-        VariantConstruct CoroutineSlot<CombinedTask> v1
-          Type CombinedTask
-          Local this
-      field_set 3
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type CoroutineSlot<String>
-        VariantConstruct CoroutineSlot<String> v1
-          Type String
-          Local prefix
-      atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      val $adapter.1: CoroutineAdapter<CombinedTask.run>$1
-        Type CoroutineAdapter<CombinedTask.run>$1
-        ClassAlloc CoroutineAdapter<CombinedTask.run>$1
-      field_set 0
-        Type CoroutineAdapter<CombinedTask.run>$1
-        Local $adapter.1
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-      field_set 1
-        Type CoroutineAdapter<CombinedTask.run>$1
-        Local $adapter.1
-        Type machine<coroutine-adapter-state>
-        MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep<Int> = @fn9 direct
-        Type Gate
-        Local $parameter.gate
-        Type CoroutineAdapter<CombinedTask.run>$1
-        Local $adapter.1
-      branch bb16 bb17
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<Int>
-            Local $step.1
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb7 if.then.7 unwind bb1
-      assign $new.3
-        Type CombinedFailure
-        ClassAlloc CombinedFailure
-      call @fn49 direct
-        Type CombinedFailure
-        Local $new.3
-      throw unwind bb1
-        Type CombinedFailure
-        Local $new.3
-    bb8 if.merge.8 unwind bb1
-      val $argument.0: Message
-        Type Message
-        FieldAccess 0
-          Type GenericBox<Message, String>
-          FieldAccess 1
-            Type CombinedTask
-            Local this
-      val $argument.1: String
-        Type String
-        FieldAccess 1
-          Type GenericBox<Message, String>
-          FieldAccess 1
-            Type CombinedTask
-            Local this
-      val $argument.2: (Message, String) -> String
-        Type (Message, String) -> String
-        ClosureAlloc cc0 $Closure$lambda0
-          CaptureInit field=0
-            Type String
-            Local prefix
-      val $parameter.value: Message
-        Type Message
-        Local $argument.0
-      val $parameter.suffix: String
-        Type String
-        Local $argument.1
-      val $parameter.transform: (Message, String) -> String
-        Type (Message, String) -> String
-        Local $argument.2
-      call $dependency.receiver: String = @fn27 direct
-        Type Message
-        Local $parameter.value
-        Type String
-        Local $parameter.suffix
-        Type (Message, String) -> String
-        Local $parameter.transform
-      val $dependency.receiver: Long
-        Type Long
-        ArrayLen Array<String>
-          Type Array<String>
-          FieldAccess 2
-            Type GenericBox<Message, String>
-            FieldAccess 1
-              Type CombinedTask
-              Local this
-      call $dependency.argument.0: String = external1 direct
-        Type Long
-        Local $dependency.receiver
-      val $dependency.parameter.other: String
-        Type String
-        Local $dependency.argument.0
-      call $call.4: String = @scoop_rt_string_concat direct
-        Type String
-        Local $dependency.receiver
-        Type String
-        Local $dependency.parameter.other
-      assign $result.0
-        Type String
-        Local $call.4
-      goto bb5
-    bb9 try.catch.9
-      val error: CombinedFailure
-        Type CombinedFailure
-        Retype CombinedFailure
-          Type Throwable
-          Local $coroutine_exception.2
-      goto bb11
-    bb10 try.next.10
-      throw
-        Type Throwable
-        Local $coroutine_exception.2
-    bb11 scope.11 unwind bb3
-      assign $result.0
-        Type String
-        StringConst @str17
-      goto bb5
-    bb12 coroutine.post.1 unwind bb1
-      call @scoop_rt_gc_collect direct
-      val $dependency.receiver: Int
-        Type Int
-        Local signal
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      branch bb7 bb8
-        Type Boolean
-        IntegerCompare equal operands=Int result=Boolean
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-    bb13 coroutine.completed.1 unwind bb1
-      val signal: Int
-        Type Int
-        EnumField v0 f0
-          Type CoroutineStep<Int>
-          Local $step.1
-      goto bb12
-    bb14 coroutine.protocol_error unwind bb1
-      val $protocol_error: IllegalStateException
-        Type IllegalStateException
-        ClassAlloc IllegalStateException
-      call external5 direct
-        Type IllegalStateException
-        Local $protocol_error
-      throw unwind bb1
-        Type IllegalStateException
-        Local $protocol_error
-    bb15 coroutine.completed_claim_frame.1 unwind bb1
-      val $completed_frame_claim.1: machine<coroutine-frame-state>
-        Type machine<coroutine-frame-state>
-        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame<CombinedTask.run>
-          Local $frame
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb13 bb14
-        Type Boolean
-        Binary MachineEq(CoroutineFrameState)
-          Type machine<coroutine-frame-state>
-          Local $completed_frame_claim.1
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb16 coroutine.completed_claim_adapter.1 unwind bb1
-      val $completed_adapter_claim.1: machine<coroutine-adapter-state>
-        Type machine<coroutine-adapter-state>
-        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local $adapter.1
-          Type machine<coroutine-adapter-state>
-          MachineScalarLiteral CoroutineAdapterState(Waiting)
-          Type machine<coroutine-adapter-state>
-          MachineScalarLiteral CoroutineAdapterState(Consumed)
-      branch bb15 bb14
-        Type Boolean
-        Binary MachineEq(CoroutineAdapterState)
-          Type machine<coroutine-adapter-state>
-          Local $completed_adapter_claim.1
-          Type machine<coroutine-adapter-state>
-          MachineScalarLiteral CoroutineAdapterState(Waiting)
-    bb17 coroutine.suspended.1
-      return
-        Type CoroutineStep<String>
-        VariantConstruct CoroutineStep<String> v1
-    bb18 coroutine.resume.1 unwind bb1
-      assign this
-        Type CombinedTask
-        EnumField v1 f0
-          Type CoroutineSlot<CombinedTask>
-          FieldAccess 4
-            Type CoroutineFrame<CombinedTask.run>
-            Local $frame
-      assign prefix
-        Type String
-        EnumField v1 f0
-          Type CoroutineSlot<String>
-          FieldAccess 3
-            Type CoroutineFrame<CombinedTask.run>
-            Local $frame
-      assign signal
-        Type Int
-        EnumField v1 f0
-          Type CoroutineSlot<Int>
-          FieldAccess 2
-            Type CoroutineFrame<CombinedTask.run>
-            Local $frame
-      goto bb12
-    bb19 coroutine.failure.1 unwind bb1
-      assign this
-        Type CombinedTask
-        EnumField v1 f0
-          Type CoroutineSlot<CombinedTask>
-          FieldAccess 4
-            Type CoroutineFrame<CombinedTask.run>
-            Local $frame
-      assign prefix
-        Type String
-        EnumField v1 f0
-          Type CoroutineSlot<String>
-          FieldAccess 3
-            Type CoroutineFrame<CombinedTask.run>
-            Local $frame
-      throw unwind bb1
-        Type Throwable
-        EnumField v1 f0
-          Type CoroutineSlot<Throwable>
-          FieldAccess 5
-            Type CoroutineFrame<CombinedTask.run>
-            Local $frame
-    bb20 coroutine.initial
-      assign this
-        Type CombinedTask
-        EnumField v1 f0
-          Type CoroutineSlot<CombinedTask>
-          FieldAccess 4
-            Type CoroutineFrame<CombinedTask.run>
-            Local $frame
-      atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame<CombinedTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Running)
-      goto bb0
-    bb21 coroutine.protocol_error
-      val $protocol_error: IllegalStateException
-        Type IllegalStateException
-        ClassAlloc IllegalStateException
-      call external5 direct
-        Type IllegalStateException
-        Local $protocol_error
-      throw
-        Type IllegalStateException
-        Local $protocol_error
-    bb22 coroutine.dispatch.suspended.1
-      branch bb18 bb21
-        Type Boolean
-        Binary MachineEq(CoroutineFrameState)
-          Type machine<coroutine-frame-state>
-          Local $dispatch_state
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb23 coroutine.dispatch.resume_failure.1
-      branch bb19 bb22
-        Type Boolean
-        Binary MachineEq(CoroutineFrameState)
-          Type machine<coroutine-frame-state>
-          Local $dispatch_state
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
-    bb24 coroutine.dispatch.initial
-      branch bb20 bb23
-        Type Boolean
-        Binary MachineEq(CoroutineFrameState)
-          Type machine<coroutine-frame-state>
-          Local $dispatch_state
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn75(this: CoroutineAdapter<CombinedTask.run>$1, value: Int) -> Unit
-    bb0 coroutine.protocol_error
-      val $protocol_error: IllegalStateException
-        Type IllegalStateException
-        ClassAlloc IllegalStateException
-      call external5 direct
-        Type IllegalStateException
-        Local $protocol_error
-      throw
-        Type IllegalStateException
-        Local $protocol_error
-    bb1 completed
-      atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame<CombinedTask.run>
-        FieldAccess 0
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn31 interface Continuation<String>[0]
-        Type Continuation<String>
-        FieldAccess 1
-          Type CoroutineFrame<CombinedTask.run>
-          FieldAccess 0
-            Type CoroutineAdapter<CombinedTask.run>$1
-            Local this
-        Type String
-        EnumField v0 f0
-          Type CoroutineStep<String>
-          Local $step
-      return
-    bb2 suspended
-      return
-    bb3 failed
-      atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame<CombinedTask.run>
-        FieldAccess 0
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<String>[1]
-        Type Continuation<String>
-        FieldAccess 1
-          Type CoroutineFrame<CombinedTask.run>
-          FieldAccess 0
-            Type CoroutineAdapter<CombinedTask.run>$1
-            Local this
-        Type Throwable
-        Local $uncaught
-      return
-    bb4 body_failure
-      landing_pad cleanup=false
-      begin_catch
-      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 2
-        Type CoroutineFrame<CombinedTask.run>
-        FieldAccess 0
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-        Type CoroutineSlot<Int>
-        VariantConstruct CoroutineSlot<Int> v1
-          Type Int
-          Local value
-      atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter<CombinedTask.run>$1
-        Local this
-        Type machine<coroutine-adapter-state>
-        MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<String> = @fn74 direct
-        Type CoroutineFrame<CombinedTask.run>
-        FieldAccess 0
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      branch bb1 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<String>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb6 invalid_frame
-      atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter<CombinedTask.run>$1
-        Local this
-        Type machine<coroutine-adapter-state>
-        MachineScalarLiteral CoroutineAdapterState(Consumed)
-      goto bb0
-    bb7 claim_frame
-      val $frame_claim: machine<coroutine-frame-state>
-        Type machine<coroutine-frame-state>
-        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame<CombinedTask.run>
-          FieldAccess 0
-            Type CoroutineAdapter<CombinedTask.run>$1
-            Local this
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb5 bb6
-        Type Boolean
-        Binary MachineEq(CoroutineFrameState)
-          Type machine<coroutine-frame-state>
-          Local $frame_claim
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb8 claim_waiting
-      val $adapter_claim: machine<coroutine-adapter-state>
-        Type machine<coroutine-adapter-state>
-        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-          Type machine<coroutine-adapter-state>
-          MachineScalarLiteral CoroutineAdapterState(Waiting)
-          Type machine<coroutine-adapter-state>
-          MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
-      branch bb7 bb0
-        Type Boolean
-        Binary MachineEq(CoroutineAdapterState)
-          Type machine<coroutine-adapter-state>
-          Local $adapter_claim
-          Type machine<coroutine-adapter-state>
-          MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @fn76(this: CoroutineAdapter<CombinedTask.run>$1, exception: Throwable) -> Unit
-    bb0 coroutine.protocol_error
-      val $protocol_error: IllegalStateException
-        Type IllegalStateException
-        ClassAlloc IllegalStateException
-      call external5 direct
-        Type IllegalStateException
-        Local $protocol_error
-      throw
-        Type IllegalStateException
-        Local $protocol_error
-    bb1 completed
-      atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame<CombinedTask.run>
-        FieldAccess 0
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn31 interface Continuation<String>[0]
-        Type Continuation<String>
-        FieldAccess 1
-          Type CoroutineFrame<CombinedTask.run>
-          FieldAccess 0
-            Type CoroutineAdapter<CombinedTask.run>$1
-            Local this
-        Type String
-        EnumField v0 f0
-          Type CoroutineStep<String>
-          Local $step
-      return
-    bb2 suspended
-      return
-    bb3 failed
-      atomic_store_release kind=coroutine-frame-state field=0
-        Type CoroutineFrame<CombinedTask.run>
-        FieldAccess 0
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<String>[1]
-        Type Continuation<String>
-        FieldAccess 1
-          Type CoroutineFrame<CombinedTask.run>
-          FieldAccess 0
-            Type CoroutineAdapter<CombinedTask.run>$1
-            Local this
-        Type Throwable
-        Local $uncaught
-      return
-    bb4 body_failure
-      landing_pad cleanup=false
-      begin_catch
-      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
-        Type Any
-        CaughtException
-      end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 5
-        Type CoroutineFrame<CombinedTask.run>
-        FieldAccess 0
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-        Type CoroutineSlot<Throwable>
-        VariantConstruct CoroutineSlot<Throwable> v1
-          Type Throwable
-          Local exception
-      atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter<CombinedTask.run>$1
-        Local this
-        Type machine<coroutine-adapter-state>
-        MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<String> = @fn74 direct
-        Type CoroutineFrame<CombinedTask.run>
-        FieldAccess 0
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
-      branch bb1 bb2
-        Type Boolean
-        Binary MachineEq(EnumTag)
-          Type machine<enum-tag>
-          EnumTag
-            Type CoroutineStep<String>
-            Local $step
-          Type machine<enum-tag>
-          MachineScalarLiteral EnumTag(0)
-    bb6 invalid_frame
-      atomic_store_release kind=coroutine-adapter-state field=1
-        Type CoroutineAdapter<CombinedTask.run>$1
-        Local this
-        Type machine<coroutine-adapter-state>
-        MachineScalarLiteral CoroutineAdapterState(Consumed)
-      goto bb0
-    bb7 claim_frame
-      val $frame_claim: machine<coroutine-frame-state>
-        Type machine<coroutine-frame-state>
-        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
-          Type CoroutineFrame<CombinedTask.run>
-          FieldAccess 0
-            Type CoroutineAdapter<CombinedTask.run>$1
-            Local this
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb5 bb6
-        Type Boolean
-        Binary MachineEq(CoroutineFrameState)
-          Type machine<coroutine-frame-state>
-          Local $frame_claim
-          Type machine<coroutine-frame-state>
-          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb8 claim_waiting
-      val $adapter_claim: machine<coroutine-adapter-state>
-        Type machine<coroutine-adapter-state>
-        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
-          Type CoroutineAdapter<CombinedTask.run>$1
-          Local this
-          Type machine<coroutine-adapter-state>
-          MachineScalarLiteral CoroutineAdapterState(Waiting)
-          Type machine<coroutine-adapter-state>
-          MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-      branch bb7 bb0
-        Type Boolean
-        Binary MachineEq(CoroutineAdapterState)
-          Type machine<coroutine-adapter-state>
-          Local $adapter_claim
-          Type machine<coroutine-adapter-state>
-          MachineScalarLiteral CoroutineAdapterState(Waiting)
   coroutine_step cs0 CoroutineStep<Message> result=Message
   coroutine_step cs1 CoroutineStep<NameToken> result=NameToken
   coroutine_step cs2 CoroutineStep<Named> result=Named
-  coroutine_step cs3 CoroutineStep<Int> result=Int
-  coroutine_step cs4 CoroutineStep<String> result=String
+  coroutine_step cs3 CoroutineStep<String> result=String
+  coroutine_step cs4 CoroutineStep<Int> result=Int
   coroutine_slot cl0 CoroutineSlot<Message> value=Message
   coroutine_slot cl1 CoroutineSlot<NameToken> value=NameToken
   coroutine_slot cl2 CoroutineSlot<Named> value=Named
-  coroutine_slot cl3 CoroutineSlot<Gate> value=Gate
-  coroutine_slot cl4 CoroutineSlot<Int> value=Int
-  coroutine_slot cl5 CoroutineSlot<Throwable> value=Throwable
-  coroutine_slot cl6 CoroutineSlot<String> value=String
-  coroutine_slot cl7 CoroutineSlot<CombinedTask> value=CombinedTask
+  coroutine_slot cl3 CoroutineSlot<Int> value=Int
+  coroutine_slot cl4 CoroutineSlot<String> value=String
+  coroutine_slot cl5 CoroutineSlot<CombinedTask> value=CombinedTask
+  coroutine_slot cl6 CoroutineSlot<Throwable> value=Throwable
+  coroutine_slot cl7 CoroutineSlot<Gate> value=Gate
   coroutine_start ct0 result=Message function=fn66
   coroutine_start ct1 result=NameToken function=fn67
   coroutine_start ct2 result=Named function=fn68
-  coroutine_saved cv0 class=CoroutineFrame<awaitSignal> field=2 slot=cl3 value=Gate
-  coroutine_saved cv1 class=CoroutineFrame<awaitSignal> field=3 slot=cl4 value=Int
-  coroutine_saved cv2 class=CoroutineFrame<CombinedTask.run> field=2 slot=cl4 value=Int
-  coroutine_saved cv3 class=CoroutineFrame<CombinedTask.run> field=3 slot=cl6 value=String
-  coroutine_saved cv4 class=CoroutineFrame<CombinedTask.run> field=4 slot=cl7 value=CombinedTask
-  coroutine_failure cx0 class=CoroutineFrame<awaitSignal> field=4 slot=cl5 throwable=Throwable
-  coroutine_failure cx1 class=CoroutineFrame<CombinedTask.run> field=5 slot=cl5 throwable=Throwable
-  coroutine_frame cr0 CoroutineFrame<awaitSignal> id=da51fc7a761095fc9956c03a01cd5905d41361542fb7f5d12feffe60c70f4c24 owner=cf0 state=field0 completion=field1 saved=[cv0,cv1] failure=cx0
-  coroutine_frame cr1 CoroutineFrame<CombinedTask.run> id=13e59d44ac518929809e6c1dab3cf50bcccb9113ecb221a4ab2d13881cd68376 owner=cf1 state=field0 completion=field1 saved=[cv2,cv3,cv4] failure=cx1
-  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter<awaitSignal>$1 environment_id=7a383ec3736ed531d093e9e7d78c77600c885bc19e58aaaf9bb43aa153b51ee7 resume=@fn72 success_id=47e1733ca36431b1abcec61deaf2501f2ca9630d5820b423de24bc40366b8dcf failure=@fn73 failure_id=7616a080644b791923f9825055f95d624a088a784b7229794156c53d11f612ab
-    success suspended.1 -> Fallthrough(bb1)
-      entry=bb23
-    failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
-      entry=bb24
-  coroutine_resume cp1 site=1 result=Int frame=cr1 adapter=CoroutineAdapter<CombinedTask.run>$1 environment_id=0898fa2c1088ef98cb9bb1db5d6abe60c197203ba543ebcdc0abe2468c5a4dfc resume=@fn75 success_id=4fec06f9d6aeb4c915e735affb86e075ebf0dfe11312641f20db8189d86768b1 failure=@fn76 failure_id=91bf78ba54dfbc4c31d1846617e729ec969e0bb2423670461c12980b0b25d0f3
+  coroutine_saved cv0 class=CoroutineFrame<CombinedTask.run> field=2 slot=cl3 value=Int
+  coroutine_saved cv1 class=CoroutineFrame<CombinedTask.run> field=3 slot=cl4 value=String
+  coroutine_saved cv2 class=CoroutineFrame<CombinedTask.run> field=4 slot=cl5 value=CombinedTask
+  coroutine_saved cv3 class=CoroutineFrame<awaitSignal> field=2 slot=cl7 value=Gate
+  coroutine_saved cv4 class=CoroutineFrame<awaitSignal> field=3 slot=cl3 value=Int
+  coroutine_failure cx0 class=CoroutineFrame<CombinedTask.run> field=5 slot=cl6 throwable=Throwable
+  coroutine_failure cx1 class=CoroutineFrame<awaitSignal> field=4 slot=cl6 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame<CombinedTask.run> id=13e59d44ac518929809e6c1dab3cf50bcccb9113ecb221a4ab2d13881cd68376 owner=cf0 state=field0 completion=field1 saved=[cv0,cv1,cv2] failure=cx0
+  coroutine_frame cr1 CoroutineFrame<awaitSignal> id=da51fc7a761095fc9956c03a01cd5905d41361542fb7f5d12feffe60c70f4c24 owner=cf1 state=field0 completion=field1 saved=[cv3,cv4] failure=cx1
+  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter<CombinedTask.run>$1 environment_id=0898fa2c1088ef98cb9bb1db5d6abe60c197203ba543ebcdc0abe2468c5a4dfc resume=@fn72 success_id=4fec06f9d6aeb4c915e735affb86e075ebf0dfe11312641f20db8189d86768b1 failure=@fn73 failure_id=91bf78ba54dfbc4c31d1846617e729ec969e0bb2423670461c12980b0b25d0f3
     success suspended.1 -> Fallthrough(bb12)
       entry=bb18
-    failure resume_failure.1 -> ManagedThrow(cx1, unwind=bb1)
+    failure resume_failure.1 -> ManagedThrow(cx0, unwind=bb1)
       entry=bb19
-  coroutine_fn cf0 @fn9 source_return=Int step=cs3 frame=cr0 driver=@fn71 id=44a803121f6d7b59d1356f36afd3b3454e2f5690557f8e0dfd8d8313f0c4a1a3 resumes=[cp0]
-  coroutine_fn cf1 @fn21 source_return=String step=cs4 frame=cr1 driver=@fn74 id=84371259aecedcc47db28d4f77b1fab27beaad7b9549b00bed663d0be9039e0c resumes=[cp1]
-  coroutine_fn cf2 @fn29 source_return=Int step=cs3 immediate
-  coroutine_fn cf3 @fn33 source_return=String step=cs4 immediate
+  coroutine_resume cp1 site=1 result=Int frame=cr1 adapter=CoroutineAdapter<awaitSignal>$1 environment_id=7a383ec3736ed531d093e9e7d78c77600c885bc19e58aaaf9bb43aa153b51ee7 resume=@fn75 success_id=47e1733ca36431b1abcec61deaf2501f2ca9630d5820b423de24bc40366b8dcf failure=@fn76 failure_id=7616a080644b791923f9825055f95d624a088a784b7229794156c53d11f612ab
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb23
+    failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
+      entry=bb24
+  coroutine_fn cf0 @fn7 source_return=String step=cs3 frame=cr0 driver=@fn71 id=84371259aecedcc47db28d4f77b1fab27beaad7b9549b00bed663d0be9039e0c resumes=[cp0]
+  coroutine_fn cf1 @fn11 source_return=Int step=cs4 frame=cr1 driver=@fn74 id=44a803121f6d7b59d1356f36afd3b3454e2f5690557f8e0dfd8d8313f0c4a1a3 resumes=[cp1]
+  coroutine_fn cf2 @fn29 source_return=Int step=cs4 immediate
+  coroutine_fn cf3 @fn33 source_return=String step=cs3 immediate
   coroutine_fn cf4 @fn37 source_return=NameToken step=cs1 immediate
   coroutine_fn cf5 @fn41 source_return=Named step=cs2 immediate
   coroutine_fn cf6 @fn45 source_return=Message step=cs0 immediate
   instance mi0 function=@fn1 <- Record.read
-  instance mi1 function=@fn12 <- Continuation.resume
-  instance mi2 function=@fn13 <- println
-  instance mi3 function=@fn14 <- iterator
-  instance mi4 function=@fn15 <- iterator
-  instance mi5 function=@fn16 <- iterator
-  instance mi6 function=@fn17 <- iterator
-  instance mi7 function=@fn18 <- println
-  instance mi8 function=@fn19 <- countRecords
-  instance mi9 function=@fn20 <- firstName
-  instance mi10 function=@fn22 <- next
-  instance mi11 function=@fn23 <- next
-  instance mi12 function=@fn24 <- next
-  instance mi13 function=@fn25 <- next
-  instance mi14 function=@fn27 <- combine
+  instance mi1 function=@fn6 <- iterator
+  instance mi2 function=@fn14 <- Continuation.resume
+  instance mi3 function=@fn15 <- next
+  instance mi4 function=@fn17 <- combine
+  instance mi5 function=@fn18 <- println
+  instance mi6 function=@fn19 <- iterator
+  instance mi7 function=@fn20 <- iterator
+  instance mi8 function=@fn21 <- iterator
+  instance mi9 function=@fn22 <- println
+  instance mi10 function=@fn23 <- countRecords
+  instance mi11 function=@fn24 <- firstName
+  instance mi12 function=@fn25 <- next
+  instance mi13 function=@fn26 <- next
+  instance mi14 function=@fn27 <- next
   instance mi15 function=@fn28 <- Continuation.resumeWithException
   instance mi16 function=@fn29 <- SuspendTask.run
   instance mi17 function=@fn30 <- SuspendRegistration.register
@@ -3633,21 +3633,21 @@ Module
   instance mi32 function=@fn45 <- SuspendTask.run
   instance mi33 function=@fn46 <- SuspendRegistration.register
   str @str0 "named-"
-  str @str1 "unexpected-failure"
-  str @str2 "garbage"
-  str @str3 "payload-"
-  str @str4 "default-"
-  str @str5 "fallback-"
-  str @str6 "label-"
-  str @str7 "tail-one"
-  str @str8 "tail-two"
-  str @str9 "boxed-name"
-  str @str10 "value-name"
-  str @str11 "success"
-  str @str12 "failure"
-  str @str13 "suspended"
-  str @str14 "\n"
-  str @str15 "\n"
-  str @str16 "captured-"
-  str @str17 "caught"
-  output executable @fn11
+  str @str1 "captured-"
+  str @str2 "caught"
+  str @str3 "unexpected-failure"
+  str @str4 "garbage"
+  str @str5 "payload-"
+  str @str6 "default-"
+  str @str7 "fallback-"
+  str @str8 "label-"
+  str @str9 "tail-one"
+  str @str10 "tail-two"
+  str @str11 "boxed-name"
+  str @str12 "value-name"
+  str @str13 "success"
+  str @str14 "failure"
+  str @str15 "suspended"
+  str @str16 "\n"
+  str @str17 "\n"
+  output executable @fn13

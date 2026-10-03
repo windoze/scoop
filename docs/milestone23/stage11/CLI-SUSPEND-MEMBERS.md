@@ -13,3 +13,11 @@
 已有 source-only 六例只读复验为 18 个进程、48 份完整 golden。shape-demand 新增 DeferredSuspend；initialization-demand 新增 DeferredRegistry 及其原有初始化路径。后者的 consumer HIR 只改变导入 arena ID。原初始化身份关系、完整根集合以及 projected／decoded／LocalConcrete 一致性断言保留；删除两份只用于摘要文本比较的旧快照。实际发布产物的 shape support closure 计数见 [source-only 记录](CLI-SOURCE-ONLY.md)。
 
 内部 AST builder 单测的 11 份 MIR 快照经逐函数审阅后同步：统一函数 ID 后，全部原有函数正文保持不变，只新增完整 suspend 协议所需的 startCoroutine helper 及对应槽记录。这些内部单元测试不属于文件 fixture runner，继续保留。HIR 1294 项、MIR 114 项、slib 587 项单元测试及 workspace lint 通过。
+
+首轮无筛选 CLI 回归发现 43 项既有用例仍记录修复前的 suspend 发布结果，现同步 148 份阶段与链接计划预期。56 份 HIR 的 Export 部分全部相同；50 个 nominal 记录只在 methods 列表补入同一模块中已有的 suspend 函数，原成员全部保留且没有重复。原 LocalConcrete 记录不变，新增记录来自闭合物化。MIR／LIR 逐个按持久身份及符号匹配，原函数均保留且正文相同；LoopId、导入身份、字符串池、闭包和函数类型 arena 的重排按实际身份、池内容或一致双射对应，包含控制流引用。
+
+`core-layouts-shared-units-standalone` 新增 SharedUnitDeferred 的初始化与 ensure 路径，三个源码初始化单元现在均有实际产物；原 284 个 MIR、285 个 LIR 函数不变，分别新增 16 个函数，相应更新 core 的完整产物指纹。七个 `coroutines-*` provider 的原 73 个 MIR／LIR 函数不变，分别新增 26 个函数，覆盖 DerivedTask、DeferredDerivedTask、Gate／Registration 的 DerivedResult 实例及协程 helper。十二份链接计划只把 provider 的对象数从 74 改为 100，其他内容保持相同。
+
+七个协程用例仍逐行比较完整 `symbols.txt` 和 `strong_symbols.txt`：每份保留全部原符号，分别增加 1005 个符号和 426 个强符号，对应实际发布的机器定义。源码、运行结果、诊断和 native 输入保持不变，未移除符号检查或放宽产物指纹比较。受控观察用于审阅预期；验收继续使用无更新开关的正式 runner。
+
+上述 43 项正式只读回归全部通过：61 个变体、220 个进程、321 次阶段与链接计划 golden 比较。报告位于 `/tmp/scoop-m23-11-final-repairs/suspend/verified/report.json`；这是专项复验，全仓完成状态以最终无筛选验收为准。

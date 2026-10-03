@@ -1,6 +1,6 @@
 program-link v2
 cone scoop:scoop.core:0.1.0 kind=Library objects=269
-cone dev.programlink:coroutines:0.1.0 kind=Library objects=74
+cone dev.programlink:coroutines:0.1.0 kind=Library objects=100
 cone dev.programlink:lifecycle:0.1.0 kind=Executable objects=131
 runtime objects=54
 images=3 root=_scoop$1$re$353654361b1b9b821f9bb059de65fe36c337a5baca431b7b40f5634cd57c61c1

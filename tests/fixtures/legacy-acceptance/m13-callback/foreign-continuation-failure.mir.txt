@@ -41,8 +41,8 @@ Module
   class Throwable vtable=0 itables=0
   class FailureGate vtable=0 itables=0
   class FailureRegistration vtable=0 itables=1
-  class FailureCompletion vtable=0 itables=1
   class FailureTask vtable=0 itables=1
+  class FailureCompletion vtable=0 itables=1
   class UnwrapException vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
   class box<Int> vtable=0 itables=0
@@ -53,7 +53,7 @@ Module
   interface SuspendTask<Int>
   interface ToString
   interface Hash
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn6 captures=1
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn7 captures=1
     bridge function_type3 -> @fn22 id=0e31a916f9b4f01f94d51009edfa48231716b0bceb070569c38acef77e1d0f49
   generated_exact_type get0 location=enum7 nominal_id=ee9c8cc9e5b99115eb5849497e1d0a9409ab4ebbe8760bf034fc4a10d1d40996 exact_id=06d14480f5d260fdf26b09cd87b7e6def57b2c2ea285029c861cecd4287e92c7
   generated_exact_type get1 location=closure0 nominal_id=32f6f5544dc2d9589b87a516c6047d73ad743504fed49c1741d4b9748d8c14e9 exact_id=2a14fe9cd64e399720abc5494854be59b9f5cf4f029f61d3f54848fd6003ddd1
@@ -161,7 +161,47 @@ Module
           Type Ptr<Unit>
           Local $dependency.parameter._1
       return
-  fun FailureCompletion.resume @fn1(this: FailureCompletion, value: Int) -> Unit
+  fun FailureTask.run @fn1(this: FailureTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
+    bb0 entry
+      val $frame: CoroutineFrame<FailureTask.run>
+        Type CoroutineFrame<FailureTask.run>
+        ClassAlloc CoroutineFrame<FailureTask.run>
+      field_set 0
+        Type CoroutineFrame<FailureTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      field_set 1
+        Type CoroutineFrame<FailureTask.run>
+        Local $frame
+        Type Continuation<Int>
+        Local $completion
+      field_set 2
+        Type CoroutineFrame<FailureTask.run>
+        Local $frame
+        Type CoroutineSlot<FailureTask>
+        VariantConstruct CoroutineSlot<FailureTask> v1
+          Type FailureTask
+          Local this
+      field_set 3
+        Type CoroutineFrame<FailureTask.run>
+        Local $frame
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v0
+      field_set 4
+        Type CoroutineFrame<FailureTask.run>
+        Local $frame
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      call $step: CoroutineStep<Int> = @fn23 direct
+        Type CoroutineFrame<FailureTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      return
+        Type CoroutineStep<Int>
+        Local $step
+  fun FailureCompletion.resume @fn2(this: FailureCompletion, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -169,15 +209,15 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn9 direct
         Type Int
         Local $dependency.parameter.value
       return
-  fun FailureCompletion.resumeWithException @fn2(this: FailureCompletion, exception: Throwable) -> Unit
+  fun FailureCompletion.resumeWithException @fn3(this: FailureCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
         Type String
-        StringConst @str0
+        StringConst @str1
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
@@ -185,7 +225,7 @@ Module
         Type String
         Local $dependency.parameter.value
       return
-  fun startOne @fn3(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int) -> Ptr<Unit>
+  fun startOne @fn4(arg0: FunPtr<(Int, Ptr<Unit>) -> Int>, arg1: Ptr<Unit>, arg2: Int) -> Ptr<Unit>
     bb0 entry
       call $call.1: Ptr<Unit> = extern0 @m13_start_one direct
         Type FunPtr<(Int, Ptr<Unit>) -> Int>
@@ -197,7 +237,7 @@ Module
       return
         Type Ptr<Unit>
         Local $call.1
-  fun joinOne @fn4(arg0: Ptr<Unit>) -> Int
+  fun joinOne @fn5(arg0: Ptr<Unit>) -> Int
     bb0 entry
       call $call.1: Int = extern1 @m13_join_one direct
         Type Ptr<Unit>
@@ -205,7 +245,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun main @fn5() -> Unit
+  fun main @fn6() -> Unit
     bb0 entry
       val $argument.0: Option<Ptr<Unit>>
         Type Option<Ptr<Unit>>
@@ -241,7 +281,7 @@ Module
       assign $new.2
         Type FailureTask
         ClassAlloc FailureTask
-      call @fn20 direct
+      call @fn19 direct
         Type FailureTask
         Local $new.2
         Type FailureGate
@@ -254,7 +294,7 @@ Module
       assign $new.3
         Type FailureCompletion
         ClassAlloc FailureCompletion
-      call @fn19 direct
+      call @fn20 direct
         Type FailureCompletion
         Local $new.3
       val $dependency.argument.1: Continuation<Int>
@@ -275,7 +315,7 @@ Module
         Local $dependency.parameter.completion
       val $dependency.argument.0: String
         Type String
-        StringConst @str1
+        StringConst @str2
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
@@ -322,7 +362,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn7 direct
+      call @fn9 direct
         Type Int
         Local $dependency.parameter.value
       val $opt.3: Option<ForeignCallback<(Int, Ptr<Unit>) -> Int>>
@@ -409,7 +449,7 @@ Module
         Type ForeignCallback<(Int, Ptr<Unit>) -> Int>
         Local $dependency.parameter.callback
       return
-  fun $lambda.0 @fn6($closure: (Int) -> Int, value: Int) -> Int
+  fun $lambda.0 @fn7($closure: (Int) -> Int, value: Int) -> Int
     bb0 entry
       call @scoop_rt_gc_collect direct
       val $dependency.receiver: Continuation<Int>
@@ -419,7 +459,7 @@ Module
           Local $closure
       val $argument.0: String
         Type String
-        StringConst @str2
+        StringConst @str3
       val $parameter.payload: String
         Type String
         Local $argument.0
@@ -447,30 +487,6 @@ Module
       return
         Type Int
         Local value
-  fun println @fn7(value: Int) -> Unit
-    bb0 entry
-      val $dependency.local.1: Int
-        Type Int
-        Local value
-      call $dependency.local.2: String = external1 direct
-        Type Int
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external4 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str3
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external4 direct
-        Type String
-        Local $dependency.local.5
-      return
   fun println @fn8(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
@@ -495,46 +511,30 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun FailureTask.run @fn9(this: FailureTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun println @fn9(value: Int) -> Unit
     bb0 entry
-      val $frame: CoroutineFrame<FailureTask.run>
-        Type CoroutineFrame<FailureTask.run>
-        ClassAlloc CoroutineFrame<FailureTask.run>
-      field_set 0
-        Type CoroutineFrame<FailureTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      field_set 1
-        Type CoroutineFrame<FailureTask.run>
-        Local $frame
-        Type Continuation<Int>
-        Local $completion
-      field_set 2
-        Type CoroutineFrame<FailureTask.run>
-        Local $frame
-        Type CoroutineSlot<FailureTask>
-        VariantConstruct CoroutineSlot<FailureTask> v1
-          Type FailureTask
-          Local this
-      field_set 3
-        Type CoroutineFrame<FailureTask.run>
-        Local $frame
-        Type CoroutineSlot<Int>
-        VariantConstruct CoroutineSlot<Int> v0
-      field_set 4
-        Type CoroutineFrame<FailureTask.run>
-        Local $frame
-        Type CoroutineSlot<Throwable>
-        VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Int> = @fn23 direct
-        Type CoroutineFrame<FailureTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str5
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
       return
-        Type CoroutineStep<Int>
-        Local $step
   fun println @fn10(value: Boolean) -> Unit
     bb0 entry
       val $dependency.local.1: Boolean
@@ -661,16 +661,16 @@ Module
         Type FailureGate
         Local gate
       return
-  fun init.FailureCompletion.$c4 @fn19(this: FailureCompletion) -> Unit
-    bb0 entry
-      return
-  fun init.FailureTask.$c3 @fn20(this: FailureTask, gate: FailureGate) -> Unit
+  fun init.FailureTask.$c3 @fn19(this: FailureTask, gate: FailureGate) -> Unit
     bb0 entry
       field_set 0
         Type FailureTask
         Local this
         Type FailureGate
         Local gate
+      return
+  fun init.FailureCompletion.$c4 @fn20(this: FailureCompletion) -> Unit
+    bb0 entry
       return
   fun foreign callback adapter 0 @fn21($closure: (Int) -> Int, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
     bb0 callback.failure
@@ -754,7 +754,7 @@ Module
     bb4 try.handler_cleanup.4
       val $dependency.argument.0: String
         Type String
-        StringConst @str5
+        StringConst @str0
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
@@ -823,7 +823,7 @@ Module
     bb7 scope.7
       val $dependency.argument.0: String
         Type String
-        StringConst @str5
+        StringConst @str0
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
@@ -845,7 +845,7 @@ Module
     bb9 try.next.9
       val $dependency.argument.0: String
         Type String
-        StringConst @str5
+        StringConst @str0
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
@@ -874,7 +874,7 @@ Module
     bb11 scope.11
       val $dependency.argument.0: String
         Type String
-        StringConst @str5
+        StringConst @str0
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
@@ -1531,22 +1531,22 @@ Module
       entry=bb34
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=bb1)
       entry=bb35
-  coroutine_fn cf0 @fn9 source_return=Int step=cs0 frame=cr0 driver=@fn23 id=7cdca2392ed7b61bf779ad50213b8f55594640fb0f4b6a124e2e1a8c3dd94bfe resumes=[cp0]
+  coroutine_fn cf0 @fn1 source_return=Int step=cs0 frame=cr0 driver=@fn23 id=7cdca2392ed7b61bf779ad50213b8f55594640fb0f4b6a124e2e1a8c3dd94bfe resumes=[cp0]
   coroutine_fn cf1 @fn14 source_return=Int step=cs0 immediate
-  instance mi0 function=@fn7 <- println
-  instance mi1 function=@fn8 <- println
+  instance mi0 function=@fn8 <- println
+  instance mi1 function=@fn9 <- println
   instance mi2 function=@fn10 <- println
   instance mi3 function=@fn11 <- isNone
   instance mi4 function=@fn12 <- Continuation.resumeWithException
   instance mi5 function=@fn13 <- Continuation.resume
   instance mi6 function=@fn14 <- SuspendTask.run
   instance mi7 function=@fn15 <- SuspendRegistration.register
-  str @str0 "unexpected failure"
-  str @str1 "suspended"
-  str @str2 "foreign failure"
-  str @str3 "\n"
+  str @str0 "finally"
+  str @str1 "unexpected failure"
+  str @str2 "suspended"
+  str @str3 "foreign failure"
   str @str4 "\n"
-  str @str5 "finally"
+  str @str5 "\n"
   str @str6 "\n"
   str @str7 "resume failed"
-  output executable @fn5
+  output executable @fn6

@@ -1,4 +1,7 @@
 Module
+  enum Option<Continuation<DerivedResult>>
+    Some(_0: Continuation<DerivedResult>)
+    None()
   enum Option<Continuation<Long>>
     Some(_0: Continuation<Long>)
     None()
@@ -23,6 +26,18 @@ Module
   enum CoroutineSlot<DerivedResult>
     Empty()
     Value(value: DerivedResult)
+  enum CoroutineStep<DeferredDerivedTask>
+    Completed(value: DeferredDerivedTask)
+    Suspended()
+  enum CoroutineSlot<DeferredDerivedTask>
+    Empty()
+    Value(value: DeferredDerivedTask)
+  enum CoroutineStep<DerivedTask>
+    Completed(value: DerivedTask)
+    Suspended()
+  enum CoroutineSlot<DerivedTask>
+    Empty()
+    Value(value: DerivedTask)
   enum CoroutineStep<Int>
     Completed(value: Int)
     Suspended()
@@ -53,11 +68,18 @@ Module
   enum CoroutineSlot<suspend (Int) -> Any>
     Empty()
     Value(value: suspend (Int) -> Any)
+  enum CoroutineSlot<Gate<DerivedResult>>
+    Empty()
+    Value(value: Gate<DerivedResult>)
   class Counter vtable=0 itables=0
   class BaseResult vtable=0 itables=0
   class DerivedResult vtable=0 itables=0
-  class Gate<Long> vtable=0 itables=0
+  class DerivedTask vtable=0 itables=1
+  class DeferredDerivedTask vtable=0 itables=1
+  class Gate<DerivedResult> vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class Gate<Long> vtable=0 itables=0
+  class Registration<DerivedResult> vtable=0 itables=1
   class Registration<Long> vtable=0 itables=1
   class IllegalStateException vtable=0 itables=0
   class Exception vtable=0 itables=0
@@ -66,10 +88,14 @@ Module
   class CoroutineAdapter<$reference.0>$1 vtable=0 itables=1
   class CoroutineFrame<$reference.1> vtable=0 itables=0
   class CoroutineAdapter<$reference.1>$1 vtable=0 itables=1
+  class CoroutineFrame<DeferredDerivedTask.run> vtable=0 itables=0
+  class CoroutineAdapter<DeferredDerivedTask.run>$1 vtable=0 itables=1
   class CoroutineFrame<awaitLong> vtable=0 itables=0
   class CoroutineAdapter<awaitLong>$1 vtable=0 itables=1
   class CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> vtable=0 itables=0
   class CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1 vtable=0 itables=1
+  class CoroutineFrame<await> vtable=0 itables=0
+  class CoroutineAdapter<await>$1 vtable=0 itables=1
   class CoroutineFrame<await> vtable=0 itables=0
   class CoroutineAdapter<await>$1 vtable=0 itables=1
   class CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> vtable=0 itables=0
@@ -78,9 +104,12 @@ Module
   class CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1 vtable=0 itables=1
   class CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> vtable=0 itables=0
   class CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1 vtable=0 itables=1
+  interface SuspendTask<DerivedResult>
+  interface Continuation<DerivedResult>
   interface Continuation<Long>
   interface ToString
   interface Hash
+  interface SuspendRegistration<DerivedResult>
   interface SuspendRegistration<Long>
   interface Continuation<Int>
   interface SuspendTask<Int>
@@ -92,85 +121,105 @@ Module
   interface Continuation<BaseResult>
   interface SuspendTask<BaseResult>
   interface SuspendRegistration<BaseResult>
-  interface Continuation<DerivedResult>
-  interface SuspendTask<DerivedResult>
-  interface SuspendRegistration<DerivedResult>
+  interface Continuation<DerivedTask>
+  interface SuspendTask<DerivedTask>
+  interface SuspendRegistration<DerivedTask>
+  interface Continuation<DeferredDerivedTask>
+  interface SuspendTask<DeferredDerivedTask>
+  interface SuspendRegistration<DeferredDerivedTask>
   interface Continuation<Any>
   interface SuspendTask<Any>
   interface SuspendRegistration<Any>
-  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn36 captures=0
-    bridge function_type1 -> @fn46 id=fcdb40b30279aedceb07154a8c9afe696e52f06f0858d891f54a04c2e63f875e
-  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn37 captures=0
-    bridge function_type1 -> @fn47 id=f1bdbefe6ccd336165e5acb9034f8c7047b063a125ef1ebb994e509e86e76414
-  closure cc2 $Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any type=function_type2 invoke=@fn42 captures=1
-    bridge function_type1 -> @fn48 id=b5587508aa80cf4c2d577a6ec43eefe188691dcd94c2451a9a33b08f67bcc193
-  generated_exact_type get0 location=enum3 nominal_id=909b1d2bb12b50794d473b49d306c64dc4edd91b8906dcb66aabc340a0797e75 exact_id=01d46a4568d9730582682ac93cf94384e5677a5374fd264cd99a2424e5899654
+  closure cc0 $Closure$reference0 type=function_type0 invoke=@fn51 captures=0
+    bridge function_type1 -> @fn66 id=fcdb40b30279aedceb07154a8c9afe696e52f06f0858d891f54a04c2e63f875e
+  closure cc1 $Closure$reference1 type=function_type0 invoke=@fn52 captures=0
+    bridge function_type1 -> @fn67 id=f1bdbefe6ccd336165e5acb9034f8c7047b063a125ef1ebb994e509e86e76414
+  closure cc2 $Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any type=function_type2 invoke=@fn60 captures=1
+    bridge function_type1 -> @fn68 id=b5587508aa80cf4c2d577a6ec43eefe188691dcd94c2451a9a33b08f67bcc193
+  generated_exact_type get0 location=enum4 nominal_id=909b1d2bb12b50794d473b49d306c64dc4edd91b8906dcb66aabc340a0797e75 exact_id=01d46a4568d9730582682ac93cf94384e5677a5374fd264cd99a2424e5899654
   generated_exact_type get1 location=closure1 nominal_id=fdd2cc35ded17d9d742354086ebbcdd00e7f643be9839fbac6727437a4bbfb75 exact_id=04ab021bf9fa72c4d6c349da80958b6b94e59d43f78047f54da615910536c587
-  generated_exact_type get2 location=enum17 nominal_id=f2eeb8f50dc92b3cfeea417113d0f3e90cd61d2320de8e7cb462e28b39727d12 exact_id=091fcda31347767b4b327e74d0a1936423c671c2cd6da57e298ea5d373a1ad3d
-  generated_exact_type get3 location=class22 nominal_id=3b9a2dd49ad091c76250df54d3f928acc011a87c654256d31c75abbc7fdbdf3c exact_id=097b15cfc3322c234378c2bde2fc4e64315fc6b7dc5801d690635c5864efd47f
-  generated_exact_type get4 location=enum13 nominal_id=0d70d712debc3429468be2d258cca3cf7c5c3068effbc6a54475f52a805f746f exact_id=0c1727b15d100294e1aa5c18872980e3b6dc46750fc808ef3c22784a76a30afa
-  generated_exact_type get5 location=class14 nominal_id=c518749a247774debda9f1a0c5ea6099cd85b95bdd390c6879be9cd7c291877f exact_id=109ae115defeedc2fda41048e3aaddc01c6ef162a156990d117d60fa298bfb5c
-  generated_exact_type get6 location=enum9 nominal_id=764baaf664a2296a5f4d40934cc823d215929eba00df50d07bfddb89b8fa5a01 exact_id=11749ed1009f1dc5bfbeec2ac004af6addba529c5fdf5029d5ae5fb929121a9b
-  generated_exact_type get7 location=class21 nominal_id=e7f5686b323252eb3692a7a847dd1842a03921efca5e5e03b899101daa7748d7 exact_id=3288cfb11dcbf23c58e8eb32d38efce9adf89d0cc83891e0f109402f4208384c
-  generated_exact_type get8 location=class12 nominal_id=227470dcb6b335a9b23136155e346a9eeb027440a36ea468bdd50c192c5fba95 exact_id=352082e914a6896827a454aaa7111b2294eb2a642425c5d5db14378f7ceeeaa8
-  generated_exact_type get9 location=class11 nominal_id=6fd606dd1583650f78573c7ec75952c8e5538d2acebabaf985f6db722df86ced exact_id=37d7ba8902df1b9e663e3e41db6909dfc07fb86be653ec3ba82cebdc2020b93a
-  generated_exact_type get10 location=closure0 nominal_id=8f08c8d807452786d24852c2a6a3c2e6f61399256b7d46007881af267b721d07 exact_id=380522b22cefdd6f37f93ac5eb5f30332d3f0ec8105c3ce5bf6db885618df32a
-  generated_exact_type get11 location=class15 nominal_id=c3e70eb13e00f1a6d8b00b5089e903503f079474d7d41e756d146eb54d3d4817 exact_id=416a9d5cc9558b00fa0450bbdae8b02f699bd074f685ea729e010614f434a26e
-  generated_exact_type get12 location=class19 nominal_id=5b16e2ad35ac730bf4f9b912c4d2146cb7aabbd934dd25bff67b0c81f5e47926 exact_id=487a01ee22f2262c31176c74dfa525e942be016790691a53968754839ece9ca0
-  generated_exact_type get13 location=enum6 nominal_id=8071a7dd3482ebcac73cebf16be1b4dced30ad9c478ed02f7927bfc1a424528c exact_id=53757ce957debe3c32e0abb24c0d3a73c860393a2381019647e01ff6f106283c
-  generated_exact_type get14 location=enum16 nominal_id=79e42e183ef876f35cc0e62d117f545ef9f328f1b44c64f5913db03fc08a0843 exact_id=59046cf273e2776c0128a1a8e7f77eb3a22e44ea899822e383c8af1e3fc193d5
-  generated_exact_type get15 location=class9 nominal_id=d18350990e8c512071d273b316e8be238b04ec1895fa30105bfab7cf83788bb9 exact_id=59d15f8e0fd65d25cf0703a2f83dcf042c7274a590ac9125032105ce5ad38bd0
-  generated_exact_type get16 location=class18 nominal_id=2ac0c47a73ee91ec165a313a2f83c91b3ac37fad15838cfae74e6035af0d336e exact_id=5b33c64f63115b7c5ba3009ddff04053b3d48548b0ed866e7a61c22854bb2ad4
-  generated_exact_type get17 location=enum5 nominal_id=4357d55b8bf5d1aabead9125157dd5d575ded0432ccddc0f220427dab9ffa9a3 exact_id=5c7340de38623926ccfdb93b12c0eed6abc1eaaa96883d1b66f49c582c9df926
-  generated_exact_type get18 location=enum4 nominal_id=a875fe34aa22e49e7fc4a68b399a3cdce728362bc94bf2275f9fe5f478d0d756 exact_id=61327d9156d02b0dcc65f77a874e2a0e746314aff8bdbb0e7bd2217f25b50420
-  generated_exact_type get19 location=class24 nominal_id=a80646a05c5622de39900111eab0c84d90c649b2379e755a38c45bdc7eb79497 exact_id=62cadaa8b9792192f4d31e791cccda818078a91314a8bcf3cf7d8159bbd9e826
-  generated_exact_type get20 location=class13 nominal_id=b0d284e584ef3bc6e148b02e2aedc0f50868eb3ec78b1c7e99e5ff1d96838d4f exact_id=63720c38f9fdae8f189e4b45d0a1ff06ffe43ec4ef37145d2d3f9e0e80a81332
-  generated_exact_type get21 location=class23 nominal_id=c32ff8a9cbfa6b93bb5bfd6378ebeef530a64e90052479e98c184a6c4e3f3c9a exact_id=7255096a5d9ba11bc5cacddea7628cceba96c835b8f862c5e80aad21ee59db08
-  generated_exact_type get22 location=class17 nominal_id=ce20be16795563a2eacc10f6811dcab86311ab38dd1f3fe993e5a3c69126bfc3 exact_id=7660768725094c4d9f84f90d0e416c2831089167c558fd2c17a3938c6f5fe51f
-  generated_exact_type get23 location=class10 nominal_id=244d83ca861cc5852c36358723cccaa99fcbfb4baf1af5176bef6d97e9591ec9 exact_id=859ce3ae623613ba92e27187044e51047c6cb1a84170aef921b74da6339a1ef0
-  generated_exact_type get24 location=closure2 nominal_id=763c4291f41a17c564614327da31f41cd8dc8185be1c1522a8592ec06cd11395 exact_id=a11919c8a2c1cc33956dfa706c47d9e4c52abb6ca9e56982c333e5131b31ae69
-  generated_exact_type get25 location=enum10 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
-  generated_exact_type get26 location=enum7 nominal_id=b5867e10b3084625ff7bdf62ccbb09abb5ef26da2c16cf513172325ec4748fc2 exact_id=af09aa3adaa1ad8dd1fcc41584778450be340c5bf8db02ecc3586d812bda7d4c
-  generated_exact_type get27 location=enum8 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
-  generated_exact_type get28 location=enum15 nominal_id=beab14fe7df8b6677028e3ec6f7f63975f493bc397810d2bb9875acae411a8e7 exact_id=bc5ac85b03e48dce511cb21d493b6dbb7c575e94c711255dc5711d7fcda0987f
-  generated_exact_type get29 location=enum14 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
-  generated_exact_type get30 location=enum11 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
-  generated_exact_type get31 location=class16 nominal_id=de93780078fe594adedf1ed655aa16977f797b25663c59607048bd53da78aef8 exact_id=d320f4bf40f455ba68a19a3edfdd0760ece859652fb9d432cfba29791b31f813
-  generated_exact_type get32 location=class8 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_exact_type get33 location=class20 nominal_id=281e1fe784ba0270420ae0eca58775c1f811b1107ab6f4447c1027642f507b2f exact_id=f03e875b92ae6ac534a2aea9aef9e66adab7d4261e1e346b60d5014d11753424
-  generated_exact_type get34 location=enum12 nominal_id=aeab4a3afb431c412bb4a32266c74db835a191aca437513bb6e2aa94194b7a1a exact_id=f972ad49af4672f8cc7bb307afc167e76a5679f07bf303c2a396b78b6271efbe
-  generated_exact_type get35 location=enum2 nominal_id=aec9ee7500f86583753684c147f00fa43166ec8126517282049cd6a72a5b54c5 exact_id=febd777311c64d4566cfee7354b010abb5ce5be4ec05e21a9462025b7aa05196
-  generated_callable gc0 function=@fn67 id=01d369254bc9b13d426a07847caf7c0646f03ad57d1532e6b6a58bf429aaf9aa
-  generated_callable gc1 function=@fn59 id=027f01ff20925f30cfa08cf44525a0297ea3c7a2b8f8274561044efc13cd38fa
-  generated_callable gc2 function=@fn51 id=04571ad22a4b1e81a3535f76ea3213287334b5bdb22fc3f0799cebb869c0a770
-  generated_callable gc3 function=@fn66 id=0bfc3b60dd32253a54f1fcd6d67982c7dc82732db6b194e118c8aca2cd6d611f
-  generated_callable gc4 function=@fn55 id=13eee01e43667539dd837e09aff7a1af90e4d80306dcd4a343552b166ce5c2e7
-  generated_callable gc5 function=@fn71 id=17e13fccdae962376768360558cf1fabf21731cdf90686f98fa37cc65179c97d
-  generated_callable gc6 function=@fn45 id=3232925811b56ec11f9471c67db25c15e26c7620bfe07c4f3723c688afa1ceac
-  generated_callable gc7 function=@fn44 id=32edaf5d1efc869fe6511edb89016c499b788cb7ba0c0f4df4b3b0d384503423
-  generated_callable gc8 function=@fn60 id=3b50dc10696c1879c0d50f8d8167fd5adb9a00f799cd59ecead21d93fe769b60
-  generated_callable gc9 function=@fn72 id=46906f0a5c2505f70f0882c3cb142118a11c2ee2fb0c204e3de4cd8e802fb8e3
-  generated_callable gc10 function=@fn70 id=4beb2a128a74949f3c6f58958e5911c6179f8d039a97b9c2f79c889219318ac3
-  generated_callable gc11 function=@fn58 id=4fc18d70758b8dc688454b00fc38c0cfa5cf8bb1fc3e6d7883a99f1c37df03b7
-  generated_callable gc12 function=@fn54 id=59c38df84a74556d7a34bfcfe87180916b3419c8117f7c6ee28cd823003727a5
-  generated_callable gc13 function=@fn53 id=5dffec20722b9c74ce6f7b3a126440530a0009d9e36a2c4b62997429aaa21ac6
-  generated_callable gc14 function=@fn63 id=62140e79544936f1a9759dfa3632194cb57f03ddae39eef419f5a9b620dc1124
-  generated_callable gc15 function=@fn52 id=64cd4f995916fdd0e1bcfe761aa52cccaa58ef64f44c1bee0ef1dea0b128ce82
-  generated_callable gc16 function=@fn69 id=6dcd79392e1f8660f76199f24e246442358cadd5859997ea0f70eb1388a61bfe
-  generated_callable gc17 function=@fn65 id=716052328067721f8a36956a813d4c420da1139ed8df3e660d3df6fb9ff715cb
-  generated_callable gc18 function=@fn50 id=739bd8cd56c68e9a9a2142e7cb8a455a2a4833e37027f31783850d19937f6806
-  generated_callable gc19 function=@fn68 id=7e1142f4dfdfdf210fcbc3d767d6505b1dc93b3250748bb4f618034b61efb3ed
-  generated_callable gc20 function=@fn56 id=83df38570c4327b8130bda9b2db430f789145bb031de81b70fa8f426bde2b461
-  generated_callable gc21 function=@fn61 id=97850b3b2c8e9968f40e7f52e681fc094bfee9df3819066e7d3339d3ba5ca6ce
-  generated_callable gc22 function=@fn43 id=a2043a7086afb91b232b0b84a7fe40a7c1e99c239a81ebaf65d51116b6458fae
-  generated_callable gc23 function=@fn62 id=a887712961a369d38fa41c3054be14a798fac6ec9d08b69195affb340797052b
-  generated_callable gc24 function=@fn48 id=b5587508aa80cf4c2d577a6ec43eefe188691dcd94c2451a9a33b08f67bcc193
-  generated_callable gc25 function=@fn42 id=bf0e69d199bbcbc8bf8e7c0622fafb073fe8ebf357a10fb8de0e3bccfff8f222
-  generated_callable gc26 function=@fn47 id=f1bdbefe6ccd336165e5acb9034f8c7047b063a125ef1ebb994e509e86e76414
-  generated_callable gc27 function=@fn49 id=f55cfb1a66b94cbe8d8aee02f0d9f4bafe8c09869b85c4e7edae99f45f362fdd
-  generated_callable gc28 function=@fn57 id=f8d4ad79dce932f40fd8f667e329e1c7008f8dd19501c5647667e3ec13179b38
-  generated_callable gc29 function=@fn64 id=fb86664f753d0bd522370784f9564bdfaa4664b53d3b4a343ac97aecfe47fb92
-  generated_callable gc30 function=@fn46 id=fcdb40b30279aedceb07154a8c9afe696e52f06f0858d891f54a04c2e63f875e
+  generated_exact_type get2 location=enum22 nominal_id=f2eeb8f50dc92b3cfeea417113d0f3e90cd61d2320de8e7cb462e28b39727d12 exact_id=091fcda31347767b4b327e74d0a1936423c671c2cd6da57e298ea5d373a1ad3d
+  generated_exact_type get3 location=class30 nominal_id=3b9a2dd49ad091c76250df54d3f928acc011a87c654256d31c75abbc7fdbdf3c exact_id=097b15cfc3322c234378c2bde2fc4e64315fc6b7dc5801d690635c5864efd47f
+  generated_exact_type get4 location=enum18 nominal_id=0d70d712debc3429468be2d258cca3cf7c5c3068effbc6a54475f52a805f746f exact_id=0c1727b15d100294e1aa5c18872980e3b6dc46750fc808ef3c22784a76a30afa
+  generated_exact_type get5 location=enum9 nominal_id=48e87ddca0c3ee07692d003865e9e25319b83bdfff52296434bd83e0f106690c exact_id=0e050039289b8a67fff484a0ed2765de64963cc69a23cd1b318336dce8f3ee2f
+  generated_exact_type get6 location=class20 nominal_id=c518749a247774debda9f1a0c5ea6099cd85b95bdd390c6879be9cd7c291877f exact_id=109ae115defeedc2fda41048e3aaddc01c6ef162a156990d117d60fa298bfb5c
+  generated_exact_type get7 location=enum14 nominal_id=764baaf664a2296a5f4d40934cc823d215929eba00df50d07bfddb89b8fa5a01 exact_id=11749ed1009f1dc5bfbeec2ac004af6addba529c5fdf5029d5ae5fb929121a9b
+  generated_exact_type get8 location=class18 nominal_id=193d3f4393a8f3b9784eb74001e33f088e90fd519dae6937b8e37f202b238c88 exact_id=1fa80f024e72e0e7468cf9deb0af6aa2ed29b4d41a3cebcbd198598f03ee61ac
+  generated_exact_type get9 location=class29 nominal_id=e7f5686b323252eb3692a7a847dd1842a03921efca5e5e03b899101daa7748d7 exact_id=3288cfb11dcbf23c58e8eb32d38efce9adf89d0cc83891e0f109402f4208384c
+  generated_exact_type get10 location=class16 nominal_id=227470dcb6b335a9b23136155e346a9eeb027440a36ea468bdd50c192c5fba95 exact_id=352082e914a6896827a454aaa7111b2294eb2a642425c5d5db14378f7ceeeaa8
+  generated_exact_type get11 location=class15 nominal_id=6fd606dd1583650f78573c7ec75952c8e5538d2acebabaf985f6db722df86ced exact_id=37d7ba8902df1b9e663e3e41db6909dfc07fb86be653ec3ba82cebdc2020b93a
+  generated_exact_type get12 location=closure0 nominal_id=8f08c8d807452786d24852c2a6a3c2e6f61399256b7d46007881af267b721d07 exact_id=380522b22cefdd6f37f93ac5eb5f30332d3f0ec8105c3ce5bf6db885618df32a
+  generated_exact_type get13 location=enum11 nominal_id=948478f78fe604e137e9dd21849522fefbb3aa6922886796b9a4903c9ed773cc exact_id=3f81a6fc576736544f6f8226f7814106cd36dc8895dfaf020d82a48779afb28b
+  generated_exact_type get14 location=class21 nominal_id=c3e70eb13e00f1a6d8b00b5089e903503f079474d7d41e756d146eb54d3d4817 exact_id=416a9d5cc9558b00fa0450bbdae8b02f699bd074f685ea729e010614f434a26e
+  generated_exact_type get15 location=class27 nominal_id=5b16e2ad35ac730bf4f9b912c4d2146cb7aabbd934dd25bff67b0c81f5e47926 exact_id=487a01ee22f2262c31176c74dfa525e942be016790691a53968754839ece9ca0
+  generated_exact_type get16 location=enum7 nominal_id=8071a7dd3482ebcac73cebf16be1b4dced30ad9c478ed02f7927bfc1a424528c exact_id=53757ce957debe3c32e0abb24c0d3a73c860393a2381019647e01ff6f106283c
+  generated_exact_type get17 location=enum21 nominal_id=79e42e183ef876f35cc0e62d117f545ef9f328f1b44c64f5913db03fc08a0843 exact_id=59046cf273e2776c0128a1a8e7f77eb3a22e44ea899822e383c8af1e3fc193d5
+  generated_exact_type get18 location=class13 nominal_id=d18350990e8c512071d273b316e8be238b04ec1895fa30105bfab7cf83788bb9 exact_id=59d15f8e0fd65d25cf0703a2f83dcf042c7274a590ac9125032105ce5ad38bd0
+  generated_exact_type get19 location=class26 nominal_id=2ac0c47a73ee91ec165a313a2f83c91b3ac37fad15838cfae74e6035af0d336e exact_id=5b33c64f63115b7c5ba3009ddff04053b3d48548b0ed866e7a61c22854bb2ad4
+  generated_exact_type get20 location=enum6 nominal_id=4357d55b8bf5d1aabead9125157dd5d575ded0432ccddc0f220427dab9ffa9a3 exact_id=5c7340de38623926ccfdb93b12c0eed6abc1eaaa96883d1b66f49c582c9df926
+  generated_exact_type get21 location=enum5 nominal_id=a875fe34aa22e49e7fc4a68b399a3cdce728362bc94bf2275f9fe5f478d0d756 exact_id=61327d9156d02b0dcc65f77a874e2a0e746314aff8bdbb0e7bd2217f25b50420
+  generated_exact_type get22 location=class32 nominal_id=a80646a05c5622de39900111eab0c84d90c649b2379e755a38c45bdc7eb79497 exact_id=62cadaa8b9792192f4d31e791cccda818078a91314a8bcf3cf7d8159bbd9e826
+  generated_exact_type get23 location=class19 nominal_id=b0d284e584ef3bc6e148b02e2aedc0f50868eb3ec78b1c7e99e5ff1d96838d4f exact_id=63720c38f9fdae8f189e4b45d0a1ff06ffe43ec4ef37145d2d3f9e0e80a81332
+  generated_exact_type get24 location=enum12 nominal_id=49f8e0cf62ef031a22dad1e07cbfd7548731b8f9e91cf5e6e26ad829107c3744 exact_id=707fb5a9d68febd2cf45af56ac9f0b94e439cf04c3b055004d5bf0ce0c158999
+  generated_exact_type get25 location=class31 nominal_id=c32ff8a9cbfa6b93bb5bfd6378ebeef530a64e90052479e98c184a6c4e3f3c9a exact_id=7255096a5d9ba11bc5cacddea7628cceba96c835b8f862c5e80aad21ee59db08
+  generated_exact_type get26 location=class25 nominal_id=ce20be16795563a2eacc10f6811dcab86311ab38dd1f3fe993e5a3c69126bfc3 exact_id=7660768725094c4d9f84f90d0e416c2831089167c558fd2c17a3938c6f5fe51f
+  generated_exact_type get27 location=class14 nominal_id=244d83ca861cc5852c36358723cccaa99fcbfb4baf1af5176bef6d97e9591ec9 exact_id=859ce3ae623613ba92e27187044e51047c6cb1a84170aef921b74da6339a1ef0
+  generated_exact_type get28 location=enum23 nominal_id=9f21e3e91b90fb2993dbb18b0c985db69c0480c60bda4668ff11aeaef089ec5c exact_id=9b6e9299808f0d931a87c5a146fa74f97bf544144bd8f89fd939dd63962df0bd
+  generated_exact_type get29 location=closure2 nominal_id=763c4291f41a17c564614327da31f41cd8dc8185be1c1522a8592ec06cd11395 exact_id=a11919c8a2c1cc33956dfa706c47d9e4c52abb6ca9e56982c333e5131b31ae69
+  generated_exact_type get30 location=class17 nominal_id=e2dbd442d8e122f6813d09483f4829145c83d376247a8af6ffbee9fa926c1360 exact_id=a785d335e0ddfc99e21d291fa57a0100a7ebaa3dcea2f63685af764ed0e369ec
+  generated_exact_type get31 location=enum15 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
+  generated_exact_type get32 location=enum10 nominal_id=3d7ef36f24288a9d0caa6155f74e957f90b324535a569932341a6a9a60d6a4a9 exact_id=ae2aff2313c3230ebfaaeed3178d20f0f8bc58e378233484e3fda5f9c598808b
+  generated_exact_type get33 location=enum8 nominal_id=b5867e10b3084625ff7bdf62ccbb09abb5ef26da2c16cf513172325ec4748fc2 exact_id=af09aa3adaa1ad8dd1fcc41584778450be340c5bf8db02ecc3586d812bda7d4c
+  generated_exact_type get34 location=enum13 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
+  generated_exact_type get35 location=enum20 nominal_id=beab14fe7df8b6677028e3ec6f7f63975f493bc397810d2bb9875acae411a8e7 exact_id=bc5ac85b03e48dce511cb21d493b6dbb7c575e94c711255dc5711d7fcda0987f
+  generated_exact_type get36 location=enum19 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
+  generated_exact_type get37 location=enum16 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
+  generated_exact_type get38 location=class23 nominal_id=3a177b43c6483441d21afd99c815e64b028ab5fd81aef8852fe6fba4b1ebb287 exact_id=c8dd1262f6b8e46837d38557fe2a36c07fc183ea9901db55963ebc37bd2b5a31
+  generated_exact_type get39 location=class24 nominal_id=893f6e290ac2c577791390be214d2467abff0bf8a5301a6cc0b5fbf990817690 exact_id=c90d588e1fe2a46041fb97d6b02595d631b04a3dbb06979bd4cf759937d29cb7
+  generated_exact_type get40 location=class22 nominal_id=de93780078fe594adedf1ed655aa16977f797b25663c59607048bd53da78aef8 exact_id=d320f4bf40f455ba68a19a3edfdd0760ece859652fb9d432cfba29791b31f813
+  generated_exact_type get41 location=class12 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get42 location=class28 nominal_id=281e1fe784ba0270420ae0eca58775c1f811b1107ab6f4447c1027642f507b2f exact_id=f03e875b92ae6ac534a2aea9aef9e66adab7d4261e1e346b60d5014d11753424
+  generated_exact_type get43 location=enum17 nominal_id=aeab4a3afb431c412bb4a32266c74db835a191aca437513bb6e2aa94194b7a1a exact_id=f972ad49af4672f8cc7bb307afc167e76a5679f07bf303c2a396b78b6271efbe
+  generated_exact_type get44 location=enum3 nominal_id=aec9ee7500f86583753684c147f00fa43166ec8126517282049cd6a72a5b54c5 exact_id=febd777311c64d4566cfee7354b010abb5ce5be4ec05e21a9462025b7aa05196
+  generated_callable gc0 function=@fn93 id=01d369254bc9b13d426a07847caf7c0646f03ad57d1532e6b6a58bf429aaf9aa
+  generated_callable gc1 function=@fn82 id=027f01ff20925f30cfa08cf44525a0297ea3c7a2b8f8274561044efc13cd38fa
+  generated_callable gc2 function=@fn71 id=04571ad22a4b1e81a3535f76ea3213287334b5bdb22fc3f0799cebb869c0a770
+  generated_callable gc3 function=@fn92 id=0bfc3b60dd32253a54f1fcd6d67982c7dc82732db6b194e118c8aca2cd6d611f
+  generated_callable gc4 function=@fn78 id=13eee01e43667539dd837e09aff7a1af90e4d80306dcd4a343552b166ce5c2e7
+  generated_callable gc5 function=@fn97 id=17e13fccdae962376768360558cf1fabf21731cdf90686f98fa37cc65179c97d
+  generated_callable gc6 function=@fn65 id=18d13ae3b692db54ba27262e19411ae26a000d0b04521b04e0ec5abcad4ce069
+  generated_callable gc7 function=@fn63 id=3232925811b56ec11f9471c67db25c15e26c7620bfe07c4f3723c688afa1ceac
+  generated_callable gc8 function=@fn62 id=32edaf5d1efc869fe6511edb89016c499b788cb7ba0c0f4df4b3b0d384503423
+  generated_callable gc9 function=@fn83 id=3b50dc10696c1879c0d50f8d8167fd5adb9a00f799cd59ecead21d93fe769b60
+  generated_callable gc10 function=@fn98 id=46906f0a5c2505f70f0882c3cb142118a11c2ee2fb0c204e3de4cd8e802fb8e3
+  generated_callable gc11 function=@fn96 id=4beb2a128a74949f3c6f58958e5911c6179f8d039a97b9c2f79c889219318ac3
+  generated_callable gc12 function=@fn81 id=4fc18d70758b8dc688454b00fc38c0cfa5cf8bb1fc3e6d7883a99f1c37df03b7
+  generated_callable gc13 function=@fn74 id=59c38df84a74556d7a34bfcfe87180916b3419c8117f7c6ee28cd823003727a5
+  generated_callable gc14 function=@fn73 id=5dffec20722b9c74ce6f7b3a126440530a0009d9e36a2c4b62997429aaa21ac6
+  generated_callable gc15 function=@fn89 id=62140e79544936f1a9759dfa3632194cb57f03ddae39eef419f5a9b620dc1124
+  generated_callable gc16 function=@fn72 id=64cd4f995916fdd0e1bcfe761aa52cccaa58ef64f44c1bee0ef1dea0b128ce82
+  generated_callable gc17 function=@fn95 id=6dcd79392e1f8660f76199f24e246442358cadd5859997ea0f70eb1388a61bfe
+  generated_callable gc18 function=@fn91 id=716052328067721f8a36956a813d4c420da1139ed8df3e660d3df6fb9ff715cb
+  generated_callable gc19 function=@fn70 id=739bd8cd56c68e9a9a2142e7cb8a455a2a4833e37027f31783850d19937f6806
+  generated_callable gc20 function=@fn85 id=778836cc425773cad0faff5ea464d548b567dbc4c39db572b8609c991cfae34b
+  generated_callable gc21 function=@fn94 id=7e1142f4dfdfdf210fcbc3d767d6505b1dc93b3250748bb4f618034b61efb3ed
+  generated_callable gc22 function=@fn79 id=83df38570c4327b8130bda9b2db430f789145bb031de81b70fa8f426bde2b461
+  generated_callable gc23 function=@fn87 id=97850b3b2c8e9968f40e7f52e681fc094bfee9df3819066e7d3339d3ba5ca6ce
+  generated_callable gc24 function=@fn61 id=a2043a7086afb91b232b0b84a7fe40a7c1e99c239a81ebaf65d51116b6458fae
+  generated_callable gc25 function=@fn88 id=a887712961a369d38fa41c3054be14a798fac6ec9d08b69195affb340797052b
+  generated_callable gc26 function=@fn77 id=a8b671e338d8ccb3b2dc5d0f0545087a2fa6a93b3bc656a29906bdab308bdf8a
+  generated_callable gc27 function=@fn75 id=acc9ef23f4dc1834826cae1be124791308b7dff3352854ec427216deaca8ed2f
+  generated_callable gc28 function=@fn64 id=b3c97b96c3df1423b70429afb409eddd517fb78e39e6526d7d5e12a55c948a8f
+  generated_callable gc29 function=@fn68 id=b5587508aa80cf4c2d577a6ec43eefe188691dcd94c2451a9a33b08f67bcc193
+  generated_callable gc30 function=@fn60 id=bf0e69d199bbcbc8bf8e7c0622fafb073fe8ebf357a10fb8de0e3bccfff8f222
+  generated_callable gc31 function=@fn84 id=cb2b062752a73a8a562ccd1b583ba0232b8d6f4f4e8197b0b2a72244e7413743
+  generated_callable gc32 function=@fn86 id=d52ae8716142012c771200840713cc698f3f369c0d94e7a2251742f9a9e5f335
+  generated_callable gc33 function=@fn67 id=f1bdbefe6ccd336165e5acb9034f8c7047b063a125ef1ebb994e509e86e76414
+  generated_callable gc34 function=@fn69 id=f55cfb1a66b94cbe8d8aee02f0d9f4bafe8c09869b85c4e7edae99f45f362fdd
+  generated_callable gc35 function=@fn76 id=f8cb3c063cadf83f83403c108fe294541ccd32baf900896da913f8e45840e1f4
+  generated_callable gc36 function=@fn80 id=f8d4ad79dce932f40fd8f667e329e1c7008f8dd19501c5647667e3ec13179b38
+  generated_callable gc37 function=@fn90 id=fb86664f753d0bd522370784f9564bdfaa4664b53d3b4a343ac97aecfe47fb92
+  generated_callable gc38 function=@fn66 id=fcdb40b30279aedceb07154a8c9afe696e52f06f0858d891f54a04c2e63f875e
   adapter ca0 class=cc2 source=function_type0 target=function_type2
   fun Counter.$get$value @fn0(this: Counter) -> Int
     bb0 entry
@@ -194,14 +243,82 @@ Module
         FieldAccess 0
           Type BaseResult
           Local this
-  fun immediate @fn3(value: Long, $completion: Continuation<Long>) -> CoroutineStep<Long>
+  fun DerivedTask.run @fn3(this: DerivedTask, $completion: Continuation<DerivedResult>) -> CoroutineStep<DerivedResult>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type DerivedResult
+        ClassAlloc DerivedResult
+      call @fn55 direct
+        Type DerivedResult
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type CoroutineStep<DerivedResult>
+        VariantConstruct CoroutineStep<DerivedResult> v0
+          Type DerivedResult
+          Local $new.1
+  fun DeferredDerivedTask.run @fn4(this: DeferredDerivedTask, $completion: Continuation<DerivedResult>) -> CoroutineStep<DerivedResult>
+    bb0 entry
+      val $frame: CoroutineFrame<DeferredDerivedTask.run>
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        ClassAlloc CoroutineFrame<DeferredDerivedTask.run>
+      field_set 0
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      field_set 1
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        Local $frame
+        Type Continuation<DerivedResult>
+        Local $completion
+      field_set 2
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        Local $frame
+        Type CoroutineSlot<DerivedResult>
+        VariantConstruct CoroutineSlot<DerivedResult> v0
+      field_set 3
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        Local $frame
+        Type CoroutineSlot<DeferredDerivedTask>
+        VariantConstruct CoroutineSlot<DeferredDerivedTask> v1
+          Type DeferredDerivedTask
+          Local this
+      field_set 4
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        Local $frame
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      call $step: CoroutineStep<DerivedResult> = @fn75 direct
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      return
+        Type CoroutineStep<DerivedResult>
+        Local $step
+  fun DeferredDerivedTask.$get$gate @fn5(this: DeferredDerivedTask) -> Gate<DerivedResult>
+    bb0 entry
+      return
+        Type Gate<DerivedResult>
+        FieldAccess 0
+          Type DeferredDerivedTask
+          Local this
+  fun immediate @fn6(value: Long, $completion: Continuation<Long>) -> CoroutineStep<Long>
     bb0 entry
       return
         Type CoroutineStep<Long>
         VariantConstruct CoroutineStep<Long> v0
           Type Long
           Local value
-  fun awaitLong @fn4(gate: Gate<Long>, $completion: Continuation<Long>) -> CoroutineStep<Long>
+  fun awaitLong @fn7(gate: Gate<Long>, $completion: Continuation<Long>) -> CoroutineStep<Long>
     bb0 entry
       val $frame: CoroutineFrame<awaitLong>
         Type CoroutineFrame<awaitLong>
@@ -233,7 +350,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Long> = @fn55 direct
+      call $step: CoroutineStep<Long> = @fn78 direct
         Type CoroutineFrame<awaitLong>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -241,14 +358,14 @@ Module
       return
         Type CoroutineStep<Long>
         Local $step
-  fun acceptAny @fn5(value: Any, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun acceptAny @fn8(value: Any, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       return
         Type CoroutineStep<Int>
         VariantConstruct CoroutineStep<Int> v0
           Type Int
           IntegerLiteral Int value=42 bits=0x0000002a
-  fun widenedFunction @fn6() -> suspend (Int) -> Any
+  fun widenedFunction @fn9() -> suspend (Int) -> Any
     bb0 entry
       val exact: suspend (Any) -> Int
         Type suspend (Any) -> Int
@@ -259,7 +376,7 @@ Module
           CaptureInit field=0
             Type suspend (Any) -> Int
             Local exact
-  fun erasedFunction @fn7() -> Any
+  fun erasedFunction @fn10() -> Any
     bb0 entry
       val exact: suspend (Any) -> Int
         Type suspend (Any) -> Int
@@ -269,7 +386,47 @@ Module
         Retype Any
           Type suspend (Any) -> Int
           Local exact
-  fun await @fn8(gate: Gate<Long>, $completion: Continuation<Long>) -> CoroutineStep<Long>
+  fun await @fn11(gate: Gate<DerivedResult>, $completion: Continuation<DerivedResult>) -> CoroutineStep<DerivedResult>
+    bb0 entry
+      val $frame: CoroutineFrame<await>
+        Type CoroutineFrame<await>
+        ClassAlloc CoroutineFrame<await>
+      field_set 0
+        Type CoroutineFrame<await>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      field_set 1
+        Type CoroutineFrame<await>
+        Local $frame
+        Type Continuation<DerivedResult>
+        Local $completion
+      field_set 2
+        Type CoroutineFrame<await>
+        Local $frame
+        Type CoroutineSlot<DerivedResult>
+        VariantConstruct CoroutineSlot<DerivedResult> v0
+      field_set 3
+        Type CoroutineFrame<await>
+        Local $frame
+        Type CoroutineSlot<Gate<DerivedResult>>
+        VariantConstruct CoroutineSlot<Gate<DerivedResult>> v1
+          Type Gate<DerivedResult>
+          Local gate
+      field_set 4
+        Type CoroutineFrame<await>
+        Local $frame
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      call $step: CoroutineStep<DerivedResult> = @fn84 direct
+        Type CoroutineFrame<await>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      return
+        Type CoroutineStep<DerivedResult>
+        Local $step
+  fun await @fn12(gate: Gate<Long>, $completion: Continuation<Long>) -> CoroutineStep<Long>
     bb0 entry
       val $frame: CoroutineFrame<await>
         Type CoroutineFrame<await>
@@ -301,7 +458,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Long> = @fn61 direct
+      call $step: CoroutineStep<Long> = @fn87 direct
         Type CoroutineFrame<await>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -309,7 +466,26 @@ Module
       return
         Type CoroutineStep<Long>
         Local $step
-  fun Registration.register @fn9(this: Registration<Long>, continuation: Continuation<Long>) -> Unit
+  fun Registration.register @fn13(this: Registration<DerivedResult>, continuation: Continuation<DerivedResult>) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Continuation<DerivedResult>
+        Type Continuation<DerivedResult>
+        Local continuation
+      val $dependency.parameter._1: Continuation<DerivedResult>
+        Type Continuation<DerivedResult>
+        Local $dependency.argument.0
+      call $call.1: Gate<DerivedResult> = @fn15 direct
+        Type Registration<DerivedResult>
+        Local this
+      call @fn16 direct
+        Type Gate<DerivedResult>
+        Local $call.1
+        Type Option<Continuation<DerivedResult>>
+        VariantConstruct Option<Continuation<DerivedResult>> v0
+          Type Continuation<DerivedResult>
+          Local $dependency.parameter._1
+      return
+  fun Registration.register @fn14(this: Registration<Long>, continuation: Continuation<Long>) -> Unit
     bb0 entry
       val $dependency.argument.0: Continuation<Long>
         Type Continuation<Long>
@@ -317,10 +493,10 @@ Module
       val $dependency.parameter._1: Continuation<Long>
         Type Continuation<Long>
         Local $dependency.argument.0
-      call $call.1: Gate<Long> = @fn10 direct
+      call $call.1: Gate<Long> = @fn17 direct
         Type Registration<Long>
         Local this
-      call @fn11 direct
+      call @fn18 direct
         Type Gate<Long>
         Local $call.1
         Type Option<Continuation<Long>>
@@ -328,14 +504,29 @@ Module
           Type Continuation<Long>
           Local $dependency.parameter._1
       return
-  fun Registration.$get$gate @fn10(this: Registration<Long>) -> Gate<Long>
+  fun Registration.$get$gate @fn15(this: Registration<DerivedResult>) -> Gate<DerivedResult>
+    bb0 entry
+      return
+        Type Gate<DerivedResult>
+        FieldAccess 0
+          Type Registration<DerivedResult>
+          Local this
+  fun Gate.$set$waiter @fn16(this: Gate<DerivedResult>, value: Option<Continuation<DerivedResult>>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Gate<DerivedResult>
+        Local this
+        Type Option<Continuation<DerivedResult>>
+        Local value
+      return
+  fun Registration.$get$gate @fn17(this: Registration<Long>) -> Gate<Long>
     bb0 entry
       return
         Type Gate<Long>
         FieldAccess 0
           Type Registration<Long>
           Local this
-  fun Gate.$set$waiter @fn11(this: Gate<Long>, value: Option<Continuation<Long>>) -> Unit
+  fun Gate.$set$waiter @fn18(this: Gate<Long>, value: Option<Continuation<Long>>) -> Unit
     bb0 entry
       field_set 0
         Type Gate<Long>
@@ -343,79 +534,103 @@ Module
         Type Option<Continuation<Long>>
         Local value
       return
-  fun Continuation.resume @fn12(this: Continuation<Int>, value: Int) -> Unit
+  fun Continuation.resume @fn19(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn13(this: Continuation<Int>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn20(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn14(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun SuspendTask.run @fn21(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn15(this: SuspendRegistration<Int>, continuation: Continuation<Int>) -> Unit
+  fun SuspendRegistration.register @fn22(this: SuspendRegistration<Int>, continuation: Continuation<Int>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn16(this: Continuation<Long>, value: Long) -> Unit
+  fun Continuation.resume @fn23(this: Continuation<Long>, value: Long) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn17(this: Continuation<Long>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn24(this: Continuation<Long>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn18(this: SuspendTask<Long>, $completion: Continuation<Long>) -> CoroutineStep<Long>
+  fun SuspendTask.run @fn25(this: SuspendTask<Long>, $completion: Continuation<Long>) -> CoroutineStep<Long>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Long>, continuation: Continuation<Long>) -> Unit
+  fun SuspendRegistration.register @fn26(this: SuspendRegistration<Long>, continuation: Continuation<Long>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn20(this: Continuation<Counter>, value: Counter) -> Unit
+  fun Continuation.resume @fn27(this: Continuation<Counter>, value: Counter) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn21(this: Continuation<Counter>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn28(this: Continuation<Counter>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn22(this: SuspendTask<Counter>, $completion: Continuation<Counter>) -> CoroutineStep<Counter>
+  fun SuspendTask.run @fn29(this: SuspendTask<Counter>, $completion: Continuation<Counter>) -> CoroutineStep<Counter>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Counter>, continuation: Continuation<Counter>) -> Unit
+  fun SuspendRegistration.register @fn30(this: SuspendRegistration<Counter>, continuation: Continuation<Counter>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn24(this: Continuation<BaseResult>, value: BaseResult) -> Unit
+  fun Continuation.resume @fn31(this: Continuation<BaseResult>, value: BaseResult) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn25(this: Continuation<BaseResult>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn32(this: Continuation<BaseResult>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn26(this: SuspendTask<BaseResult>, $completion: Continuation<BaseResult>) -> CoroutineStep<BaseResult>
+  fun SuspendTask.run @fn33(this: SuspendTask<BaseResult>, $completion: Continuation<BaseResult>) -> CoroutineStep<BaseResult>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn27(this: SuspendRegistration<BaseResult>, continuation: Continuation<BaseResult>) -> Unit
+  fun SuspendRegistration.register @fn34(this: SuspendRegistration<BaseResult>, continuation: Continuation<BaseResult>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn28(this: Continuation<DerivedResult>, value: DerivedResult) -> Unit
+  fun Continuation.resume @fn35(this: Continuation<DerivedResult>, value: DerivedResult) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn29(this: Continuation<DerivedResult>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn36(this: Continuation<DerivedResult>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn30(this: SuspendTask<DerivedResult>, $completion: Continuation<DerivedResult>) -> CoroutineStep<DerivedResult>
+  fun SuspendTask.run @fn37(this: SuspendTask<DerivedResult>, $completion: Continuation<DerivedResult>) -> CoroutineStep<DerivedResult>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn31(this: SuspendRegistration<DerivedResult>, continuation: Continuation<DerivedResult>) -> Unit
+  fun SuspendRegistration.register @fn38(this: SuspendRegistration<DerivedResult>, continuation: Continuation<DerivedResult>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun Continuation.resume @fn32(this: Continuation<Any>, value: Any) -> Unit
+  fun Continuation.resume @fn39(this: Continuation<DerivedTask>, value: DerivedTask) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn33(this: Continuation<Any>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn40(this: Continuation<DerivedTask>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun SuspendTask.run @fn34(this: SuspendTask<Any>, $completion: Continuation<Any>) -> CoroutineStep<Any>
+  fun SuspendTask.run @fn41(this: SuspendTask<DerivedTask>, $completion: Continuation<DerivedTask>) -> CoroutineStep<DerivedTask>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
-  fun SuspendRegistration.register @fn35(this: SuspendRegistration<Any>, continuation: Continuation<Any>) -> Unit
+  fun SuspendRegistration.register @fn42(this: SuspendRegistration<DerivedTask>, continuation: Continuation<DerivedTask>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun $reference.0 @fn36($closure: suspend (Any) -> Int, arg0: Any, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun Continuation.resume @fn43(this: Continuation<DeferredDerivedTask>, value: DeferredDerivedTask) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn44(this: Continuation<DeferredDerivedTask>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn45(this: SuspendTask<DeferredDerivedTask>, $completion: Continuation<DeferredDerivedTask>) -> CoroutineStep<DeferredDerivedTask>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn46(this: SuspendRegistration<DeferredDerivedTask>, continuation: Continuation<DeferredDerivedTask>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn47(this: Continuation<Any>, value: Any) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn48(this: Continuation<Any>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn49(this: SuspendTask<Any>, $completion: Continuation<Any>) -> CoroutineStep<Any>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn50(this: SuspendRegistration<Any>, continuation: Continuation<Any>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun $reference.0 @fn51($closure: suspend (Any) -> Int, arg0: Any, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<$reference.0>
         Type CoroutineFrame<$reference.0>
@@ -454,7 +669,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Int> = @fn49 direct
+      call $step: CoroutineStep<Int> = @fn69 direct
         Type CoroutineFrame<$reference.0>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -462,7 +677,7 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
-  fun $reference.1 @fn37($closure: suspend (Any) -> Int, arg0: Any, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun $reference.1 @fn52($closure: suspend (Any) -> Int, arg0: Any, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<$reference.1>
         Type CoroutineFrame<$reference.1>
@@ -501,7 +716,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Int> = @fn52 direct
+      call $step: CoroutineStep<Int> = @fn72 direct
         Type CoroutineFrame<$reference.1>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -509,7 +724,7 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
-  fun init.Counter.$c2 @fn38(this: Counter) -> Unit
+  fun init.Counter.$c2 @fn53(this: Counter) -> Unit
     bb0 entry
       field_set 0
         Type Counter
@@ -517,7 +732,7 @@ Module
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
       return
-  fun init.BaseResult.$c8 @fn39(this: BaseResult, value: Int) -> Unit
+  fun init.BaseResult.$c8 @fn54(this: BaseResult, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type BaseResult
@@ -525,7 +740,7 @@ Module
         Type Int
         Local value
       return
-  fun init.DerivedResult.$c9 @fn40(this: DerivedResult, value: Int) -> Unit
+  fun init.DerivedResult.$c9 @fn55(this: DerivedResult, value: Int) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -533,7 +748,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call @fn39 direct
+      call @fn54 direct
         Type BaseResult
         Retype BaseResult
           Type DerivedResult
@@ -541,7 +756,26 @@ Module
         Type Int
         Local $parameter.value
       return
-  fun init.Registration.$c4 @fn41(this: Registration<Long>, gate: Gate<Long>) -> Unit
+  fun init.DerivedTask.$c10 @fn56(this: DerivedTask) -> Unit
+    bb0 entry
+      return
+  fun init.DeferredDerivedTask.$c11 @fn57(this: DeferredDerivedTask, gate: Gate<DerivedResult>) -> Unit
+    bb0 entry
+      field_set 0
+        Type DeferredDerivedTask
+        Local this
+        Type Gate<DerivedResult>
+        Local gate
+      return
+  fun init.Registration.$c4 @fn58(this: Registration<DerivedResult>, gate: Gate<DerivedResult>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Registration<DerivedResult>
+        Local this
+        Type Gate<DerivedResult>
+        Local gate
+      return
+  fun init.Registration.$c4 @fn59(this: Registration<Long>, gate: Gate<Long>) -> Unit
     bb0 entry
       field_set 0
         Type Registration<Long>
@@ -549,7 +783,7 @@ Module
         Type Gate<Long>
         Local gate
       return
-  fun $adapter.suspend (Any) -> Int.suspend (Int) -> Any @fn42($closure: suspend (Int) -> Any, arg0: Int, $completion: Continuation<Any>) -> CoroutineStep<Any>
+  fun $adapter.suspend (Any) -> Int.suspend (Int) -> Any @fn60($closure: suspend (Int) -> Any, arg0: Int, $completion: Continuation<Any>) -> CoroutineStep<Any>
     bb0 entry
       val $frame: CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
         Type CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
@@ -588,7 +822,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Any> = @fn58 direct
+      call $step: CoroutineStep<Any> = @fn81 direct
         Type CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -596,11 +830,11 @@ Module
       return
         Type CoroutineStep<Any>
         Local $step
-  fun startCoroutine<BaseResult> @fn43(task: SuspendTask<BaseResult>, completion: Continuation<BaseResult>) -> Unit
+  fun startCoroutine<BaseResult> @fn61(task: SuspendTask<BaseResult>, completion: Continuation<BaseResult>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn24 interface Continuation<BaseResult>[0]
+      call @fn31 interface Continuation<BaseResult>[0]
         Type Continuation<BaseResult>
         Local completion
         Type BaseResult
@@ -609,7 +843,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn25 interface Continuation<BaseResult>[1]
+      call @fn32 interface Continuation<BaseResult>[1]
         Type Continuation<BaseResult>
         Local completion
         Type Throwable
@@ -624,7 +858,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<BaseResult> = @fn26 interface SuspendTask<BaseResult>[0]
+      call $step: CoroutineStep<BaseResult> = @fn33 interface SuspendTask<BaseResult>[0]
         Type SuspendTask<BaseResult>
         Local task
         Type Continuation<BaseResult>
@@ -638,11 +872,11 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun startCoroutine<Counter> @fn44(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
+  fun startCoroutine<Counter> @fn62(task: SuspendTask<Counter>, completion: Continuation<Counter>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn20 interface Continuation<Counter>[0]
+      call @fn27 interface Continuation<Counter>[0]
         Type Continuation<Counter>
         Local completion
         Type Counter
@@ -651,7 +885,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn21 interface Continuation<Counter>[1]
+      call @fn28 interface Continuation<Counter>[1]
         Type Continuation<Counter>
         Local completion
         Type Throwable
@@ -666,7 +900,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<Counter> = @fn22 interface SuspendTask<Counter>[0]
+      call $step: CoroutineStep<Counter> = @fn29 interface SuspendTask<Counter>[0]
         Type SuspendTask<Counter>
         Local task
         Type Continuation<Counter>
@@ -680,11 +914,11 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun startCoroutine<DerivedResult> @fn45(task: SuspendTask<DerivedResult>, completion: Continuation<DerivedResult>) -> Unit
+  fun startCoroutine<DerivedResult> @fn63(task: SuspendTask<DerivedResult>, completion: Continuation<DerivedResult>) -> Unit
     bb0 suspended
       return
     bb1 completed
-      call @fn28 interface Continuation<DerivedResult>[0]
+      call @fn35 interface Continuation<DerivedResult>[0]
         Type Continuation<DerivedResult>
         Local completion
         Type DerivedResult
@@ -693,7 +927,7 @@ Module
           Local $step
       return
     bb2 failed
-      call @fn29 interface Continuation<DerivedResult>[1]
+      call @fn36 interface Continuation<DerivedResult>[1]
         Type Continuation<DerivedResult>
         Local completion
         Type Throwable
@@ -708,7 +942,7 @@ Module
       end_catch
       goto bb2
     bb4 entry unwind bb3
-      call $step: CoroutineStep<DerivedResult> = @fn30 interface SuspendTask<DerivedResult>[0]
+      call $step: CoroutineStep<DerivedResult> = @fn37 interface SuspendTask<DerivedResult>[0]
         Type SuspendTask<DerivedResult>
         Local task
         Type Continuation<DerivedResult>
@@ -722,7 +956,91 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  fun function_bridge.$Closure$reference0.suspend (Any) -> Any @fn46($source: suspend (Any) -> Int, arg0: Any, $completion: Continuation<Any>) -> CoroutineStep<Any>
+  fun startCoroutine<DeferredDerivedTask> @fn64(task: SuspendTask<DeferredDerivedTask>, completion: Continuation<DeferredDerivedTask>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn43 interface Continuation<DeferredDerivedTask>[0]
+        Type Continuation<DeferredDerivedTask>
+        Local completion
+        Type DeferredDerivedTask
+        EnumField v0 f0
+          Type CoroutineStep<DeferredDerivedTask>
+          Local $step
+      return
+    bb2 failed
+      call @fn44 interface Continuation<DeferredDerivedTask>[1]
+        Type Continuation<DeferredDerivedTask>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DeferredDerivedTask> = @fn45 interface SuspendTask<DeferredDerivedTask>[0]
+        Type SuspendTask<DeferredDerivedTask>
+        Local task
+        Type Continuation<DeferredDerivedTask>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DeferredDerivedTask>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<DerivedTask> @fn65(task: SuspendTask<DerivedTask>, completion: Continuation<DerivedTask>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn39 interface Continuation<DerivedTask>[0]
+        Type Continuation<DerivedTask>
+        Local completion
+        Type DerivedTask
+        EnumField v0 f0
+          Type CoroutineStep<DerivedTask>
+          Local $step
+      return
+    bb2 failed
+      call @fn40 interface Continuation<DerivedTask>[1]
+        Type Continuation<DerivedTask>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<DerivedTask> = @fn41 interface SuspendTask<DerivedTask>[0]
+        Type SuspendTask<DerivedTask>
+        Local task
+        Type Continuation<DerivedTask>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DerivedTask>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$reference0.suspend (Any) -> Any @fn66($source: suspend (Any) -> Int, arg0: Any, $completion: Continuation<Any>) -> CoroutineStep<Any>
     bb0 entry
       val $frame: CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
         Type CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
@@ -761,7 +1079,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Any> = @fn64 direct
+      call $step: CoroutineStep<Any> = @fn90 direct
         Type CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -769,7 +1087,7 @@ Module
       return
         Type CoroutineStep<Any>
         Local $step
-  fun function_bridge.$Closure$reference1.suspend (Any) -> Any @fn47($source: suspend (Any) -> Int, arg0: Any, $completion: Continuation<Any>) -> CoroutineStep<Any>
+  fun function_bridge.$Closure$reference1.suspend (Any) -> Any @fn67($source: suspend (Any) -> Int, arg0: Any, $completion: Continuation<Any>) -> CoroutineStep<Any>
     bb0 entry
       val $frame: CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
         Type CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
@@ -808,7 +1126,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Any> = @fn67 direct
+      call $step: CoroutineStep<Any> = @fn93 direct
         Type CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -816,7 +1134,7 @@ Module
       return
         Type CoroutineStep<Any>
         Local $step
-  fun function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any @fn48($source: suspend (Int) -> Any, arg0: Any, $completion: Continuation<Any>) -> CoroutineStep<Any>
+  fun function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any @fn68($source: suspend (Int) -> Any, arg0: Any, $completion: Continuation<Any>) -> CoroutineStep<Any>
     bb0 entry
       val $frame: CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
         Type CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
@@ -855,7 +1173,7 @@ Module
         Local $frame
         Type CoroutineSlot<Throwable>
         VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Any> = @fn70 direct
+      call $step: CoroutineStep<Any> = @fn96 direct
         Type CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
         Local $frame
         Type machine<coroutine-frame-state>
@@ -863,7 +1181,7 @@ Module
       return
         Type CoroutineStep<Any>
         Local $step
-  fun $reference.0$drive @fn49($frame: CoroutineFrame<$reference.0>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
+  fun $reference.0$drive @fn69($frame: CoroutineFrame<$reference.0>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<$reference.0>
@@ -883,7 +1201,7 @@ Module
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep<Int> = @fn5 direct
+      call $step.1: CoroutineStep<Int> = @fn8 direct
         Type Any
         Local arg0
         Type CoroutineAdapter<$reference.0>$1
@@ -1030,7 +1348,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn50(this: CoroutineAdapter<$reference.0>$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @fn70(this: CoroutineAdapter<$reference.0>$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -1049,7 +1367,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn12 interface Continuation<Int>[0]
+      call @fn19 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<$reference.0>
@@ -1071,7 +1389,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[1]
+      call @fn20 interface Continuation<Int>[1]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<$reference.0>
@@ -1104,7 +1422,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Int> = @fn49 direct
+      call $step: CoroutineStep<Int> = @fn69 direct
         Type CoroutineFrame<$reference.0>
         FieldAccess 0
           Type CoroutineAdapter<$reference.0>$1
@@ -1163,7 +1481,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @fn51(this: CoroutineAdapter<$reference.0>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn71(this: CoroutineAdapter<$reference.0>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -1182,7 +1500,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn12 interface Continuation<Int>[0]
+      call @fn19 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<$reference.0>
@@ -1204,7 +1522,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[1]
+      call @fn20 interface Continuation<Int>[1]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<$reference.0>
@@ -1237,7 +1555,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Int> = @fn49 direct
+      call $step: CoroutineStep<Int> = @fn69 direct
         Type CoroutineFrame<$reference.0>
         FieldAccess 0
           Type CoroutineAdapter<$reference.0>$1
@@ -1296,7 +1614,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun $reference.1$drive @fn52($frame: CoroutineFrame<$reference.1>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
+  fun $reference.1$drive @fn72($frame: CoroutineFrame<$reference.1>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<$reference.1>
@@ -1316,7 +1634,7 @@ Module
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep<Int> = @fn5 direct
+      call $step.1: CoroutineStep<Int> = @fn8 direct
         Type Any
         Local arg0
         Type CoroutineAdapter<$reference.1>$1
@@ -1463,7 +1781,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn53(this: CoroutineAdapter<$reference.1>$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @fn73(this: CoroutineAdapter<$reference.1>$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -1482,7 +1800,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn12 interface Continuation<Int>[0]
+      call @fn19 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<$reference.1>
@@ -1504,7 +1822,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[1]
+      call @fn20 interface Continuation<Int>[1]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<$reference.1>
@@ -1537,7 +1855,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Int> = @fn52 direct
+      call $step: CoroutineStep<Int> = @fn72 direct
         Type CoroutineFrame<$reference.1>
         FieldAccess 0
           Type CoroutineAdapter<$reference.1>$1
@@ -1596,7 +1914,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @fn54(this: CoroutineAdapter<$reference.1>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn74(this: CoroutineAdapter<$reference.1>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -1615,7 +1933,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn12 interface Continuation<Int>[0]
+      call @fn19 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<$reference.1>
@@ -1637,7 +1955,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[1]
+      call @fn20 interface Continuation<Int>[1]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<$reference.1>
@@ -1670,7 +1988,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Int> = @fn52 direct
+      call $step: CoroutineStep<Int> = @fn72 direct
         Type CoroutineFrame<$reference.1>
         FieldAccess 0
           Type CoroutineAdapter<$reference.1>$1
@@ -1729,7 +2047,439 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun awaitLong$drive @fn55($frame: CoroutineFrame<awaitLong>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Long>
+  fun DeferredDerivedTask.run$drive @fn75($frame: CoroutineFrame<DeferredDerivedTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<DerivedResult>
+    bb0 entry
+      call $argument.0: Gate<DerivedResult> = @fn5 direct
+        Type DeferredDerivedTask
+        Local this
+      val $parameter.gate: Gate<DerivedResult>
+        Type Gate<DerivedResult>
+        Local $argument.0
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+      val $adapter.1: CoroutineAdapter<DeferredDerivedTask.run>$1
+        Type CoroutineAdapter<DeferredDerivedTask.run>$1
+        ClassAlloc CoroutineAdapter<DeferredDerivedTask.run>$1
+      field_set 0
+        Type CoroutineAdapter<DeferredDerivedTask.run>$1
+        Local $adapter.1
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        Local $frame
+      field_set 1
+        Type CoroutineAdapter<DeferredDerivedTask.run>$1
+        Local $adapter.1
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Waiting)
+      call $step.1: CoroutineStep<DerivedResult> = @fn11 direct
+        Type Gate<DerivedResult>
+        Local $parameter.gate
+        Type CoroutineAdapter<DeferredDerivedTask.run>$1
+        Local $adapter.1
+      branch bb5 bb6
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DerivedResult>
+            Local $step.1
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb1 coroutine.post.1
+      return
+        Type CoroutineStep<DerivedResult>
+        VariantConstruct CoroutineStep<DerivedResult> v0
+          Type DerivedResult
+          Local $call.1
+    bb2 coroutine.completed.1
+      val $call.1: DerivedResult
+        Type DerivedResult
+        EnumField v0 f0
+          Type CoroutineStep<DerivedResult>
+          Local $step.1
+      goto bb1
+    bb3 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb4 coroutine.completed_claim_frame.1
+      val $completed_frame_claim.1: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<DeferredDerivedTask.run>
+          Local $frame
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb2 bb3
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $completed_frame_claim.1
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb5 coroutine.completed_claim_adapter.1
+      val $completed_adapter_claim.1: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local $adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Consumed)
+      branch bb4 bb3
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $completed_adapter_claim.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+    bb6 coroutine.suspended.1
+      return
+        Type CoroutineStep<DerivedResult>
+        VariantConstruct CoroutineStep<DerivedResult> v1
+    bb7 coroutine.resume.1
+      assign $call.1
+        Type DerivedResult
+        EnumField v1 f0
+          Type CoroutineSlot<DerivedResult>
+          FieldAccess 2
+            Type CoroutineFrame<DeferredDerivedTask.run>
+            Local $frame
+      goto bb1
+    bb8 coroutine.failure.1
+      throw
+        Type Throwable
+        EnumField v1 f0
+          Type CoroutineSlot<Throwable>
+          FieldAccess 4
+            Type CoroutineFrame<DeferredDerivedTask.run>
+            Local $frame
+    bb9 coroutine.initial
+      assign this
+        Type DeferredDerivedTask
+        EnumField v1 f0
+          Type CoroutineSlot<DeferredDerivedTask>
+          FieldAccess 3
+            Type CoroutineFrame<DeferredDerivedTask.run>
+            Local $frame
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Running)
+      goto bb0
+    bb10 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb11 coroutine.dispatch.suspended.1
+      branch bb7 bb10
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $dispatch_state
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb12 coroutine.dispatch.resume_failure.1
+      branch bb8 bb11
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $dispatch_state
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
+    bb13 coroutine.dispatch.initial
+      branch bb9 bb12
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $dispatch_state
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Initial)
+  fun CoroutineAdapter.resume$1 @fn76(this: CoroutineAdapter<DeferredDerivedTask.run>$1, value: DerivedResult) -> Unit
+    bb0 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb1 completed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn35 interface Continuation<DerivedResult>[0]
+        Type Continuation<DerivedResult>
+        FieldAccess 1
+          Type CoroutineFrame<DeferredDerivedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<DeferredDerivedTask.run>$1
+            Local this
+        Type DerivedResult
+        EnumField v0 f0
+          Type CoroutineStep<DerivedResult>
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn36 interface Continuation<DerivedResult>[1]
+        Type Continuation<DerivedResult>
+        FieldAccess 1
+          Type CoroutineFrame<DeferredDerivedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<DeferredDerivedTask.run>$1
+            Local this
+        Type Throwable
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 2
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+        Type CoroutineSlot<DerivedResult>
+        VariantConstruct CoroutineSlot<DerivedResult> v1
+          Type DerivedResult
+          Local value
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<DeferredDerivedTask.run>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      call $step: CoroutineStep<DerivedResult> = @fn75 direct
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DerivedResult>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb6 invalid_frame
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<DeferredDerivedTask.run>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      goto bb0
+    bb7 claim_frame
+      val $frame_claim: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<DeferredDerivedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<DeferredDerivedTask.run>$1
+            Local this
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb5 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $frame_claim
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb8 claim_waiting
+      val $adapter_claim: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
+      branch bb7 bb0
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $adapter_claim
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+  fun CoroutineAdapter.resumeWithException$1 @fn77(this: CoroutineAdapter<DeferredDerivedTask.run>$1, exception: Throwable) -> Unit
+    bb0 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb1 completed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn35 interface Continuation<DerivedResult>[0]
+        Type Continuation<DerivedResult>
+        FieldAccess 1
+          Type CoroutineFrame<DeferredDerivedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<DeferredDerivedTask.run>$1
+            Local this
+        Type DerivedResult
+        EnumField v0 f0
+          Type CoroutineStep<DerivedResult>
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn36 interface Continuation<DerivedResult>[1]
+        Type Continuation<DerivedResult>
+        FieldAccess 1
+          Type CoroutineFrame<DeferredDerivedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<DeferredDerivedTask.run>$1
+            Local this
+        Type Throwable
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 4
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v1
+          Type Throwable
+          Local exception
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<DeferredDerivedTask.run>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      call $step: CoroutineStep<DerivedResult> = @fn75 direct
+        Type CoroutineFrame<DeferredDerivedTask.run>
+        FieldAccess 0
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DerivedResult>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb6 invalid_frame
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<DeferredDerivedTask.run>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      goto bb0
+    bb7 claim_frame
+      val $frame_claim: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<DeferredDerivedTask.run>
+          FieldAccess 0
+            Type CoroutineAdapter<DeferredDerivedTask.run>$1
+            Local this
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb5 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $frame_claim
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb8 claim_waiting
+      val $adapter_claim: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<DeferredDerivedTask.run>$1
+          Local this
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
+      branch bb7 bb0
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $adapter_claim
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+  fun awaitLong$drive @fn78($frame: CoroutineFrame<awaitLong>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Long>
     bb0 entry
       val $argument.0: Gate<Long>
         Type Gate<Long>
@@ -1755,7 +2505,7 @@ Module
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep<Long> = @fn8 direct
+      call $step.1: CoroutineStep<Long> = @fn12 direct
         Type Gate<Long>
         Local $parameter.gate
         Type CoroutineAdapter<awaitLong>$1
@@ -1895,7 +2645,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn56(this: CoroutineAdapter<awaitLong>$1, value: Long) -> Unit
+  fun CoroutineAdapter.resume$1 @fn79(this: CoroutineAdapter<awaitLong>$1, value: Long) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -1914,7 +2664,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn16 interface Continuation<Long>[0]
+      call @fn23 interface Continuation<Long>[0]
         Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<awaitLong>
@@ -1936,7 +2686,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn17 interface Continuation<Long>[1]
+      call @fn24 interface Continuation<Long>[1]
         Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<awaitLong>
@@ -1969,7 +2719,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Long> = @fn55 direct
+      call $step: CoroutineStep<Long> = @fn78 direct
         Type CoroutineFrame<awaitLong>
         FieldAccess 0
           Type CoroutineAdapter<awaitLong>$1
@@ -2028,7 +2778,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @fn57(this: CoroutineAdapter<awaitLong>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn80(this: CoroutineAdapter<awaitLong>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -2047,7 +2797,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn16 interface Continuation<Long>[0]
+      call @fn23 interface Continuation<Long>[0]
         Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<awaitLong>
@@ -2069,7 +2819,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn17 interface Continuation<Long>[1]
+      call @fn24 interface Continuation<Long>[1]
         Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<awaitLong>
@@ -2102,7 +2852,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Long> = @fn55 direct
+      call $step: CoroutineStep<Long> = @fn78 direct
         Type CoroutineFrame<awaitLong>
         FieldAccess 0
           Type CoroutineAdapter<awaitLong>$1
@@ -2161,7 +2911,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun $adapter.suspend (Any) -> Int.suspend (Int) -> Any$drive @fn58($frame: CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Any>
+  fun $adapter.suspend (Any) -> Int.suspend (Int) -> Any$drive @fn81($frame: CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Any>
     bb0 entry
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
@@ -2336,7 +3086,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn59(this: CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @fn82(this: CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -2355,7 +3105,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<Any>[0]
+      call @fn47 interface Continuation<Any>[0]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
@@ -2377,7 +3127,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn33 interface Continuation<Any>[1]
+      call @fn48 interface Continuation<Any>[1]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
@@ -2410,7 +3160,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Any> = @fn58 direct
+      call $step: CoroutineStep<Any> = @fn81 direct
         Type CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
         FieldAccess 0
           Type CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1
@@ -2469,7 +3219,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @fn60(this: CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn83(this: CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -2488,7 +3238,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<Any>[0]
+      call @fn47 interface Continuation<Any>[0]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
@@ -2510,7 +3260,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn33 interface Continuation<Any>[1]
+      call @fn48 interface Continuation<Any>[1]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
@@ -2543,7 +3293,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Any> = @fn58 direct
+      call $step: CoroutineStep<Any> = @fn81 direct
         Type CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>
         FieldAccess 0
           Type CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1
@@ -2602,7 +3352,693 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun await$drive @fn61($frame: CoroutineFrame<await>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Long>
+  fun await$drive @fn84($frame: CoroutineFrame<await>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<DerivedResult>
+    bb0 entry
+      val $argument.0: Gate<DerivedResult>
+        Type Gate<DerivedResult>
+        Local gate
+      val $parameter.gate: Gate<DerivedResult>
+        Type Gate<DerivedResult>
+        Local $argument.0
+      assign $new.1
+        Type Registration<DerivedResult>
+        ClassAlloc Registration<DerivedResult>
+      call @fn58 direct
+        Type Registration<DerivedResult>
+        Local $new.1
+        Type Gate<DerivedResult>
+        Local $parameter.gate
+      val $dependency.argument.0: SuspendRegistration<DerivedResult>
+        Type SuspendRegistration<DerivedResult>
+        Retype SuspendRegistration<DerivedResult>
+          Type Registration<DerivedResult>
+          Local $new.1
+      val $dependency.parameter.registration: SuspendRegistration<DerivedResult>
+        Type SuspendRegistration<DerivedResult>
+        Local $dependency.argument.0
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<await>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+      val $safe_adapter.1: CoroutineAdapter<await>$1
+        Type CoroutineAdapter<await>$1
+        ClassAlloc CoroutineAdapter<await>$1
+      field_set 0
+        Type CoroutineAdapter<await>$1
+        Local $safe_adapter.1
+        Type CoroutineFrame<await>
+        Local $frame
+      field_set 1
+        Type CoroutineAdapter<await>$1
+        Local $safe_adapter.1
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Registering)
+      field_set 2
+        Type CoroutineAdapter<await>$1
+        Local $safe_adapter.1
+        Type CoroutineSlot<DerivedResult>
+        VariantConstruct CoroutineSlot<DerivedResult> v0
+      field_set 3
+        Type CoroutineAdapter<await>$1
+        Local $safe_adapter.1
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      goto bb2
+    bb1 coroutine.post.1
+      return
+        Type CoroutineStep<DerivedResult>
+        VariantConstruct CoroutineStep<DerivedResult> v0
+          Type DerivedResult
+          Local $call.2
+    bb2 coroutine.register.1 unwind bb22
+      call @fn38 interface SuspendRegistration<DerivedResult>[0]
+        Type SuspendRegistration<DerivedResult>
+        Local $dependency.parameter.registration
+        Type CoroutineAdapter<await>$1
+        Local $safe_adapter.1
+      goto bb14
+    bb3 coroutine.registered_success.1
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<await>$1
+        Local $safe_adapter.1
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      val $call.2: DerivedResult
+        Type DerivedResult
+        EnumField v1 f0
+          Type CoroutineSlot<DerivedResult>
+          FieldAccess 2
+            Type CoroutineAdapter<await>$1
+            Local $safe_adapter.1
+      goto bb1
+    bb4 coroutine.registered_failure.1
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<await>$1
+        Local $safe_adapter.1
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      val $resume_exception.1: Throwable
+        Type Throwable
+        EnumField v1 f0
+          Type CoroutineSlot<Throwable>
+          FieldAccess 3
+            Type CoroutineAdapter<await>$1
+            Local $safe_adapter.1
+      throw
+        Type Throwable
+        Local $resume_exception.1
+    bb5 coroutine.registered_suspend.1
+      return
+        Type CoroutineStep<DerivedResult>
+        VariantConstruct CoroutineStep<DerivedResult> v1
+    bb6 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb7 coroutine.claim_success_frame.1
+      val $registration_frame_claim.1: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<await>
+          Local $frame
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb3 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $registration_frame_claim.1
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb8 coroutine.claim_failure_frame.1
+      val $registration_frame_claim.1: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<await>
+          Local $frame
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb4 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $registration_frame_claim.1
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb9 coroutine.check_latched_failure.1
+      branch bb8 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          AtomicLoadAcquire kind=coroutine-adapter-state field=1
+            Type CoroutineAdapter<await>$1
+            Local $safe_adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
+    bb10 coroutine.check_latched_success.1
+      branch bb7 bb9
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          AtomicLoadAcquire kind=coroutine-adapter-state field=1
+            Type CoroutineAdapter<await>$1
+            Local $safe_adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
+    bb11 coroutine.completion_backoff.1
+      goto bb13
+    bb12 coroutine.check_completing_failure.1
+      branch bb11 bb10
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          AtomicLoadAcquire kind=coroutine-adapter-state field=1
+            Type CoroutineAdapter<await>$1
+            Local $safe_adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
+    bb13 coroutine.completion_wait.1 <loop-header-poll>
+      branch bb11 bb12
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          AtomicLoadAcquire kind=coroutine-adapter-state field=1
+            Type CoroutineAdapter<await>$1
+            Local $safe_adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
+    bb14 coroutine.register_return.1
+      val $registration_claim.1: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Registering)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+      branch bb5 bb13
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $registration_claim.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Registering)
+    bb15 coroutine.registration_propagate.1
+      throw
+        Type Throwable
+        Local $resume_exception.1
+    bb16 coroutine.registration_claim_frame.1
+      val $registration_frame_claim.1: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<await>
+          Local $frame
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb15 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $registration_frame_claim.1
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb17 coroutine.registration_protocol.1
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<await>$1
+        Local $safe_adapter.1
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      goto bb6
+    bb18 coroutine.registration_protocol_claim_frame.1
+      val $registration_frame_claim.1: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<await>
+          Local $frame
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb17 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $registration_frame_claim.1
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb19 coroutine.registration_backoff.1
+      goto bb21
+    bb20 coroutine.registration_check_completing_failure.1
+      branch bb19 bb18
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          AtomicLoadAcquire kind=coroutine-adapter-state field=1
+            Type CoroutineAdapter<await>$1
+            Local $safe_adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
+    bb21 coroutine.registration_wait.1 <loop-header-poll>
+      branch bb19 bb20
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          AtomicLoadAcquire kind=coroutine-adapter-state field=1
+            Type CoroutineAdapter<await>$1
+            Local $safe_adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
+    bb22 coroutine.registration_failure.1
+      landing_pad cleanup=false
+      begin_catch
+      call $resume_exception.1: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      val $registration_claim.1: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<await>$1
+          Local $safe_adapter.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Registering)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Consumed)
+      branch bb16 bb21
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $registration_claim.1
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Registering)
+    bb23 coroutine.resume.1
+      assign $call.2
+        Type DerivedResult
+        EnumField v1 f0
+          Type CoroutineSlot<DerivedResult>
+          FieldAccess 2
+            Type CoroutineFrame<await>
+            Local $frame
+      goto bb1
+    bb24 coroutine.failure.1
+      throw
+        Type Throwable
+        EnumField v1 f0
+          Type CoroutineSlot<Throwable>
+          FieldAccess 4
+            Type CoroutineFrame<await>
+            Local $frame
+    bb25 coroutine.initial
+      assign gate
+        Type Gate<DerivedResult>
+        EnumField v1 f0
+          Type CoroutineSlot<Gate<DerivedResult>>
+          FieldAccess 3
+            Type CoroutineFrame<await>
+            Local $frame
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<await>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Running)
+      goto bb0
+    bb26 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb27 coroutine.dispatch.suspended.1
+      branch bb23 bb26
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $dispatch_state
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb28 coroutine.dispatch.resume_failure.1
+      branch bb24 bb27
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $dispatch_state
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
+    bb29 coroutine.dispatch.initial
+      branch bb25 bb28
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $dispatch_state
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Initial)
+  fun CoroutineAdapter.resume$1 @fn85(this: CoroutineAdapter<await>$1, value: DerivedResult) -> Unit
+    bb0 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb1 completed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<await>
+        FieldAccess 0
+          Type CoroutineAdapter<await>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn35 interface Continuation<DerivedResult>[0]
+        Type Continuation<DerivedResult>
+        FieldAccess 1
+          Type CoroutineFrame<await>
+          FieldAccess 0
+            Type CoroutineAdapter<await>$1
+            Local this
+        Type DerivedResult
+        EnumField v0 f0
+          Type CoroutineStep<DerivedResult>
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<await>
+        FieldAccess 0
+          Type CoroutineAdapter<await>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn36 interface Continuation<DerivedResult>[1]
+        Type Continuation<DerivedResult>
+        FieldAccess 1
+          Type CoroutineFrame<await>
+          FieldAccess 0
+            Type CoroutineAdapter<await>$1
+            Local this
+        Type Throwable
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 2
+        Type CoroutineFrame<await>
+        FieldAccess 0
+          Type CoroutineAdapter<await>$1
+          Local this
+        Type CoroutineSlot<DerivedResult>
+        VariantConstruct CoroutineSlot<DerivedResult> v1
+          Type DerivedResult
+          Local value
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<await>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      call $step: CoroutineStep<DerivedResult> = @fn84 direct
+        Type CoroutineFrame<await>
+        FieldAccess 0
+          Type CoroutineAdapter<await>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DerivedResult>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb6 invalid_frame
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<await>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      goto bb0
+    bb7 claim_frame
+      val $frame_claim: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<await>
+          FieldAccess 0
+            Type CoroutineAdapter<await>$1
+            Local this
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb5 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $frame_claim
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb8 claim_waiting
+      val $adapter_claim: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<await>$1
+          Local this
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
+      branch bb7 bb0
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $adapter_claim
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+    bb9 latched
+      field_set 2
+        Type CoroutineAdapter<await>$1
+        Local this
+        Type CoroutineSlot<DerivedResult>
+        VariantConstruct CoroutineSlot<DerivedResult> v1
+          Type DerivedResult
+          Local value
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<await>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
+      return
+    bb10 entry
+      val $adapter_claim: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<await>$1
+          Local this
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Registering)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
+      branch bb9 bb8
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $adapter_claim
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Registering)
+  fun CoroutineAdapter.resumeWithException$1 @fn86(this: CoroutineAdapter<await>$1, exception: Throwable) -> Unit
+    bb0 coroutine.protocol_error
+      val $protocol_error: IllegalStateException
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $protocol_error
+      throw
+        Type IllegalStateException
+        Local $protocol_error
+    bb1 completed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<await>
+        FieldAccess 0
+          Type CoroutineAdapter<await>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn35 interface Continuation<DerivedResult>[0]
+        Type Continuation<DerivedResult>
+        FieldAccess 1
+          Type CoroutineFrame<await>
+          FieldAccess 0
+            Type CoroutineAdapter<await>$1
+            Local this
+        Type DerivedResult
+        EnumField v0 f0
+          Type CoroutineStep<DerivedResult>
+          Local $step
+      return
+    bb2 suspended
+      return
+    bb3 failed
+      atomic_store_release kind=coroutine-frame-state field=0
+        Type CoroutineFrame<await>
+        FieldAccess 0
+          Type CoroutineAdapter<await>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Completed)
+      call @fn36 interface Continuation<DerivedResult>[1]
+        Type Continuation<DerivedResult>
+        FieldAccess 1
+          Type CoroutineFrame<await>
+          FieldAccess 0
+            Type CoroutineAdapter<await>$1
+            Local this
+        Type Throwable
+        Local $uncaught
+      return
+    bb4 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $uncaught: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb3
+    bb5 valid unwind bb4
+      field_set 4
+        Type CoroutineFrame<await>
+        FieldAccess 0
+          Type CoroutineAdapter<await>$1
+          Local this
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v1
+          Type Throwable
+          Local exception
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<await>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      call $step: CoroutineStep<DerivedResult> = @fn84 direct
+        Type CoroutineFrame<await>
+        FieldAccess 0
+          Type CoroutineAdapter<await>$1
+          Local this
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<DerivedResult>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+    bb6 invalid_frame
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<await>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(Consumed)
+      goto bb0
+    bb7 claim_frame
+      val $frame_claim: machine<coroutine-frame-state>
+        Type machine<coroutine-frame-state>
+        AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
+          Type CoroutineFrame<await>
+          FieldAccess 0
+            Type CoroutineAdapter<await>$1
+            Local this
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Running)
+      branch bb5 bb6
+        Type Boolean
+        Binary MachineEq(CoroutineFrameState)
+          Type machine<coroutine-frame-state>
+          Local $frame_claim
+          Type machine<coroutine-frame-state>
+          MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
+    bb8 claim_waiting
+      val $adapter_claim: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<await>$1
+          Local this
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
+      branch bb7 bb0
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $adapter_claim
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Waiting)
+    bb9 latched
+      field_set 3
+        Type CoroutineAdapter<await>$1
+        Local this
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v1
+          Type Throwable
+          Local exception
+      atomic_store_release kind=coroutine-adapter-state field=1
+        Type CoroutineAdapter<await>$1
+        Local this
+        Type machine<coroutine-adapter-state>
+        MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
+      return
+    bb10 entry
+      val $adapter_claim: machine<coroutine-adapter-state>
+        Type machine<coroutine-adapter-state>
+        AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
+          Type CoroutineAdapter<await>$1
+          Local this
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Registering)
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
+      branch bb9 bb8
+        Type Boolean
+        Binary MachineEq(CoroutineAdapterState)
+          Type machine<coroutine-adapter-state>
+          Local $adapter_claim
+          Type machine<coroutine-adapter-state>
+          MachineScalarLiteral CoroutineAdapterState(Registering)
+  fun await$drive @fn87($frame: CoroutineFrame<await>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Long>
     bb0 entry
       val $argument.0: Gate<Long>
         Type Gate<Long>
@@ -2613,7 +4049,7 @@ Module
       assign $new.1
         Type Registration<Long>
         ClassAlloc Registration<Long>
-      call @fn41 direct
+      call @fn59 direct
         Type Registration<Long>
         Local $new.1
         Type Gate<Long>
@@ -2662,7 +4098,7 @@ Module
           Type Long
           Local $call.2
     bb2 coroutine.register.1 unwind bb22
-      call @fn19 interface SuspendRegistration<Long>[0]
+      call @fn26 interface SuspendRegistration<Long>[0]
         Type SuspendRegistration<Long>
         Local $dependency.parameter.registration
         Type CoroutineAdapter<await>$1
@@ -2960,7 +4396,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn62(this: CoroutineAdapter<await>$1, value: Long) -> Unit
+  fun CoroutineAdapter.resume$1 @fn88(this: CoroutineAdapter<await>$1, value: Long) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -2979,7 +4415,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn16 interface Continuation<Long>[0]
+      call @fn23 interface Continuation<Long>[0]
         Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<await>
@@ -3001,7 +4437,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn17 interface Continuation<Long>[1]
+      call @fn24 interface Continuation<Long>[1]
         Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<await>
@@ -3034,7 +4470,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Long> = @fn61 direct
+      call $step: CoroutineStep<Long> = @fn87 direct
         Type CoroutineFrame<await>
         FieldAccess 0
           Type CoroutineAdapter<await>$1
@@ -3124,7 +4560,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun CoroutineAdapter.resumeWithException$1 @fn63(this: CoroutineAdapter<await>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn89(this: CoroutineAdapter<await>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -3143,7 +4579,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn16 interface Continuation<Long>[0]
+      call @fn23 interface Continuation<Long>[0]
         Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<await>
@@ -3165,7 +4601,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn17 interface Continuation<Long>[1]
+      call @fn24 interface Continuation<Long>[1]
         Type Continuation<Long>
         FieldAccess 1
           Type CoroutineFrame<await>
@@ -3198,7 +4634,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Long> = @fn61 direct
+      call $step: CoroutineStep<Long> = @fn87 direct
         Type CoroutineFrame<await>
         FieldAccess 0
           Type CoroutineAdapter<await>$1
@@ -3288,7 +4724,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Registering)
-  fun function_bridge.$Closure$reference0.suspend (Any) -> Any$drive @fn64($frame: CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Any>
+  fun function_bridge.$Closure$reference0.suspend (Any) -> Any$drive @fn90($frame: CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Any>
     bb0 entry
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
@@ -3459,7 +4895,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn65(this: CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @fn91(this: CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -3478,7 +4914,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<Any>[0]
+      call @fn47 interface Continuation<Any>[0]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
@@ -3500,7 +4936,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn33 interface Continuation<Any>[1]
+      call @fn48 interface Continuation<Any>[1]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
@@ -3533,7 +4969,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Any> = @fn64 direct
+      call $step: CoroutineStep<Any> = @fn90 direct
         Type CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
         FieldAccess 0
           Type CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1
@@ -3592,7 +5028,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @fn66(this: CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn92(this: CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -3611,7 +5047,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<Any>[0]
+      call @fn47 interface Continuation<Any>[0]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
@@ -3633,7 +5069,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn33 interface Continuation<Any>[1]
+      call @fn48 interface Continuation<Any>[1]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
@@ -3666,7 +5102,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Any> = @fn64 direct
+      call $step: CoroutineStep<Any> = @fn90 direct
         Type CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any>
         FieldAccess 0
           Type CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1
@@ -3725,7 +5161,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun function_bridge.$Closure$reference1.suspend (Any) -> Any$drive @fn67($frame: CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Any>
+  fun function_bridge.$Closure$reference1.suspend (Any) -> Any$drive @fn93($frame: CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Any>
     bb0 entry
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
@@ -3896,7 +5332,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn68(this: CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1, value: Int) -> Unit
+  fun CoroutineAdapter.resume$1 @fn94(this: CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1, value: Int) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -3915,7 +5351,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<Any>[0]
+      call @fn47 interface Continuation<Any>[0]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
@@ -3937,7 +5373,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn33 interface Continuation<Any>[1]
+      call @fn48 interface Continuation<Any>[1]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
@@ -3970,7 +5406,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Any> = @fn67 direct
+      call $step: CoroutineStep<Any> = @fn93 direct
         Type CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
         FieldAccess 0
           Type CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1
@@ -4029,7 +5465,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @fn69(this: CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn95(this: CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -4048,7 +5484,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<Any>[0]
+      call @fn47 interface Continuation<Any>[0]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
@@ -4070,7 +5506,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn33 interface Continuation<Any>[1]
+      call @fn48 interface Continuation<Any>[1]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
@@ -4103,7 +5539,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Any> = @fn67 direct
+      call $step: CoroutineStep<Any> = @fn93 direct
         Type CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any>
         FieldAccess 0
           Type CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1
@@ -4162,7 +5598,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any$drive @fn70($frame: CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Any>
+  fun function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any$drive @fn96($frame: CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Any>
     bb0 entry
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
@@ -4333,7 +5769,7 @@ Module
           Local $dispatch_state
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Initial)
-  fun CoroutineAdapter.resume$1 @fn71(this: CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1, value: Any) -> Unit
+  fun CoroutineAdapter.resume$1 @fn97(this: CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1, value: Any) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -4352,7 +5788,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<Any>[0]
+      call @fn47 interface Continuation<Any>[0]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
@@ -4374,7 +5810,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn33 interface Continuation<Any>[1]
+      call @fn48 interface Continuation<Any>[1]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
@@ -4407,7 +5843,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Any> = @fn70 direct
+      call $step: CoroutineStep<Any> = @fn96 direct
         Type CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
         FieldAccess 0
           Type CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1
@@ -4466,7 +5902,7 @@ Module
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-  fun CoroutineAdapter.resumeWithException$1 @fn72(this: CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1, exception: Throwable) -> Unit
+  fun CoroutineAdapter.resumeWithException$1 @fn98(this: CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1, exception: Throwable) -> Unit
     bb0 coroutine.protocol_error
       val $protocol_error: IllegalStateException
         Type IllegalStateException
@@ -4485,7 +5921,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn32 interface Continuation<Any>[0]
+      call @fn47 interface Continuation<Any>[0]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
@@ -4507,7 +5943,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn33 interface Continuation<Any>[1]
+      call @fn48 interface Continuation<Any>[1]
         Type Continuation<Any>
         FieldAccess 1
           Type CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
@@ -4540,7 +5976,7 @@ Module
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
-      call $step: CoroutineStep<Any> = @fn70 direct
+      call $step: CoroutineStep<Any> = @fn96 direct
         Type CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>
         FieldAccess 0
           Type CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1
@@ -4602,142 +6038,184 @@ Module
   coroutine_step cs0 CoroutineStep<BaseResult> result=BaseResult
   coroutine_step cs1 CoroutineStep<Counter> result=Counter
   coroutine_step cs2 CoroutineStep<DerivedResult> result=DerivedResult
-  coroutine_step cs3 CoroutineStep<Int> result=Int
-  coroutine_step cs4 CoroutineStep<Long> result=Long
-  coroutine_step cs5 CoroutineStep<Any> result=Any
+  coroutine_step cs3 CoroutineStep<DeferredDerivedTask> result=DeferredDerivedTask
+  coroutine_step cs4 CoroutineStep<DerivedTask> result=DerivedTask
+  coroutine_step cs5 CoroutineStep<Int> result=Int
+  coroutine_step cs6 CoroutineStep<Long> result=Long
+  coroutine_step cs7 CoroutineStep<Any> result=Any
   coroutine_slot cl0 CoroutineSlot<BaseResult> value=BaseResult
   coroutine_slot cl1 CoroutineSlot<Counter> value=Counter
   coroutine_slot cl2 CoroutineSlot<DerivedResult> value=DerivedResult
-  coroutine_slot cl3 CoroutineSlot<Int> value=Int
-  coroutine_slot cl4 CoroutineSlot<suspend (Any) -> Int> value=suspend (Any) -> Int
-  coroutine_slot cl5 CoroutineSlot<Any> value=Any
-  coroutine_slot cl6 CoroutineSlot<Throwable> value=Throwable
-  coroutine_slot cl7 CoroutineSlot<Gate<Long>> value=Gate<Long>
-  coroutine_slot cl8 CoroutineSlot<Long> value=Long
-  coroutine_slot cl9 CoroutineSlot<suspend (Int) -> Any> value=suspend (Int) -> Any
-  coroutine_start ct0 result=BaseResult function=fn43
-  coroutine_start ct1 result=Counter function=fn44
-  coroutine_start ct2 result=DerivedResult function=fn45
-  coroutine_saved cv0 class=CoroutineFrame<$reference.0> field=2 slot=cl3 value=Int
-  coroutine_saved cv1 class=CoroutineFrame<$reference.0> field=3 slot=cl4 value=suspend (Any) -> Int
-  coroutine_saved cv2 class=CoroutineFrame<$reference.0> field=4 slot=cl5 value=Any
-  coroutine_saved cv3 class=CoroutineFrame<$reference.1> field=2 slot=cl5 value=Any
-  coroutine_saved cv4 class=CoroutineFrame<$reference.1> field=3 slot=cl3 value=Int
-  coroutine_saved cv5 class=CoroutineFrame<$reference.1> field=4 slot=cl4 value=suspend (Any) -> Int
-  coroutine_saved cv6 class=CoroutineFrame<awaitLong> field=2 slot=cl7 value=Gate<Long>
-  coroutine_saved cv7 class=CoroutineFrame<awaitLong> field=3 slot=cl8 value=Long
-  coroutine_saved cv8 class=CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> field=2 slot=cl3 value=Int
-  coroutine_saved cv9 class=CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> field=3 slot=cl9 value=suspend (Int) -> Any
-  coroutine_saved cv10 class=CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> field=4 slot=cl3 value=Int
-  coroutine_saved cv11 class=CoroutineFrame<await> field=2 slot=cl8 value=Long
-  coroutine_saved cv12 class=CoroutineFrame<await> field=3 slot=cl7 value=Gate<Long>
-  coroutine_saved cv13 class=CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> field=2 slot=cl3 value=Int
-  coroutine_saved cv14 class=CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> field=3 slot=cl5 value=Any
-  coroutine_saved cv15 class=CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> field=4 slot=cl4 value=suspend (Any) -> Int
-  coroutine_saved cv16 class=CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> field=2 slot=cl3 value=Int
-  coroutine_saved cv17 class=CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> field=3 slot=cl5 value=Any
-  coroutine_saved cv18 class=CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> field=4 slot=cl4 value=suspend (Any) -> Int
-  coroutine_saved cv19 class=CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> field=2 slot=cl5 value=Any
-  coroutine_saved cv20 class=CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> field=3 slot=cl5 value=Any
-  coroutine_saved cv21 class=CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> field=4 slot=cl9 value=suspend (Int) -> Any
-  coroutine_failure cx0 class=CoroutineFrame<$reference.0> field=5 slot=cl6 throwable=Throwable
-  coroutine_failure cx1 class=CoroutineFrame<$reference.1> field=5 slot=cl6 throwable=Throwable
-  coroutine_failure cx2 class=CoroutineFrame<awaitLong> field=4 slot=cl6 throwable=Throwable
-  coroutine_failure cx3 class=CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> field=5 slot=cl6 throwable=Throwable
-  coroutine_failure cx4 class=CoroutineFrame<await> field=4 slot=cl6 throwable=Throwable
-  coroutine_failure cx5 class=CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> field=5 slot=cl6 throwable=Throwable
-  coroutine_failure cx6 class=CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> field=5 slot=cl6 throwable=Throwable
-  coroutine_failure cx7 class=CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> field=5 slot=cl6 throwable=Throwable
+  coroutine_slot cl3 CoroutineSlot<DeferredDerivedTask> value=DeferredDerivedTask
+  coroutine_slot cl4 CoroutineSlot<DerivedTask> value=DerivedTask
+  coroutine_slot cl5 CoroutineSlot<Int> value=Int
+  coroutine_slot cl6 CoroutineSlot<suspend (Any) -> Int> value=suspend (Any) -> Int
+  coroutine_slot cl7 CoroutineSlot<Any> value=Any
+  coroutine_slot cl8 CoroutineSlot<Throwable> value=Throwable
+  coroutine_slot cl9 CoroutineSlot<Gate<Long>> value=Gate<Long>
+  coroutine_slot cl10 CoroutineSlot<Long> value=Long
+  coroutine_slot cl11 CoroutineSlot<suspend (Int) -> Any> value=suspend (Int) -> Any
+  coroutine_slot cl12 CoroutineSlot<Gate<DerivedResult>> value=Gate<DerivedResult>
+  coroutine_start ct0 result=BaseResult function=fn61
+  coroutine_start ct1 result=Counter function=fn62
+  coroutine_start ct2 result=DerivedResult function=fn63
+  coroutine_start ct3 result=DeferredDerivedTask function=fn64
+  coroutine_start ct4 result=DerivedTask function=fn65
+  coroutine_saved cv0 class=CoroutineFrame<$reference.0> field=2 slot=cl5 value=Int
+  coroutine_saved cv1 class=CoroutineFrame<$reference.0> field=3 slot=cl6 value=suspend (Any) -> Int
+  coroutine_saved cv2 class=CoroutineFrame<$reference.0> field=4 slot=cl7 value=Any
+  coroutine_saved cv3 class=CoroutineFrame<$reference.1> field=2 slot=cl7 value=Any
+  coroutine_saved cv4 class=CoroutineFrame<$reference.1> field=3 slot=cl5 value=Int
+  coroutine_saved cv5 class=CoroutineFrame<$reference.1> field=4 slot=cl6 value=suspend (Any) -> Int
+  coroutine_saved cv6 class=CoroutineFrame<DeferredDerivedTask.run> field=2 slot=cl2 value=DerivedResult
+  coroutine_saved cv7 class=CoroutineFrame<DeferredDerivedTask.run> field=3 slot=cl3 value=DeferredDerivedTask
+  coroutine_saved cv8 class=CoroutineFrame<awaitLong> field=2 slot=cl9 value=Gate<Long>
+  coroutine_saved cv9 class=CoroutineFrame<awaitLong> field=3 slot=cl10 value=Long
+  coroutine_saved cv10 class=CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> field=2 slot=cl5 value=Int
+  coroutine_saved cv11 class=CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> field=3 slot=cl11 value=suspend (Int) -> Any
+  coroutine_saved cv12 class=CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> field=4 slot=cl5 value=Int
+  coroutine_saved cv13 class=CoroutineFrame<await> field=2 slot=cl2 value=DerivedResult
+  coroutine_saved cv14 class=CoroutineFrame<await> field=3 slot=cl12 value=Gate<DerivedResult>
+  coroutine_saved cv15 class=CoroutineFrame<await> field=2 slot=cl10 value=Long
+  coroutine_saved cv16 class=CoroutineFrame<await> field=3 slot=cl9 value=Gate<Long>
+  coroutine_saved cv17 class=CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> field=2 slot=cl5 value=Int
+  coroutine_saved cv18 class=CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> field=3 slot=cl7 value=Any
+  coroutine_saved cv19 class=CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> field=4 slot=cl6 value=suspend (Any) -> Int
+  coroutine_saved cv20 class=CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> field=2 slot=cl5 value=Int
+  coroutine_saved cv21 class=CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> field=3 slot=cl7 value=Any
+  coroutine_saved cv22 class=CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> field=4 slot=cl6 value=suspend (Any) -> Int
+  coroutine_saved cv23 class=CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> field=2 slot=cl7 value=Any
+  coroutine_saved cv24 class=CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> field=3 slot=cl7 value=Any
+  coroutine_saved cv25 class=CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> field=4 slot=cl11 value=suspend (Int) -> Any
+  coroutine_failure cx0 class=CoroutineFrame<$reference.0> field=5 slot=cl8 throwable=Throwable
+  coroutine_failure cx1 class=CoroutineFrame<$reference.1> field=5 slot=cl8 throwable=Throwable
+  coroutine_failure cx2 class=CoroutineFrame<DeferredDerivedTask.run> field=4 slot=cl8 throwable=Throwable
+  coroutine_failure cx3 class=CoroutineFrame<awaitLong> field=4 slot=cl8 throwable=Throwable
+  coroutine_failure cx4 class=CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> field=5 slot=cl8 throwable=Throwable
+  coroutine_failure cx5 class=CoroutineFrame<await> field=4 slot=cl8 throwable=Throwable
+  coroutine_failure cx6 class=CoroutineFrame<await> field=4 slot=cl8 throwable=Throwable
+  coroutine_failure cx7 class=CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> field=5 slot=cl8 throwable=Throwable
+  coroutine_failure cx8 class=CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> field=5 slot=cl8 throwable=Throwable
+  coroutine_failure cx9 class=CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> field=5 slot=cl8 throwable=Throwable
   coroutine_frame cr0 CoroutineFrame<$reference.0> id=d18350990e8c512071d273b316e8be238b04ec1895fa30105bfab7cf83788bb9 owner=cf0 state=field0 completion=field1 saved=[cv0,cv1,cv2] failure=cx0
   coroutine_frame cr1 CoroutineFrame<$reference.1> id=6fd606dd1583650f78573c7ec75952c8e5538d2acebabaf985f6db722df86ced owner=cf1 state=field0 completion=field1 saved=[cv3,cv4,cv5] failure=cx1
-  coroutine_frame cr2 CoroutineFrame<awaitLong> id=b0d284e584ef3bc6e148b02e2aedc0f50868eb3ec78b1c7e99e5ff1d96838d4f owner=cf3 state=field0 completion=field1 saved=[cv6,cv7] failure=cx2
-  coroutine_frame cr3 CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> id=c3e70eb13e00f1a6d8b00b5089e903503f079474d7d41e756d146eb54d3d4817 owner=cf5 state=field0 completion=field1 saved=[cv8,cv9,cv10] failure=cx3
-  coroutine_frame cr4 CoroutineFrame<await> id=ce20be16795563a2eacc10f6811dcab86311ab38dd1f3fe993e5a3c69126bfc3 owner=cf6 state=field0 completion=field1 saved=[cv11,cv12] failure=cx4
-  coroutine_frame cr5 CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> id=5b16e2ad35ac730bf4f9b912c4d2146cb7aabbd934dd25bff67b0c81f5e47926 owner=cf13 state=field0 completion=field1 saved=[cv13,cv14,cv15] failure=cx5
-  coroutine_frame cr6 CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> id=e7f5686b323252eb3692a7a847dd1842a03921efca5e5e03b899101daa7748d7 owner=cf14 state=field0 completion=field1 saved=[cv16,cv17,cv18] failure=cx6
-  coroutine_frame cr7 CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> id=c32ff8a9cbfa6b93bb5bfd6378ebeef530a64e90052479e98c184a6c4e3f3c9a owner=cf15 state=field0 completion=field1 saved=[cv19,cv20,cv21] failure=cx7
-  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter<$reference.0>$1 environment_id=244d83ca861cc5852c36358723cccaa99fcbfb4baf1af5176bef6d97e9591ec9 resume=@fn50 success_id=739bd8cd56c68e9a9a2142e7cb8a455a2a4833e37027f31783850d19937f6806 failure=@fn51 failure_id=04571ad22a4b1e81a3535f76ea3213287334b5bdb22fc3f0799cebb869c0a770
+  coroutine_frame cr2 CoroutineFrame<DeferredDerivedTask.run> id=e2dbd442d8e122f6813d09483f4829145c83d376247a8af6ffbee9fa926c1360 owner=cf3 state=field0 completion=field1 saved=[cv6,cv7] failure=cx2
+  coroutine_frame cr3 CoroutineFrame<awaitLong> id=b0d284e584ef3bc6e148b02e2aedc0f50868eb3ec78b1c7e99e5ff1d96838d4f owner=cf5 state=field0 completion=field1 saved=[cv8,cv9] failure=cx3
+  coroutine_frame cr4 CoroutineFrame<$adapter.suspend (Any) -> Int.suspend (Int) -> Any> id=c3e70eb13e00f1a6d8b00b5089e903503f079474d7d41e756d146eb54d3d4817 owner=cf7 state=field0 completion=field1 saved=[cv10,cv11,cv12] failure=cx4
+  coroutine_frame cr5 CoroutineFrame<await> id=3a177b43c6483441d21afd99c815e64b028ab5fd81aef8852fe6fba4b1ebb287 owner=cf8 state=field0 completion=field1 saved=[cv13,cv14] failure=cx5
+  coroutine_frame cr6 CoroutineFrame<await> id=ce20be16795563a2eacc10f6811dcab86311ab38dd1f3fe993e5a3c69126bfc3 owner=cf9 state=field0 completion=field1 saved=[cv15,cv16] failure=cx6
+  coroutine_frame cr7 CoroutineFrame<function_bridge.$Closure$reference0.suspend (Any) -> Any> id=5b16e2ad35ac730bf4f9b912c4d2146cb7aabbd934dd25bff67b0c81f5e47926 owner=cf18 state=field0 completion=field1 saved=[cv17,cv18,cv19] failure=cx7
+  coroutine_frame cr8 CoroutineFrame<function_bridge.$Closure$reference1.suspend (Any) -> Any> id=e7f5686b323252eb3692a7a847dd1842a03921efca5e5e03b899101daa7748d7 owner=cf19 state=field0 completion=field1 saved=[cv20,cv21,cv22] failure=cx8
+  coroutine_frame cr9 CoroutineFrame<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any> id=c32ff8a9cbfa6b93bb5bfd6378ebeef530a64e90052479e98c184a6c4e3f3c9a owner=cf20 state=field0 completion=field1 saved=[cv23,cv24,cv25] failure=cx9
+  coroutine_resume cp0 site=1 result=Int frame=cr0 adapter=CoroutineAdapter<$reference.0>$1 environment_id=244d83ca861cc5852c36358723cccaa99fcbfb4baf1af5176bef6d97e9591ec9 resume=@fn70 success_id=739bd8cd56c68e9a9a2142e7cb8a455a2a4833e37027f31783850d19937f6806 failure=@fn71 failure_id=04571ad22a4b1e81a3535f76ea3213287334b5bdb22fc3f0799cebb869c0a770
     success suspended.1 -> Fallthrough(bb1)
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
       entry=bb8
-  coroutine_resume cp1 site=1 result=Int frame=cr1 adapter=CoroutineAdapter<$reference.1>$1 environment_id=227470dcb6b335a9b23136155e346a9eeb027440a36ea468bdd50c192c5fba95 resume=@fn53 success_id=5dffec20722b9c74ce6f7b3a126440530a0009d9e36a2c4b62997429aaa21ac6 failure=@fn54 failure_id=59c38df84a74556d7a34bfcfe87180916b3419c8117f7c6ee28cd823003727a5
+  coroutine_resume cp1 site=1 result=Int frame=cr1 adapter=CoroutineAdapter<$reference.1>$1 environment_id=227470dcb6b335a9b23136155e346a9eeb027440a36ea468bdd50c192c5fba95 resume=@fn73 success_id=5dffec20722b9c74ce6f7b3a126440530a0009d9e36a2c4b62997429aaa21ac6 failure=@fn74 failure_id=59c38df84a74556d7a34bfcfe87180916b3419c8117f7c6ee28cd823003727a5
     success suspended.1 -> Fallthrough(bb1)
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
       entry=bb8
-  coroutine_resume cp2 site=1 result=Long frame=cr2 adapter=CoroutineAdapter<awaitLong>$1 environment_id=c518749a247774debda9f1a0c5ea6099cd85b95bdd390c6879be9cd7c291877f resume=@fn56 success_id=83df38570c4327b8130bda9b2db430f789145bb031de81b70fa8f426bde2b461 failure=@fn57 failure_id=f8d4ad79dce932f40fd8f667e329e1c7008f8dd19501c5647667e3ec13179b38
+  coroutine_resume cp2 site=1 result=DerivedResult frame=cr2 adapter=CoroutineAdapter<DeferredDerivedTask.run>$1 environment_id=193d3f4393a8f3b9784eb74001e33f088e90fd519dae6937b8e37f202b238c88 resume=@fn76 success_id=f8cb3c063cadf83f83403c108fe294541ccd32baf900896da913f8e45840e1f4 failure=@fn77 failure_id=a8b671e338d8ccb3b2dc5d0f0545087a2fa6a93b3bc656a29906bdab308bdf8a
     success suspended.1 -> Fallthrough(bb1)
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx2, unwind=propagate)
       entry=bb8
-  coroutine_resume cp3 site=1 result=Int frame=cr3 adapter=CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1 environment_id=de93780078fe594adedf1ed655aa16977f797b25663c59607048bd53da78aef8 resume=@fn59 success_id=027f01ff20925f30cfa08cf44525a0297ea3c7a2b8f8274561044efc13cd38fa failure=@fn60 failure_id=3b50dc10696c1879c0d50f8d8167fd5adb9a00f799cd59ecead21d93fe769b60
+  coroutine_resume cp3 site=1 result=Long frame=cr3 adapter=CoroutineAdapter<awaitLong>$1 environment_id=c518749a247774debda9f1a0c5ea6099cd85b95bdd390c6879be9cd7c291877f resume=@fn79 success_id=83df38570c4327b8130bda9b2db430f789145bb031de81b70fa8f426bde2b461 failure=@fn80 failure_id=f8d4ad79dce932f40fd8f667e329e1c7008f8dd19501c5647667e3ec13179b38
     success suspended.1 -> Fallthrough(bb1)
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx3, unwind=propagate)
       entry=bb8
-  coroutine_resume cp4 site=1 result=Long frame=cr4 adapter=CoroutineAdapter<await>$1 environment_id=2ac0c47a73ee91ec165a313a2f83c91b3ac37fad15838cfae74e6035af0d336e resume=@fn62 success_id=a887712961a369d38fa41c3054be14a798fac6ec9d08b69195affb340797052b failure=@fn63 failure_id=62140e79544936f1a9759dfa3632194cb57f03ddae39eef419f5a9b620dc1124
+  coroutine_resume cp4 site=1 result=Int frame=cr4 adapter=CoroutineAdapter<$adapter.suspend (Any) -> Int.suspend (Int) -> Any>$1 environment_id=de93780078fe594adedf1ed655aa16977f797b25663c59607048bd53da78aef8 resume=@fn82 success_id=027f01ff20925f30cfa08cf44525a0297ea3c7a2b8f8274561044efc13cd38fa failure=@fn83 failure_id=3b50dc10696c1879c0d50f8d8167fd5adb9a00f799cd59ecead21d93fe769b60
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.1 -> ManagedThrow(cx4, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp5 site=1 result=DerivedResult frame=cr5 adapter=CoroutineAdapter<await>$1 environment_id=893f6e290ac2c577791390be214d2467abff0bf8a5301a6cc0b5fbf990817690 resume=@fn85 success_id=778836cc425773cad0faff5ea464d548b567dbc4c39db572b8609c991cfae34b failure=@fn86 failure_id=d52ae8716142012c771200840713cc698f3f369c0d94e7a2251742f9a9e5f335
     success suspended.1 -> Fallthrough(bb1)
       entry=bb23
-    failure resume_failure.1 -> ManagedThrow(cx4, unwind=propagate)
-      entry=bb24
-  coroutine_resume cp5 site=1 result=Int frame=cr5 adapter=CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1 environment_id=281e1fe784ba0270420ae0eca58775c1f811b1107ab6f4447c1027642f507b2f resume=@fn65 success_id=716052328067721f8a36956a813d4c420da1139ed8df3e660d3df6fb9ff715cb failure=@fn66 failure_id=0bfc3b60dd32253a54f1fcd6d67982c7dc82732db6b194e118c8aca2cd6d611f
-    success suspended.1 -> Fallthrough(bb1)
-      entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx5, unwind=propagate)
-      entry=bb8
-  coroutine_resume cp6 site=1 result=Int frame=cr6 adapter=CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1 environment_id=3b9a2dd49ad091c76250df54d3f928acc011a87c654256d31c75abbc7fdbdf3c resume=@fn68 success_id=7e1142f4dfdfdf210fcbc3d767d6505b1dc93b3250748bb4f618034b61efb3ed failure=@fn69 failure_id=6dcd79392e1f8660f76199f24e246442358cadd5859997ea0f70eb1388a61bfe
+      entry=bb24
+  coroutine_resume cp6 site=1 result=Long frame=cr6 adapter=CoroutineAdapter<await>$1 environment_id=2ac0c47a73ee91ec165a313a2f83c91b3ac37fad15838cfae74e6035af0d336e resume=@fn88 success_id=a887712961a369d38fa41c3054be14a798fac6ec9d08b69195affb340797052b failure=@fn89 failure_id=62140e79544936f1a9759dfa3632194cb57f03ddae39eef419f5a9b620dc1124
     success suspended.1 -> Fallthrough(bb1)
-      entry=bb7
+      entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx6, unwind=propagate)
-      entry=bb8
-  coroutine_resume cp7 site=1 result=Any frame=cr7 adapter=CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1 environment_id=a80646a05c5622de39900111eab0c84d90c649b2379e755a38c45bdc7eb79497 resume=@fn71 success_id=17e13fccdae962376768360558cf1fabf21731cdf90686f98fa37cc65179c97d failure=@fn72 failure_id=46906f0a5c2505f70f0882c3cb142118a11c2ee2fb0c204e3de4cd8e802fb8e3
+      entry=bb24
+  coroutine_resume cp7 site=1 result=Int frame=cr7 adapter=CoroutineAdapter<function_bridge.$Closure$reference0.suspend (Any) -> Any>$1 environment_id=281e1fe784ba0270420ae0eca58775c1f811b1107ab6f4447c1027642f507b2f resume=@fn91 success_id=716052328067721f8a36956a813d4c420da1139ed8df3e660d3df6fb9ff715cb failure=@fn92 failure_id=0bfc3b60dd32253a54f1fcd6d67982c7dc82732db6b194e118c8aca2cd6d611f
     success suspended.1 -> Fallthrough(bb1)
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx7, unwind=propagate)
       entry=bb8
-  coroutine_fn cf0 @fn36 source_return=Int step=cs3 frame=cr0 driver=@fn49 id=f55cfb1a66b94cbe8d8aee02f0d9f4bafe8c09869b85c4e7edae99f45f362fdd resumes=[cp0]
-  coroutine_fn cf1 @fn37 source_return=Int step=cs3 frame=cr1 driver=@fn52 id=64cd4f995916fdd0e1bcfe761aa52cccaa58ef64f44c1bee0ef1dea0b128ce82 resumes=[cp1]
-  coroutine_fn cf2 @fn3 source_return=Long step=cs4 immediate
-  coroutine_fn cf3 @fn4 source_return=Long step=cs4 frame=cr2 driver=@fn55 id=13eee01e43667539dd837e09aff7a1af90e4d80306dcd4a343552b166ce5c2e7 resumes=[cp2]
-  coroutine_fn cf4 @fn5 source_return=Int step=cs3 immediate
-  coroutine_fn cf5 @fn42 source_return=Any step=cs5 frame=cr3 driver=@fn58 id=4fc18d70758b8dc688454b00fc38c0cfa5cf8bb1fc3e6d7883a99f1c37df03b7 resumes=[cp3]
-  coroutine_fn cf6 @fn8 source_return=Long step=cs4 frame=cr4 driver=@fn61 id=97850b3b2c8e9968f40e7f52e681fc094bfee9df3819066e7d3339d3ba5ca6ce resumes=[cp4]
-  coroutine_fn cf7 @fn14 source_return=Int step=cs3 immediate
-  coroutine_fn cf8 @fn18 source_return=Long step=cs4 immediate
-  coroutine_fn cf9 @fn22 source_return=Counter step=cs1 immediate
-  coroutine_fn cf10 @fn26 source_return=BaseResult step=cs0 immediate
-  coroutine_fn cf11 @fn30 source_return=DerivedResult step=cs2 immediate
-  coroutine_fn cf12 @fn34 source_return=Any step=cs5 immediate
-  coroutine_fn cf13 @fn46 source_return=Any step=cs5 frame=cr5 driver=@fn64 id=fb86664f753d0bd522370784f9564bdfaa4664b53d3b4a343ac97aecfe47fb92 resumes=[cp5]
-  coroutine_fn cf14 @fn47 source_return=Any step=cs5 frame=cr6 driver=@fn67 id=01d369254bc9b13d426a07847caf7c0646f03ad57d1532e6b6a58bf429aaf9aa resumes=[cp6]
-  coroutine_fn cf15 @fn48 source_return=Any step=cs5 frame=cr7 driver=@fn70 id=4beb2a128a74949f3c6f58958e5911c6179f8d039a97b9c2f79c889219318ac3 resumes=[cp7]
-  instance mi0 function=@fn8 <- await
-  instance mi1 function=@fn9 <- Registration.register
-  instance mi2 function=@fn10 <- Registration.$get$gate
-  instance mi3 function=@fn11 <- Gate.$set$waiter
-  instance mi4 function=@fn12 <- Continuation.resume
-  instance mi5 function=@fn13 <- Continuation.resumeWithException
-  instance mi6 function=@fn14 <- SuspendTask.run
-  instance mi7 function=@fn15 <- SuspendRegistration.register
-  instance mi8 function=@fn16 <- Continuation.resume
-  instance mi9 function=@fn17 <- Continuation.resumeWithException
-  instance mi10 function=@fn18 <- SuspendTask.run
-  instance mi11 function=@fn19 <- SuspendRegistration.register
-  instance mi12 function=@fn20 <- Continuation.resume
-  instance mi13 function=@fn21 <- Continuation.resumeWithException
-  instance mi14 function=@fn22 <- SuspendTask.run
-  instance mi15 function=@fn23 <- SuspendRegistration.register
-  instance mi16 function=@fn24 <- Continuation.resume
-  instance mi17 function=@fn25 <- Continuation.resumeWithException
-  instance mi18 function=@fn26 <- SuspendTask.run
-  instance mi19 function=@fn27 <- SuspendRegistration.register
-  instance mi20 function=@fn28 <- Continuation.resume
-  instance mi21 function=@fn29 <- Continuation.resumeWithException
-  instance mi22 function=@fn30 <- SuspendTask.run
-  instance mi23 function=@fn31 <- SuspendRegistration.register
-  instance mi24 function=@fn32 <- Continuation.resume
-  instance mi25 function=@fn33 <- Continuation.resumeWithException
-  instance mi26 function=@fn34 <- SuspendTask.run
-  instance mi27 function=@fn35 <- SuspendRegistration.register
+  coroutine_resume cp8 site=1 result=Int frame=cr8 adapter=CoroutineAdapter<function_bridge.$Closure$reference1.suspend (Any) -> Any>$1 environment_id=3b9a2dd49ad091c76250df54d3f928acc011a87c654256d31c75abbc7fdbdf3c resume=@fn94 success_id=7e1142f4dfdfdf210fcbc3d767d6505b1dc93b3250748bb4f618034b61efb3ed failure=@fn95 failure_id=6dcd79392e1f8660f76199f24e246442358cadd5859997ea0f70eb1388a61bfe
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.1 -> ManagedThrow(cx8, unwind=propagate)
+      entry=bb8
+  coroutine_resume cp9 site=1 result=Any frame=cr9 adapter=CoroutineAdapter<function_bridge.$Closure$adapter$suspend (Any) -> Int$suspend (Int) -> Any.suspend (Any) -> Any>$1 environment_id=a80646a05c5622de39900111eab0c84d90c649b2379e755a38c45bdc7eb79497 resume=@fn97 success_id=17e13fccdae962376768360558cf1fabf21731cdf90686f98fa37cc65179c97d failure=@fn98 failure_id=46906f0a5c2505f70f0882c3cb142118a11c2ee2fb0c204e3de4cd8e802fb8e3
+    success suspended.1 -> Fallthrough(bb1)
+      entry=bb7
+    failure resume_failure.1 -> ManagedThrow(cx9, unwind=propagate)
+      entry=bb8
+  coroutine_fn cf0 @fn51 source_return=Int step=cs5 frame=cr0 driver=@fn69 id=f55cfb1a66b94cbe8d8aee02f0d9f4bafe8c09869b85c4e7edae99f45f362fdd resumes=[cp0]
+  coroutine_fn cf1 @fn52 source_return=Int step=cs5 frame=cr1 driver=@fn72 id=64cd4f995916fdd0e1bcfe761aa52cccaa58ef64f44c1bee0ef1dea0b128ce82 resumes=[cp1]
+  coroutine_fn cf2 @fn3 source_return=DerivedResult step=cs2 immediate
+  coroutine_fn cf3 @fn4 source_return=DerivedResult step=cs2 frame=cr2 driver=@fn75 id=acc9ef23f4dc1834826cae1be124791308b7dff3352854ec427216deaca8ed2f resumes=[cp2]
+  coroutine_fn cf4 @fn6 source_return=Long step=cs6 immediate
+  coroutine_fn cf5 @fn7 source_return=Long step=cs6 frame=cr3 driver=@fn78 id=13eee01e43667539dd837e09aff7a1af90e4d80306dcd4a343552b166ce5c2e7 resumes=[cp3]
+  coroutine_fn cf6 @fn8 source_return=Int step=cs5 immediate
+  coroutine_fn cf7 @fn60 source_return=Any step=cs7 frame=cr4 driver=@fn81 id=4fc18d70758b8dc688454b00fc38c0cfa5cf8bb1fc3e6d7883a99f1c37df03b7 resumes=[cp4]
+  coroutine_fn cf8 @fn11 source_return=DerivedResult step=cs2 frame=cr5 driver=@fn84 id=cb2b062752a73a8a562ccd1b583ba0232b8d6f4f4e8197b0b2a72244e7413743 resumes=[cp5]
+  coroutine_fn cf9 @fn12 source_return=Long step=cs6 frame=cr6 driver=@fn87 id=97850b3b2c8e9968f40e7f52e681fc094bfee9df3819066e7d3339d3ba5ca6ce resumes=[cp6]
+  coroutine_fn cf10 @fn21 source_return=Int step=cs5 immediate
+  coroutine_fn cf11 @fn25 source_return=Long step=cs6 immediate
+  coroutine_fn cf12 @fn29 source_return=Counter step=cs1 immediate
+  coroutine_fn cf13 @fn33 source_return=BaseResult step=cs0 immediate
+  coroutine_fn cf14 @fn37 source_return=DerivedResult step=cs2 immediate
+  coroutine_fn cf15 @fn41 source_return=DerivedTask step=cs4 immediate
+  coroutine_fn cf16 @fn45 source_return=DeferredDerivedTask step=cs3 immediate
+  coroutine_fn cf17 @fn49 source_return=Any step=cs7 immediate
+  coroutine_fn cf18 @fn66 source_return=Any step=cs7 frame=cr7 driver=@fn90 id=fb86664f753d0bd522370784f9564bdfaa4664b53d3b4a343ac97aecfe47fb92 resumes=[cp7]
+  coroutine_fn cf19 @fn67 source_return=Any step=cs7 frame=cr8 driver=@fn93 id=01d369254bc9b13d426a07847caf7c0646f03ad57d1532e6b6a58bf429aaf9aa resumes=[cp8]
+  coroutine_fn cf20 @fn68 source_return=Any step=cs7 frame=cr9 driver=@fn96 id=4beb2a128a74949f3c6f58958e5911c6179f8d039a97b9c2f79c889219318ac3 resumes=[cp9]
+  instance mi0 function=@fn11 <- await
+  instance mi1 function=@fn12 <- await
+  instance mi2 function=@fn13 <- Registration.register
+  instance mi3 function=@fn14 <- Registration.register
+  instance mi4 function=@fn15 <- Registration.$get$gate
+  instance mi5 function=@fn16 <- Gate.$set$waiter
+  instance mi6 function=@fn17 <- Registration.$get$gate
+  instance mi7 function=@fn18 <- Gate.$set$waiter
+  instance mi8 function=@fn19 <- Continuation.resume
+  instance mi9 function=@fn20 <- Continuation.resumeWithException
+  instance mi10 function=@fn21 <- SuspendTask.run
+  instance mi11 function=@fn22 <- SuspendRegistration.register
+  instance mi12 function=@fn23 <- Continuation.resume
+  instance mi13 function=@fn24 <- Continuation.resumeWithException
+  instance mi14 function=@fn25 <- SuspendTask.run
+  instance mi15 function=@fn26 <- SuspendRegistration.register
+  instance mi16 function=@fn27 <- Continuation.resume
+  instance mi17 function=@fn28 <- Continuation.resumeWithException
+  instance mi18 function=@fn29 <- SuspendTask.run
+  instance mi19 function=@fn30 <- SuspendRegistration.register
+  instance mi20 function=@fn31 <- Continuation.resume
+  instance mi21 function=@fn32 <- Continuation.resumeWithException
+  instance mi22 function=@fn33 <- SuspendTask.run
+  instance mi23 function=@fn34 <- SuspendRegistration.register
+  instance mi24 function=@fn35 <- Continuation.resume
+  instance mi25 function=@fn36 <- Continuation.resumeWithException
+  instance mi26 function=@fn37 <- SuspendTask.run
+  instance mi27 function=@fn38 <- SuspendRegistration.register
+  instance mi28 function=@fn39 <- Continuation.resume
+  instance mi29 function=@fn40 <- Continuation.resumeWithException
+  instance mi30 function=@fn41 <- SuspendTask.run
+  instance mi31 function=@fn42 <- SuspendRegistration.register
+  instance mi32 function=@fn43 <- Continuation.resume
+  instance mi33 function=@fn44 <- Continuation.resumeWithException
+  instance mi34 function=@fn45 <- SuspendTask.run
+  instance mi35 function=@fn46 <- SuspendRegistration.register
+  instance mi36 function=@fn47 <- Continuation.resume
+  instance mi37 function=@fn48 <- Continuation.resumeWithException
+  instance mi38 function=@fn49 <- SuspendTask.run
+  instance mi39 function=@fn50 <- SuspendRegistration.register
   output library

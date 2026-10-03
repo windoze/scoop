@@ -76,10 +76,10 @@ Module
   class BooleanRegistration vtable=0 itables=1
   class ChoiceRegistration vtable=0 itables=1
   class Awaiter vtable=0 itables=0
+  class GenericTask vtable=0 itables=1
   class RecordingCompletion vtable=0 itables=1
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
-  class GenericTask vtable=0 itables=1
   class IllegalStateException vtable=0 itables=0
   class box<Pair> vtable=0 itables=0
   class box<Choice> vtable=0 itables=0
@@ -352,7 +352,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         Local $dependency.receiver
         Type Int
@@ -405,7 +405,7 @@ Module
       val $dependency.parameter.value: Pair
         Type Pair
         Local $dependency.argument.0
-      call @fn14 interface Continuation<Pair>[0]
+      call @fn15 interface Continuation<Pair>[0]
         Type Continuation<Pair>
         Local $dependency.receiver
         Type Pair
@@ -458,7 +458,7 @@ Module
       val $dependency.parameter.value: Boolean
         Type Boolean
         Local $dependency.argument.0
-      call @fn15 interface Continuation<Boolean>[0]
+      call @fn16 interface Continuation<Boolean>[0]
         Type Continuation<Boolean>
         Local $dependency.receiver
         Type Boolean
@@ -511,7 +511,7 @@ Module
       val $dependency.parameter.value: Choice
         Type Choice
         Local $dependency.argument.0
-      call @fn16 interface Continuation<Choice>[0]
+      call @fn17 interface Continuation<Choice>[0]
         Type Continuation<Choice>
         Local $dependency.receiver
         Type Choice
@@ -589,7 +589,67 @@ Module
           Type Continuation<Choice>
           Local $dependency.parameter._1
       return
-  fun RecordingCompletion.resume @fn10(this: RecordingCompletion, value: Int) -> Unit
+  fun GenericTask.run @fn10(this: GenericTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
+    bb0 entry
+      val $frame: CoroutineFrame<GenericTask.run>
+        Type CoroutineFrame<GenericTask.run>
+        ClassAlloc CoroutineFrame<GenericTask.run>
+      field_set 0
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      field_set 1
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type Continuation<Int>
+        Local $completion
+      field_set 2
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type CoroutineSlot<Awaiter>
+        VariantConstruct CoroutineSlot<Awaiter> v0
+      field_set 3
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type CoroutineSlot<Boolean>
+        VariantConstruct CoroutineSlot<Boolean> v0
+      field_set 4
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v0
+      field_set 5
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type CoroutineSlot<GenericTask>
+        VariantConstruct CoroutineSlot<GenericTask> v1
+          Type GenericTask
+          Local this
+      field_set 6
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type CoroutineSlot<Pair>
+        VariantConstruct CoroutineSlot<Pair> v0
+      field_set 7
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type CoroutineSlot<Choice>
+        VariantConstruct CoroutineSlot<Choice> v0
+      field_set 8
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      call $step: CoroutineStep<Int> = @fn55 direct
+        Type CoroutineFrame<GenericTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      return
+        Type CoroutineStep<Int>
+        Local $step
+  fun RecordingCompletion.resume @fn11(this: RecordingCompletion, value: Int) -> Unit
     bb0 entry
       val $dependency.argument.0: Int
         Type Int
@@ -597,11 +657,11 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn17 direct
+      call @fn23 direct
         Type Int
         Local $dependency.parameter.value
       return
-  fun RecordingCompletion.resumeWithException @fn11(this: RecordingCompletion, exception: Throwable) -> Unit
+  fun RecordingCompletion.resumeWithException @fn12(this: RecordingCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.argument.0: String
         Type String
@@ -609,11 +669,11 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn18 direct
+      call @fn22 direct
         Type String
         Local $dependency.parameter.value
       return
-  fun main @fn12() -> Unit
+  fun main @fn13() -> Unit
     bb0 entry
       val $argument.0: Option<Continuation<Int>>
         Type Option<Continuation<Int>>
@@ -710,7 +770,7 @@ Module
       assign $new.5
         Type GenericTask
         ClassAlloc GenericTask
-      call @fn50 direct
+      call @fn49 direct
         Type GenericTask
         Local $new.5
         Type IntGate
@@ -729,7 +789,7 @@ Module
       assign $new.6
         Type RecordingCompletion
         ClassAlloc RecordingCompletion
-      call @fn49 direct
+      call @fn50 direct
         Type RecordingCompletion
         Local $new.6
       val $dependency.argument.1: Continuation<Int>
@@ -754,7 +814,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn18 direct
+      call @fn22 direct
         Type String
         Local $dependency.parameter.value
       val $receiver: IntGate
@@ -836,127 +896,19 @@ Module
         Type Choice
         Local $parameter.value
       return
-  fun Continuation.resume @fn13(this: Continuation<Int>, value: Int) -> Unit
+  fun Continuation.resume @fn14(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resume @fn14(this: Continuation<Pair>, value: Pair) -> Unit
+  fun Continuation.resume @fn15(this: Continuation<Pair>, value: Pair) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resume @fn15(this: Continuation<Boolean>, value: Boolean) -> Unit
+  fun Continuation.resume @fn16(this: Continuation<Boolean>, value: Boolean) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resume @fn16(this: Continuation<Choice>, value: Choice) -> Unit
+  fun Continuation.resume @fn17(this: Continuation<Choice>, value: Choice) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun println @fn17(value: Int) -> Unit
-    bb0 entry
-      val $dependency.local.1: Int
-        Type Int
-        Local value
-      call $dependency.local.2: String = external0 direct
-        Type Int
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external2 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str3
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external2 direct
-        Type String
-        Local $dependency.local.5
-      return
-  fun println @fn18(value: String) -> Unit
-    bb0 entry
-      val $dependency.local.1: String
-        Type String
-        Local value
-      call $dependency.local.2: String = external1 direct
-        Type String
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external2 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str4
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external2 direct
-        Type String
-        Local $dependency.local.5
-      return
-  fun GenericTask.run @fn19(this: GenericTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
-    bb0 entry
-      val $frame: CoroutineFrame<GenericTask.run>
-        Type CoroutineFrame<GenericTask.run>
-        ClassAlloc CoroutineFrame<GenericTask.run>
-      field_set 0
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      field_set 1
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type Continuation<Int>
-        Local $completion
-      field_set 2
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type CoroutineSlot<Awaiter>
-        VariantConstruct CoroutineSlot<Awaiter> v0
-      field_set 3
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type CoroutineSlot<Boolean>
-        VariantConstruct CoroutineSlot<Boolean> v0
-      field_set 4
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type CoroutineSlot<Int>
-        VariantConstruct CoroutineSlot<Int> v0
-      field_set 5
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type CoroutineSlot<GenericTask>
-        VariantConstruct CoroutineSlot<GenericTask> v1
-          Type GenericTask
-          Local this
-      field_set 6
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type CoroutineSlot<Pair>
-        VariantConstruct CoroutineSlot<Pair> v0
-      field_set 7
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type CoroutineSlot<Choice>
-        VariantConstruct CoroutineSlot<Choice> v0
-      field_set 8
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type CoroutineSlot<Throwable>
-        VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Int> = @fn55 direct
-        Type CoroutineFrame<GenericTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      return
-        Type CoroutineStep<Int>
-        Local $step
-  fun awaitTop @fn20(registration: SuspendRegistration<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun awaitTop @fn18(registration: SuspendRegistration<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<awaitTop>
         Type CoroutineFrame<awaitTop>
@@ -996,7 +948,7 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
-  fun awaitTop @fn21(registration: SuspendRegistration<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
+  fun awaitTop @fn19(registration: SuspendRegistration<Pair>, $completion: Continuation<Pair>) -> CoroutineStep<Pair>
     bb0 entry
       val $frame: CoroutineFrame<awaitTop>
         Type CoroutineFrame<awaitTop>
@@ -1036,7 +988,7 @@ Module
       return
         Type CoroutineStep<Pair>
         Local $step
-  fun Awaiter.awaitMember @fn22(this: Awaiter, registration: SuspendRegistration<Boolean>, $completion: Continuation<Boolean>) -> CoroutineStep<Boolean>
+  fun Awaiter.awaitMember @fn20(this: Awaiter, registration: SuspendRegistration<Boolean>, $completion: Continuation<Boolean>) -> CoroutineStep<Boolean>
     bb0 entry
       val $frame: CoroutineFrame<Awaiter.awaitMember>
         Type CoroutineFrame<Awaiter.awaitMember>
@@ -1083,7 +1035,7 @@ Module
       return
         Type CoroutineStep<Boolean>
         Local $step
-  fun Awaiter.awaitMember @fn23(this: Awaiter, registration: SuspendRegistration<Choice>, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
+  fun Awaiter.awaitMember @fn21(this: Awaiter, registration: SuspendRegistration<Choice>, $completion: Continuation<Choice>) -> CoroutineStep<Choice>
     bb0 entry
       val $frame: CoroutineFrame<Awaiter.awaitMember>
         Type CoroutineFrame<Awaiter.awaitMember>
@@ -1130,6 +1082,54 @@ Module
       return
         Type CoroutineStep<Choice>
         Local $step
+  fun println @fn22(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn23(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
   fun Continuation.resumeWithException @fn24(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
@@ -1245,10 +1245,7 @@ Module
   fun init.Awaiter.$c8 @fn48(this: Awaiter) -> Unit
     bb0 entry
       return
-  fun init.RecordingCompletion.$c10 @fn49(this: RecordingCompletion) -> Unit
-    bb0 entry
-      return
-  fun init.GenericTask.$c9 @fn50(this: GenericTask, intGate: IntGate, pairGate: PairGate, booleanGate: BooleanGate, choiceGate: ChoiceGate) -> Unit
+  fun init.GenericTask.$c9 @fn49(this: GenericTask, intGate: IntGate, pairGate: PairGate, booleanGate: BooleanGate, choiceGate: ChoiceGate) -> Unit
     bb0 entry
       field_set 0
         Type GenericTask
@@ -1270,6 +1267,9 @@ Module
         Local this
         Type ChoiceGate
         Local choiceGate
+      return
+  fun init.RecordingCompletion.$c10 @fn50(this: RecordingCompletion) -> Unit
+    bb0 entry
       return
   fun ctor.Pair.$c0 @fn51(number: Int, text: String) -> Pair <no-gc>
     bb0 entry
@@ -1326,7 +1326,7 @@ Module
     bb0 suspended
       return
     bb1 completed
-      call @fn14 interface Continuation<Pair>[0]
+      call @fn15 interface Continuation<Pair>[0]
         Type Continuation<Pair>
         Local completion
         Type Pair
@@ -1368,7 +1368,7 @@ Module
     bb0 suspended
       return
     bb1 completed
-      call @fn16 interface Continuation<Choice>[0]
+      call @fn17 interface Continuation<Choice>[0]
         Type Continuation<Choice>
         Local completion
         Type Choice
@@ -1457,7 +1457,7 @@ Module
         Local $adapter.1
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.1: CoroutineStep<Int> = @fn20 direct
+      call $step.1: CoroutineStep<Int> = @fn18 direct
         Type SuspendRegistration<Int>
         Local $parameter.registration
         Type CoroutineAdapter<GenericTask.run>$1
@@ -1564,7 +1564,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn18 direct
+      call @fn22 direct
         Type String
         Local $dependency.parameter.value
       val $when.1: Choice
@@ -1759,7 +1759,7 @@ Module
         Local $adapter.4
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.4: CoroutineStep<Choice> = @fn23 direct
+      call $step.4: CoroutineStep<Choice> = @fn21 direct
         Type Awaiter
         Local $receiver
         Type SuspendRegistration<Choice>
@@ -1986,7 +1986,7 @@ Module
         Local $adapter.3
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.3: CoroutineStep<Boolean> = @fn22 direct
+      call $step.3: CoroutineStep<Boolean> = @fn20 direct
         Type Awaiter
         Local $receiver
         Type SuspendRegistration<Boolean>
@@ -2159,7 +2159,7 @@ Module
         Local $adapter.2
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Waiting)
-      call $step.2: CoroutineStep<Pair> = @fn21 direct
+      call $step.2: CoroutineStep<Pair> = @fn19 direct
         Type SuspendRegistration<Pair>
         Local $parameter.registration
         Type CoroutineAdapter<GenericTask.run>$2
@@ -2374,7 +2374,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<GenericTask.run>
@@ -2507,7 +2507,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<GenericTask.run>
@@ -2640,7 +2640,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<GenericTask.run>
@@ -2773,7 +2773,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<GenericTask.run>
@@ -2906,7 +2906,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<GenericTask.run>
@@ -3039,7 +3039,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<GenericTask.run>
@@ -3172,7 +3172,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<GenericTask.run>
@@ -3305,7 +3305,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<GenericTask.run>
@@ -3780,7 +3780,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitTop>
@@ -3944,7 +3944,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn13 interface Continuation<Int>[0]
+      call @fn14 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<awaitTop>
@@ -4450,7 +4450,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn14 interface Continuation<Pair>[0]
+      call @fn15 interface Continuation<Pair>[0]
         Type Continuation<Pair>
         FieldAccess 1
           Type CoroutineFrame<awaitTop>
@@ -4614,7 +4614,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn14 interface Continuation<Pair>[0]
+      call @fn15 interface Continuation<Pair>[0]
         Type Continuation<Pair>
         FieldAccess 1
           Type CoroutineFrame<awaitTop>
@@ -5127,7 +5127,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn15 interface Continuation<Boolean>[0]
+      call @fn16 interface Continuation<Boolean>[0]
         Type Continuation<Boolean>
         FieldAccess 1
           Type CoroutineFrame<Awaiter.awaitMember>
@@ -5291,7 +5291,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn15 interface Continuation<Boolean>[0]
+      call @fn16 interface Continuation<Boolean>[0]
         Type Continuation<Boolean>
         FieldAccess 1
           Type CoroutineFrame<Awaiter.awaitMember>
@@ -5804,7 +5804,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn16 interface Continuation<Choice>[0]
+      call @fn17 interface Continuation<Choice>[0]
         Type Continuation<Choice>
         FieldAccess 1
           Type CoroutineFrame<Awaiter.awaitMember>
@@ -5968,7 +5968,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn16 interface Continuation<Choice>[0]
+      call @fn17 interface Continuation<Choice>[0]
         Type Continuation<Choice>
         FieldAccess 1
           Type CoroutineFrame<Awaiter.awaitMember>
@@ -6198,26 +6198,26 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx4, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @fn19 source_return=Int step=cs3 frame=cr0 driver=@fn55 id=ea68f3e4d1da612138c6c47432372a4cb0daab973749c7b4160b7af3ac1ad3f7 resumes=[cp3,cp2,cp1,cp0]
-  coroutine_fn cf1 @fn20 source_return=Int step=cs3 frame=cr1 driver=@fn64 id=d4d0984f20c4e6b60f7631c4616342283313d3d25ca5161d8bccaf8b420db435 resumes=[cp4]
-  coroutine_fn cf2 @fn21 source_return=Pair step=cs1 frame=cr2 driver=@fn67 id=d5f3d81d1f7c0e354d8b5f15ff078610aa5856c44d16d104bcf088b9ac90ed47 resumes=[cp5]
-  coroutine_fn cf3 @fn22 source_return=Boolean step=cs4 frame=cr3 driver=@fn70 id=085e1cdee5d174b2a5b6a873f9268d7552d2cf815a092fa4f1a164f76a181320 resumes=[cp6]
-  coroutine_fn cf4 @fn23 source_return=Choice step=cs2 frame=cr4 driver=@fn73 id=0258e0519449d139e919875741695750c8403cae3f48ba389d1939f75d904854 resumes=[cp7]
+  coroutine_fn cf0 @fn10 source_return=Int step=cs3 frame=cr0 driver=@fn55 id=ea68f3e4d1da612138c6c47432372a4cb0daab973749c7b4160b7af3ac1ad3f7 resumes=[cp3,cp2,cp1,cp0]
+  coroutine_fn cf1 @fn18 source_return=Int step=cs3 frame=cr1 driver=@fn64 id=d4d0984f20c4e6b60f7631c4616342283313d3d25ca5161d8bccaf8b420db435 resumes=[cp4]
+  coroutine_fn cf2 @fn19 source_return=Pair step=cs1 frame=cr2 driver=@fn67 id=d5f3d81d1f7c0e354d8b5f15ff078610aa5856c44d16d104bcf088b9ac90ed47 resumes=[cp5]
+  coroutine_fn cf3 @fn20 source_return=Boolean step=cs4 frame=cr3 driver=@fn70 id=085e1cdee5d174b2a5b6a873f9268d7552d2cf815a092fa4f1a164f76a181320 resumes=[cp6]
+  coroutine_fn cf4 @fn21 source_return=Choice step=cs2 frame=cr4 driver=@fn73 id=0258e0519449d139e919875741695750c8403cae3f48ba389d1939f75d904854 resumes=[cp7]
   coroutine_fn cf5 @fn25 source_return=Int step=cs3 immediate
   coroutine_fn cf6 @fn28 source_return=Boolean step=cs4 immediate
   coroutine_fn cf7 @fn31 source_return=Pair step=cs1 immediate
   coroutine_fn cf8 @fn34 source_return=Choice step=cs2 immediate
   coroutine_fn cf9 @fn38 source_return=Awaiter step=cs0 immediate
-  instance mi0 function=@fn13 <- Continuation.resume
-  instance mi1 function=@fn14 <- Continuation.resume
-  instance mi2 function=@fn15 <- Continuation.resume
-  instance mi3 function=@fn16 <- Continuation.resume
-  instance mi4 function=@fn17 <- println
-  instance mi5 function=@fn18 <- println
-  instance mi6 function=@fn20 <- awaitTop
-  instance mi7 function=@fn21 <- awaitTop
-  instance mi8 function=@fn22 <- Awaiter.awaitMember
-  instance mi9 function=@fn23 <- Awaiter.awaitMember
+  instance mi0 function=@fn14 <- Continuation.resume
+  instance mi1 function=@fn15 <- Continuation.resume
+  instance mi2 function=@fn16 <- Continuation.resume
+  instance mi3 function=@fn17 <- Continuation.resume
+  instance mi4 function=@fn18 <- awaitTop
+  instance mi5 function=@fn19 <- awaitTop
+  instance mi6 function=@fn20 <- Awaiter.awaitMember
+  instance mi7 function=@fn21 <- Awaiter.awaitMember
+  instance mi8 function=@fn22 <- println
+  instance mi9 function=@fn23 <- println
   instance mi10 function=@fn24 <- Continuation.resumeWithException
   instance mi11 function=@fn25 <- SuspendTask.run
   instance mi12 function=@fn26 <- SuspendRegistration.register
@@ -6239,4 +6239,4 @@ Module
   str @str2 "pair"
   str @str3 "\n"
   str @str4 "\n"
-  output executable @fn12
+  output executable @fn13

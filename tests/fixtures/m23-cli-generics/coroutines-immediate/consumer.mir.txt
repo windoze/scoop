@@ -32,9 +32,9 @@ Module
   enum CoroutineSlot<Int>
     Empty()
     Value(value: Int)
+  class LongTask vtable=0 itables=1
   class Completion<Long> vtable=0 itables=1
   class Throwable vtable=0 itables=0
-  class LongTask vtable=0 itables=1
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Completion<Int> vtable=0 itables=1
@@ -45,8 +45,8 @@ Module
   class CoroutineAdapter<LongTask.run>$1 vtable=0 itables=1
   class CoroutineFrame<run> vtable=0 itables=0
   class CoroutineAdapter<run>$1 vtable=0 itables=1
-  interface Continuation<Long>
   interface SuspendTask<Long>
+  interface Continuation<Long>
   interface Continuation<Int>
   interface SuspendTask<Int>
   interface SuspendRegistration<Int>
@@ -73,12 +73,52 @@ Module
   generated_callable gc4 function=@fn39 id=9727ceee94376abf289e4c81ae5063131d94066986ccb33fe052ad733b05438f
   generated_callable gc5 function=@fn34 id=c209c1d6fabc762f139d1cc0335d17528a847ec844a83ab2b831d7ab526f1ff3
   generated_callable gc6 function=@fn33 id=c467f37bf27814ce88b9d9600bbb37a69ef1a044519bda9e9f743ea7e5d8ded3
-  fun result @fn0() -> Int
+  fun LongTask.run @fn0(this: LongTask, $completion: Continuation<Long>) -> CoroutineStep<Long>
+    bb0 entry
+      val $frame: CoroutineFrame<LongTask.run>
+        Type CoroutineFrame<LongTask.run>
+        ClassAlloc CoroutineFrame<LongTask.run>
+      field_set 0
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      field_set 1
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type Continuation<Long>
+        Local $completion
+      field_set 2
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type CoroutineSlot<LongTask>
+        VariantConstruct CoroutineSlot<LongTask> v1
+          Type LongTask
+          Local this
+      field_set 3
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type CoroutineSlot<Long>
+        VariantConstruct CoroutineSlot<Long> v0
+      field_set 4
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      call $step: CoroutineStep<Long> = @fn34 direct
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      return
+        Type CoroutineStep<Long>
+        Local $step
+  fun result @fn1() -> Int
     bb0 entry
       assign $new.1
         Type Completion<Long>
         ClassAlloc Completion<Long>
-      call @fn29 direct
+      call @fn30 direct
         Type Completion<Long>
         Local $new.1
       val completion: Completion<Long>
@@ -87,7 +127,7 @@ Module
       assign $new.2
         Type LongTask
         ClassAlloc LongTask
-      call @fn30 direct
+      call @fn29 direct
         Type LongTask
         Local $new.2
       val $dependency.argument.0: SuspendTask<Long>
@@ -180,7 +220,7 @@ Module
       return
         Type Int
         Local $call.4
-  fun resume @fn1(this: Completion<Long>, value: Long) -> Unit
+  fun resume @fn2(this: Completion<Long>, value: Long) -> Unit
     bb0 entry
       val $dependency.local.2: Completion<Long>
         Type Completion<Long>
@@ -220,7 +260,7 @@ Module
           Type Long
           Local $dependency.local.8
       return
-  fun resumeWithException @fn2(this: Completion<Long>, exception: Throwable) -> Unit
+  fun resumeWithException @fn3(this: Completion<Long>, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.local.2: Completion<Long>
         Type Completion<Long>
@@ -260,46 +300,6 @@ Module
           Type Throwable
           Local $dependency.local.8
       return
-  fun LongTask.run @fn3(this: LongTask, $completion: Continuation<Long>) -> CoroutineStep<Long>
-    bb0 entry
-      val $frame: CoroutineFrame<LongTask.run>
-        Type CoroutineFrame<LongTask.run>
-        ClassAlloc CoroutineFrame<LongTask.run>
-      field_set 0
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      field_set 1
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type Continuation<Long>
-        Local $completion
-      field_set 2
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type CoroutineSlot<LongTask>
-        VariantConstruct CoroutineSlot<LongTask> v1
-          Type LongTask
-          Local this
-      field_set 3
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type CoroutineSlot<Long>
-        VariantConstruct CoroutineSlot<Long> v0
-      field_set 4
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type CoroutineSlot<Throwable>
-        VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Long> = @fn34 direct
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      return
-        Type CoroutineStep<Long>
-        Local $step
   fun value @fn4(this: Completion<Long>) -> Option<Long>
     bb0 entry
       return
@@ -619,7 +619,10 @@ Module
   fun SuspendRegistration.register @fn28(this: SuspendRegistration<Long>, continuation: Continuation<Long>) -> Unit
     bb0 entry
       trap "call to abstract method `SuspendRegistration.register`"
-  fun init.Completion.$c0 @fn29(this: Completion<Long>) -> Unit
+  fun init.LongTask.$c0 @fn29(this: LongTask) -> Unit
+    bb0 entry
+      return
+  fun init.Completion.$c0 @fn30(this: Completion<Long>) -> Unit
     bb0 entry
       field_set 0
         Type Completion<Long>
@@ -636,9 +639,6 @@ Module
         Local this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      return
-  fun init.LongTask.$c0 @fn30(this: LongTask) -> Unit
-    bb0 entry
       return
   fun init.Completion.$c0 @fn31(this: Completion<Int>) -> Unit
     bb0 entry
@@ -1569,13 +1569,13 @@ Module
       entry=bb7
     failure resume_failure.1 -> ManagedThrow(cx1, unwind=propagate)
       entry=bb8
-  coroutine_fn cf0 @fn3 source_return=Long step=cs0 frame=cr0 driver=@fn34 id=c209c1d6fabc762f139d1cc0335d17528a847ec844a83ab2b831d7ab526f1ff3 resumes=[cp0]
+  coroutine_fn cf0 @fn0 source_return=Long step=cs0 frame=cr0 driver=@fn34 id=c209c1d6fabc762f139d1cc0335d17528a847ec844a83ab2b831d7ab526f1ff3 resumes=[cp0]
   coroutine_fn cf1 @fn13 source_return=Int step=cs1 frame=cr1 driver=@fn37 id=89c8b4ea932919c5a47e69b1e0410b979727eb250014283509c37b8dbab3b69f resumes=[cp1]
   coroutine_fn cf2 @fn20 source_return=Int step=cs1 immediate
   coroutine_fn cf3 @fn23 source_return=Int step=cs1 immediate
   coroutine_fn cf4 @fn27 source_return=Long step=cs0 immediate
-  instance mi0 function=@fn1 <- resume
-  instance mi1 function=@fn2 <- resumeWithException
+  instance mi0 function=@fn2 <- resume
+  instance mi1 function=@fn3 <- resumeWithException
   instance mi2 function=@fn4 <- value
   instance mi3 function=@fn6 <- exercise
   instance mi4 function=@fn7 <- calls

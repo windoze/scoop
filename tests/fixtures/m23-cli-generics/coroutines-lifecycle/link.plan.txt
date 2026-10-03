@@ -1,6 +1,6 @@
 program-link v2
 cone scoop:scoop.core:0.1.0 kind=Library objects=271
-cone dev.example:generic-member-provider:0.1.0 kind=Library objects=74
+cone dev.example:generic-member-provider:0.1.0 kind=Library objects=100
 cone dev.example:generic-member-lifecycle:0.1.0 kind=Library objects=128
 cone dev.example:generic-member-downstream-lifecycle:0.1.0 kind=Library objects=374
 cone dev.example:runtime-fixture:0.1.0 kind=Executable objects=5

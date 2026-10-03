@@ -70,10 +70,10 @@ Module
     Empty()
     Value(value: Gate<Payload<Node>>)
   class Node vtable=0 itables=0
+  class LongTask vtable=0 itables=1
   class Gate<Long> vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class Completion<Long> vtable=0 itables=1
-  class LongTask vtable=0 itables=1
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Counter vtable=0 itables=0
@@ -164,12 +164,52 @@ Module
   generated_callable gc17 function=@fn91 id=f0fcb79d8e70f6a6d2b001d03b1161d40a8deba7a5a15438253999d5ea0c7ef6
   generated_callable gc18 function=@fn92 id=f49a1472a1bfb4e228f017043dfc71cab749aabcf68a8df324a773cf8580b671
   generated_callable gc19 function=@fn86 id=fc0a26d683414c526d14a288c2989c62711074f3fd5eac1a84b89040b58063dd
-  fun result @fn0() -> Int
+  fun LongTask.run @fn0(this: LongTask, $completion: Continuation<Long>) -> CoroutineStep<Long>
+    bb0 entry
+      val $frame: CoroutineFrame<LongTask.run>
+        Type CoroutineFrame<LongTask.run>
+        ClassAlloc CoroutineFrame<LongTask.run>
+      field_set 0
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      field_set 1
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type Continuation<Long>
+        Local $completion
+      field_set 2
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type CoroutineSlot<Long>
+        VariantConstruct CoroutineSlot<Long> v0
+      field_set 3
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type CoroutineSlot<LongTask>
+        VariantConstruct CoroutineSlot<LongTask> v1
+          Type LongTask
+          Local this
+      field_set 4
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      call $step: CoroutineStep<Long> = @fn87 direct
+        Type CoroutineFrame<LongTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      return
+        Type CoroutineStep<Long>
+        Local $step
+  fun result @fn1() -> Int
     bb0 entry
       assign $new.1
         Type Gate<Long>
         ClassAlloc Gate<Long>
-      call @fn70 direct
+      call @fn71 direct
         Type Gate<Long>
         Local $new.1
       val gate: Gate<Long>
@@ -178,7 +218,7 @@ Module
       assign $new.2
         Type Completion<Long>
         ClassAlloc Completion<Long>
-      call @fn71 direct
+      call @fn72 direct
         Type Completion<Long>
         Local $new.2
       val completion: Completion<Long>
@@ -193,7 +233,7 @@ Module
       assign $new.3
         Type LongTask
         ClassAlloc LongTask
-      call @fn72 direct
+      call @fn70 direct
         Type LongTask
         Local $new.3
         Type Gate<Long>
@@ -242,7 +282,7 @@ Module
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
     bb2 if.merge.2
-      call $dependency.receiver: Int = @fn1 direct
+      call $dependency.receiver: Int = @fn2 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
@@ -470,7 +510,7 @@ Module
       return
         Type Int
         Local $call.7
-  fun allocateAfterSuspension @fn1() -> Int
+  fun allocateAfterSuspension @fn2() -> Int
     bb0 entry
       assign $new.1
         Type Counter
@@ -556,7 +596,7 @@ Module
           Type Int
           Local $dependency.parameter.other
       goto bb1
-  fun resume @fn2(this: Completion<Long>, value: Long) -> Unit
+  fun resume @fn3(this: Completion<Long>, value: Long) -> Unit
     bb0 entry
       val $dependency.local.2: Completion<Long>
         Type Completion<Long>
@@ -596,7 +636,7 @@ Module
           Type Long
           Local $dependency.local.8
       return
-  fun resumeWithException @fn3(this: Completion<Long>, exception: Throwable) -> Unit
+  fun resumeWithException @fn4(this: Completion<Long>, exception: Throwable) -> Unit
     bb0 entry
       val $dependency.local.2: Completion<Long>
         Type Completion<Long>
@@ -636,46 +676,6 @@ Module
           Type Throwable
           Local $dependency.local.8
       return
-  fun LongTask.run @fn4(this: LongTask, $completion: Continuation<Long>) -> CoroutineStep<Long>
-    bb0 entry
-      val $frame: CoroutineFrame<LongTask.run>
-        Type CoroutineFrame<LongTask.run>
-        ClassAlloc CoroutineFrame<LongTask.run>
-      field_set 0
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      field_set 1
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type Continuation<Long>
-        Local $completion
-      field_set 2
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type CoroutineSlot<Long>
-        VariantConstruct CoroutineSlot<Long> v0
-      field_set 3
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type CoroutineSlot<LongTask>
-        VariantConstruct CoroutineSlot<LongTask> v1
-          Type LongTask
-          Local this
-      field_set 4
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type CoroutineSlot<Throwable>
-        VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Long> = @fn87 direct
-        Type CoroutineFrame<LongTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      return
-        Type CoroutineStep<Long>
-        Local $step
   fun calls @fn5(this: Completion<Long>) -> Int
     bb0 entry
       return
@@ -905,7 +905,7 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb2 if.merge.2
-      call $dependency.receiver: Int = @fn1 direct
+      call $dependency.receiver: Int = @fn2 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
@@ -1184,7 +1184,7 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb2 if.merge.2
-      call $dependency.receiver: Int = @fn1 direct
+      call $dependency.receiver: Int = @fn2 direct
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
@@ -2046,7 +2046,15 @@ Module
         Type Int
         Local value
       return
-  fun init.Gate.$c0 @fn70(this: Gate<Long>) -> Unit
+  fun init.LongTask.$c0 @fn70(this: LongTask, gate: Gate<Long>) -> Unit
+    bb0 entry
+      field_set 0
+        Type LongTask
+        Local this
+        Type Gate<Long>
+        Local gate
+      return
+  fun init.Gate.$c0 @fn71(this: Gate<Long>) -> Unit
     bb0 entry
       field_set 0
         Type Gate<Long>
@@ -2054,7 +2062,7 @@ Module
         Type Option<Continuation<Long>>
         VariantConstruct Option<Continuation<Long>> v1
       return
-  fun init.Completion.$c1 @fn71(this: Completion<Long>) -> Unit
+  fun init.Completion.$c1 @fn72(this: Completion<Long>) -> Unit
     bb0 entry
       field_set 0
         Type Completion<Long>
@@ -2071,14 +2079,6 @@ Module
         Local this
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      return
-  fun init.LongTask.$c0 @fn72(this: LongTask, gate: Gate<Long>) -> Unit
-    bb0 entry
-      field_set 0
-        Type LongTask
-        Local this
-        Type Gate<Long>
-        Local gate
       return
   fun init.Gate.$c0 @fn73(this: Gate<Large>) -> Unit
     bb0 entry
@@ -5225,7 +5225,7 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx4, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @fn4 source_return=Long step=cs3 frame=cr0 driver=@fn87 id=7f2caaef43f97af0f1d5c2a30511e4b9b38d88dddca5415aae38fdf879234c16 resumes=[cp0]
+  coroutine_fn cf0 @fn0 source_return=Long step=cs3 frame=cr0 driver=@fn87 id=7f2caaef43f97af0f1d5c2a30511e4b9b38d88dddca5415aae38fdf879234c16 resumes=[cp0]
   coroutine_fn cf1 @fn20 source_return=Large step=cs0 frame=cr1 driver=@fn90 id=133ff93091545a58b4e91bbd4640fd1b1ed1b5b724c33e2503dc66742635df0c resumes=[cp1]
   coroutine_fn cf2 @fn26 source_return=Payload<Node> step=cs1 frame=cr2 driver=@fn93 id=b76afe59cd3ac043dea5b0978daed23617a98a989c50b6f7b87b3c4cb7869706 resumes=[cp2]
   coroutine_fn cf3 @fn35 source_return=Large step=cs0 frame=cr3 driver=@fn96 id=98d7ddaf73520cd74e0a89f4bc4b3df0358b43c0bda5aa71343accaa4496fcb4 resumes=[cp3]
@@ -5234,8 +5234,8 @@ Module
   coroutine_fn cf6 @fn60 source_return=Large step=cs0 immediate
   coroutine_fn cf7 @fn64 source_return=Node step=cs2 immediate
   coroutine_fn cf8 @fn67 source_return=Payload<Node> step=cs1 immediate
-  instance mi0 function=@fn2 <- resume
-  instance mi1 function=@fn3 <- resumeWithException
+  instance mi0 function=@fn3 <- resume
+  instance mi1 function=@fn4 <- resumeWithException
   instance mi2 function=@fn5 <- calls
   instance mi3 function=@fn6 <- complete
   instance mi4 function=@fn7 <- value

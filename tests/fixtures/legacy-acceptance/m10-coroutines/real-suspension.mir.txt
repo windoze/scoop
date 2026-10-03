@@ -20,10 +20,10 @@ Module
   class Gate vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class GateRegistration vtable=0 itables=1
+  class SuspendedTask vtable=0 itables=1
   class RecordingCompletion vtable=0 itables=1
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
-  class SuspendedTask vtable=0 itables=1
   class IllegalStateException vtable=0 itables=0
   class CoroutineFrame<SuspendedTask.run> vtable=0 itables=0
   class CoroutineAdapter<SuspendedTask.run>$1 vtable=0 itables=1
@@ -88,7 +88,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn5 interface Continuation<Int>[0]
+      call @fn6 interface Continuation<Int>[0]
         Type Continuation<Int>
         Local $dependency.receiver
         Type Int
@@ -112,166 +112,7 @@ Module
           Type Continuation<Int>
           Local $dependency.parameter._1
       return
-  fun RecordingCompletion.resume @fn2(this: RecordingCompletion, value: Int) -> Unit
-    bb0 entry
-      val $dependency.argument.0: Int
-        Type Int
-        Local value
-      val $dependency.parameter.value: Int
-        Type Int
-        Local $dependency.argument.0
-      call @fn6 direct
-        Type Int
-        Local $dependency.parameter.value
-      return
-  fun RecordingCompletion.resumeWithException @fn3(this: RecordingCompletion, exception: Throwable) -> Unit
-    bb0 entry
-      val $dependency.argument.0: String
-        Type String
-        StringConst @str0
-      val $dependency.parameter.value: String
-        Type String
-        Local $dependency.argument.0
-      call @fn7 direct
-        Type String
-        Local $dependency.parameter.value
-      return
-  fun main @fn4() -> Unit
-    bb0 entry
-      val $argument.0: Option<Continuation<Int>>
-        Type Option<Continuation<Int>>
-        VariantConstruct Option<Continuation<Int>> v1
-      val $parameter.waiter: Option<Continuation<Int>>
-        Type Option<Continuation<Int>>
-        Local $argument.0
-      assign $new.1
-        Type Gate
-        ClassAlloc Gate
-      call @fn12 direct
-        Type Gate
-        Local $new.1
-        Type Option<Continuation<Int>>
-        Local $parameter.waiter
-      val gate: Gate
-        Type Gate
-        Local $new.1
-      val $argument.0: Gate
-        Type Gate
-        Local gate
-      val $parameter.gate: Gate
-        Type Gate
-        Local $argument.0
-      assign $new.2
-        Type SuspendedTask
-        ClassAlloc SuspendedTask
-      call @fn15 direct
-        Type SuspendedTask
-        Local $new.2
-        Type Gate
-        Local $parameter.gate
-      val $dependency.argument.0: SuspendTask<Int>
-        Type SuspendTask<Int>
-        Retype SuspendTask<Int>
-          Type SuspendedTask
-          Local $new.2
-      assign $new.3
-        Type RecordingCompletion
-        ClassAlloc RecordingCompletion
-      call @fn14 direct
-        Type RecordingCompletion
-        Local $new.3
-      val $dependency.argument.1: Continuation<Int>
-        Type Continuation<Int>
-        Retype Continuation<Int>
-          Type RecordingCompletion
-          Local $new.3
-      val $dependency.parameter.task: SuspendTask<Int>
-        Type SuspendTask<Int>
-        Local $dependency.argument.0
-      val $dependency.parameter.completion: Continuation<Int>
-        Type Continuation<Int>
-        Local $dependency.argument.1
-      call external5 direct
-        Type SuspendTask<Int>
-        Local $dependency.parameter.task
-        Type Continuation<Int>
-        Local $dependency.parameter.completion
-      val $dependency.argument.0: String
-        Type String
-        StringConst @str1
-      val $dependency.parameter.value: String
-        Type String
-        Local $dependency.argument.0
-      call @fn7 direct
-        Type String
-        Local $dependency.parameter.value
-      val $receiver: Gate
-        Type Gate
-        Local gate
-      val $argument.0: Int
-        Type Int
-        IntegerLiteral Int value=41 bits=0x00000029
-      val $parameter.value: Int
-        Type Int
-        Local $argument.0
-      call @fn0 direct
-        Type Gate
-        Local $receiver
-        Type Int
-        Local $parameter.value
-      return
-  fun Continuation.resume @fn5(this: Continuation<Int>, value: Int) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun println @fn6(value: Int) -> Unit
-    bb0 entry
-      val $dependency.local.1: Int
-        Type Int
-        Local value
-      call $dependency.local.2: String = external0 direct
-        Type Int
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external2 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str2
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external2 direct
-        Type String
-        Local $dependency.local.5
-      return
-  fun println @fn7(value: String) -> Unit
-    bb0 entry
-      val $dependency.local.1: String
-        Type String
-        Local value
-      call $dependency.local.2: String = external1 direct
-        Type String
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external2 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str3
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external2 direct
-        Type String
-        Local $dependency.local.5
-      return
-  fun SuspendedTask.run @fn8(this: SuspendedTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
+  fun SuspendedTask.run @fn2(this: SuspendedTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       val $frame: CoroutineFrame<SuspendedTask.run>
         Type CoroutineFrame<SuspendedTask.run>
@@ -311,6 +152,165 @@ Module
       return
         Type CoroutineStep<Int>
         Local $step
+  fun RecordingCompletion.resume @fn3(this: RecordingCompletion, value: Int) -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun RecordingCompletion.resumeWithException @fn4(this: RecordingCompletion, exception: Throwable) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun main @fn5() -> Unit
+    bb0 entry
+      val $argument.0: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        VariantConstruct Option<Continuation<Int>> v1
+      val $parameter.waiter: Option<Continuation<Int>>
+        Type Option<Continuation<Int>>
+        Local $argument.0
+      assign $new.1
+        Type Gate
+        ClassAlloc Gate
+      call @fn12 direct
+        Type Gate
+        Local $new.1
+        Type Option<Continuation<Int>>
+        Local $parameter.waiter
+      val gate: Gate
+        Type Gate
+        Local $new.1
+      val $argument.0: Gate
+        Type Gate
+        Local gate
+      val $parameter.gate: Gate
+        Type Gate
+        Local $argument.0
+      assign $new.2
+        Type SuspendedTask
+        ClassAlloc SuspendedTask
+      call @fn14 direct
+        Type SuspendedTask
+        Local $new.2
+        Type Gate
+        Local $parameter.gate
+      val $dependency.argument.0: SuspendTask<Int>
+        Type SuspendTask<Int>
+        Retype SuspendTask<Int>
+          Type SuspendedTask
+          Local $new.2
+      assign $new.3
+        Type RecordingCompletion
+        ClassAlloc RecordingCompletion
+      call @fn15 direct
+        Type RecordingCompletion
+        Local $new.3
+      val $dependency.argument.1: Continuation<Int>
+        Type Continuation<Int>
+        Retype Continuation<Int>
+          Type RecordingCompletion
+          Local $new.3
+      val $dependency.parameter.task: SuspendTask<Int>
+        Type SuspendTask<Int>
+        Local $dependency.argument.0
+      val $dependency.parameter.completion: Continuation<Int>
+        Type Continuation<Int>
+        Local $dependency.argument.1
+      call external5 direct
+        Type SuspendTask<Int>
+        Local $dependency.parameter.task
+        Type Continuation<Int>
+        Local $dependency.parameter.completion
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $receiver: Gate
+        Type Gate
+        Local gate
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn0 direct
+        Type Gate
+        Local $receiver
+        Type Int
+        Local $parameter.value
+      return
+  fun Continuation.resume @fn6(this: Continuation<Int>, value: Int) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun println @fn7(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn8(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str3
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
   fun Continuation.resumeWithException @fn9(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
@@ -336,16 +336,16 @@ Module
         Type Gate
         Local gate
       return
-  fun init.RecordingCompletion.$c3 @fn14(this: RecordingCompletion) -> Unit
-    bb0 entry
-      return
-  fun init.SuspendedTask.$c2 @fn15(this: SuspendedTask, gate: Gate) -> Unit
+  fun init.SuspendedTask.$c2 @fn14(this: SuspendedTask, gate: Gate) -> Unit
     bb0 entry
       field_set 0
         Type SuspendedTask
         Local this
         Type Gate
         Local gate
+      return
+  fun init.RecordingCompletion.$c3 @fn15(this: RecordingCompletion) -> Unit
+    bb0 entry
       return
   fun SuspendedTask.run$drive @fn16($frame: CoroutineFrame<SuspendedTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
@@ -739,7 +739,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn5 interface Continuation<Int>[0]
+      call @fn6 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<SuspendedTask.run>
@@ -903,7 +903,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn5 interface Continuation<Int>[0]
+      call @fn6 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<SuspendedTask.run>
@@ -1061,11 +1061,11 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @fn8 source_return=Int step=cs0 frame=cr0 driver=@fn16 id=3653db4da8b954ac1afa4f91ffd956db8fde74beec3cc24e3bfb0767e1470107 resumes=[cp0]
+  coroutine_fn cf0 @fn2 source_return=Int step=cs0 frame=cr0 driver=@fn16 id=3653db4da8b954ac1afa4f91ffd956db8fde74beec3cc24e3bfb0767e1470107 resumes=[cp0]
   coroutine_fn cf1 @fn10 source_return=Int step=cs0 immediate
-  instance mi0 function=@fn5 <- Continuation.resume
-  instance mi1 function=@fn6 <- println
-  instance mi2 function=@fn7 <- println
+  instance mi0 function=@fn6 <- Continuation.resume
+  instance mi1 function=@fn7 <- println
+  instance mi2 function=@fn8 <- println
   instance mi3 function=@fn9 <- Continuation.resumeWithException
   instance mi4 function=@fn10 <- SuspendTask.run
   instance mi5 function=@fn11 <- SuspendRegistration.register
@@ -1073,4 +1073,4 @@ Module
   str @str1 "returned"
   str @str2 "\n"
   str @str3 "\n"
-  output executable @fn4
+  output executable @fn5

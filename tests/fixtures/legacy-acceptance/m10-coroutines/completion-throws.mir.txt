@@ -20,13 +20,13 @@ Module
   class Gate vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class Registration vtable=0 itables=1
+  class ImmediateTask vtable=0 itables=1
+  class ImmediateFailureTask vtable=0 itables=1
+  class WaitingTask vtable=0 itables=1
   class ThrowingCompletion vtable=0 itables=1
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class IllegalStateException vtable=0 itables=0
-  class ImmediateTask vtable=0 itables=1
-  class ImmediateFailureTask vtable=0 itables=1
-  class WaitingTask vtable=0 itables=1
   class CoroutineFrame<WaitingTask.run> vtable=0 itables=0
   class CoroutineAdapter<WaitingTask.run>$1 vtable=0 itables=1
   interface Continuation<Int>
@@ -90,7 +90,7 @@ Module
       val $dependency.parameter.value: Int
         Type Int
         Local $dependency.argument.0
-      call @fn7 interface Continuation<Int>[0]
+      call @fn10 interface Continuation<Int>[0]
         Type Continuation<Int>
         Local $dependency.receiver
         Type Int
@@ -151,7 +151,7 @@ Module
       val $dependency.parameter.exception: Throwable
         Type Throwable
         Local $dependency.argument.0
-      call @fn8 interface Continuation<Int>[1]
+      call @fn11 interface Continuation<Int>[1]
         Type Continuation<Int>
         Local $dependency.receiver
         Type Throwable
@@ -175,7 +175,65 @@ Module
           Type Continuation<Int>
           Local $dependency.parameter._1
       return
-  fun ThrowingCompletion.resume @fn3(this: ThrowingCompletion, value: Int) -> Unit
+  fun ImmediateTask.run @fn3(this: ImmediateTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
+    bb0 entry
+      return
+        Type CoroutineStep<Int>
+        VariantConstruct CoroutineStep<Int> v0
+          Type Int
+          IntegerLiteral Int value=1 bits=0x00000001
+  fun ImmediateFailureTask.run @fn4(this: ImmediateFailureTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
+    bb0 entry
+      assign $new.1
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external0 direct
+        Type UnwrapException
+        Local $new.1
+      throw
+        Type UnwrapException
+        Local $new.1
+  fun WaitingTask.run @fn5(this: WaitingTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
+    bb0 entry
+      val $frame: CoroutineFrame<WaitingTask.run>
+        Type CoroutineFrame<WaitingTask.run>
+        ClassAlloc CoroutineFrame<WaitingTask.run>
+      field_set 0
+        Type CoroutineFrame<WaitingTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      field_set 1
+        Type CoroutineFrame<WaitingTask.run>
+        Local $frame
+        Type Continuation<Int>
+        Local $completion
+      field_set 2
+        Type CoroutineFrame<WaitingTask.run>
+        Local $frame
+        Type CoroutineSlot<WaitingTask>
+        VariantConstruct CoroutineSlot<WaitingTask> v1
+          Type WaitingTask
+          Local this
+      field_set 3
+        Type CoroutineFrame<WaitingTask.run>
+        Local $frame
+        Type CoroutineSlot<Int>
+        VariantConstruct CoroutineSlot<Int> v0
+      field_set 4
+        Type CoroutineFrame<WaitingTask.run>
+        Local $frame
+        Type CoroutineSlot<Throwable>
+        VariantConstruct CoroutineSlot<Throwable> v0
+      call $step: CoroutineStep<Int> = @fn21 direct
+        Type CoroutineFrame<WaitingTask.run>
+        Local $frame
+        Type machine<coroutine-frame-state>
+        MachineScalarLiteral CoroutineFrameState(Initial)
+      return
+        Type CoroutineStep<Int>
+        Local $step
+  fun ThrowingCompletion.resume @fn6(this: ThrowingCompletion, value: Int) -> Unit
     bb0 entry
       val $default.local.0: String
         Type String
@@ -199,7 +257,7 @@ Module
       throw
         Type IllegalStateException
         Local $new.1
-  fun ThrowingCompletion.resumeWithException @fn4(this: ThrowingCompletion, exception: Throwable) -> Unit
+  fun ThrowingCompletion.resumeWithException @fn7(this: ThrowingCompletion, exception: Throwable) -> Unit
     bb0 entry
       val $default.local.0: String
         Type String
@@ -223,7 +281,7 @@ Module
       throw
         Type IllegalStateException
         Local $new.1
-  fun launch @fn5(task: SuspendTask<Int>, completion: Continuation<Int>) -> Unit
+  fun launch @fn8(task: SuspendTask<Int>, completion: Continuation<Int>) -> Unit
     bb0 entry
       val $dependency.argument.0: SuspendTask<Int>
         Type SuspendTask<Int>
@@ -243,7 +301,7 @@ Module
         Type Continuation<Int>
         Local $dependency.parameter.completion
       return
-  fun main @fn6() -> Unit
+  fun main @fn9() -> Unit
     bb0 entry
       goto bb8
     bb1 try.unwind.1
@@ -274,7 +332,7 @@ Module
       assign $new.1
         Type ImmediateTask
         ClassAlloc ImmediateTask
-      call @fn18 direct
+      call @fn17 direct
         Type ImmediateTask
         Local $new.1
       val $argument.0: SuspendTask<Int>
@@ -285,7 +343,7 @@ Module
       assign $new.2
         Type ThrowingCompletion
         ClassAlloc ThrowingCompletion
-      call @fn17 direct
+      call @fn20 direct
         Type ThrowingCompletion
         Local $new.2
       val $argument.1: Continuation<Int>
@@ -299,7 +357,7 @@ Module
       val $parameter.completion: Continuation<Int>
         Type Continuation<Int>
         Local $argument.1
-      call @fn5 direct
+      call @fn8 direct
         Type SuspendTask<Int>
         Local $parameter.task
         Type Continuation<Int>
@@ -324,7 +382,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -380,7 +438,7 @@ Module
       assign $new.8
         Type WaitingTask
         ClassAlloc WaitingTask
-      call @fn20 direct
+      call @fn19 direct
         Type WaitingTask
         Local $new.8
         Type Gate
@@ -393,7 +451,7 @@ Module
       assign $new.9
         Type ThrowingCompletion
         ClassAlloc ThrowingCompletion
-      call @fn17 direct
+      call @fn20 direct
         Type ThrowingCompletion
         Local $new.9
       val $argument.1: Continuation<Int>
@@ -407,7 +465,7 @@ Module
       val $parameter.completion: Continuation<Int>
         Type Continuation<Int>
         Local $argument.1
-      call @fn5 direct
+      call @fn8 direct
         Type SuspendTask<Int>
         Local $parameter.task
         Type Continuation<Int>
@@ -417,7 +475,7 @@ Module
       assign $new.4
         Type ImmediateFailureTask
         ClassAlloc ImmediateFailureTask
-      call @fn19 direct
+      call @fn18 direct
         Type ImmediateFailureTask
         Local $new.4
       val $argument.0: SuspendTask<Int>
@@ -428,7 +486,7 @@ Module
       assign $new.5
         Type ThrowingCompletion
         ClassAlloc ThrowingCompletion
-      call @fn17 direct
+      call @fn20 direct
         Type ThrowingCompletion
         Local $new.5
       val $argument.1: Continuation<Int>
@@ -442,7 +500,7 @@ Module
       val $parameter.completion: Continuation<Int>
         Type Continuation<Int>
         Local $argument.1
-      call @fn5 direct
+      call @fn8 direct
         Type SuspendTask<Int>
         Local $parameter.task
         Type Continuation<Int>
@@ -467,7 +525,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -523,7 +581,7 @@ Module
       assign $new.12
         Type WaitingTask
         ClassAlloc WaitingTask
-      call @fn20 direct
+      call @fn19 direct
         Type WaitingTask
         Local $new.12
         Type Gate
@@ -536,7 +594,7 @@ Module
       assign $new.13
         Type ThrowingCompletion
         ClassAlloc ThrowingCompletion
-      call @fn17 direct
+      call @fn20 direct
         Type ThrowingCompletion
         Local $new.13
       val $argument.1: Continuation<Int>
@@ -550,7 +608,7 @@ Module
       val $parameter.completion: Continuation<Int>
         Type Continuation<Int>
         Local $argument.1
-      call @fn5 direct
+      call @fn8 direct
         Type SuspendTask<Int>
         Local $parameter.task
         Type Continuation<Int>
@@ -591,7 +649,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type String
         Local $dependency.parameter.value
       end_catch
@@ -649,27 +707,20 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn10 direct
+      call @fn12 direct
         Type String
         Local $dependency.parameter.value
       end_catch
       goto bb48
     bb48 scope.48
       goto bb43
-  fun Continuation.resume @fn7(this: Continuation<Int>, value: Int) -> Unit
+  fun Continuation.resume @fn10(this: Continuation<Int>, value: Int) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resume`"
-  fun Continuation.resumeWithException @fn8(this: Continuation<Int>, exception: Throwable) -> Unit
+  fun Continuation.resumeWithException @fn11(this: Continuation<Int>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
-  fun ImmediateTask.run @fn9(this: ImmediateTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
-    bb0 entry
-      return
-        Type CoroutineStep<Int>
-        VariantConstruct CoroutineStep<Int> v0
-          Type Int
-          IntegerLiteral Int value=1 bits=0x00000001
-  fun println @fn10(value: String) -> Unit
+  fun println @fn12(value: String) -> Unit
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -693,57 +744,6 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun ImmediateFailureTask.run @fn11(this: ImmediateFailureTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
-    bb0 entry
-      assign $new.1
-        Type UnwrapException
-        ClassAlloc UnwrapException
-      call external0 direct
-        Type UnwrapException
-        Local $new.1
-      throw
-        Type UnwrapException
-        Local $new.1
-  fun WaitingTask.run @fn12(this: WaitingTask, $completion: Continuation<Int>) -> CoroutineStep<Int>
-    bb0 entry
-      val $frame: CoroutineFrame<WaitingTask.run>
-        Type CoroutineFrame<WaitingTask.run>
-        ClassAlloc CoroutineFrame<WaitingTask.run>
-      field_set 0
-        Type CoroutineFrame<WaitingTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      field_set 1
-        Type CoroutineFrame<WaitingTask.run>
-        Local $frame
-        Type Continuation<Int>
-        Local $completion
-      field_set 2
-        Type CoroutineFrame<WaitingTask.run>
-        Local $frame
-        Type CoroutineSlot<WaitingTask>
-        VariantConstruct CoroutineSlot<WaitingTask> v1
-          Type WaitingTask
-          Local this
-      field_set 3
-        Type CoroutineFrame<WaitingTask.run>
-        Local $frame
-        Type CoroutineSlot<Int>
-        VariantConstruct CoroutineSlot<Int> v0
-      field_set 4
-        Type CoroutineFrame<WaitingTask.run>
-        Local $frame
-        Type CoroutineSlot<Throwable>
-        VariantConstruct CoroutineSlot<Throwable> v0
-      call $step: CoroutineStep<Int> = @fn21 direct
-        Type CoroutineFrame<WaitingTask.run>
-        Local $frame
-        Type machine<coroutine-frame-state>
-        MachineScalarLiteral CoroutineFrameState(Initial)
-      return
-        Type CoroutineStep<Int>
-        Local $step
   fun SuspendTask.run @fn13(this: SuspendTask<Int>, $completion: Continuation<Int>) -> CoroutineStep<Int>
     bb0 entry
       trap "call to abstract method `SuspendTask.run`"
@@ -766,22 +766,22 @@ Module
         Type Gate
         Local gate
       return
-  fun init.ThrowingCompletion.$c5 @fn17(this: ThrowingCompletion) -> Unit
+  fun init.ImmediateTask.$c2 @fn17(this: ImmediateTask) -> Unit
     bb0 entry
       return
-  fun init.ImmediateTask.$c2 @fn18(this: ImmediateTask) -> Unit
+  fun init.ImmediateFailureTask.$c3 @fn18(this: ImmediateFailureTask) -> Unit
     bb0 entry
       return
-  fun init.ImmediateFailureTask.$c3 @fn19(this: ImmediateFailureTask) -> Unit
-    bb0 entry
-      return
-  fun init.WaitingTask.$c4 @fn20(this: WaitingTask, gate: Gate) -> Unit
+  fun init.WaitingTask.$c4 @fn19(this: WaitingTask, gate: Gate) -> Unit
     bb0 entry
       field_set 0
         Type WaitingTask
         Local this
         Type Gate
         Local gate
+      return
+  fun init.ThrowingCompletion.$c5 @fn20(this: ThrowingCompletion) -> Unit
+    bb0 entry
       return
   fun WaitingTask.run$drive @fn21($frame: CoroutineFrame<WaitingTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Int>
     bb0 entry
@@ -1165,7 +1165,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn7 interface Continuation<Int>[0]
+      call @fn10 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<WaitingTask.run>
@@ -1187,7 +1187,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn8 interface Continuation<Int>[1]
+      call @fn11 interface Continuation<Int>[1]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<WaitingTask.run>
@@ -1329,7 +1329,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn7 interface Continuation<Int>[0]
+      call @fn10 interface Continuation<Int>[0]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<WaitingTask.run>
@@ -1351,7 +1351,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn8 interface Continuation<Int>[1]
+      call @fn11 interface Continuation<Int>[1]
         Type Continuation<Int>
         FieldAccess 1
           Type CoroutineFrame<WaitingTask.run>
@@ -1487,13 +1487,13 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @fn9 source_return=Int step=cs0 immediate
-  coroutine_fn cf1 @fn11 source_return=Int step=cs0 immediate
-  coroutine_fn cf2 @fn12 source_return=Int step=cs0 frame=cr0 driver=@fn21 id=eb0950ae7d98cfa4e9cc2e4efe26f700984b2c07e77412cb04203778c3515785 resumes=[cp0]
+  coroutine_fn cf0 @fn3 source_return=Int step=cs0 immediate
+  coroutine_fn cf1 @fn4 source_return=Int step=cs0 immediate
+  coroutine_fn cf2 @fn5 source_return=Int step=cs0 frame=cr0 driver=@fn21 id=eb0950ae7d98cfa4e9cc2e4efe26f700984b2c07e77412cb04203778c3515785 resumes=[cp0]
   coroutine_fn cf3 @fn13 source_return=Int step=cs0 immediate
-  instance mi0 function=@fn7 <- Continuation.resume
-  instance mi1 function=@fn8 <- Continuation.resumeWithException
-  instance mi2 function=@fn10 <- println
+  instance mi0 function=@fn10 <- Continuation.resume
+  instance mi1 function=@fn11 <- Continuation.resumeWithException
+  instance mi2 function=@fn12 <- println
   instance mi3 function=@fn13 <- SuspendTask.run
   instance mi4 function=@fn14 <- SuspendRegistration.register
   str @str0 "illegal state"
@@ -1503,4 +1503,4 @@ Module
   str @str4 "resumed-success"
   str @str5 "resumed-failure"
   str @str6 "\n"
-  output executable @fn6
+  output executable @fn9

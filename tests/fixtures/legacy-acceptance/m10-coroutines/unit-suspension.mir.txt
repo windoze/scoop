@@ -20,10 +20,10 @@ Module
   class UnitGate vtable=0 itables=0
   class Throwable vtable=0 itables=0
   class UnitRegistration vtable=0 itables=1
+  class UnitTask vtable=0 itables=1
   class UnitCompletion vtable=0 itables=1
   class UnwrapException vtable=0 itables=0
   class Exception vtable=0 itables=0
-  class UnitTask vtable=0 itables=1
   class IllegalStateException vtable=0 itables=0
   class CoroutineFrame<UnitTask.run> vtable=0 itables=0
   class CoroutineAdapter<UnitTask.run>$1 vtable=0 itables=1
@@ -88,7 +88,7 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call @fn5 interface Continuation<Unit>[0]
+      call @fn6 interface Continuation<Unit>[0]
         Type Continuation<Unit>
         Local $dependency.receiver
         Type Unit
@@ -112,134 +112,7 @@ Module
           Type Continuation<Unit>
           Local $dependency.parameter._1
       return
-  fun UnitCompletion.resume @fn2(this: UnitCompletion, value: Unit) -> Unit
-    bb0 entry
-      val $dependency.argument.0: String
-        Type String
-        StringConst @str0
-      val $dependency.parameter.value: String
-        Type String
-        Local $dependency.argument.0
-      call @fn6 direct
-        Type String
-        Local $dependency.parameter.value
-      return
-  fun UnitCompletion.resumeWithException @fn3(this: UnitCompletion, exception: Throwable) -> Unit
-    bb0 entry
-      val $dependency.argument.0: String
-        Type String
-        StringConst @str1
-      val $dependency.parameter.value: String
-        Type String
-        Local $dependency.argument.0
-      call @fn6 direct
-        Type String
-        Local $dependency.parameter.value
-      return
-  fun main @fn4() -> Unit
-    bb0 entry
-      val $argument.0: Option<Continuation<Unit>>
-        Type Option<Continuation<Unit>>
-        VariantConstruct Option<Continuation<Unit>> v1
-      val $parameter.waiter: Option<Continuation<Unit>>
-        Type Option<Continuation<Unit>>
-        Local $argument.0
-      assign $new.1
-        Type UnitGate
-        ClassAlloc UnitGate
-      call @fn11 direct
-        Type UnitGate
-        Local $new.1
-        Type Option<Continuation<Unit>>
-        Local $parameter.waiter
-      val gate: UnitGate
-        Type UnitGate
-        Local $new.1
-      val $argument.0: UnitGate
-        Type UnitGate
-        Local gate
-      val $parameter.gate: UnitGate
-        Type UnitGate
-        Local $argument.0
-      assign $new.2
-        Type UnitTask
-        ClassAlloc UnitTask
-      call @fn14 direct
-        Type UnitTask
-        Local $new.2
-        Type UnitGate
-        Local $parameter.gate
-      val $dependency.argument.0: SuspendTask<Unit>
-        Type SuspendTask<Unit>
-        Retype SuspendTask<Unit>
-          Type UnitTask
-          Local $new.2
-      assign $new.3
-        Type UnitCompletion
-        ClassAlloc UnitCompletion
-      call @fn13 direct
-        Type UnitCompletion
-        Local $new.3
-      val $dependency.argument.1: Continuation<Unit>
-        Type Continuation<Unit>
-        Retype Continuation<Unit>
-          Type UnitCompletion
-          Local $new.3
-      val $dependency.parameter.task: SuspendTask<Unit>
-        Type SuspendTask<Unit>
-        Local $dependency.argument.0
-      val $dependency.parameter.completion: Continuation<Unit>
-        Type Continuation<Unit>
-        Local $dependency.argument.1
-      call external4 direct
-        Type SuspendTask<Unit>
-        Local $dependency.parameter.task
-        Type Continuation<Unit>
-        Local $dependency.parameter.completion
-      val $dependency.argument.0: String
-        Type String
-        StringConst @str2
-      val $dependency.parameter.value: String
-        Type String
-        Local $dependency.argument.0
-      call @fn6 direct
-        Type String
-        Local $dependency.parameter.value
-      val $receiver: UnitGate
-        Type UnitGate
-        Local gate
-      call @fn0 direct
-        Type UnitGate
-        Local $receiver
-      return
-  fun Continuation.resume @fn5(this: Continuation<Unit>, value: Unit) -> Unit
-    bb0 entry
-      trap "call to abstract method `Continuation.resume`"
-  fun println @fn6(value: String) -> Unit
-    bb0 entry
-      val $dependency.local.1: String
-        Type String
-        Local value
-      call $dependency.local.2: String = external0 direct
-        Type String
-        Local $dependency.local.1
-      val $dependency.local.3: String
-        Type String
-        Local $dependency.local.2
-      call external1 direct
-        Type String
-        Local $dependency.local.3
-      val $dependency.local.4: String
-        Type String
-        StringConst @str3
-      val $dependency.local.5: String
-        Type String
-        Local $dependency.local.4
-      call external1 direct
-        Type String
-        Local $dependency.local.5
-      return
-  fun UnitTask.run @fn7(this: UnitTask, $completion: Continuation<Unit>) -> CoroutineStep<Unit>
+  fun UnitTask.run @fn2(this: UnitTask, $completion: Continuation<Unit>) -> CoroutineStep<Unit>
     bb0 entry
       val $frame: CoroutineFrame<UnitTask.run>
         Type CoroutineFrame<UnitTask.run>
@@ -274,6 +147,133 @@ Module
       return
         Type CoroutineStep<Unit>
         Local $step
+  fun UnitCompletion.resume @fn3(this: UnitCompletion, value: Unit) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun UnitCompletion.resumeWithException @fn4(this: UnitCompletion, exception: Throwable) -> Unit
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun main @fn5() -> Unit
+    bb0 entry
+      val $argument.0: Option<Continuation<Unit>>
+        Type Option<Continuation<Unit>>
+        VariantConstruct Option<Continuation<Unit>> v1
+      val $parameter.waiter: Option<Continuation<Unit>>
+        Type Option<Continuation<Unit>>
+        Local $argument.0
+      assign $new.1
+        Type UnitGate
+        ClassAlloc UnitGate
+      call @fn11 direct
+        Type UnitGate
+        Local $new.1
+        Type Option<Continuation<Unit>>
+        Local $parameter.waiter
+      val gate: UnitGate
+        Type UnitGate
+        Local $new.1
+      val $argument.0: UnitGate
+        Type UnitGate
+        Local gate
+      val $parameter.gate: UnitGate
+        Type UnitGate
+        Local $argument.0
+      assign $new.2
+        Type UnitTask
+        ClassAlloc UnitTask
+      call @fn13 direct
+        Type UnitTask
+        Local $new.2
+        Type UnitGate
+        Local $parameter.gate
+      val $dependency.argument.0: SuspendTask<Unit>
+        Type SuspendTask<Unit>
+        Retype SuspendTask<Unit>
+          Type UnitTask
+          Local $new.2
+      assign $new.3
+        Type UnitCompletion
+        ClassAlloc UnitCompletion
+      call @fn14 direct
+        Type UnitCompletion
+        Local $new.3
+      val $dependency.argument.1: Continuation<Unit>
+        Type Continuation<Unit>
+        Retype Continuation<Unit>
+          Type UnitCompletion
+          Local $new.3
+      val $dependency.parameter.task: SuspendTask<Unit>
+        Type SuspendTask<Unit>
+        Local $dependency.argument.0
+      val $dependency.parameter.completion: Continuation<Unit>
+        Type Continuation<Unit>
+        Local $dependency.argument.1
+      call external4 direct
+        Type SuspendTask<Unit>
+        Local $dependency.parameter.task
+        Type Continuation<Unit>
+        Local $dependency.parameter.completion
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn7 direct
+        Type String
+        Local $dependency.parameter.value
+      val $receiver: UnitGate
+        Type UnitGate
+        Local gate
+      call @fn0 direct
+        Type UnitGate
+        Local $receiver
+      return
+  fun Continuation.resume @fn6(this: Continuation<Unit>, value: Unit) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun println @fn7(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str4
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
   fun Continuation.resumeWithException @fn8(this: Continuation<Unit>, exception: Throwable) -> Unit
     bb0 entry
       trap "call to abstract method `Continuation.resumeWithException`"
@@ -299,16 +299,16 @@ Module
         Type UnitGate
         Local gate
       return
-  fun init.UnitCompletion.$c3 @fn13(this: UnitCompletion) -> Unit
-    bb0 entry
-      return
-  fun init.UnitTask.$c2 @fn14(this: UnitTask, gate: UnitGate) -> Unit
+  fun init.UnitTask.$c2 @fn13(this: UnitTask, gate: UnitGate) -> Unit
     bb0 entry
       field_set 0
         Type UnitTask
         Local this
         Type UnitGate
         Local gate
+      return
+  fun init.UnitCompletion.$c3 @fn14(this: UnitCompletion) -> Unit
+    bb0 entry
       return
   fun UnitTask.run$drive @fn15($frame: CoroutineFrame<UnitTask.run>, $dispatch_state: machine<coroutine-frame-state>) -> CoroutineStep<Unit>
     bb0 entry
@@ -368,11 +368,11 @@ Module
     bb1 coroutine.post.1
       val $dependency.argument.0: String
         Type String
-        StringConst @str4
+        StringConst @str0
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call @fn6 direct
+      call @fn7 direct
         Type String
         Local $dependency.parameter.value
       return
@@ -684,7 +684,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn5 interface Continuation<Unit>[0]
+      call @fn6 interface Continuation<Unit>[0]
         Type Continuation<Unit>
         FieldAccess 1
           Type CoroutineFrame<UnitTask.run>
@@ -839,7 +839,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Completed)
-      call @fn5 interface Continuation<Unit>[0]
+      call @fn6 interface Continuation<Unit>[0]
         Type Continuation<Unit>
         FieldAccess 1
           Type CoroutineFrame<UnitTask.run>
@@ -996,16 +996,16 @@ Module
       entry=bb23
     failure resume_failure.1 -> ManagedThrow(cx0, unwind=propagate)
       entry=bb24
-  coroutine_fn cf0 @fn7 source_return=Unit step=cs0 frame=cr0 driver=@fn15 id=b2b58a8076d660915ad7bf9fe3e728ac58ddbc4b2049dbe86135b5e9ce8dc321 resumes=[cp0]
+  coroutine_fn cf0 @fn2 source_return=Unit step=cs0 frame=cr0 driver=@fn15 id=b2b58a8076d660915ad7bf9fe3e728ac58ddbc4b2049dbe86135b5e9ce8dc321 resumes=[cp0]
   coroutine_fn cf1 @fn9 source_return=Unit step=cs0 immediate
-  instance mi0 function=@fn5 <- Continuation.resume
-  instance mi1 function=@fn6 <- println
+  instance mi0 function=@fn6 <- Continuation.resume
+  instance mi1 function=@fn7 <- println
   instance mi2 function=@fn8 <- Continuation.resumeWithException
   instance mi3 function=@fn9 <- SuspendTask.run
   instance mi4 function=@fn10 <- SuspendRegistration.register
-  str @str0 "done"
-  str @str1 "failed"
-  str @str2 "returned"
-  str @str3 "\n"
-  str @str4 "body"
-  output executable @fn4
+  str @str0 "body"
+  str @str1 "done"
+  str @str2 "failed"
+  str @str3 "returned"
+  str @str4 "\n"
+  output executable @fn5
