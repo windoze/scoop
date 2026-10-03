@@ -29,4 +29,5 @@
 materialized type use 验证。四项相关内部测试通过。原源码全部保留。
 
 接口默认属性缺口由 [默认属性修复](CLI-DEFAULT-PROPERTIES.md) 处理。
-另两个修改 core 的名义声明用例仍在迁移；本记录不代表 M23-11 全仓验收完成。
+另两个修改 core 的名义声明用例已由 [重建 core 用例](CLI-CORE-NOMINALS.md) 覆盖；
+本记录不代表 M23-11 全仓验收完成。
