@@ -46,3 +46,4 @@ artifact slot 取得已经编译的 core，不传额外 Cone locator。完整输
 | 整数字面量模式 | `members-`：`equality-patterns`、`equality-pattern-overflow` | 2／8／9 | 8 种极值模式的命中／未命中、alias、tuple 与 literal 越界 |
 | 托管整数操作 | `members-`：`managed` | 1／6／9 | 实际有符号除法；内部 Option<String> 异常存储检查继续保留 |
 | 成员源码参数改名 | `members-`：`edited-parameter`、`edited-old-name` | 2／8／9 | 真实 Int.shl 声明的具名参数与回绕，旧参数名拒绝 |
+| 常量运算符 | `const-`：`operators`、`division-zero`、`type-mismatch` | 3／10／9 | 11 个 const 值、编码静态值、除零及声明类型不匹配 |
