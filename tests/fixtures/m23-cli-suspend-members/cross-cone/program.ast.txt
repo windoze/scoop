@@ -1,0 +1,47 @@
+SourceFile
+  RootPackage
+  ImportStar Local suspended.*
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  class Task(val source: Source), SuspendTask<Int>
+    public suspend fun run
+  class Completion(), Continuation<Int>
+    public var result: Int = <expr>
+      IntLiteral 0
+    public var finished: Boolean = <expr>
+      BoolLiteral false
+    public fun resume
+    public fun resumeWithException
+  fun main()
+    val ordinary
+      Call Completion
+    Call startCoroutine
+      Call Task
+        Call source
+      Var ordinary
+    Call check
+      Binary And
+        FieldAccess finished
+          Var ordinary
+        Binary Eq
+          FieldAccess result
+            Var ordinary
+          IntLiteral 20
+    val virtual
+      Call Completion
+    Call startCoroutine
+      Call Task
+        Call child
+      Var virtual
+    Call check
+      Binary And
+        FieldAccess finished
+          Var virtual
+        Binary Eq
+          FieldAccess result
+            Var virtual
+          IntLiteral 23

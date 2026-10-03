@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage suspended
+  public interface Source
+    suspend fun read
+    suspend fun defaulted
+  public open class Worker(), Source
+    protected suspend fun hidden
+    public suspend fun read
+  public class Child() : Worker(<0 args>)
+    public suspend fun read
+  public fun source(): Source
+    =
+      Call Worker
+  public fun child(): Worker
+    =
+      Call Child

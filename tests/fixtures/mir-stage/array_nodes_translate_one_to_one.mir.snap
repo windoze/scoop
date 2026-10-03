@@ -7,19 +7,26 @@ Module
     Active()
     Completed()
     Failed()
+  enum CoroutineStep<Int>
+    Completed(value: Int)
+    Suspended()
+  enum CoroutineSlot<Int>
+    Empty()
+    Value(value: Int)
+  enum CoroutineStep<_ThrowableProtocol>
+    Completed(value: _ThrowableProtocol)
+    Suspended()
+  enum CoroutineSlot<_ThrowableProtocol>
+    Empty()
+    Value(value: _ThrowableProtocol)
   enum CoroutineStep<String>
     Completed(value: String)
     Suspended()
   enum CoroutineSlot<String>
     Empty()
     Value(value: String)
-  enum CoroutineStep<Int>
-    Completed(value: Int)
-    Suspended()
-  enum CoroutineStep<_ThrowableProtocol>
-    Completed(value: _ThrowableProtocol)
-    Suspended()
   class IndexOutOfBoundsException vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
   interface Continuation<Int>
   interface SuspendTask<Int>
   interface SuspendRegistration<Int>
@@ -29,11 +36,16 @@ Module
   interface Continuation<_ThrowableProtocol>
   interface SuspendTask<_ThrowableProtocol>
   interface SuspendRegistration<_ThrowableProtocol>
-  generated_exact_type get0 location=enum4 nominal_id=81c6af0325c73a53905483b41fa478a6369101eb7a537db06f25b4d327746d88 exact_id=0ce6f8100b904f939745b95ff56343abff122e3b14e16066ce396bf9bac5f054
-  generated_exact_type get1 location=enum2 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
-  generated_exact_type get2 location=enum5 nominal_id=8e87ab1c9f058e3887edda4f3cde4d268fef049633fba16135d0005daf2c41ee exact_id=c0236e13108a9f5c89384a703596acaa990c03af369ff70ae9e62fd31d66196c
-  generated_exact_type get3 location=enum3 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
-  generated_callable gc0 function=@fn19 id=a020ce69f3231d812b6b787bad8fb55b72f0db205594f6525ff0f35a32343007
+  generated_exact_type get0 location=enum3 nominal_id=758c5c55e5a373b8a90ff1400653fb9bfbb24d0b12194d82333ac98501891df3 exact_id=0a738be8687f2936aa203c97e0286deec13c8ad3d8f3db40d212da13ed3d137d
+  generated_exact_type get1 location=enum2 nominal_id=81c6af0325c73a53905483b41fa478a6369101eb7a537db06f25b4d327746d88 exact_id=0ce6f8100b904f939745b95ff56343abff122e3b14e16066ce396bf9bac5f054
+  generated_exact_type get2 location=enum6 nominal_id=2b41b14d885fa38a57063f4b172f305c10201de466a744b67467d982b9b03e4d exact_id=54f75c5f7a246468d3b9a26b12b55f3682e8d4c3461904f2d2dad148dd1d3381
+  generated_exact_type get3 location=class9 nominal_id=d650952b5a0f6135da85bac3caa466cbd5825a463ccd8ceb18bb37635b5a1150 exact_id=61a5f8d78a0c60bf2304cf7ce185bf981752c6c32ee8ea9220380fb4762905af
+  generated_exact_type get4 location=enum5 nominal_id=4d17f6190dfc97d89ac45e897ad3be51791c0a741a87aaf624ebc7bb5388a0aa exact_id=7b6e2fdce3886a253f07171e848f7b62dcf0bf1b49fc4776e43293440949328f
+  generated_exact_type get5 location=enum4 nominal_id=8e87ab1c9f058e3887edda4f3cde4d268fef049633fba16135d0005daf2c41ee exact_id=c0236e13108a9f5c89384a703596acaa990c03af369ff70ae9e62fd31d66196c
+  generated_exact_type get6 location=enum7 nominal_id=97de422daaa5f55d61a1aa042f57df4b345a1c739e7c8cdb9828340e5643c8de exact_id=c6dfe2e2b19c7e12085f2e1cfcac8c2868bd073baad4765dd757d63390b273e4
+  generated_callable gc0 function=@fn19 id=8eb33f02e59b452519eab66cbb105290e1fd879e06f04605952ba9690979ffa2
+  generated_callable gc1 function=@fn21 id=a020ce69f3231d812b6b787bad8fb55b72f0db205594f6525ff0f35a32343007
+  generated_callable gc2 function=@fn20 id=a7223b689e3d129b2b28885c5db00a54d772296885947e86eb5f4695b1d8e9e2
   fun main @fn0() -> Unit
     bb0 entry
       val a: Array<Int>
@@ -197,7 +209,91 @@ Module
   fun init.IndexOutOfBoundsException.$c0 @fn13(this: IndexOutOfBoundsException) -> Unit
     bb0 entry
       return
-  fun startCoroutine<String> @fn19(task: SuspendTask<String>, completion: Continuation<String>) -> Unit
+  fun startCoroutine<Int> @fn19(task: SuspendTask<Int>, completion: Continuation<Int>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn1 interface Continuation<Int>[0]
+        Type Continuation<Int>
+        Local completion
+        Type Int
+        EnumField v0 f0
+          Type CoroutineStep<Int>
+          Local $step
+      return
+    bb2 failed
+      call @fn2 interface Continuation<Int>[1]
+        Type Continuation<Int>
+        Local completion
+        Type _ThrowableProtocol
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: _ThrowableProtocol = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Int> = @fn3 interface SuspendTask<Int>[0]
+        Type SuspendTask<Int>
+        Local task
+        Type Continuation<Int>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Int>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<_ThrowableProtocol> @fn20(task: SuspendTask<_ThrowableProtocol>, completion: Continuation<_ThrowableProtocol>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<_ThrowableProtocol>[0]
+        Type Continuation<_ThrowableProtocol>
+        Local completion
+        Type _ThrowableProtocol
+        EnumField v0 f0
+          Type CoroutineStep<_ThrowableProtocol>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<_ThrowableProtocol>[1]
+        Type Continuation<_ThrowableProtocol>
+        Local completion
+        Type _ThrowableProtocol
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: _ThrowableProtocol = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<_ThrowableProtocol> = @fn11 interface SuspendTask<_ThrowableProtocol>[0]
+        Type SuspendTask<_ThrowableProtocol>
+        Local task
+        Type Continuation<_ThrowableProtocol>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<_ThrowableProtocol>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<String> @fn21(task: SuspendTask<String>, completion: Continuation<String>) -> Unit
     bb0 suspended
       return
     bb1 completed
@@ -239,14 +335,18 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-  coroutine_step cs0 CoroutineStep<String> result=String
-  coroutine_step cs1 CoroutineStep<Int> result=Int
-  coroutine_step cs2 CoroutineStep<_ThrowableProtocol> result=_ThrowableProtocol
-  coroutine_slot cl0 CoroutineSlot<String> value=String
-  coroutine_start ct0 result=String function=fn19
-  coroutine_fn cf0 @fn3 source_return=Int step=cs1 immediate
-  coroutine_fn cf1 @fn7 source_return=String step=cs0 immediate
-  coroutine_fn cf2 @fn11 source_return=_ThrowableProtocol step=cs2 immediate
+  coroutine_step cs0 CoroutineStep<Int> result=Int
+  coroutine_step cs1 CoroutineStep<_ThrowableProtocol> result=_ThrowableProtocol
+  coroutine_step cs2 CoroutineStep<String> result=String
+  coroutine_slot cl0 CoroutineSlot<Int> value=Int
+  coroutine_slot cl1 CoroutineSlot<_ThrowableProtocol> value=_ThrowableProtocol
+  coroutine_slot cl2 CoroutineSlot<String> value=String
+  coroutine_start ct0 result=Int function=fn19
+  coroutine_start ct1 result=_ThrowableProtocol function=fn20
+  coroutine_start ct2 result=String function=fn21
+  coroutine_fn cf0 @fn3 source_return=Int step=cs0 immediate
+  coroutine_fn cf1 @fn7 source_return=String step=cs2 immediate
+  coroutine_fn cf2 @fn11 source_return=_ThrowableProtocol step=cs1 immediate
   instance mi0 function=@fn1 <- Continuation.resume
   instance mi1 function=@fn2 <- Continuation.resumeWithException
   instance mi2 function=@fn3 <- SuspendTask.run

@@ -1,0 +1,37 @@
+SourceFile
+  RootPackage
+  public fun base(): Base
+    =
+      Call Base
+  public fun child(): Child
+    =
+      Call Child
+  public fun user(): User
+    =
+      Call User
+  private class Immediate(), Await
+    public suspend fun waitFor
+  public fun awaited(): Await
+    =
+      Call Immediate
+SourceFile
+  RootPackage
+  public interface Contract
+    fun combine
+    fun raw
+    infix fun joined
+    operator fun contains
+  public interface Await
+    suspend fun waitFor
+  public open class Base()
+    public fun inspect
+    protected fun secret
+    public open var number: Int <computed>
+      get()
+        IntLiteral 1
+      protected set(value)
+    public fun ignored
+  public class Child() : Base(<0 args>)
+    protected fun secret
+  public class User(), Contract
+    public fun combine

@@ -162,6 +162,10 @@ fn requires_coroutine_state(module: &concrete::Module, expression: &concrete::Ex
         concrete::ExprKind::CallableCall { function_type, .. } => {
             return module.function_types[function_type].is_suspend;
         }
+        concrete::ExprKind::MethodCall { callee, .. }
+        | concrete::ExprKind::DirectSuperMethodCall { callee, .. } => {
+            return module.functions[module.callable_function(callee)].is_suspend;
+        }
         concrete::ExprKind::Lambda(_)
         | concrete::ExprKind::AnonymousFunction(_)
         | concrete::ExprKind::CallableReference(_)

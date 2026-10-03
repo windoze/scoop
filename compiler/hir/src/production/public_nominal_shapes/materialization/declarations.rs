@@ -1,6 +1,6 @@
 use super::*;
 use crate::CallableImplementationV1;
-use scoop_identity::{Effect, SignatureTypeKey};
+use scoop_identity::SignatureTypeKey;
 
 impl Graph {
     pub(super) fn requirement(
@@ -20,7 +20,6 @@ impl Graph {
             Requirement::Inheritance { parent, .. } => self.require(owner, parent)?,
             Requirement::Constructor { callable, .. } | Requirement::Slot { callable, .. } => {
                 if !callable.type_parameters().is_empty()
-                    || callable.effects().execution() == Effect::Suspend
                     || matches!(
                         callable.effects().implementation(),
                         CallableImplementationV1::SourceExternScoop

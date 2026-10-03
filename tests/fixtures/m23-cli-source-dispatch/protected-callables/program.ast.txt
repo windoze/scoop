@@ -1,0 +1,110 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  class Completion(), Continuation<Long>
+    public var result: Long = <expr>
+      IntLiteral 0L
+    public var finished: Boolean = <expr>
+      BoolLiteral false
+    public fun resume
+    public fun resumeWithException
+  class Task(val source: Source), SuspendTask<Long>
+    public suspend fun run
+  fun main()
+    val first
+      MethodCall observe
+        Call source
+        IntLiteral 19
+        Var Argument
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            FieldAccess _1
+              Var first
+            IntLiteral 5L
+          Binary Eq
+            FieldAccess _2
+              Var first
+            IntLiteral 19
+        Binary RefEq
+          FieldAccess _3
+            Var first
+          Var Argument
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            FieldAccess _4
+              Var first
+            IntLiteral 1L
+          Binary Eq
+            FieldAccess _5
+              Var first
+            IntLiteral 13
+        Binary Eq
+          FieldAccess _6
+            Var first
+          IntLiteral 13
+    val second
+      MethodCall observe
+        Call child
+        StringLiteral "generic"
+        Var Argument
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            FieldAccess _1
+              Var second
+            IntLiteral 5L
+          Binary Eq
+            FieldAccess _2
+              Var second
+            StringLiteral "generic"
+        Binary RefEq
+          FieldAccess _3
+            Var second
+          Var Argument
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            FieldAccess _4
+              Var second
+            IntLiteral 1L
+          Binary Eq
+            FieldAccess _5
+              Var second
+            IntLiteral 2
+        Binary Eq
+          FieldAccess _6
+            Var second
+          IntLiteral 13
+    Call verifyDispatch
+      Binary Eq
+        MethodCall observe
+          Call abstractValue
+          IntLiteral 23
+        TupleLiteral
+          IntLiteral 23
+          IntLiteral 17
+    val completion
+      Call Completion
+    Call startCoroutine
+      Call Task
+        Call child
+      Var completion
+    Call verifyDispatch
+      Binary And
+        FieldAccess finished
+          Var completion
+        Binary Eq
+          FieldAccess result
+            Var completion
+          IntLiteral 1L

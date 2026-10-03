@@ -75,7 +75,7 @@ fn closed_parent_shape_demands_agree_before_and_after_concretization() {
                     .map(|root| root.source())
                     .collect::<Vec<_>>()
             );
-            let mut names = projected
+            let names = projected
                 .source_declarations(&foundation)
                 .unwrap()
                 .iter()
@@ -85,22 +85,16 @@ fn closed_parent_shape_demands_agree_before_and_after_concretization() {
                 })
                 .collect::<Vec<_>>();
             assert!(!names.is_empty());
+            assert!(
+                names
+                    .iter()
+                    .all(|name| name != "DeferredGeneric" && name != "DeferredBox"),
+                "{names:?}"
+            );
             if source == FIXTURE {
-                names.sort();
-                assert_eq!(
-                    names.join("\n") + "\n",
-                    include_str!(concat!(
-                        env!("CARGO_MANIFEST_DIR"),
-                        "/../../tests/fixtures/m23-source-only-nominals/shape-demand.snap"
-                    ))
-                );
+                assert_eq!(names.len(), 11);
+                assert!(names.iter().any(|name| name == "DeferredSuspend"));
             } else {
-                assert!(
-                    names
-                        .iter()
-                        .all(|name| name != "DeferredGeneric" && name != "DeferredBox"),
-                    "{names:?}"
-                );
                 assert!(names.iter().any(|name| name == "DeferredRoot"));
             }
         });

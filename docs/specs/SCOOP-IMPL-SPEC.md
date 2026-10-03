@@ -206,6 +206,10 @@ M24起class body member sum增加独立`ReleaseBlock`。`release`只在class mem
 
 core 默认导入按公开 binding 收集普通值，包含独立 object 的 `ObjectValue`；裸值引用与限定成员访问使用同一个 singleton identity 和初始化路径。object 名称仍服从既有词法、显式导入及同包名称的优先级，不建立仅供默认导入使用的单例或成员声明。
 
+具有闭合签名的 suspend 成员与普通成员使用同一名义声明物化闭包；suspend effect 本身不阻止其 owner、接口槽或实际正文物化。HIR 按已选声明产生 LocalConcrete，MIR 保留源码语义签名及既有协程物理签名，发布实际 callable binding，供下游通过同一接口／虚调用路径消费。未绑定泛型仍等待实际 application；该补全不改变协程 ABI 或新增平行导出表。
+
+协程调用所需的隐式失败构造器从同一次 executable expression 遍历收集，覆盖普通 Call、MethodCall、DirectSuperMethodCall 及函数值调用的实际 suspend target。依赖选择在 MIR 生成状态机之前完成，不因成员调用保留独立节点而漏掉现有 IllegalStateException 初始化入口。
+
 数组的隐式 application 从当前 core 声明或已导入 core 协议取得同一 typed owner，不复制外来声明到本地 class arena。Export HIR 的数组 assembly 保存完整 `TypeId` 作为结果类型，允许本地与外来数组 application；LocalConcrete HIR 再统一解析为具体 class。依赖调用的实参映射保留每个元素／spread 的源码索引，命名整数组直接使用显式值，省略时按实际协议选择默认模板或新空数组；所有显式表达式先求值，再按形参序物化参数。共有模板消费直接重建已有数组节点与实际成员调用，复用普通具体化、数组表示和运行时操作，不增加数组专用产物格式、来源资格或第二套布局验证。
 
 `Array(source)`／`MutableArray(source)` 从实际 intrinsic 数组声明建立转换候选，分别以另一数组种类的同元素 application 为唯一必需参数。导入候选在同一名称层的声明准备阶段解析真实 owner binder 和完整参数类型，与本地构造共用参数映射、约束求解、固定 typealias 及 MSC；不得以当前调用已推断的类型替代声明签名参与候选比较。选中后直接生成完整目标类型的 `ArrayClone`，沿既有泛型正文、默认值、布局与 GC 路径执行，不补造源码 constructor 或机器 callable。数组转换和 `Ptr` 构造都是 intrinsic registry 规定的封闭源码入口。

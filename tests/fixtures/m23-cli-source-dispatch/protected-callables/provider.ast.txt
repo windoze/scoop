@@ -1,0 +1,33 @@
+SourceFile
+  RootPackage
+  public interface Bound
+  public open class Source()
+    protected fun direct
+    protected fun raw
+    protected infix fun joined
+    protected operator fun contains
+    protected suspend fun waitFor
+    protected fun identity
+    protected fun bounded
+    protected fun virtual
+    protected var stored: Int = <expr>
+      IntLiteral 1
+    protected open val computed: Int <computed>
+      get()
+        Var stored
+    public var exposed: Int <computed>
+      get()
+        Var stored
+      protected set(replacement)
+        assign stored
+          Var replacement
+    private fun ignored
+    public fun publicOnly
+  public class Child() : Source(<0 args>)
+    protected fun virtual
+    protected final override val computed: Int <computed>
+      get()
+        IntLiteral 2
+  public abstract class Abstract()
+    protected fun obligation
+    protected abstract val required: Int <abstract>

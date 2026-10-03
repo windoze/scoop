@@ -1,27 +1,27 @@
 use super::*;
 
 #[test]
-fn initialization_and_object_ids_follow_materialized_entities_after_skipped_declarations() {
+fn initialization_and_object_ids_follow_materialized_entities() {
     with_hir_source(&fixture("initialization-demand"), |output, _| {
         let export = output.output().export.module();
         let local = output.output().local.module();
         assert_eq!(export.objects.len(), 3);
-        assert_eq!(local.objects.len(), 2);
+        assert_eq!(local.objects.len(), 3);
         assert_eq!(local.companion_relations.len(), 1);
-        assert_eq!(local.initialization_units.len(), 3);
-        assert_eq!(local.initialization_failure_roots.len(), 3);
+        assert_eq!(local.initialization_units.len(), 4);
+        assert_eq!(local.initialization_failure_roots.len(), 4);
         assert!(!nominal_names(local).contains("DeferredHost"));
+        assert!(nominal_names(local).contains("DeferredRegistry"));
         for (_, unit) in local.initialization_units.iter() {
             assert!(!local.functions[unit.initializer].is_suspend);
             assert!(!local.functions[unit.ensure].is_suspend);
         }
         for (id, object) in local.objects.iter() {
-            let (source_id, source) = export
+            let (_, source) = export
                 .objects
                 .iter()
                 .find(|(source, _)| export.nominal_identities[*source] == object.origin)
                 .unwrap();
-            assert_ne!(source_id.into_raw(), id.into_raw());
             let object_type = local.object_types[object.object_type];
             let value = local.singleton_values[object.singleton_value];
             let root = &local.singleton_published_roots[value.published_root];
