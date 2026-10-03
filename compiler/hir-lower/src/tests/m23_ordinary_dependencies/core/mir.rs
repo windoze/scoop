@@ -35,7 +35,6 @@ pub(super) fn check(output: &DependencyHirOutput) {
                 .implementation()
         );
     }
-    super::assert_core_snapshot("mir", &scoop_mir::dump(mir.module()));
 }
 
 fn selected(output: &DependencyHirOutput) -> SelectedExternalMirSet {

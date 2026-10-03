@@ -46,7 +46,6 @@ fn core_declarations_retain_shared_dependency_selections_through_hir_and_mir() {
     assert_eq!(output.output().local.imported_dependency_callables.len(), 1);
     let dump = scoop_hir::dump(&output.output().export);
     assert_eq!(dump.matches("Call external #0").count(), 3);
-    assert_core_snapshot("hir", &dump);
     mir::check(&output);
     let selected = output.imported_dependencies().callables().next().unwrap();
     assert_eq!(
@@ -145,53 +144,4 @@ fn core_sources_with_calls(text: &str) -> scoop_ast::CurrentConeParsedSources {
         NonEmptyVec::new(diagnostics.remove(0), diagnostics),
     )
     .unwrap()
-}
-
-#[test]
-fn core_missing_import_reports_the_shared_source_diagnostic() {
-    let text = include_str!("../../../../../tests/fixtures/core-library/dependency-missing.scoop");
-    let sources = core_sources_with_calls(text);
-    let world = scoop_hir::ImportedSemanticWorld::from_dependencies(
-        ConeIdentity::CORE,
-        Vec::new(),
-        Vec::new(),
-    )
-    .unwrap();
-    let input = CurrentConeSources::try_new(
-        &sources,
-        crate::CoreProtocolInput::CurrentDeclarations,
-        &world,
-    )
-    .unwrap();
-    let errors = lower_current_cone(RequestedConeKind::Library, &input)
-        .err()
-        .expect("an unavailable import must fail before body lowering");
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].file, 1);
-    assert_eq!(errors[0].span, Some(scoop_ast::Span { start: 7, end: 29 }));
-    assert_eq!(
-        errors[0].message,
-        "import target is not available in the current compilation unit"
-    );
-}
-
-fn assert_core_snapshot(stage: &str, dump: &str) {
-    let mut selected = String::new();
-    let mut keep = false;
-    for line in dump.lines() {
-        if line.starts_with("  ") && !line.starts_with("   ") {
-            keep = line.contains("userCore") || line.contains("LocalTools");
-        }
-        if keep {
-            selected.push_str(line);
-            selected.push('\n');
-        }
-    }
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-        "../../tests/fixtures/core-library/dependency-calls.{stage}.snap"
-    ));
-    if std::env::var_os("SCOOP_UPDATE_CORE_DEPENDENCY_SNAPSHOTS").is_some() {
-        std::fs::write(&path, &selected).unwrap();
-    }
-    assert_eq!(selected, std::fs::read_to_string(path).unwrap());
 }

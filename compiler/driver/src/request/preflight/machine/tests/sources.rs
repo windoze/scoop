@@ -65,38 +65,3 @@ pub(super) fn core_sources_with(additional: &[(&str, &str)]) -> CurrentConeParse
     )
     .unwrap()
 }
-
-pub(super) fn snapshot(stage: &str, dump: &str) {
-    let mut sections = Vec::<String>::new();
-    for line in dump.lines() {
-        if line.starts_with("  ")
-            && !line.starts_with("   ")
-            && !(stage == "lir" && line.starts_with("  block "))
-        {
-            sections.push(String::new());
-        }
-        if let Some(section) = sections.last_mut() {
-            section.push_str(line);
-            section.push('\n');
-        }
-    }
-    let result = sections
-        .into_iter()
-        .filter(|section| {
-            section.contains("userCore")
-                || section.contains("LocalTools")
-                || section.contains("external-fn")
-        })
-        .collect::<String>();
-    assert!(
-        !result.is_empty(),
-        "the golden must contain the fixture functions"
-    );
-    let path = crate::workspace_root().join(format!(
-        "tests/fixtures/core-library/dependency-calls.driver-{stage}.snap"
-    ));
-    if std::env::var_os("SCOOP_UPDATE_CORE_DEPENDENCY_SNAPSHOTS").is_some() {
-        std::fs::write(&path, &result).unwrap();
-    }
-    assert_eq!(result, std::fs::read_to_string(path).unwrap());
-}

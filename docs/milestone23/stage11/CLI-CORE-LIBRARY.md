@@ -58,3 +58,26 @@ consumer 源码后独立链接，分别以普通与移动 GC 运行。原独立 
 本批增加 13 个 artifact 指纹；最终只读运行共 **13 用例／70 进程／82 份 golden**，
 30 个产物指纹全部匹配。core 综合 producer 与发布失败单元测试通过，格式化、
 Python lint 和完整 workspace clippy 通过。本批没有启用快照更新。
+
+## 依赖调用与当前 core
+
+`tests/fixtures/m23-cli-core-dependencies` 接管原 `dependency-calls.scoop`、
+`dependency-locals.scoop` 和 `dependency-missing.scoop`，共 3 用例／13 进程／
+22 份完整阶段与链接计划 golden，固定 6 个产物指纹。缺失 import 保持 CORE 身份、
+`src/dependency-calls.scoop`、span 7–29 和原完整错误消息。
+
+原 HIR／machine 测试给当前 CORE 注入手工依赖语义表；对应真实 manifest 图会形成
+core→helper→core 环，已有普通 graph 单元测试明确拒绝这个环。因此保留原核心
+protocol、共享 callable 选择、缺失 MIR／LIR projection、公共桥与外部引用的 typed
+单元检查，不把该内存模型声称为可构建产物。正式 CLI 分别验证两种合法场景：
+
+- `ordinary` 从真实 `test:core-helper:1.0.0` 产物导入 `dependency.api.run`，
+  原普通函数与两条分支保留三个 external 调用点。
+- `core-local` 在真实 core 中编译原文件与普通 package 声明，验证同一源码规则。
+
+两种场景的独立下游均实际执行三个调用并检查计数，移走源码后独立链接及移动 GC
+运行。新完整 golden 保留 Boolean 短路、const 属性、对象初始化、ABI 与机器调用；
+原手工 core 的局部 arena 编号和符号随真实 provider／consumer 归属变化。
+旧 HIR 单测的 MIR 快照另有既存的全体 function 编号 +3 差异，控制流与值未变化。
+删除原 5 份文件快照及两个快照 helper，保留的 2 项 HIR 与 1 项 driver typed
+单元测试通过。最终 CLI 只读运行、格式化和 workspace lint 均通过。
