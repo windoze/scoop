@@ -40,19 +40,28 @@ fn common_reference_metadata_preserves_each_actual_call_and_its_route() {
                         hir::ExternalHirTargetV1::Callable(actual.declaration())
                     );
                     assert_eq!(site.arguments().len(), actual.arguments().len());
-                    let mut routes = actual
-                        .binding()
-                        .expect("source import route")
-                        .sources()
-                        .collect::<Vec<_>>();
-                    routes.sort_unstable();
-                    assert_eq!(
-                        site.witness_indices()
-                            .iter()
-                            .map(|index| &reference.witnesses().witnesses()[*index as usize])
-                            .collect::<Vec<_>>(),
-                        routes
-                    );
+                    if let Some(binding) = actual.binding() {
+                        let mut routes = binding.sources().collect::<Vec<_>>();
+                        routes.sort_unstable();
+                        assert_eq!(
+                            site.witness_indices()
+                                .iter()
+                                .map(|index| &reference.witnesses().witnesses()[*index as usize])
+                                .collect::<Vec<_>>(),
+                            routes
+                        );
+                        assert!(matches!(
+                            site.reason(),
+                            hir::HirDependencyCallReasonV1::SourceBinding(_)
+                        ));
+                    } else {
+                        assert_eq!(
+                            site.reason(),
+                            &hir::HirDependencyCallReasonV1::SourceDeclaration
+                        );
+                        assert!(site.witness_indices().is_empty());
+                        assert!(site.position().root.generated_template().is_some());
+                    }
                     foundation
                         .validate_executable_evaluation_origin(
                             output.output().export.cone,

@@ -1,0 +1,21 @@
+Module
+  fun run @fn0(value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  fun rejected @fn1() -> Boolean
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call $call.1: Boolean = @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.1
+  output library

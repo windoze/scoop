@@ -1,0 +1,19 @@
+SourceFile
+  QualifiedPackage dependency.api
+    @Global
+  private var mode: Boolean = <expr>
+    @Global
+  private var calls: Int = <expr>
+  public fun configure(value: Boolean)
+    assign mode
+      Var value
+    assign calls
+      IntLiteral 0
+  public fun callCount(): Int
+    =
+      Var calls
+  public fun run(): Boolean
+    compound-assign Add
+      IntLiteral 1
+    return
+      Var mode

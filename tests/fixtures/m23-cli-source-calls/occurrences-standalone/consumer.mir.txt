@@ -1,0 +1,10 @@
+Module
+  fun repeated @fn0() -> Boolean
+    bb0 entry
+      call $call.1: Boolean = external0 direct
+      call $call.2: Boolean = external0 direct
+      call $call.3: Boolean = external0 direct
+      return
+        Type Boolean
+        Local $call.3
+  output library

@@ -22,21 +22,63 @@ fn fixture_root() -> PathBuf {
 #[test]
 fn actual_dependency_call_occurrences_keep_shared_targets_and_distinct_origins() {
     for name in ["standalone", "routes", "combined", "rejected"] {
-        let output = lower(&fixture(name));
-        let calls = output.committed_dependency_call_occurrences().unwrap();
+        let source = fixture(name);
+        let output = lower(&source);
+        let (calls, declaration_calls): (Vec<_>, Vec<_>) = output
+            .committed_dependency_call_occurrences()
+            .unwrap()
+            .into_iter()
+            .partition(|call| call.binding().is_some());
         assert_eq!(
-            output.imported_dependencies().callable_count(),
+            output
+                .imported_dependencies()
+                .callables()
+                .filter(|callable| callable.provider() != scoop_identity::ConeIdentity::CORE)
+                .count(),
             usize::from(name != "rejected")
         );
-        let dump = render(&output, &calls);
-        if let Some(directory) = std::env::var_os("SCOOP_CALL_OCCURRENCE_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&directory).unwrap();
-            std::fs::write(PathBuf::from(directory).join(format!("{name}.snap")), dump).unwrap();
-        } else {
+        let core = output
+            .imported_dependencies()
+            .callables()
+            .filter(|callable| callable.provider() == scoop_identity::ConeIdentity::CORE)
+            .collect::<Vec<_>>();
+        assert_eq!(core.len(), usize::from(name == "combined"));
+        assert_eq!(!declaration_calls.is_empty(), name == "combined");
+        for call in declaration_calls {
+            assert_eq!(call.declaration(), core[0].interface().declaration());
             assert_eq!(
-                dump,
-                std::fs::read_to_string(fixture_root().join(format!("{name}.snap"))).unwrap()
+                core[0].interface().effects().operator_role(),
+                hir::CallableOperatorRoleV1::Language(hir::CallableOperatorV1::Equals)
             );
+            assert!(call.position().root.generated_template().is_some());
+            assert_eq!(call.arguments().len(), 2);
+            let local = output.output().local.module();
+            assert!(
+                call.arguments()
+                    .iter()
+                    .all(|argument| local.types[argument.ty].kind
+                        == hir::concrete::TypeKind::Boolean)
+            );
+            assert_eq!(
+                local.types[call.result_type()].kind,
+                hir::concrete::TypeKind::Boolean
+            );
+        }
+        for call in &calls {
+            let origin = call.origin();
+            let token =
+                &source[origin.definition.span.start as usize..origin.definition.span.end as usize];
+            assert!(["run()", "direct()", "forwarded()"].contains(&token));
+            if origin.definition.context == origin.evaluation.context {
+                assert_eq!(origin.definition.span, origin.evaluation.span);
+            } else {
+                assert_eq!(token, "run()");
+                assert_eq!(
+                    &source[origin.evaluation.span.start as usize
+                        ..origin.evaluation.span.end as usize],
+                    "withDefault()"
+                );
+            }
         }
         match name {
             "standalone" => {
@@ -70,6 +112,7 @@ fn actual_dependency_call_occurrences_keep_shared_targets_and_distinct_origins()
                 );
             }
             "combined" => {
+                assert_eq!(calls.len(), 18);
                 let defaults = calls
                     .iter()
                     .filter(|call| {
@@ -123,50 +166,4 @@ fn occurrence_positions_do_not_depend_on_unrelated_arena_entries() {
             .collect::<Vec<_>>()
     };
     assert_eq!(positions(&baseline), positions(&extended));
-}
-
-fn render(
-    output: &hir::DependencyHirOutput,
-    calls: &[hir::CommittedDependencyCallOccurrence<'_>],
-) -> String {
-    let mut rows = Vec::new();
-    for call in calls {
-        let origin = call.origin();
-        let (definition, _) = output
-            .output()
-            .export
-            .source_context_names(origin.definition.context);
-        let (evaluation, _) = output
-            .output()
-            .export
-            .source_context_names(origin.evaluation.context);
-        let hops = call
-            .binding()
-            .expect("source import route")
-            .sources()
-            .map(|source| source.route().hops().len().to_string())
-            .collect::<Vec<_>>()
-            .join(",");
-        rows.push((
-            root_name(output.output().local.module(), call.position().root),
-            call.position().expression_index,
-            format!(
-                "routes=[{hops}] definition={definition}@{}..{} evaluation={evaluation}@{}..{}",
-                origin.definition.span.start,
-                origin.definition.span.end,
-                origin.evaluation.span.start,
-                origin.evaluation.span.end
-            ),
-        ));
-    }
-    rows.sort();
-    let mut result = format!(
-        "selected={} occurrences={}\n",
-        output.imported_dependencies().callable_count(),
-        calls.len()
-    );
-    for (root, index, source) in rows {
-        result.push_str(&format!("{root} #{index}: {source}\n"));
-    }
-    result
 }

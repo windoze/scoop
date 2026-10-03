@@ -1,0 +1,17 @@
+Module
+  fun @scoop$1$cb$86744300216f839ae95e884ff590d235ebd141e7a039643f7eff6da548e2291c(i1) -> i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret param0
+  fun @scoop$1$cb$8d0f5d4a48c99fa5924b16539d73e9057246fbf924e3268514b2b1aca0263b7d() -> i1
+    local %0 $argument.0: i1
+    local %1 $parameter.value: i1
+    local %2 $call.1: i1
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store true -> local0
+    store local0 -> local1
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i1) -> i1 local-fn0(local1)
+    store t0 -> local2
+    ret local2
+  output library

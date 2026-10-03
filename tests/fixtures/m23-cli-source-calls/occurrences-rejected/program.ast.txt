@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.configure
+  ImportExact Local dependency.api.callCount
+  fun verifyCalls(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call configure
+      BoolLiteral false
+    Call verifyCalls
+      Call rejected
+    Call verifyCalls
+      Binary Eq
+        Call callCount
+        IntLiteral 0
+    Call configure
+      BoolLiteral true
+    Call verifyCalls
+      Call rejected
+    Call verifyCalls
+      Binary Eq
+        Call callCount
+        IntLiteral 0

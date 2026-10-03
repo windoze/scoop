@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.run
+  public fun repeated(): Boolean
+    Call run
+    Call run
+    return
+      Call run
