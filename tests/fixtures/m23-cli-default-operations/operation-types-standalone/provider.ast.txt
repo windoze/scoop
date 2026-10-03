@@ -1,0 +1,16 @@
+SourceFile
+  RootPackage
+  public class Values()
+    public fun unit
+    public fun boolean
+    public fun byte
+    public fun short
+    public fun int
+    public fun long
+    public fun ubyte
+    public fun ushort
+    public fun uint
+    public fun ulong
+    public fun string
+    public fun throwable
+    public fun state

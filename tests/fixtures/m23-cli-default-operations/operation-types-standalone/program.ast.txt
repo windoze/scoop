@@ -1,0 +1,119 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val values
+      Call defaultValues
+    Call verifyDefault
+      Binary Eq
+        MethodCall unit
+          Var values
+          UnitLiteral
+        UnitLiteral
+    Call verifyDefault
+      MethodCall boolean
+        Var values
+        BoolLiteral true
+    val byte: Int8
+      Unary Neg
+        IntLiteral 7
+    val short: Int16
+      Unary Neg
+        IntLiteral 11
+    val int: Int
+      Unary Neg
+        IntLiteral 13
+    val long: Long
+      Unary Neg
+        IntLiteral 17L
+    val ubyte: UInt8
+      IntLiteral 251u
+    val ushort: UInt16
+      IntLiteral 65521u
+    val uint: UInt
+      IntLiteral 4294967291u
+    val ulong: ULong
+      IntLiteral 18446744073709551557uL
+    Call verifyDefault
+      Binary Eq
+        MethodCall byte
+          Var values
+          Var byte
+        Var byte
+    Call verifyDefault
+      Binary Eq
+        MethodCall short
+          Var values
+          Var short
+        Var short
+    Call verifyDefault
+      Binary Eq
+        MethodCall int
+          Var values
+          Var int
+        Var int
+    Call verifyDefault
+      Binary Eq
+        MethodCall long
+          Var values
+          Var long
+        Var long
+    Call verifyDefault
+      Binary Eq
+        MethodCall ubyte
+          Var values
+          Var ubyte
+        Var ubyte
+    Call verifyDefault
+      Binary Eq
+        MethodCall ushort
+          Var values
+          Var ushort
+        Var ushort
+    Call verifyDefault
+      Binary Eq
+        MethodCall uint
+          Var values
+          Var uint
+        Var uint
+    Call verifyDefault
+      Binary Eq
+        MethodCall ulong
+          Var values
+          Var ulong
+        Var ulong
+    Call verifyDefault
+      Binary Eq
+        MethodCall string
+          Var values
+          StringLiteral "string"
+        StringLiteral "string"
+    val error
+      Call IllegalStateException
+    Call verifyDefault
+      Binary RefEq
+        MethodCall throwable
+          Var values
+          Var error
+        Var error
+    Call verifyDefault
+      Binary Eq
+        MethodCall state
+          Var values
+          FieldAccess Registered
+            Var ForeignCallbackState
+        FieldAccess Registered
+          Var ForeignCallbackState
+    Call verifyDefault
+      Binary Eq
+        MethodCall state
+          Var values
+          FieldAccess Completed
+            Var ForeignCallbackState
+        FieldAccess Completed
+          Var ForeignCallbackState
