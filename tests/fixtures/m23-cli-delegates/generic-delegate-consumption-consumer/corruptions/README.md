@@ -10,3 +10,5 @@
 - `missing-initializer-callable`：删除实际 initializer callable registration，拒绝 SurfaceMismatch。
 
 原有效产物先完成正常及 moving GC 运行。每个损坏变体由相同原 downstream 源码经正式 `scoop build` 消费，检查完整诊断且不得发布请求的 `.slib`。格式或生产内容改变时需要重新审阅向量，不放宽摘要或错误条件。
+
+M24 迁移对照原有效产物与当前正式产物，确认上述 registration 表未改变后，保留相同的删除与交换；当前 TypeDescriptor 的显式 release policy 和实际定义摘要完整保留。按共有编码重新生成 member、LIR semantic 和 artifact 摘要，并核对二进制替换得到的完整产物与迁移结果一致。

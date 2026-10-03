@@ -319,7 +319,7 @@ runtime 用 type registration 的 exact ID 与 body-v2 tag 5 得到预期 hook b
 | unsafe/native | 缺 Unsafe、Safe 嵌套、Scoop ABI extern、非 C-safe 参数/结果、native TLS bridge |
 | artifact | 旧/混合版本、未知 tag、错误 owner/字段/ABI、TD hook relocation、body/registration 缺失、错误 role/discriminator、共同 ODR 定义冲突 |
 
-调用错误主位置是 release 内实际调用；callee 声明和默认值原定义位置作为已有 note。依赖方错误仍引用真实 provider canonical source，不能要求恢复本地 provider 源文件。
+调用错误使用 release 内实际调用或触发隐式操作的表达式位置；callee 声明和默认值原定义位置沿已有诊断路径保留。依赖方错误仍引用真实 provider canonical source，不能要求恢复本地 provider 源文件。
 
 ### 5.2 独立与组合 fixture
 

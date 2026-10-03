@@ -58,7 +58,7 @@ checks = []
 
 [[steps]]
 name = "original_bytes"
-checks = [{"file" = "${work}/original.slib", "sha256" = "1acf2d5a0d5624a888116a148af655cc1a2a5f4ea161b5ac62ca32e1d2395de3"}]
+checks = [{"file" = "${work}/original.slib", "sha256" = "88071380bdaa5329cf3a780e4827d125be6fabc859e8ce9740492f2c8f96d7d4"}]
 
 [[steps]]
 name = "damage_member"

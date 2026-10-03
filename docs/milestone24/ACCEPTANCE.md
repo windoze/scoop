@@ -27,7 +27,7 @@
 
 ## 尚未完成
 
-最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至九批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+最终格式基线已完成迁移，仍须对最终工具执行一次无更新模式的完整正式 CLI 回归。已经完成的源码和依赖闭环见第三至九批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
 
 ## 第二批：ReleaseValue 与 NoTransition
 
@@ -93,3 +93,12 @@
 - 八项独立 negative 覆盖不合格 operator/getter、managed 解构、普通 Iterator.next、vararg 分配、Scoop ABI extern、suspend 和匿名函数，精确锁定 canonical 诊断。普通 Iterator override 必须保留既有 MayGc 合同；本批没有放宽 override 规则或新增 effect 系统。
 - 格式化与全 workspace/all-targets clippy 通过。原 runner 无更新模式 `--filter 'release-*' --jobs 12` 对全部 M24 用例退出码为 0：91/91，通过 191 次进程执行、88 份 stage/plan golden，报告为 `tmp/m24/complete-m24-acceptance/report.json`。
 - 已从当前源码重新构建三个正式命令并保存于 `tmp/m24/final-tools/`，用于最终全仓库回归。此前各批固定工具和验收报告继续保留。
+
+## 第十批：最终源码与格式基线
+
+- 最终源码的完整 `cargo test --workspace --no-fail-fast` 退出码为 0：43 组共 5,244 项通过，0 失败、0 忽略；日志为 `tmp/m24/logs/final-workspace-tests.log`。Python runner 的 29 项单元测试全部通过，日志为 `tmp/m24/logs/final-python-tests.log`。
+- 首次使用最终工具的无更新全量运行在确认旧基线差异后中断，退出码为 130：147 项通过、262 项失败、1,749 项中断；报告 `tmp/m24/final-all-acceptance/report.json` 保留该结果。随后对全部 2,158 项执行开发用快照迁移，1,860 项通过、298 项停在摘要断言；该迁移报告为 `tmp/m24/final-baseline-update/report.json`，不作为最终全量通过证据。
+- 逐层摘要复核由原 runner 完成，最后一批为 `tmp/m24/final-baseline-followup-7/report.json`。审阅的文本差异中，1,845 份 stage golden 只增加显式 `release_policy: None`，352 份期望只改变摘要；源程序、退出码和语言错误断言保持原内容。
+- 两处二进制向量随当前格式迁移：委托用例保留五种原 registration 删除或交换，optional/required member 用例保留原 capability 与 requirement。重新计算实际 member、语义及产物摘要后，原 reader/linker 到达原有验收边界；两项用例均通过，覆盖 26 次进程执行、19 份 stage/plan golden，报告为 `tmp/m24/final-vector-recheck/report.json`。该轮使用开发用快照更新，最终仍由无更新全量运行复核。
+- 本批格式化、全 workspace/all-targets clippy 和 `git diff --check` 通过。新 Rust 子模块按职责拆分；新增文件中最长的 660 行是从原模块移出的 MIR 验证错误定义，其余新增文件均不超过 339 行。
+- 清理已结束和中断批次的私有 cases/cache，释放约 48 GiB；报告、日志和固定工具继续保留在仓库 `tmp/m24/`。
