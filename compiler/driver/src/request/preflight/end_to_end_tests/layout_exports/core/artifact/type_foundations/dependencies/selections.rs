@@ -86,10 +86,10 @@ fn reject(
         .find(|record| record.owner() == owner)
         .unwrap();
     let mut slots = record.slots().records().to_vec();
-    let replacement_slot = replacement.slot();
+    let replacement_key = replacement.key();
     *slots
         .iter_mut()
-        .find(|slot| slot.slot() == replacement_slot)
+        .find(|slot| slot.key() == replacement_key)
         .unwrap() = replacement;
     *record = NominalInheritanceInterfaceV1::try_new(
         record.edges().clone(),
