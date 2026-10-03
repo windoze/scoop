@@ -1,6 +1,0 @@
-Base: Base.compute -> concrete Base.compute
-Generic: Generic.value -> default Generic.value
-Leaf: Base.compute -> concrete Leaf.compute
-Leaf: Generic.value -> default Refined.value
-Leaf: Refined.value -> default Refined.value
-Refined: Refined.value -> default Refined.value

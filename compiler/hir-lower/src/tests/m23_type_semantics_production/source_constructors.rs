@@ -60,9 +60,6 @@ fn constructors_project_all_visibilities_defaults_and_struct_representation() {
             );
             assert_eq!(payload.modality(), hir::CallableModalityV1::Final);
             *owners.entry(names[&owner]).or_insert(0) += 1;
-            *visibilities
-                .entry(payload.declared_visibility())
-                .or_insert(0) += 1;
         }
         assert_eq!(
             owners,

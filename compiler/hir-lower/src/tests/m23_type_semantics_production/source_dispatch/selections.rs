@@ -3,7 +3,6 @@ use hir::{
     InheritanceCallableDeclarationV1 as Callable, InheritanceSourceSlotSelectionV1 as Selection,
 };
 
-mod render;
 mod shared;
 
 const SELECTIONS: &str = include_str!(concat!(

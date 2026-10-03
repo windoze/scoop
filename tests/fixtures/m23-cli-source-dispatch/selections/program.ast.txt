@@ -1,0 +1,83 @@
+SourceFile
+  RootPackage
+  fun verifyDispatch(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val concrete
+      Call complete
+    val pending: Pending
+      Var concrete
+    val obligation: Obligation
+      Var pending
+    Call verifyDispatch
+      Binary And
+        Binary And
+          Binary Eq
+            MethodCall evaluate
+              Var concrete
+            IntLiteral 4
+          Binary Eq
+            MethodCall evaluate
+              Var obligation
+            IntLiteral 4
+        Binary Eq
+          FieldAccess value
+            Var pending
+          IntLiteral 2
+    val selected
+      Call winner
+    val root: Root
+      Var selected
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall evaluate
+            Var root
+          IntLiteral 5
+        Binary Eq
+          FieldAccess value
+            Var root
+          IntLiteral 6
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall evaluate
+            Var Singleton
+          IntLiteral 5
+        Binary Eq
+          FieldAccess value
+            Var Singleton
+          IntLiteral 6
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall evaluate
+            Call Value
+          IntLiteral 7
+        Binary Eq
+          FieldAccess value
+            Call Value
+          IntLiteral 2
+    Call verifyDispatch
+      Binary And
+        Binary Eq
+          MethodCall evaluate
+            FieldAccess One
+              Var Choice
+          IntLiteral 8
+        Binary Eq
+          FieldAccess value
+            FieldAccess One
+              Var Choice
+          IntLiteral 2
+    val original: Virtual
+      Call finalValue
+    Call verifyDispatch
+      Binary Eq
+        MethodCall compute
+          Var original
+        IntLiteral 10

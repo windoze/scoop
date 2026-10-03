@@ -10,3 +10,6 @@
 | 参数协议 | `parameter-protocols` | 7／13／4 | 显式／省略默认实参、泛型 identity、零参数和默认字段构造；普通值 4 与显式值 9 |
 | 属性派发 | `properties`、`property-direct` | 14／26／8 | 实际读写、private／protected／internal setter、接口默认属性、派生覆盖、值类型及 object 属性 |
 | protected 绑定与签名 | `protected-binding`、`protected-direct`、`protected-signatures` | 21／39／12 | 嵌套 owner、泛型边界、Long 直接调用、嵌套 tuple 返回；仅由合法 owner 入口访问 |
+| 实际选择与泛型继承 | `selections`、`shared-selections` | 14／26／8 | 重新抽象、final override、接口默认实现、Int／String 泛型 owner；保持 source callable ID、role、完整选择数量及 wire roundtrip／拒绝用例，删除两份摘要快照和专用 render 模块 |
+
+14 例合计 98 个进程、182 份阶段／计划 golden、56 份固定产物指纹全部通过只读复验。与 suspend 修复前已成功生成的 152 份阶段输出相比，146 份逐字相同，其余六份只涉及 callable 用例的闭合 suspend 接口物化。五份旧摘要快照和两段专用文本 render 实现已退役；完整 HIR 1294 项及 workspace lint 通过。
