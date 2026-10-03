@@ -3,9 +3,11 @@ use super::*;
 mod callables;
 mod core_protocols;
 mod lexical_callables;
+mod release;
 pub use callables::*;
 pub use core_protocols::*;
 pub use lexical_callables::*;
+pub use release::*;
 
 #[derive(Debug, Clone)]
 pub struct Module {

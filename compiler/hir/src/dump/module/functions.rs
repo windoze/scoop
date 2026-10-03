@@ -35,7 +35,18 @@ pub(super) fn dump_function(module: &Module, function: &Function, out: &mut Stri
     } else {
         ""
     };
-    let attributes = dump_function_attributes(function.attributes);
+    let mut attributes = dump_function_attributes(function.attributes);
+    if let ReleaseCallability::NoTransition { requirements } = &function.release_callability {
+        attributes.push_str(" <no-transition>");
+        if !requirements.is_empty() {
+            let parameters = requirements
+                .iter()
+                .map(|parameter| function.type_param(*parameter).name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            attributes.push_str(&format!(" <requires-release-value {parameters}>"));
+        }
+    }
     let no_gc_requirements = match &function.genericity {
         FunctionGenericity::Plain => &[][..],
         FunctionGenericity::Generic { definition, .. } => {

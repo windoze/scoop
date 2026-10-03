@@ -221,6 +221,7 @@ fn source_key(name: &str, type_parameter_count: u32) -> SourceDeclarationKey {
 fn function(name: &str) -> Function {
     Function {
         signature: crate::CallableSignature {
+            release_callability: Default::default(),
             name: name.to_string(),
             is_suspend: false,
             modifiers: CallableModifiers::default(),

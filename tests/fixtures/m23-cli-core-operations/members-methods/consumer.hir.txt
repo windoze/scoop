@@ -111,7 +111,7 @@ Module
       PrimitiveBinary StringCompareTo : Long
         Local $dependency.receiver : String
         Local $dependency.parameter.other : String
-  fun pure(value: Int): Int <no-gc cdecl>
+  fun pure(value: Int): Int <no-gc cdecl> <no-transition>
     val local1
       Local value : Int
     return

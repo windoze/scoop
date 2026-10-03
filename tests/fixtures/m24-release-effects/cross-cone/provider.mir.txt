@@ -1,0 +1,36 @@
+Module
+  callback cb0 @fn0 -> @fn1 function_type0 id=302213635825d53adb7b66ff5dfa29538decf92bb2b157107661a2b4b82fd60f
+  generated_callable gc0 function=@fn1 id=302213635825d53adb7b66ff5dfa29538decf92bb2b157107661a2b4b82fd60f
+  fun plain @fn0(value: Int) -> Int <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun callback bridge for plain @fn1($result: Ptr<Int>, $arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call $value: Int = @fn0 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $result
+        Type Int
+        Local $value
+      return
+  output library

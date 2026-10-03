@@ -3,7 +3,7 @@ Module
   struct Marker
     field0 text: String
     property0 val text: String getter0=storage <stored struct0-field0>
-  fun shift(value: Int): Int <no-gc cdecl>
+  fun shift(value: Int): Int <no-gc cdecl> <no-transition>
     val local1
       Local value : Int
     val local2
@@ -529,7 +529,7 @@ LocalConcrete f6d58bbe88c1b70d8b41e36a8afbf59b208ef04fb7adb5a5c897845e038b27db E
   coroutines []
 == CrossCone ==
 CrossCone f6d58bbe88c1b70d8b41e36a8afbf59b208ef04fb7adb5a5c897845e038b27db
-  struct_constructors Idx::<StructConstructor>(0) StructConstructor { owner: Idx::<StructDecl>(0), access: DeclarationAccess { declared: Public, lookup: EffectiveLookupDomain(AccessDomain { inhabited: true, constraints: [Cone(ConeIdentity([246, 213, 139, 190, 136, 193, 183, 13, 139, 65, 227, 106, 138, 251, 245, 155, 32, 142, 240, 79, 183, 173, 181, 165, 200, 151, 132, 94, 3, 139, 39, 219]))] }), slot: None }, safety: Safe, no_gc_type_params: [], parameters: [ConstructorParameter { id: ConstructorParamId(0), binding: BindingId(0), definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 46, end: 62 }, context: Idx::<SourceContext>(0) }, name: "text", ty: Idx::<Type>(10) }], kind: Primary, span: Span { start: 32, end: 63 }, origin: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 32, end: 63 }, context: Idx::<SourceContext>(0) } }
+  struct_constructors Idx::<StructConstructor>(0) StructConstructor { owner: Idx::<StructDecl>(0), access: DeclarationAccess { declared: Public, lookup: EffectiveLookupDomain(AccessDomain { inhabited: true, constraints: [Cone(ConeIdentity([246, 213, 139, 190, 136, 193, 183, 13, 139, 65, 227, 106, 138, 251, 245, 155, 32, 142, 240, 79, 183, 173, 181, 165, 200, 151, 132, 94, 3, 139, 39, 219]))] }), slot: None }, safety: Safe, no_gc_type_params: [], release_callability: Unavailable, parameters: [ConstructorParameter { id: ConstructorParamId(0), binding: BindingId(0), definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 46, end: 62 }, context: Idx::<SourceContext>(0) }, name: "text", ty: Idx::<Type>(10) }], kind: Primary, span: Span { start: 32, end: 63 }, origin: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 32, end: 63 }, context: Idx::<SourceContext>(0) } }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Function([Idx::<Type>(1)]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Function([Idx::<Type>(2)]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(2) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Function([Idx::<Type>(3)]) }

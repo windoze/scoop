@@ -528,6 +528,9 @@ impl Lowerer {
         let type_sites = self.validate_gc_free_pointee_requirements();
         self.check_no_gc_types(type_sites);
         self.check_no_gc_functions();
+        if self.diagnostics.is_empty() {
+            self.infer_release_callability();
+        }
 
         self.warnings.sort_by_key(|diagnostic| {
             let span = diagnostic.span.unwrap_or(Span {

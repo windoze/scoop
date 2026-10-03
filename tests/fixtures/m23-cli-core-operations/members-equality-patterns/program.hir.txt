@@ -539,7 +539,7 @@ Module
           IntegerLiteral 0 : Int
     return
       Local $result.23 : Int
-  fun combinedEquality(value: UInt8): Boolean <no-gc cdecl>
+  fun combinedEquality(value: UInt8): Boolean <no-gc cdecl> <no-transition>
     when
       Local value : UInt8
       arm <lit IntegerLiteral(Unsigned8(255))>

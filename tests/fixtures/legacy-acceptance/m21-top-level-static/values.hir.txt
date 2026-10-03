@@ -93,7 +93,7 @@ Module
       Local $dependency.argument.0 : String
     Call println<String> : Unit
       Local $dependency.parameter.value : String
-  fun $get$answer(): Int <no-gc cdecl>
+  fun $get$answer(): Int <no-gc cdecl> <no-transition>
     return
       GlobalRead answer : Int
   fun $get$staticText(): String

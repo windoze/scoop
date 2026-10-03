@@ -145,7 +145,21 @@ fn finish(
         .signatures
         .project_binder_list(&[], &[])
         .map_err(CallableProjectionError::Signature)?;
-    let effects = effects::accessor(attributes).map_err(CallableProjectionError::Effects)?;
+    let effects = match implementation {
+        PropertyAccessorImplementation::Body(function)
+        | PropertyAccessorImplementation::AbstractSlot(function) => {
+            let function = &projection.export.functions[function];
+            let binders = projection
+                .signatures
+                .function_binders(function)
+                .map_err(CallableProjectionError::Signature)?;
+            effects::function(projection.export, function, &binders)
+        }
+        PropertyAccessorImplementation::Storage | PropertyAccessorImplementation::Constant => {
+            effects::accessor(attributes)
+        }
+    }
+    .map_err(CallableProjectionError::Effects)?;
     crate::CallableDeclarationRecordV1::try_new(
         CallableTemplateOrigin::Accessor(accessor),
         interface.owner(),

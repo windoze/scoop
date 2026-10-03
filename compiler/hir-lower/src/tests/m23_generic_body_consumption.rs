@@ -71,7 +71,7 @@ fn with_consumer<T>(
     with_provider_consumer(PROVIDER, source, verify)
 }
 
-fn with_provider_consumer<T>(
+pub(in crate::tests) fn with_provider_consumer<T>(
     provider: &str,
     source: &str,
     verify: impl FnOnce(

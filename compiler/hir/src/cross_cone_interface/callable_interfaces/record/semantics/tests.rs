@@ -16,6 +16,36 @@ mod support;
 use support::*;
 
 #[test]
+fn release_conditions_use_the_existing_complete_signature_scope() {
+    let fixture = Fixture::new();
+    for (depth, index, valid) in [(0, 0, true), (1, 0, true), (2, 0, false), (0, 1, false)] {
+        let mut record = fixture.record().declaration_data().clone();
+        record.effects = crate::CallableSourceEffectsV1::try_new(
+            scoop_identity::Effect::Ordinary,
+            crate::CallableSafetyV1::Safe,
+            scoop_identity::GcEffect::NoGc,
+            crate::CallableImplementationV1::Scoop,
+            crate::CallableOperatorRoleV1::None,
+            crate::CallableInfixV1::Ordinary,
+        )
+        .unwrap()
+        .with_release_callability(crate::CallableReleaseCallabilityV1::NoTransition {
+            requirements: vec![crate::ReleaseValueBinderV1 { depth, index }],
+        })
+        .unwrap();
+        let result = record.validate_semantics(&mut fixture.authority());
+        if valid {
+            assert!(result.is_ok(), "{result:?}");
+        } else {
+            assert!(matches!(
+                result,
+                Err(CallableInterfaceSemanticValidationError::ReleaseRequirement(_))
+            ));
+        }
+    }
+}
+
+#[test]
 fn validates_identity_shape_and_two_frame_signature_scope() {
     let fixture = Fixture::new();
     let record = fixture.record();

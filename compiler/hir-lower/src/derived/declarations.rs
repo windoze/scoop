@@ -75,6 +75,7 @@ impl Lowerer {
         };
         let function = self.functions.alloc(Function {
             signature: hir::CallableSignature {
+                release_callability: Default::default(),
                 name: format!("{}.equals", owner.describe_name(self)),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
@@ -155,6 +156,7 @@ impl Lowerer {
         };
         let function = self.functions.alloc(Function {
             signature: hir::CallableSignature {
+                release_callability: Default::default(),
                 name: format!("{}.equals", self.type_name(owner_ty)),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {

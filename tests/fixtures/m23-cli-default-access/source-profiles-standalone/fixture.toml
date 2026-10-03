@@ -23,7 +23,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "c1aabf034bb3dc785152579724c2ac42011ee77358ef21749342d3b642bc6da3"},]
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "ca8414f1c20e538bf015009ecdea297182af4f10d6276e246033eb0909628190"},]
 
 [[steps]]
 name = "remove_core_source"
@@ -49,7 +49,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${provider.result.root.artifact_fingerprint}", "equals" = "f5d7b99ff3aff876ac5bea85a2c27a992aab8cf760fa66c9d113b251507e5538"},
+  {"actual" = "${provider.result.root.artifact_fingerprint}", "equals" = "d3465a6516133d22cb773ca1af5966a3326c15731e11e90feb72c8a0f69f4b6b"},
   {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
   {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
   {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
@@ -72,7 +72,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${exposed.result.root.artifact_fingerprint}", "equals" = "78f1c6c95576253e899f7bb76495878175d3e03d3761f178ca98230956af69af"},
+  {"actual" = "${exposed.result.root.artifact_fingerprint}", "equals" = "3f64a95ca641ca0acb6d97fda4e016c61019513e3fee6453f61b44c39be29e1c"},
   {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/ast.txt", "snapshot" = "exposed.ast.txt"},
   {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/hir.txt", "snapshot" = "exposed.hir.txt"},
   {"file" = "${work}/dump/exposed/${exposed.result.root.identity}/mir.txt", "snapshot" = "exposed.mir.txt"},
@@ -98,7 +98,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "053798c052f85f687a6211acf90b7c477ce16a0628b1ef61411c89f943c220e7"},
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "aae31ac9f2a1fa3a74a8ff825bb84c8de893ead9de2939d76c6d29940e346345"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},

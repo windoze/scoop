@@ -1,6 +1,6 @@
 == Export ==
 Module
-  fun equalInt8(value: Int8): Boolean <no-gc cdecl>
+  fun equalInt8(value: Int8): Boolean <no-gc cdecl> <no-transition>
     val local1
       Local value : Int8
     val local2
@@ -11,7 +11,7 @@ Module
       IntegerOperation int8.equals <no-gc> : Boolean
         Local $dependency.receiver : Int8
         Local $dependency.parameter.other : Int8
-  fun equalInt16(value: Int16): Boolean <no-gc cdecl>
+  fun equalInt16(value: Int16): Boolean <no-gc cdecl> <no-transition>
     val local1
       Local value : Int16
     val local2
@@ -22,7 +22,7 @@ Module
       IntegerOperation int16.equals <no-gc> : Boolean
         Local $dependency.receiver : Int16
         Local $dependency.parameter.other : Int16
-  fun equalInt(value: Int): Boolean <no-gc cdecl>
+  fun equalInt(value: Int): Boolean <no-gc cdecl> <no-transition>
     val local1
       Local value : Int
     val local2
@@ -33,7 +33,7 @@ Module
       IntegerOperation int.equals <no-gc> : Boolean
         Local $dependency.receiver : Int
         Local $dependency.parameter.other : Int
-  fun equalLong(value: Long): Boolean <no-gc cdecl>
+  fun equalLong(value: Long): Boolean <no-gc cdecl> <no-transition>
     val local1
       Local value : Long
     val local2
@@ -44,7 +44,7 @@ Module
       IntegerOperation long.equals <no-gc> : Boolean
         Local $dependency.receiver : Long
         Local $dependency.parameter.other : Long
-  fun equalUInt8(value: UInt8): Boolean <no-gc cdecl>
+  fun equalUInt8(value: UInt8): Boolean <no-gc cdecl> <no-transition>
     val local1
       Local value : UInt8
     val local2
@@ -56,7 +56,7 @@ Module
         IntegerOperation uint8.equals <no-gc> : Boolean
           Local $dependency.receiver : UInt8
           Local $dependency.parameter.other : UInt8
-  fun equalUInt16(value: UInt16): Boolean <no-gc cdecl>
+  fun equalUInt16(value: UInt16): Boolean <no-gc cdecl> <no-transition>
     val local1
       Local value : UInt16
     val local2
@@ -68,7 +68,7 @@ Module
         IntegerOperation uint16.equals <no-gc> : Boolean
           Local $dependency.receiver : UInt16
           Local $dependency.parameter.other : UInt16
-  fun equalUInt(value: UInt): Boolean <no-gc cdecl>
+  fun equalUInt(value: UInt): Boolean <no-gc cdecl> <no-transition>
     val local1
       Local value : UInt
     val local2
@@ -80,7 +80,7 @@ Module
         IntegerOperation uint.equals <no-gc> : Boolean
           Local $dependency.receiver : UInt
           Local $dependency.parameter.other : UInt
-  fun equalULong(value: ULong): Boolean <no-gc cdecl>
+  fun equalULong(value: ULong): Boolean <no-gc cdecl> <no-transition>
     val local1
       Local value : ULong
     val local2

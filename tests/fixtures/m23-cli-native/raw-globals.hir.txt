@@ -184,10 +184,10 @@ Module
       Local $dependency.argument.0 : Int
     Call println<Int> : Unit
       Local $dependency.parameter.value : Int
-  fun $get$scoopCounter(): Int <no-gc cdecl>
+  fun $get$scoopCounter(): Int <no-gc cdecl> <no-transition>
     return
       GlobalRead scoopCounter : Int
-  fun $set$scoopCounter(value: Int): Unit <no-gc cdecl>
+  fun $set$scoopCounter(value: Int): Unit <no-gc cdecl> <no-transition>
     assign global scoopCounter
       Local value : Int
   fun $get$scoopTlsCounter(): Int <no-gc cdecl>
@@ -196,16 +196,16 @@ Module
   fun $set$scoopTlsCounter(value: Int): Unit <no-gc cdecl>
     assign global scoopTlsCounter
       Local value : Int
-  fun $get$pair(): NativePair <no-gc cdecl>
+  fun $get$pair(): NativePair <no-gc cdecl> <no-transition>
     return
       GlobalRead pair : NativePair
-  fun $set$pair(value: NativePair): Unit <no-gc cdecl>
+  fun $set$pair(value: NativePair): Unit <no-gc cdecl> <no-transition>
     assign global pair
       Local value : NativePair
-  fun $get$emptyPointer(): Option<Ptr<Int>> <no-gc cdecl>
+  fun $get$emptyPointer(): Option<Ptr<Int>> <no-gc cdecl> <no-transition>
     return
       GlobalRead emptyPointer : Option<Ptr<Int>>
-  fun $set$emptyPointer(value: Option<Ptr<Int>>): Unit <no-gc cdecl>
+  fun $set$emptyPointer(value: Option<Ptr<Int>>): Unit <no-gc cdecl> <no-transition>
     assign global emptyPointer
       Local value : Option<Ptr<Int>>
   fun $get$emptyCallback(): Option<FunPtr<(Int) -> Int>> <no-gc cdecl>
@@ -276,7 +276,7 @@ LocalConcrete 00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6 E
   coroutines []
 == CrossCone ==
 CrossCone 00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6
-  struct_constructors Idx::<StructConstructor>(0) StructConstructor { owner: Idx::<StructDecl>(0), access: DeclarationAccess { declared: Public, lookup: EffectiveLookupDomain(AccessDomain { inhabited: true, constraints: [Cone(ConeIdentity([0, 118, 154, 247, 205, 74, 133, 217, 136, 65, 205, 99, 218, 187, 142, 115, 196, 212, 27, 206, 86, 245, 226, 37, 247, 41, 93, 210, 124, 63, 57, 182]))] }), slot: None }, safety: Safe, no_gc_type_params: [], parameters: [ConstructorParameter { id: ConstructorParamId(0), binding: BindingId(0), definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 27, end: 40 }, context: Idx::<SourceContext>(0) }, name: "left", ty: Idx::<Type>(3) }, ConstructorParameter { id: ConstructorParamId(1), binding: BindingId(1), definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 42, end: 56 }, context: Idx::<SourceContext>(0) }, name: "right", ty: Idx::<Type>(3) }], kind: Primary, span: Span { start: 9, end: 57 }, origin: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 9, end: 57 }, context: Idx::<SourceContext>(0) } }
+  struct_constructors Idx::<StructConstructor>(0) StructConstructor { owner: Idx::<StructDecl>(0), access: DeclarationAccess { declared: Public, lookup: EffectiveLookupDomain(AccessDomain { inhabited: true, constraints: [Cone(ConeIdentity([0, 118, 154, 247, 205, 74, 133, 217, 136, 65, 205, 99, 218, 187, 142, 115, 196, 212, 27, 206, 86, 245, 226, 37, 247, 41, 93, 210, 124, 63, 57, 182]))] }), slot: None }, safety: Safe, no_gc_type_params: [], release_callability: Unavailable, parameters: [ConstructorParameter { id: ConstructorParamId(0), binding: BindingId(0), definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 27, end: 40 }, context: Idx::<SourceContext>(0) }, name: "left", ty: Idx::<Type>(3) }, ConstructorParameter { id: ConstructorParamId(1), binding: BindingId(1), definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 42, end: 56 }, context: Idx::<SourceContext>(0) }, name: "right", ty: Idx::<Type>(3) }], kind: Primary, span: Span { start: 9, end: 57 }, origin: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 9, end: 57 }, context: Idx::<SourceContext>(0) } }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Function([Idx::<Type>(3)]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Function([Idx::<Type>(3)]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(2) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Function([Idx::<Type>(3)]) }

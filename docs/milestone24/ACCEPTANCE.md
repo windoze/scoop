@@ -27,4 +27,13 @@
 
 ## 尚未完成
 
-源码 `release` 的 AST/HIR、ReleaseValue 与 NoTransition 推导、受限 MIR/LIR、构造成功边 publish、机器 hook 发射、共有模板与参数自由/generic 依赖、ODR 和全部 M24 正负/组合 fixture，均须继续完成。最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+源码 `release` 的 AST/HIR、受限 MIR/LIR、构造成功边 publish、机器 hook 发射、共有模板与参数自由/generic 依赖、ODR 和全部 M24 正负/组合 fixture，均须继续完成。最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+
+## 第二批：ReleaseValue 与 NoTransition
+
+- 已实现基于实际表示和 compiler protocol 的 ReleaseValue 条件，以及 NoGc callable 的定义侧 NoTransition 推导。递归调用按 SCC 传播，泛型条件保存 typed binder 引用；跨 Cone 消费导出的摘要，普通 NoGc 行为不变。
+- 共有 callable effect、binder 引用检查和 HIR dump 同步更新。旧 fixture 的摘要、golden 和 corruption 向量已随格式更新；corruption 用例保持原来的损坏位置和诊断目标。
+- 格式化与全 workspace、all-targets clippy 通过。HIR 的 869 项测试通过；HIR lowering 的 1,302 项测试中，1 项旧 dump 期望更新后单独复核通过。新增的 9 项 release effect 测试通过。
+- 新增独立、组合和跨 Cone 三项正式 CLI fixture，锁定 HIR/MIR/LIR 输出；跨 Cone 用例在删除源码后仍完成产物消费、链接并运行返回 42。
+- 使用这一批源码构建并保存于 `tmp/m24/effects-tools/` 的三个命令，执行原 fixture runner 的无更新模式 `--all`，退出码为 0：发现并选择全部 2,070 项，全部通过，覆盖 2,160 个变体、11,612 次进程执行及 11,024 份 stage/plan golden。
+- 完整报告位于 `tmp/m24/effects-all-acceptance/report.json`，命令日志位于 `tmp/m24/logs/effects-all-acceptance.log`。这次全量结果仅对应本批工具，不代表后续 release hook 编译路径已经完成。

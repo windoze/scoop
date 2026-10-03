@@ -121,8 +121,8 @@ impl ExportConstructorInitializationV1 {
         &self.inputs
     }
 
-    pub const fn effects(&self) -> CallableSourceEffectsV1 {
-        self.effects
+    pub fn effects(&self) -> CallableSourceEffectsV1 {
+        self.effects.clone()
     }
 
     pub const fn predicates(&self) -> &GenericTemplatePredicatesV1 {

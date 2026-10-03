@@ -12,6 +12,8 @@ mod constructors;
 mod gc_free_pointees;
 mod generic_recursion;
 mod no_gc_generics;
+mod release;
+mod release_values;
 mod type_properties;
 mod type_validation;
 mod violations;

@@ -62,10 +62,10 @@ Module
     assign singleton-root#0
       ClassInit Broken.Companion : Broken.Companion
   fun $init$ensure$0(): Unit
-  fun $get$attempts(): Int <no-gc cdecl>
+  fun $get$attempts(): Int <no-gc cdecl> <no-transition>
     return
       GlobalRead attempts : Int
-  fun $set$attempts(value: Int): Unit <no-gc cdecl>
+  fun $set$attempts(value: Int): Unit <no-gc cdecl> <no-transition>
     assign global attempts
       Local value : Int
   output executable main

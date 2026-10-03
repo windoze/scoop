@@ -42,6 +42,8 @@ pub struct CallableSignature {
     pub params: Vec<Param>,
     pub return_ty: TypeId,
     pub attributes: FunctionAttributes,
+    /// Inferred from this implementation, independent of its source NoGC ABI.
+    pub release_callability: ReleaseCallability,
     pub span: Span,
 }
 
@@ -51,6 +53,7 @@ impl CallableSignature {
         params: Vec<Param>,
         return_ty: TypeId,
         effects: CallableSourceEffectsV1,
+        release_callability: ReleaseCallability,
         span: Span,
     ) -> Self {
         Self {
@@ -60,6 +63,7 @@ impl CallableSignature {
             params,
             return_ty,
             attributes: effects.function_attributes(),
+            release_callability,
             span,
         }
     }
@@ -358,6 +362,7 @@ mod tests {
     fn integer_intrinsic(ty: TypeId, effect: GcEffect) -> Function {
         Function {
             signature: CallableSignature {
+                release_callability: Default::default(),
                 name: "Int.plus".to_string(),
                 is_suspend: false,
                 modifiers: CallableModifiers::default(),

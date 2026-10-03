@@ -63,7 +63,7 @@ pub(super) fn validate_owner_shape(
 pub(super) fn validate_dispatch_shape(
     declaration: CallableTemplateOrigin,
     owner: PublicDeclarationOwnerV1,
-    effects: CallableSourceEffectsV1,
+    effects: &CallableSourceEffectsV1,
     modality: CallableModalityV1,
     access: PublicLookupAccessV1,
 ) -> Result<(), CallableInterfaceRecordBuildError> {
@@ -111,7 +111,7 @@ pub(super) fn validate_dispatch_shape(
 pub(super) fn validate_source_dispatch(
     declaration: CallableTemplateOrigin,
     owner: PublicDeclarationOwnerV1,
-    effects: CallableSourceEffectsV1,
+    effects: &CallableSourceEffectsV1,
     modality: CallableModalityV1,
     visibility: DeclaredVisibilityV1,
     slots: &CanonicalPersistentIdsV1<PersistentDispatchSlotId>,

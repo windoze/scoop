@@ -132,6 +132,8 @@ pub(super) fn project(
             let effects = crate::production::callable_interfaces::source_constructor_effects(
                 constructor.safety,
                 crate::GcEffect::Managed,
+                &crate::ReleaseCallability::Unavailable,
+                &projection.binders,
             )
             .map_err(Error::Effects)?;
             ExportConstructorInitializationV1::try_new(

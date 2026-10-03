@@ -1,6 +1,6 @@
 == Export ==
 Module
-  fun makeNative(value: Int): Native<Int> <no-gc cdecl>
+  fun makeNative(value: Int): Native<Int> <no-gc cdecl> <no-transition>
     val local1
       Local value : Int
     val local2

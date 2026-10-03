@@ -22,7 +22,7 @@ checks = [{"file" = "${work}/dump-build/${build.result.root.identity}/ast.txt", 
 
 [[steps]]
 name = "original_archive"
-checks = [{"file" = "${build.result.root.path}", "sha256" = "81e72a3370b4723a18a35824c99db83a020052c96007467ecaf50473ea73d2f6"}]
+checks = [{"file" = "${build.result.root.path}", "sha256" = "1acf2d5a0d5624a888116a148af655cc1a2a5f4ea161b5ac62ca32e1d2395de3"}]
 
 [[steps]]
 name = "isolate"
@@ -120,7 +120,7 @@ await_file = "${fixture}/vectors/optional/header-8.bin"
 [[steps]]
 name = "assemble_optional"
 files = [{"remove" = {"path" = "${work}/artifacts/root.slib"}}, {"write" = {"path" = "${work}/artifacts/root.slib", "data" = "${optional_header_0.bytes}${original_m00000000.bytes}${optional_header_1.bytes}${original_m00000001.bytes}${optional_header_2.bytes}${original_m00000002.bytes}${optional_header_3.bytes}${original_m00000002.bytes}${optional_header_4.bytes}${original_m00000003.bytes}${optional_header_5.bytes}${original_m00000002.bytes}${optional_header_6.bytes}${original_m00000004.bytes}${optional_header_7.bytes}${original_m00000005.bytes}${optional_header_8.bytes}${original_m00000006.bytes}"}}]
-checks = [{"file" = "${work}/artifacts/root.slib", "sha256" = "a2db67cba492fdaa7f7a39916d445f43743da75ed6cc22e8fa64e882ac80d2f8"}]
+checks = [{"file" = "${work}/artifacts/root.slib", "sha256" = "b7a9b278cd515953ed2bb61c37dbc27d3979858564384d2fb90fa054a831f43f"}]
 
 [[steps]]
 name = "optional_link"
@@ -191,7 +191,7 @@ await_file = "${fixture}/vectors/required/header-9.bin"
 [[steps]]
 name = "assemble_required"
 files = [{"remove" = {"path" = "${work}/artifacts/root.slib"}}, {"write" = {"path" = "${work}/artifacts/root.slib", "data" = "${required_header_0.bytes}${original_m00000000.bytes}${required_header_1.bytes}${original_m00000001.bytes}${required_header_2.bytes}${original_m00000002.bytes}${required_header_3.bytes}${original_m00000002.bytes}${required_header_4.bytes}${original_m00000003.bytes}${required_header_5.bytes}${original_m00000002.bytes}${required_header_6.bytes}${original_m00000004.bytes}${required_header_7.bytes}${original_m00000002.bytes}${required_header_8.bytes}${original_m00000005.bytes}${required_header_9.bytes}${original_m00000006.bytes}"}}]
-checks = [{"file" = "${work}/artifacts/root.slib", "sha256" = "f62b3311248b2a098643a98c12b271d65065aae512ca69717a61fe3ffae77ee1"}]
+checks = [{"file" = "${work}/artifacts/root.slib", "sha256" = "19a02a9f8ffa647415890d44972fae95b1529c4bdcb3f41fd9669b907952ec09"}]
 
 [[steps]]
 name = "previous_required_link"

@@ -1,6 +1,6 @@
 == Export ==
 Module
-  fun main(): Unit <no-gc cdecl>
+  fun main(): Unit <no-gc cdecl> <no-transition>
   output executable main
 == LocalConcrete ==
 LocalConcrete 1447c609e9f15a6adccb8dc97672794ae773b771cb161219d0ecf2321048d827 Executable { local_entry: ConcreteExecutableEntry { identity: ExecutableSourceEntryIdentity { root_cone: ConeIdentity([20, 71, 198, 9, 233, 241, 90, 106, 220, 203, 141, 201, 118, 114, 121, 74, 231, 115, 183, 113, 203, 22, 18, 25, 208, 236, 242, 50, 16, 72, 216, 39]), declaration: PersistentFunctionId([118, 113, 192, 143, 178, 143, 209, 247, 199, 186, 103, 185, 185, 210, 10, 79, 176, 152, 99, 8, 151, 125, 124, 18, 3, 61, 77, 115, 124, 75, 133, 81]), source_signature: ExactOrdinaryNoArgUnitSignature(ExactCallableSignature { effect: Ordinary, receiver: Absent, parameters: [], result: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]) }), source_signature_fingerprint: SourceSignatureFingerprint([90, 67, 190, 228, 63, 39, 229, 195, 61, 1, 44, 17, 41, 112, 35, 36, 209, 141, 211, 133, 109, 49, 88, 182, 87, 56, 60, 194, 214, 28, 146, 87]), main: MainCallableBodyId(PersistentCallableBodyId([245, 44, 28, 102, 64, 20, 83, 22, 219, 237, 232, 19, 254, 237, 164, 214, 113, 18, 38, 251, 37, 71, 16, 219, 54, 6, 53, 186, 190, 230, 237, 115])) }, local_function: CurrentConcreteFunctionId(Idx::<Function>(0)) } }

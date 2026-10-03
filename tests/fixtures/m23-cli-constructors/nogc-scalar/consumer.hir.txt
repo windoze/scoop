@@ -1,6 +1,6 @@
 == Export ==
 Module
-  fun makeChain(): Chain <no-gc cdecl>
+  fun makeChain(): Chain <no-gc cdecl> <no-transition>
     return
       Call external #0 : Chain
   fun main(): Unit

@@ -1,4 +1,6 @@
 mod effects;
+mod release;
+pub use release::{CallableReleaseCallabilityV1, ReleaseValueBinderV1};
 mod errors;
 mod implementation;
 mod operators;

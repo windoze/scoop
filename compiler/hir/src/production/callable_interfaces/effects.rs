@@ -10,6 +10,7 @@ use crate::{
 pub(in crate::production) fn function(
     export: &crate::ExportHir,
     declaration: &Function,
+    binders: &[crate::HirSignatureBinder],
 ) -> Result<CallableSourceEffectsV1, CallableEffectProjectionError> {
     let implementation = match declaration.kind {
         FunctionKind::User(_)
@@ -50,7 +51,9 @@ pub(in crate::production) fn function(
         implementation,
         operator_role,
         declaration.modifiers.is_infix,
-    )
+    )?
+    .with_release_callability(release(&declaration.release_callability, binders)?)
+    .map_err(CallableEffectProjectionError::Build)
 }
 
 pub(in crate::production) fn accessor(
@@ -68,6 +71,8 @@ pub(in crate::production) fn accessor(
 pub(in crate::production) fn source_constructor(
     safety: crate::Safety,
     gc_effect: crate::GcEffect,
+    callability: &crate::ReleaseCallability,
+    binders: &[crate::HirSignatureBinder],
 ) -> Result<CallableSourceEffectsV1, CallableEffectProjectionError> {
     CallableSourceEffectsV1::try_new(
         Effect::Ordinary,
@@ -83,7 +88,37 @@ pub(in crate::production) fn source_constructor(
         CallableOperatorRoleV1::None,
         CallableInfixV1::Ordinary,
     )
+    .map_err(CallableEffectProjectionError::Build)?
+    .with_release_callability(release(callability, binders)?)
     .map_err(CallableEffectProjectionError::Build)
+}
+
+fn release(
+    callability: &crate::ReleaseCallability,
+    binders: &[crate::HirSignatureBinder],
+) -> Result<crate::CallableReleaseCallabilityV1, CallableEffectProjectionError> {
+    use crate::ConditionalReleaseCallability::{NoTransition, Unavailable};
+    match callability {
+        Unavailable => Ok(Unavailable),
+        NoTransition { requirements } => {
+            let requirements = requirements
+                .iter()
+                .map(|parameter| {
+                    let binder = binders
+                        .iter()
+                        .find(|binder| binder.parameter == *parameter)
+                        .ok_or(CallableEffectProjectionError::MissingReleaseBinder(
+                            parameter.into_raw(),
+                        ))?;
+                    Ok(crate::ReleaseValueBinderV1 {
+                        depth: binder.depth,
+                        index: binder.index,
+                    })
+                })
+                .collect::<Result<_, CallableEffectProjectionError>>()?;
+            Ok(NoTransition { requirements })
+        }
+    }
 }
 
 fn build(

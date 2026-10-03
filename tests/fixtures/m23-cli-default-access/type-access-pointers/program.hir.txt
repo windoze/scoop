@@ -16,7 +16,7 @@ Module
       throw
         Call external #0 : IllegalStateException
           Local $dependency.parameter.message : Option<String>
-  fun increment(value: Int): Int <no-gc cdecl>
+  fun increment(value: Int): Int <no-gc cdecl> <no-transition>
     val local1
       Local value : Int
     val local2

@@ -172,7 +172,7 @@ ReleasePolicy<HookRef> = None
                       | SynchronousGcFree { hook: HookRef }
 ```
 
-Unavailable 是合法普通 callable 的属性，只有从 release 使用时才报错，不改变既有 NoGc 程序。NoTransition 是推导结果，不是用户 annotation 或来源资格。摘要放入已有 `CallableSourceEffectsV1` 对应的版本化记录；泛型条件复用实际 binder 的 typed ID，不按参数名称匹配。它不进入 callable declaration identity、重载签名、Scoop ABI 或 override/slot 相容性规则；它描述被直接选中的实际实现。正文变化改变接口/产物 fingerprint。
+Unavailable 是合法普通 callable 的属性，只有从 release 使用时才报错，不改变既有 NoGc 程序。NoTransition 是推导结果，不是用户 annotation 或来源资格。摘要放入已有 `CallableSourceEffectsV1` 对应的版本化记录；泛型条件复用实际 binder 的 typed ID，不按参数名称匹配。Export HIR 推导使用 `TypeParamId`，共有 effect 中使用现有 signature binder frame 的 depth/index；读入时只在原 binder scope 边界检查引用。它不进入 callable declaration identity、重载签名、Scoop ABI 或 override/slot 相容性规则；它描述被直接选中的实际实现。正文变化改变接口/产物 fingerprint。
 
 参数自由依赖 helper 直接沿共有 callable 接口与真实 provider 选择，消费方不复制其源码/机器正文，也不重新遍历其调用图。generic helper 在正常具体化时消解已导出的条件，复用完成替换的正文与同次检查结果。reader 只验证该数据的格式、引用、合法 kind 与相邻机器绑定；不在 HIR/MIR/LIR meta crate 另写 effect 语义实现。
 

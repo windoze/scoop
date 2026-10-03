@@ -111,6 +111,7 @@ mod expr;
 mod ffi;
 mod generic_entities;
 mod globals;
+mod graph;
 mod imported_capabilities;
 mod imported_constructors;
 mod imported_core;

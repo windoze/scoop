@@ -42,6 +42,7 @@ pub enum CallableInterfaceSemanticValidationError<E> {
         error: SignatureTypeSemanticError<E>,
     },
     Result(SignatureTypeSemanticError<E>),
+    ReleaseRequirement(crate::SignatureBinderScopeError),
 }
 
 impl<E: fmt::Display> fmt::Display for CallableInterfaceSemanticValidationError<E> {
@@ -84,6 +85,9 @@ impl<E: fmt::Display> fmt::Display for CallableInterfaceSemanticValidationError<
                 write!(formatter, "invalid callable parameter {index}: {error}")
             }
             Self::Result(error) => write!(formatter, "invalid callable result: {error}"),
+            Self::ReleaseRequirement(error) => {
+                write!(formatter, "invalid release-call requirement: {error}")
+            }
         }
     }
 }

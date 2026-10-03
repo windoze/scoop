@@ -32,6 +32,7 @@ pub enum CallableAccessProjectionError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CallableEffectProjectionError {
     UnknownExternFunction(u32),
+    MissingReleaseBinder(u32),
     ConflictingOperatorRoles,
     Build(CallableSourceEffectsBuildError),
 }
@@ -165,6 +166,10 @@ impl fmt::Display for CallableAccessProjectionError {
 impl fmt::Display for CallableEffectProjectionError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::MissingReleaseBinder(parameter) => write!(
+                formatter,
+                "release condition references absent type parameter {parameter}"
+            ),
             Self::UnknownExternFunction(index) => {
                 write!(
                     formatter,

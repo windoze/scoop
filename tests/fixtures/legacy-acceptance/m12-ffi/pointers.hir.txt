@@ -3,7 +3,7 @@ Module
   struct Slot
     field0 value: Int
     property0 val value: Int getter0=storage <stored struct0-field0>
-  fun increment(value: Int): Int <no-gc cdecl>
+  fun increment(value: Int): Int <no-gc cdecl> <no-transition>
     val local1
       Local value : Int
     val local2
@@ -16,7 +16,7 @@ Module
         Local $dependency.parameter.other : Int
   fun malloc(arg1: ULong): Ptr<Unit> <unsafe no-gc cdecl> <extern0 abi=c symbol=malloc>
   fun free(arg1: Ptr<Unit>): Unit <unsafe no-gc cdecl> <extern1 abi=c symbol=free>
-  fun rewriteParameter(value: Int): Int <unsafe no-gc cdecl>
+  fun rewriteParameter(value: Int): Int <unsafe no-gc cdecl> <no-transition>
     val local1
       AddressOf value : Ptr<Int>
     val local2
@@ -299,7 +299,7 @@ LocalConcrete 00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6 E
   coroutines []
 == CrossCone ==
 CrossCone 00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6
-  struct_constructors Idx::<StructConstructor>(0) StructConstructor { owner: Idx::<StructDecl>(0), access: DeclarationAccess { declared: Public, lookup: EffectiveLookupDomain(AccessDomain { inhabited: true, constraints: [Cone(ConeIdentity([0, 118, 154, 247, 205, 74, 133, 217, 136, 65, 205, 99, 218, 187, 142, 115, 196, 212, 27, 206, 86, 245, 226, 37, 247, 41, 93, 210, 124, 63, 57, 182]))] }), slot: None }, safety: Safe, no_gc_type_params: [], parameters: [ConstructorParameter { id: ConstructorParamId(0), binding: BindingId(0), definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 307, end: 321 }, context: Idx::<SourceContext>(0) }, name: "value", ty: Idx::<Type>(3) }], kind: Primary, span: Span { start: 295, end: 479 }, origin: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 295, end: 479 }, context: Idx::<SourceContext>(0) } }
+  struct_constructors Idx::<StructConstructor>(0) StructConstructor { owner: Idx::<StructDecl>(0), access: DeclarationAccess { declared: Public, lookup: EffectiveLookupDomain(AccessDomain { inhabited: true, constraints: [Cone(ConeIdentity([0, 118, 154, 247, 205, 74, 133, 217, 136, 65, 205, 99, 218, 187, 142, 115, 196, 212, 27, 206, 86, 245, 226, 37, 247, 41, 93, 210, 124, 63, 57, 182]))] }), slot: None }, safety: Safe, no_gc_type_params: [], release_callability: Unavailable, parameters: [ConstructorParameter { id: ConstructorParamId(0), binding: BindingId(0), definition: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 307, end: 321 }, context: Idx::<SourceContext>(0) }, name: "value", ty: Idx::<Type>(3) }], kind: Primary, span: Span { start: 295, end: 479 }, origin: DefinitionOrigin { provider: IntrinsicProviderId(0), file: 0, span: Span { start: 295, end: 479 }, context: Idx::<SourceContext>(0) } }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Function([Idx::<Type>(3)]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Function([Idx::<Type>(3)]) }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(2) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Function([Idx::<Type>(3)]) }

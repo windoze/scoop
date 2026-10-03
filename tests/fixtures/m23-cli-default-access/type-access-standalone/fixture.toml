@@ -24,7 +24,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "e00ff507d4178d6cd1cb2b41711e019e69a3b935dd2f562168b5cb13828add37"},]
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "fff02751f0c6cec3a75a92c36e65f2aa26b64b7559cd3b6cd0b35efd0ab2c1f0"},]
 
 [[steps]]
 name = "remove_core_source"
@@ -50,7 +50,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${provider.result.root.artifact_fingerprint}", "equals" = "214b5e4768a556d54d510d63fc3280f7911c3fb0af343028aa0d3754cb70945e"},
+  {"actual" = "${provider.result.root.artifact_fingerprint}", "equals" = "6e920f13f0daf5613c61ce861321feb5f403c9371b2d98f12aa00de980b0eccf"},
   {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
   {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
   {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
@@ -76,7 +76,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "56f2cb008f909a5aaeeb7bf7fd43b4b612bd3f2a599d6c6051298a362cc083c1"},
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "8bae9f4deeee70eb51d4824773f7aa6fa33ea7de8377cb3088e343275bca871e"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},

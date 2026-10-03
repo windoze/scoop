@@ -61,10 +61,10 @@ Module
         Local $dependency.argument.0 : Boolean
       Call println<Boolean> : Unit
         Local $dependency.parameter.value : Boolean
-  fun $get$attempts(): Int <no-gc cdecl>
+  fun $get$attempts(): Int <no-gc cdecl> <no-transition>
     return
       GlobalRead attempts : Int
-  fun $set$attempts(value: Int): Unit <no-gc cdecl>
+  fun $set$attempts(value: Int): Unit <no-gc cdecl> <no-transition>
     assign global attempts
       Local value : Int
   output executable main

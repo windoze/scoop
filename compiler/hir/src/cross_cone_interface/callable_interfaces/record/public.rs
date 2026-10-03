@@ -25,7 +25,7 @@ impl CallableInterfaceRecordV1 {
         validate_type_parameter_shape(declaration, &type_parameters)?;
         validate_receiver_shape(owner, receiver.is_some())?;
         validate_owner_shape(declaration, owner)?;
-        validate_dispatch_shape(declaration, owner, effects, modality, access)?;
+        validate_dispatch_shape(declaration, owner, &effects, modality, access)?;
         let data = CallableDeclarationRecordV1::try_new(
             declaration,
             owner,
@@ -53,7 +53,7 @@ impl CallableInterfaceRecordV1 {
         validate_dispatch_shape(
             data.declaration(),
             data.owner(),
-            data.effects(),
+            &data.effects(),
             data.modality(),
             access,
         )?;
@@ -80,7 +80,7 @@ impl CallableInterfaceRecordV1 {
     pub const fn result(&self) -> &SignatureTypeKey {
         self.data.result()
     }
-    pub const fn effects(&self) -> CallableSourceEffectsV1 {
+    pub fn effects(&self) -> CallableSourceEffectsV1 {
         self.data.effects()
     }
     pub const fn modality(&self) -> CallableModalityV1 {

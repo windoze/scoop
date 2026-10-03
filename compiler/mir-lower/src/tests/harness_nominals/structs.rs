@@ -50,6 +50,7 @@ impl Harness {
             })
             .collect();
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
+            release_callability: Default::default(),
             safety: hir::Safety::Safe,
             no_gc_type_params: Vec::new(),
             owner,

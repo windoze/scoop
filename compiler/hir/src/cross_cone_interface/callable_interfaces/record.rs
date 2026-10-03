@@ -63,7 +63,7 @@ impl CallableDeclarationRecordV1 {
         validate_type_parameter_shape(declaration, &type_parameters)?;
         validate_receiver_shape(owner, receiver.is_some())?;
         validate_owner_shape(declaration, owner)?;
-        validate_source_dispatch(declaration, owner, effects, modality, visibility, &slots)?;
+        validate_source_dispatch(declaration, owner, &effects, modality, visibility, &slots)?;
         Ok(Self {
             declaration,
             owner,
@@ -102,8 +102,8 @@ impl CallableDeclarationRecordV1 {
         &self.result
     }
 
-    pub const fn effects(&self) -> CallableSourceEffectsV1 {
-        self.effects
+    pub fn effects(&self) -> CallableSourceEffectsV1 {
+        self.effects.clone()
     }
 
     pub const fn modality(&self) -> CallableModalityV1 {

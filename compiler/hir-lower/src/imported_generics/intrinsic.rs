@@ -166,6 +166,10 @@ impl Lowerer {
                     params,
                     signature.signature.return_type,
                     prepared.declaration.interface().effects(),
+                    self.imported_release_callability(
+                        &prepared.declaration.interface().effects(),
+                        &prepared.bindings,
+                    )?,
                     signature.span,
                 ),
                 type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
