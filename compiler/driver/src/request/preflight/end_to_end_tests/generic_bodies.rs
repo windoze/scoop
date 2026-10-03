@@ -1,7 +1,6 @@
 use super::*;
 
 mod adapters;
-mod constructor_requests;
 mod constructors;
 mod coroutines;
 mod declaration_views;
