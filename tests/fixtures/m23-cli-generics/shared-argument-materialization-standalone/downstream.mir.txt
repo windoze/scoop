@@ -1,0 +1,5130 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Packet
+    Item(tape: Tape, first: Int, second: Int, parts: Array<Int>)
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class Tape vtable=0 itables=0
+  class Calculator<Later> vtable=0 itables=0
+  class ExtensionCalculator<Later> vtable=0 itables=0
+  class Calculator<String> vtable=0 itables=0
+  class ExtensionCalculator<String> vtable=0 itables=0
+  class Calculator<Unit> vtable=0 itables=0
+  class ExtensionCalculator<Unit> vtable=0 itables=0
+  class ArrayIterator<Int> vtable=0 itables=1
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Iterable<Int>
+  interface Iterator<Int>
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn52 id=68da24311b49c4938ac90ece6752aad59e846a678486a5f12e10761966f8b14c
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn53 id=03f46968d827b203eca81428a1b9b303606c88d82059decb882dce70fd43c7f9
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn54 id=e7390fe39a6e408141efb4b9309bacb0128cce57887182063f99847e4dba39e5
+  generated_exact_type get0 location=enum3 nominal_id=014f00b3e3e7c67ed171555ea3445d14f503297635e7f825488ddac7a3ec59ca exact_id=024720ee9ad715d7d8a90c9641cd9eeed3bc99cc541e7ef4910c6a0e69dd8e46
+  generated_exact_type get1 location=enum4 nominal_id=439998a85327cf1f9591345035b9bc00a8b8fc0a658968ba86ba7f7deebd70bc exact_id=360c241ce6c3f9774156032c69bff7653b43cc49a3c644e2558e32fed0b7d127
+  generated_exact_type get2 location=class14 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get3 location=closure2 nominal_id=d8f069ed15af01b87ec06d9f05dc646f0e56e8cfb230fba2489c107ffc649da5 exact_id=61543a727f1a2a06f92825796eab594c341944b53de3f6bd4271003f5f474d54
+  generated_exact_type get4 location=closure1 nominal_id=3c2ae07d44c936c7c1b63ef3942b67a8bf56c38b3fdcc259a83082b3d17fdbec exact_id=664b5eec85f37b6b40e68507fa2cbfcb728f02c88199353a49151be79adc491b
+  generated_exact_type get5 location=closure0 nominal_id=dcb35b410672a54d3e5a008f074ed6e7c412f3c5b2cfd3d58a78a43098c73948 exact_id=838bc07b50180377d5c0f2d88865c1783fe0b918db04f212fd68f0f43e763d98
+  generated_exact_type get6 location=class15 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn53 id=03f46968d827b203eca81428a1b9b303606c88d82059decb882dce70fd43c7f9
+  generated_callable gc1 function=@fn51 id=4e75b14a02fe0e5b39351a10bfe85ace732a1bfc7b5c91557fcd89491d43b51b
+  generated_callable gc2 function=@fn52 id=68da24311b49c4938ac90ece6752aad59e846a678486a5f12e10761966f8b14c
+  generated_callable gc3 function=@fn54 id=e7390fe39a6e408141efb4b9309bacb0128cce57887182063f99847e4dba39e5
+  fun check @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn43 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val $dependency.argument.0: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.1: (Later) -> Int
+        Type (Later) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $dependency.parameter.seed: Later
+        Type Later
+        Local $dependency.argument.0
+      val $dependency.parameter.inspect: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type Later
+        Local $dependency.parameter.seed
+        Type (Later) -> Int
+        Local $dependency.parameter.inspect
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.argument.1: (String) -> Int
+        Type (String) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $dependency.parameter.seed: String
+        Type String
+        Local $dependency.argument.0
+      val $dependency.parameter.inspect: (String) -> Int
+        Type (String) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type String
+        Local $dependency.parameter.seed
+        Type (String) -> Int
+        Local $dependency.parameter.inspect
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $dependency.parameter.seed: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.inspect: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn6 direct
+        Type Unit
+        Local $dependency.parameter.seed
+        Type (Unit) -> Int
+        Local $dependency.parameter.inspect
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      call $call.2: Int = external0 direct
+      return
+        Type Int
+        Local $call.2
+  fun $lambda.0 @fn1($closure: (Later) -> Int, value: Later) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+  fun exercise @fn2(seed: Later, inspect: (Later) -> Int) -> Int
+    bb0 entry
+      assign $new.1
+        Type Tape
+        ClassAlloc Tape
+      call external1 direct
+        Type Tape
+        Local $new.1
+      val $dependency.local.2: Tape
+        Type Tape
+        Local $new.1
+      val $dependency.local.23: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.24: Later
+        Type Later
+        Local seed
+      val $dependency.local.11: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.12: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.12
+      call $dependency.local.25: Int = external2 direct
+        Type Tape
+        Local $dependency.local.11
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.14: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.15: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.15
+      call $dependency.local.26: Int = external2 direct
+        Type Tape
+        Local $dependency.local.14
+        Type Int
+        Local $dependency.local.16
+      val $dependency.local.17: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.19: Int
+        Type Int
+        Local $dependency.local.18
+      val $dependency.local.20: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.21: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.21
+      call $call.2: Int = external2 direct
+        Type Tape
+        Local $dependency.local.17
+        Type Int
+        Local $dependency.local.19
+      call $call.3: Int = external2 direct
+        Type Tape
+        Local $dependency.local.20
+        Type Int
+        Local $dependency.local.22
+      val $dependency.local.27: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+          Type Int
+          Local $call.2
+          Type Int
+          Local $call.3
+      val $dependency.local.28: Tape
+        Type Tape
+        Local $dependency.local.23
+      val $dependency.local.29: Later
+        Type Later
+        Local $dependency.local.24
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.26
+      val $dependency.local.31: Int
+        Type Int
+        Local $dependency.local.25
+      val $dependency.local.32: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.27
+      call $dependency.local.33: Int = @fn8 direct
+        Type Tape
+        Local $dependency.local.28
+        Type Later
+        Local $dependency.local.29
+        Type Int
+        Local $dependency.local.30
+        Type Int
+        Local $dependency.local.31
+        Type Array<Int>
+        Local $dependency.local.32
+      val $dependency.local.34: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.33
+            Type Int
+            Local $dependency.local.35
+    bb1 if.then.1
+      val $dependency.local.39: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.local.36: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.37: Int
+        Type Int
+        IntegerLiteral Int value=2156 bits=0x0000086c
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      val $dependency.local.39: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.36
+            Type Int
+            Local $dependency.local.38
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.39
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.40: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.40
+      val $dependency.local.41: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.42: Later
+        Type Later
+        Local seed
+      val $dependency.local.43: Tape
+        Type Tape
+        Local $dependency.local.41
+      val $dependency.local.44: Later
+        Type Later
+        Local $dependency.local.42
+      val $dependency.local.45: Tape
+        Type Tape
+        Local $dependency.local.43
+      val $dependency.local.46: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.47: Int
+        Type Int
+        Local $dependency.local.46
+      call $dependency.local.48: Int = external2 direct
+        Type Tape
+        Local $dependency.local.45
+        Type Int
+        Local $dependency.local.47
+      val $dependency.local.52: Int
+        Type Int
+        Local $dependency.local.48
+      val $dependency.local.49: Tape
+        Type Tape
+        Local $dependency.local.43
+      val $dependency.local.50: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.local.51: Int
+        Type Int
+        Local $dependency.local.50
+      call $dependency.local.53: Int = external2 direct
+        Type Tape
+        Local $dependency.local.49
+        Type Int
+        Local $dependency.local.51
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      val $dependency.local.55: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.52
+          Type Int
+          Local $dependency.local.54
+      val $dependency.local.56: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+      call $dependency.local.57: Int = @fn8 direct
+        Type Tape
+        Local $dependency.local.43
+        Type Later
+        Local $dependency.local.44
+        Type Int
+        Local $dependency.local.48
+        Type Int
+        Local $dependency.local.55
+        Type Array<Int>
+        Local $dependency.local.56
+      val $dependency.local.58: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.59: Int
+        Type Int
+        Local $dependency.local.58
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.57
+            Type Int
+            Local $dependency.local.59
+    bb6 if.then.6
+      val $dependency.local.63: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      call $dependency.local.60: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.61: Int
+        Type Int
+        IntegerLiteral Int value=34 bits=0x00000022
+      val $dependency.local.62: Int
+        Type Int
+        Local $dependency.local.61
+      val $dependency.local.63: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.60
+            Type Int
+            Local $dependency.local.62
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $dependency.local.63
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      val $dependency.local.64: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.64
+      val $dependency.local.77: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.78: Later
+        Type Later
+        Local seed
+      val $dependency.local.65: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.66: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.67: Int
+        Type Int
+        Local $dependency.local.66
+      call $dependency.local.79: Int = external2 direct
+        Type Tape
+        Local $dependency.local.65
+        Type Int
+        Local $dependency.local.67
+      val $dependency.local.68: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.69: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.70: Int
+        Type Int
+        Local $dependency.local.69
+      call $dependency.local.80: Int = external2 direct
+        Type Tape
+        Local $dependency.local.68
+        Type Int
+        Local $dependency.local.70
+      val $dependency.local.71: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.72: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.73: Int
+        Type Int
+        Local $dependency.local.72
+      call $dependency.local.81: Int = external2 direct
+        Type Tape
+        Local $dependency.local.71
+        Type Int
+        Local $dependency.local.73
+      val $dependency.local.74: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.75: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.local.76: Int
+        Type Int
+        Local $dependency.local.75
+      call $call.4: Int = external2 direct
+        Type Tape
+        Local $dependency.local.74
+        Type Int
+        Local $dependency.local.76
+      val $dependency.local.82: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+          Type Int
+          Local $call.4
+      val $dependency.local.83: Tape
+        Type Tape
+        Local $dependency.local.77
+      val $dependency.local.84: Later
+        Type Later
+        Local $dependency.local.78
+      val $dependency.local.85: Int
+        Type Int
+        Local $dependency.local.79
+      val $dependency.local.86: Int
+        Type Int
+        Local $dependency.local.80
+      val $dependency.local.87: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+          Element
+            Type Int
+            Local $dependency.local.81
+          CopyArray
+            Type Array<Int>
+            Local $dependency.local.82
+      call $dependency.local.88: Int = @fn8 direct
+        Type Tape
+        Local $dependency.local.83
+        Type Later
+        Local $dependency.local.84
+        Type Int
+        Local $dependency.local.85
+        Type Int
+        Local $dependency.local.86
+        Type Array<Int>
+        Local $dependency.local.87
+      val $dependency.local.89: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.local.90: Int
+        Type Int
+        Local $dependency.local.89
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.88
+            Type Int
+            Local $dependency.local.90
+    bb11 if.then.11
+      val $dependency.local.94: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      call $dependency.local.91: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.92: Int
+        Type Int
+        IntegerLiteral Int value=1256 bits=0x000004e8
+      val $dependency.local.93: Int
+        Type Int
+        Local $dependency.local.92
+      val $dependency.local.94: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.91
+            Type Int
+            Local $dependency.local.93
+      goto bb13
+    bb13 if.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $dependency.local.94
+    bb14 if.then.14
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb15 if.merge.15
+      val $dependency.local.95: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.95
+      val $dependency.local.99: Later
+        Type Later
+        Local seed
+      val $dependency.local.100: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.96: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.97: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.98: Int
+        Type Int
+        Local $dependency.local.97
+      call $dependency.local.101: Int = external2 direct
+        Type Tape
+        Local $dependency.local.96
+        Type Int
+        Local $dependency.local.98
+      val $dependency.local.102: Later
+        Type Later
+        Local $dependency.local.99
+      val $dependency.local.103: Tape
+        Type Tape
+        Local $dependency.local.100
+      val $dependency.local.104: Tape
+        Type Tape
+        Local $dependency.local.103
+      val $dependency.local.105: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.106: Int
+        Type Int
+        Local $dependency.local.105
+      call $dependency.local.107: Int = external2 direct
+        Type Tape
+        Local $dependency.local.104
+        Type Int
+        Local $dependency.local.106
+      val $dependency.local.108: Int
+        Type Int
+        Local $dependency.local.101
+      assign $new.5
+        Type Calculator<Later>
+        ClassAlloc Calculator<Later>
+      call @fn44 direct
+        Type Calculator<Later>
+        Local $new.5
+        Type Later
+        Local $dependency.local.102
+        Type Tape
+        Local $dependency.local.103
+        Type Int
+        Local $dependency.local.107
+        Type Int
+        Local $dependency.local.108
+      val $dependency.local.3: Calculator<Later>
+        Type Calculator<Later>
+        Local $new.5
+      call $dependency.local.109: Int = @fn9 direct
+        Type Calculator<Later>
+        Local $dependency.local.3
+      call $dependency.local.110: Int = @fn10 direct
+        Type Calculator<Later>
+        Local $dependency.local.3
+      val $dependency.local.111: Int
+        Type Int
+        Local $dependency.local.110
+      val $dependency.local.112: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.109
+          Type Int
+          Local $dependency.local.111
+      val $dependency.local.113: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.114: Int
+        Type Int
+        Local $dependency.local.113
+      branch bb16 bb17
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.112
+            Type Int
+            Local $dependency.local.114
+    bb16 if.then.16
+      val $dependency.local.118: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb18
+    bb17 if.else.17
+      call $dependency.local.115: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.116: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.local.117: Int
+        Type Int
+        Local $dependency.local.116
+      val $dependency.local.118: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.115
+            Type Int
+            Local $dependency.local.117
+      goto bb18
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $dependency.local.118
+    bb19 if.then.19
+      val $dependency.local.122: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb21
+    bb20 if.else.20
+      call $call.6: Later = @fn11 direct
+        Type Calculator<Later>
+        Local $dependency.local.3
+      call $dependency.local.119: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local inspect
+        Type Later
+        Local $call.6
+      val $dependency.local.120: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.121: Int
+        Type Int
+        Local $dependency.local.120
+      val $dependency.local.122: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.119
+            Type Int
+            Local $dependency.local.121
+      goto bb21
+    bb21 if.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $dependency.local.122
+    bb22 if.then.22
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb23 if.merge.23
+      val $dependency.local.123: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.123
+      val $dependency.local.124: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.125: Calculator<Later>
+        Type Calculator<Later>
+        Local $dependency.local.3
+      val $dependency.local.126: Tape
+        Type Tape
+        Local $dependency.local.124
+      val $dependency.local.127: Calculator<Later>
+        Type Calculator<Later>
+        Local $dependency.local.125
+      call $dependency.local.131: Calculator<Later> = @fn12 direct
+        Type Tape
+        Local $dependency.local.126
+        Type Calculator<Later>
+        Local $dependency.local.127
+      val $dependency.local.128: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.129: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.130: Int
+        Type Int
+        Local $dependency.local.129
+      call $dependency.local.132: Int = external2 direct
+        Type Tape
+        Local $dependency.local.128
+        Type Int
+        Local $dependency.local.130
+      call $dependency.local.133: Tape = @fn13 direct
+        Type Calculator<Later>
+        Local $dependency.local.131
+      val $dependency.local.134: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.135: Int
+        Type Int
+        Local $dependency.local.134
+      call $dependency.local.136: Int = external2 direct
+        Type Tape
+        Local $dependency.local.133
+        Type Int
+        Local $dependency.local.135
+      val $dependency.local.137: Int
+        Type Int
+        Local $dependency.local.132
+      call $dependency.local.138: Int = @fn14 direct
+        Type Calculator<Later>
+        Local $dependency.local.131
+        Type Int
+        Local $dependency.local.136
+        Type Int
+        Local $dependency.local.137
+      val $dependency.local.139: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.140: Int
+        Type Int
+        Local $dependency.local.139
+      branch bb24 bb25
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.138
+            Type Int
+            Local $dependency.local.140
+    bb24 if.then.24
+      val $dependency.local.144: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb26
+    bb25 if.else.25
+      call $dependency.local.141: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.142: Int
+        Type Int
+        IntegerLiteral Int value=123 bits=0x0000007b
+      val $dependency.local.143: Int
+        Type Int
+        Local $dependency.local.142
+      val $dependency.local.144: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.141
+            Type Int
+            Local $dependency.local.143
+      goto bb26
+    bb26 if.merge.26
+      branch bb27 bb28
+        Type Boolean
+        Local $dependency.local.144
+    bb27 if.then.27
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb28 if.merge.28
+      val $dependency.local.145: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.145
+      val $dependency.local.149: Calculator<Later>
+        Type Calculator<Later>
+        Local $dependency.local.3
+      val $dependency.local.146: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.147: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.148: Int
+        Type Int
+        Local $dependency.local.147
+      call $dependency.local.150: Int = external2 direct
+        Type Tape
+        Local $dependency.local.146
+        Type Int
+        Local $dependency.local.148
+      call $dependency.local.151: Tape = @fn13 direct
+        Type Calculator<Later>
+        Local $dependency.local.149
+      val $dependency.local.152: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.153: Int
+        Type Int
+        Local $dependency.local.152
+      call $dependency.local.154: Int = external2 direct
+        Type Tape
+        Local $dependency.local.151
+        Type Int
+        Local $dependency.local.153
+      val $dependency.local.155: Int
+        Type Int
+        Local $dependency.local.150
+      call $dependency.local.156: Int = @fn15 direct
+        Type Calculator<Later>
+        Local $dependency.local.149
+        Type Int
+        Local $dependency.local.154
+        Type Int
+        Local $dependency.local.155
+      val $dependency.local.157: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.local.158: Int
+        Type Int
+        Local $dependency.local.157
+      branch bb29 bb30
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.156
+            Type Int
+            Local $dependency.local.158
+    bb29 if.then.29
+      val $dependency.local.162: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb31
+    bb30 if.else.30
+      call $dependency.local.159: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.160: Int
+        Type Int
+        IntegerLiteral Int value=25 bits=0x00000019
+      val $dependency.local.161: Int
+        Type Int
+        Local $dependency.local.160
+      val $dependency.local.162: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.159
+            Type Int
+            Local $dependency.local.161
+      goto bb31
+    bb31 if.merge.31
+      branch bb32 bb33
+        Type Boolean
+        Local $dependency.local.162
+    bb32 if.then.32
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb33 if.merge.33
+      val $dependency.local.163: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.163
+      val $dependency.local.164: Later
+        Type Later
+        Local seed
+      val $dependency.local.165: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.166: Later
+        Type Later
+        Local $dependency.local.164
+      val $dependency.local.167: Tape
+        Type Tape
+        Local $dependency.local.165
+      assign $new.7
+        Type ExtensionCalculator<Later>
+        ClassAlloc ExtensionCalculator<Later>
+      call @fn45 direct
+        Type ExtensionCalculator<Later>
+        Local $new.7
+        Type Later
+        Local $dependency.local.166
+        Type Tape
+        Local $dependency.local.167
+      val $dependency.local.4: ExtensionCalculator<Later>
+        Type ExtensionCalculator<Later>
+        Local $new.7
+      val $dependency.local.171: ExtensionCalculator<Later>
+        Type ExtensionCalculator<Later>
+        Local $dependency.local.4
+      val $dependency.local.168: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.169: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.170: Int
+        Type Int
+        Local $dependency.local.169
+      call $dependency.local.172: Int = external2 direct
+        Type Tape
+        Local $dependency.local.168
+        Type Int
+        Local $dependency.local.170
+      call $dependency.local.173: Tape = @fn16 direct
+        Type ExtensionCalculator<Later>
+        Local $dependency.local.171
+      val $dependency.local.174: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.local.175: Int
+        Type Int
+        Local $dependency.local.174
+      call $dependency.local.176: Int = external2 direct
+        Type Tape
+        Local $dependency.local.173
+        Type Int
+        Local $dependency.local.175
+      val $dependency.local.177: Int
+        Type Int
+        Local $dependency.local.172
+      call $dependency.local.178: Int = @fn17 direct
+        Type ExtensionCalculator<Later>
+        Local $dependency.local.171
+        Type Int
+        Local $dependency.local.176
+        Type Int
+        Local $dependency.local.177
+      val $dependency.local.179: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.local.180: Int
+        Type Int
+        Local $dependency.local.179
+      branch bb34 bb35
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.178
+            Type Int
+            Local $dependency.local.180
+    bb34 if.then.34
+      val $dependency.local.184: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb36
+    bb35 if.else.35
+      call $dependency.local.181: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.182: Int
+        Type Int
+        IntegerLiteral Int value=27 bits=0x0000001b
+      val $dependency.local.183: Int
+        Type Int
+        Local $dependency.local.182
+      val $dependency.local.184: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.181
+            Type Int
+            Local $dependency.local.183
+      goto bb36
+    bb36 if.merge.36
+      branch bb37 bb38
+        Type Boolean
+        Local $dependency.local.184
+    bb37 if.then.37
+      return
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+    bb38 if.merge.38
+      val $dependency.local.185: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.185
+      val $dependency.local.189: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.186: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.187: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.188: Int
+        Type Int
+        Local $dependency.local.187
+      call $dependency.local.190: Int = external2 direct
+        Type Tape
+        Local $dependency.local.186
+        Type Int
+        Local $dependency.local.188
+      val $dependency.local.191: Tape
+        Type Tape
+        Local $dependency.local.189
+      val $dependency.local.192: Tape
+        Type Tape
+        Local $dependency.local.191
+      val $dependency.local.193: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.194: Int
+        Type Int
+        Local $dependency.local.193
+      call $dependency.local.195: Int = external2 direct
+        Type Tape
+        Local $dependency.local.192
+        Type Int
+        Local $dependency.local.194
+      val $dependency.local.196: Int
+        Type Int
+        Local $dependency.local.190
+      val $dependency.local.197: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+      val $dependency.local.5: Packet
+        Type Packet
+        VariantConstruct Packet v0
+          Type Tape
+          Local $dependency.local.191
+          Type Int
+          Local $dependency.local.195
+          Type Int
+          Local $dependency.local.196
+          Type Array<Int>
+          Local $dependency.local.197
+      val $when.1: Packet
+        Type Packet
+        Local $dependency.local.5
+      val $pattern.subject.2: Packet
+        Type Packet
+        Local $when.1
+      branch bb39 bb40
+        Type Boolean
+        VariantTest Packet v0
+          Type Packet
+          Local $pattern.subject.2
+    bb39 pattern.pass.39
+      val $dependency.local.6: Int
+        Type Int
+        VariantPayloadProject Packet v0 f1
+          Type Packet
+          Local $pattern.subject.2
+      val $dependency.local.7: Int
+        Type Int
+        VariantPayloadProject Packet v0 f2
+          Type Packet
+          Local $pattern.subject.2
+      val $dependency.local.8: Array<Int>
+        Type Array<Int>
+        VariantPayloadProject Packet v0 f3
+          Type Packet
+          Local $pattern.subject.2
+      val $dependency.local.198: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local $dependency.local.8
+      val $dependency.local.199: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.200: Long
+        Type Long
+        Local $dependency.local.199
+      branch bb42 bb43
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.local.198
+          Type Long
+          Local $dependency.local.200
+    bb40 pattern.else.40
+      unreachable
+    bb41 pattern.merge.41
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.205
+      val $dependency.local.206: Int
+        Type Int
+        Local $dependency.local.9
+      val $dependency.local.207: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.208: Int
+        Type Int
+        Local $dependency.local.207
+      branch bb45 bb46
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.206
+            Type Int
+            Local $dependency.local.208
+    bb42 if.then.42
+      val $dependency.local.201: Int
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.202: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.203: Int
+        Type Int
+        Local $dependency.local.202
+      assign $dependency.local.204
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.201
+          Type Int
+          Local $dependency.local.203
+      goto bb44
+    bb43 if.else.43
+      assign $dependency.local.204
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb44
+    bb44 if.merge.44
+      assign $dependency.local.205
+        Type Int
+        Local $dependency.local.204
+      goto bb41
+    bb45 if.then.45
+      val $dependency.local.212: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb47
+    bb46 if.else.46
+      call $dependency.local.209: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.210: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.local.211: Int
+        Type Int
+        Local $dependency.local.210
+      val $dependency.local.212: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.209
+            Type Int
+            Local $dependency.local.211
+      goto bb47
+    bb47 if.merge.47
+      branch bb48 bb49
+        Type Boolean
+        Local $dependency.local.212
+    bb48 if.then.48
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+    bb49 if.merge.49
+      val $dependency.local.213: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.213
+      var $dependency.local.10: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb50
+    bb50 while.cond.50 <loop-header-poll>
+      val $dependency.local.214: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.215: Tape
+        Type Tape
+        Local $dependency.local.214
+      val $dependency.local.216: Tape
+        Type Tape
+        Local $dependency.local.215
+      val $dependency.local.217: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.218: Int
+        Type Int
+        Local $dependency.local.217
+      call $dependency.local.219: Int = external2 direct
+        Type Tape
+        Local $dependency.local.216
+        Type Int
+        Local $dependency.local.218
+      call $call.8: Boolean = external5 direct
+        Type Tape
+        Local $dependency.local.215
+        Type Int
+        Local $dependency.local.219
+      branch bb52 bb51
+        Type Boolean
+        Local $call.8
+    bb51 while.exit.51
+      val $dependency.local.223: Int
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.224: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.225: Int
+        Type Int
+        Local $dependency.local.224
+      branch bb53 bb54
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.223
+            Type Int
+            Local $dependency.local.225
+    bb52 while.body.52
+      val $dependency.local.220: Int
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.221: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.222: Int
+        Type Int
+        Local $dependency.local.221
+      assign $dependency.local.10
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.220
+          Type Int
+          Local $dependency.local.222
+      goto bb50
+    bb53 if.then.53
+      val $dependency.local.229: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb55
+    bb54 if.else.54
+      call $dependency.local.226: Int = external6 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.227: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.228: Int
+        Type Int
+        Local $dependency.local.227
+      val $dependency.local.229: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.226
+            Type Int
+            Local $dependency.local.228
+      goto bb55
+    bb55 if.merge.55
+      branch bb56 bb57
+        Type Boolean
+        Local $dependency.local.229
+    bb56 if.then.56
+      val $dependency.local.233: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb58
+    bb57 if.else.57
+      call $dependency.local.230: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.231: Int
+        Type Int
+        IntegerLiteral Int value=111 bits=0x0000006f
+      val $dependency.local.232: Int
+        Type Int
+        Local $dependency.local.231
+      val $dependency.local.233: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.230
+            Type Int
+            Local $dependency.local.232
+      goto bb58
+    bb58 if.merge.58
+      branch bb59 bb60
+        Type Boolean
+        Local $dependency.local.233
+    bb59 if.then.59
+      return
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+    bb60 if.merge.60
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun $lambda.1 @fn3($closure: (String) -> Int, value: String) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn4(seed: String, inspect: (String) -> Int) -> Int
+    bb0 entry
+      assign $new.1
+        Type Tape
+        ClassAlloc Tape
+      call external1 direct
+        Type Tape
+        Local $new.1
+      val $dependency.local.2: Tape
+        Type Tape
+        Local $new.1
+      val $dependency.local.23: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.24: String
+        Type String
+        Local seed
+      val $dependency.local.11: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.12: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.12
+      call $dependency.local.25: Int = external2 direct
+        Type Tape
+        Local $dependency.local.11
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.14: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.15: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.15
+      call $dependency.local.26: Int = external2 direct
+        Type Tape
+        Local $dependency.local.14
+        Type Int
+        Local $dependency.local.16
+      val $dependency.local.17: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.19: Int
+        Type Int
+        Local $dependency.local.18
+      val $dependency.local.20: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.21: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.21
+      call $call.2: Int = external2 direct
+        Type Tape
+        Local $dependency.local.17
+        Type Int
+        Local $dependency.local.19
+      call $call.3: Int = external2 direct
+        Type Tape
+        Local $dependency.local.20
+        Type Int
+        Local $dependency.local.22
+      val $dependency.local.27: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+          Type Int
+          Local $call.2
+          Type Int
+          Local $call.3
+      val $dependency.local.28: Tape
+        Type Tape
+        Local $dependency.local.23
+      val $dependency.local.29: String
+        Type String
+        Local $dependency.local.24
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.26
+      val $dependency.local.31: Int
+        Type Int
+        Local $dependency.local.25
+      val $dependency.local.32: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.27
+      call $dependency.local.33: Int = @fn18 direct
+        Type Tape
+        Local $dependency.local.28
+        Type String
+        Local $dependency.local.29
+        Type Int
+        Local $dependency.local.30
+        Type Int
+        Local $dependency.local.31
+        Type Array<Int>
+        Local $dependency.local.32
+      val $dependency.local.34: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.33
+            Type Int
+            Local $dependency.local.35
+    bb1 if.then.1
+      val $dependency.local.39: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.local.36: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.37: Int
+        Type Int
+        IntegerLiteral Int value=2156 bits=0x0000086c
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      val $dependency.local.39: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.36
+            Type Int
+            Local $dependency.local.38
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.39
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.40: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.40
+      val $dependency.local.41: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.42: String
+        Type String
+        Local seed
+      val $dependency.local.43: Tape
+        Type Tape
+        Local $dependency.local.41
+      val $dependency.local.44: String
+        Type String
+        Local $dependency.local.42
+      val $dependency.local.45: Tape
+        Type Tape
+        Local $dependency.local.43
+      val $dependency.local.46: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.47: Int
+        Type Int
+        Local $dependency.local.46
+      call $dependency.local.48: Int = external2 direct
+        Type Tape
+        Local $dependency.local.45
+        Type Int
+        Local $dependency.local.47
+      val $dependency.local.52: Int
+        Type Int
+        Local $dependency.local.48
+      val $dependency.local.49: Tape
+        Type Tape
+        Local $dependency.local.43
+      val $dependency.local.50: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.local.51: Int
+        Type Int
+        Local $dependency.local.50
+      call $dependency.local.53: Int = external2 direct
+        Type Tape
+        Local $dependency.local.49
+        Type Int
+        Local $dependency.local.51
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      val $dependency.local.55: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.52
+          Type Int
+          Local $dependency.local.54
+      val $dependency.local.56: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+      call $dependency.local.57: Int = @fn18 direct
+        Type Tape
+        Local $dependency.local.43
+        Type String
+        Local $dependency.local.44
+        Type Int
+        Local $dependency.local.48
+        Type Int
+        Local $dependency.local.55
+        Type Array<Int>
+        Local $dependency.local.56
+      val $dependency.local.58: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.59: Int
+        Type Int
+        Local $dependency.local.58
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.57
+            Type Int
+            Local $dependency.local.59
+    bb6 if.then.6
+      val $dependency.local.63: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      call $dependency.local.60: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.61: Int
+        Type Int
+        IntegerLiteral Int value=34 bits=0x00000022
+      val $dependency.local.62: Int
+        Type Int
+        Local $dependency.local.61
+      val $dependency.local.63: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.60
+            Type Int
+            Local $dependency.local.62
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $dependency.local.63
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      val $dependency.local.64: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.64
+      val $dependency.local.77: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.78: String
+        Type String
+        Local seed
+      val $dependency.local.65: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.66: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.67: Int
+        Type Int
+        Local $dependency.local.66
+      call $dependency.local.79: Int = external2 direct
+        Type Tape
+        Local $dependency.local.65
+        Type Int
+        Local $dependency.local.67
+      val $dependency.local.68: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.69: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.70: Int
+        Type Int
+        Local $dependency.local.69
+      call $dependency.local.80: Int = external2 direct
+        Type Tape
+        Local $dependency.local.68
+        Type Int
+        Local $dependency.local.70
+      val $dependency.local.71: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.72: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.73: Int
+        Type Int
+        Local $dependency.local.72
+      call $dependency.local.81: Int = external2 direct
+        Type Tape
+        Local $dependency.local.71
+        Type Int
+        Local $dependency.local.73
+      val $dependency.local.74: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.75: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.local.76: Int
+        Type Int
+        Local $dependency.local.75
+      call $call.4: Int = external2 direct
+        Type Tape
+        Local $dependency.local.74
+        Type Int
+        Local $dependency.local.76
+      val $dependency.local.82: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+          Type Int
+          Local $call.4
+      val $dependency.local.83: Tape
+        Type Tape
+        Local $dependency.local.77
+      val $dependency.local.84: String
+        Type String
+        Local $dependency.local.78
+      val $dependency.local.85: Int
+        Type Int
+        Local $dependency.local.79
+      val $dependency.local.86: Int
+        Type Int
+        Local $dependency.local.80
+      val $dependency.local.87: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+          Element
+            Type Int
+            Local $dependency.local.81
+          CopyArray
+            Type Array<Int>
+            Local $dependency.local.82
+      call $dependency.local.88: Int = @fn18 direct
+        Type Tape
+        Local $dependency.local.83
+        Type String
+        Local $dependency.local.84
+        Type Int
+        Local $dependency.local.85
+        Type Int
+        Local $dependency.local.86
+        Type Array<Int>
+        Local $dependency.local.87
+      val $dependency.local.89: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.local.90: Int
+        Type Int
+        Local $dependency.local.89
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.88
+            Type Int
+            Local $dependency.local.90
+    bb11 if.then.11
+      val $dependency.local.94: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      call $dependency.local.91: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.92: Int
+        Type Int
+        IntegerLiteral Int value=1256 bits=0x000004e8
+      val $dependency.local.93: Int
+        Type Int
+        Local $dependency.local.92
+      val $dependency.local.94: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.91
+            Type Int
+            Local $dependency.local.93
+      goto bb13
+    bb13 if.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $dependency.local.94
+    bb14 if.then.14
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb15 if.merge.15
+      val $dependency.local.95: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.95
+      val $dependency.local.99: String
+        Type String
+        Local seed
+      val $dependency.local.100: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.96: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.97: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.98: Int
+        Type Int
+        Local $dependency.local.97
+      call $dependency.local.101: Int = external2 direct
+        Type Tape
+        Local $dependency.local.96
+        Type Int
+        Local $dependency.local.98
+      val $dependency.local.102: String
+        Type String
+        Local $dependency.local.99
+      val $dependency.local.103: Tape
+        Type Tape
+        Local $dependency.local.100
+      val $dependency.local.104: Tape
+        Type Tape
+        Local $dependency.local.103
+      val $dependency.local.105: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.106: Int
+        Type Int
+        Local $dependency.local.105
+      call $dependency.local.107: Int = external2 direct
+        Type Tape
+        Local $dependency.local.104
+        Type Int
+        Local $dependency.local.106
+      val $dependency.local.108: Int
+        Type Int
+        Local $dependency.local.101
+      assign $new.5
+        Type Calculator<String>
+        ClassAlloc Calculator<String>
+      call @fn46 direct
+        Type Calculator<String>
+        Local $new.5
+        Type String
+        Local $dependency.local.102
+        Type Tape
+        Local $dependency.local.103
+        Type Int
+        Local $dependency.local.107
+        Type Int
+        Local $dependency.local.108
+      val $dependency.local.3: Calculator<String>
+        Type Calculator<String>
+        Local $new.5
+      call $dependency.local.109: Int = @fn19 direct
+        Type Calculator<String>
+        Local $dependency.local.3
+      call $dependency.local.110: Int = @fn20 direct
+        Type Calculator<String>
+        Local $dependency.local.3
+      val $dependency.local.111: Int
+        Type Int
+        Local $dependency.local.110
+      val $dependency.local.112: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.109
+          Type Int
+          Local $dependency.local.111
+      val $dependency.local.113: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.114: Int
+        Type Int
+        Local $dependency.local.113
+      branch bb16 bb17
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.112
+            Type Int
+            Local $dependency.local.114
+    bb16 if.then.16
+      val $dependency.local.118: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb18
+    bb17 if.else.17
+      call $dependency.local.115: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.116: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.local.117: Int
+        Type Int
+        Local $dependency.local.116
+      val $dependency.local.118: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.115
+            Type Int
+            Local $dependency.local.117
+      goto bb18
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $dependency.local.118
+    bb19 if.then.19
+      val $dependency.local.122: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb21
+    bb20 if.else.20
+      call $call.6: String = @fn21 direct
+        Type Calculator<String>
+        Local $dependency.local.3
+      call $dependency.local.119: Int = <closure:function_type2> closure[function_type2]
+        Type (String) -> Int
+        Local inspect
+        Type String
+        Local $call.6
+      val $dependency.local.120: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.121: Int
+        Type Int
+        Local $dependency.local.120
+      val $dependency.local.122: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.119
+            Type Int
+            Local $dependency.local.121
+      goto bb21
+    bb21 if.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $dependency.local.122
+    bb22 if.then.22
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb23 if.merge.23
+      val $dependency.local.123: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.123
+      val $dependency.local.124: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.125: Calculator<String>
+        Type Calculator<String>
+        Local $dependency.local.3
+      val $dependency.local.126: Tape
+        Type Tape
+        Local $dependency.local.124
+      val $dependency.local.127: Calculator<String>
+        Type Calculator<String>
+        Local $dependency.local.125
+      call $dependency.local.131: Calculator<String> = @fn22 direct
+        Type Tape
+        Local $dependency.local.126
+        Type Calculator<String>
+        Local $dependency.local.127
+      val $dependency.local.128: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.129: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.130: Int
+        Type Int
+        Local $dependency.local.129
+      call $dependency.local.132: Int = external2 direct
+        Type Tape
+        Local $dependency.local.128
+        Type Int
+        Local $dependency.local.130
+      call $dependency.local.133: Tape = @fn23 direct
+        Type Calculator<String>
+        Local $dependency.local.131
+      val $dependency.local.134: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.135: Int
+        Type Int
+        Local $dependency.local.134
+      call $dependency.local.136: Int = external2 direct
+        Type Tape
+        Local $dependency.local.133
+        Type Int
+        Local $dependency.local.135
+      val $dependency.local.137: Int
+        Type Int
+        Local $dependency.local.132
+      call $dependency.local.138: Int = @fn24 direct
+        Type Calculator<String>
+        Local $dependency.local.131
+        Type Int
+        Local $dependency.local.136
+        Type Int
+        Local $dependency.local.137
+      val $dependency.local.139: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.140: Int
+        Type Int
+        Local $dependency.local.139
+      branch bb24 bb25
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.138
+            Type Int
+            Local $dependency.local.140
+    bb24 if.then.24
+      val $dependency.local.144: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb26
+    bb25 if.else.25
+      call $dependency.local.141: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.142: Int
+        Type Int
+        IntegerLiteral Int value=123 bits=0x0000007b
+      val $dependency.local.143: Int
+        Type Int
+        Local $dependency.local.142
+      val $dependency.local.144: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.141
+            Type Int
+            Local $dependency.local.143
+      goto bb26
+    bb26 if.merge.26
+      branch bb27 bb28
+        Type Boolean
+        Local $dependency.local.144
+    bb27 if.then.27
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb28 if.merge.28
+      val $dependency.local.145: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.145
+      val $dependency.local.149: Calculator<String>
+        Type Calculator<String>
+        Local $dependency.local.3
+      val $dependency.local.146: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.147: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.148: Int
+        Type Int
+        Local $dependency.local.147
+      call $dependency.local.150: Int = external2 direct
+        Type Tape
+        Local $dependency.local.146
+        Type Int
+        Local $dependency.local.148
+      call $dependency.local.151: Tape = @fn23 direct
+        Type Calculator<String>
+        Local $dependency.local.149
+      val $dependency.local.152: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.153: Int
+        Type Int
+        Local $dependency.local.152
+      call $dependency.local.154: Int = external2 direct
+        Type Tape
+        Local $dependency.local.151
+        Type Int
+        Local $dependency.local.153
+      val $dependency.local.155: Int
+        Type Int
+        Local $dependency.local.150
+      call $dependency.local.156: Int = @fn25 direct
+        Type Calculator<String>
+        Local $dependency.local.149
+        Type Int
+        Local $dependency.local.154
+        Type Int
+        Local $dependency.local.155
+      val $dependency.local.157: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.local.158: Int
+        Type Int
+        Local $dependency.local.157
+      branch bb29 bb30
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.156
+            Type Int
+            Local $dependency.local.158
+    bb29 if.then.29
+      val $dependency.local.162: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb31
+    bb30 if.else.30
+      call $dependency.local.159: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.160: Int
+        Type Int
+        IntegerLiteral Int value=25 bits=0x00000019
+      val $dependency.local.161: Int
+        Type Int
+        Local $dependency.local.160
+      val $dependency.local.162: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.159
+            Type Int
+            Local $dependency.local.161
+      goto bb31
+    bb31 if.merge.31
+      branch bb32 bb33
+        Type Boolean
+        Local $dependency.local.162
+    bb32 if.then.32
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb33 if.merge.33
+      val $dependency.local.163: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.163
+      val $dependency.local.164: String
+        Type String
+        Local seed
+      val $dependency.local.165: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.166: String
+        Type String
+        Local $dependency.local.164
+      val $dependency.local.167: Tape
+        Type Tape
+        Local $dependency.local.165
+      assign $new.7
+        Type ExtensionCalculator<String>
+        ClassAlloc ExtensionCalculator<String>
+      call @fn47 direct
+        Type ExtensionCalculator<String>
+        Local $new.7
+        Type String
+        Local $dependency.local.166
+        Type Tape
+        Local $dependency.local.167
+      val $dependency.local.4: ExtensionCalculator<String>
+        Type ExtensionCalculator<String>
+        Local $new.7
+      val $dependency.local.171: ExtensionCalculator<String>
+        Type ExtensionCalculator<String>
+        Local $dependency.local.4
+      val $dependency.local.168: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.169: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.170: Int
+        Type Int
+        Local $dependency.local.169
+      call $dependency.local.172: Int = external2 direct
+        Type Tape
+        Local $dependency.local.168
+        Type Int
+        Local $dependency.local.170
+      call $dependency.local.173: Tape = @fn26 direct
+        Type ExtensionCalculator<String>
+        Local $dependency.local.171
+      val $dependency.local.174: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.local.175: Int
+        Type Int
+        Local $dependency.local.174
+      call $dependency.local.176: Int = external2 direct
+        Type Tape
+        Local $dependency.local.173
+        Type Int
+        Local $dependency.local.175
+      val $dependency.local.177: Int
+        Type Int
+        Local $dependency.local.172
+      call $dependency.local.178: Int = @fn27 direct
+        Type ExtensionCalculator<String>
+        Local $dependency.local.171
+        Type Int
+        Local $dependency.local.176
+        Type Int
+        Local $dependency.local.177
+      val $dependency.local.179: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.local.180: Int
+        Type Int
+        Local $dependency.local.179
+      branch bb34 bb35
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.178
+            Type Int
+            Local $dependency.local.180
+    bb34 if.then.34
+      val $dependency.local.184: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb36
+    bb35 if.else.35
+      call $dependency.local.181: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.182: Int
+        Type Int
+        IntegerLiteral Int value=27 bits=0x0000001b
+      val $dependency.local.183: Int
+        Type Int
+        Local $dependency.local.182
+      val $dependency.local.184: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.181
+            Type Int
+            Local $dependency.local.183
+      goto bb36
+    bb36 if.merge.36
+      branch bb37 bb38
+        Type Boolean
+        Local $dependency.local.184
+    bb37 if.then.37
+      return
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+    bb38 if.merge.38
+      val $dependency.local.185: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.185
+      val $dependency.local.189: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.186: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.187: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.188: Int
+        Type Int
+        Local $dependency.local.187
+      call $dependency.local.190: Int = external2 direct
+        Type Tape
+        Local $dependency.local.186
+        Type Int
+        Local $dependency.local.188
+      val $dependency.local.191: Tape
+        Type Tape
+        Local $dependency.local.189
+      val $dependency.local.192: Tape
+        Type Tape
+        Local $dependency.local.191
+      val $dependency.local.193: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.194: Int
+        Type Int
+        Local $dependency.local.193
+      call $dependency.local.195: Int = external2 direct
+        Type Tape
+        Local $dependency.local.192
+        Type Int
+        Local $dependency.local.194
+      val $dependency.local.196: Int
+        Type Int
+        Local $dependency.local.190
+      val $dependency.local.197: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+      val $dependency.local.5: Packet
+        Type Packet
+        VariantConstruct Packet v0
+          Type Tape
+          Local $dependency.local.191
+          Type Int
+          Local $dependency.local.195
+          Type Int
+          Local $dependency.local.196
+          Type Array<Int>
+          Local $dependency.local.197
+      val $when.1: Packet
+        Type Packet
+        Local $dependency.local.5
+      val $pattern.subject.2: Packet
+        Type Packet
+        Local $when.1
+      branch bb39 bb40
+        Type Boolean
+        VariantTest Packet v0
+          Type Packet
+          Local $pattern.subject.2
+    bb39 pattern.pass.39
+      val $dependency.local.6: Int
+        Type Int
+        VariantPayloadProject Packet v0 f1
+          Type Packet
+          Local $pattern.subject.2
+      val $dependency.local.7: Int
+        Type Int
+        VariantPayloadProject Packet v0 f2
+          Type Packet
+          Local $pattern.subject.2
+      val $dependency.local.8: Array<Int>
+        Type Array<Int>
+        VariantPayloadProject Packet v0 f3
+          Type Packet
+          Local $pattern.subject.2
+      val $dependency.local.198: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local $dependency.local.8
+      val $dependency.local.199: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.200: Long
+        Type Long
+        Local $dependency.local.199
+      branch bb42 bb43
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.local.198
+          Type Long
+          Local $dependency.local.200
+    bb40 pattern.else.40
+      unreachable
+    bb41 pattern.merge.41
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.205
+      val $dependency.local.206: Int
+        Type Int
+        Local $dependency.local.9
+      val $dependency.local.207: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.208: Int
+        Type Int
+        Local $dependency.local.207
+      branch bb45 bb46
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.206
+            Type Int
+            Local $dependency.local.208
+    bb42 if.then.42
+      val $dependency.local.201: Int
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.202: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.203: Int
+        Type Int
+        Local $dependency.local.202
+      assign $dependency.local.204
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.201
+          Type Int
+          Local $dependency.local.203
+      goto bb44
+    bb43 if.else.43
+      assign $dependency.local.204
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb44
+    bb44 if.merge.44
+      assign $dependency.local.205
+        Type Int
+        Local $dependency.local.204
+      goto bb41
+    bb45 if.then.45
+      val $dependency.local.212: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb47
+    bb46 if.else.46
+      call $dependency.local.209: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.210: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.local.211: Int
+        Type Int
+        Local $dependency.local.210
+      val $dependency.local.212: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.209
+            Type Int
+            Local $dependency.local.211
+      goto bb47
+    bb47 if.merge.47
+      branch bb48 bb49
+        Type Boolean
+        Local $dependency.local.212
+    bb48 if.then.48
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+    bb49 if.merge.49
+      val $dependency.local.213: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.213
+      var $dependency.local.10: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb50
+    bb50 while.cond.50 <loop-header-poll>
+      val $dependency.local.214: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.215: Tape
+        Type Tape
+        Local $dependency.local.214
+      val $dependency.local.216: Tape
+        Type Tape
+        Local $dependency.local.215
+      val $dependency.local.217: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.218: Int
+        Type Int
+        Local $dependency.local.217
+      call $dependency.local.219: Int = external2 direct
+        Type Tape
+        Local $dependency.local.216
+        Type Int
+        Local $dependency.local.218
+      call $call.8: Boolean = external5 direct
+        Type Tape
+        Local $dependency.local.215
+        Type Int
+        Local $dependency.local.219
+      branch bb52 bb51
+        Type Boolean
+        Local $call.8
+    bb51 while.exit.51
+      val $dependency.local.223: Int
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.224: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.225: Int
+        Type Int
+        Local $dependency.local.224
+      branch bb53 bb54
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.223
+            Type Int
+            Local $dependency.local.225
+    bb52 while.body.52
+      val $dependency.local.220: Int
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.221: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.222: Int
+        Type Int
+        Local $dependency.local.221
+      assign $dependency.local.10
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.220
+          Type Int
+          Local $dependency.local.222
+      goto bb50
+    bb53 if.then.53
+      val $dependency.local.229: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb55
+    bb54 if.else.54
+      call $dependency.local.226: Int = external6 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.227: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.228: Int
+        Type Int
+        Local $dependency.local.227
+      val $dependency.local.229: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.226
+            Type Int
+            Local $dependency.local.228
+      goto bb55
+    bb55 if.merge.55
+      branch bb56 bb57
+        Type Boolean
+        Local $dependency.local.229
+    bb56 if.then.56
+      val $dependency.local.233: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb58
+    bb57 if.else.57
+      call $dependency.local.230: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.231: Int
+        Type Int
+        IntegerLiteral Int value=111 bits=0x0000006f
+      val $dependency.local.232: Int
+        Type Int
+        Local $dependency.local.231
+      val $dependency.local.233: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.230
+            Type Int
+            Local $dependency.local.232
+      goto bb58
+    bb58 if.merge.58
+      branch bb59 bb60
+        Type Boolean
+        Local $dependency.local.233
+    bb59 if.then.59
+      return
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+    bb60 if.merge.60
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun $lambda.2 @fn5($closure: (Unit) -> Int, value: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn6(seed: Unit, inspect: (Unit) -> Int) -> Int
+    bb0 entry
+      assign $new.1
+        Type Tape
+        ClassAlloc Tape
+      call external1 direct
+        Type Tape
+        Local $new.1
+      val $dependency.local.2: Tape
+        Type Tape
+        Local $new.1
+      val $dependency.local.23: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.24: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.11: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.12: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.13: Int
+        Type Int
+        Local $dependency.local.12
+      call $dependency.local.25: Int = external2 direct
+        Type Tape
+        Local $dependency.local.11
+        Type Int
+        Local $dependency.local.13
+      val $dependency.local.14: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.15: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.15
+      call $dependency.local.26: Int = external2 direct
+        Type Tape
+        Local $dependency.local.14
+        Type Int
+        Local $dependency.local.16
+      val $dependency.local.17: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.18: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.19: Int
+        Type Int
+        Local $dependency.local.18
+      val $dependency.local.20: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.21: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.local.22: Int
+        Type Int
+        Local $dependency.local.21
+      call $call.2: Int = external2 direct
+        Type Tape
+        Local $dependency.local.17
+        Type Int
+        Local $dependency.local.19
+      call $call.3: Int = external2 direct
+        Type Tape
+        Local $dependency.local.20
+        Type Int
+        Local $dependency.local.22
+      val $dependency.local.27: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+          Type Int
+          Local $call.2
+          Type Int
+          Local $call.3
+      val $dependency.local.28: Tape
+        Type Tape
+        Local $dependency.local.23
+      val $dependency.local.29: Unit
+        Type Unit
+        Local $dependency.local.24
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.26
+      val $dependency.local.31: Int
+        Type Int
+        Local $dependency.local.25
+      val $dependency.local.32: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.27
+      call $dependency.local.33: Int = @fn28 direct
+        Type Tape
+        Local $dependency.local.28
+        Type Unit
+        Local $dependency.local.29
+        Type Int
+        Local $dependency.local.30
+        Type Int
+        Local $dependency.local.31
+        Type Array<Int>
+        Local $dependency.local.32
+      val $dependency.local.34: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.local.35: Int
+        Type Int
+        Local $dependency.local.34
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.33
+            Type Int
+            Local $dependency.local.35
+    bb1 if.then.1
+      val $dependency.local.39: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.local.36: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.37: Int
+        Type Int
+        IntegerLiteral Int value=2156 bits=0x0000086c
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      val $dependency.local.39: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.36
+            Type Int
+            Local $dependency.local.38
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.39
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.40: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.40
+      val $dependency.local.41: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.42: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.43: Tape
+        Type Tape
+        Local $dependency.local.41
+      val $dependency.local.44: Unit
+        Type Unit
+        Local $dependency.local.42
+      val $dependency.local.45: Tape
+        Type Tape
+        Local $dependency.local.43
+      val $dependency.local.46: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.47: Int
+        Type Int
+        Local $dependency.local.46
+      call $dependency.local.48: Int = external2 direct
+        Type Tape
+        Local $dependency.local.45
+        Type Int
+        Local $dependency.local.47
+      val $dependency.local.52: Int
+        Type Int
+        Local $dependency.local.48
+      val $dependency.local.49: Tape
+        Type Tape
+        Local $dependency.local.43
+      val $dependency.local.50: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.local.51: Int
+        Type Int
+        Local $dependency.local.50
+      call $dependency.local.53: Int = external2 direct
+        Type Tape
+        Local $dependency.local.49
+        Type Int
+        Local $dependency.local.51
+      val $dependency.local.54: Int
+        Type Int
+        Local $dependency.local.53
+      val $dependency.local.55: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.52
+          Type Int
+          Local $dependency.local.54
+      val $dependency.local.56: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+      call $dependency.local.57: Int = @fn28 direct
+        Type Tape
+        Local $dependency.local.43
+        Type Unit
+        Local $dependency.local.44
+        Type Int
+        Local $dependency.local.48
+        Type Int
+        Local $dependency.local.55
+        Type Array<Int>
+        Local $dependency.local.56
+      val $dependency.local.58: Int
+        Type Int
+        IntegerLiteral Int value=10 bits=0x0000000a
+      val $dependency.local.59: Int
+        Type Int
+        Local $dependency.local.58
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.57
+            Type Int
+            Local $dependency.local.59
+    bb6 if.then.6
+      val $dependency.local.63: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb8
+    bb7 if.else.7
+      call $dependency.local.60: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.61: Int
+        Type Int
+        IntegerLiteral Int value=34 bits=0x00000022
+      val $dependency.local.62: Int
+        Type Int
+        Local $dependency.local.61
+      val $dependency.local.63: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.60
+            Type Int
+            Local $dependency.local.62
+      goto bb8
+    bb8 if.merge.8
+      branch bb9 bb10
+        Type Boolean
+        Local $dependency.local.63
+    bb9 if.then.9
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb10 if.merge.10
+      val $dependency.local.64: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.64
+      val $dependency.local.77: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.78: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.65: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.66: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.67: Int
+        Type Int
+        Local $dependency.local.66
+      call $dependency.local.79: Int = external2 direct
+        Type Tape
+        Local $dependency.local.65
+        Type Int
+        Local $dependency.local.67
+      val $dependency.local.68: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.69: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.70: Int
+        Type Int
+        Local $dependency.local.69
+      call $dependency.local.80: Int = external2 direct
+        Type Tape
+        Local $dependency.local.68
+        Type Int
+        Local $dependency.local.70
+      val $dependency.local.71: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.72: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.73: Int
+        Type Int
+        Local $dependency.local.72
+      call $dependency.local.81: Int = external2 direct
+        Type Tape
+        Local $dependency.local.71
+        Type Int
+        Local $dependency.local.73
+      val $dependency.local.74: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.75: Int
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+      val $dependency.local.76: Int
+        Type Int
+        Local $dependency.local.75
+      call $call.4: Int = external2 direct
+        Type Tape
+        Local $dependency.local.74
+        Type Int
+        Local $dependency.local.76
+      val $dependency.local.82: Array<Int>
+        Type Array<Int>
+        ArrayLiteral Array<Int>
+          Type Int
+          Local $call.4
+      val $dependency.local.83: Tape
+        Type Tape
+        Local $dependency.local.77
+      val $dependency.local.84: Unit
+        Type Unit
+        Local $dependency.local.78
+      val $dependency.local.85: Int
+        Type Int
+        Local $dependency.local.79
+      val $dependency.local.86: Int
+        Type Int
+        Local $dependency.local.80
+      val $dependency.local.87: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+          Element
+            Type Int
+            Local $dependency.local.81
+          CopyArray
+            Type Array<Int>
+            Local $dependency.local.82
+      call $dependency.local.88: Int = @fn28 direct
+        Type Tape
+        Local $dependency.local.83
+        Type Unit
+        Local $dependency.local.84
+        Type Int
+        Local $dependency.local.85
+        Type Int
+        Local $dependency.local.86
+        Type Array<Int>
+        Local $dependency.local.87
+      val $dependency.local.89: Int
+        Type Int
+        IntegerLiteral Int value=14 bits=0x0000000e
+      val $dependency.local.90: Int
+        Type Int
+        Local $dependency.local.89
+      branch bb11 bb12
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.88
+            Type Int
+            Local $dependency.local.90
+    bb11 if.then.11
+      val $dependency.local.94: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb13
+    bb12 if.else.12
+      call $dependency.local.91: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.92: Int
+        Type Int
+        IntegerLiteral Int value=1256 bits=0x000004e8
+      val $dependency.local.93: Int
+        Type Int
+        Local $dependency.local.92
+      val $dependency.local.94: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.91
+            Type Int
+            Local $dependency.local.93
+      goto bb13
+    bb13 if.merge.13
+      branch bb14 bb15
+        Type Boolean
+        Local $dependency.local.94
+    bb14 if.then.14
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb15 if.merge.15
+      val $dependency.local.95: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.95
+      val $dependency.local.99: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.100: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.96: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.97: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.98: Int
+        Type Int
+        Local $dependency.local.97
+      call $dependency.local.101: Int = external2 direct
+        Type Tape
+        Local $dependency.local.96
+        Type Int
+        Local $dependency.local.98
+      val $dependency.local.102: Unit
+        Type Unit
+        Local $dependency.local.99
+      val $dependency.local.103: Tape
+        Type Tape
+        Local $dependency.local.100
+      val $dependency.local.104: Tape
+        Type Tape
+        Local $dependency.local.103
+      val $dependency.local.105: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.106: Int
+        Type Int
+        Local $dependency.local.105
+      call $dependency.local.107: Int = external2 direct
+        Type Tape
+        Local $dependency.local.104
+        Type Int
+        Local $dependency.local.106
+      val $dependency.local.108: Int
+        Type Int
+        Local $dependency.local.101
+      assign $new.5
+        Type Calculator<Unit>
+        ClassAlloc Calculator<Unit>
+      call @fn48 direct
+        Type Calculator<Unit>
+        Local $new.5
+        Type Unit
+        Local $dependency.local.102
+        Type Tape
+        Local $dependency.local.103
+        Type Int
+        Local $dependency.local.107
+        Type Int
+        Local $dependency.local.108
+      val $dependency.local.3: Calculator<Unit>
+        Type Calculator<Unit>
+        Local $new.5
+      call $dependency.local.109: Int = @fn29 direct
+        Type Calculator<Unit>
+        Local $dependency.local.3
+      call $dependency.local.110: Int = @fn30 direct
+        Type Calculator<Unit>
+        Local $dependency.local.3
+      val $dependency.local.111: Int
+        Type Int
+        Local $dependency.local.110
+      val $dependency.local.112: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.109
+          Type Int
+          Local $dependency.local.111
+      val $dependency.local.113: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.114: Int
+        Type Int
+        Local $dependency.local.113
+      branch bb16 bb17
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.112
+            Type Int
+            Local $dependency.local.114
+    bb16 if.then.16
+      val $dependency.local.118: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb18
+    bb17 if.else.17
+      call $dependency.local.115: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.116: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.local.117: Int
+        Type Int
+        Local $dependency.local.116
+      val $dependency.local.118: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.115
+            Type Int
+            Local $dependency.local.117
+      goto bb18
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $dependency.local.118
+    bb19 if.then.19
+      val $dependency.local.122: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb21
+    bb20 if.else.20
+      call @fn31 direct
+        Type Calculator<Unit>
+        Local $dependency.local.3
+      call $dependency.local.119: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local inspect
+        Type Unit
+        UnitLiteral
+      val $dependency.local.120: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.121: Int
+        Type Int
+        Local $dependency.local.120
+      val $dependency.local.122: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.119
+            Type Int
+            Local $dependency.local.121
+      goto bb21
+    bb21 if.merge.21
+      branch bb22 bb23
+        Type Boolean
+        Local $dependency.local.122
+    bb22 if.then.22
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb23 if.merge.23
+      val $dependency.local.123: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.123
+      val $dependency.local.124: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.125: Calculator<Unit>
+        Type Calculator<Unit>
+        Local $dependency.local.3
+      val $dependency.local.126: Tape
+        Type Tape
+        Local $dependency.local.124
+      val $dependency.local.127: Calculator<Unit>
+        Type Calculator<Unit>
+        Local $dependency.local.125
+      call $dependency.local.131: Calculator<Unit> = @fn32 direct
+        Type Tape
+        Local $dependency.local.126
+        Type Calculator<Unit>
+        Local $dependency.local.127
+      val $dependency.local.128: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.129: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.130: Int
+        Type Int
+        Local $dependency.local.129
+      call $dependency.local.132: Int = external2 direct
+        Type Tape
+        Local $dependency.local.128
+        Type Int
+        Local $dependency.local.130
+      call $dependency.local.133: Tape = @fn33 direct
+        Type Calculator<Unit>
+        Local $dependency.local.131
+      val $dependency.local.134: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.135: Int
+        Type Int
+        Local $dependency.local.134
+      call $dependency.local.136: Int = external2 direct
+        Type Tape
+        Local $dependency.local.133
+        Type Int
+        Local $dependency.local.135
+      val $dependency.local.137: Int
+        Type Int
+        Local $dependency.local.132
+      call $dependency.local.138: Int = @fn34 direct
+        Type Calculator<Unit>
+        Local $dependency.local.131
+        Type Int
+        Local $dependency.local.136
+        Type Int
+        Local $dependency.local.137
+      val $dependency.local.139: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.140: Int
+        Type Int
+        Local $dependency.local.139
+      branch bb24 bb25
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.138
+            Type Int
+            Local $dependency.local.140
+    bb24 if.then.24
+      val $dependency.local.144: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb26
+    bb25 if.else.25
+      call $dependency.local.141: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.142: Int
+        Type Int
+        IntegerLiteral Int value=123 bits=0x0000007b
+      val $dependency.local.143: Int
+        Type Int
+        Local $dependency.local.142
+      val $dependency.local.144: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.141
+            Type Int
+            Local $dependency.local.143
+      goto bb26
+    bb26 if.merge.26
+      branch bb27 bb28
+        Type Boolean
+        Local $dependency.local.144
+    bb27 if.then.27
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+    bb28 if.merge.28
+      val $dependency.local.145: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.145
+      val $dependency.local.149: Calculator<Unit>
+        Type Calculator<Unit>
+        Local $dependency.local.3
+      val $dependency.local.146: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.147: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.148: Int
+        Type Int
+        Local $dependency.local.147
+      call $dependency.local.150: Int = external2 direct
+        Type Tape
+        Local $dependency.local.146
+        Type Int
+        Local $dependency.local.148
+      call $dependency.local.151: Tape = @fn33 direct
+        Type Calculator<Unit>
+        Local $dependency.local.149
+      val $dependency.local.152: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.153: Int
+        Type Int
+        Local $dependency.local.152
+      call $dependency.local.154: Int = external2 direct
+        Type Tape
+        Local $dependency.local.151
+        Type Int
+        Local $dependency.local.153
+      val $dependency.local.155: Int
+        Type Int
+        Local $dependency.local.150
+      call $dependency.local.156: Int = @fn35 direct
+        Type Calculator<Unit>
+        Local $dependency.local.149
+        Type Int
+        Local $dependency.local.154
+        Type Int
+        Local $dependency.local.155
+      val $dependency.local.157: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.local.158: Int
+        Type Int
+        Local $dependency.local.157
+      branch bb29 bb30
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.156
+            Type Int
+            Local $dependency.local.158
+    bb29 if.then.29
+      val $dependency.local.162: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb31
+    bb30 if.else.30
+      call $dependency.local.159: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.160: Int
+        Type Int
+        IntegerLiteral Int value=25 bits=0x00000019
+      val $dependency.local.161: Int
+        Type Int
+        Local $dependency.local.160
+      val $dependency.local.162: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.159
+            Type Int
+            Local $dependency.local.161
+      goto bb31
+    bb31 if.merge.31
+      branch bb32 bb33
+        Type Boolean
+        Local $dependency.local.162
+    bb32 if.then.32
+      return
+        Type Int
+        IntegerLiteral Int value=6 bits=0x00000006
+    bb33 if.merge.33
+      val $dependency.local.163: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.163
+      val $dependency.local.164: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.165: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.166: Unit
+        Type Unit
+        Local $dependency.local.164
+      val $dependency.local.167: Tape
+        Type Tape
+        Local $dependency.local.165
+      assign $new.6
+        Type ExtensionCalculator<Unit>
+        ClassAlloc ExtensionCalculator<Unit>
+      call @fn49 direct
+        Type ExtensionCalculator<Unit>
+        Local $new.6
+        Type Unit
+        Local $dependency.local.166
+        Type Tape
+        Local $dependency.local.167
+      val $dependency.local.4: ExtensionCalculator<Unit>
+        Type ExtensionCalculator<Unit>
+        Local $new.6
+      val $dependency.local.171: ExtensionCalculator<Unit>
+        Type ExtensionCalculator<Unit>
+        Local $dependency.local.4
+      val $dependency.local.168: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.169: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.170: Int
+        Type Int
+        Local $dependency.local.169
+      call $dependency.local.172: Int = external2 direct
+        Type Tape
+        Local $dependency.local.168
+        Type Int
+        Local $dependency.local.170
+      call $dependency.local.173: Tape = @fn36 direct
+        Type ExtensionCalculator<Unit>
+        Local $dependency.local.171
+      val $dependency.local.174: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.local.175: Int
+        Type Int
+        Local $dependency.local.174
+      call $dependency.local.176: Int = external2 direct
+        Type Tape
+        Local $dependency.local.173
+        Type Int
+        Local $dependency.local.175
+      val $dependency.local.177: Int
+        Type Int
+        Local $dependency.local.172
+      call $dependency.local.178: Int = @fn37 direct
+        Type ExtensionCalculator<Unit>
+        Local $dependency.local.171
+        Type Int
+        Local $dependency.local.176
+        Type Int
+        Local $dependency.local.177
+      val $dependency.local.179: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.local.180: Int
+        Type Int
+        Local $dependency.local.179
+      branch bb34 bb35
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.178
+            Type Int
+            Local $dependency.local.180
+    bb34 if.then.34
+      val $dependency.local.184: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb36
+    bb35 if.else.35
+      call $dependency.local.181: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.182: Int
+        Type Int
+        IntegerLiteral Int value=27 bits=0x0000001b
+      val $dependency.local.183: Int
+        Type Int
+        Local $dependency.local.182
+      val $dependency.local.184: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.181
+            Type Int
+            Local $dependency.local.183
+      goto bb36
+    bb36 if.merge.36
+      branch bb37 bb38
+        Type Boolean
+        Local $dependency.local.184
+    bb37 if.then.37
+      return
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+    bb38 if.merge.38
+      val $dependency.local.185: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.185
+      val $dependency.local.189: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.186: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.187: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.188: Int
+        Type Int
+        Local $dependency.local.187
+      call $dependency.local.190: Int = external2 direct
+        Type Tape
+        Local $dependency.local.186
+        Type Int
+        Local $dependency.local.188
+      val $dependency.local.191: Tape
+        Type Tape
+        Local $dependency.local.189
+      val $dependency.local.192: Tape
+        Type Tape
+        Local $dependency.local.191
+      val $dependency.local.193: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.194: Int
+        Type Int
+        Local $dependency.local.193
+      call $dependency.local.195: Int = external2 direct
+        Type Tape
+        Local $dependency.local.192
+        Type Int
+        Local $dependency.local.194
+      val $dependency.local.196: Int
+        Type Int
+        Local $dependency.local.190
+      val $dependency.local.197: Array<Int>
+        Type Array<Int>
+        ArrayAssembly Array<Int>
+      val $dependency.local.5: Packet
+        Type Packet
+        VariantConstruct Packet v0
+          Type Tape
+          Local $dependency.local.191
+          Type Int
+          Local $dependency.local.195
+          Type Int
+          Local $dependency.local.196
+          Type Array<Int>
+          Local $dependency.local.197
+      val $when.1: Packet
+        Type Packet
+        Local $dependency.local.5
+      val $pattern.subject.2: Packet
+        Type Packet
+        Local $when.1
+      branch bb39 bb40
+        Type Boolean
+        VariantTest Packet v0
+          Type Packet
+          Local $pattern.subject.2
+    bb39 pattern.pass.39
+      val $dependency.local.6: Int
+        Type Int
+        VariantPayloadProject Packet v0 f1
+          Type Packet
+          Local $pattern.subject.2
+      val $dependency.local.7: Int
+        Type Int
+        VariantPayloadProject Packet v0 f2
+          Type Packet
+          Local $pattern.subject.2
+      val $dependency.local.8: Array<Int>
+        Type Array<Int>
+        VariantPayloadProject Packet v0 f3
+          Type Packet
+          Local $pattern.subject.2
+      val $dependency.local.198: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local $dependency.local.8
+      val $dependency.local.199: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.200: Long
+        Type Long
+        Local $dependency.local.199
+      branch bb42 bb43
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          Local $dependency.local.198
+          Type Long
+          Local $dependency.local.200
+    bb40 pattern.else.40
+      unreachable
+    bb41 pattern.merge.41
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.205
+      val $dependency.local.206: Int
+        Type Int
+        Local $dependency.local.9
+      val $dependency.local.207: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.local.208: Int
+        Type Int
+        Local $dependency.local.207
+      branch bb45 bb46
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.206
+            Type Int
+            Local $dependency.local.208
+    bb42 if.then.42
+      val $dependency.local.201: Int
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.202: Int
+        Type Int
+        Local $dependency.local.7
+      val $dependency.local.203: Int
+        Type Int
+        Local $dependency.local.202
+      assign $dependency.local.204
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.201
+          Type Int
+          Local $dependency.local.203
+      goto bb44
+    bb43 if.else.43
+      assign $dependency.local.204
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb44
+    bb44 if.merge.44
+      assign $dependency.local.205
+        Type Int
+        Local $dependency.local.204
+      goto bb41
+    bb45 if.then.45
+      val $dependency.local.212: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb47
+    bb46 if.else.46
+      call $dependency.local.209: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.210: Int
+        Type Int
+        IntegerLiteral Int value=23 bits=0x00000017
+      val $dependency.local.211: Int
+        Type Int
+        Local $dependency.local.210
+      val $dependency.local.212: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.209
+            Type Int
+            Local $dependency.local.211
+      goto bb47
+    bb47 if.merge.47
+      branch bb48 bb49
+        Type Boolean
+        Local $dependency.local.212
+    bb48 if.then.48
+      return
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+    bb49 if.merge.49
+      val $dependency.local.213: Tape
+        Type Tape
+        Local $dependency.local.2
+      call external4 direct
+        Type Tape
+        Local $dependency.local.213
+      var $dependency.local.10: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb50
+    bb50 while.cond.50 <loop-header-poll>
+      val $dependency.local.214: Tape
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.215: Tape
+        Type Tape
+        Local $dependency.local.214
+      val $dependency.local.216: Tape
+        Type Tape
+        Local $dependency.local.215
+      val $dependency.local.217: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.218: Int
+        Type Int
+        Local $dependency.local.217
+      call $dependency.local.219: Int = external2 direct
+        Type Tape
+        Local $dependency.local.216
+        Type Int
+        Local $dependency.local.218
+      call $call.7: Boolean = external5 direct
+        Type Tape
+        Local $dependency.local.215
+        Type Int
+        Local $dependency.local.219
+      branch bb52 bb51
+        Type Boolean
+        Local $call.7
+    bb51 while.exit.51
+      val $dependency.local.223: Int
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.224: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.225: Int
+        Type Int
+        Local $dependency.local.224
+      branch bb53 bb54
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.223
+            Type Int
+            Local $dependency.local.225
+    bb52 while.body.52
+      val $dependency.local.220: Int
+        Type Int
+        Local $dependency.local.10
+      val $dependency.local.221: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.222: Int
+        Type Int
+        Local $dependency.local.221
+      assign $dependency.local.10
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.220
+          Type Int
+          Local $dependency.local.222
+      goto bb50
+    bb53 if.then.53
+      val $dependency.local.229: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb55
+    bb54 if.else.54
+      call $dependency.local.226: Int = external6 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.227: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.local.228: Int
+        Type Int
+        Local $dependency.local.227
+      val $dependency.local.229: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.226
+            Type Int
+            Local $dependency.local.228
+      goto bb55
+    bb55 if.merge.55
+      branch bb56 bb57
+        Type Boolean
+        Local $dependency.local.229
+    bb56 if.then.56
+      val $dependency.local.233: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb58
+    bb57 if.else.57
+      call $dependency.local.230: Int = external3 direct
+        Type Tape
+        Local $dependency.local.2
+      val $dependency.local.231: Int
+        Type Int
+        IntegerLiteral Int value=111 bits=0x0000006f
+      val $dependency.local.232: Int
+        Type Int
+        Local $dependency.local.231
+      val $dependency.local.233: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.230
+            Type Int
+            Local $dependency.local.232
+      goto bb58
+    bb58 if.merge.58
+      branch bb59 bb60
+        Type Boolean
+        Local $dependency.local.233
+    bb59 if.then.59
+      return
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+    bb60 if.merge.60
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun iterator @fn7(this: Array<Int>) -> Iterator<Int>
+    bb0 entry
+      val $dependency.local.1: Array<Int>
+        Type Array<Int>
+        Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.1
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.2
+      assign $new.1
+        Type ArrayIterator<Int>
+        ClassAlloc ArrayIterator<Int>
+      call @fn50 direct
+        Type ArrayIterator<Int>
+        Local $new.1
+        Type Array<Int>
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.4
+      return
+        Type Iterator<Int>
+        Retype Iterator<Int>
+          Type ArrayIterator<Int>
+          Local $new.1
+  fun gather @fn8(tape: Tape, value: Later, first: Int, second: Int, parts: Array<Int>) -> Int
+    bb0 entry
+      val $dependency.local.7: Int
+        Type Int
+        Local first
+      val $dependency.local.8: Int
+        Type Int
+        Local second
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      var $dependency.local.5: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      var $dependency.local.6: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.11: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local parts
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.10
+            Type Long
+            Local $dependency.local.12
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+        Type Int
+        Local $dependency.local.5
+    bb3 while.body.3
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.13: Array<Int>
+        Type Array<Int>
+        Local parts
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.14
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.13
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.15
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external7 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      val $dependency.local.17: Int
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+      assign $dependency.local.5
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.16
+          Type Int
+          Local $dependency.local.18
+      val $dependency.local.19: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.20: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.21: Long
+        Type Long
+        Local $dependency.local.20
+      assign $dependency.local.6
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.19
+          Type Long
+          Local $dependency.local.21
+      goto bb1
+  fun first @fn9(this: Calculator<Later>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type Calculator<Later>
+          Local this
+  fun second @fn10(this: Calculator<Later>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 3
+          Type Calculator<Later>
+          Local this
+  fun value @fn11(this: Calculator<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type Calculator<Later>
+          Local this
+  fun receiver @fn12(tape: Tape, value: Calculator<Later>) -> Calculator<Later>
+    bb0 entry
+      val $dependency.local.2: Tape
+        Type Tape
+        Local tape
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      call $call.1: Int = external2 direct
+        Type Tape
+        Local $dependency.local.2
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Calculator<Later>
+        Local value
+  fun tape @fn13(this: Calculator<Later>) -> Tape
+    bb0 entry
+      return
+        Type Tape
+        FieldAccess 1
+          Type Calculator<Later>
+          Local this
+  fun run @fn14(this: Calculator<Later>, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local first
+      val $dependency.local.4: Int
+        Type Int
+        Local second
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun invoke @fn15(this: Calculator<Later>, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local first
+      val $dependency.local.4: Int
+        Type Int
+        Local second
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun tape @fn16(this: ExtensionCalculator<Later>) -> Tape
+    bb0 entry
+      return
+        Type Tape
+        FieldAccess 1
+          Type ExtensionCalculator<Later>
+          Local this
+  fun $extension.invoke @fn17(this: ExtensionCalculator<Later>, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local first
+      val $dependency.local.4: Int
+        Type Int
+        Local second
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun gather @fn18(tape: Tape, value: String, first: Int, second: Int, parts: Array<Int>) -> Int
+    bb0 entry
+      val $dependency.local.7: Int
+        Type Int
+        Local first
+      val $dependency.local.8: Int
+        Type Int
+        Local second
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      var $dependency.local.5: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      var $dependency.local.6: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.11: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local parts
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.10
+            Type Long
+            Local $dependency.local.12
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+        Type Int
+        Local $dependency.local.5
+    bb3 while.body.3
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.13: Array<Int>
+        Type Array<Int>
+        Local parts
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.14
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.13
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.15
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external7 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      val $dependency.local.17: Int
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+      assign $dependency.local.5
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.16
+          Type Int
+          Local $dependency.local.18
+      val $dependency.local.19: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.20: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.21: Long
+        Type Long
+        Local $dependency.local.20
+      assign $dependency.local.6
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.19
+          Type Long
+          Local $dependency.local.21
+      goto bb1
+  fun first @fn19(this: Calculator<String>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type Calculator<String>
+          Local this
+  fun second @fn20(this: Calculator<String>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 3
+          Type Calculator<String>
+          Local this
+  fun value @fn21(this: Calculator<String>) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type Calculator<String>
+          Local this
+  fun receiver @fn22(tape: Tape, value: Calculator<String>) -> Calculator<String>
+    bb0 entry
+      val $dependency.local.2: Tape
+        Type Tape
+        Local tape
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      call $call.1: Int = external2 direct
+        Type Tape
+        Local $dependency.local.2
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Calculator<String>
+        Local value
+  fun tape @fn23(this: Calculator<String>) -> Tape
+    bb0 entry
+      return
+        Type Tape
+        FieldAccess 1
+          Type Calculator<String>
+          Local this
+  fun run @fn24(this: Calculator<String>, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local first
+      val $dependency.local.4: Int
+        Type Int
+        Local second
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun invoke @fn25(this: Calculator<String>, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local first
+      val $dependency.local.4: Int
+        Type Int
+        Local second
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun tape @fn26(this: ExtensionCalculator<String>) -> Tape
+    bb0 entry
+      return
+        Type Tape
+        FieldAccess 1
+          Type ExtensionCalculator<String>
+          Local this
+  fun $extension.invoke @fn27(this: ExtensionCalculator<String>, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local first
+      val $dependency.local.4: Int
+        Type Int
+        Local second
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun gather @fn28(tape: Tape, value: Unit, first: Int, second: Int, parts: Array<Int>) -> Int
+    bb0 entry
+      val $dependency.local.7: Int
+        Type Int
+        Local first
+      val $dependency.local.8: Int
+        Type Int
+        Local second
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      var $dependency.local.5: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      var $dependency.local.6: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.11: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local parts
+      val $dependency.local.12: Long
+        Type Long
+        Local $dependency.local.11
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.10
+            Type Long
+            Local $dependency.local.12
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+        Type Int
+        Local $dependency.local.5
+    bb3 while.body.3
+      val $dependency.local.16: Int
+        Type Int
+        Local $dependency.local.5
+      val $dependency.local.13: Array<Int>
+        Type Array<Int>
+        Local parts
+      val $dependency.local.14: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.15: Long
+        Type Long
+        Local $dependency.local.14
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.13
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.15
+      branch bb5 bb4
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 logic.rhs.4
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb6 logic.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $logic.1
+    bb7 if.then.7
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external7 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb8 if.merge.8
+      val $dependency.local.17: Int
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.18: Int
+        Type Int
+        Local $dependency.local.17
+      assign $dependency.local.5
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.16
+          Type Int
+          Local $dependency.local.18
+      val $dependency.local.19: Long
+        Type Long
+        Local $dependency.local.6
+      val $dependency.local.20: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.21: Long
+        Type Long
+        Local $dependency.local.20
+      assign $dependency.local.6
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.19
+          Type Long
+          Local $dependency.local.21
+      goto bb1
+  fun first @fn29(this: Calculator<Unit>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type Calculator<Unit>
+          Local this
+  fun second @fn30(this: Calculator<Unit>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 3
+          Type Calculator<Unit>
+          Local this
+  fun value @fn31(this: Calculator<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Calculator<Unit>
+        Local this
+      return
+  fun receiver @fn32(tape: Tape, value: Calculator<Unit>) -> Calculator<Unit>
+    bb0 entry
+      val $dependency.local.2: Tape
+        Type Tape
+        Local tape
+      val $dependency.local.3: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.local.4: Int
+        Type Int
+        Local $dependency.local.3
+      call $call.1: Int = external2 direct
+        Type Tape
+        Local $dependency.local.2
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Calculator<Unit>
+        Local value
+  fun tape @fn33(this: Calculator<Unit>) -> Tape
+    bb0 entry
+      return
+        Type Tape
+        FieldAccess 1
+          Type Calculator<Unit>
+          Local this
+  fun run @fn34(this: Calculator<Unit>, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local first
+      val $dependency.local.4: Int
+        Type Int
+        Local second
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun invoke @fn35(this: Calculator<Unit>, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local first
+      val $dependency.local.4: Int
+        Type Int
+        Local second
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun tape @fn36(this: ExtensionCalculator<Unit>) -> Tape
+    bb0 entry
+      return
+        Type Tape
+        FieldAccess 1
+          Type ExtensionCalculator<Unit>
+          Local this
+  fun $extension.invoke @fn37(this: ExtensionCalculator<Unit>, first: Int, second: Int) -> Int
+    bb0 entry
+      val $dependency.local.3: Int
+        Type Int
+        Local first
+      val $dependency.local.4: Int
+        Type Int
+        Local second
+      val $dependency.local.5: Int
+        Type Int
+        Local $dependency.local.4
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.3
+          Type Int
+          Local $dependency.local.5
+  fun next @fn38(this: ArrayIterator<Int>) -> Option<Int>
+    bb0 entry
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.3: Long
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          FieldAccess 0
+            Type ArrayIterator<Int>
+            Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 if.then.1
+      val $dependency.local.5: Array<Int>
+        Type Array<Int>
+        FieldAccess 0
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      val $arr.1: Array<Int>
+        Type Array<Int>
+        Local $dependency.local.5
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.7
+      branch bb4 bb3
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 if.merge.2
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb3 logic.rhs.3
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Int>
+            Type Array<Int>
+            Local $arr.1
+      goto bb5
+    bb4 logic.short.4
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb5
+    bb5 logic.merge.5
+      branch bb6 bb7
+        Type Boolean
+        Local $logic.1
+    bb6 if.then.6
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external7 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb7 if.merge.7
+      val $dependency.local.1: Int
+        Type Int
+        ArrayGet Array<Int>
+          Type Array<Int>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ArrayIterator<Int>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ArrayIterator<Int>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.12: Int
+        Type Int
+        Local $dependency.local.11
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.local.12
+  fun Continuation.resume @fn39(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn40(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn41(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn42(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn43(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.Calculator.$c0 @fn44(this: Calculator<Later>, value: Later, tape: Tape, first: Int, second: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Calculator<Later>
+        Local this
+        Type Later
+        Local value
+      field_set 1
+        Type Calculator<Later>
+        Local this
+        Type Tape
+        Local tape
+      field_set 2
+        Type Calculator<Later>
+        Local this
+        Type Int
+        Local first
+      field_set 3
+        Type Calculator<Later>
+        Local this
+        Type Int
+        Local second
+      return
+  fun init.ExtensionCalculator.$c1 @fn45(this: ExtensionCalculator<Later>, value: Later, tape: Tape) -> Unit
+    bb0 entry
+      field_set 0
+        Type ExtensionCalculator<Later>
+        Local this
+        Type Later
+        Local value
+      field_set 1
+        Type ExtensionCalculator<Later>
+        Local this
+        Type Tape
+        Local tape
+      return
+  fun init.Calculator.$c0 @fn46(this: Calculator<String>, value: String, tape: Tape, first: Int, second: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Calculator<String>
+        Local this
+        Type String
+        Local value
+      field_set 1
+        Type Calculator<String>
+        Local this
+        Type Tape
+        Local tape
+      field_set 2
+        Type Calculator<String>
+        Local this
+        Type Int
+        Local first
+      field_set 3
+        Type Calculator<String>
+        Local this
+        Type Int
+        Local second
+      return
+  fun init.ExtensionCalculator.$c1 @fn47(this: ExtensionCalculator<String>, value: String, tape: Tape) -> Unit
+    bb0 entry
+      field_set 0
+        Type ExtensionCalculator<String>
+        Local this
+        Type String
+        Local value
+      field_set 1
+        Type ExtensionCalculator<String>
+        Local this
+        Type Tape
+        Local tape
+      return
+  fun init.Calculator.$c0 @fn48(this: Calculator<Unit>, value: Unit, tape: Tape, first: Int, second: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Calculator<Unit>
+        Local this
+        Type Unit
+        Local value
+      field_set 1
+        Type Calculator<Unit>
+        Local this
+        Type Tape
+        Local tape
+      field_set 2
+        Type Calculator<Unit>
+        Local this
+        Type Int
+        Local first
+      field_set 3
+        Type Calculator<Unit>
+        Local this
+        Type Int
+        Local second
+      return
+  fun init.ExtensionCalculator.$c1 @fn49(this: ExtensionCalculator<Unit>, value: Unit, tape: Tape) -> Unit
+    bb0 entry
+      field_set 0
+        Type ExtensionCalculator<Unit>
+        Local this
+        Type Unit
+        Local value
+      field_set 1
+        Type ExtensionCalculator<Unit>
+        Local this
+        Type Tape
+        Local tape
+      return
+  fun init.ArrayIterator.$c2 @fn50(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type ArrayIterator<Int>
+        Local this
+        Type Array<Int>
+        Local source
+      field_set 1
+        Type ArrayIterator<Int>
+        Local this
+        Type Long
+        Local index
+      return
+  fun startCoroutine<Later> @fn51(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn39 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn40 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn41 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn52($source: (Later) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn53($source: (String) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (String) -> Int
+        Local $source
+        Type String
+        Retype String
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn54($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn51
+  coroutine_fn cf0 @fn41 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn7 <- iterator
+  instance mi4 function=@fn8 <- gather
+  instance mi5 function=@fn9 <- first
+  instance mi6 function=@fn10 <- second
+  instance mi7 function=@fn11 <- value
+  instance mi8 function=@fn12 <- receiver
+  instance mi9 function=@fn13 <- tape
+  instance mi10 function=@fn14 <- run
+  instance mi11 function=@fn15 <- invoke
+  instance mi12 function=@fn16 <- tape
+  instance mi13 function=@fn17 <- $extension.invoke
+  instance mi14 function=@fn18 <- gather
+  instance mi15 function=@fn19 <- first
+  instance mi16 function=@fn20 <- second
+  instance mi17 function=@fn21 <- value
+  instance mi18 function=@fn22 <- receiver
+  instance mi19 function=@fn23 <- tape
+  instance mi20 function=@fn24 <- run
+  instance mi21 function=@fn25 <- invoke
+  instance mi22 function=@fn26 <- tape
+  instance mi23 function=@fn27 <- $extension.invoke
+  instance mi24 function=@fn28 <- gather
+  instance mi25 function=@fn29 <- first
+  instance mi26 function=@fn30 <- second
+  instance mi27 function=@fn31 <- value
+  instance mi28 function=@fn32 <- receiver
+  instance mi29 function=@fn33 <- tape
+  instance mi30 function=@fn34 <- run
+  instance mi31 function=@fn35 <- invoke
+  instance mi32 function=@fn36 <- tape
+  instance mi33 function=@fn37 <- $extension.invoke
+  instance mi34 function=@fn38 <- next
+  instance mi35 function=@fn39 <- Continuation.resume
+  instance mi36 function=@fn40 <- Continuation.resumeWithException
+  instance mi37 function=@fn41 <- SuspendTask.run
+  instance mi38 function=@fn42 <- SuspendRegistration.register
+  str @str0 "retained"
+  output library

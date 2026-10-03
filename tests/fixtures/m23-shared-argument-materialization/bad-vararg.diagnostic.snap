@@ -1,3 +1,0 @@
-span=145..150
-expression="bad"
-array literal element must be of type Int, found String

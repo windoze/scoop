@@ -1,0 +1,239 @@
+SourceFile
+  QualifiedPackage consumer.argumentmaterialization
+  ImportStar Local upstream.argumentmaterialization.*
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val tape
+      Call Tape
+    if
+      Binary Or
+        Binary Ne
+          Call gather<T>
+            Var tape
+            Var seed
+            Argument second=
+              MethodCall mark
+                Var tape
+                IntLiteral 2
+            Argument first=
+              MethodCall mark
+                Var tape
+                IntLiteral 1
+            Argument parts=
+              ArrayLiteral
+                MethodCall mark
+                  Var tape
+                  IntLiteral 5
+                MethodCall mark
+                  Var tape
+                  IntLiteral 6
+          IntLiteral 14
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 2156
+      return
+        IntLiteral 1
+    MethodCall reset
+      Var tape
+    if
+      Binary Or
+        Binary Ne
+          Call gather<T>
+            Var tape
+            Var seed
+          IntLiteral 10
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 34
+      return
+        IntLiteral 2
+    MethodCall reset
+      Var tape
+    if
+      Binary Or
+        Binary Ne
+          Call gather<T>
+            Var tape
+            Var seed
+            MethodCall mark
+              Var tape
+              IntLiteral 1
+            MethodCall mark
+              Var tape
+              IntLiteral 2
+            MethodCall mark
+              Var tape
+              IntLiteral 5
+            Argument *
+              ArrayLiteral
+                MethodCall mark
+                  Var tape
+                  IntLiteral 6
+          IntLiteral 14
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 1256
+      return
+        IntLiteral 3
+    MethodCall reset
+      Var tape
+    val calculator
+      Call Calculator<T>
+        Var seed
+        Var tape
+        Argument second=
+          MethodCall mark
+            Var tape
+            IntLiteral 2
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Binary Add
+              FieldAccess first
+                Var calculator
+              FieldAccess second
+                Var calculator
+            IntLiteral 5
+          Binary Ne
+            FieldAccess log
+              Var tape
+            IntLiteral 23
+        Binary Ne
+          Call inspect
+            FieldAccess value
+              Var calculator
+          IntLiteral 42
+      return
+        IntLiteral 4
+    MethodCall reset
+      Var tape
+    if
+      Binary Or
+        Binary Ne
+          MethodCall run
+            Call receiver<T>
+              Var tape
+              Var calculator
+            Argument second=
+              MethodCall mark
+                Var tape
+                IntLiteral 2
+          IntLiteral 5
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 123
+      return
+        IntLiteral 5
+    MethodCall reset
+      Var tape
+    if
+      Binary Or
+        Binary Ne
+          Call calculator
+            Argument second=
+              MethodCall mark
+                Var tape
+                IntLiteral 2
+          IntLiteral 7
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 25
+      return
+        IntLiteral 6
+    MethodCall reset
+      Var tape
+    val extension
+      Call ExtensionCalculator<T>
+        Var seed
+        Var tape
+    if
+      Binary Or
+        Binary Ne
+          Call extension
+            Argument second=
+              MethodCall mark
+                Var tape
+                IntLiteral 2
+          IntLiteral 9
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 27
+      return
+        IntLiteral 9
+    MethodCall reset
+      Var tape
+    val packet
+      MethodCall Item
+        Var Packet
+        Var tape
+        Argument second=
+          MethodCall mark
+            Var tape
+            IntLiteral 2
+    val packed
+      WhenExpression
+        Var packet
+        arm Item(_, first, second, parts)
+          IfExpression
+            Binary Eq
+              FieldAccess size
+                Var parts
+              IntLiteral 0
+            Binary Add
+              Var first
+              Var second
+            else
+            IntLiteral 0
+    if
+      Binary Or
+        Binary Ne
+          Var packed
+          IntLiteral 5
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 23
+      return
+        IntLiteral 7
+    MethodCall reset
+      Var tape
+    var iterations
+      IntLiteral 0
+    while
+      Call more
+        Var tape
+      assign iterations
+        Binary Add
+          Var iterations
+          IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var iterations
+            IntLiteral 2
+          Binary Ne
+            FieldAccess calls
+              Var tape
+            IntLiteral 3
+        Binary Ne
+          FieldAccess log
+            Var tape
+          IntLiteral 111
+      return
+        IntLiteral 8
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

@@ -358,3 +358,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `protected_generic_members_republish_and_execute_from_artifacts` | `m23-generic-member-consumption` | 9／9 | 135／117 | 25 份阶段、9 份诊断逐项相同；access-object 的两份 MIR/LIR 仅补全 Saved 私有初始化单元的 canonical 来源 |
 | `abstract_methods_and_accessors_preserve_dispatch_through_artifacts` | `m23-shared-abstract` | 2／2 | 30／26 | 6 份阶段、2 份诊断逐项相同 |
 | `imported_contextual_arguments_republish_and_execute_from_artifacts` | `m23-argument-inference` | 8／9 | 123／104 | 24 份阶段、9 份诊断逐项相同 |
+| `arguments_materialize_once_in_source_order_through_artifacts` | `m23-shared-argument-materialization` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |

@@ -1,3 +1,0 @@
-span=150..160
-expression=ordinary()
-dependency function `invoke`: Ordinary is not a subtype of ExtensionCalculator<T>
