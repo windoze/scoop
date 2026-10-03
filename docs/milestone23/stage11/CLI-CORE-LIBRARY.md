@@ -19,3 +19,4 @@
 | Unit 与混合 ABI | `abi` | 1／5／5 | Unit elision、Int32、managed String、返回类型与调用顺序 |
 | core typealias | `alias-consumer`、`alias-shadow`、`alias-generic-error` | 3／14／18 | 原完整 HIR export 逐字相同；类型／值命名空间、shadow、非泛型 alias 错误 |
 | 非泛型 builtin | `builtin-generic-error` | 1／2／0 | 原 Int 名称位置与完整错误逐字相同 |
+| 协议与公开名称 | `builtin-binding-error` | 1／2／0 | 真实 core 保留整数协议；缺少根 Int binding 时报告原 unknown-type 错误 |
