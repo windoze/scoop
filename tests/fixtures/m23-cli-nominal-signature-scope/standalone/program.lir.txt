@@ -1,0 +1,100 @@
+Module
+  global @scoop$1$io$3c06c6cc739054c4a6799b455d3e66405eec37d3f197e94480b3a75b5d82a752 = "illegal state"
+  global @scoop$1$ss$197dff7d1c5cc3b8b50f33f290a224209f66420c3b6f53b3a9f8080340b9340a : ptr<managed> scan=refs[0]
+  enum Option niche(kind=managed,payload_variant=0)
+  fun @scoop$1$cb$f9605e635e34906d3e6e02c70a433ad56429f3e4f2f581d8c6b2f641a9391ac0(i1) -> void
+    local %0 $dependency.receiver: i1
+    local %1 $default.local.0: ptr<managed>
+    local %2 $default.local.1: ptr<managed>
+    local %3 $dependency.parameter.message: enum0
+    local %4 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    t0 = Not local0 : i1
+    cbr t0 then @if.then.1 else @if.merge.2
+  block if.then.1
+    store global0 -> local1
+    store local1 -> local2
+    t1 = enum_wrap e0 v0 (local2) : enum0
+    store t1 -> local3
+    call managed-direct-target0 sp<managed-call:0> live=[local3:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    store t2 -> local4
+    call managed-void-target0 sp<managed-call:1> live=[local3:enum0@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn0(local4, local3)
+    t3 = aggregate () : {}
+    throw local4
+    unreachable
+  block if.merge.2
+    ret
+  fun @scoop$1$cb$8b1012a5101079e00a304acd793cf6995f804073ec2b281c38b0796664469cf6() -> void
+    local %0 $dependency.argument.0: struct0 <logical-zst 8ba3e281df7d07a85acc3e58a6aba8edef10bbb37e58da43cd6e8ca3db5255c8>
+    local %1 $dependency.parameter.value: struct0 <logical-zst 8ba3e281df7d07a85acc3e58a6aba8edef10bbb37e58da43cd6e8ca3db5255c8>
+    local %2 $argument.0: i1
+    local %3 $parameter.value: i1
+    local %4 erased: ptr<managed>
+    local %5 $argument.0: i1
+    local %6 $parameter.value: i1
+    local %7 $cast.1: ptr<managed>
+    local %8 $ub.2: struct0 <logical-zst 8ba3e281df7d07a85acc3e58a6aba8edef10bbb37e58da43cd6e8ca3db5255c8>
+    local %9 $call.1: struct0 <logical-zst 8ba3e281df7d07a85acc3e58a6aba8edef10bbb37e58da43cd6e8ca3db5255c8>
+    local %10 $call.2: struct0 <logical-zst 8ba3e281df7d07a85acc3e58a6aba8edef10bbb37e58da43cd6e8ca3db5255c8>
+    local %11 $call.3: struct0 <logical-zst 8ba3e281df7d07a85acc3e58a6aba8edef10bbb37e58da43cd6e8ca3db5255c8>
+    local %12 $new.4: ptr<managed>
+    local %13 $call.5: struct0 <logical-zst 8ba3e281df7d07a85acc3e58a6aba8edef10bbb37e58da43cd6e8ca3db5255c8>
+  block entry
+    poll managed-void-target3 sp<managed-poll:0> live=[]
+    call managed-elided-zst-target0 sp<managed-call:0> live=[] t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn1()
+    store t0 -> local0
+    store local0 -> local1
+    call managed-elided-zst-target1 sp<managed-call:1> live=[] t1 = sig=elided-zst1 (elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> external-fn2(elided-zst local1)
+    store t1 -> local9
+    call no-gc-elided-zst-target0 t2 = sig=elided-zst2 () -> elided-zst<struct0 size=0 align=1> external-fn3()
+    store t2 -> local10
+    call managed-direct-target0 sp<managed-call:2> live=[] t3 = sig=direct0 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn5(elided-zst local9, elided-zst local10)
+    store t3 -> local2
+    store local2 -> local3
+    call managed-void-target0 sp<managed-call:3> live=[] sig=void0 (i1) local-fn0(local3)
+    t4 = aggregate () : {}
+    call managed-elided-zst-target2 sp<managed-call:4> live=[] t5 = sig=elided-zst3 () -> elided-zst<struct0 size=0 align=1> external-fn1()
+    store t5 -> local11
+    t6 = box_zst external-td0 sp<managed-call:5> live=[]
+    store t6 -> local4
+    store local4 -> local7
+    call no-gc-direct-target0 t7 = sig=direct1 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local7, external-td0)
+    t8 = Not t7 : i1
+    cbr t8 then @if.then.1 else @if.merge.2
+  block if.then.1
+    call managed-direct-target1 sp<managed-call:8> live=[] t9 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td4, machine<byte-size>(ByteSize(24)))
+    store t9 -> local12
+    call managed-void-target1 sp<managed-call:9> live=[local12:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn4(local12)
+    t10 = aggregate () : {}
+    throw local12
+    unreachable
+  block if.merge.2
+    unbox_zst external-td0, local7 -> t11
+    store t11 -> local8
+    call no-gc-elided-zst-target1 t12 = sig=elided-zst4 () -> elided-zst<struct0 size=0 align=1> external-fn3()
+    store t12 -> local13
+    call managed-direct-target2 sp<managed-call:6> live=[] t13 = sig=direct3 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 external-fn5(elided-zst local8, elided-zst local13)
+    store t13 -> local5
+    store local5 -> local6
+    call managed-void-target2 sp<managed-call:7> live=[] sig=void2 (i1) local-fn0(local6)
+    t14 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$56272adfcef7df84cede5cc3dde20f203f1550c77c21b5afca901f735b8e5701() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global1, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout Option size=8 align=8 enum-scan=refs[0]
+  output executable @scoop$1$cb$8b1012a5101079e00a304acd793cf6995f804073ec2b281c38b0796664469cf6

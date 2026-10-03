@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  public struct Marker
+  public fun pass(value: Marker): Marker
+    =
+      Var value
+  public fun empty(): Marker
+    =
+      Call Marker

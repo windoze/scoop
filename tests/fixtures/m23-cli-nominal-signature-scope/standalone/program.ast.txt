@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        Call pass
+          Call empty
+        Call Marker
+    val erased: Any
+      Call empty
+    Call verifyType
+      Binary Eq
+        Cast Marker optional=false
+          Var erased
+        Call Marker

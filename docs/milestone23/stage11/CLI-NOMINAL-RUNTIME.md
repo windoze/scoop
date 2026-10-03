@@ -10,3 +10,4 @@
 | `heap-zst` | 2／12／18／6 | 零大小 heap 字段、getter/setter、closure capture、派生值与单例初始化；原 3 次阶段编译改为一次正式生产。 |
 | `hir-materialized-selections` | 2／13／22／7 | signature、representation、type test、shape support、成员调用及未求值泛型默认值；保留缺失、额外与错误 provider 的拒绝测试。 |
 | `nominal-requirements` | 2／14／26／8 | 主次构造、字段、enum payload、继承、槽、protected/default 成员与延迟泛型；typed visitor 核对真实 owner、字段 ID、callable 指针与完整闭包。 |
+| `nominal-signature-scope` | 2／13／22／7 | 同一签名中的依赖引用、本地 aggregate 与 ZST；保留 MIR/LIR 语义签名相等、direct/indirect/elided 参数和结果布局。 |

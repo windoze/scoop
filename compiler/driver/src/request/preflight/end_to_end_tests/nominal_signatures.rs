@@ -1,10 +1,9 @@
 use super::*;
+use scoop_identity::{ScoopAbiArgument as Argument, ScoopAbiReturn as Return, ScoopAbiValueShape};
 
 #[test]
 fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("nominal signatures require the supported target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     let core_bytes = std::fs::read(core.artifact().path()).unwrap();
@@ -57,7 +56,7 @@ fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() 
             .filter_map(|callable| classifier.classify_callable(callable).unwrap())
             .collect::<Vec<_>>();
         assert_eq!(expected.len(), 2);
-        let mut rows = Vec::new();
+        let mut kinds = std::collections::BTreeSet::new();
         for signature in expected {
             let mir = production
                 .mir_cross_cone()
@@ -71,59 +70,53 @@ fn formal_callable_exports_resolve_local_and_dependency_nominals_in_one_scope() 
                 .export(signature.direct_declaration().unwrap())
                 .unwrap();
             assert_eq!(lir.abi_signature().signature(), signature.signature());
-            rows.push(format!(
-                "parameters={} arguments=[{}] result={}\n",
-                signature.signature().parameters().len(),
-                lir.abi_signature()
-                    .arguments()
-                    .iter()
-                    .copied()
-                    .map(argument)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                result(lir.abi_signature().result()),
-            ));
+            let abi = lir.abi_signature();
+            let parameters = signature.signature().parameters();
+            assert_eq!(abi.arguments().len(), parameters.len());
+            if case == "standalone" {
+                let Return::ElidedZst(storage) = abi.result() else {
+                    panic!("Marker has no returned payload")
+                };
+                check_storage(storage, 0, 1, ScoopAbiValueShape::Aggregate);
+                assert_eq!(storage.exact_type(), signature.signature().result());
+                for argument in abi.arguments() {
+                    assert_eq!(*argument, Argument::ElidedZst(storage));
+                }
+                kinds.insert(parameters.len());
+            } else {
+                assert_eq!(parameters.len(), 2);
+                match abi.arguments() {
+                    [Argument::Direct(first), Argument::Direct(second)] => {
+                        for storage in [*first, *second] {
+                            check_storage(storage, 8, 8, ScoopAbiValueShape::Scalar);
+                        }
+                        let Return::Indirect(storage) = abi.result() else {
+                            panic!("Choice uses an indirect result")
+                        };
+                        check_storage(storage, 1, 1, ScoopAbiValueShape::Aggregate);
+                        kinds.insert(0);
+                    }
+                    [Argument::Indirect(payload), Argument::ElidedZst(marker)] => {
+                        check_storage(*payload, 16, 8, ScoopAbiValueShape::Aggregate);
+                        check_storage(*marker, 0, 1, ScoopAbiValueShape::Aggregate);
+                        assert_eq!(abi.result(), Return::Indirect(*payload));
+                        kinds.insert(1);
+                    }
+                    other => panic!("unexpected source signature: {other:?}"),
+                }
+            }
         }
-        rows.sort();
-        let dump = rows.concat();
-        if let Some(directory) = std::env::var_os("SCOOP_NOMINAL_SIGNATURE_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&directory).unwrap();
-            std::fs::write(Path::new(&directory).join(format!("{case}.snap")), dump).unwrap();
-        } else {
-            assert_eq!(
-                dump,
-                std::fs::read_to_string(fixtures.join(format!("{case}.snap"))).unwrap()
-            );
-        }
+        assert_eq!(kinds, std::collections::BTreeSet::from([0, 1]));
     }
 }
 
-fn argument(value: scoop_identity::ScoopAbiArgument) -> String {
-    use scoop_identity::ScoopAbiArgument as Argument;
-    let (kind, storage) = match value {
-        Argument::ElidedZst(storage) => ("elided-zst", storage),
-        Argument::Direct(storage) => ("direct", storage),
-        Argument::Indirect(storage) => ("indirect", storage),
-    };
-    describe(kind, storage)
-}
-
-fn result(value: scoop_identity::ScoopAbiReturn) -> String {
-    use scoop_identity::ScoopAbiReturn as Return;
-    let (kind, storage) = match value {
-        Return::UnitVoid => return "unit-void".to_owned(),
-        Return::ElidedZst(storage) => ("elided-zst", storage),
-        Return::Direct(storage) => ("direct", storage),
-        Return::Indirect(storage) => ("indirect", storage),
-    };
-    describe(kind, storage)
-}
-
-fn describe(kind: &str, storage: scoop_identity::CanonicalScoopStorage) -> String {
-    format!(
-        "{kind}({},{},{:?})",
-        storage.byte_size(),
-        storage.alignment().get(),
-        storage.shape()
-    )
+fn check_storage(
+    storage: scoop_identity::CanonicalScoopStorage,
+    size: u64,
+    alignment: u64,
+    shape: ScoopAbiValueShape,
+) {
+    assert_eq!(storage.byte_size(), size);
+    assert_eq!(storage.alignment().get(), alignment);
+    assert_eq!(storage.shape(), shape);
 }
