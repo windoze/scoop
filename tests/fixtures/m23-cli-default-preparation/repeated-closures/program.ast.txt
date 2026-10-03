@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  public fun String.repeatCopy(): String
+    =
+      This
+  public fun repeatedAnonymous(seed: String, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  public fun repeatedBound(seed: String, value: () -> String = <expr>): () -> String
+    =
+      Var value
+  fun main()
+    Invoke
+      Call repeatedAnonymous
+        StringLiteral "first"
+    Invoke
+      Call repeatedAnonymous
+        StringLiteral "second"
+    Invoke
+      Call repeatedBound
+        StringLiteral "first"
+    Invoke
+      Call repeatedBound
+        StringLiteral "second"

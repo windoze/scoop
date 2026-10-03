@@ -1,0 +1,173 @@
+Module
+  closure cc0 $Closure$anonymous0 type=function_type0 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn7 id=582944754527206246f428afd0b65e11175ec0107e1569c923a9219a3ddd29d2
+  closure cc1 $Closure$reference0 type=function_type0 invoke=@fn5 captures=1
+    bridge function_type1 -> @fn8 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  closure cc2 $Closure$reference1 type=function_type0 invoke=@fn6 captures=1
+    bridge function_type1 -> @fn9 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
+  generated_exact_type get0 location=closure0 nominal_id=78b43e86d46ecc0fca6565eea9b0861d20d9954df29deddd77c07a25dabcbef6 exact_id=69445f07744d4c042a4676ea63bc04ce33375ba80c0a7bbc38178f344e66119f
+  generated_exact_type get1 location=closure2 nominal_id=56d5d19f267f41cb4849f87bfe826b618342b73ab75285c52ff834be6990b45a exact_id=741a25eb051e92e6db12dc1e0b2be64aee656f85941de30a5f56d645a46f8f71
+  generated_exact_type get2 location=closure1 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_callable gc0 function=@fn9 id=47b3c454299fd4405e1b1a5548deecc7dbfdb3e493e470b86cfae3480880bfdf
+  generated_callable gc1 function=@fn7 id=582944754527206246f428afd0b65e11175ec0107e1569c923a9219a3ddd29d2
+  generated_callable gc2 function=@fn8 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  fun $extension.repeatCopy @fn0(this: String) -> String
+    bb0 entry
+      return
+        Type String
+        Local this
+  fun repeatedAnonymous @fn1(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun repeatedBound @fn2(seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$anonymous0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $call.1: () -> String = @fn1 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.2: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.1
+      val $argument.0: String
+        Type String
+        StringConst @str1
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$anonymous0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $call.3: () -> String = @fn1 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.4: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.3
+      val $argument.0: String
+        Type String
+        StringConst @str2
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc1 $Closure$reference0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $call.5: () -> String = @fn2 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.6: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.5
+      val $argument.0: String
+        Type String
+        StringConst @str3
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc2 $Closure$reference1
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      call $call.7: () -> String = @fn2 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.8: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.7
+      return
+  fun $anonymous.0 @fn4($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+  fun $reference.0 @fn5($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn0 direct
+        Type String
+        ClosureCapture cc1 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun $reference.1 @fn6($closure: () -> String) -> String
+    bb0 entry
+      call $call.1: String = @fn0 direct
+        Type String
+        ClosureCapture cc2 0
+          Type () -> String
+          Local $closure
+      return
+        Type String
+        Local $call.1
+  fun function_bridge.$Closure$anonymous0.() -> Any @fn7($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn8($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  fun function_bridge.$Closure$reference1.() -> Any @fn9($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  str @str0 "first"
+  str @str1 "second"
+  str @str2 "first"
+  str @str3 "second"
+  output executable @fn3
