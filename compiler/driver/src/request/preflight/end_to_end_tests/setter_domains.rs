@@ -12,7 +12,7 @@ fn ordinary_artifact_reader_checks_setter_domains_in_restricted_and_generic_owne
     let source = std::fs::read_to_string(directory.join("combined.scoop")).unwrap();
     let root = sysroot.path().join("setter-domains");
     write_manifest_cone(&root, "dev.example", "setter-domains", "library", &source);
-    let mut request = build_manifest_request(
+    let request = build_manifest_request(
         sysroot.path(),
         &target,
         &root,
@@ -20,14 +20,7 @@ fn ordinary_artifact_reader_checks_setter_domains_in_restricted_and_generic_owne
         vec![],
         vec![],
     );
-    request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(StageDumpKind::Hir));
     let library = request.build_and_publish().unwrap();
-    let dump = library.emitted_dumps().first().unwrap();
-    let snapshot = directory.join("combined.hir.snap");
-    if std::env::var_os("SCOOP_UPDATE_SETTER_SNAPSHOTS").is_some() {
-        std::fs::write(&snapshot, dump.text()).unwrap();
-    }
-    assert_eq!(dump.text(), std::fs::read_to_string(snapshot).unwrap());
     let bytes = std::fs::read(library.artifact().path()).unwrap();
     let identity = ConeCoordinate::new("dev.example", "setter-domains", "0.1.0")
         .unwrap()

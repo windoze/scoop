@@ -1,0 +1,60 @@
+SourceFile
+  RootPackage
+  public fun integerOwner(): GenericOwner<Int>
+    =
+      Call GenericOwner<Int>
+  public fun stringOwner(): GenericOwner<String>
+    =
+      Call GenericOwner<String>
+  public fun fileHolder(): FileHolder
+    =
+      Call FileHolder
+SourceFile
+  RootPackage
+  public open class AccessBase()
+    public fun updateInherited
+    protected var inherited: Int = <expr>
+      IntLiteral 1
+      private set(value)
+        assign field
+          Var value
+  public class DomainCases() : AccessBase(<0 args>)
+    public fun inspect
+    public var visible: Int = <expr>
+      IntLiteral 2
+      internal set(value)
+        assign field
+          Var value
+    protected var narrower: Int = <expr>
+      IntLiteral 8
+      private set(value)
+        assign field
+          Var value
+    internal nested class InternalOwner
+    protected nested class ProtectedOwner
+  public open class GenericBase<T>()
+  public class GenericOwner<T>() : GenericBase<T>(<0 args>)
+    public fun inspect
+    protected var guarded: Int = <expr>
+      IntLiteral 6
+      private set(value)
+        assign field
+          Var value
+  public object Registry
+    public fun inspect
+    public var visible: Int = <expr>
+      IntLiteral 7
+      private set(value)
+        assign field
+          Var value
+  private open class FileOwner()
+    public fun inspect
+    internal var guarded: Int = <expr>
+      IntLiteral 9
+      protected set(value)
+        assign field
+          Var value
+  public class FileHolder()
+    public fun inspect
+    private val owner: FileOwner = <expr>
+      Call FileOwner
