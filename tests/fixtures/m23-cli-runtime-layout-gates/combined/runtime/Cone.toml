@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test"
+name = "runtime-layout-gates-runtime-combined"
+version = "1.0.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:combined" = "0.1.0"
