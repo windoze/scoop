@@ -31,7 +31,7 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
         .load_root()
         .map_err(BuildFailure::root)?
         .discover()
-        .map_err(BuildFailure::classified)?
+        .map_err(BuildFailure::discovery)?
         .resolve()
         .map_err(BuildFailure::classified)?;
     if request.keep_for_run && graph.root_kind() == RequestedConeKind::Library {

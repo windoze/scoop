@@ -15,6 +15,9 @@ use scoop_slib::{
 
 use crate::ArtifactSearchRoot;
 
+mod default_core;
+pub(crate) use default_core::locate_default_core;
+
 pub(crate) fn artifact_candidate_path(root: &Path, coordinate: &ConeCoordinate) -> PathBuf {
     root.join(coordinate.group())
         .join(coordinate.name())
@@ -152,28 +155,34 @@ pub(crate) fn locate_manifest_dependency(
             resolve_from_manifest(parent, path.as_path())
         })
         .map(|source| LocatedDependencyClaim::Source(Box::new(source))),
-        DependencyLocator::ArtifactPath(path) => {
-            let candidate = probe_artifact_candidate(
-                resolve_from_manifest(parent, path.as_path()),
-                coordinate,
-                target,
-            )?;
-            Ok(LocatedDependencyClaim::Prebuilt(Box::new(
-                PrebuiltArtifactProjection {
-                    coordinate: coordinate.clone(),
-                    artifact_fingerprint: candidate.summary.artifact_fingerprint(),
-                    candidates: NonEmptyPrebuiltArtifactCandidates {
-                        first: candidate,
-                        rest: Vec::new(),
-                    },
-                },
-            )))
-        }
+        DependencyLocator::ArtifactPath(path) => locate_artifact_dependency(
+            resolve_from_manifest(parent, path.as_path()),
+            coordinate,
+            target,
+        ),
         DependencyLocator::SearchRoots => {
             locate_from_search_roots(coordinate, search_roots, target)
                 .map(|prebuilt| LocatedDependencyClaim::Prebuilt(Box::new(prebuilt)))
         }
     }
+}
+
+fn locate_artifact_dependency(
+    path: PathBuf,
+    coordinate: &ConeCoordinate,
+    target: scoop_lir::ValidatedLirTargetSelection,
+) -> Result<LocatedDependencyClaim, DependencyLocatorError> {
+    let candidate = probe_artifact_candidate(path, coordinate, target)?;
+    Ok(LocatedDependencyClaim::Prebuilt(Box::new(
+        PrebuiltArtifactProjection {
+            coordinate: coordinate.clone(),
+            artifact_fingerprint: candidate.summary.artifact_fingerprint(),
+            candidates: NonEmptyPrebuiltArtifactCandidates {
+                first: candidate,
+                rest: Vec::new(),
+            },
+        },
+    )))
 }
 
 fn resolve_from_manifest(parent: &LoadedConeManifest, locator: &Path) -> PathBuf {

@@ -52,18 +52,12 @@ impl DiscoveryBuilder {
             if self.nodes.contains_key(&ConeIdentity::CORE) {
                 break;
             }
-            let layout = scoop_toolchain::TrustedCoreSlotLayoutV1::new(
+            let claim = crate::locator::locate_default_core(
                 self.context.sysroot.as_path(),
                 self.context.target.lir_target_selection(),
-            );
-            let manifest = crate::locator::load_dependency_manifest(
-                &ConeCoordinate::reserved_core(),
-                layout.source_root().to_path_buf(),
             )
             .map_err(|error| BuildGraphDiscoveryError::Locator(Box::new(error)))?;
-            let identity = manifest.identity();
-            self.insert_node(identity, GraphNode::ManifestSource(Box::new(manifest)))?;
-            self.expand_source(identity)?;
+            self.intern_claim(claim)?;
         }
         Ok(DiscoveredBuildGraph {
             root: self.root,

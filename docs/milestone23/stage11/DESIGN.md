@@ -92,6 +92,8 @@ scoop link --root-slib <root.slib> [--dependency-slib <dep.slib> ...]
 
 当前开发发行默认 sysroot/runtime 与仓库已有 driver 约定一致，由 `compiler/toolchain` 集中提供构建时的工作区路径。该选择只是 locator；移动二进制时可显式提供位置。M23 不顺带实现安装目录探测、包下载或发行安装器。默认 compiler 通过 `current_exe` 所在目录取得，不扫描 cwd、项目父目录或 PATH。`scoopc` 的直接命令应使用同一 sysroot/target 解析规则，允许显式 `--target`、`--sysroot`；它仍不拥有 cache、runtime 或 native library search 配置。
 
+`build/run` 在完整显式依赖发现后仍无 core 节点时，优先使用 sysroot 的 `lib/scoop.core` 源码目录；仅当目录不存在时读取 `artifacts/<canonical-target-id>/scoop.core.slib`。源码目录存在但无效、dangling symlink 或选中产物无效都直接失败，不改选另一来源。选中的来源沿共有 source／prebuilt 路径处理；构建不写 sysroot，开发者修改现有 core 源码仍走普通缓存失效。直接 `scoopc` 与显式 `link` 只消费产物。
+
 `build/run` 使用完整 `ResolvedTargetProfile`，各消费者只取得自己的 projection。显式 `link` 只解析 LIR target 和 final-link projection，不构造完整 build request，不执行 compiler handshake，不调用 `llvm-config`。JSON、dump 与终端显示选择都不改变 target 或产物内容。
 
 环境分工保持：compiler 和链接工具使用既有明确命令／toolchain 环境；被运行程序继承调用者环境。程序的 `SCOOP_GC_STRESS_MOVE` 等 runtime 配置不得被误当作 compiler flags；`CC`、`LDFLAGS`、`LIBRARY_PATH` 不成为额外链接输入。
@@ -359,7 +361,7 @@ compiler 单 Cone 生产、reader 损坏、codegen 对象和 runtime 加载边�
 | 构建 profile | 默认 debug、显式 debug/release、`--release` 等价；未知值、两种选择方式并用时报参数错误；目录隔离，当前 `.slib` bytes／程序结果相同，不增加优化或 runtime 行为差异 |
 | 输出目录 | 默认 `target/<canonical-target-triple>/<profile>`，host 默认也含 triple；manifest 相对 Cone root、single-file 相对 cwd；`--target-dir` 的相对／绝对路径、与 `-o` 组合，改变位置不改变编译输入 |
 | 单文件隔离 | 同目录放坏 manifest、额外 main、C/C++、archive、blob 仍只读指定源码；非 core import／额外 Cone 参数失败；typed FFI 加 library path 成功 |
-| core | 默认 source 与缓存、显式普通 core locator、直接构建修改后的 core、core root 在默认 sysroot 不存在时成功；冲突走普通图诊断 |
+| core | 默认 source 与缓存、仅有目标平台产物的 sysroot、源码优先且错误不回退、显式普通 core locator、直接构建修改后的 core、core root 在默认 sysroot 不存在时成功；冲突走普通图诊断 |
 | 输出与原子性 | 同名不同内容／并发发布完整文件，后成功者替换；不同 triple/profile 隔离；已有输出、只读目录、rename 失败、source／artifact／cache alias、跨文件系统候选复制；失败保留旧输出 |
 | run | library 早失败；argv 的空串／空格／`--`／非 UTF-8、cwd/env、stdin/stdout/stderr；exit 0／37、SIGTERM／SIGABRT／Ctrl-C、启动失败、私有文件清理与无孤儿 child；稳定输出保留，并发覆盖不改变本次执行，argv[0] 和相对动态库装载符合稳定路径 |
 | 独立 link | 移走 Scoop/runtime 源码和 compiler，仅保留 slib／runtime index／native；explicit/search-root 闭包、single-file root；缺失／stale／extra／executable dependency 与歧义失败 |

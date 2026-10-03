@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOP_LOCATOR_COORDINATE_MISMATCH",
+    "message": "dependency at ${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib declares test:root:1.0.0, expected scoop:scoop.core:0.1.0",
+    "notes": [],
+    "origin": {
+      "end": null,
+      "kind": "host",
+      "path": "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib",
+      "start": null
+    },
+    "phase": "Locator",
+    "severity": "error"
+  }
+]

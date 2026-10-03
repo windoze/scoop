@@ -1,0 +1,113 @@
+schema = 1
+name = "cli-edited-core-root-artifact-consumer"
+inputs = ["../../core-library/extension.scoop", "../../core-library/metadata.scoop", "../../core-library/call-consumer.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "cache", "core", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/edited-library"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/edited-library/src/extension.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/metadata.scoop", "to" = "${work}/edited-library/src/metadata.scoop"}},
+]
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/edited-library", "--sysroot", "${work}/missing-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${work}/absent-runtime", "-o", "${work}/core.slib", "--emit", "all", "--dump-dir", "${work}/dumps/core"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${cold.result.kind}", "equals" = "library"},
+  {"actual" = "${cold.result.dependencies}", "equals" = []},
+  {"actual" = "${cold.result.root.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
+  {"actual" = "${cold.result.observations.nodes.0.origin}", "equals" = "compiled"},
+  {"actual" = "${cold.result.observations.child_invocations}", "equals" = ["${cold.result.root.identity}"]},
+  {"file" = "${work}/missing-sysroot", "exists" = false},
+  {"file" = "${work}/core.slib", "same_as" = "${cold.result.root.path}"},
+  {"file" = "${work}/dumps/core/${cold.result.root.identity}/ast.txt", "snapshot" = "core.ast.txt"},
+  {"file" = "${work}/dumps/core/${cold.result.root.identity}/hir.txt", "snapshot" = "core.hir.txt"},
+  {"file" = "${work}/dumps/core/${cold.result.root.identity}/mir.txt", "snapshot" = "core.mir.txt"},
+  {"file" = "${work}/dumps/core/${cold.result.root.identity}/lir.txt", "snapshot" = "core.lir.txt"},
+]
+
+[[steps]]
+name = "warm"
+argv = ["${scoop}", "build", "${work}/edited-library", "--sysroot", "${work}/missing-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--runtime-root", "${work}/absent-runtime", "-o", "${work}/core.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${warm.result.kind}", "equals" = "library"},
+  {"actual" = "${warm.result.dependencies}", "equals" = []},
+  {"actual" = "${warm.result.root.coordinate}", "equals" = {"group" = "scoop", "name" = "scoop.core", "version" = "0.1.0"}},
+  {"actual" = "${warm.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${warm.result.observations.child_invocations}", "equals" = []},
+  {"file" = "${work}/missing-sysroot", "exists" = false},
+  {"file" = "${work}/core.slib", "same_as" = "${warm.result.root.path}"},
+  {"actual" = "${warm.result.root.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"},
+  {"actual" = "${warm.result.observations.nodes.0.cache_key}", "equals" = "${cold.result.observations.nodes.0.cache_key}"},
+  {"file" = "${warm.result.root.path}", "same_as" = "${cold.result.root.path}"},
+]
+
+[[steps]]
+name = "isolate_core"
+files = [
+  {"copy" = {"from" = "${work}/core.slib", "to" = "${work}/artifact-only-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"remove" = {"path" = "${work}/edited-library"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/call-consumer.scoop", "to" = "${work}/consumer.scoop"}},
+]
+
+[[steps]]
+name = "manual"
+argv = ["/usr/bin/env", "-i", "SCOOP_SYSROOT=${work}/artifact-only-sysroot", "${scoopc}", "build", "${work}/consumer.scoop", "--out-slib", "${work}/manual-consumer.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+checks = [
+  {"file" = "${work}/artifact-only-sysroot/lib/scoop.core", "exists" = false},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/consumer.scoop", "--sysroot", "${work}/artifact-only-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dumps/consumer", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${consumer.result.kind}", "equals" = "executable"},
+  {"actual" = "${consumer.result.dependencies.length}", "equals" = 1},
+  {"actual" = "${consumer.result.dependencies.0.identity}", "equals" = "${cold.result.root.identity}"},
+  {"actual" = "${consumer.result.dependencies.0.artifact_fingerprint}", "equals" = "${cold.result.root.artifact_fingerprint}"},
+  {"actual" = "${consumer.result.observations.nodes.0.origin}", "equals" = "prebuilt"},
+  {"actual" = "${consumer.result.observations.child_invocations}", "equals" = ["${consumer.result.root.identity}"]},
+  {"file" = "${consumer.result.root.path}", "same_as" = "${work}/manual-consumer.slib"},
+  {"file" = "${work}/artifact-only-sysroot/lib/scoop.core", "exists" = false},
+  {"file" = "${work}/dumps/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
+  {"file" = "${work}/dumps/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
+  {"file" = "${work}/dumps/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
+  {"file" = "${work}/dumps/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}

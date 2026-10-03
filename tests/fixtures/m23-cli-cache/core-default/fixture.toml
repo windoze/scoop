@@ -1,0 +1,191 @@
+schema = 1
+name = "cli-core-default-source-and-artifact"
+inputs = ["root", "../../core-library/extension.scoop", "../../core-library/library-consumer.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["cli", "core", "cache", "negative", "stage-golden"]
+
+[vars]
+options = ["--sysroot", "${work}/private-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--runtime-root", "${work}/missing-runtime", "--message-format", "json"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/private-sysroot/lib/scoop.core"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/extension.scoop", "to" = "${work}/private-sysroot/lib/scoop.core/src/extension.scoop"}},
+  {"copy" = {"from" = "${fixture}/root", "to" = "${work}/root"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/library-consumer.scoop", "to" = "${work}/root/src/main.scoop"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/private-sysroot/lib/scoop.core", {"each" = "${options}"}, "-o", "${work}/saved-core.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${core.result.observations.child_invocations}", "equals" = ["${core.result.root.identity}"]},
+]
+
+[[steps]]
+name = "poison_artifact"
+files = [
+  {"write" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib", "data" = "not an archive\n"}},
+]
+
+[[steps]]
+name = "source"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib", "--emit", "all", "--dump-dir", "${work}/dump"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${source.result.dependencies.0.artifact_fingerprint}", "equals" = "${core.result.root.artifact_fingerprint}"},
+  {"actual" = "${source.result.observations.nodes.0.origin}", "equals" = "cache"},
+  {"actual" = "${source.result.observations.child_invocations}", "equals" = ["${source.result.root.identity}"]},
+  {"file" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib", "equals" = "not an archive\n"},
+  {"file" = "${work}/dump/${source.result.root.identity}/ast.txt", "snapshot" = "ast.txt"},
+  {"file" = "${work}/dump/${source.result.root.identity}/hir.txt", "snapshot" = "hir.txt"},
+  {"file" = "${work}/dump/${source.result.root.identity}/mir.txt", "snapshot" = "mir.txt"},
+  {"file" = "${work}/dump/${source.result.root.identity}/lir.txt", "snapshot" = "lir.txt"},
+]
+
+[[steps]]
+name = "save_previous"
+files = [
+  {"copy" = {"from" = "${work}/library.slib", "to" = "${work}/previous.slib"}},
+  {"copy" = {"from" = "${work}/saved-core.slib", "to" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+]
+
+[[steps]]
+name = "prepare_invalid_source"
+files = [
+  {"replace" = {"path" = "${work}/private-sysroot/lib/scoop.core/Cone.toml", "old" = "schema = 1", "new" = "schema = true"}},
+]
+
+[[steps]]
+name = "invalid_source"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "invalid_source.json"}
+checks = [
+  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
+]
+
+[[steps]]
+name = "prepare_missing_manifest"
+files = [
+  {"remove" = {"path" = "${work}/private-sysroot/lib/scoop.core/Cone.toml"}},
+]
+
+[[steps]]
+name = "missing_manifest"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "missing_manifest.json"}
+checks = [
+  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
+]
+
+[[steps]]
+name = "prepare_dangling_source"
+files = [
+  {"remove" = {"path" = "${work}/private-sysroot/lib/scoop.core"}},
+  {"symlink" = {"from" = "${work}/absent-core", "to" = "${work}/private-sysroot/lib/scoop.core"}},
+]
+
+[[steps]]
+name = "dangling_source"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "dangling_source.json"}
+checks = [
+  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
+]
+
+[[steps]]
+name = "prepare_invalid_artifact"
+files = [
+  {"remove" = {"path" = "${work}/private-sysroot/lib/scoop.core"}},
+  {"write" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib", "data" = "not an archive\n"}},
+]
+
+[[steps]]
+name = "invalid_artifact"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "invalid_artifact.json"}
+checks = [
+  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
+]
+
+[[steps]]
+name = "prepare_wrong_coordinate"
+files = [
+  {"copy" = {"from" = "${work}/previous.slib", "to" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+]
+
+[[steps]]
+name = "wrong_coordinate"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "wrong_coordinate.json"}
+checks = [
+  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
+]
+
+[[steps]]
+name = "prepare_artifact_directory"
+files = [
+  {"remove" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+  {"mkdir" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+]
+
+[[steps]]
+name = "artifact_directory"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "artifact_directory.json"}
+checks = [
+  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
+]
+
+[[steps]]
+name = "prepare_missing_artifact"
+files = [
+  {"remove" = {"path" = "${work}/private-sysroot/artifacts/darwin-aarch64/scoop.core.slib"}},
+]
+
+[[steps]]
+name = "missing_artifact"
+argv = ["${scoop}", "build", "${work}/root", {"each" = "${options}"}, "-o", "${work}/library.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "missing_artifact.json"}
+checks = [
+  {"file" = "${work}/library.slib", "same_as" = "${work}/previous.slib"},
+]

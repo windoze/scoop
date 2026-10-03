@@ -2,12 +2,13 @@ use std::fmt;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use scoop_manifest::ManifestRootErrorKind;
+use scoop_manifest::{ManifestRootError, ManifestRootErrorKind};
 use scoop_protocol::StructuredDiagnosticV1;
+use scoop_slib::{ArtifactManifestSummaryError, SlibDiagnostic};
 
 use crate::{
-    BuildFailurePhase, BuildGraphExecutionFailure, ClassifyBuildFailure, LoadBuildRootError,
-    PrepareBuildGraphError, SourceSnapshot,
+    BuildFailurePhase, BuildGraphDiscoveryError, BuildGraphExecutionFailure, ClassifyBuildFailure,
+    DependencyLocatorError, LoadBuildRootError, PrepareBuildGraphError, SourceSnapshot,
 };
 
 #[derive(Debug)]
@@ -76,13 +77,19 @@ impl BuildFailure {
 
     pub(super) fn root(error: LoadBuildRootError) -> Box<Self> {
         let LoadBuildRootError::RootManifest(manifest) = &error;
-        let path = manifest.path().to_owned();
-        let span = match manifest.kind() {
-            ManifestRootErrorKind::Parse(error) => error.span().map(|span| span.range()),
-            _ => None,
+        let location = manifest_location(manifest);
+        let mut failure = Self::classified(error);
+        failure.location = location;
+        failure
+    }
+
+    pub(super) fn discovery(error: BuildGraphDiscoveryError) -> Box<Self> {
+        let location = match &error {
+            BuildGraphDiscoveryError::Locator(error) => locator_location(error),
+            _ => BuildFailureLocation::None,
         };
         let mut failure = Self::classified(error);
-        failure.location = BuildFailureLocation::Host { path, span };
+        failure.location = location;
         failure
     }
 
@@ -122,6 +129,54 @@ impl BuildFailure {
         self.warnings = warnings.to_vec();
         self.sources = sources.to_vec();
         self
+    }
+}
+
+fn manifest_location(error: &ManifestRootError) -> BuildFailureLocation {
+    BuildFailureLocation::Host {
+        path: error.path().to_owned(),
+        span: match error.kind() {
+            ManifestRootErrorKind::Parse(error) => error.span().map(|span| span.range()),
+            _ => None,
+        },
+    }
+}
+
+fn locator_location(error: &DependencyLocatorError) -> BuildFailureLocation {
+    use DependencyLocatorError as Error;
+    match error {
+        Error::Manifest(error) => manifest_location(error),
+        Error::Summary { path, source } => BuildFailureLocation::Artifact {
+            path: path.clone(),
+            member: match source {
+                ArtifactManifestSummaryError::Envelope(error) => error.diagnostic().semantic_path(),
+                ArtifactManifestSummaryError::Graph(error) => error.diagnostic().semantic_path(),
+                ArtifactManifestSummaryError::LengthOverflow => "container:$".to_owned(),
+            },
+        },
+        Error::InvalidArtifactSourceForm { path, .. } => BuildFailureLocation::Artifact {
+            path: path.clone(),
+            member: "manifest:cone.source_form".to_owned(),
+        },
+        Error::ReservedArtifact { path, .. } => BuildFailureLocation::Artifact {
+            path: path.clone(),
+            member: "manifest:cone.identity".to_owned(),
+        },
+        Error::Io { path, .. }
+        | Error::ArtifactNotRegularFile(path)
+        | Error::LengthOverflow(path)
+        | Error::ArtifactChangedDuringRead(path)
+        | Error::Allocation(path)
+        | Error::CoordinateMismatch { path, .. }
+        | Error::ExecutableDependency { path, .. }
+        | Error::SelfSourceLocator { root: path, .. } => BuildFailureLocation::Host {
+            path: path.clone(),
+            span: None,
+        },
+        Error::UndeclaredDependency(_)
+        | Error::MissingLocatorProjection(_)
+        | Error::ArtifactNotFound { .. }
+        | Error::AmbiguousArtifact { .. } => BuildFailureLocation::None,
     }
 }
 
