@@ -1,0 +1,89 @@
+SourceFile
+  QualifiedPackage consumer.adapters
+  ImportStar Local templates.adapters.*
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val error
+      Call Failure
+        Call Payload
+          Call read
+            Var seed
+    val staticAction
+      Call failing<T>
+        Var error
+    val erased: Any
+      Var staticAction
+    val dynamicAction
+      Cast (T) -> Any optional=false
+        Var erased
+    var caught: Int
+      IntLiteral 0
+    var finalized: Int
+      IntLiteral 0
+    try
+      Call staticAction
+        Var seed
+    catch failure: Failure
+      if
+        Binary And
+          Binary RefEq
+            FieldAccess payload
+              Var failure
+            FieldAccess payload
+              Var error
+          Binary Eq
+            FieldAccess value
+              FieldAccess payload
+                Var failure
+            IntLiteral 42
+        compound-assign Add
+          IntLiteral 1
+    finally
+      compound-assign Add
+        IntLiteral 1
+    try
+      Call dynamicAction
+        Var seed
+    catch failure: Failure
+      if
+        Binary And
+          Binary RefEq
+            FieldAccess payload
+              Var failure
+            FieldAccess payload
+              Var error
+          Binary Eq
+            FieldAccess value
+              FieldAccess payload
+                Var failure
+            IntLiteral 42
+        compound-assign Add
+          IntLiteral 1
+    finally
+      compound-assign Add
+        IntLiteral 1
+    return
+      IfExpression
+        Binary And
+          Binary Eq
+            Var caught
+            IntLiteral 2
+          Binary Eq
+            Var finalized
+            IntLiteral 2
+        Call read
+          Var seed
+        else
+        Binary Add
+          Binary Add
+            IntLiteral 100
+            Binary Mul
+              Var caught
+              IntLiteral 10
+          Var finalized
+  public fun result(): Int
+    =
+      Call exercise
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: Int
+          Var value

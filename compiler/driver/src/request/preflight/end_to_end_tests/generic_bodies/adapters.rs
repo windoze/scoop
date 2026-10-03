@@ -1,9 +1,4 @@
 #[test]
-fn adapted_function_failures_preserve_catch_and_finally() {
-    super::members::check_fixture_cases("m23-function-adapters", &["failures"], &[], "downstream");
-}
-
-#[test]
 fn dynamic_function_variance_keeps_interface_ancestry() {
     super::members::check_fixture_cases(
         "m23-function-adapters",
