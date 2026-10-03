@@ -1,3 +1,0 @@
-span=138..143
-expression=other
-dependency function `same`: conflicting types for `A`: Int and Unit

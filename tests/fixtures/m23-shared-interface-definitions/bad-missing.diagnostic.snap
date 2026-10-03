@@ -1,6 +1,0 @@
-span=39..138
-expression=private class Missing: Swap<Int, Unit> {
-    public override val first: Unit
-        get() = Unit
-}
-class `Missing` does not implement interface method `View<Unit, Int>.$get$second`

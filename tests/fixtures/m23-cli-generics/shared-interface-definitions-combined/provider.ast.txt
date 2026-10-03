@@ -1,0 +1,22 @@
+SourceFile
+  QualifiedPackage upstream.interfaceDefinitions
+  public interface View<A, B>
+    fun choose
+    fun peer
+    public open val first: A <computed>
+    public open val second: B <computed>
+  public interface Swap<A, B> : View<B, A>
+    fun choose
+    fun same
+  public class Remote<T>(val second: T), Swap<T, Unit>
+    public open override val first: Unit <computed>
+      get()
+        UnitLiteral
+  public struct Pair<A, B>
+    field first: A
+    field second: B
+  public typealias IntView = Swap<Int, Unit>
+  public fun reference<T>(value: T): Swap<T, Unit>
+    =
+      Call Remote
+        Var value
