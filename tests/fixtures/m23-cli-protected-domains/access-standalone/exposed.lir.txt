@@ -1,0 +1,19 @@
+Module
+  fun @scoop$1$cb$a8b7b4e2e65e456a4f0faeff9adefd172ce1feddec5f9499a035f9fb702e0cc9() -> ptr<managed>
+    local %0 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    store t0 -> local0
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn1(local0)
+    t1 = aggregate () : {}
+    ret local0
+  fun @scoop$1$cb$41bc13a38ae30c9639dd739594a644bc9f86a2f5dabd30d6da411d29a550d759(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
+    heap_store param0 +16 integer<Int>(0x00000003)
+    ret
+  td td0 a(n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=C;x=SourceBase);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$18768592cec9950f9a07860b7e8bece81c4093ad76139b3249a57fab18bb523a type-id=1138488050327284382 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  layout SourceBase value size=8 align=8 refs=[0]
+  layout SourceBase size=24 align=8 refs=[]
+  output library

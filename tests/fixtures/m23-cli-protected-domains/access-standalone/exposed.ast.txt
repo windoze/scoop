@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public fun domainBase(): SourceBase<Int>
+    =
+      Call SourceBase<Int>
+SourceFile
+  RootPackage
+  public open class SourceBase<T>()
+    public fun inspect
+    protected val seed: Int = <expr>
+      IntLiteral 3
+    protected fun read

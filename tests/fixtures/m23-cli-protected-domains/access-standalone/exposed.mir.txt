@@ -1,0 +1,22 @@
+Module
+  class SourceBase<Int> vtable=0 itables=0
+  fun domainBase @fn0() -> SourceBase<Int>
+    bb0 entry
+      assign $new.1
+        Type SourceBase<Int>
+        ClassAlloc SourceBase<Int>
+      call @fn1 direct
+        Type SourceBase<Int>
+        Local $new.1
+      return
+        Type SourceBase<Int>
+        Local $new.1
+  fun init.SourceBase.$c0 @fn1(this: SourceBase<Int>) -> Unit
+    bb0 entry
+      field_set 0
+        Type SourceBase<Int>
+        Local this
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      return
+  output library
