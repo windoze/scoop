@@ -1,19 +1,6 @@
 use super::*;
 
 #[test]
-fn generic_delegate_values_and_order_republish_and_execute() {
-    check_cases(&[
-        "order",
-        "write-only",
-        "read-only-var",
-        "zst",
-        "flat",
-        "references",
-        "combined",
-    ]);
-}
-
-#[test]
 fn generic_delegate_aliases_cycles_and_local_source_republish_and_execute() {
     check_cases(&[
         "aliases",

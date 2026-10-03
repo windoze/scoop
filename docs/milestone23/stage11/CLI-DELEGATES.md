@@ -1,0 +1,17 @@
+# M23-11 泛型委托 CLI 迁移
+
+本记录按功能列出已完成的迁移；其余委托与产物损坏测试继续保留原入口，直到相同断言已迁移并验证。总验收仍以统一 Python 入口的完整只读运行结果为准。
+
+## 共同路径与结构断言
+
+原 provider、consumer、downstream 源码和 `dev.example:delegate-combinations-provider:0.1.0`、`delegate-<case>`、`delegate-downstream-<case>` 坐标保持。每一层发布后移走源码，下一层只使用实际 `.slib`。三个 library 分别从一次编译取得 AST/HIR/MIR/LIR，原 consumer 三阶段逐字核对。最后的普通 Scoop 程序检查原 `check() == 42` 和实际 GC 收集；移走全部项目源码与配套 compiler 后，再由独立 `scoop link` 链接并在普通／moving GC 下运行。
+
+`m23-cli-delegates/support/metadata.c` 是普通 native 测试 helper，通过既有 runtime metadata ABI 读取本次生成的 provider／consumer image 描述符。image 符号绑定取正式构建返回的 Cone identity，不增加测试专用编译器接口。它检查 provider 初始化单元均为 Strong；consumer 数量与原 LIR 相同，全部为 ODR、LazyAccess。`foreign-local` 要求零个单元，保留词法存储的断言。`zst` 继续要求 byte size 为 0、allocation extent 为 1、scan 为 None；`flat`／`references` 要求 byte size 为 24，分别为 None／Recursive。各项检查在两种 GC 运行中都执行。
+
+只读与只写用例在完整 MIR golden 之外，继续明确断言没有物化未使用的 setter／getter。最终 binary 的完整外部定义与去除 weak 后的符号表也分别比较，保留实际 callable 合并覆盖。helper 由声明中的 C compiler／archive 步骤准备，经普通 typed native requirement 加入链接；没有手工 startup 或 raw object 注入。
+
+每项先格式化、lint，核对旧断言与快照后删除对应 Rust 测试注册及不再使用的旧快照，再进行关闭全部更新开关的只读验收，分别提交。下表数字是实际完成结果。
+
+| 原 Rust 测试 | 正例／负例 | 进程／golden 比较 | 原有期望核对 |
+| --- | --- | --- | --- |
+| `generic_delegate_values_and_order_republish_and_execute` | 7／0 | 98／91 | 21 份旧阶段、0 份旧诊断逐项相同 |

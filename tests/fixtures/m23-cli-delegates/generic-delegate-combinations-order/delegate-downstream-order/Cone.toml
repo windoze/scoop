@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "delegate-downstream-order"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:delegate-order" = "0.1.0"
