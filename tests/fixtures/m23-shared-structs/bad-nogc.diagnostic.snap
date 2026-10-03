@@ -1,3 +1,0 @@
-span=67..120
-expression=private struct Invalid(val value: RemoteCell<String>)
-`@NoGC` struct specialization `Invalid` is not GC-free because it directly or indirectly contains a ref type

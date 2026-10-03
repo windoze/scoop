@@ -12,7 +12,6 @@ mod options;
 mod publication;
 mod qualified_types;
 mod rebuilt_core;
-mod shared_structs;
 mod siblings;
 mod source_calls;
 mod value_layouts;
