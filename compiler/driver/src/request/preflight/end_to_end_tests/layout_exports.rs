@@ -79,17 +79,6 @@ fn actual_source_mir_and_lir_assemble_complete_layout_exports() {
                     private_types::check_support(input, dependencies, &result);
                 }
                 expected = Some(assertions::bytes(&result));
-                let dump = assertions::dump(input, &result);
-                if let Some(directory) = std::env::var_os("SCOOP_LIR_EXPORT_SNAPSHOT_DIR") {
-                    std::fs::create_dir_all(&directory).unwrap();
-                    std::fs::write(Path::new(&directory).join(format!("{name}.snap")), dump)
-                        .unwrap();
-                } else {
-                    assert_eq!(
-                        dump,
-                        std::fs::read_to_string(path.join(format!("{name}.snap"))).unwrap()
-                    );
-                }
             },
         );
         support::with_production(

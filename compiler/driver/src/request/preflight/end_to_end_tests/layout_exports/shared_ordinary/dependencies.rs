@@ -84,18 +84,6 @@ fn ordinary_bridge_replays_real_dependency_function_and_getter_calls() {
             let lir = scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, mir, input.lir)
                 .unwrap();
             assert_eq!(lir.selected().len(), 2);
-            let dump = format!(
-                "MIR exports\n{:?}\nMIR selected\n{:?}\nLIR exports\n{:?}\nLIR selected\n{:?}\n",
-                mir.exports(),
-                mir.selected(),
-                lir.exports(),
-                lir.selected()
-            );
-            let snapshot = fixtures.join("shared-ordinary-consumer.snap");
-            if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-                std::fs::write(&snapshot, &dump).unwrap();
-            }
-            assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
         },
     );
 }

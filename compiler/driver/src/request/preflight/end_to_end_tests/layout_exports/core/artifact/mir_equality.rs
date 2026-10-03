@@ -5,7 +5,7 @@ use scoop_identity::{
 };
 use scoop_slib::SharedMirEqualityValidationError as Error;
 
-mod dump;
+mod applications;
 mod mutations;
 
 pub(super) fn check(
@@ -25,7 +25,7 @@ pub(super) fn check(
     if !name.starts_with("shared-equality-") {
         return;
     }
-    dump::check(&replay, name);
+    applications::check(&replay, name);
     mutations::check(&replay);
 
     replay.validate(section.callables()).unwrap();

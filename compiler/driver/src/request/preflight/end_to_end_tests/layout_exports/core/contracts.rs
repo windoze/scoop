@@ -8,8 +8,7 @@ pub(super) fn check(
     source: &hir::CrossConeTypeSemanticsSectionV1,
     input: LayoutAbiExportInputV1<'_>,
     result: &lir::LayoutAbiExportConstituentsV1,
-) -> String {
-    let mut dump = String::new();
+) {
     for ty in [mir::Type::Unit, mir::Type::Any] {
         let exact = input
             .mir
@@ -31,13 +30,22 @@ pub(super) fn check(
             }
         );
         assert!(result.descriptors().get(exact).is_some());
-        dump.push_str(&format!(
-            "hir {ty:?}: {:?} {:?}\nmir {ty:?}: {:?} {:?}\n",
-            fact.kind(),
-            fact.gc(),
-            shape.facts(),
-            shape.representation(),
-        ));
+        assert_eq!(
+            (fact.kind(), fact.gc()),
+            if ty == mir::Type::Unit {
+                (
+                    hir::ExactTypeKindV1::Value {
+                        zst: hir::ZstStatus::ZeroSized,
+                    },
+                    hir::ExactTypeGcV1::GcFree,
+                )
+            } else {
+                (
+                    hir::ExactTypeKindV1::Reference,
+                    hir::ExactTypeGcV1::ContainsManagedReferences,
+                )
+            }
+        );
     }
     source_only_callable(hir, input);
     reject_missing_string_vtable(input);
@@ -89,13 +97,6 @@ pub(super) fn check(
     });
     expected_local.sort();
     assert_eq!(local_only, expected_local);
-    for name in names {
-        dump.push_str(&format!("source-only descriptor {name}\n"));
-    }
-    for name in local_only {
-        dump.push_str(&format!("local-only descriptor {name}\n"));
-    }
-    dump
 }
 
 fn source_only_callable(

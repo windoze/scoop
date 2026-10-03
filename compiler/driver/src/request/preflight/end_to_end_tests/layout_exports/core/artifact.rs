@@ -48,7 +48,7 @@ pub(super) fn check(
         scoop_lir_lower::lower_cross_cone_bridge_section(input.mir, input.ordinary, lir).unwrap();
     shared_ordinary::check(name, input, &foundation, lir, layout, &ordinary);
     shared_digests::check(name, lir.foundation(), objects.production());
-    shared_initialization::check(name, input.mir.production(), &ordinary, lir);
+    shared_initialization::check(input.mir.production(), &ordinary, lir);
     external_boxing::check(name, target, lir, layout, &ordinary, objects.production());
     let generated =
         scoop_codegen::emit_c_bridge_object_set(lir, directory, target.c_bridge_toolchain())

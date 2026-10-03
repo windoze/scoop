@@ -45,3 +45,9 @@
 `m23-cli-layout-assembly` 的 `standalone`、`combined`、`private-support` 三例分别构建原声明、加入原 `private-local.scoop` 和无关私有函数后的声明，再移走源码让真实下游消费产物。三例只读验证通过，共 12 次进程执行、36 份阶段 golden。原 `actual_source_mir_and_lir_assemble_complete_layout_exports` 的公开 section 字节不变、私有支持类型、ABI 与拒绝错误输入断言继续保留，已单独运行通过。
 
 原三份布局摘要只分别增加 `Payload.equals`、`Value.equals`、`Token.equals` 及对应 callable 计数；其余布局、descriptor、dispatch、ABI 和形状内容逐字一致。`ordinary_bridge_replays_real_dependency_function_and_getter_calls` 的原 MIR/LIR selected 数量与完整旧摘要也保持一致。新增下游通过 `Exposed` 参数使用公开方法，遵守其原本未公开的构造函数可见性。
+
+## 旧快照入口清理
+
+对应 43 个 core／普通库用例及 3 个布局装配组合，已删除 191 份旧文本快照，以及只负责格式化和比较这些快照的代码。25 个原布局内部测试继续验证真实 producer／reader、完整导出表、public/private 字节不变、ABI、GC、dispatch、初始化、codegen 与损坏 metadata：关闭所有更新开关后，24 个在完整一轮通过，遗漏的 recursive layout 快照调用清理后，其独立测试也通过。最终全仓验收仍会再次运行完整集合。
+
+公开类型的派生相等检查保留为 `mir_equality/applications.rs` 中的直接 typed 断言；`Unit`／`Any` 的种类和 GC 事实原先只在摘要中比较，现保留为直接断言。没有增加新的产物检查接口或 fixture 执行器。

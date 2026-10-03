@@ -1,3 +1,0 @@
-types=207 callables=186 dispatch=128 objects=1 shapes=30 units=2 selected=0
-unit object:SharedUnitLazy: Ordinary Managed
-unit top-level:sharedUnitEager: Ordinary Managed

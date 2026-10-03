@@ -34,12 +34,6 @@ fn ordinary_library_exports_members_with_available_machine_signatures() {
                 .collect::<Vec<_>>();
             assert!(names.contains(&"Published.ready"));
             assert!(names.contains(&"Published.deferred"));
-            let dump = assertions::dump(input, &result);
-            let snapshot = fixtures.join("ordinary.snap");
-            if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-                std::fs::write(&snapshot, &dump).unwrap();
-            }
-            assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
         },
     );
 }
@@ -277,7 +271,7 @@ fn check_core_layout_exports(names: &[&str]) {
             &result,
         );
         if name.starts_with("shared-layouts-") {
-            shared_layouts::probe(name, input, &result);
+            shared_layouts::probe(input, &result);
         }
         shared_abis::check(
             input,
@@ -303,17 +297,11 @@ fn check_core_layout_exports(names: &[&str]) {
         if name.starts_with("shared-shapes-") {
             shared_shapes::probe(input, &result);
         }
-        let mut dump = contracts::check(name, &hir, &source, input, &result);
+        contracts::check(name, &hir, &source, input, &result);
         assertions::contents(input, &result);
         if matches!(name, "standalone" | "combined") {
             assertions::zero_sized_abi(&result);
         }
-        dump.push_str(&assertions::dump(input, &result));
-        let snapshot = fixtures.join(format!("{name}.snap"));
-        if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-            std::fs::write(&snapshot, &dump).unwrap();
-        }
-        assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
         let layout_section = layout_section::check(mir_input, input, result);
         let production = registration.validate_layout_abi(&layout_section).unwrap();
         assert_eq!(
@@ -328,8 +316,8 @@ fn check_core_layout_exports(names: &[&str]) {
                 .unwrap(),
         )
         .unwrap();
-        layout_section::snapshot(name, &fixtures, &layout_section, &objects);
-        let mir_section = section::check(name, &fixtures, mir_input, bridge);
+        assert!(!objects.members().is_empty());
+        let mir_section = section::check(name, mir_input, bridge);
         artifact::check(
             name,
             directory.path(),

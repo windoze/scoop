@@ -1,5 +1,5 @@
 use super::*;
-use scoop_identity::{GeneratedCallableKey, PersistentTypeId, SourceDeclarationKey};
+use scoop_identity::{GeneratedCallableKey, SourceDeclarationKey};
 use scoop_slib::SharedMirObjectValidationError as Error;
 
 pub(super) fn check(
@@ -16,7 +16,6 @@ pub(super) fn check(
     }
     let metadata = source.metadata();
     let units = metadata.object_initialization_units().unwrap();
-    let mut rows = Vec::new();
     let mut objects = 0;
     for representation in source.representations().table().records() {
         let hir::NominalRepresentationShapeV1::Object { .. } = representation.shape() else {
@@ -32,27 +31,15 @@ pub(super) fn check(
             .identities
             .canonical_key::<_, scoop_identity::InitializationUnitKey>(unit)
             .unwrap();
-        rows.push(format!(
-            "{}: {}\n",
-            object_name(metadata, owner),
-            match kind.as_ref() {
-                scoop_identity::InitializationUnitKey::Object(_) => "object",
-                scoop_identity::InitializationUnitKey::Companion(_) => "companion",
-                _ => panic!("the object index contains only object initialization units"),
-            }
+        assert!(matches!(
+            kind.as_ref(),
+            scoop_identity::InitializationUnitKey::Object(_)
+                | scoop_identity::InitializationUnitKey::Companion(_)
         ));
         assert_eq!(key.origin(), source.provider());
         objects += 1;
     }
     assert_eq!(objects, if name.ends_with("combined") { 3 } else { 2 });
-    rows.sort();
-    let snapshot = crate::workspace_root().join(format!(
-        "tests/fixtures/m23-core-layout-exports/{name}.hir.snap"
-    ));
-    if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-        std::fs::write(&snapshot, rows.concat()).unwrap();
-    }
-    assert_eq!(rows.concat(), std::fs::read_to_string(snapshot).unwrap());
     for object in section.object_values().records() {
         let remaining = mir::CanonicalMirObjectValuesV1::try_new(
             section
@@ -116,22 +103,4 @@ pub(super) fn check(
         ),
         Err(Error::MissingUnit(_))
     ));
-}
-
-fn object_name(metadata: hir::SharedTypeMetadataV1<'_>, owner: PersistentTypeId) -> String {
-    let key = metadata
-        .identities
-        .canonical_key::<_, SourceDeclarationKey>(owner)
-        .unwrap();
-    let mut parts = Vec::new();
-    for owner in key.owners().owners() {
-        if let scoop_identity::DefinitionOwnerAtom::Type(owner) = owner {
-            parts.push(object_name(metadata, *owner));
-        }
-    }
-    let scoop_identity::DeclarationName::Named(name) = key.name() else {
-        panic!("object and companion declarations have names")
-    };
-    parts.push(name.as_str().to_owned());
-    parts.join(".")
 }

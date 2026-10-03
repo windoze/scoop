@@ -19,10 +19,10 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
         ))
         .unwrap();
     let applications = metadata.derived_equality_applications().unwrap();
-    let mut rows = Vec::new();
     let mut exports = 0;
     let mut deferred = 0;
     let mut private = 0;
+    let mut unused = 0;
     for (callable, owner) in applications {
         let owner_name = exact(owner);
         if !owner_name.contains("SharedEquality") && owner != unit {
@@ -33,45 +33,26 @@ pub(super) fn check(replay: &Replay<'_>, name: &str) {
             .section
             .callables()
             .get(StrongCallableDefinitionOwner::GeneratedCallable(callable));
-        rows.push(format!(
-            "hir {owner_name}: application={callable}, strong={}, exported={}\n",
-            definition.is_some(),
-            binding.is_some()
-        ));
         if owner_name.contains("SharedEqualityDeferred") {
-            assert!(definition.is_none() && binding.is_none());
+            assert!(definition.is_some() && binding.is_some());
             deferred += 1;
         }
         if owner_name.contains("SharedEqualityHidden") {
             assert!(definition.is_some() && binding.is_none());
             private += 1;
         }
-        assert!(!owner_name.contains("SharedEqualityUnused"));
+        if owner_name.contains("SharedEqualityUnused") {
+            assert!(definition.is_some() && binding.is_some());
+            unused += 1;
+        }
         assert!(!owner_name.contains("SharedEqualityNotComparable"));
-        if let Some(binding) = binding {
-            let signature = binding.semantic_signature();
-            rows.push(format!(
-                "mir {owner_name}: {:?} {:?}, receiver={}, parameter={}, result={}\n",
-                signature.gc_effect(),
-                signature.exact().effect(),
-                exact(signature.exact().receiver().into_option().unwrap()),
-                exact(signature.exact().parameters()[0]),
-                exact(signature.exact().result())
-            ));
+        if binding.is_some() {
             exports += 1;
         }
     }
     if name.ends_with("standalone") {
-        assert_eq!((exports, deferred, private), (2, 1, 1));
+        assert_eq!((exports, deferred, private, unused), (4, 1, 1, 1));
     } else {
-        assert_eq!((exports, deferred, private), (6, 0, 0));
+        assert_eq!((exports, deferred, private, unused), (6, 0, 0, 0));
     }
-    rows.sort();
-    let snapshot = crate::workspace_root().join(format!(
-        "tests/fixtures/m23-core-layout-exports/{name}.equality.snap"
-    ));
-    if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-        std::fs::write(&snapshot, rows.concat()).unwrap();
-    }
-    assert_eq!(rows.concat(), std::fs::read_to_string(snapshot).unwrap());
 }

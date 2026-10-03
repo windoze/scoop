@@ -1,4 +1,0 @@
-types=233 callables=211 dispatch=145 objects=2 shapes=34 units=3 selected=0
-unit companion:SharedInitOwner.Companion: Ordinary Managed
-unit object:SharedInitCombined: Ordinary Managed
-unit top-level:sharedInitSnapshot: Ordinary Managed

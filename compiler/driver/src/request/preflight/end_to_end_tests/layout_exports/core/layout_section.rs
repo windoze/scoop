@@ -19,35 +19,3 @@ pub(super) fn check(
     assert!(section.selected().physical_imports().records().is_empty());
     section
 }
-
-pub(super) fn snapshot(
-    name: &str,
-    fixtures: &Path,
-    section: &lir::CrossConeLayoutAbiSectionV1<'_>,
-    objects: &scoop_codegen::EmittedConeObjectSetV2,
-) {
-    assert!(!objects.members().is_empty());
-    let production = objects.production();
-    let dump = format!(
-        "layouts={} descriptors={} dispatch={} callables={} shapes={} selected={} physical={}\nregistrations: types={} callables={} initialization={}\nobject members={}\n",
-        section.layouts().records().len(),
-        section.descriptors().records().len(),
-        section.dispatch().records().len(),
-        section.callables().records().len(),
-        section.shape_support().records().len(),
-        section.selected().len(),
-        section.selected().physical_imports().records().len(),
-        production.type_registrations().registrations().len(),
-        production.callable_registrations().registrations().len(),
-        production
-            .initialization_registrations()
-            .registrations()
-            .len(),
-        objects.members().len(),
-    );
-    let snapshot = fixtures.join(format!("{name}.lir-section.snap"));
-    if std::env::var_os("SCOOP_UPDATE_CORE_LAYOUT_EXPORTS").is_some() {
-        std::fs::write(&snapshot, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
-}
