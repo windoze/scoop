@@ -12,3 +12,4 @@
 | `nominal-requirements` | 2／14／26／8 | 主次构造、字段、enum payload、继承、槽、protected/default 成员与延迟泛型；typed visitor 核对真实 owner、字段 ID、callable 指针与完整闭包。 |
 | `nominal-signature-scope` | 2／13／22／7 | 同一签名中的依赖引用、本地 aggregate 与 ZST；保留 MIR/LIR 语义签名相等、direct/indirect/elided 参数和结果布局。 |
 | `materialized-type-uses` | 4／28／52／16 | 父类、签名、capture、type operand、初始化隐含 String 与未调用默认值；保留精确类型集合和 HIR 到 MIR 的实际 provider 对应。 |
+| `shared-callable-declarations` | 2／14／26／8 | restricted 构造、方法、接口、访问器及 object；保留普通 metadata、support 可查但不可公开 lookup、缺失和错误 owner 拒绝。 |

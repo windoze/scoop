@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  public fun service(): Service
+    =
+      Call Service
+SourceFile
+  RootPackage
+  private interface HiddenBound
+  public interface Contract
+    fun compute
+  public open class Base()
+    protected fun seed
+  public class Service() : Base(<0 args>), Contract
+    public fun compute
+    protected fun seed
+    internal fun total
+    public fun observe
+    private fun echo
+    private nested class Cell
+    internal nested enum Choice
+    public nested object Cache

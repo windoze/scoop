@@ -1,6 +1,0 @@
-Holder.answer<>()->Int Public Final CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary } lookup=true slots=0
-Holder.constructor<>(token:Token)->Holder Private Final CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary } lookup=false slots=0
-Holder.replace<>(value:Token)->Token Private Final CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary } lookup=false slots=0
-Holder.token.Getter<>()->Token Private Final CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary } lookup=false slots=0
-Holder.total<>(value:Int)->Int Internal Final CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary } lookup=false slots=0
-Token.constructor<>()->Token Internal Final CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary } lookup=false slots=0

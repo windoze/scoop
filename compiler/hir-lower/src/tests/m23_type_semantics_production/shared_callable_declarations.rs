@@ -4,8 +4,6 @@ use scoop_identity::CallableTemplateOrigin;
 use scoop_wire::{decode_canonical, encode};
 use source_dispatch::with_hir_source;
 
-mod render;
-
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m23-shared-callable-declarations/standalone.scoop"
@@ -17,7 +15,7 @@ const COMBINED: &str = include_str!(concat!(
 
 #[test]
 fn shared_callables_preserve_restricted_signatures_in_ordinary_metadata() {
-    for (case, source) in [("standalone", STANDALONE), ("combined", COMBINED)] {
+    for source in [STANDALONE, COMBINED] {
         with_hir_source(source, |output, _| {
             let export = output.output().export.module();
             let nominals = hir::CanonicalNominalInterfacesV1::from_export_hir(export).unwrap();
@@ -37,14 +35,6 @@ fn shared_callables_preserve_restricted_signatures_in_ordinary_metadata() {
             let restored: hir::DecodedCanonicalCallableInterfacesV1 =
                 decode_canonical(&encode(&table).unwrap()).unwrap();
             assert_eq!(restored.resolve(&mut identities).unwrap(), table);
-            let rows = render::table(&table, &identities);
-            let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-                "../../tests/fixtures/m23-shared-callable-declarations/{case}.snap"
-            ));
-            if std::env::var_os("SCOOP_UPDATE_SHARED_CALLABLE_SNAPSHOTS").is_some() {
-                std::fs::write(&path, &rows).unwrap();
-            }
-            assert_eq!(rows, std::fs::read_to_string(path).unwrap());
         });
     }
 }
