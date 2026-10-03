@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+    @Unsafe
+  public fun dangerous(): Int
+    =
+      IntLiteral 1
+  public open class Base(value: Int = <expr>)
+  public class Child() : Base(<1 args>)
+    init
+      @Unsafe block
+        Call dangerous
+  public class Secondary()
+    constructor(value: Int = <expr>)
+      Call dangerous
+    constructor(value: Boolean)
+  public struct Value
+    field value: Int
+    constructor() : this(<1 args>)
+      Call dangerous
+  fun main()
+    @Unsafe block
+      val base: Base
+        Call Base
+      val child: Child
+        Call Child
+      val secondary: Secondary
+        Call Secondary
+      val value: Value
+        Call Value
+    val safe: Secondary
+      Call Secondary
+        BoolLiteral true

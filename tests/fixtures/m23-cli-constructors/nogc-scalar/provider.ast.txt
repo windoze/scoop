@@ -1,0 +1,52 @@
+SourceFile
+  RootPackage
+    @Unsafe
+    @NoGC
+  public fun touch(value: Int): Int
+    =
+      Var value
+  public fun managedFlag(): Boolean
+    =
+      BoolLiteral true
+  public struct Scalar
+    field value: Int
+    constructor() : this(<1 args>)
+    constructor(value: Int, flag: Boolean) : this(<1 args>)
+      Call touch
+        Var value
+  public struct Chain
+    field value: Int
+    constructor() : this(<2 args>)
+    constructor(value: Int, flag: Boolean) : this(<1 args>)
+  public struct Defaulted
+    field value: Int
+    constructor(flag: Boolean = <expr>) : this(<1 args>)
+  public struct Empty
+    constructor(flag: Boolean) : this(<0 args>)
+    @NoGC
+  fun empty(): Empty
+    =
+      Call Empty
+        BoolLiteral true
+    @NoGC
+  fun make(): Chain
+    =
+      Call Chain
+    @Unsafe
+    @NoGC
+  fun unsafeMake(): Scalar
+    =
+      Call Scalar
+        IntLiteral 1
+        BoolLiteral true
+  fun main()
+    val scalar: Scalar
+      Call Scalar
+    val zero: Empty
+      Call empty
+    val chain: Chain
+      Call make
+    val defaulted: Defaulted
+      Call Defaulted
+    @Unsafe block
+      Call unsafeMake

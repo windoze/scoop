@@ -90,19 +90,22 @@ pub(super) fn append(
         }
         let signature = crate::source_callables::exact_struct_constructor_signature(local, id);
         let owner = signature.result();
+        let (source_gc, role) = match constructor.kind {
+            hir::concrete::StructConstructorKind::Primary => (
+                mir::GcEffect::Managed,
+                mir::MirCallableLoweringRoleV1::PrimaryValueConstructor { owner },
+            ),
+            hir::concrete::StructConstructorKind::Secondary { gc_effect, .. } => (
+                crate::lowering_support::lower_gc_effect(gc_effect),
+                mir::MirCallableLoweringRoleV1::ValueConstructor { owner },
+            ),
+        };
         producer.record(
             constructor.materialization,
             signature.clone(),
             signature,
-            mir::GcEffect::Managed,
-            match constructor.kind {
-                hir::concrete::StructConstructorKind::Primary => {
-                    mir::MirCallableLoweringRoleV1::PrimaryValueConstructor { owner }
-                }
-                hir::concrete::StructConstructorKind::Secondary { .. } => {
-                    mir::MirCallableLoweringRoleV1::ValueConstructor { owner }
-                }
-            },
+            source_gc,
+            role,
         )?;
     }
     Ok(())

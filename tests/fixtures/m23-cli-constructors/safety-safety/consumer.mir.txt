@@ -1,0 +1,112 @@
+Module
+  struct Value (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Base vtable=0 itables=0
+  class Child vtable=0 itables=0
+  class Secondary vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      call $dependency.parameter.value: Int = external0 direct
+      assign $new.1
+        Type Base
+        ClassAlloc Base
+      call external1 direct
+        Type Base
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+      val base: Base
+        Type Base
+        Local $new.1
+      assign $new.2
+        Type Child
+        ClassAlloc Child
+      call external2 direct
+        Type Child
+        Local $new.2
+      val child: Child
+        Type Child
+        Local $new.2
+      call $dependency.parameter.value: Int = external0 direct
+      assign $new.3
+        Type Secondary
+        ClassAlloc Secondary
+      call external3 direct
+        Type Secondary
+        Local $new.3
+        Type Int
+        Local $dependency.parameter.value
+      val secondary: Secondary
+        Type Secondary
+        Local $new.3
+      call $call.4: Value = external4 direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Value
+          Local $call.4
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.5
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external5 direct
+        Type IllegalStateException
+        Local $new.5
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.5
+    bb2 if.merge.2
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      assign $new.6
+        Type Secondary
+        ClassAlloc Secondary
+      call external6 direct
+        Type Secondary
+        Local $new.6
+        Type Boolean
+        Local $dependency.parameter.value
+      val safe: Secondary
+        Type Secondary
+        Local $new.6
+      call @scoop_rt_gc_collect direct
+      return
+  str @str0 "illegal state"
+  output executable @fn0

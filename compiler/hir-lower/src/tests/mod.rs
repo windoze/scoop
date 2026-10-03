@@ -18,7 +18,6 @@ mod m17;
 mod m18;
 mod m19;
 mod m19_materialization;
-mod m19_nogc;
 mod m19_safety;
 mod m2;
 mod m20;

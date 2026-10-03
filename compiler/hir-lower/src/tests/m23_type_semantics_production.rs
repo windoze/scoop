@@ -33,8 +33,6 @@ mod shared_default_receivers;
 mod shared_nominal_declarations;
 mod shared_object_initialization;
 mod shared_property_declarations;
-mod source_constructor_gc;
-mod source_constructor_safety;
 mod source_constructors;
 mod source_default_derived_order;
 mod source_dispatch;

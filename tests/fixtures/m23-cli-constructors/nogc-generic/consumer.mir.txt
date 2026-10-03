@@ -1,0 +1,523 @@
+Module
+  struct Native<Int> (value: Int)
+  struct Recursive<Int> (value: Int)
+  struct Native<String> (value: String)
+  struct Phantom<String> (code: Int)
+  struct WrapperValue<Int> (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class Wrapper<Int> vtable=0 itables=0
+  class Wrapper<String> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun makeNative @fn0(value: Int) -> Native<Int> <no-gc>
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      call $call.1: Native<Int> = @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Boolean
+        Local $dependency.parameter.flag
+      return
+        Type Native<Int>
+        Local $call.1
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: Native<Int> = @fn0 direct
+        Type Int
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Native<Int>
+          Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      call $call.2: Recursive<Int> = @fn7 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Boolean
+        Local $dependency.parameter.flag
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Recursive<Int>
+          Local $call.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.3
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.3
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.3
+    bb5 if.merge.5
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call $call.4: Native<String> = @fn8 direct
+        Type String
+        Local $dependency.parameter.value
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 0
+          Type Native<String>
+          Local $call.4
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.5: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.5
+    bb6 if.then.6
+      val $default.local.0: String
+        Type String
+        StringConst @str3
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.6
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.6
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.6
+    bb7 if.merge.7
+      call $call.7: Phantom<String> = @fn9 direct
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Phantom<String>
+          Local $call.7
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb8 bb9
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb8 if.then.8
+      val $default.local.0: String
+        Type String
+        StringConst @str4
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.8
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.8
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.8
+    bb9 if.merge.9
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      call $call.9: WrapperValue<Int> = @fn10 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Boolean
+        Local $dependency.parameter.flag
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type WrapperValue<Int>
+          Local $call.9
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb10 bb11
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb10 if.then.10
+      val $default.local.0: String
+        Type String
+        StringConst @str5
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.10
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.10
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.10
+    bb11 if.merge.11
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.11
+        Type Wrapper<Int>
+        ClassAlloc Wrapper<Int>
+      call @fn4 direct
+        Type Wrapper<Int>
+        Local $new.11
+        Type Int
+        Local $dependency.parameter.value
+      val wrapper: Wrapper<Int>
+        Type Wrapper<Int>
+        Local $new.11
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      assign $new.12
+        Type Wrapper<String>
+        ClassAlloc Wrapper<String>
+      call @fn5 direct
+        Type Wrapper<String>
+        Local $new.12
+        Type Boolean
+        Local $dependency.parameter.flag
+      val unrelated: Wrapper<String>
+        Type Wrapper<String>
+        Local $new.12
+      call @scoop_rt_gc_collect direct
+      return
+  fun identity @fn2(value: Int) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun recurse @fn3(value: Int) -> Recursive<Int> <no-gc>
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.4: Boolean
+        Type Boolean
+        Local $dependency.local.2
+      call $call.1: Recursive<Int> = @fn7 direct
+        Type Int
+        Local $dependency.local.3
+        Type Boolean
+        Local $dependency.local.4
+      return
+        Type Recursive<Int>
+        Local $call.1
+  fun init.Wrapper.$c5 @fn4(this: Wrapper<Int>, value: Int) -> Unit
+    bb0 entry
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      val $dependency.constructor.local.4: Boolean
+        Type Boolean
+        Local $dependency.constructor.local.2
+      call $dependency.constructor.local.0: Native<Int> = @fn6 direct
+        Type Int
+        Local $dependency.constructor.local.3
+        Type Boolean
+        Local $dependency.constructor.local.4
+      return
+  fun init.Wrapper.$c6 @fn5(this: Wrapper<String>, flag: Boolean) -> Unit
+    bb0 entry
+      return
+  fun ctor.Native.$c0 @fn6(value: Int, flag: Boolean) -> Native<Int> <no-gc>
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call $dependency.constructor.local.2: Int = @fn2 direct
+        Type Int
+        Local $dependency.constructor.local.1
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local $dependency.constructor.local.2
+      call $this: Native<Int> = @fn11 direct
+        Type Int
+        Local $dependency.constructor.local.3
+      return
+        Type Native<Int>
+        Local $this
+  fun ctor.Recursive.$c1 @fn7(value: Int, flag: Boolean) -> Recursive<Int> <no-gc>
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call $this: Recursive<Int> = @fn12 direct
+        Type Int
+        Local $dependency.constructor.local.1
+      branch bb1 bb2
+        Type Boolean
+        Local flag
+    bb1 if.then.1
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call $call.1: Recursive<Int> = @fn3 direct
+        Type Int
+        Local $dependency.constructor.local.1
+      goto bb2
+    bb2 if.merge.2
+      return
+        Type Recursive<Int>
+        Local $this
+  fun ctor.Native.$c2 @fn8(value: String) -> Native<String> <no-gc>
+    bb0 entry
+      return
+        Type Native<String>
+        StructInit Native<String>
+          Type String
+          Local value
+  fun ctor.Phantom.$c3 @fn9() -> Phantom<String> <no-gc>
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call $this: Phantom<String> = @fn13 direct
+        Type Int
+        Local $dependency.constructor.local.1
+      return
+        Type Phantom<String>
+        Local $this
+  fun ctor.WrapperValue.$c4 @fn10(value: Int, flag: Boolean) -> WrapperValue<Int>
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call $this: WrapperValue<Int> = @fn14 direct
+        Type Int
+        Local $dependency.constructor.local.1
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local $dependency.constructor.local.1
+      val $dependency.constructor.local.4: Boolean
+        Type Boolean
+        Local $dependency.constructor.local.2
+      call $dependency.constructor.local.0: Native<Int> = @fn6 direct
+        Type Int
+        Local $dependency.constructor.local.3
+        Type Boolean
+        Local $dependency.constructor.local.4
+      return
+        Type WrapperValue<Int>
+        Local $this
+  fun ctor.Native.$c2 @fn11(value: Int) -> Native<Int> <no-gc>
+    bb0 entry
+      return
+        Type Native<Int>
+        StructInit Native<Int>
+          Type Int
+          Local value
+  fun ctor.Recursive.$c7 @fn12(value: Int) -> Recursive<Int> <no-gc>
+    bb0 entry
+      return
+        Type Recursive<Int>
+        StructInit Recursive<Int>
+          Type Int
+          Local value
+  fun ctor.Phantom.$c8 @fn13(code: Int) -> Phantom<String> <no-gc>
+    bb0 entry
+      return
+        Type Phantom<String>
+        StructInit Phantom<String>
+          Type Int
+          Local code
+  fun ctor.WrapperValue.$c9 @fn14(value: Int) -> WrapperValue<Int> <no-gc>
+    bb0 entry
+      return
+        Type WrapperValue<Int>
+        StructInit WrapperValue<Int>
+          Type Int
+          Local value
+  instance mi0 function=@fn2 <- identity
+  instance mi1 function=@fn3 <- recurse
+  str @str0 "illegal state"
+  str @str1 "managed"
+  str @str2 "managed"
+  str @str3 "illegal state"
+  str @str4 "illegal state"
+  str @str5 "illegal state"
+  output executable @fn1
