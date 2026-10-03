@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  public fun check(): Int
+    =
+      Call fromSupport<Int>
+        IntLiteral 42

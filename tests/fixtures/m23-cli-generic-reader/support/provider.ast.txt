@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  private class Support<T>(val value: T)
+    fun pick
+  private val marker: Int = <expr>
+  public fun fromSupport<T>(value: T): T
+    val observed
+      Var marker
+    return
+      MethodCall pick
+        Call Support<T>
+          Var value

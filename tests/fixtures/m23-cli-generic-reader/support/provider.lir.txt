@@ -1,0 +1,7 @@
+Module
+  global @scoop$1$ss$6829018275101d6fdd4222181bac8407b388585d0ffc26cd30b89b4aee21f0fd : i32 scan=none
+  fun @scoop$1$cb$ae15bb62fd665868c484fde383ed66204ea10f8aed49967a0322a4a2c74912d5() -> i32 <no-gc>
+  block entry
+    t0 = global_load global0 : i32
+    ret t0
+  output library
