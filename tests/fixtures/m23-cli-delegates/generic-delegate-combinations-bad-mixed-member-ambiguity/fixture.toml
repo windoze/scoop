@@ -1,0 +1,72 @@
+schema = 1
+name = "generic-delegate-combinations-bad-mixed-member-ambiguity"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "delegate-combinations-provider", "../../m23-generic-delegate-combinations/provider.scoop", "bad-mixed-member-ambiguity", "../../m23-generic-delegate-combinations/bad-mixed-member-ambiguity.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["generics", "generic_delegate_language_errors_have_source_diagnostics", "negative"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_delegate-combinations-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/delegate-combinations-provider", "to" = "${work}/sources/delegate-combinations-provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-delegate-combinations/provider.scoop", "to" = "${work}/sources/delegate-combinations-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/delegate-combinations-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-combinations-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/delegate-combinations-provider"}},
+]
+
+[[steps]]
+name = "prepare_bad-mixed-member-ambiguity"
+files = [
+  {"copy" = {"from" = "${fixture}/bad-mixed-member-ambiguity", "to" = "${work}/sources/bad-mixed-member-ambiguity"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-delegate-combinations/bad-mixed-member-ambiguity.scoop", "to" = "${work}/sources/bad-mixed-member-ambiguity/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/bad-mixed-member-ambiguity", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/bad-mixed-member-ambiguity/0.1.0/cone.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/artifacts/dev.example/bad-mixed-member-ambiguity/0.1.0/cone.slib", "exists" = false},
+]

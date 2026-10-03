@@ -1,3 +1,0 @@
-span=95..142
-expression=var <T> Receiver<T>.wrong: Int by ZeroSlot<T>()
-type `ZeroSlot<T>` has no applicable property delegate operator `setValue`

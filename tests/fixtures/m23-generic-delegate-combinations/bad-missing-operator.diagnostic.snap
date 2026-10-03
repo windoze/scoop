@@ -1,3 +1,0 @@
-span=118..162
-expression=val <T> Receiver<T>.wrong: Int by Wrong<T>()
-type `Wrong<T>` has no applicable property delegate operator `getValue`

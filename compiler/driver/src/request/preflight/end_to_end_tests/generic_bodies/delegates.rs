@@ -3,7 +3,6 @@ use super::*;
 
 mod artifacts;
 mod combinations;
-mod negatives;
 mod siblings;
 
 #[test]

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `zero`: Any is not a subtype of Receiver<T>",
+    "notes": [],
+    "origin": {
+      "cone": "4d8dc1d47e32c41e4facf0ccba83f92ffa9068c80cccaa953332e7c26cf98ad1",
+      "end": 121,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 117
+    },
+    "severity": "error"
+  }
+]

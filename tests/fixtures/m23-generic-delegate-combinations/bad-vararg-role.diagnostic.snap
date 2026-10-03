@@ -1,3 +1,0 @@
-span=93..120
-expression=vararg thisRef: Receiver<T>
-property delegate operator `getValue` requires required, non-vararg parameters

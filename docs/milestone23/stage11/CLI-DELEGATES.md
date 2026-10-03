@@ -18,3 +18,4 @@
 | `generic_delegate_aliases_cycles_and_local_source_republish_and_execute` | 5／0 | 70／65 | 11 份旧阶段、0 份旧诊断逐项相同；local-source 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号与指令逐字相同；foreign-receiver 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号与指令逐字相同 |
 | `generic_delegates_use_dependency_members_and_local_accessors` | 2／0 | 28／26 | 4 份旧阶段、0 份旧诊断逐项相同；foreign-delegate 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号与指令逐字相同 |
 | `generic_delegate_mixed_roles_republish_and_execute` | 2／0 | 28／26 | 2 份旧阶段、0 份旧诊断逐项相同；mixed-members 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 12 处、LIR 2 处仅显示路径变化，符号与指令逐字相同；foreign-extensions 的私有 extension 初始化路径加入 Cone coordinate／canonical source；MIR 6 处、LIR 1 处仅显示路径变化，符号与指令逐字相同 |
+| `generic_delegate_language_errors_have_source_diagnostics` | 0／18 | 54／0 | 0 份旧阶段、18 份旧诊断逐项相同 |

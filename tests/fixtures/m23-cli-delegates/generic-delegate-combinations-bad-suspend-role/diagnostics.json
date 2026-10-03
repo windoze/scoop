@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "property delegate operator `getValue` must not be suspend",
+    "notes": [],
+    "origin": {
+      "cone": "2976d8432cb9c2bb53b118b616528a436252c7676e21556a94a64055754bf244",
+      "end": 100,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 92
+    },
+    "severity": "error"
+  }
+]
