@@ -11,3 +11,4 @@
 | object／companion 的实际基类及 protected receiver | `object-protected`、`error-object-protected-receiver` | 7／5 |
 | 私有 accessor、接口正文和 setter 参数类型 | `private-property-accessors`、`error-private-abstract-property`、`error-interface-property-write-type` | 9／5 |
 | 嵌套词法域和私有 setter | `protected-lexical-scopes`、`error-protected-lexical-scopes` | 7／5 |
+| protected 嵌套类型、成员接收者和外部类型可见性 | `protected-nested-receivers`、`error-protected-nested-receivers`、`error-protected-nested-type` | 9／5 |
