@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "generic-member-downstream-captured-parameters"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:generic-member-captured-parameters" = "0.1.0"

@@ -416,3 +416,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `shared_interface_instances_preserve_inherited_substitutions_through_artifacts` | `m23-shared-interfaces` | 2／2 | 30／26 | 6 份阶段、2 份诊断逐项相同 |
 | `interface_definitions_share_recursive_signatures_and_composed_defaults` | `m23-shared-interface-definitions` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
 | `shared_literal_patterns_republish_defaults_and_generic_bodies_through_artifacts` | `m23-shared-literals` | 2／2 | 30／26 | 6 份阶段、2 份诊断逐项相同 |
+| `original_function_requests_republish_and_execute_from_artifacts` | `m23-shared-requests` | 3／0 | 36／39 | 9 份阶段、0 份诊断逐项相同 |
