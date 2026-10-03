@@ -16,7 +16,7 @@ Module
     val local5
       Local $parameter.input : Counter
     val local6
-      Call external #2 : Long
+      MethodCall external #2 : Long
         Local $default.local.3 : Counter
     val local7
       IntegerLiteral 1 : Long

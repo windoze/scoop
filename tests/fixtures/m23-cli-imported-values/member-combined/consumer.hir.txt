@@ -176,7 +176,7 @@ Module
     val local7
       Local $default.local.2 : Long
     val local8
-      Call external #3 : Long
+      MethodCall external #3 : Long
         Local $default.local.1 : Wide
         Local $default.local.3 : Long
     return
@@ -195,7 +195,7 @@ Module
     val local4
       Local $dependency.argument.0 : Wide
     val local5
-      Call external #4 : Long
+      MethodCall external #4 : Long
         Local $dependency.parameter.value : Wide
     return
       Call external #8 : Long

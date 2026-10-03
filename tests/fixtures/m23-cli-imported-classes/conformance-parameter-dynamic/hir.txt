@@ -8,7 +8,7 @@ Module
       ReferenceUpcast : ParameterSource
         Local $receiver : LocalDefaults
     val local2
-      Call external #0 interface[0] : Long
+      MethodCall external #0 interface[0] : Long
         Local $default.local.1 : ParameterSource
     val local3
       IntegerLiteral 1 : Long

@@ -7,7 +7,7 @@ Module
       ReferenceUpcast : FirstChoice
         Local $dependency.receiver : DefaultOwner
     val local2
-      Call external #2 : Long
+      DirectSuperMethodCall external #2 : Long
         Local $default.local.1 : FirstChoice
     val local3
       IntegerLiteral 1 : Long

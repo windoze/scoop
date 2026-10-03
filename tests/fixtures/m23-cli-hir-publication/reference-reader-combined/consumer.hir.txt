@@ -34,7 +34,7 @@ Module
         Local $default.local.6 : Int
         Local $default.local.8 : Int
     val local13
-      Call external #2 : Int
+      MethodCall external #2 : Int
         SingletonValue external 52f9743433487d419359588f75133e10ec5ffcc0da6bac81e36bd772808851cf : ReaderDefaults
     val local14
       Local $default.local.10 : Int
@@ -96,7 +96,7 @@ Module
         Local $default.local.6 : Int
         Local $default.local.8 : Int
     val local33
-      Call external #2 : Int
+      MethodCall external #2 : Int
         SingletonValue external 52f9743433487d419359588f75133e10ec5ffcc0da6bac81e36bd772808851cf : ReaderDefaults
     val local34
       Local $default.local.10 : Int

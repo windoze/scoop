@@ -31,3 +31,5 @@ identity，并保留 Export→LocalConcrete→MIR 一致性及声明插入稳定
 37 个产物指纹匹配；另十三个已有引用负例通过 39 进程。十三项保留的 Rust
 结构测试、格式化、workspace clippy 和 Python lint 全部通过。
 这份记录不代表 M23-11 全仓验收完成。
+
+全仓复验同步十二份已有 HIR golden 的接收者调用表示。普通成员调用使用 `MethodCall`，显式父类默认实现使用 `DirectSuperMethodCall`；十三处共有默认表达式把原首参数移到明确的 receiver 字段，并保留同一 callable、剩余实参、静态类型以及定义／求值来源。逐字段审阅确认没有其他改写，AST／MIR／LIR、诊断、运行输出和符号期望均保持。覆盖导入类 ABI／diamond／interface／动态分派／ZST、成员调用、共同参数物化与声明顺序，以及 HIR reader 组合。
