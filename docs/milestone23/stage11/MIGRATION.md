@@ -363,3 +363,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `arguments_materialize_once_in_source_order_through_artifacts` | `m23-shared-argument-materialization` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
 | `imported_arrays_and_varargs_republish_and_execute_from_artifacts` | `m23-generic-arrays` | 5／9 | 87／65 | 15 份阶段、9 份诊断逐项相同 |
 | `imported_array_constructors_republish_and_execute_from_artifacts` | `m23-array-construction` | 5／16 | 108／65 | 15 份阶段、16 份诊断逐项相同 |
+| `shared_binding_lowering_republishes_and_executes_from_artifacts` | `m23-shared-bindings` | 5／0 | 60／65 | 15 份阶段、0 份诊断逐项相同 |

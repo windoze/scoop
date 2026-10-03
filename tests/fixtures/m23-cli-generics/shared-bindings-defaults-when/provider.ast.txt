@@ -1,0 +1,52 @@
+SourceFile
+  QualifiedPackage upstream.bindings
+  public struct Pair<T>
+    field left: T
+    field right: Int
+  public struct Nested<T>
+    field payload: (T, Int)
+    field spare: Int
+    field empty: Unit
+  public struct Other<T>
+    field left: T
+    field right: Int
+  public typealias IntPair = Pair<Int>
+  public var order: Int = <expr>
+  public fun reset()
+    assign order
+      IntLiteral 0
+  public class Pieces<T>(val first: T, val second: Int)
+    public operator fun component1
+    public operator fun component2
+  public class ExtensionPieces<T>(val value: T)
+  public operator fun ExtensionPieces<T>.component1<T>(): T
+    =
+      FieldAccess value
+        This
+  public class NotOperator<T>(val value: T)
+    public fun component1
+  public class HiddenComponent<T>(val value: T)
+    private operator fun component1
+  public fun fromDefinition<T>(pair: Pair<T>, read: (T) -> Int): Int
+    val Pair{right: extra, left: value}
+      Var pair
+    return
+      Binary Add
+        Call read
+          Var value
+        Var extra
+  public fun chosen<T>(pair: Pair<T>, value: T = <expr>): T
+    =
+      Var value
+  public fun matched<T>(pair: Pair<T>, value: T = <expr>): T
+    =
+      Var value
+  public fun patternBody<T>(pair: Pair<T>, read: (T) -> Int): Int
+    =
+      WhenExpression
+        Var pair
+        arm Pair{left: value, right: extra}
+          Binary Add
+            Call read
+              Var value
+            Var extra

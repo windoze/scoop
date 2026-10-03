@@ -1,0 +1,94 @@
+SourceFile
+  QualifiedPackage consumer.bindings
+  ImportStar Local upstream.bindings.*
+  private struct LocalPair<T>
+    field left: T
+    field right: Int
+  private var subjects: Int = <expr>
+  private fun marked(): IntPair
+    assign subjects
+      Binary Add
+        Var subjects
+        IntLiteral 1
+    return
+      Call IntPair
+        IntLiteral 40
+        IntLiteral 2
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val pair
+      Call Pair<T>
+        Var seed
+        IntLiteral 0
+    val Pair(value, extra)
+      Var pair
+    val LocalPair(localValue, localExtra)
+      Call LocalPair<T>
+        Var seed
+        IntLiteral 0
+    if
+      Binary Ne
+        Binary Add
+          Call read
+            Var value
+          Var extra
+        Binary Add
+          Call read
+            Var localValue
+          Var localExtra
+      return
+        IntLiteral 1
+    return
+      Call fromDefinition<T>
+        Var pair
+        Var read
+  public fun result(): Int
+    assign subjects
+      IntLiteral 0
+    var IntPair(left, right)
+      Call marked
+    assign left
+      Binary Add
+        Var left
+        Var right
+    if
+      Binary Or
+        Binary Ne
+          Var subjects
+          IntLiteral 1
+        Binary Ne
+          Var left
+          IntLiteral 42
+      return
+        IntLiteral 1
+    val Nested{empty: _, payload: (value, _), ..}
+      Call Nested<Int>
+        TupleLiteral
+          IntLiteral 42
+          IntLiteral 9
+        IntLiteral 7
+        UnitLiteral
+    val (_, ignored, ..@794)
+      Call Nested<Int>
+        TupleLiteral
+          IntLiteral 0
+          IntLiteral 0
+        IntLiteral 0
+        UnitLiteral
+    val {right: extra, left: first}
+      Call Pair<Int>
+        IntLiteral 40
+        IntLiteral 2
+    if
+      Binary Ne
+        Binary Add
+          Var first
+          Var extra
+        IntLiteral 42
+      return
+        IntLiteral 2
+    return
+      Call exercise<Int>
+        Var value
+        Lambda 0 suspend=false
+          param item: _
+          Var item
