@@ -1,0 +1,72 @@
+SourceFile
+  QualifiedPackage templates.delegateGenerated
+  public object Trace
+    public var initializations: Int = <expr>
+      IntLiteral 0
+    public var receivers: Int = <expr>
+      IntLiteral 0
+  public class Receiver<T>(val value: T)
+  public class Payload(var value: Int)
+    public fun read
+  public struct ValueReader
+    field value: Int
+    public fun read
+  public struct Triple
+    field first: Payload
+    field second: Payload
+    field third: Payload
+  public class GenericReader<T>(val value: Int)
+    public fun read
+  public open class Base(val value: Int)
+    public fun read
+  public class Derived(value: Int) : Base(<1 args>)
+    public fun read
+  public interface Readable
+    fun read
+  public class ReadableImpl(), Readable
+    public fun read
+  public fun readable(): Readable
+    =
+      Call ReadableImpl
+  public fun answer(): Int
+    =
+      IntLiteral 42
+  public fun genericAnswer<U>(value: U): Int
+    =
+      IntLiteral 42
+  public fun unitValue(value: Unit): Int
+    =
+      IntLiteral 0
+  public fun Payload.extensionRead(): Int
+    =
+      FieldAccess value
+        This
+  public fun U.unboundRead<U>(): Int
+    =
+      IntLiteral 42
+  public fun nextReceiver(): Payload
+    compound-assign Add
+      Var Trace
+      IntLiteral 1
+    return
+      Call Payload
+        IntLiteral 42
+  public class ReaderSlot<T>(val read: () -> Int)
+    public operator fun getValue
+  public class ArgumentSlot<T>(val read: (T) -> Int)
+    public operator fun getValue
+  public val <T>Receiver<T>.referenceNamed: Int by <expr>
+  public val <T>Receiver<T>.referenceGeneric: Int by <expr>
+  public val <T>Receiver<T>.referenceLocal: Int by <expr>
+  public val <T>Receiver<T>.referenceLocalGeneric: Int by <expr>
+  public val <T>Receiver<T>.referenceMember: Int by <expr>
+  public val <T>Receiver<T>.referenceComputed: Int by <expr>
+  public val <T>Receiver<T>.referenceValueMember: Int by <expr>
+  public val <T>Receiver<T>.referenceGenericMember: Int by <expr>
+  public val <T>Receiver<T>.referenceVirtual: Int by <expr>
+  public val <T>Receiver<T>.referenceInterface: Int by <expr>
+  public val <T>Receiver<T>.referenceExtension: Int by <expr>
+  public val <T>Receiver<T>.referenceUnbound: Int by <expr>
+  public val <T>Receiver<T>.referenceValues: Int by <expr>
+  public val <T>Receiver<T>.referenceNested: Int by <expr>
+  public val <T>Receiver<T>.referenceLocalFactory: Int by <expr>

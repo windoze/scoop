@@ -1,0 +1,239 @@
+schema = 1
+name = "generic-delegate-references-reference-unbound"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "delegate-combinations-provider", "../../m23-generic-delegate-references/provider.scoop", "delegate-reference-unbound", "../../m23-generic-delegate-references/reference-unbound.scoop", "delegate-downstream-reference-unbound", "../../m23-generic-delegate-references/downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c", "../support/metadata.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["generics", "generic_delegate_initializer_references_republish_and_execute", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_delegate-combinations-provider"
+files = [
+  {"copy" = {"from" = "${fixture}/delegate-combinations-provider", "to" = "${work}/sources/delegate-combinations-provider"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-delegate-references/provider.scoop", "to" = "${work}/sources/delegate-combinations-provider/src/main.scoop"}},
+]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/sources/delegate-combinations-provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-combinations-provider/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/provider"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${provider.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
+  {"file" = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", "snapshot" = "provider.lir.txt"},
+]
+
+[[steps]]
+name = "remove_provider_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/delegate-combinations-provider"}},
+]
+
+[[steps]]
+name = "prepare_delegate-reference-unbound"
+files = [
+  {"copy" = {"from" = "${fixture}/delegate-reference-unbound", "to" = "${work}/sources/delegate-reference-unbound"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-delegate-references/reference-unbound.scoop", "to" = "${work}/sources/delegate-reference-unbound/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/delegate-reference-unbound", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-reference-unbound/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "contains" = "external(provider=${provider.result.root.identity},unit="},
+]
+
+[[steps]]
+name = "remove_consumer_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/delegate-reference-unbound"}},
+]
+
+[[steps]]
+name = "prepare_delegate-downstream-reference-unbound"
+files = [
+  {"copy" = {"from" = "${fixture}/delegate-downstream-reference-unbound", "to" = "${work}/sources/delegate-downstream-reference-unbound"}},
+  {"copy" = {"from" = "${fixture}/../../m23-generic-delegate-references/downstream.scoop", "to" = "${work}/sources/delegate-downstream-reference-unbound/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", "${work}/sources/delegate-downstream-reference-unbound", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/delegate-downstream-reference-unbound/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${downstream.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/ast.txt", "snapshot" = "downstream.ast.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/hir.txt", "snapshot" = "downstream.hir.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/mir.txt", "snapshot" = "downstream.mir.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/lir.txt", "snapshot" = "downstream.lir.txt"},
+]
+
+[[steps]]
+name = "remove_downstream_source"
+files = [
+  {"remove" = {"path" = "${work}/sources/delegate-downstream-reference-unbound"}},
+]
+
+[[steps]]
+name = "prepare_metadata"
+files = [
+  {"copy" = {"from" = "${fixture}/../support/metadata.c", "to" = "${work}/native/metadata.c"}},
+  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "PROVIDER_IMAGE", "new" = "_scoop$1$im$${provider.result.root.identity}"}},
+  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "CONSUMER_IMAGE", "new" = "_scoop$1$im$${consumer.result.root.identity}"}},
+]
+
+[[steps]]
+name = "compile_metadata"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-DM23_EXPECTED_UNITS=1", "-DM23_STORAGE_KIND=0", "-c", "${work}/native/metadata.c", "-o", "${work}/native/metadata.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_metadata"
+argv = ["${ar}", "qcS", "${work}/native/libm23_delegate_metadata.a", "${work}/native/metadata.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_metadata_source"
+files = [
+  {"remove" = {"path" = "${work}/native/metadata.c"}},
+  {"remove" = {"path" = "${work}/native/metadata.o"}},
+]
+
+[[steps]]
+name = "prepare_runtime"
+files = [
+  {"copy" = {"from" = "${fixture}/runtime-fixture", "to" = "${work}/sources/runtime-fixture"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/gc.c", "to" = "${work}/native/gc.c"}},
+]
+
+[[steps]]
+name = "compile_gc"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/native/gc.c", "-o", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_gc"
+argv = ["${ar}", "qcS", "${work}/native/libm23_class_gc.a", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_native_source"
+files = [
+  {"remove" = {"path" = "${work}/native/gc.c"}},
+  {"remove" = {"path" = "${work}/native/gc.o"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/runtime-fixture", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.dependencies.length}", "equals" = 4},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "symbols"
+argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "${work}/program"]
+exit = 0
+stdout = {"file" = "symbols.txt"}
+stderr = ""
+
+[[steps]]
+name = "strong_symbols"
+argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "--no-weak", "${work}/program"]
+exit = 0
+stdout = {"file" = "strong_symbols.txt"}
+stderr = ""
