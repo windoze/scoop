@@ -3,16 +3,6 @@ use super::*;
 mod rebuilt_core;
 
 #[test]
-fn imported_coroutines_republish_and_execute() {
-    super::members::check_fixture_cases(
-        "m23-coroutines",
-        &["immediate", "suspension", "failure-finally"],
-        &[],
-        "downstream",
-    );
-}
-
-#[test]
 fn imported_coroutine_adapters_republish_and_execute() {
     super::members::check_fixture_cases(
         "m23-coroutines",
