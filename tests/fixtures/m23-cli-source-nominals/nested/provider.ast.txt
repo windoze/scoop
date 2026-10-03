@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  public interface Marker
+  public open class GenericBase<T : Marker>()
+  public open class Base()
+    public fun inherited
+  public open class Envelope() : Base(<0 args>)
+    protected nested class Box
+    protected nested class Gap
+    protected nested class Leaf
+    protected nested struct Pair
+    protected nested enum Choice
+    protected nested interface View
+    protected nested object Cache
+    private nested class Hidden
+    internal nested class InternalChild
+  public class Derived() : Envelope(<0 args>)
+  public open class GenericOuter<T>()
+    protected nested class ConcreteChild
+    protected nested class GenericChild

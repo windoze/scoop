@@ -18,7 +18,15 @@
 | `roots` | 嵌套支持声明闭包、父接口视图、值类型与不同 object identity | 7／13／4 |
 | `constructors` | 主／次构造器、各可见域、默认参数、私有委托、泛型 owner 与 singleton | 7／13／4 |
 | `parameters` | required/default 参数、泛型约束、私有／protected helper、enum 与次构造器默认值 | 7／13／4 |
+| `nested` | 多层保护域、泛型嵌套 owner、私有构造、接口、值类型与静态 singleton | 7／13／4 |
 
 表中各项只读通过。声明组合发现的实际覆盖检查顺序问题由
 [多文件继承修复](CLI-INHERITANCE-ORDER.md) 单独处理。
-未列出的名义声明用例仍在迁移，本记录不代表 M23-11 全仓验收完成。
+11 个普通源码用例合计 77 次进程、143 份阶段／链接 golden、44 项产物指纹，全部只读通过。原批次已有的 108 份阶段输出逐字相同。
+
+`declarations.snap`、`nested.snap` 及其专用 Rust 摘要 formatter／文件比较已退役；
+相应 HIR 单元测试保留共有声明和类型 section 的 wire roundtrip、名义声明非空、
+materialized type use 验证。四项相关内部测试通过。原源码全部保留。
+
+接口默认属性缺口由 [默认属性修复](CLI-DEFAULT-PROPERTIES.md) 处理。
+另两个修改 core 的名义声明用例仍在迁移；本记录不代表 M23-11 全仓验收完成。
