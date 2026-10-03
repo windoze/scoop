@@ -32,3 +32,4 @@
 | `shared_lir_dispatch_replays_complete_tables_and_actual_callable_abis` | `shared-lir-dispatch-standalone`、`shared-lir-dispatch-combined` | 4／16 | 逐字相同 |
 | `shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituents` | `shared-td-standalone`、`shared-td-combined` | 4／16 | 逐字相同 |
 | `shared_lir_shape_support_replays_finite_helpers_from_checked_mir_roots` | `shared-shapes-standalone`、`shared-shapes-combined` | 4／16 | 逐字相同 |
+| `shared_ordinary_lir_bridges_replay_source_gc_and_layout_abis` | `shared-ordinary-standalone`、`shared-ordinary-combined` | 4／16 | 逐字相同 |
