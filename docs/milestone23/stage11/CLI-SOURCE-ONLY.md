@@ -9,3 +9,5 @@
 | `formal_publication_retains_open_templates_beside_concrete_roots` | `standalone`、`combined`、`shape-demand` | 9／24 | 开放 nominal template 与非空 binder 保留；具体布局根均有对应声明；闭合父类型的 owner 均在根集合，前两例至少有一个闭合父类型 |
 | `source_only_objects_preserve_required_initialization_through_all_emitted_stages` | `initialization-demand` | 3／8 | 原 HIR／MIR／LIR 三份快照逐字相同；实际发布产物的 shape support closure 数仍为 2 |
 | Concrete demand | `actual-demand`、`generic-records` | 6／16 | 正式产物消费触发普通需求、accessor 需求及泛型实例；保留 HIR crate 的局部 typed 不变量单元测试 |
+
+原 HIR nominal 摘要快照也已在正式 `.slib` 上逐项重建核对：standalone 的 3 行与 combined 的 20 行全部一致，包括名字、kind、modality、binder、父类型、字段、构造器、成员数量和 machine 支持状态。combined 的 protected 声明与单个 default template 断言同样通过。删除旧文本行拼装和快照 helper，保留局部 typed facts、representation、inheritance 及与 arena 分配顺序无关的普通单元测试；正式 CLI 的完整 HIR golden 继续锁定这些字段。

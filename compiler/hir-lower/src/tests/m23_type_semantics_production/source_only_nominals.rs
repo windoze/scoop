@@ -2,7 +2,6 @@ use super::*;
 use scoop_identity::{DeclarationName, ExactTypeKey, SourceDeclarationKey};
 use scoop_wire::encode;
 use source_dispatch::with_hir_source;
-use std::fmt::Write;
 
 const STANDALONE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -28,7 +27,6 @@ fn closed_parent_nominals_preserve_declarations_and_close_machine_dependencies()
                 }));
                 assert_eq!(public.default_templates().records().len(), 1);
             }
-            let mut rows = Vec::new();
             for source in public.nominal_interfaces().all_records() {
                 let key = match source.declaration() {
                     hir::SourceNominalId::Concrete(id) => identities
@@ -41,7 +39,7 @@ fn closed_parent_nominals_preserve_declarations_and_close_machine_dependencies()
                 let DeclarationName::Named(name) = key.name() else {
                     panic!("source name")
                 };
-                let exported = match source.declaration() {
+                match source.declaration() {
                     hir::SourceNominalId::Concrete(owner) => {
                         let exact =
                             PersistentExactTypeId::from_key(&ExactTypeKey::Nominal(owner)).unwrap();
@@ -61,21 +59,10 @@ fn closed_parent_nominals_preserve_declarations_and_close_machine_dependencies()
                             ready,
                             "{name:?}"
                         );
-                        ready
                     }
-                    hir::SourceNominalId::GenericTemplate(_) => false,
+                    hir::SourceNominalId::GenericTemplate(_) => continue,
                 };
-                let mut row = String::new();
-                writeln!(row,
-                    "{} {:?} {:?} binders={} supers={} fields={} constructors={} members={} machine={exported}",
-                    name.as_str(), source.kind(), source.declaration_details().modality(), source.type_parameters().len_u32(),
-                    source.exact_supertypes().values().len(), source.source_shape().declared_fields().len(),
-                    source.declaration_details().constructors().values().len(), source.declaration_details().members().values().len(),
-                ).unwrap();
-                rows.push(row);
             }
-            rows.sort();
-            snapshot(case, &rows.concat());
         });
     }
 }
@@ -101,14 +88,4 @@ fn source_only_machine_exports_ignore_unrelated_arena_allocation() {
         project(&format!("{padding}{STANDALONE}")),
         project(&format!("{prefix}{STANDALONE}"))
     );
-}
-
-fn snapshot(case: &str, actual: &str) {
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(format!(
-        "../../tests/fixtures/m23-source-only-nominals/{case}.snap"
-    ));
-    if std::env::var_os("SCOOP_UPDATE_SOURCE_ONLY_SNAPSHOTS").is_some() {
-        std::fs::write(&path, actual).unwrap();
-    }
-    assert_eq!(actual, std::fs::read_to_string(path).unwrap());
 }
