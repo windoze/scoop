@@ -1,0 +1,13 @@
+Module
+  class EmptyStorage vtable=0 itables=0
+  fun retain @fn0(value: EmptyStorage) -> Any
+    bb0 entry
+      return
+        Type Any
+        Retype Any
+          Type EmptyStorage
+          Local value
+  fun main @fn1() -> Unit
+    bb0 entry
+      return
+  output executable @fn1

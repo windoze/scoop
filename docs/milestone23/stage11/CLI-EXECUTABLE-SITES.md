@@ -13,3 +13,4 @@
 | --- | --- | --- |
 | 表达式类型位置、定义来源与未展开默认值 | `types-standalone`、`types-combined`、`types-type-test` | 20／35 |
 | 完整签名、局部值与声明类型位置 | `types-declaration-standalone`、`types-declaration-combined` | 14／26 |
+| 字段、variant、初始化结果与静态存储 | `types-storage-standalone`、`types-storage-combined` | 14／26 |
