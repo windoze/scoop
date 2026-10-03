@@ -1,0 +1,9 @@
+Module
+  fun @scoop$1$cb$954fa92b04584321692e35acf959d46d0b3f78dd33507cbed6027d04074240e4() -> i64
+    local %0 $call.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i64 external-fn0()
+    store t0 -> local0
+    ret local0
+  output library
