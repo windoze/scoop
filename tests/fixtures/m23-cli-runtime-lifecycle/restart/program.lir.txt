@@ -1,0 +1,30 @@
+Module
+  global @scoop$1$ss$2db63c9916f39012aae6ee47f9754a586b7e44fd42a2c0ff4729bf2f1958c5ae : ptr<managed> scan=refs[0]
+  extern ef0 registerRestart @m23_register_restart() -> void <c exact=()->void bridge=@scoop$1$br$3ab993f9f130a4b659d90796e1dcbff7afccb959648ff3de372beea23732d1fc gc-leaf nounwind lib=m23_lifecycle>
+  fun @scoop$1$cb$215397041bb3ebae052f472bcf67eb8a93de9d0c3d97a6d9b690a931912d3e76() -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 () extern0()
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$a801cc830c41ca64e08683a1d4714eec9ddd08394331ffa23b7d127a58adc730() -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 () extern0()
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$50ea4ade8320b983f4432cb2a0625b8208207b6c0fd6ceb7aa9b2a165cb075e9() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global0, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  output executable @scoop$1$cb$a801cc830c41ca64e08683a1d4714eec9ddd08394331ffa23b7d127a58adc730
