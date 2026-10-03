@@ -1,3 +1,0 @@
-span=142..157
-expression=Ptr<Value>(1uL)
-`Ptr` pointee must be GC-free, found Value

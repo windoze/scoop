@@ -1,3 +1,0 @@
-span=65..74
-expression=raw = 2uL
-`Ptr` value parameter `raw` is supplied more than once

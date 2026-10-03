@@ -1,3 +1,0 @@
-span=51..73
-expression=FunPtr<() -> Int>(1uL)
-intrinsic struct `FunPtr` has no source constructor

@@ -1,0 +1,23 @@
+SourceFile
+  QualifiedPackage consumer.construction
+  ImportExact Local Ptr as Raw
+  private struct Ptr
+    field raw: Int
+  public fun exercise<T>(value: T): Int
+    val ordinary
+      Call Ptr
+        IntLiteral 42
+    @Unsafe block
+      val pointer
+        Call Raw<Ptr>
+          MethodCall toULong
+            Call addressOf
+              Var ordinary
+      return
+        FieldAccess raw
+          MethodCall load
+            Var pointer
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

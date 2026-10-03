@@ -1,0 +1,645 @@
+Module
+  enum Option<Ptr<Int>>
+    Some(_0: Ptr<Int>)
+    None()
+  class Later vtable=0 itables=0
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.number: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn3 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.number
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.parameter.value: Later
+        Type Later
+        Local $dependency.argument.0
+      call answer: Int = @fn1 direct
+        Type Later
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.receiver: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      assign $result.1
+        Type Int
+        Local answer
+      goto bb6
+    bb5 if.else.5
+      assign $result.1
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb6
+    bb6 if.merge.6
+      return
+        Type Int
+        Local $result.1
+  fun exercise @fn1(value: Later) -> Int
+    bb0 entry
+      val $dependency.local.1: Unit
+        Type Unit
+        UnitLiteral
+      var $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.local.12: Ptr<Unit>
+        Type Ptr<Unit>
+        AddressOf $dependency.local.1 : Ptr<Unit>
+      val $dependency.local.3: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.12
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        PtrFromNonZeroULong Unit
+          Type ULong
+          Local $dependency.local.3
+      val $dependency.local.13: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $dependency.local.14: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $dependency.local.15: ULong
+        Type ULong
+        Local $dependency.local.14
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.13
+          Type ULong
+          Local $dependency.local.15
+    bb1 if.then.1
+      val $dependency.local.20: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.16: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      val $dependency.local.17: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.16
+      val $dependency.local.18: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $dependency.local.19: ULong
+        Type ULong
+        Local $dependency.local.18
+      val $dependency.local.20: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.local.17
+            Type ULong
+            Local $dependency.local.19
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.20
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.21: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      val $dependency.local.5: Unit
+        Type Unit
+        PtrLoad Unit
+          Type Ptr<Unit>
+          Local $dependency.local.21
+      val $dependency.local.22: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      val $dependency.local.23: Unit
+        Type Unit
+        Local $dependency.local.5
+      val $dependency.local.24: Unit
+        Type Unit
+        Local $dependency.local.23
+      Type Unit
+      PtrStore Unit
+        Type Ptr<Unit>
+        Local $dependency.local.22
+        Type Unit
+        Local $dependency.local.24
+      val $dependency.local.25: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf $dependency.local.2 : Ptr<Int>
+      val $dependency.local.6: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.25
+      val $dependency.local.26: Ptr<Ptr<Int>>
+        Type Ptr<Ptr<Int>>
+        AddressOf $dependency.local.6 : Ptr<Ptr<Int>>
+      val $dependency.local.7: Ptr<Ptr<Int>>
+        Type Ptr<Ptr<Int>>
+        PtrFromNonZeroULong Ptr<Int>
+          Type ULong
+          PtrToULong
+            Type Ptr<Ptr<Int>>
+            Local $dependency.local.26
+      val $dependency.local.27: Ptr<Ptr<Int>>
+        Type Ptr<Ptr<Int>>
+        Local $dependency.local.7
+      val $dependency.local.28: Ptr<Int>
+        Type Ptr<Int>
+        PtrLoad Ptr<Int>
+          Type Ptr<Ptr<Int>>
+          Local $dependency.local.27
+      val $dependency.local.29: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.28
+      val $dependency.local.8: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        VariantConstruct Option<Ptr<Int>> v0
+          Type Ptr<Int>
+          Local $dependency.local.29
+      val $dependency.local.9: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        VariantConstruct Option<Ptr<Int>> v1
+      val $dependency.local.30: ULong
+        Type ULong
+        SizeOf Option<Ptr<Int>>
+      val $dependency.local.31: ULong
+        Type ULong
+        SizeOf Ptr<Int>
+      val $dependency.local.32: ULong
+        Type ULong
+        Local $dependency.local.31
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.local.30
+            Type ULong
+            Local $dependency.local.32
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $when.1: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $dependency.local.8
+      val $pattern.subject.2: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.1
+      branch bb8 bb9
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.2
+    bb8 pattern.pass.8
+      val $dependency.local.10: Ptr<Int>
+        Type Ptr<Int>
+        VariantPayloadProject Option<Ptr<Int>> v0 f0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.2
+      val $dependency.local.37: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.10
+      val $dependency.local.33: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.10
+      val $dependency.local.34: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.local.33
+      val $dependency.local.35: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.36: Int
+        Type Int
+        Local $dependency.local.35
+      val $dependency.local.38: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.34
+          Type Int
+          Local $dependency.local.36
+      val $dependency.local.39: Int
+        Type Int
+        Local $dependency.local.38
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.local.37
+        Type Int
+        Local $dependency.local.39
+      goto bb10
+    bb9 pattern.else.9
+      val $pattern.subject.3: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.1
+      branch bb11 bb12
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v1
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.3
+    bb10 pattern.merge.10
+      val $when.4: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $dependency.local.9
+      val $pattern.subject.5: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.4
+      branch bb14 bb15
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.5
+    bb11 pattern.pass.11
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb12 pattern.else.12
+      unreachable
+    bb13 pattern.merge.13
+      unreachable
+    bb14 pattern.pass.14
+      val $dependency.local.11: Ptr<Int>
+        Type Ptr<Int>
+        VariantPayloadProject Option<Ptr<Int>> v0 f0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.5
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb15 pattern.else.15
+      val $pattern.subject.6: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.4
+      branch bb17 bb18
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v1
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.6
+    bb16 pattern.merge.16
+      unreachable
+    bb17 pattern.pass.17
+      return
+        Type Int
+        Local $dependency.local.2
+    bb18 pattern.else.18
+      unreachable
+    bb19 pattern.merge.19
+      unreachable
+  fun exercise @fn2(value: Int) -> Int
+    bb0 entry
+      val $dependency.local.1: Unit
+        Type Unit
+        UnitLiteral
+      var $dependency.local.2: Int
+        Type Int
+        IntegerLiteral Int value=40 bits=0x00000028
+      val $dependency.local.12: Ptr<Unit>
+        Type Ptr<Unit>
+        AddressOf $dependency.local.1 : Ptr<Unit>
+      val $dependency.local.3: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.12
+      val $dependency.local.4: Ptr<Unit>
+        Type Ptr<Unit>
+        PtrFromNonZeroULong Unit
+          Type ULong
+          Local $dependency.local.3
+      val $dependency.local.13: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $dependency.local.14: ULong
+        Type ULong
+        IntegerLiteral ULong value=0 bits=0x0000000000000000
+      val $dependency.local.15: ULong
+        Type ULong
+        Local $dependency.local.14
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=ULong result=Boolean
+          Type ULong
+          Local $dependency.local.13
+          Type ULong
+          Local $dependency.local.15
+    bb1 if.then.1
+      val $dependency.local.20: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.local.16: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      val $dependency.local.17: ULong
+        Type ULong
+        PtrToULong
+          Type Ptr<Unit>
+          Local $dependency.local.16
+      val $dependency.local.18: ULong
+        Type ULong
+        Local $dependency.local.3
+      val $dependency.local.19: ULong
+        Type ULong
+        Local $dependency.local.18
+      val $dependency.local.20: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.local.17
+            Type ULong
+            Local $dependency.local.19
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $dependency.local.20
+    bb4 if.then.4
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb5 if.merge.5
+      val $dependency.local.21: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      val $dependency.local.5: Unit
+        Type Unit
+        PtrLoad Unit
+          Type Ptr<Unit>
+          Local $dependency.local.21
+      val $dependency.local.22: Ptr<Unit>
+        Type Ptr<Unit>
+        Local $dependency.local.4
+      val $dependency.local.23: Unit
+        Type Unit
+        Local $dependency.local.5
+      val $dependency.local.24: Unit
+        Type Unit
+        Local $dependency.local.23
+      Type Unit
+      PtrStore Unit
+        Type Ptr<Unit>
+        Local $dependency.local.22
+        Type Unit
+        Local $dependency.local.24
+      val $dependency.local.25: Ptr<Int>
+        Type Ptr<Int>
+        AddressOf $dependency.local.2 : Ptr<Int>
+      val $dependency.local.6: Ptr<Int>
+        Type Ptr<Int>
+        PtrFromNonZeroULong Int
+          Type ULong
+          PtrToULong
+            Type Ptr<Int>
+            Local $dependency.local.25
+      val $dependency.local.26: Ptr<Ptr<Int>>
+        Type Ptr<Ptr<Int>>
+        AddressOf $dependency.local.6 : Ptr<Ptr<Int>>
+      val $dependency.local.7: Ptr<Ptr<Int>>
+        Type Ptr<Ptr<Int>>
+        PtrFromNonZeroULong Ptr<Int>
+          Type ULong
+          PtrToULong
+            Type Ptr<Ptr<Int>>
+            Local $dependency.local.26
+      val $dependency.local.27: Ptr<Ptr<Int>>
+        Type Ptr<Ptr<Int>>
+        Local $dependency.local.7
+      val $dependency.local.28: Ptr<Int>
+        Type Ptr<Int>
+        PtrLoad Ptr<Int>
+          Type Ptr<Ptr<Int>>
+          Local $dependency.local.27
+      val $dependency.local.29: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.28
+      val $dependency.local.8: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        VariantConstruct Option<Ptr<Int>> v0
+          Type Ptr<Int>
+          Local $dependency.local.29
+      val $dependency.local.9: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        VariantConstruct Option<Ptr<Int>> v1
+      val $dependency.local.30: ULong
+        Type ULong
+        SizeOf Option<Ptr<Int>>
+      val $dependency.local.31: ULong
+        Type ULong
+        SizeOf Ptr<Int>
+      val $dependency.local.32: ULong
+        Type ULong
+        Local $dependency.local.31
+      branch bb6 bb7
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.local.30
+            Type ULong
+            Local $dependency.local.32
+    bb6 if.then.6
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb7 if.merge.7
+      val $when.1: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $dependency.local.8
+      val $pattern.subject.2: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.1
+      branch bb8 bb9
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.2
+    bb8 pattern.pass.8
+      val $dependency.local.10: Ptr<Int>
+        Type Ptr<Int>
+        VariantPayloadProject Option<Ptr<Int>> v0 f0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.2
+      val $dependency.local.37: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.10
+      val $dependency.local.33: Ptr<Int>
+        Type Ptr<Int>
+        Local $dependency.local.10
+      val $dependency.local.34: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.local.33
+      val $dependency.local.35: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.local.36: Int
+        Type Int
+        Local $dependency.local.35
+      val $dependency.local.38: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.34
+          Type Int
+          Local $dependency.local.36
+      val $dependency.local.39: Int
+        Type Int
+        Local $dependency.local.38
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.local.37
+        Type Int
+        Local $dependency.local.39
+      goto bb10
+    bb9 pattern.else.9
+      val $pattern.subject.3: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.1
+      branch bb11 bb12
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v1
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.3
+    bb10 pattern.merge.10
+      val $when.4: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $dependency.local.9
+      val $pattern.subject.5: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.4
+      branch bb14 bb15
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.5
+    bb11 pattern.pass.11
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb12 pattern.else.12
+      unreachable
+    bb13 pattern.merge.13
+      unreachable
+    bb14 pattern.pass.14
+      val $dependency.local.11: Ptr<Int>
+        Type Ptr<Int>
+        VariantPayloadProject Option<Ptr<Int>> v0 f0
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.5
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+    bb15 pattern.else.15
+      val $pattern.subject.6: Option<Ptr<Int>>
+        Type Option<Ptr<Int>>
+        Local $when.4
+      branch bb17 bb18
+        Type Boolean
+        VariantTest Option<Ptr<Int>> v1
+          Type Option<Ptr<Int>>
+          Local $pattern.subject.6
+    bb16 pattern.merge.16
+      unreachable
+    bb17 pattern.pass.17
+      return
+        Type Int
+        Local $dependency.local.2
+    bb18 pattern.else.18
+      unreachable
+    bb19 pattern.merge.19
+      unreachable
+  fun init.Later.$c0 @fn3(this: Later, number: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local number
+      return
+  instance mi0 function=@fn1 <- exercise
+  instance mi1 function=@fn2 <- exercise
+  output library

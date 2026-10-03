@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "spread is not allowed for `Ptr` value parameter `raw`",
+    "notes": [],
+    "origin": {
+      "cone": "c3d8160a2bafa1b3f2bc45f9b1a099cdb2cc2144f42b4f971630092e646c7043",
+      "end": 64,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 60
+    },
+    "severity": "error"
+  }
+]

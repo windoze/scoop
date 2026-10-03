@@ -1,3 +1,0 @@
-span=51..59
-expression=Ptr(1uL)
-cannot infer `Ptr` pointee type; supply one explicit type argument

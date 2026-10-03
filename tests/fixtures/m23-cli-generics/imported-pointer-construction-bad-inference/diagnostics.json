@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot infer `Ptr` pointee type; supply one explicit type argument",
+    "notes": [],
+    "origin": {
+      "cone": "a613cc97b73a94ca2576c234615faf545a9315b5a6bcb3d6842ff42e93d1e263",
+      "end": 59,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 51
+    },
+    "severity": "error"
+  }
+]

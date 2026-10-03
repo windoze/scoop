@@ -1,0 +1,55 @@
+SourceFile
+  QualifiedPackage consumer.construction
+  public fun exercise<T>(value: T): Int
+    var number
+      IntLiteral 40
+    @Unsafe block
+      val raw
+        MethodCall toULong
+          Call addressOf
+            Var number
+      val explicit
+        Call Ptr<Int>
+          Argument raw=
+            Var raw
+      val inferred: Ptr<Int>
+        Call Ptr
+          Var raw
+      val placeholder: Ptr<Int>
+        Call Ptr<_>
+          Var raw
+      if
+        Binary Or
+          Binary Or
+            Binary Ne
+              MethodCall toULong
+                Var explicit
+              Var raw
+            Binary Ne
+              MethodCall toULong
+                Var inferred
+              Var raw
+          Binary Ne
+            MethodCall toULong
+              Var placeholder
+            Var raw
+        return
+          IntLiteral 1
+      MethodCall store
+        Var explicit
+        Binary Add
+          MethodCall load
+            Var inferred
+          IntLiteral 1
+      MethodCall store
+        Var placeholder
+        Binary Add
+          MethodCall load
+            Var placeholder
+          IntLiteral 1
+      return
+        Var number
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

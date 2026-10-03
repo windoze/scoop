@@ -1,0 +1,78 @@
+SourceFile
+  QualifiedPackage consumer.construction
+  public fun exercise<T>(value: T): Int
+    val empty
+      UnitLiteral
+    var number
+      IntLiteral 40
+    @Unsafe block
+      val emptyRaw
+        MethodCall toULong
+          Call addressOf
+            Var empty
+      val emptyPointer
+        Call Ptr<Unit>
+          Var emptyRaw
+      if
+        Binary Or
+          Binary Eq
+            Var emptyRaw
+            IntLiteral 0uL
+          Binary Ne
+            MethodCall toULong
+              Var emptyPointer
+            Var emptyRaw
+        return
+          IntLiteral 1
+      val unit
+        MethodCall load
+          Var emptyPointer
+      MethodCall store
+        Var emptyPointer
+        Var unit
+      val inner
+        Call Ptr<Int>
+          MethodCall toULong
+            Call addressOf
+              Var number
+      val outer
+        Call Ptr<Ptr<Int>>
+          MethodCall toULong
+            Call addressOf
+              Var inner
+      val present: Option<Ptr<Int>>
+        Call Some
+          MethodCall load
+            Var outer
+      val absent: Option<Ptr<Int>>
+        Var None
+      if
+        Binary Ne
+          Call sizeOf<Option<Ptr<Int>>>
+          Call sizeOf<Ptr<Int>>
+        return
+          IntLiteral 2
+      when
+        Var present
+        arm Some(pointer)
+          MethodCall store
+            Var pointer
+            Binary Add
+              MethodCall load
+                Var pointer
+              IntLiteral 2
+        arm None
+          return
+            IntLiteral 3
+      when
+        Var absent
+        arm Some(pointer)
+          return
+            IntLiteral 4
+        arm None
+          return
+            Var number
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0
