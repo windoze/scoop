@@ -49,3 +49,15 @@ artifact slot 取得已经编译的 core，不传额外 Cone locator。完整输
 | 常量运算符 | `const-`：`operators`、`division-zero`、`type-mismatch` | 3／10／9 | 11 个 const 值、编码静态值、除零及声明类型不匹配 |
 | 常量成员与 infix | `const-`：`methods`、`wrong-argument`、`non-infix`、`method-division-zero`、`conversion-argument` | 5／14／9 | 6 个 const 值、静态 Long 初值及赋值、4 个完整错误 |
 | 常量源码参数改名 | `const-`：`edited-parameter`、`unknown-method`、`edited-parameter-old-name` | 3／10／9 | 具名与 infix 均折叠为 12，未声明方法与旧参数名拒绝 |
+
+## 扩展 core 的原 driver 阶段用例
+
+以下 8 个原 single-file 程序复用相同的实际 core 输入，均有完整四阶段输出、
+固定产物、独立 link plan 与普通／移动 GC 运行。原 22 份阶段断言全部逐字保留：
+HIR 对照原完整 Export，新 golden 同时保留 LocalConcrete/CrossCone；MIR/LIR
+对照原完整输出。初始化调用的 shared external arena 正、反断言也由这些完整
+MIR/LIR golden 保留。
+
+| 功能 | 新 case（`library-` 前缀） | 用例／进程／golden |
+| --- | --- | --- |
+| core alias 类型与值名称 | `aliases` | 1／5／5 |
