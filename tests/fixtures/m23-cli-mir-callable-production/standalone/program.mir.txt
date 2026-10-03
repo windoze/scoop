@@ -1,0 +1,149 @@
+Module
+  struct Token ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call token: Token = external1 direct
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.1: Token = external2 direct
+        Type Token
+        Local $dependency.parameter.value
+      call $call.2: Boolean = external6 direct
+        Type Token
+        Local $call.1
+        Type Token
+        Local token
+      branch bb1 bb2
+        Type Boolean
+        Local $call.2
+    bb1 if.then.1
+      val $dependency.receiver: Token
+        Type Token
+        Local token
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.3: Token = external3 direct
+        Type Token
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      call $shortCircuit.0: Boolean = external6 direct
+        Type Token
+        Local $call.3
+        Type Token
+        Local token
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.0
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.4: Token = external4 direct
+        Type Token
+        Local token
+      call $call.5: Boolean = external6 direct
+        Type Token
+        Local $call.4
+        Type Token
+        Local token
+      branch bb4 bb5
+        Type Boolean
+        Local $call.5
+    bb4 if.then.4
+      val $dependency.receiver: Token
+        Type Token
+        Local token
+      val $dependency.argument.0: Token
+        Type Token
+        Local token
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.6: Token = external5 direct
+        Type Token
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      call $shortCircuit.1: Boolean = external6 direct
+        Type Token
+        Local $call.6
+        Type Token
+        Local token
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1

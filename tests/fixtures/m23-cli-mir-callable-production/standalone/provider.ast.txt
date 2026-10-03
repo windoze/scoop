@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  public struct Token
+    public fun echo
+    public val copy: Token <computed>
+      get()
+        This
+  public fun pass(value: Token): Token
+    =
+      Var value
+  public fun Token.extra(value: Token): Token
+    =
+      Var value

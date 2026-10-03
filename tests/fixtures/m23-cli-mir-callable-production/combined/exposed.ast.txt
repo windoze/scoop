@@ -1,0 +1,73 @@
+SourceFile
+  RootPackage
+  public fun implementation(): Impl
+    =
+      Call Impl
+  private class CompletePartial() : Partial(<0 args>)
+    public fun get
+    public open override val token: Token <computed>
+      get()
+        Call Token
+  public fun partial(): SubContract
+    =
+      Call CompletePartial
+  private class CompleteAgain() : Again(<0 args>)
+    public fun pass
+    protected open override val abstractValue: Token <computed>
+      get()
+        Call Token
+  public fun again(): Base
+    =
+      Call CompleteAgain
+  private class CompleteAbstract() : Abstract(<0 args>)
+    public fun run
+  public fun abstractTask(): Abstract
+    =
+      Call CompleteAbstract
+SourceFile
+  RootPackage
+  public struct Token
+  public interface Contract
+    fun get
+    fun echo
+    public open val token: Token <computed>
+  public open class Base()
+    public fun observe
+    public fun pass
+    protected fun hidden
+    protected open val abstractValue: Token <computed>
+      get()
+        Call Token
+    private var stored: Token = <expr>
+      Call Token
+    public var slot: Token <computed>
+      get()
+        Var stored
+      protected set(value)
+        assign stored
+          Var value
+    private fun secret
+    public fun reach
+  public class Impl() : Base(<0 args>), Contract
+    public fun pass
+    public fun get
+    public open override val token: Token = <expr>
+      Call Token
+  public interface SubContract : Contract
+  public abstract class Partial(), SubContract
+  public abstract class Abstract()
+    public fun run
+  public abstract class Again() : Base(<0 args>)
+    public fun pass
+    protected abstract override val abstractValue: Token <abstract>
+  public object Registry
+    private var stored: Token = <expr>
+      Call Token
+    public var value: Token <computed>
+      get()
+        Var stored
+      set(value)
+        assign stored
+          Var value
+    public val direct: Token = <expr>
+      Call Token
