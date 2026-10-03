@@ -1,0 +1,10 @@
+schema = 1
+[cone]
+group = "dev.example"
+name = "qualified-diamond"
+version = "0.1.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"dev.example:qualified-first" = "0.1.0"
+"dev.example:qualified-second" = "0.1.0"

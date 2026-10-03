@@ -1,0 +1,31 @@
+SourceFile
+  QualifiedPackage consumer.paths
+  ImportExact Local facade.paths.Point
+  ImportExact Local facade.paths.IntBox
+  ImportExact Local facade.paths.Outer
+  ImportExact Local dependency.paths.Outer.marker
+  public fun exercise<T>(value: T): Int
+    val point
+      Call Point
+        IntLiteral 40
+    val box
+      Call IntBox
+        IntLiteral 2
+    val nested
+      MethodCall Nested
+        Var Outer
+        Binary Add
+          FieldAccess number
+            Var point
+          FieldAccess value
+            Var box
+    return
+      Binary Add
+        FieldAccess number
+          Var nested
+        Call marker
+  private class Later()
+  public fun check(): Int
+    =
+      Call exercise<Later>
+        Call Later

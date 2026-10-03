@@ -1,3 +1,0 @@
-span=64..69
-expression=Point
-type `Point` is ambiguous in the qualified package layer

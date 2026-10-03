@@ -5,7 +5,6 @@ mod initialization;
 mod machine;
 mod native_addresses;
 mod nominals;
-mod qualified_types;
 mod siblings;
 
 #[test]

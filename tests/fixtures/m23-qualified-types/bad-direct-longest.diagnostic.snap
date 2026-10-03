@@ -1,3 +1,0 @@
-span=142..148
-expression=Nested
-package `dependency.paths.Outer` has no accessible type `Nested`

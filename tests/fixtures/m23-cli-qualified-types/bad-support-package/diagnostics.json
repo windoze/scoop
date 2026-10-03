@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown type `dependency`",
+    "notes": [],
+    "origin": {
+      "cone": "bd659ea68156219ab28058cf75c6a01fbc6e48b96e1c5d778fb797cbf7e2273d",
+      "end": 61,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 51
+    },
+    "severity": "error"
+  }
+]
