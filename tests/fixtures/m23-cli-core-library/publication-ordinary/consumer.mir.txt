@@ -1,0 +1,35 @@
+Module
+  enum Signal
+    Ready()
+    Failed()
+  fun describe @fn0(value: Signal) -> Int
+    bb0 entry
+      val $when.1: Signal
+        Type Signal
+        Local value
+      val $pattern.subject.2: Signal
+        Type Signal
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Signal v0
+          Type Signal
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      goto bb3
+    bb2 pattern.else.2
+      val Raedy: Signal
+        Type Signal
+        Local $when.1
+      assign $result.0
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      goto bb3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.0
+  output library

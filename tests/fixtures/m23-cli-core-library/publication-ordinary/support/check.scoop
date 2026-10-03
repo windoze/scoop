@@ -1,0 +1,1 @@
+public fun checkPublicationWarning(): Int = describe(Signal.Ready) + describe(Signal.Failed)

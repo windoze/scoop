@@ -1,0 +1,13 @@
+SourceFile
+  RootPackage
+  enum Signal
+    Ready
+    Failed
+  fun describe(value: Signal): Int
+    =
+      WhenExpression
+        Var value
+        arm Ready
+          IntLiteral 1
+        arm Raedy
+          IntLiteral 2
