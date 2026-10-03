@@ -1,0 +1,22 @@
+SourceFile
+  QualifiedPackage dependency.defaultCombinations
+  public fun identity(value: Int): Int
+    =
+      Var value
+    @Global
+  public var global: Int = <expr>
+  public struct Record
+    field value: Int
+  public object Singleton
+    public fun read
+  public open class Defaults(value: Int = <expr>)
+    protected fun literal
+    protected fun count
+    protected fun invoke
+    protected fun fields
+    protected fun globals
+    protected fun singleton
+    protected nested class Box
+    protected nested enum Choice
+  public class Derived() : Defaults(<0 args>)
+    protected fun count

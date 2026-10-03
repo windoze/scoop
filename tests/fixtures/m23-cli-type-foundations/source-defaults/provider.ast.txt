@@ -1,0 +1,11 @@
+SourceFile
+  QualifiedPackage dependency.sourceDefaults
+  public fun identity(value: Int): Int
+    =
+      Var value
+  public open class Defaults(value: Int = <expr>)
+    protected fun literal
+    protected fun count
+    protected fun invoke
+  public class Derived() : Defaults(<0 args>)
+    protected fun count

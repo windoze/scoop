@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.defaultCombinations.*
+  public class Child() : Defaults(<0 args>)
+    public fun readAll

@@ -14,3 +14,4 @@
 | complete dispatch selections | `slot-selections`、`slot-combinations` | 6／16 |
 | protected declarations | `protected-sources` | 3／8 |
 | parameter protocols | `source-protocols` | 3／8 |
+| inherited source defaults | `source-defaults`、`default-combinations` | 6／16 |

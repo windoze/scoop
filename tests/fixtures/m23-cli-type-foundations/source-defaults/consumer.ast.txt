@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.sourceDefaults.*
+  public class Child() : Defaults(<0 args>)
+    public fun readAll

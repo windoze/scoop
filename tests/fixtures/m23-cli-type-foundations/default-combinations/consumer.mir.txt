@@ -1,0 +1,219 @@
+Module
+  global0 $singleton$05304c33ffd47a6ad69d0974c747f60f6165a9e4b214c3c9ca1e69f48f851527: Singleton imported provider=fe17baa47a23eb61f06d45b8e48fad8e55b5229fd06758d8a0c24e1b3c20a327 storage=309b64e5e407380d190402e0d8a4b537ac1bca87c4f07971472a5f12b2896bd2
+  struct Record (value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Child>
+    Completed(value: Child)
+    Suspended()
+  enum CoroutineSlot<Child>
+    Empty()
+    Value(value: Child)
+  class Child vtable=1 itables=0
+  class Defaults vtable=1 itables=0
+  class Singleton vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Continuation<Child>
+  interface SuspendTask<Child>
+  interface SuspendRegistration<Child>
+  generated_exact_type get0 location=enum2 nominal_id=641eb03f5c532bd193acbec503d7b5e1651e52d0a7328f9a7e5c8ee47ff71b96 exact_id=00bea92bdc51e911ad6ebb142684f96607872a81a493b34648a37441dccfaf10
+  generated_exact_type get1 location=enum1 nominal_id=8f4e2d69b4c802ae3d4a7d521a00f3be415ac37b6b53fab71970578bbd0b826d exact_id=e62a6a926a68a286c1469554e46d4037783d51e4e9ed1eb0d8093327796d9275
+  generated_callable gc0 function=@fn6 id=814d53b59ffe99f732af438190eb2c462926f32c41336a98ad97de4913c4ba8c
+  fun Child.readAll @fn0(this: Child) -> Int
+    bb0 entry
+      val $dependency.receiver: Defaults
+        Type Defaults
+        Retype Defaults
+          Type Child
+          Local this
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      call $dependency.parameter.record: Record = external3 direct
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.value: Int
+        Type Int
+        FieldAccess 0
+          Type Record
+          Local $dependency.parameter.record
+      call $dependency.receiver: Int = external4 direct
+        Type Defaults
+        Local $dependency.receiver
+        Type Record
+        Local $dependency.parameter.record
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.receiver: Defaults
+        Type Defaults
+        Retype Defaults
+          Type Child
+          Local this
+      call $dependency.parameter.value: Int = external5 direct
+      call $dependency.argument.0: Int = external6 direct
+        Type Defaults
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Defaults
+        Type Defaults
+        Retype Defaults
+          Type Child
+          Local this
+      call external10 direct
+      val $default.local.1: Singleton
+        Type Singleton
+        GlobalRead $singleton$05304c33ffd47a6ad69d0974c747f60f6165a9e4b214c3c9ca1e69f48f851527
+      call $dependency.parameter.value: Int = external7 direct
+        Type Singleton
+        Local $default.local.1
+      call $dependency.argument.0: Int = external8 direct
+        Type Defaults
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Defaults
+        Type Defaults
+        Retype Defaults
+          Type Child
+          Local this
+      val $default.local.1: Defaults
+        Type Defaults
+        Local $dependency.receiver
+      val $default.local.2: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.2
+      call $default.local.4: Int = external1 direct
+        Type Int
+        Local $default.local.3
+      call $dependency.parameter.value: Int = external0 virtual[0]
+        Type Defaults
+        Local $default.local.1
+        Type Int
+        Local $default.local.4
+      call $dependency.argument.0: Int = external9 direct
+        Type Defaults
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Continuation.resume @fn1(this: Continuation<Child>, value: Child) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn2(this: Continuation<Child>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn3(this: SuspendTask<Child>, $completion: Continuation<Child>) -> CoroutineStep<Child>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn4(this: SuspendRegistration<Child>, continuation: Continuation<Child>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Child.$c0 @fn5(this: Child) -> Unit
+    bb0 entry
+      val $default.local.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $default.local.1: Int
+        Type Int
+        Local $default.local.0
+      call $dependency.parameter.value: Int = external1 direct
+        Type Int
+        Local $default.local.1
+      call external2 direct
+        Type Defaults
+        Retype Defaults
+          Type Child
+          Local this
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun startCoroutine<Child> @fn6(task: SuspendTask<Child>, completion: Continuation<Child>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn1 interface Continuation<Child>[0]
+        Type Continuation<Child>
+        Local completion
+        Type Child
+        EnumField v0 f0
+          Type CoroutineStep<Child>
+          Local $step
+      return
+    bb2 failed
+      call @fn2 interface Continuation<Child>[1]
+        Type Continuation<Child>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Child> = @fn3 interface SuspendTask<Child>[0]
+        Type SuspendTask<Child>
+        Local task
+        Type Continuation<Child>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Child>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Child> result=Child
+  coroutine_slot cl0 CoroutineSlot<Child> value=Child
+  coroutine_start ct0 result=Child function=fn6
+  coroutine_fn cf0 @fn3 source_return=Child step=cs0 immediate
+  instance mi0 function=@fn1 <- Continuation.resume
+  instance mi1 function=@fn2 <- Continuation.resumeWithException
+  instance mi2 function=@fn3 <- SuspendTask.run
+  instance mi3 function=@fn4 <- SuspendRegistration.register
+  output library
