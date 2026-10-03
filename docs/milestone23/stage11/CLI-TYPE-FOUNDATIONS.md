@@ -12,3 +12,4 @@
 | constructors and inherited members | `constructors`、`inheritance-members` | 6／16 |
 | declaration dispatch order | `dispatch-order` | 3／8 |
 | complete dispatch selections | `slot-selections`、`slot-combinations` | 6／16 |
+| protected declarations | `protected-sources` | 3／8 |
