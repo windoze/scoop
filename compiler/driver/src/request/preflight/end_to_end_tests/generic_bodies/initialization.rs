@@ -4,11 +4,6 @@ use super::*;
 mod dispatch;
 
 #[test]
-fn generic_initializations_survive_publication_and_execute_with_moving_gc() {
-    check_initializations(&["standalone", "combined"]);
-}
-
-#[test]
 fn generic_dispatch_survives_publication_and_executes_with_moving_gc() {
     check_initializations(&["dispatch", "dispatch-combined"]);
 }

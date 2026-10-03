@@ -1,0 +1,95 @@
+SourceFile
+  QualifiedPackage templates.initialization
+  private fun keep<T>(value: T): T
+    =
+      Var value
+  public class Payload(val number: Int)
+  public open class Base<T>(val item: T)
+    public var baseNumber: Int = <expr>
+      IntLiteral 1
+    init
+      assign .baseNumber
+        This
+        Binary Add
+          FieldAccess baseNumber
+            This
+          IntLiteral 1
+  public class Derived<T>(value: T) : Base<T>(<1 args>)
+    public val copied: T = <expr>
+      FieldAccess item
+        This
+    public var extra: Int = <expr>
+      FieldAccess baseNumber
+        This
+    init
+      assign .extra
+        This
+        Binary Add
+          FieldAccess extra
+            This
+          IntLiteral 1
+    constructor(value: T, adjustment: Int) : this(<1 args>)
+      assign .extra
+        This
+        Binary Add
+          FieldAccess extra
+            This
+          Var adjustment
+  public class Alternate<T>(), Base<T>
+    public val copied: T = <expr>
+      FieldAccess item
+        This
+    public var extra: Int = <expr>
+      FieldAccess baseNumber
+        This
+    init
+      assign .extra
+        This
+        Binary Add
+          FieldAccess extra
+            This
+          IntLiteral 1
+    constructor(value: T, adjustment: Int) : super(<1 args>)
+      assign .extra
+        This
+        Binary Add
+          FieldAccess extra
+            This
+          Var adjustment
+    constructor(value: T) : this(<2 args>)
+    constructor(value: T, increment: Boolean) : super(<1 args>)
+      if
+        Var increment
+        assign .extra
+          This
+          Binary Add
+            FieldAccess extra
+              This
+            IntLiteral 1
+  private class Cell<T>(val value: T)
+    operator fun provideDelegate
+    operator fun getValue
+  public class Holder<T>(value: T)
+    public val stored: T by <expr>
+      Call Cell<T>
+        Call keep
+          Var value
+    init
+      Call keep
+        Var value
+  public fun result(): Int
+    val value
+      Call Alternate<Payload>
+        Call Payload
+          IntLiteral 40
+    val holder
+      Call Holder<Payload>
+        FieldAccess copied
+          Var value
+    return
+      Binary Add
+        FieldAccess number
+          FieldAccess stored
+            Var holder
+        FieldAccess extra
+          Var value
