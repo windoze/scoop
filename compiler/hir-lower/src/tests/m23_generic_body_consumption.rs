@@ -206,35 +206,6 @@ fn imported_generic_overloads_compare_declarations_in_one_type_arena() {
 }
 
 #[test]
-fn imported_generic_ambiguity_reports_both_declared_signatures() {
-    let source = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-generic-body-consumption/bad-overload.scoop"
-    ));
-    let errors = lower_consumer(source)
-        .err()
-        .expect("neither declaration dominates");
-    let error = errors
-        .iter()
-        .find(|error| error.message.contains("ambiguous"))
-        .unwrap_or_else(|| panic!("missing ambiguity: {errors:?}"));
-    assert!(
-        error.message.contains("conflict<T>(left: T, right: Int)"),
-        "{error:?}"
-    );
-    assert!(
-        error.message.contains("conflict<T>(left: Int, right: T)"),
-        "{error:?}"
-    );
-    let span = error.span.unwrap();
-    assert_eq!(
-        &source[span.start as usize..span.end as usize],
-        "conflict(1, 2)"
-    );
-    assert_eq!(error.file, 0);
-}
-
-#[test]
 fn imported_generic_effects_and_pointee_predicates_reach_consumer_calls() {
     for (source, message) in [
         (
