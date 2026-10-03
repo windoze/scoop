@@ -1,0 +1,1887 @@
+Module
+  enum LocalChain<Later>
+    End()
+    Cons(_0: LocalLink<Later>)
+  enum Chain<Later>
+    End()
+    Cons(_0: Link<Later>)
+  enum LocalChain<Int>
+    End()
+    Cons(_0: LocalLink<Int>)
+  enum Chain<Int>
+    End()
+    Cons(_0: Link<Int>)
+  enum LocalChain<Unit>
+    End()
+    Cons(_0: LocalLink<Unit>)
+  enum Chain<Unit>
+    End()
+    Cons(_0: Link<Unit>)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Chain<Later>>
+    Some(_0: Chain<Later>)
+    None()
+  enum Entry<Later>
+    Value(_0: Later)
+  enum LocalEntry<Later>
+    Value(_0: Later)
+  enum Option<Chain<Int>>
+    Some(_0: Chain<Int>)
+    None()
+  enum Entry<Int>
+    Value(_0: Int)
+  enum LocalEntry<Int>
+    Value(_0: Int)
+  enum Option<Chain<Unit>>
+    Some(_0: Chain<Unit>)
+    None()
+  enum Entry<Unit>
+    Value(_0: Unit)
+  enum LocalEntry<Unit>
+    Value(_0: Unit)
+  enum CoroutineStep<Later>
+    Completed(value: Later)
+    Suspended()
+  enum CoroutineSlot<Later>
+    Empty()
+    Value(value: Later)
+  class Later vtable=0 itables=0
+  class LocalLink<Later> vtable=0 itables=0
+  class Link<Later> vtable=0 itables=0
+  class LocalLink<Int> vtable=0 itables=0
+  class Link<Int> vtable=0 itables=0
+  class LocalLink<Unit> vtable=0 itables=0
+  class Link<Unit> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Entry<Later>> vtable=0 itables=1
+  class box<LocalEntry<Later>> vtable=0 itables=1
+  class box<Entry<Int>> vtable=0 itables=1
+  class box<LocalEntry<Int>> vtable=0 itables=1
+  class box<Entry<Unit>> vtable=0 itables=1
+  class box<LocalEntry<Unit>> vtable=0 itables=1
+  class box<Unit> vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  interface Readable<Later>
+  interface Readable<Int>
+  interface Readable<Unit>
+  interface Continuation<Later>
+  interface SuspendTask<Later>
+  interface SuspendRegistration<Later>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
+    bridge function_type1 -> @fn52 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
+    bridge function_type1 -> @fn53 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
+  closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn5 captures=0
+    bridge function_type1 -> @fn54 id=b89e39d8f5f31b24c84e525c0408c669e5a210eda69da991087a3adbeea84bfc
+  generated_exact_type get0 location=closure0 nominal_id=5ae7cf6922f33b4b3a0a8dc35c9465abd7d3d0cc2df89e843ece3ace55f0345d exact_id=05a87b8afbeb1a56aaf15390c2885ed506d1e155268b31f88569c69210b99e49
+  generated_exact_type get1 location=class15 nominal_id=2b3e2e0bd0e5dd1cf093338f02c78b3257d26b5f784d2f0ee6d8d2a28582ab80 exact_id=0a85eb4aa8d5711b2fe55cee19aed54fd71e4d779a43c2ec0cd2d48e4c383b5c
+  generated_exact_type get2 location=class14 nominal_id=ed6e6f3865e04a421c79600ae9a26d5b54e0c743886a4ac0d8a30bc713a0c96c exact_id=1793fa460b4c5a4d55d78845f3c1ad428576076f1745ecc924b7d5f5c4fb5e3e
+  generated_exact_type get3 location=class11 nominal_id=211d3a50507e2a383e6a1b1db0cd59a36559c286c0518227ece311709d530a01 exact_id=2427ed20ba3efbd24f9b5d477edb9eab2c3a0bc9635e0cf0c8f8e2bdf103836e
+  generated_exact_type get4 location=class13 nominal_id=3b61282a1225b105e39a375d061ea450588c49345be44701356b7f4017f1b6de exact_id=306cba12b91d320e134bffb071e8ecad87e9daee26dec30af85016be8134bc1a
+  generated_exact_type get5 location=class16 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get6 location=closure2 nominal_id=44472fcb45fb94819dce94aa36954adb66232cfc493726dd6779349fac101f30 exact_id=51628f3d1e34c16485cec367b5c5f7c75038760c1af527040fe8de1c96ab8043
+  generated_exact_type get7 location=closure1 nominal_id=8994f82e0dfe0a3f664a058f34f59a709a91b0ffba8d43fa2fead4dfa67516da exact_id=5d07fda395885e88f1c3fec66119f2ced276475c643f48dd52de84fdf9bbc675
+  generated_exact_type get8 location=class12 nominal_id=355151cb54f2f4ea11e8b216e68bbd1013c3c39793aa59fe14f2f7fd6cf1272f exact_id=69e20bd81e69321636a61bf538706c2f6ea690c0b198690fcc1fab6453ace1f3
+  generated_exact_type get9 location=enum17 nominal_id=2e841dd0051e600ec6b9137612af9b010fcdc35b8f1934f34a69204892054c37 exact_id=b56311ed6cfd96d2268bf91bced5b1d512a56ab12cefee8e298cefc0929cde71
+  generated_exact_type get10 location=class10 nominal_id=cdb7cd2c0718d851f5776c6c1ddfa2dbc8cac9f2fc2e317635bae1cc5140cb70 exact_id=cb52e6e368cc9b26a43391daebd33d108bb2a7bc8702b39178cec064d8f9a00b
+  generated_exact_type get11 location=enum16 nominal_id=25c98e804ba88ff8a676c4c714dd448a736dcc6b05f79775d1c8802039dac7af exact_id=cba23053a2b24947108bc56b44c4cb3c6e0eb1e0a77e82d126f2be5d59166fd1
+  generated_exact_type get12 location=class17 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn50 id=082a98e99ca120c0231b5efd5c2ec1eb5d4bfad5fbdd368fdc5a7b18e53f481e
+  generated_callable gc1 function=@fn47 id=19221d8500cc3910d4f7ab4cb2ff757f9613ba590d4834a19e62b9e9f660e458
+  generated_callable gc2 function=@fn43 id=19641752fd0036401f3aa790d84e700357ded5a491c604c9d3c2123f093fd690
+  generated_callable gc3 function=@fn52 id=2018cf00e765278e8412a74596cfe48cc4952826a299b7a16eefa65f782efe73
+  generated_callable gc4 function=@fn44 id=3462a8ba300cd02b6841b63bacec2510194db153f71568ac7623f11521f2fa04
+  generated_callable gc5 function=@fn41 id=47b868d4acf630fe78cd86e02e5fefe30a9589574ba7e0e1eaedf40710255896
+  generated_callable gc6 function=@fn49 id=54286c40baef9dbdd5d7e70296c2e4e7806ae09fd94d6aac35b7c64e85aa8c7b
+  generated_callable gc7 function=@fn40 id=64e5050d261f4f892b7953a018c7f88671ceb71e52e8c582089181640d11209e
+  generated_callable gc8 function=@fn53 id=719c29abc1d5752c381a988cbb93dd6d3060072029c925c39d7de20c00047a8c
+  generated_callable gc9 function=@fn54 id=b89e39d8f5f31b24c84e525c0408c669e5a210eda69da991087a3adbeea84bfc
+  generated_callable gc10 function=@fn42 id=b8a1b1af32693f699dd54f2cd97e07ae9e63ddee4c5bdfbde91a970a7e257e5b
+  generated_callable gc11 function=@fn46 id=c312635e30ea0a7c001df9239d1267f794932cad35184e3f28dfbfe47957da53
+  generated_callable gc12 function=@fn45 id=c61e2df24d23082ce3c467326cd0a2c63f876e92b69d38b2e978c9cb770fad1f
+  generated_callable gc13 function=@fn39 id=d3658e2462ce83ee77c3643eb87d3fd1f0d0c71db276d5630081fda15f02b141
+  generated_callable gc14 function=@fn51 id=e4d6c5a5875ed3eb7315461bb29fc1cceafcc41220218d611032841775c0eb98
+  generated_callable gc15 function=@fn48 id=e716ad5aad40e6f2bd994874aff261b9c2d4b223bd69ebe4d081148654071a98
+  fun check @fn0() -> Int
+    bb0 entry
+      call $argument.0: Int = external0 direct
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Later
+        ClassAlloc Later
+      call @fn32 direct
+        Type Later
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      val value: Later
+        Type Later
+        Local $new.1
+      val $dependency.argument.0: Later
+        Type Later
+        Local value
+      val $dependency.argument.1: (Later) -> Int
+        Type (Later) -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+      val $dependency.parameter.seed: Later
+        Type Later
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn2 direct
+        Type Later
+        Local $dependency.parameter.seed
+        Type (Later) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.argument.1: (Int) -> Int
+        Type (Int) -> Int
+        ClosureAlloc cc1 $Closure$lambda1
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn4 direct
+        Type Int
+        Local $dependency.parameter.seed
+        Type (Int) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb3 if.then.3
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb4 if.merge.4
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.1: (Unit) -> Int
+        Type (Unit) -> Int
+        ClosureAlloc cc2 $Closure$lambda2
+      val $dependency.parameter.seed: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.read: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.argument.1
+      call $dependency.receiver: Int = @fn6 direct
+        Type Unit
+        Local $dependency.parameter.seed
+        Type (Unit) -> Int
+        Local $dependency.parameter.read
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb5 bb6
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb5 if.then.5
+      return
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+    bb6 if.merge.6
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.2
+        Type Later
+        ClassAlloc Later
+      call @fn32 direct
+        Type Later
+        Local $new.2
+        Type Int
+        Local $parameter.value
+      val allocation: Later
+        Type Later
+        Local $new.2
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local value
+      val $dependency.argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local allocation
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.0 @fn1($closure: (Later) -> Int, item: Later) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Later
+          Local item
+  fun exercise @fn2(seed: Later, read: (Later) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.2: LocalChain<Later>
+        Type LocalChain<Later>
+        VariantConstruct LocalChain<Later> v0
+      val $dependency.local.9: Later
+        Type Later
+        Local seed
+      val $dependency.local.10: LocalChain<Later>
+        Type LocalChain<Later>
+        Local $dependency.local.2
+      val $dependency.local.11: Later
+        Type Later
+        Local $dependency.local.9
+      val $dependency.local.12: LocalChain<Later>
+        Type LocalChain<Later>
+        Local $dependency.local.10
+      assign $new.1
+        Type LocalLink<Later>
+        ClassAlloc LocalLink<Later>
+      call @fn33 direct
+        Type LocalLink<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.11
+        Type LocalChain<Later>
+        Local $dependency.local.12
+      val $dependency.local.13: LocalLink<Later>
+        Type LocalLink<Later>
+        Local $new.1
+      val $dependency.local.14: LocalLink<Later>
+        Type LocalLink<Later>
+        Local $dependency.local.13
+      val $dependency.local.3: LocalChain<Later>
+        Type LocalChain<Later>
+        VariantConstruct LocalChain<Later> v1
+          Type LocalLink<Later>
+          Local $dependency.local.14
+      val $dependency.local.15: LocalChain<Later>
+        Type LocalChain<Later>
+        Local $dependency.local.3
+      val $dependency.local.16: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      val $dependency.local.17: LocalChain<Later>
+        Type LocalChain<Later>
+        Local $dependency.local.15
+      val $dependency.local.18: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.local.16
+      call $dependency.local.19: Int = @fn7 direct
+        Type LocalChain<Later>
+        Local $dependency.local.17
+        Type (Later) -> Int
+        Local $dependency.local.18
+      val $dependency.local.20: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.21: Int
+        Type Int
+        Local $dependency.local.20
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.19
+            Type Int
+            Local $dependency.local.21
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.22: Later
+        Type Later
+        Local seed
+      val $dependency.local.23: Later
+        Type Later
+        Local $dependency.local.22
+      call $dependency.local.24: Chain<Later> = @fn8 direct
+        Type Later
+        Local $dependency.local.23
+      val $dependency.local.25: Chain<Later>
+        Type Chain<Later>
+        Local $dependency.local.24
+      val $dependency.local.4: Option<Chain<Later>>
+        Type Option<Chain<Later>>
+        VariantConstruct Option<Chain<Later>> v0
+          Type Chain<Later>
+          Local $dependency.local.25
+      val $when.1: Option<Chain<Later>>
+        Type Option<Chain<Later>>
+        Local $dependency.local.4
+      val $pattern.subject.2: Option<Chain<Later>>
+        Type Option<Chain<Later>>
+        Local $when.1
+      branch bb3 bb5
+        Type Boolean
+        VariantTest Option<Chain<Later>> v0
+          Type Option<Chain<Later>>
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      val $pattern.3: Chain<Later>
+        Type Chain<Later>
+        VariantPayloadProject Option<Chain<Later>> v0 f0
+          Type Option<Chain<Later>>
+          Local $pattern.subject.2
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Chain<Later> v1
+          Type Chain<Later>
+          Local $pattern.3
+    bb4 pattern.pass.4
+      val $dependency.local.5: Link<Later>
+        Type Link<Later>
+        VariantPayloadProject Chain<Later> v1 f0
+          Type Chain<Later>
+          Local $pattern.3
+      call $call.2: Later = @fn9 direct
+        Type Link<Later>
+        Local $dependency.local.5
+      assign $dependency.local.26
+        Type Later
+        Local $call.2
+      goto bb6
+    bb5 pattern.else.5
+      assign $dependency.local.26
+        Type Later
+        Local seed
+      goto bb6
+    bb6 pattern.merge.6
+      val $dependency.local.6: Later
+        Type Later
+        Local $dependency.local.26
+      val $dependency.local.27: Later
+        Type Later
+        Local $dependency.local.6
+      val $dependency.local.28: Later
+        Type Later
+        Local $dependency.local.27
+      val $dependency.local.7: Readable<Later>
+        Type Readable<Later>
+        Box
+          Type Entry<Later>
+          VariantConstruct Entry<Later> v0
+            Type Later
+            Local $dependency.local.28
+      val $dependency.local.29: Later
+        Type Later
+        Local seed
+      val $dependency.local.30: Later
+        Type Later
+        Local $dependency.local.29
+      val $dependency.local.8: Readable<Later>
+        Type Readable<Later>
+        Box
+          Type LocalEntry<Later>
+          VariantConstruct LocalEntry<Later> v0
+            Type Later
+            Local $dependency.local.30
+      val $dependency.local.31: Readable<Later>
+        Type Readable<Later>
+        Local $dependency.local.7
+      val $dependency.local.32: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      val $dependency.local.33: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.local.32
+      call $dependency.local.37: Int = @fn11 interface Readable<Later>[1]
+        Type Readable<Later>
+        Local $dependency.local.31
+        Type (Later) -> Int
+        Local $dependency.local.33
+      val $dependency.local.34: Readable<Later>
+        Type Readable<Later>
+        Local $dependency.local.8
+      val $dependency.local.35: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      val $dependency.local.36: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.local.35
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      call $dependency.local.39: Int = @fn11 interface Readable<Later>[1]
+        Type Readable<Later>
+        Local $dependency.local.34
+        Type (Later) -> Int
+        Local $dependency.local.36
+      val $dependency.local.40: Int
+        Type Int
+        Local $dependency.local.39
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.38
+            Type Int
+            Local $dependency.local.40
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb8 if.merge.8
+      call $call.3: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local read
+        Type Later
+        Local $dependency.local.6
+      return
+        Type Int
+        Local $call.3
+  fun $lambda.1 @fn3($closure: (Int) -> Int, item: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local item
+  fun exercise @fn4(seed: Int, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.2: LocalChain<Int>
+        Type LocalChain<Int>
+        VariantConstruct LocalChain<Int> v0
+      val $dependency.local.9: Int
+        Type Int
+        Local seed
+      val $dependency.local.10: LocalChain<Int>
+        Type LocalChain<Int>
+        Local $dependency.local.2
+      val $dependency.local.11: Int
+        Type Int
+        Local $dependency.local.9
+      val $dependency.local.12: LocalChain<Int>
+        Type LocalChain<Int>
+        Local $dependency.local.10
+      assign $new.1
+        Type LocalLink<Int>
+        ClassAlloc LocalLink<Int>
+      call @fn34 direct
+        Type LocalLink<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.11
+        Type LocalChain<Int>
+        Local $dependency.local.12
+      val $dependency.local.13: LocalLink<Int>
+        Type LocalLink<Int>
+        Local $new.1
+      val $dependency.local.14: LocalLink<Int>
+        Type LocalLink<Int>
+        Local $dependency.local.13
+      val $dependency.local.3: LocalChain<Int>
+        Type LocalChain<Int>
+        VariantConstruct LocalChain<Int> v1
+          Type LocalLink<Int>
+          Local $dependency.local.14
+      val $dependency.local.15: LocalChain<Int>
+        Type LocalChain<Int>
+        Local $dependency.local.3
+      val $dependency.local.16: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.17: LocalChain<Int>
+        Type LocalChain<Int>
+        Local $dependency.local.15
+      val $dependency.local.18: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.16
+      call $dependency.local.19: Int = @fn13 direct
+        Type LocalChain<Int>
+        Local $dependency.local.17
+        Type (Int) -> Int
+        Local $dependency.local.18
+      val $dependency.local.20: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.21: Int
+        Type Int
+        Local $dependency.local.20
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.19
+            Type Int
+            Local $dependency.local.21
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.22: Int
+        Type Int
+        Local seed
+      val $dependency.local.23: Int
+        Type Int
+        Local $dependency.local.22
+      call $dependency.local.24: Chain<Int> = @fn14 direct
+        Type Int
+        Local $dependency.local.23
+      val $dependency.local.25: Chain<Int>
+        Type Chain<Int>
+        Local $dependency.local.24
+      val $dependency.local.4: Option<Chain<Int>>
+        Type Option<Chain<Int>>
+        VariantConstruct Option<Chain<Int>> v0
+          Type Chain<Int>
+          Local $dependency.local.25
+      val $when.1: Option<Chain<Int>>
+        Type Option<Chain<Int>>
+        Local $dependency.local.4
+      val $pattern.subject.2: Option<Chain<Int>>
+        Type Option<Chain<Int>>
+        Local $when.1
+      branch bb3 bb5
+        Type Boolean
+        VariantTest Option<Chain<Int>> v0
+          Type Option<Chain<Int>>
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      val $pattern.3: Chain<Int>
+        Type Chain<Int>
+        VariantPayloadProject Option<Chain<Int>> v0 f0
+          Type Option<Chain<Int>>
+          Local $pattern.subject.2
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Chain<Int> v1
+          Type Chain<Int>
+          Local $pattern.3
+    bb4 pattern.pass.4
+      val $dependency.local.5: Link<Int>
+        Type Link<Int>
+        VariantPayloadProject Chain<Int> v1 f0
+          Type Chain<Int>
+          Local $pattern.3
+      call $call.2: Int = @fn15 direct
+        Type Link<Int>
+        Local $dependency.local.5
+      assign $dependency.local.26
+        Type Int
+        Local $call.2
+      goto bb6
+    bb5 pattern.else.5
+      assign $dependency.local.26
+        Type Int
+        Local seed
+      goto bb6
+    bb6 pattern.merge.6
+      val $dependency.local.6: Int
+        Type Int
+        Local $dependency.local.26
+      val $dependency.local.27: Int
+        Type Int
+        Local $dependency.local.6
+      val $dependency.local.28: Int
+        Type Int
+        Local $dependency.local.27
+      val $dependency.local.7: Readable<Int>
+        Type Readable<Int>
+        Box
+          Type Entry<Int>
+          VariantConstruct Entry<Int> v0
+            Type Int
+            Local $dependency.local.28
+      val $dependency.local.29: Int
+        Type Int
+        Local seed
+      val $dependency.local.30: Int
+        Type Int
+        Local $dependency.local.29
+      val $dependency.local.8: Readable<Int>
+        Type Readable<Int>
+        Box
+          Type LocalEntry<Int>
+          VariantConstruct LocalEntry<Int> v0
+            Type Int
+            Local $dependency.local.30
+      val $dependency.local.31: Readable<Int>
+        Type Readable<Int>
+        Local $dependency.local.7
+      val $dependency.local.32: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.33: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.32
+      call $dependency.local.37: Int = @fn17 interface Readable<Int>[1]
+        Type Readable<Int>
+        Local $dependency.local.31
+        Type (Int) -> Int
+        Local $dependency.local.33
+      val $dependency.local.34: Readable<Int>
+        Type Readable<Int>
+        Local $dependency.local.8
+      val $dependency.local.35: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.36: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.35
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      call $dependency.local.39: Int = @fn17 interface Readable<Int>[1]
+        Type Readable<Int>
+        Local $dependency.local.34
+        Type (Int) -> Int
+        Local $dependency.local.36
+      val $dependency.local.40: Int
+        Type Int
+        Local $dependency.local.39
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.38
+            Type Int
+            Local $dependency.local.40
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb8 if.merge.8
+      call $call.3: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        Local $dependency.local.6
+      return
+        Type Int
+        Local $call.3
+  fun $lambda.2 @fn5($closure: (Unit) -> Int, item: Unit) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun exercise @fn6(seed: Unit, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.2: LocalChain<Unit>
+        Type LocalChain<Unit>
+        VariantConstruct LocalChain<Unit> v0
+      val $dependency.local.9: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.10: LocalChain<Unit>
+        Type LocalChain<Unit>
+        Local $dependency.local.2
+      val $dependency.local.11: Unit
+        Type Unit
+        Local $dependency.local.9
+      val $dependency.local.12: LocalChain<Unit>
+        Type LocalChain<Unit>
+        Local $dependency.local.10
+      assign $new.1
+        Type LocalLink<Unit>
+        ClassAlloc LocalLink<Unit>
+      call @fn35 direct
+        Type LocalLink<Unit>
+        Local $new.1
+        Type Unit
+        Local $dependency.local.11
+        Type LocalChain<Unit>
+        Local $dependency.local.12
+      val $dependency.local.13: LocalLink<Unit>
+        Type LocalLink<Unit>
+        Local $new.1
+      val $dependency.local.14: LocalLink<Unit>
+        Type LocalLink<Unit>
+        Local $dependency.local.13
+      val $dependency.local.3: LocalChain<Unit>
+        Type LocalChain<Unit>
+        VariantConstruct LocalChain<Unit> v1
+          Type LocalLink<Unit>
+          Local $dependency.local.14
+      val $dependency.local.15: LocalChain<Unit>
+        Type LocalChain<Unit>
+        Local $dependency.local.3
+      val $dependency.local.16: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.17: LocalChain<Unit>
+        Type LocalChain<Unit>
+        Local $dependency.local.15
+      val $dependency.local.18: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.local.16
+      call $dependency.local.19: Int = @fn19 direct
+        Type LocalChain<Unit>
+        Local $dependency.local.17
+        Type (Unit) -> Int
+        Local $dependency.local.18
+      val $dependency.local.20: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.local.21: Int
+        Type Int
+        Local $dependency.local.20
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.19
+            Type Int
+            Local $dependency.local.21
+    bb1 if.then.1
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+    bb2 if.merge.2
+      val $dependency.local.22: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.23: Unit
+        Type Unit
+        Local $dependency.local.22
+      call $dependency.local.24: Chain<Unit> = @fn20 direct
+        Type Unit
+        Local $dependency.local.23
+      val $dependency.local.25: Chain<Unit>
+        Type Chain<Unit>
+        Local $dependency.local.24
+      val $dependency.local.4: Option<Chain<Unit>>
+        Type Option<Chain<Unit>>
+        VariantConstruct Option<Chain<Unit>> v0
+          Type Chain<Unit>
+          Local $dependency.local.25
+      val $when.1: Option<Chain<Unit>>
+        Type Option<Chain<Unit>>
+        Local $dependency.local.4
+      val $pattern.subject.2: Option<Chain<Unit>>
+        Type Option<Chain<Unit>>
+        Local $when.1
+      branch bb3 bb5
+        Type Boolean
+        VariantTest Option<Chain<Unit>> v0
+          Type Option<Chain<Unit>>
+          Local $pattern.subject.2
+    bb3 pattern.pass.3
+      val $pattern.3: Chain<Unit>
+        Type Chain<Unit>
+        VariantPayloadProject Option<Chain<Unit>> v0 f0
+          Type Option<Chain<Unit>>
+          Local $pattern.subject.2
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Chain<Unit> v1
+          Type Chain<Unit>
+          Local $pattern.3
+    bb4 pattern.pass.4
+      val $dependency.local.5: Link<Unit>
+        Type Link<Unit>
+        VariantPayloadProject Chain<Unit> v1 f0
+          Type Chain<Unit>
+          Local $pattern.3
+      call @fn21 direct
+        Type Link<Unit>
+        Local $dependency.local.5
+      assign $dependency.local.26
+        Type Unit
+        UnitLiteral
+      goto bb6
+    bb5 pattern.else.5
+      assign $dependency.local.26
+        Type Unit
+        Local seed
+      goto bb6
+    bb6 pattern.merge.6
+      val $dependency.local.6: Unit
+        Type Unit
+        Local $dependency.local.26
+      val $dependency.local.27: Unit
+        Type Unit
+        Local $dependency.local.6
+      val $dependency.local.28: Unit
+        Type Unit
+        Local $dependency.local.27
+      val $dependency.local.7: Readable<Unit>
+        Type Readable<Unit>
+        Box
+          Type Entry<Unit>
+          VariantConstruct Entry<Unit> v0
+            Type Unit
+            Local $dependency.local.28
+      val $dependency.local.29: Unit
+        Type Unit
+        Local seed
+      val $dependency.local.30: Unit
+        Type Unit
+        Local $dependency.local.29
+      val $dependency.local.8: Readable<Unit>
+        Type Readable<Unit>
+        Box
+          Type LocalEntry<Unit>
+          VariantConstruct LocalEntry<Unit> v0
+            Type Unit
+            Local $dependency.local.30
+      val $dependency.local.31: Readable<Unit>
+        Type Readable<Unit>
+        Local $dependency.local.7
+      val $dependency.local.32: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.33: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.local.32
+      call $dependency.local.37: Int = @fn23 interface Readable<Unit>[1]
+        Type Readable<Unit>
+        Local $dependency.local.31
+        Type (Unit) -> Int
+        Local $dependency.local.33
+      val $dependency.local.34: Readable<Unit>
+        Type Readable<Unit>
+        Local $dependency.local.8
+      val $dependency.local.35: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.36: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.local.35
+      val $dependency.local.38: Int
+        Type Int
+        Local $dependency.local.37
+      call $dependency.local.39: Int = @fn23 interface Readable<Unit>[1]
+        Type Readable<Unit>
+        Local $dependency.local.34
+        Type (Unit) -> Int
+        Local $dependency.local.36
+      val $dependency.local.40: Int
+        Type Int
+        Local $dependency.local.39
+      branch bb7 bb8
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.local.38
+            Type Int
+            Local $dependency.local.40
+    bb7 if.then.7
+      return
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+    bb8 if.merge.8
+      call $call.2: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        Local $dependency.local.6
+      return
+        Type Int
+        Local $call.2
+  fun localTotal @fn7(value: LocalChain<Later>, read: (Later) -> Int) -> Int
+    bb0 entry
+      val $when.1: LocalChain<Later>
+        Type LocalChain<Later>
+        Local value
+      val $pattern.subject.2: LocalChain<Later>
+        Type LocalChain<Later>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest LocalChain<Later> v0
+          Type LocalChain<Later>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.10
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: LocalChain<Later>
+        Type LocalChain<Later>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest LocalChain<Later> v1
+          Type LocalChain<Later>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.10
+    bb4 pattern.pass.4
+      val $dependency.local.2: LocalLink<Later>
+        Type LocalLink<Later>
+        VariantPayloadProject LocalChain<Later> v1 f0
+          Type LocalChain<Later>
+          Local $pattern.subject.3
+      call $dependency.local.7: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local read
+        Type Later
+        FieldAccess 0
+          Type LocalLink<Later>
+          Local $dependency.local.2
+      val $dependency.local.3: LocalChain<Later>
+        Type LocalChain<Later>
+        FieldAccess 1
+          Type LocalLink<Later>
+          Local $dependency.local.2
+      val $dependency.local.4: (Later) -> Int
+        Type (Later) -> Int
+        Local read
+      val $dependency.local.5: LocalChain<Later>
+        Type LocalChain<Later>
+        Local $dependency.local.3
+      val $dependency.local.6: (Later) -> Int
+        Type (Later) -> Int
+        Local $dependency.local.4
+      call $dependency.local.8: Int = @fn7 direct
+        Type LocalChain<Later>
+        Local $dependency.local.5
+        Type (Later) -> Int
+        Local $dependency.local.6
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      assign $dependency.local.10
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun singleton @fn8(value: Later) -> Chain<Later>
+    bb0 entry
+      val $dependency.local.1: Later
+        Type Later
+        Local value
+      val $dependency.local.2: Chain<Later>
+        Type Chain<Later>
+        VariantConstruct Chain<Later> v0
+      val $dependency.local.3: Later
+        Type Later
+        Local $dependency.local.1
+      val $dependency.local.4: Chain<Later>
+        Type Chain<Later>
+        Local $dependency.local.2
+      assign $new.1
+        Type Link<Later>
+        ClassAlloc Link<Later>
+      call @fn36 direct
+        Type Link<Later>
+        Local $new.1
+        Type Later
+        Local $dependency.local.3
+        Type Chain<Later>
+        Local $dependency.local.4
+      val $dependency.local.5: Link<Later>
+        Type Link<Later>
+        Local $new.1
+      val $dependency.local.6: Link<Later>
+        Type Link<Later>
+        Local $dependency.local.5
+      return
+        Type Chain<Later>
+        VariantConstruct Chain<Later> v1
+          Type Link<Later>
+          Local $dependency.local.6
+  fun value @fn9(this: Link<Later>) -> Later
+    bb0 entry
+      return
+        Type Later
+        FieldAccess 0
+          Type Link<Later>
+          Local this
+  fun read @fn10(this: Entry<Later>) -> Later
+    bb0 entry
+      val $when.1: Entry<Later>
+        Type Entry<Later>
+        Local this
+      val $pattern.subject.2: Entry<Later>
+        Type Entry<Later>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Entry<Later> v0
+          Type Entry<Later>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Later
+        Type Later
+        VariantPayloadProject Entry<Later> v0 f0
+          Type Entry<Later>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Later
+        Local $dependency.local.1
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      return
+        Type Later
+        Local $dependency.local.2
+  fun apply @fn11(this: Readable<Later>, action: (Later) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: (Later) -> Int
+        Type (Later) -> Int
+        Local action
+      val $dependency.local.2: Readable<Later>
+        Type Readable<Later>
+        Local this
+      call $call.1: Later = @fn25 interface Readable<Later>[0]
+        Type Readable<Later>
+        Local $dependency.local.2
+      call $call.2: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $dependency.local.3
+        Type Later
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun read @fn12(this: LocalEntry<Later>) -> Later
+    bb0 entry
+      val $when.1: LocalEntry<Later>
+        Type LocalEntry<Later>
+        Local this
+      val $pattern.subject.2: LocalEntry<Later>
+        Type LocalEntry<Later>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest LocalEntry<Later> v0
+          Type LocalEntry<Later>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Later
+        Type Later
+        VariantPayloadProject LocalEntry<Later> v0 f0
+          Type LocalEntry<Later>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Later
+        Local $dependency.local.1
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      return
+        Type Later
+        Local $dependency.local.2
+  fun localTotal @fn13(value: LocalChain<Int>, read: (Int) -> Int) -> Int
+    bb0 entry
+      val $when.1: LocalChain<Int>
+        Type LocalChain<Int>
+        Local value
+      val $pattern.subject.2: LocalChain<Int>
+        Type LocalChain<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest LocalChain<Int> v0
+          Type LocalChain<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.10
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: LocalChain<Int>
+        Type LocalChain<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest LocalChain<Int> v1
+          Type LocalChain<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.10
+    bb4 pattern.pass.4
+      val $dependency.local.2: LocalLink<Int>
+        Type LocalLink<Int>
+        VariantPayloadProject LocalChain<Int> v1 f0
+          Type LocalChain<Int>
+          Local $pattern.subject.3
+      call $dependency.local.7: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local read
+        Type Int
+        FieldAccess 0
+          Type LocalLink<Int>
+          Local $dependency.local.2
+      val $dependency.local.3: LocalChain<Int>
+        Type LocalChain<Int>
+        FieldAccess 1
+          Type LocalLink<Int>
+          Local $dependency.local.2
+      val $dependency.local.4: (Int) -> Int
+        Type (Int) -> Int
+        Local read
+      val $dependency.local.5: LocalChain<Int>
+        Type LocalChain<Int>
+        Local $dependency.local.3
+      val $dependency.local.6: (Int) -> Int
+        Type (Int) -> Int
+        Local $dependency.local.4
+      call $dependency.local.8: Int = @fn13 direct
+        Type LocalChain<Int>
+        Local $dependency.local.5
+        Type (Int) -> Int
+        Local $dependency.local.6
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      assign $dependency.local.10
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun singleton @fn14(value: Int) -> Chain<Int>
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      val $dependency.local.2: Chain<Int>
+        Type Chain<Int>
+        VariantConstruct Chain<Int> v0
+      val $dependency.local.3: Int
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.4: Chain<Int>
+        Type Chain<Int>
+        Local $dependency.local.2
+      assign $new.1
+        Type Link<Int>
+        ClassAlloc Link<Int>
+      call @fn37 direct
+        Type Link<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.local.3
+        Type Chain<Int>
+        Local $dependency.local.4
+      val $dependency.local.5: Link<Int>
+        Type Link<Int>
+        Local $new.1
+      val $dependency.local.6: Link<Int>
+        Type Link<Int>
+        Local $dependency.local.5
+      return
+        Type Chain<Int>
+        VariantConstruct Chain<Int> v1
+          Type Link<Int>
+          Local $dependency.local.6
+  fun value @fn15(this: Link<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Link<Int>
+          Local this
+  fun read @fn16(this: Entry<Int>) -> Int
+    bb0 entry
+      val $when.1: Entry<Int>
+        Type Entry<Int>
+        Local this
+      val $pattern.subject.2: Entry<Int>
+        Type Entry<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Entry<Int> v0
+          Type Entry<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Int
+        Type Int
+        VariantPayloadProject Entry<Int> v0 f0
+          Type Entry<Int>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Int
+        Local $dependency.local.1
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.2
+  fun apply @fn17(this: Readable<Int>, action: (Int) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: (Int) -> Int
+        Type (Int) -> Int
+        Local action
+      val $dependency.local.2: Readable<Int>
+        Type Readable<Int>
+        Local this
+      call $call.1: Int = @fn26 interface Readable<Int>[0]
+        Type Readable<Int>
+        Local $dependency.local.2
+      call $call.2: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $dependency.local.3
+        Type Int
+        Local $call.1
+      return
+        Type Int
+        Local $call.2
+  fun read @fn18(this: LocalEntry<Int>) -> Int
+    bb0 entry
+      val $when.1: LocalEntry<Int>
+        Type LocalEntry<Int>
+        Local this
+      val $pattern.subject.2: LocalEntry<Int>
+        Type LocalEntry<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest LocalEntry<Int> v0
+          Type LocalEntry<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Int
+        Type Int
+        VariantPayloadProject LocalEntry<Int> v0 f0
+          Type LocalEntry<Int>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Int
+        Local $dependency.local.1
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.2
+  fun localTotal @fn19(value: LocalChain<Unit>, read: (Unit) -> Int) -> Int
+    bb0 entry
+      val $when.1: LocalChain<Unit>
+        Type LocalChain<Unit>
+        Local value
+      val $pattern.subject.2: LocalChain<Unit>
+        Type LocalChain<Unit>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest LocalChain<Unit> v0
+          Type LocalChain<Unit>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      assign $dependency.local.10
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: LocalChain<Unit>
+        Type LocalChain<Unit>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest LocalChain<Unit> v1
+          Type LocalChain<Unit>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $dependency.local.10
+    bb4 pattern.pass.4
+      val $dependency.local.2: LocalLink<Unit>
+        Type LocalLink<Unit>
+        VariantPayloadProject LocalChain<Unit> v1 f0
+          Type LocalChain<Unit>
+          Local $pattern.subject.3
+      call $dependency.local.7: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local read
+        Type Unit
+        FieldAccess 0
+          Type LocalLink<Unit>
+          Local $dependency.local.2
+      val $dependency.local.3: LocalChain<Unit>
+        Type LocalChain<Unit>
+        FieldAccess 1
+          Type LocalLink<Unit>
+          Local $dependency.local.2
+      val $dependency.local.4: (Unit) -> Int
+        Type (Unit) -> Int
+        Local read
+      val $dependency.local.5: LocalChain<Unit>
+        Type LocalChain<Unit>
+        Local $dependency.local.3
+      val $dependency.local.6: (Unit) -> Int
+        Type (Unit) -> Int
+        Local $dependency.local.4
+      call $dependency.local.8: Int = @fn19 direct
+        Type LocalChain<Unit>
+        Local $dependency.local.5
+        Type (Unit) -> Int
+        Local $dependency.local.6
+      val $dependency.local.9: Int
+        Type Int
+        Local $dependency.local.8
+      assign $dependency.local.10
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.7
+          Type Int
+          Local $dependency.local.9
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  fun singleton @fn20(value: Unit) -> Chain<Unit>
+    bb0 entry
+      val $dependency.local.1: Unit
+        Type Unit
+        Local value
+      val $dependency.local.2: Chain<Unit>
+        Type Chain<Unit>
+        VariantConstruct Chain<Unit> v0
+      val $dependency.local.3: Unit
+        Type Unit
+        Local $dependency.local.1
+      val $dependency.local.4: Chain<Unit>
+        Type Chain<Unit>
+        Local $dependency.local.2
+      assign $new.1
+        Type Link<Unit>
+        ClassAlloc Link<Unit>
+      call @fn38 direct
+        Type Link<Unit>
+        Local $new.1
+        Type Unit
+        Local $dependency.local.3
+        Type Chain<Unit>
+        Local $dependency.local.4
+      val $dependency.local.5: Link<Unit>
+        Type Link<Unit>
+        Local $new.1
+      val $dependency.local.6: Link<Unit>
+        Type Link<Unit>
+        Local $dependency.local.5
+      return
+        Type Chain<Unit>
+        VariantConstruct Chain<Unit> v1
+          Type Link<Unit>
+          Local $dependency.local.6
+  fun value @fn21(this: Link<Unit>) -> Unit
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Link<Unit>
+        Local this
+      return
+  fun read @fn22(this: Entry<Unit>) -> Unit
+    bb0 entry
+      val $when.1: Entry<Unit>
+        Type Entry<Unit>
+        Local this
+      val $pattern.subject.2: Entry<Unit>
+        Type Entry<Unit>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Entry<Unit> v0
+          Type Entry<Unit>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Unit
+        Type Unit
+        VariantPayloadProject Entry<Unit> v0 f0
+          Type Entry<Unit>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Unit
+        Local $dependency.local.1
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      Type Unit
+      Local $dependency.local.2
+      return
+  fun apply @fn23(this: Readable<Unit>, action: (Unit) -> Int) -> Int
+    bb0 entry
+      val $dependency.local.3: (Unit) -> Int
+        Type (Unit) -> Int
+        Local action
+      val $dependency.local.2: Readable<Unit>
+        Type Readable<Unit>
+        Local this
+      call @fn27 interface Readable<Unit>[0]
+        Type Readable<Unit>
+        Local $dependency.local.2
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $dependency.local.3
+        Type Unit
+        UnitLiteral
+      return
+        Type Int
+        Local $call.1
+  fun read @fn24(this: LocalEntry<Unit>) -> Unit
+    bb0 entry
+      val $when.1: LocalEntry<Unit>
+        Type LocalEntry<Unit>
+        Local this
+      val $pattern.subject.2: LocalEntry<Unit>
+        Type LocalEntry<Unit>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest LocalEntry<Unit> v0
+          Type LocalEntry<Unit>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $dependency.local.1: Unit
+        Type Unit
+        VariantPayloadProject LocalEntry<Unit> v0 f0
+          Type LocalEntry<Unit>
+          Local $pattern.subject.2
+      assign $dependency.local.2
+        Type Unit
+        Local $dependency.local.1
+      goto bb3
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      Type Unit
+      Local $dependency.local.2
+      return
+  fun Readable.read @fn25(this: Readable<Later>) -> Later
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun Readable.read @fn26(this: Readable<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun Readable.read @fn27(this: Readable<Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun Continuation.resume @fn28(this: Continuation<Later>, value: Later) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn29(this: Continuation<Later>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn30(this: SuspendTask<Later>, $completion: Continuation<Later>) -> CoroutineStep<Later>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn31(this: SuspendRegistration<Later>, continuation: Continuation<Later>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Later.$c0 @fn32(this: Later, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Later
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.LocalLink.$c0 @fn33(this: LocalLink<Later>, value: Later, tail: LocalChain<Later>) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalLink<Later>
+        Local this
+        Type Later
+        Local value
+      field_set 1
+        Type LocalLink<Later>
+        Local this
+        Type LocalChain<Later>
+        Local tail
+      return
+  fun init.LocalLink.$c0 @fn34(this: LocalLink<Int>, value: Int, tail: LocalChain<Int>) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalLink<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type LocalLink<Int>
+        Local this
+        Type LocalChain<Int>
+        Local tail
+      return
+  fun init.LocalLink.$c0 @fn35(this: LocalLink<Unit>, value: Unit, tail: LocalChain<Unit>) -> Unit
+    bb0 entry
+      field_set 0
+        Type LocalLink<Unit>
+        Local this
+        Type Unit
+        Local value
+      field_set 1
+        Type LocalLink<Unit>
+        Local this
+        Type LocalChain<Unit>
+        Local tail
+      return
+  fun init.Link.$c1 @fn36(this: Link<Later>, value: Later, tail: Chain<Later>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<Later>
+        Local this
+        Type Later
+        Local value
+      field_set 1
+        Type Link<Later>
+        Local this
+        Type Chain<Later>
+        Local tail
+      return
+  fun init.Link.$c1 @fn37(this: Link<Int>, value: Int, tail: Chain<Int>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type Link<Int>
+        Local this
+        Type Chain<Int>
+        Local tail
+      return
+  fun init.Link.$c1 @fn38(this: Link<Unit>, value: Unit, tail: Chain<Unit>) -> Unit
+    bb0 entry
+      field_set 0
+        Type Link<Unit>
+        Local this
+        Type Unit
+        Local value
+      field_set 1
+        Type Link<Unit>
+        Local this
+        Type Chain<Unit>
+        Local tail
+      return
+  fun startCoroutine<Later> @fn39(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn28 interface Continuation<Later>[0]
+        Type Continuation<Later>
+        Local completion
+        Type Later
+        EnumField v0 f0
+          Type CoroutineStep<Later>
+          Local $step
+      return
+    bb2 failed
+      call @fn29 interface Continuation<Later>[1]
+        Type Continuation<Later>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Later> = @fn30 interface SuspendTask<Later>[0]
+        Type SuspendTask<Later>
+        Local task
+        Type Continuation<Later>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Later>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun thunk<Entry<Later>> Readable.read() @fn40(this: Readable<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn10 direct
+        Type Entry<Later>
+        Unbox
+          Type Readable<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun thunk<Entry<Later>> Readable.apply((Later) -> Int) @fn41(this: Readable<Later>, action: (Later) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type Readable<Later>
+        Retype Readable<Later>
+          Type Readable<Later>
+          Local this
+        Type (Later) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun thunk<LocalEntry<Later>> Readable.read() @fn42(this: Readable<Later>) -> Later
+    bb0 entry
+      call $call.1: Later = @fn12 direct
+        Type LocalEntry<Later>
+        Unbox
+          Type Readable<Later>
+          Local this
+      return
+        Type Later
+        Local $call.1
+  fun thunk<LocalEntry<Later>> Readable.apply((Later) -> Int) @fn43(this: Readable<Later>, action: (Later) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn11 direct
+        Type Readable<Later>
+        Retype Readable<Later>
+          Type Readable<Later>
+          Local this
+        Type (Later) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Entry<Int>> Readable.read() @fn44(this: Readable<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn16 direct
+        Type Entry<Int>
+        Unbox
+          Type Readable<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Entry<Int>> Readable.apply((Int) -> Int) @fn45(this: Readable<Int>, action: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Readable<Int>
+        Retype Readable<Int>
+          Type Readable<Int>
+          Local this
+        Type (Int) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun thunk<LocalEntry<Int>> Readable.read() @fn46(this: Readable<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn18 direct
+        Type LocalEntry<Int>
+        Unbox
+          Type Readable<Int>
+          Local this
+      return
+        Type Int
+        Local $call.1
+  fun thunk<LocalEntry<Int>> Readable.apply((Int) -> Int) @fn47(this: Readable<Int>, action: (Int) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn17 direct
+        Type Readable<Int>
+        Retype Readable<Int>
+          Type Readable<Int>
+          Local this
+        Type (Int) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun thunk<Entry<Unit>> Readable.read() @fn48(this: Readable<Unit>) -> Unit
+    bb0 entry
+      call @fn22 direct
+        Type Entry<Unit>
+        Unbox
+          Type Readable<Unit>
+          Local this
+      return
+  fun thunk<Entry<Unit>> Readable.apply((Unit) -> Int) @fn49(this: Readable<Unit>, action: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn23 direct
+        Type Readable<Unit>
+        Retype Readable<Unit>
+          Type Readable<Unit>
+          Local this
+        Type (Unit) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun thunk<LocalEntry<Unit>> Readable.read() @fn50(this: Readable<Unit>) -> Unit
+    bb0 entry
+      call @fn24 direct
+        Type LocalEntry<Unit>
+        Unbox
+          Type Readable<Unit>
+          Local this
+      return
+  fun thunk<LocalEntry<Unit>> Readable.apply((Unit) -> Int) @fn51(this: Readable<Unit>, action: (Unit) -> Int) -> Int
+    bb0 entry
+      call $call.1: Int = @fn23 direct
+        Type Readable<Unit>
+        Retype Readable<Unit>
+          Type Readable<Unit>
+          Local this
+        Type (Unit) -> Int
+        Local action
+      return
+        Type Int
+        Local $call.1
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn52($source: (Later) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type (Later) -> Int
+        Local $source
+        Type Later
+        Retype Later
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn53($source: (Int) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type2> closure[function_type2]
+        Type (Int) -> Int
+        Local $source
+        Type Int
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn54($source: (Unit) -> Int, arg0: Any) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type3> closure[function_type3]
+        Type (Unit) -> Int
+        Local $source
+        Type Unit
+        Unbox
+          Type Any
+          Local arg0
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<Later> result=Later
+  coroutine_slot cl0 CoroutineSlot<Later> value=Later
+  coroutine_start ct0 result=Later function=fn39
+  coroutine_fn cf0 @fn30 source_return=Later step=cs0 immediate
+  instance mi0 function=@fn2 <- exercise
+  instance mi1 function=@fn4 <- exercise
+  instance mi2 function=@fn6 <- exercise
+  instance mi3 function=@fn7 <- localTotal
+  instance mi4 function=@fn8 <- singleton
+  instance mi5 function=@fn9 <- value
+  instance mi6 function=@fn10 <- read
+  instance mi7 function=@fn11 <- apply
+  instance mi8 function=@fn12 <- read
+  instance mi9 function=@fn13 <- localTotal
+  instance mi10 function=@fn14 <- singleton
+  instance mi11 function=@fn15 <- value
+  instance mi12 function=@fn16 <- read
+  instance mi13 function=@fn17 <- apply
+  instance mi14 function=@fn18 <- read
+  instance mi15 function=@fn19 <- localTotal
+  instance mi16 function=@fn20 <- singleton
+  instance mi17 function=@fn21 <- value
+  instance mi18 function=@fn22 <- read
+  instance mi19 function=@fn23 <- apply
+  instance mi20 function=@fn24 <- read
+  instance mi21 function=@fn25 <- Readable.read
+  instance mi22 function=@fn26 <- Readable.read
+  instance mi23 function=@fn27 <- Readable.read
+  instance mi24 function=@fn28 <- Continuation.resume
+  instance mi25 function=@fn29 <- Continuation.resumeWithException
+  instance mi26 function=@fn30 <- SuspendTask.run
+  instance mi27 function=@fn31 <- SuspendRegistration.register
+  output library

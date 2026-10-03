@@ -1,0 +1,34 @@
+SourceFile
+  QualifiedPackage upstream.enumdefinitions
+  public class Link<T>(val value: T, val tail: Chain<T>)
+  public enum Chain<T>
+    End
+    Cons(Link<T>)
+  public interface Readable<T>
+    fun read
+    fun apply
+  public enum Entry<T> : Readable<T>
+    Value(T)
+  public fun singleton<T>(value: T): Chain<T>
+    =
+      MethodCall Cons
+        Var Chain
+        Call Link
+          Var value
+          FieldAccess End
+            Var Chain
+  public fun total<T>(value: Chain<T>, read: (T) -> Int): Int
+    =
+      WhenExpression
+        Var value
+        arm End
+          IntLiteral 0
+        arm Cons(link)
+          Binary Add
+            Call read
+              FieldAccess value
+                Var link
+            Call total
+              FieldAccess tail
+                Var link
+              Var read
