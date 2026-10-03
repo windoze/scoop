@@ -2,7 +2,7 @@ Module
   global0 $singleton$Current: Current managed initial=zeroed-for-runtime-unit
   global1 $singleton$c437c7596bfd28bddae59a9e8eb82c62dc84abbce1e93ae9cbfebfbaa8f0816f: Registry imported provider=51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5 storage=9ea9e1a62f828e6b160afa32ee33976afa4d64119cb500636107d9d10f618ec4
   global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
-  init0 object-private:main.scoop:Current singleton lazy global0 initializer=@fn0 ensure=@fn1 failure=2 deps=[]
+  init0 object-private:dev.example:generic-member-combined:0.1.0/src/main.scoop:Current singleton lazy global0 initializer=@fn0 ensure=@fn1 failure=2 deps=[]
   enum Option<String>
     Some(_0: String)
     None()
@@ -54,7 +54,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Current
+        InitializationUnitAddress init0 object-private:dev.example:generic-member-combined:0.1.0/src/main.scoop:Current
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -98,7 +98,7 @@ Module
       call @fn0 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Current
+        InitializationUnitAddress init0 object-private:dev.example:generic-member-combined:0.1.0/src/main.scoop:Current
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -113,7 +113,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Current
+        InitializationUnitAddress init0 object-private:dev.example:generic-member-combined:0.1.0/src/main.scoop:Current
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -134,14 +134,14 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Current
+        InitializationUnitAddress init0 object-private:dev.example:generic-member-combined:0.1.0/src/main.scoop:Current
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 object-private:main.scoop:Current
+        InitializationUnitAddress init0 object-private:dev.example:generic-member-combined:0.1.0/src/main.scoop:Current
       call external8 direct
         Type String
         Local $init.message

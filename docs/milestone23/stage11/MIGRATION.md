@@ -417,3 +417,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `interface_definitions_share_recursive_signatures_and_composed_defaults` | `m23-shared-interface-definitions` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
 | `shared_literal_patterns_republish_defaults_and_generic_bodies_through_artifacts` | `m23-shared-literals` | 2／2 | 30／26 | 6 份阶段、2 份诊断逐项相同 |
 | `original_function_requests_republish_and_execute_from_artifacts` | `m23-shared-requests` | 3／0 | 36／39 | 9 份阶段、0 份诊断逐项相同 |
+| `singleton_reads_share_initialization_and_storage_through_artifacts` | `m23-shared-singleton-reads` | 2／3 | 33／26 | 2 份阶段、3 份诊断逐项相同；standalone 的 MIR／LIR 仅将私有 singleton 初始化名称从 main.scoop 补为实际 Cone coordinate 与 src/main.scoop；其余字节、typed identity、存储与调用不变；combined 的 MIR／LIR 仅将私有 singleton 初始化名称从 main.scoop 补为实际 Cone coordinate 与 src/main.scoop；其余字节、typed identity、存储与调用不变 |
