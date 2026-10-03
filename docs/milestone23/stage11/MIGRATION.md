@@ -399,3 +399,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `imported_pointer_templates_accept_downstream_pointees` | `m23-imported-pointers` | 1／0 | 12／13 | 3 份阶段、0 份诊断逐项相同 |
 | `qualified_dependency_types_republish_and_execute_from_artifacts` | `m23-qualified-types` | 4／13 | 87／52 | 12 份阶段、13 份诊断逐项相同 |
 | `qualified_dependency_types_merge_current_package_contributions` | `m23-qualified-types` | 1／0 | 12／13 | 1 份阶段、0 份诊断逐项相同；共同派生相等实现新增 Local.equals；严格核对仅增加该正文并一致重编号原函数引用，其余 MIR／LIR 逐字相同 |
+| `integer_ranges_preserve_iteration_through_artifact_republication` | `m23-shared-ranges` | 2／0 | 24／26 | 6 份阶段、0 份诊断逐项相同 |
