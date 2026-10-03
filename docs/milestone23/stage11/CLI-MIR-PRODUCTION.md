@@ -6,3 +6,4 @@
 | --- | --- | --- |
 | `mir-callable-production` | 3／19／31／10 | 普通／成员／访问器、NoGC 泛型存储、pure virtual trap、private 函数实际物化但不进入公开 binding；保留 receiver、参数、返回值、GC effect、角色与 source ID 对应。 |
 | `mir-boxing-production` | 2／14／26／8 | struct／enum、菱形接口、默认方法与属性；保留实际 adjust 的唯一直接调用、目标绑定、payload 集合、itable 槽以及两例 2／24 个调整函数。 |
+| `mir-constructor-production` | 2／13／22／7 | ZST、主次构造、protected／private、默认参数、managed 字段；保留语义构造签名、实际 initializer receiver、结果和字段 assembly／GC 差异检查。 |

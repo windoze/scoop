@@ -11,7 +11,7 @@ fn actual_constructor_bindings_preserve_value_and_class_signatures() {
         let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../tests/fixtures/m23-mir-constructor-production");
         let source = std::fs::read_to_string(directory.join(format!("{name}.scoop"))).unwrap();
-        let (bytes, dump) = with_production(&source, |output, input, _hir, graph, types| {
+        let bytes = with_production(&source, |output, input, _hir, graph, types| {
             let unit = dependencies::unit(input, graph);
             let index = MirTypeBridgeTypeIndexV1::try_new(&[types, &unit]).unwrap();
             let bindings =
@@ -26,10 +26,7 @@ fn actual_constructor_bindings_preserve_value_and_class_signatures() {
                     .unwrap(),
                 bindings
             );
-            (
-                encode(&bindings).unwrap(),
-                assertions::dump(output, &public_interface(output), &bindings),
-            )
+            encode(&bindings).unwrap()
         });
         with_production(
             &format!("private class Unrelated() {{}}\n{source}"),
@@ -47,19 +44,6 @@ fn actual_constructor_bindings_preserve_value_and_class_signatures() {
                 assert_eq!(encode(&bindings).unwrap(), bytes);
             },
         );
-        if let Some(path) = std::env::var_os("SCOOP_MIR_CONSTRUCTOR_SNAPSHOT_DIR") {
-            std::fs::create_dir_all(&path).unwrap();
-            std::fs::write(
-                std::path::Path::new(&path).join(format!("{name}.snap")),
-                dump,
-            )
-            .unwrap();
-        } else {
-            assert_eq!(
-                dump,
-                std::fs::read_to_string(directory.join(format!("{name}.snap"))).unwrap()
-            );
-        }
     }
 }
 

@@ -1,0 +1,108 @@
+Module
+  struct Empty ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class ClassCastException vtable=0 itables=0
+  class box<Empty> vtable=0 itables=0
+  generated_exact_type get0 location=class4 nominal_id=7fa9141f327d10fdeb2b49af7215b71e17bc331cf4221ce275375eb73b5c599b exact_id=7eb196feb293fe874fa0fdd0828019f71d020dff68ea6a06b4e2363b10f111d9
+  fun verifyType @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call $call.1: Empty = external1 direct
+      call $call.2: Empty = external1 direct
+      call $argument.0: Boolean = external3 direct
+        Type Empty
+        Local $call.1
+        Type Empty
+        Local $call.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      call $call.3: Empty = external1 direct
+      val erased: Any
+        Type Any
+        Box
+          Type Empty
+          Local $call.3
+      val $cast.1: Any
+        Type Any
+        Local erased
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Empty
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.4
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external2 direct
+        Type ClassCastException
+        Local $new.4
+      throw
+        Type ClassCastException
+        Local $new.4
+    bb2 if.merge.2
+      val $ub.2: Empty
+        Type Empty
+        Unbox
+          Type Any
+          Local $cast.1
+      call $call.5: Empty = external1 direct
+      call $argument.0: Boolean = external3 direct
+        Type Empty
+        Local $ub.2
+        Type Empty
+        Local $call.5
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  str @str0 "illegal state"
+  output executable @fn1
