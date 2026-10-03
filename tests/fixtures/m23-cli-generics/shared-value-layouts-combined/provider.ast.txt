@@ -1,0 +1,16 @@
+SourceFile
+  QualifiedPackage upstream.valuelayouts
+  public interface Readable<T>
+    fun get
+  public struct Wrapper<T> : Readable<T>
+    field value: T
+    public fun get
+  public struct Indirect<T>
+    field value: Wrapper<T>
+  public enum Choice<T>
+    Empty
+    Value(T)
+  public struct Phantom<T>
+  public class Link<T>(val value: T)
+  public struct Reference<T>
+    field link: Link<T>

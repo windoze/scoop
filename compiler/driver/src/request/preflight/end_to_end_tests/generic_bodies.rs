@@ -12,7 +12,6 @@ mod options;
 mod qualified_types;
 mod rebuilt_core;
 mod siblings;
-mod value_layouts;
 
 #[test]
 fn ordinary_reader_retains_generic_bodies_from_actual_published_libraries() {
