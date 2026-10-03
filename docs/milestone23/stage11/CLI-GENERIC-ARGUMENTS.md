@@ -7,3 +7,4 @@
 | 功能 | 用例 | 只读进程／golden | 保留的断言 |
 | --- | --- | --- | --- |
 | materialization | `consumer` | 12／9 | 原 HIR／MIR 两份快照逐字相同；显式／推断类型、局部值、relay、extension、默认值、NoGC 与递归实际运行，原 HIR template 数量与 typed 正文断言继续保留 |
+| overload | `overload` | 12／9 | tuple 选择双参数泛型声明，运行结果为 2；原单一胜出 template 与 tuple 参数断言继续保留 |

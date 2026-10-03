@@ -1,0 +1,51 @@
+SourceFile
+  QualifiedPackage dependency.generics
+  public fun identity<T>(value: T): T
+    =
+      Var value
+  private fun helper<T>(value: T): T
+    =
+      Call identity
+        Var value
+  public fun choose<T>(first: T, second: T): T
+    =
+      Call helper
+        Var first
+  public fun valueOnly<T : value>(value: T): T
+    =
+      Var value
+  public fun T.echo<T>(): T
+    =
+      Call identity
+        This
+  public fun defaulted<T>(first: T, second: T = <expr>): T
+    =
+      Var second
+    @NoGC
+  public fun nativeIdentity<T>(value: T): T
+    =
+      Var value
+  public fun recursive<T>(value: T, again: Boolean): T
+    if
+      Var again
+      return
+        Call recursive<T>
+          Var value
+          BoolLiteral false
+    return
+      Var value
+  public fun pointerIdentity<T : value>(pointer: Ptr<T>): Ptr<T>
+    =
+      Var pointer
+  public fun select<T>(value: T): Int
+    =
+      IntLiteral 1
+  public fun select<T, U>(value: (T, U)): Int
+    =
+      IntLiteral 2
+  public fun conflict<T>(left: T, right: Int): Int
+    =
+      IntLiteral 1
+  public fun conflict<T>(left: Int, right: T): Int
+    =
+      IntLiteral 2
