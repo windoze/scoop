@@ -8,3 +8,4 @@
 | --- | --- | --- | --- |
 | `sibling_generic_instances_merge_through_artifacts_and_run_with_moving_gc` | `standalone`、`combined` | 32／44 | 每例共享正文和 registration 均至少 2；真实符号只保留一份 weak 定义 |
 | `generic_string_constants_merge_through_artifacts_and_preserve_identity` | `strings`、`strings-combined` | 32／44 | 每例共享 immortal 至少 4；保留相同实例字符串同址、不同实例异址、嵌套／成员／extension 字符串与后续分配后的身份断言 |
+| `sibling_adapters_union_independent_members_and_share_runtime_types` | `adapters`、`adapters-combined` | 36／44 | 两侧贡献不同来源签名的 adapter，target structural group 与 TD 共享；正式 shutdown 后保留原 Marker<Int> 同址、Marker<Long> 异址及 Readable slot 同址断言 |
