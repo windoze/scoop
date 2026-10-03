@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$5eaed42b5552fecce53e6c91a66714107f62d4f1e97a94d3113cb6eeae05a18b() -> i32
+  fun @scoop$1$cb$5c645457c0d20dd1fecdd3bb260468342a56286619634a1b0028655320040485() -> i32
     local %0 box: ptr<managed>
     local %1 $dependency.receiver: i32
     local %2 $dependency.argument.0: i32
@@ -18,12 +18,12 @@ Module
     store local2 -> local3
     t3 = integer_Add<Int> local1, local3 : i32
     ret t3
-  fun @scoop$1$cb$c16988068ca8db8e34e70ed4ca91eea01371f3e46449d4d529c0e0d903a21d03(ptr<managed>) -> i32
+  fun @scoop$1$cb$6d99dcaff96856c426e066501ddef56992c5c00a10ae2a6024654e8e3eb69cec(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +16 : i32
     ret t0
-  fun @scoop$1$cb$836af728af8ca8e3080608178f968c89ca755e330824fd63ef7a6a13b3f940d6(ptr<managed>) -> void
+  fun @scoop$1$cb$dad3e332e1e64b8fede1f7cab1498358610ad249d02bd6533988cc9c9bbdf849(ptr<managed>) -> void
     local %0 $dependency.constructor.local.0: i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -31,7 +31,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>, i32) local-fn3(param0, local0)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$46fbf1cab4708029dc9e2161945afd86e5ff53b6b0850fe3c26dc70497b72816(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$80a36d5e2561e567b8e5fbd4ec80a4c521e2af382e76eb1f9a83bad9bab93bbd(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

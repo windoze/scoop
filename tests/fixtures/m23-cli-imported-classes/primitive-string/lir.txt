@@ -1,6 +1,6 @@
 Module
   global @scoop$1$io$9b39fe3af0d7ffede434f53f4413002f00d4b1ae652ef2d3a1423e518189a1b3 = "21"
-  fun @scoop$1$cb$831e96f0583e28248413e980d91b466d3645c207db9fec17c3be3c5f845b254f() -> ptr<managed>
+  fun @scoop$1$cb$71d2695a124631fe8e6a39d50eb30c10acb491153c1ab5c140037cd7e57e9d05() -> ptr<managed>
     local %0 number: ptr<managed>
     local %1 text: ptr<managed>
     local %2 reference: ptr<managed>

@@ -3,9 +3,9 @@ Module
   global @scoop$1$io$f36e8ed1ff73658ced58f2971156f8fb1ad970e7dbe63413260b413ca3e78f38 = "standalone"
   global @scoop$1$io$53eca191507dc1a38c0648f3e501ea969a024f423a92c815c6575a88a9bfcf94 = "standalone"
   global @scoop$1$io$83c8d10c096b149ffd1dac8432ccf84ee37aaadfbf89e05b4f4796e23ca362ad = "standalone"
-  global @scoop$1$ss$19ee9c694dbc2ef455efafd3bc69273681fff2dd25382819fa55a86a8a555e3a : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$8bfb9bf7b60e224423bd9893189d04d21df94e89019b888a97dc7d9797575189 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$b3c65664613ad44ca1165c18fefae5a1e60d63efca27ca4072305253719c0ad3(i1) -> void
+  fun @scoop$1$cb$eb4a3af27066394788018760f031a1019efaa0f64899098d7cc0d411cbc3349c(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -29,7 +29,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$c5bb84dd2613eabd2eb0b533167a26b9375aaad9dd971241de56806bec08a08b() -> void
+  fun @scoop$1$cb$a7c769533f4262a928b48fe5fa496c93e9a09e69a3bc2a16350d1ff00e790027() -> void
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.other: ptr<managed>
@@ -77,7 +77,7 @@ Module
     call managed-void-target3 sp<managed-call:9> live=[] sig=void3 (i1) local-fn0(local14)
     t9 = aggregate () : {}
     ret
-  fun @scoop$1$cb$1ce638df6b7462d5e3b6db7b6f3becea758f47e8902a1d5c96d072230731f9a9() -> i32
+  fun @scoop$1$cb$f552d22a604f82d53199d51f3801b3f0c13c175b7a32046e604bd9cc884c2e2c() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -93,4 +93,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$c5bb84dd2613eabd2eb0b533167a26b9375aaad9dd971241de56806bec08a08b
+  output executable @scoop$1$cb$a7c769533f4262a928b48fe5fa496c93e9a09e69a3bc2a16350d1ff00e790027

@@ -42,12 +42,12 @@ fn computes_canonical_object_stackmap_and_strong_registration_fingerprints() {
         actual,
         [
             (
-                "cf949176af7a9cc670f5fe882522d6d827a63b2bd5c5728fa935c8097ac06ab8".to_owned(),
-                "0bd07fd1abdbc48c58ee25a239c07b3c39fb7fb98bad5c755ee7161b28df4e04".to_owned(),
+                "4ebc6295a9922196f3265602817714e58ce4e7689440bb1687c8d2178ec37acc".to_owned(),
+                "7416ace7b05f2ee33ae597cd325d5e05ba64886358338f76d9e7e045c4f9042f".to_owned(),
             ),
             (
-                "731c2c96a9748bdbe9d8fb73410cd08f9a7c7aca8648683f4dae50644784804c".to_owned(),
-                "9b2d9152ed3c9b7def65f05d7d1383960f1d007c534064661e3000ad59d1a029".to_owned(),
+                "e36df509155736e887f77c27dc70b2aa498b6084ebcdb8d96902ffa82e145674".to_owned(),
+                "6bc81cfe6546c9261e268dae8f97cca3849276e2604c07961b7b89f9271b7165".to_owned(),
             ),
         ]
     );

@@ -4,13 +4,13 @@ Module
   enum Choice tagged size=24 align=8 variants=(struct1)@8+8 (ptr<managed>)@16+8:refs ()@8+0
   extern ef0 verifyFinished @verify_finished() -> void <c exact=()->void bridge=@scoop$1$br$97c8584d5dfff7daef249045132f594ceb70ad8bf5c66aa4310b679a2f9a0d64 gc-leaf nounwind lib=m23_native_boundary>
   extern ef1 nativeMixed @native_mixed(indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) -> void <scoop managed nounwind lib=m23_native_boundary>
-  fun @scoop$1$cb$20b957ca688e2f9da824e89c8d4fbe0f8f8c9e04d3fc3d92a1b04aa1d4aa714c() -> void
+  fun @scoop$1$cb$331f1699dd256700b333c5b7770b5b66c9862008fab79667f910c551243e5ac1() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 () extern0()
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$beda129bf81c5fc2366b9f97cef75248b05d6d4e45eca3bcb01d5bc6c9db19c2() -> void
+  fun @scoop$1$cb$e2429bd1529061feff4c7ad3aff13d413e269cdd4ce952c761ae593dd8c8798c() -> void
     local %0 $argument.0: i8
     local %1 $argument.1: i1
     local %2 $parameter.value: i8
@@ -181,7 +181,7 @@ Module
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void3 () extern0()
     t6 = aggregate () : {}
     ret
-  fun @scoop$1$cb$b19129104915f5538ea4791eb94c12f7eb6b282ec22f9c3ebb96fb96355506f1(indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) -> void
+  fun @scoop$1$cb$e3270b657ad1713b554f2d87359a7779ac9358e0c2b923ed5bea1461d74daf38(indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) -> void
     local %0 $sc.1: struct0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:struct0@16]
@@ -189,15 +189,15 @@ Module
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local0:refs[16]] sig=void0 (indirect<struct0 size=24 align=8 scan=refs[16]>, i8, i16, i32, i64, i8, i16, i32, i64) extern1(indirect local0, param1, param2, param3, param4, param5, param6, param7, param8)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$55f4f1c05bf0ed3a43e53915014775d4e7cf11cf029bc18eaef2766c60a2a814(i8, i1) -> sret<struct1 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$1a652c005ca59f15f66874cd060b265bbd02815f73e74296db8dab895d53566a(i8, i1) -> sret<struct1 size=8 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct1
     ret t0
-  fun @scoop$1$cb$0f0f8d17c321646cf210e1eeec0b845f95ebb7fe300f87d818ed7564075eab0a(indirect<enum0 size=24 align=8 scan=refs[16]>) -> sret<struct0 size=24 align=8 scan=refs[16]> <no-gc>
+  fun @scoop$1$cb$bb44af11c2fa7cea53fb3f06ab06fd861750ec4279479d27ef3c1b2788a3858e(indirect<enum0 size=24 align=8 scan=refs[16]>) -> sret<struct0 size=24 align=8 scan=refs[16]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  fun @scoop$1$cb$2d60eddc620304f6b7fe7c82e33f4053effe8a99e67ac6aec8b4d70aa863e7d3(i64) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$2a144a79e92b53b617bbadf0ffa4e1707313f43f42d7e1ca7eba0004897db579(i64) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct2
     ret t0

@@ -409,9 +409,9 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 将现有 Rust fixture infra（含阶段 golden、program-link/native 编排）迁到统一 Python infra；源码注释或附加 TOML 用同一 schema 表达执行条件、步骤、断言和变体，新增 fixture 原则上只加数据，不写 case-by-case 分支。覆盖恢复后删除原 Rust runner、专用 helper、入口与不再使用的依赖，保留普通 Rust 内部单元测试；以仅改 fixture 数据的新增用例验证扩展性，完整验收同时运行 Rust 测试与 Python suite。
 - 总验收覆盖 6a 的共同语义／wire／声明位置／双向泛型矩阵及 Stage 7–10 的 ODR、初始化、native、corruption/reproducibility、cache 和 moving-GC/exception/closure/coroutine/FFI 组合；修复实际产物路径暴露的共同实现缺口，删除仅供运行验收的临时 link/startup 旁路。`.slib` 和 runtime metadata ABI 3 保持，不实现 final-link cache。
 
-### M24 GC-free release hook（[设计](milestone24/DESIGN.md)已修订，待实现）
+### M24 GC-free release hook（[设计](milestone24/DESIGN.md)已修订，实现中）
 
-2026-10-03 按 M23-11 已验收代码重做实施设计，承接 M15/M19/M23-11/M25；语言、runtime 和 pipeline 契约已同步修订。本状态只表示设计完成。
+2026-10-03 按 M23-11 已验收代码重做实施设计，承接 M15/M19/M23-11/M25；语言、runtime 和 pipeline 契约已同步修订。共同 ABI 与 runtime 回收接线已落地，源码和依赖闭环仍在实现；实际检查记录见 [M24 验收记录](milestone24/ACCEPTANCE.md)。
 
 - 普通 final class 可声明至多一个不可显式调用的 `release { ... }`。无 managed this，只可只读本 owner 的合格 backing field；generic/static nested 合法，Throwable、object、intrinsic/generated class 与值类型不能声明。
 - `ReleaseValue` 在 GC-free 基础上排除 handle/pin/callback 等实际表示。定义方在既有 NoGc 分析中推导 `ReleaseCallability` 和泛型条件，沿共有 callable 接口传递；默认值与 operator/accessor/for/vararg 展开一并检查，依赖方不重放完整 helper 调用图。
@@ -595,7 +595,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### 来自 M15（设计预留）
 
-- GC-free release hook → M24（2026-10-03 已按 M23 总验收基线修订[设计](milestone24/DESIGN.md)，待实现；完整构造后 ready，逻辑死亡且真正 reclaim 前同步调用 TypeDescriptor hook，验收走正式 CLI 与公共 fixture）。
+- GC-free release hook → M24（2026-10-03 已按 M23 总验收基线修订[设计](milestone24/DESIGN.md)，实现中；完整构造后 ready，逻辑死亡且真正 reclaim 前同步调用 TypeDescriptor hook，验收走正式 CLI 与公共 fixture）。
 
 ### 来自 M22（设计预留）
 

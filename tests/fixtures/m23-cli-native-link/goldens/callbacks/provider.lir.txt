@@ -2,7 +2,7 @@ Module
   extern ef0 invokeNative @m23_callback_invoke(ptr<code>, ptr<raw>, i32) -> i32 <c exact=(code-ptr<(Int,data-ptr<opaque-void,direct>)->Int,direct>,data-ptr<opaque-void,direct>,Int)->Int bridge=@scoop$1$br$ef139dbc81cbb911d285ba625967704f4a4724600615fe025821dbe0041e2b67 gc-leaf nounwind lib=m23_callbacks>
   extern ef1 joinNative @m23_callback_join(ptr<code>, ptr<raw>, i32) -> i32 <c exact=(code-ptr<(Int,data-ptr<opaque-void,direct>)->Int,direct>,data-ptr<opaque-void,direct>,Int)->Int bridge=@scoop$1$br$afa1b2a00c3a0e0d46a8d96040c32caf735f5d632f7b1c61aa7870155d959119 gc-leaf nounwind lib=m23_callbacks>
   extern ef2 threadCount @scoop_rt_thread_debug_count() -> i64 <c exact=()->ULong bridge=@scoop$1$br$3321c2bfa998f41e041740650a354e63ca6894889595403903c28288f029b6e1 gc-leaf nounwind>
-  fun @scoop$1$cb$af1226f7ed5cc2972fbca018ab8a211c1a31c516d22a1956e70381bff70283c8(ptr<code>, ptr<raw>, i32) -> i32
+  fun @scoop$1$cb$cb44b9f5570ef2f5639da5cef1b194ea4ba129313df54baef7740626bf91beba(ptr<code>, ptr<raw>, i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: ptr<code>
     local %2 $sc.2: ptr<raw>
@@ -16,7 +16,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern0(c-arg-address(local1), c-arg-address(local2), c-arg-address(local3))
     store local4 -> local0
     ret local0
-  fun @scoop$1$cb$c91d21e8d0fea1d48b0af1698268ee98e6c60f384e5c49aa3caf94d28b4098af(ptr<code>, ptr<raw>, i32) -> i32
+  fun @scoop$1$cb$bfdc09bef71a5f9d3e2002783fa392a91d9203ac53531a24b587a04590fb2633(ptr<code>, ptr<raw>, i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: ptr<code>
     local %2 $sc.2: ptr<raw>
@@ -30,7 +30,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern1(c-arg-address(local1), c-arg-address(local2), c-arg-address(local3))
     store local4 -> local0
     ret local0
-  fun @scoop$1$cb$0ccc19d8d7fea29a6118e061e2262b250492f78ff470f74f6c7bc951d8221f9b() -> i64
+  fun @scoop$1$cb$313025a31b921d8a76b7bcde1a00d2f667af2188ed73d8fd15cd55fa33be4465() -> i64
     local %0 $call.1: i64
     local %1 $sc.1: i64
   block entry

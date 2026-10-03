@@ -1,10 +1,10 @@
 Module
   global @scoop$1$io$76c0536b14a43136c4739c533b05b0e1d4e245cd909e213269eced8ea7062a3e = "illegal state"
-  global @scoop$1$ss$a667b7cce079c1892e0fcff6fbe478c10cf46b5ffc50e0bdccb744de4612e2f2 : ptr<managed> scan=refs[0]
-  global @scoop$1$bs$92af60f815735e2ace8fa38a6249ea5b62b70961188728383879840f60dea6d7 = c"array size overflow"
+  global @scoop$1$ss$5eb2e850feddf4896a0496be40d9519f617bab1ada404b1da18fd6cd46e9c20f : ptr<managed> scan=refs[0]
+  global @scoop$1$bs$325ec690a132c1f4c7f9a1a6760f542223a561e3b9f42b950ed7be0b19292a6a = c"array size overflow"
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  fun @scoop$1$cb$1deb8676d969fa8bc692fe222ff22e76137e57de4955511e7a14e9209f4e7e30(i1) -> void
+  fun @scoop$1$cb$56a04996bd17fdead1ca6fee2ad6f81c1458a1f25149f9c21965951c4f3e575d(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -28,7 +28,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$a1f708a2e07711cc5977c75803ecce20583cf35842485623a5dd408c3e442f76() -> void
+  fun @scoop$1$cb$017f584e719b9b2b1cd279507fdc7a738952e4d4cba01a9718f431ad2fde557f() -> void
     local %0 $dependency.parameter.values: ptr<managed>
     local %1 $dependency.receiver: i64
     local %2 $dependency.argument.0: i64
@@ -140,7 +140,7 @@ Module
     call managed-void-target3 sp<managed-call:5> live=[] sig=void3 (i1) local-fn0(local25)
     t19 = aggregate () : {}
     ret
-  fun @scoop$1$cb$94f095cd9fba0847418bad6392b9b180a77606e45214164513cb30b99f1f3065(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$612e47e3cf0900bca9e7d000f1f68334c0515b8bbacceaa0efa303378d353678(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: ptr<managed>
@@ -157,7 +157,7 @@ Module
     call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn4(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop$1$cb$7a9d92220258c7a6a241849e9a98236b9e3fe8c177c01b5d56a8362eb912ceca(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
+  fun @scoop$1$cb$dd67f9a6cec68bf24271885e174705ad36aadb8bbf9f4235ed084faac5845eea(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: i64
@@ -228,13 +228,13 @@ Module
     store local10 -> local11
     t16 = enum_wrap e1 v0 (local11) : enum1
     ret t16
-  fun @scoop$1$cb$b396f1d5d46be960b3d821c3e915b2e8a3f8a14362b64ffc3e47dbaba2b8b954(ptr<managed>, ptr<managed>, i64) -> void
+  fun @scoop$1$cb$8bff0bca9b7e404f4b91f1ecf6a73f7e5b9728c771c693739c79b3e222b015a9(ptr<managed>, ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
-  fun @scoop$1$cb$24ac748423116902dfc470e5429ddb51a02b825f83fb1e2970c7474db94dcb13() -> i32
+  fun @scoop$1$cb$12a1b41d2e324b8d7bf35d714413b57069c53c18222f7763dff0d5d647b0991e() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -261,4 +261,4 @@ Module
   layout Array value size=8 align=8 refs=[0]
   layout ArrayIterator value size=8 align=8 refs=[0]
   layout ArrayIterator size=32 align=8 refs=[16]
-  output executable @scoop$1$cb$a1f708a2e07711cc5977c75803ecce20583cf35842485623a5dd408c3e442f76
+  output executable @scoop$1$cb$017f584e719b9b2b1cd279507fdc7a738952e4d4cba01a9718f431ad2fde557f

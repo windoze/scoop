@@ -23,7 +23,7 @@ exit = 0
 stdout = ""
 stderr = ""
 env = {"ZERO_AR_DATE" = "1"}
-checks = [{"file" = "${work}/native/libm23_math.a", "sha256" = "b89ba52f03950f2b206cb8c9149da279f70879d6f610d4b5c70b177553e1cf69"}]
+checks = [{"file" = "${work}/native/libm23_math.a", "sha256" = "50089a98476021f36bd30b213c0580181d0c82562d8dae1e89fa351dfdd2d2a0"}]
 
 [[steps]]
 name = "build"

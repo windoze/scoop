@@ -454,7 +454,7 @@ impl WireDecode for DecodedGeneratedBridgeObjectLogicalKeyV1 {
 }
 
 pub fn scoop_lir_link_object_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.link-object", "scoop-lir", 4)
+    CapabilityId::new("org.scoop-lang.link-object", "scoop-lir", 5)
         .expect("built-in Scoop LIR object capability is valid")
 }
 

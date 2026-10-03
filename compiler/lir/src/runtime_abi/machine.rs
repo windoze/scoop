@@ -68,7 +68,7 @@ impl RuntimeAbiSymbolV1 {
                 leaf(parameters, result)
             }
             Self::CoreStringTypeDescriptor => CompilerNativeContractV1::Data {
-                byte_size: 144,
+                byte_size: 152,
                 alignment: 8,
                 thread_local: false,
                 mutable: false,

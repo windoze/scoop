@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$cb69a727dd1015fcffa67e487c38008d480ac7ba5802603e43897af9c80890dd(i64) -> ptr<raw>
+  fun @scoop$1$cb$6dd1318b2251788e43b8d290ea6ad9b4521f5ace202ff6bfb408137f2341ab10(i64) -> ptr<raw>
     local %0 pointer: ptr<raw>
     local %1 $dependency.receiver: ptr<raw>
     local %2 $dependency.argument.0: i32

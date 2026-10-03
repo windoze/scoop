@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$df0460f6080992b518d2450defc7d28592cf1df899b1f09f438a7cac9afe8a78() -> i32
+  fun @scoop$1$cb$852433ed49414e7a661d6694789b313653e27540547dfd2adce3d68502aafef0() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -10,7 +10,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$e8e3231e671ffe8032037853a179c83655716e4708fddbdbbbf87cc39feb7c83(i32) -> i32
+  fun @scoop$1$cb$cf60113c8494eaaadd664f6381310b2b01f39d1a3a927900a13b4be50c4f5436(i32) -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 number: i32
@@ -92,7 +92,7 @@ Module
     call managed-direct-target4 sp<managed-call:4> live=[] t11 = sig=direct4 (i32, i32) -> i32 local-fn6(local21, local22)
     store t11 -> local23
     ret local23
-  fun @scoop$1$cb$a2fb8c2a963863f797871498249724556b4cb1bb971f11885fbd1ca906689cdc(i32) -> i32
+  fun @scoop$1$cb$1d2e104b0fa4782df2c8c4cf29e1a9a4644d7514aae08a9f21d1c6add894c221(i32) -> i32
     local %0 value: i32
     local %1 $dependency.local.1: ptr<raw>
     local %2 $dependency.local.2: ptr<raw>
@@ -104,15 +104,15 @@ Module
     store local1 -> local2
     t1 = raw_load local2 align 4 : i32
     ret t1
-  fun @scoop$1$cb$d6a7944c04845d75ac576b1efa063cbc19fe32a5f3d7d4b00d23f11bfe64a7c2() -> i64
+  fun @scoop$1$cb$c7d99e8a0218567918fbd546818cad20182e214da6f1cfbe9dfb667cf78516b8() -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<ULong>(0x0000000000000004)
-  fun @scoop$1$cb$f4a623bcf6ede47264ac8350283ca334e10f6a6726a33cbad57f2cbaa0a40c0f() -> i64
+  fun @scoop$1$cb$4433e840f616a09f0b5cea36db2c381821fc381202a6034684f2fdef10d6566e() -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<ULong>(0x0000000000000004)
-  fun @scoop$1$cb$036fd960846570733f70a721d78955f9360cdcf93e15b44401e2a40930d9340c(i64, i64) -> i64
+  fun @scoop$1$cb$49ae2a8017841251c1d74ff9479ffbcd8670c8a3e7f09404f2fc3c73634878d2(i64, i64) -> i64
     local %0 $dependency.local.2: i64
     local %1 $dependency.local.3: i64
     local %2 $dependency.local.4: i64
@@ -123,7 +123,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<ULong> local0, local2 : i64
     ret t0
-  fun @scoop$1$cb$5fcff61059f727ebc88b6028d36bce2fb2967f4baa1596aadb6bd59dc78e738e(i32, i32) -> i32
+  fun @scoop$1$cb$9c73462eee4a65f342ad5d466c1664cd642e763459db4df0edca198b51af6620(i32, i32) -> i32
     local %0 value: i32
     local %1 $dependency.local.2: ptr<raw>
     local %2 $dependency.local.3: ptr<raw>

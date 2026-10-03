@@ -6,7 +6,7 @@
 将对应 payload 插入片段之间。原产物和重组产物均检查完整 SHA-256。
 
 输入为 `dev.programlink:root:0.1.0`、`read-println.scoop` 的当前完整产物，
-原 SHA-256 为 `abc9706a2970e0c12deafb3f64bcd06a84b906fa104360066e4059fcddbf7702`。
+原 SHA-256 为 `81e72a3370b4723a18a35824c99db83a020052c96007467ecaf50473ea73d2f6`。
 保留 compatibility、Cone、direct dependencies、原 members、semantic fingerprints
 和 sections，producer 改为 `m23-program-link-repack`。
 

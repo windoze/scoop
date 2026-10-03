@@ -5,8 +5,8 @@ Module
   global @scoop$1$io$ad4cd2db31a2ec419c5f4726dd067f528ba0661672e54f74220675c731836190 = "one"
   global @scoop$1$io$f0fefd5ee848e76be5b8c0e31b49e0950fab7b3c446de18d43af30a7d8ec6681 = "\n"
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
-  fun @scoop$1$cb$d68c4a9defae8156931fe678fe5d9f20f4464e81960f47e2eb1220b2bd1c8b4d(indirect<struct0 size=24 align=8 scan=refs[0, 16]>, indirect<struct0 size=24 align=8 scan=refs[0, 16]>) -> i1
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$ad31fa5560fe0f0808d63c248af017d5f7d05aaaa39589d5bd6af101ffb26609(indirect<struct0 size=24 align=8 scan=refs[0, 16]>, indirect<struct0 size=24 align=8 scan=refs[0, 16]>) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
     local %2 $call.3: i1
@@ -33,7 +33,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop$1$cb$51ebb83148a4a0cfd9e4c7dc9ffa8b9ce31e9cdd3cda5da7525739b3671479a7(indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>, indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>) -> i1
+  fun @scoop$1$cb$5dbd9d5ad871173badb82b43ed1f23359ec183498d6ccd198096b171fc04bca1(indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>, indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>) -> i1
     local %0 $logic.1: i1
     local %1 $call.2: i1
   block entry
@@ -54,7 +54,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local0
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: {i32, ptr<managed>}
     local %2 $parameter.tag: ptr<managed>
@@ -139,7 +139,7 @@ Module
     t11 = integer_Add<Int> local20, local22 : i32
     store t11 -> local14
     br @while.cond.1
-  fun @scoop$1$cb$71a8bdb7e9069d4ec0fedc224c7d96f852fc7cc568868eb03032ab468e4c5207(i1) -> void
+  fun @scoop$1$cb$b0c2bbaec5d3e971bdbf6b7be42ee32b5cd27aa28cd91cd80288f41a25f3b6cf(i1) -> void
     local %0 $dependency.local.1: i1
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -158,7 +158,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn3(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$0e2592cda2d841ffaeeb4ca9ee19ab89cff7a7c2584f848c9feaa95e67b36371(ptr<managed>) -> void
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -177,11 +177,11 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn3(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$9317bc9215f28ea14eb75d4157a06438c9258280a0d1f78e690f6e9f86ce91a2(ptr<managed>, indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>) -> sret<struct0 size=24 align=8 scan=refs[0, 16]> <no-gc>
+  fun @scoop$1$cb$1248c28510e22d6a7b964b5a4444ce8cd5ba5960e33ae63775c2258e7818b9b4(ptr<managed>, indirect<{i32, ptr<managed>} size=16 align=8 scan=refs[8]>) -> sret<struct0 size=24 align=8 scan=refs[0, 16]> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
@@ -197,4 +197,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=Tagged) @scoop$1$td$ff669aac4a09c51eb32d1e24ce55f4d45881f510ea92f93180265b24da5dc678 type-id=3147387033755242211 shape=BoxedValue minimum-size=40 align=8 parent=none vtable=[] itables=[]
   layout Tagged size=24 align=8 refs=[0, 16]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

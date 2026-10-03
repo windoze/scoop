@@ -1,10 +1,10 @@
 Module
   global @scoop$1$io$0ce25da5dcb5945b6cd2d54ada9bbb7ee92a17bf4ebffd3a68efb0b056fd450a = "remote"
-  fun @scoop$1$cb$3da3f793a2a241f91a77de280494444bd750dba832ab179af1ee0d82c272adf1() -> ptr<managed>
+  fun @scoop$1$cb$5926cbfff86e4269596fcad33467578c67858adf21b8bee3e02eaebb3b0a7be4() -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret global0
-  fun @scoop$1$cb$5b53e4e9cb044da4ed077152b59e3e8a8bf6a72d0a7f2da1d4127bd927f3db50(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$2b1674ac105c2ee1ccd89494ae186028c6103806d6ee82525e0719b2afc18fe5(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0

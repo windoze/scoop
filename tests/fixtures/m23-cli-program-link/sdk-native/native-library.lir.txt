@@ -3,7 +3,7 @@ Module
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   extern ef0 absolute @abs(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$c2e56e8d9f4c7341aa3d22b223b53c11f7e390422f04ff821bf07ea4bbb443fe gc-leaf nounwind>
   extern ef1 sameWrite @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
-  fun @scoop$1$cb$30968d0605ff5310bf804553f239d727a4956db20eb4c6b8717cae9f02d39e1e(i32) -> i32
+  fun @scoop$1$cb$46f082ff320a5065e35086c81430dd73df49957ee54acb99e405a302db240220(i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
     local %2 $sc.2: i32
@@ -13,13 +13,13 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$0f8ceb623550a41f4e0c2871adf64b05ed0e33bf3f75be10eaf1d311fb71edff(ptr<managed>) -> void
+  fun @scoop$1$cb$ff5c16eb2f8ee4819f36ea3261b62c6577ad74a7165d4b0093d49486bd64deae(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[param0] sig=void0 (ptr<managed>) extern1(param0)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$0bc3880102af5abef9265fb7c9e39df425c1689793222e7c9d5afcf1ab69d76d() -> void
+  fun @scoop$1$cb$547c65443f2b1c1c41280e45527d0e2b5ca0bbf4ed38b080caaebff0c4d7f4f0() -> void
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $dependency.argument.0: i32
@@ -43,7 +43,7 @@ Module
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local5] sig=void1 (ptr<managed>) extern1(local5)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>

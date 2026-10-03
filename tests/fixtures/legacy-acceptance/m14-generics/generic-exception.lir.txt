@@ -3,9 +3,9 @@ Module
   global @scoop$1$io$ee4c324db03d8bf90f722b315f9952a1a46fda3a19956d6a5e5bf22ed40db64a = "wrong"
   global @scoop$1$io$cf467570640f760f4205116a39739265ec74962a4be10f4ea79060bbb1b628ca = "base"
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$033f4058470782f5a736165e58ddbe431dc2317df2f689706c76e512c8f9a4c1() -> void
+  fun @scoop$1$cb$36ba727010bccf4a4e97b0a69d23a7903af6a078a92a2c7aefe104805a2a40e3() -> void
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
@@ -15,7 +15,7 @@ Module
     t1 = aggregate () : {}
     throw local0
     unreachable
-  fun @scoop$1$cb$4342793feee488eca376d514df2e259de6599f663375642b640dbc6b9db97a23() -> void
+  fun @scoop$1$cb$c8886db42c68897e35b564421dc2e1b648d1fd4aa693bdeccfb2327a9ab18797() -> void
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
@@ -25,7 +25,7 @@ Module
     t1 = aggregate () : {}
     throw local0
     unreachable
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 error: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.value: ptr<managed>
@@ -173,7 +173,7 @@ Module
     t24 = aggregate () : {}
     end_catch
     br @scope.28
-  fun @scoop$1$cb$0e2592cda2d841ffaeeb4ca9ee19ab89cff7a7c2584f848c9feaa95e67b36371(ptr<managed>) -> void
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -192,7 +192,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$e5230dbe71efc49bc7f02a7c2599556c84c41b61cf6302873e049bcb8047c0bd(ptr<managed>) -> void
+  fun @scoop$1$cb$a8956daacfb6d86a62021dda92f50baf877deb67599accdd372d162092cea0ec(ptr<managed>) -> void
     local %0 $dependency.argument.0: enum0
     local %1 $dependency.parameter.message: enum0
   block entry
@@ -203,7 +203,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) external-fn0(param0, local1)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$cb$554e828b87b74590f6b7466814be2bd8be4949e3fee79c7adfd7bf8e68b4c6ac(ptr<managed>) -> void
+  fun @scoop$1$cb$5c7590b2d87b116f80677a2c0c7f240aa0501836884dfc54c7a51c13ec2a6f9b(ptr<managed>) -> void
     local %0 $dependency.argument.0: enum0
     local %1 $dependency.parameter.message: enum0
   block entry
@@ -214,7 +214,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, local1:enum0@0] sig=void0 (ptr<managed>, enum0) external-fn0(param0, local1)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
@@ -236,4 +236,4 @@ Module
   layout GenericError size=24 align=8 refs=[16]
   layout GenericError value size=8 align=8 refs=[0]
   layout GenericError size=24 align=8 refs=[16]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

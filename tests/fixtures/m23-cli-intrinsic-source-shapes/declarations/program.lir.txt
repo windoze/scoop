@@ -4,10 +4,10 @@ Module
   global @scoop$1$io$ee4c324db03d8bf90f722b315f9952a1a46fda3a19956d6a5e5bf22ed40db64a = "value"
   global @scoop$1$io$cf467570640f760f4205116a39739265ec74962a4be10f4ea79060bbb1b628ca = "shape"
   global @scoop$1$io$ad4cd2db31a2ec419c5f4726dd067f528ba0661672e54f74220675c731836190 = "shape"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   c-struct struct1 IntrinsicNativeLike fields=[ULong@0/8]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$0448bc4912c3d578f78fcbc36b93e6ba9ed46995913fe80f92a56b81e00a5a60(i1) -> void
+  fun @scoop$1$cb$489b039774f90cfd840144c9a2b0efc6036ee8fbf86090c1f6c8d3238ee32b00(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -31,7 +31,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 empty: struct0 <logical-zst 102bb43dc9573deb3204e02cf0d4973a3df17d49880e04b53127dc094aec691e>
     local %1 $argument.0: i1
     local %2 $parameter.value: i1
@@ -150,15 +150,15 @@ Module
     call managed-void-target6 sp<managed-call:11> live=[] sig=void6 (i1) local-fn0(local36)
     t19 = aggregate () : {}
     ret
-  fun @scoop$1$cb$7c2c09adc498818948cf9f44513c7f039e15d83122d06cc6682f3432ca0d3552(i32) -> sret<struct2 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$c0da74930fd5baa5f7656884b2fc83b864befaccdca689d0ed60f1e125ea4675(i32) -> sret<struct2 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct2
     ret t0
-  fun @scoop$1$cb$15b58555c023ac0039d19f20c99039d857f363cf1f87d7b5c2af6a941450ca9f(ptr<managed>) -> sret<struct3 size=8 align=8 scan=refs[0]> <no-gc>
+  fun @scoop$1$cb$f704bb96fb51c7ab51d425cf9e296bff12bd7d2f9b0772e3b548ba7266d36aa5(ptr<managed>) -> sret<struct3 size=8 align=8 scan=refs[0]> <no-gc>
   block entry
     t0 = aggregate (param0) : struct3
     ret t0
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -178,4 +178,4 @@ Module
   layout IntrinsicContainer size=4 align=4 refs=[]
   layout IntrinsicContainer size=8 align=8 refs=[0]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

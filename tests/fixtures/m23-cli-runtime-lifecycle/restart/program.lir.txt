@@ -1,19 +1,19 @@
 Module
-  global @scoop$1$ss$2db63c9916f39012aae6ee47f9754a586b7e44fd42a2c0ff4729bf2f1958c5ae : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$24c7341cc7e68bb55fcabfaebda1e390b28b94fd690c48087a6b143f4031acde : ptr<managed> scan=refs[0]
   extern ef0 registerRestart @m23_register_restart() -> void <c exact=()->void bridge=@scoop$1$br$3ab993f9f130a4b659d90796e1dcbff7afccb959648ff3de372beea23732d1fc gc-leaf nounwind lib=m23_lifecycle>
-  fun @scoop$1$cb$215397041bb3ebae052f472bcf67eb8a93de9d0c3d97a6d9b690a931912d3e76() -> void
+  fun @scoop$1$cb$ed261cfba6b9db9148107a3381cfdd5bdd05994a5a10c77e30bb6b85ae95fa44() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 () extern0()
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$a801cc830c41ca64e08683a1d4714eec9ddd08394331ffa23b7d127a58adc730() -> void
+  fun @scoop$1$cb$0ea6c920d45ff2d9b7ba0a9cbb67107647addeed3a0630c36df7dea1ff46e313() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 () extern0()
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$50ea4ade8320b983f4432cb2a0625b8208207b6c0fd6ceb7aa9b2a165cb075e9() -> i32
+  fun @scoop$1$cb$f395e41304586560cb53ef13c6110898e0649c9d1e3195c20649964c751f5619() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -27,4 +27,4 @@ Module
     global_store global0, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$a801cc830c41ca64e08683a1d4714eec9ddd08394331ffa23b7d127a58adc730
+  output executable @scoop$1$cb$0ea6c920d45ff2d9b7ba0a9cbb67107647addeed3a0630c36df7dea1ff46e313

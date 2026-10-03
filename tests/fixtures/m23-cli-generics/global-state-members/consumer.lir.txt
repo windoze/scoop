@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$2d3e963de2f955f7aac9aaab32c0ca668822839a3825eccfa2b2327ebd323b93() -> i32
+  fun @scoop$1$cb$3cf7dfdbc94fbebdebf5351c4915d023f05abf6fe3c375130c6ea07838902f08() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -10,7 +10,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$5b80f74a2b8a1eb2fa460717e34ae1a7b5b64a875541779291d9dd719b69be2f(i32) -> i32
+  fun @scoop$1$cb$89ba9a84cfe3785ddb115bfb3eb40f35da89de1a206cb5ddd84dce8a3c0deec6(i32) -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 probe: ptr<managed>
@@ -78,7 +78,7 @@ Module
     ret integer<Int>(0x00000001)
   block if.merge.8
     ret integer<Int>(0x0000002a)
-  fun @scoop$1$cb$8ae05ab95b30a005ce1b165ea4a7e78e9b47f8449acebfcbb64a522d4f129ace(ptr<managed>) -> i32
+  fun @scoop$1$cb$9f4cc483756fdbfe71195cb3d03695b7d8b8457ab7b90b28ff0b85965dcc248a(ptr<managed>) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
     local %2 $call.1: i32
@@ -90,7 +90,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (i32) -> i32 local-fn3(local1)
     store t1 -> local2
     ret local2
-  fun @scoop$1$cb$f966ddaf5242aa1a49fb75525d793bdcc614dbe79dbec2a8658307624c2a77f3(i32) -> i32
+  fun @scoop$1$cb$13ae4d59dc69d646ace47dd646a23ea589217b56096f27dd718e28f1462c9ffa(i32) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
     local %2 $dependency.local.3: i32
@@ -148,7 +148,7 @@ Module
     call no-gc-direct-target5 t12 = sig=direct5 () -> i32 external-fn2()
     store t12 -> local13
     ret local13
-  fun @scoop$1$cb$ee184f90be108c130c8ecad4966b021e29799b0750e371b4730848ee642d3443(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$1ac18a50ba520842937afb0e6138cfbeab1630fa24e4e65d57ec44e5bc1d10c6(ptr<managed>, i32) -> void
     local %0 $dependency.constructor.local.0: i32
     local %1 $dependency.constructor.local.1: i32
     local %2 $dependency.constructor.local.2: i32

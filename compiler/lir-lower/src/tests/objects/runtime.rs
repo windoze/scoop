@@ -172,81 +172,81 @@ fn gc_intrinsics_exchange_words_with_the_runtime() {
     );
     let module = lower(b.finish(main));
 
-    insta::assert_snapshot!(lir::dump(&module), @r###"
-Module
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
-    local %0 v: ptr<managed>
-    local %1 $call.1: i64
-    local %2 h: struct0
-    local %3 $gc.1: ptr<managed>
-    local %4 p: ptr<managed>
-    local %5 $call.2: i64
-    local %6 gh: struct1
-    local %7 $gc.2: ptr<managed>
-    local %8 p2: ptr<managed>
-    local %9 n: i64
-  block entry
-    poll managed-void-target1 sp<managed-poll:0> live=[local0:ptr<managed>@0]
-    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>) -> i64 runtime @scoop_rt_pin(local0)
-    store t0 -> local1
-    t1 = aggregate (local1) : struct0
-    store t1 -> local2
-    t2 = extract local2, 0 : i64
-    call no-gc-direct-target1 t3 = sig=direct1 (i64) -> ptr<managed> runtime @scoop_rt_unpin(t2)
-    store t3 -> local3
-    store local3 -> local4
-    call no-gc-direct-target2 t4 = sig=direct2 (ptr<managed>) -> i64 runtime @scoop_rt_get_handle(local0)
-    store t4 -> local5
-    t5 = aggregate (local5) : struct1
-    store t5 -> local6
-    t6 = extract local6, 0 : i64
-    call no-gc-direct-target3 t7 = sig=direct3 (i64) -> ptr<managed> runtime @scoop_rt_release_handle(t6)
-    store t7 -> local7
-    store local7 -> local8
-    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
-    t8 = aggregate () : {}
-    call no-gc-direct-target4 t9 = sig=direct4 () -> i64 runtime @scoop_rt_gc_stats()
-    store t9 -> local9
-    ret
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
-  block entry
-    poll managed-void-target1 sp<managed-poll:0> live=[]
-    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
-    br @success
-  block success
-    ret integer<UInt>(0x00000000)
-  block failure
-    (t0, t1) = landingpad : (exception_record, ptr<raw>)
-    t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
-    global_store global0, t3
-    end_catch
-    ret integer<UInt>(0x00000001)
-  td td1 GcHandle<String> @scoop$1$td$05c79b4b37c953c45e58822887717a10433301d3b6827935c370b4e5d8454aa6 type-id=3511904370696034429 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td2 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td3 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td4 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td5 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td6 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td7 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td8 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td9 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td10 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td11 PinnedPtr<String> @scoop$1$td$f3d51e63e79edcfed0b8e70e8e6866f3024b397dca5d7feb65f5b262cfa588e9 type-id=13273347026211627739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  layout String size=24 align=8 refs=[]
-  layout Int8 size=1 align=1 refs=[]
-  layout Int16 size=2 align=2 refs=[]
-  layout Int size=4 align=4 refs=[]
-  layout Long size=8 align=8 refs=[]
-  layout UInt8 size=1 align=1 refs=[]
-  layout UInt16 size=2 align=2 refs=[]
-  layout UInt size=4 align=4 refs=[]
-  layout ULong size=8 align=8 refs=[]
-  layout Boolean size=1 align=1 refs=[]
-  layout PinnedPtr<String> size=8 align=8 refs=[]
-  layout GcHandle<String> size=8 align=8 refs=[]
-  layout String value size=8 align=8 refs=[0]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
-"###);
+    insta::assert_snapshot!(lir::dump(&module), @"
+    Module
+      global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+      fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
+        local %0 v: ptr<managed>
+        local %1 $call.1: i64
+        local %2 h: struct0
+        local %3 $gc.1: ptr<managed>
+        local %4 p: ptr<managed>
+        local %5 $call.2: i64
+        local %6 gh: struct1
+        local %7 $gc.2: ptr<managed>
+        local %8 p2: ptr<managed>
+        local %9 n: i64
+      block entry
+        poll managed-void-target1 sp<managed-poll:0> live=[local0:ptr<managed>@0]
+        call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>) -> i64 runtime @scoop_rt_pin(local0)
+        store t0 -> local1
+        t1 = aggregate (local1) : struct0
+        store t1 -> local2
+        t2 = extract local2, 0 : i64
+        call no-gc-direct-target1 t3 = sig=direct1 (i64) -> ptr<managed> runtime @scoop_rt_unpin(t2)
+        store t3 -> local3
+        store local3 -> local4
+        call no-gc-direct-target2 t4 = sig=direct2 (ptr<managed>) -> i64 runtime @scoop_rt_get_handle(local0)
+        store t4 -> local5
+        t5 = aggregate (local5) : struct1
+        store t5 -> local6
+        t6 = extract local6, 0 : i64
+        call no-gc-direct-target3 t7 = sig=direct3 (i64) -> ptr<managed> runtime @scoop_rt_release_handle(t6)
+        store t7 -> local7
+        store local7 -> local8
+        call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () runtime @scoop_rt_gc_collect()
+        t8 = aggregate () : {}
+        call no-gc-direct-target4 t9 = sig=direct4 () -> i64 runtime @scoop_rt_gc_stats()
+        store t9 -> local9
+        ret
+      fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
+      block entry
+        poll managed-void-target1 sp<managed-poll:0> live=[]
+        invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
+        br @success
+      block success
+        ret integer<UInt>(0x00000000)
+      block failure
+        (t0, t1) = landingpad : (exception_record, ptr<raw>)
+        t2 = begin_catch t1 : ptr<managed>
+        call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+        global_store global0, t3
+        end_catch
+        ret integer<UInt>(0x00000001)
+      td td1 GcHandle<String> @scoop$1$td$05c79b4b37c953c45e58822887717a10433301d3b6827935c370b4e5d8454aa6 type-id=3511904370696034429 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td2 ULong @scoop$1$td$6540713f4816f1b567f9b6748e3a56db61b978601d8b31e9ddb964c4defb6f04 type-id=1551972451261988531 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td3 Int16 @scoop$1$td$6847006b21faa1b2f6581e828d7316cdcb56ea55d63fad2d5ab4d54fbc66a67d type-id=6090757864100470475 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td4 Int @scoop$1$td$6b87a07c3203f405ad126d1a0a8d440a3e0dea6bc0395d44602821b3a87e5816 type-id=6878802435704108962 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td5 Int8 @scoop$1$td$8750f2c8970ee21c9e4c352b0ced3fe3646c8e13c7a58abdec7eb93f11a041b3 type-id=3127261975970956121 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td6 UInt16 @scoop$1$td$8c2572d704dc526f384ed644ae8c20af6bfa9ee6051e9d089b44e82e2479b7e3 type-id=15604079800532685352 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td7 Boolean @scoop$1$td$c5593913e1722c44bbd16b5ba20bb09da93de51ddba97509748063fd2731db5e type-id=2212946439315248882 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td8 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td9 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td10 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td11 PinnedPtr<String> @scoop$1$td$f3d51e63e79edcfed0b8e70e8e6866f3024b397dca5d7feb65f5b262cfa588e9 type-id=13273347026211627739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      layout String size=24 align=8 refs=[]
+      layout Int8 size=1 align=1 refs=[]
+      layout Int16 size=2 align=2 refs=[]
+      layout Int size=4 align=4 refs=[]
+      layout Long size=8 align=8 refs=[]
+      layout UInt8 size=1 align=1 refs=[]
+      layout UInt16 size=2 align=2 refs=[]
+      layout UInt size=4 align=4 refs=[]
+      layout ULong size=8 align=8 refs=[]
+      layout Boolean size=1 align=1 refs=[]
+      layout PinnedPtr<String> size=8 align=8 refs=[]
+      layout GcHandle<String> size=8 align=8 refs=[]
+      layout String value size=8 align=8 refs=[0]
+      output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca
+    ");
 }

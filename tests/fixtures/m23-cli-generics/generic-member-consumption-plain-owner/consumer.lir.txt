@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$60d4af631c3c682d986e17ab960af2271f6e65553f8aea7dc3f7e5d5c3d841e4() -> i32
+  fun @scoop$1$cb$213085ea8c1f24f023cecb1e5b6deddf328090036e1883f9a96b55a3a9a52087() -> i32
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.value: i32
@@ -17,7 +17,7 @@ Module
     call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, i32) -> i32 local-fn1(local0, local2)
     store t2 -> local4
     ret local4
-  fun @scoop$1$cb$35463ab2aeeaf3a34f24efd8042db33936b6e0b3f5565e22b034d5282728af88(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$75ddafca1d6ae1a09e3e9ae53e025e7490ea93b778a98d815408e818f1d52ee6(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1

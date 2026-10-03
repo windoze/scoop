@@ -1,9 +1,9 @@
 Module
-  fun @scoop$1$cb$751a2d1f6341bda51e069110242799eb54f176d0abc375e5d5c09ba44cf83121(i1) -> i1
+  fun @scoop$1$cb$cb21973629f1dd447a7be65a940c4f007ff8d02cfa8242b5868e36e50c85c099(i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$9acc6d9b35845c42c36729d59d0e70dee7f96e72a2182dcb75b7a43317ce6098() -> i1
+  fun @scoop$1$cb$7765e70aeefbda90ae40a9db6c8a929fb66107df1672af9a101eaaff86a1e868() -> i1
     local %0 $call.1: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]

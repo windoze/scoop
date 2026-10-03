@@ -1,6 +1,6 @@
 Module
   enum Choice tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16
-  fun @scoop$1$cb$5dde1d3bbbb08e8dac71a2977c0992979ce326ca53a16e91df66ca5860627755() -> i64 <no-gc>
+  fun @scoop$1$cb$1e8311d34d901788f6443835fea4d0710b9b6310ae3828a6fba44b581ccb899a() -> i64 <no-gc>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.argument.1: i64
     local %2 $dependency.parameter.left: i64
@@ -66,7 +66,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$1055507576c16bc8338a71dc546528876411334b0904cd5f3de93bcc70c3d1e2(ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$6ba1f8627583f8c46859c321f317975f8591ac7ca8e226069daf956a6ba2bd00(ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn0()

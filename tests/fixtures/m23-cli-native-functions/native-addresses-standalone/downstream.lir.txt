@@ -1,6 +1,6 @@
 Module
-  callback cb0 Function(PersistentFunctionId([4, 97, 222, 167, 246, 66, 223, 178, 103, 73, 237, 38, 173, 201, 60, 109, 56, 244, 233, 160, 46, 182, 148, 142, 7, 110, 176, 20, 17, 248, 159, 37])) @scoop$1$cb$df4ac534c85ff134e77fde1118fe448dc8d72957d17eb42bbaf7bdfb06b77bef -> @scoop$1$br$86e6372b3f77b31bfc9e5a903cd6d9211862b3912939ef594a5c161607886745 c=(Long)->Long
-  fun @scoop$1$cb$c752ada6cc9ab4bad64ae39b30f8cc53d676595b7fc259fd8e52f24e968d6356() -> i64
+  callback cb0 Function(PersistentFunctionId([4, 97, 222, 167, 246, 66, 223, 178, 103, 73, 237, 38, 173, 201, 60, 109, 56, 244, 233, 160, 46, 182, 148, 142, 7, 110, 176, 20, 17, 248, 159, 37])) @scoop$1$cb$b9b7331145141cfb29b28c666f6b86194972649fd91ca3c1ddaf9da94b6fbf75 -> @scoop$1$br$86e6372b3f77b31bfc9e5a903cd6d9211862b3912939ef594a5c161607886745 c=(Long)->Long
+  fun @scoop$1$cb$a6d9685729e57fd7f3527fc0ac7bea9d33b6df829753a4b31a554bcdc0051c2d() -> i64
     local %0 $argument.0: i64
     local %1 $parameter.number: i64
     local %2 value: ptr<managed>
@@ -40,7 +40,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local8
-  fun @scoop$1$cb$c72d3c5359c1554f76a76537224087512fc173e2d8a9795323e6b2277a7b20e4(ptr<managed>) -> i64
+  fun @scoop$1$cb$295ac445ff0cf73d9245a9528d2c13285e5caaf76a1c4f7aff0ad3fed4bb3f6f(ptr<managed>) -> i64
     local %0 $dependency.local.1: ptr<code>
     local %1 $dependency.local.2: ptr<code>
     local %2 $dependency.local.3: i64
@@ -58,7 +58,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<code>, i64) -> i64 external-fn2(local3, local4)
     store t1 -> local5
     ret local5
-  fun @scoop$1$cb$1e00ce8618c3c91d32879b87832520b03b9f9d4b8f895ae76e606b100e46da3d(ptr<managed>, i64) -> void
+  fun @scoop$1$cb$d98f344bd32be070ad4c9fe802271b4b6411fb936864680785c42cbbd90459a7(ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

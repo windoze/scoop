@@ -1,16 +1,16 @@
 Module
-  fun @scoop$1$cb$09765cb64ded83c9b52defd3aa04de43a806f8f98074ee1c887686bfdfc2f633(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>, i1) -> i1
+  fun @scoop$1$cb$bf50971c6cf687a84504f161b97b0590a54377e69641478180696cdb6fd97752(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>, i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
-  fun @scoop$1$cb$34438e49e7e4a49087fb4cd72cad07fa5225a8ed80f2df854aeae39cce93ac90(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
+  fun @scoop$1$cb$9d36e0567ab1f9f72092d1a4ab3370eb8d370e78956efab4cbe0f8556cdce8c4(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
     local %0 $call.1: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1 local-fn2(elided-zst param0, elided-zst param1)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$0db9d0ccf412c07875564cca30e23c78b5e7385678d30da912488f4f9abe5d78(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
+  fun @scoop$1$cb$f8da311adb5c5511acc0695ec3b17fd856fe459e77c1c8117ae20cbe58c0125e(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true

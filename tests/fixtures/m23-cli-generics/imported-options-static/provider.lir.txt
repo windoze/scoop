@@ -1,6 +1,6 @@
 Module
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  fun @scoop$1$cb$92948f65f8d49dac5fe5f54a146954878f6a6c920842b908513bd4b9fd1b4237() -> i32
+  fun @scoop$1$cb$f34566e4abde91a2cdd1c409149f6c097ad6f9e13cca30989cb752531ae7892c() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $argument.0: enum0
@@ -23,7 +23,7 @@ Module
     call managed-direct-target0 sp<managed-call:1> live=[] t0 = sig=direct0 (indirect<enum0 size=16 align=8 scan=none>, i32) -> i32 local-fn2(indirect local8, local5)
     store t0 -> local6
     ret local6
-  fun @scoop$1$cb$5b74d1146bc8b432ac3cd22c17efcc4afc3fe5b7b5ac3041ab79acda0a742b57(i32) -> sret<enum0 size=16 align=8 scan=none>
+  fun @scoop$1$cb$6f054c42780dd26e3d704e52647dc4dc3af7194919659bda48f28b1eb224b6a7(i32) -> sret<enum0 size=16 align=8 scan=none>
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter._1: i32
   block entry
@@ -32,7 +32,7 @@ Module
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     ret t0
-  fun @scoop$1$cb$efc66227ed58c3129740b8215ce6c92d5ffc22f5572077ca8332d51413d7106e(indirect<enum0 size=16 align=8 scan=none>, i32) -> i32
+  fun @scoop$1$cb$be03303c26a4c9de01940899f4776eaaf7d8c1d433420b1d7f4d1972c98c74d1(indirect<enum0 size=16 align=8 scan=none>, i32) -> i32
     local %0 item: i32
     local %1 $result.2: i32
     local %2 $when.1: enum0

@@ -6,7 +6,7 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<LocalWide> tagged size=8 align=8 variants=(struct0)@8+0 ()@8+0
   enum CoroutineSlot<LocalWide> tagged size=8 align=8 variants=()@8+0 (struct0)@8+0
-  fun @scoop$1$cb$ae1ef19d673d0c565eed3d1764cec8b563ad3560c9537ef401946039b28704e4(elided-zst<struct0 size=0 align=1>, elided-zst<struct1 size=0 align=1>, ptr<managed>) -> sret<struct2 size=24 align=8 scan=none>
+  fun @scoop$1$cb$766ab2bcc64522cc5fd6c3eeacb3a63482763ac16ecdfb34c02e74a607ed87d0(elided-zst<struct0 size=0 align=1>, elided-zst<struct1 size=0 align=1>, ptr<managed>) -> sret<struct2 size=24 align=8 scan=none>
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.argument.1: struct1 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
@@ -25,11 +25,11 @@ Module
     call managed-indirect-target0 sp<managed-call:1> live=[local0:ptr<managed>@0, local4:ptr<managed>@0] local6 = sig=indirect0 (sret struct2 size=24 align=8 scan=none, ptr<managed>, elided-zst<struct1 size=0 align=1>, ptr<managed>) external-fn2(local0, elided-zst local3, local4)
     store local6 -> local5
     ret local5
-  fun @scoop$1$cb$9af365b2cf49b4d52e1a77a4fdb96af57fff1a7f7e2bb61336c0cfadca82883f(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
+  fun @scoop$1$cb$1d4d6289686292b99af0f80fd13b53958e626511e27fabb57ea624d0451e83e8(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true
-  fun @scoop$1$cb$75071ed6cbf5ed09ed1afce21da96c1ccf8f94b4cb77931ae84aa7fa31ecd88f() -> ptr<managed>
+  fun @scoop$1$cb$932a65e8e47275bda60a01c91e6306e0a5d76de6682ecae68d85bb235f6f3c91() -> ptr<managed>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.value: i64
     local %2 $receiver: struct0 <logical-zst 5febf689c6e38023676be6227808673060723ec052069550220617dd3c77bdc0>
@@ -75,39 +75,39 @@ Module
     call managed-void-target1 sp<managed-call:4> live=[local14:ptr<managed>@0] sig=void1 (ptr<managed>, i64) external-fn1(local14, local11)
     t7 = aggregate () : {}
     ret local14
-  fun @scoop$1$cb$4fe6d6f4568de8bbe6ac1e0ef319b97a6e163d4a8be1a702d90b50392dec1d1d(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void
+  fun @scoop$1$cb$b141f16354b13dcd40617d9f9a3e169c6fac4c70cf95e06f292dc103e4473d60(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$f58a92e0c36819cf707de077630db62c2d430b222742234817f574720441c525(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$fcf8b1c4194dab84c0fb7e44788c59781ebd3fe407c5ae53d010d57e7943c8e1(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$88e65289b5e303ca8d59ff4bb54b90b730913fec0391c13acf3b910442da30b4(ptr<managed>, ptr<managed>) -> sret<enum1 size=8 align=8 scan=none>
+  fun @scoop$1$cb$f506bb77f1b6667588368c4d0106c4efbdf7cc8c7bba6395c0122f8f52522ef4(ptr<managed>, ptr<managed>) -> sret<enum1 size=8 align=8 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
     unreachable
-  fun @scoop$1$cb$55d36fc8a65b738b6a17bf21773a00145447f56366c7b544958e235f75faf68b(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$2cf76df98a6a85274b70aa291ed7cb00a3193bd4cf9d933088c786cd45063d1f(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$640b88a70143cf05b4b2991df5a2423eb157ea397ffe5f74cdd396193267a476() -> elided-zst<struct0 size=0 align=1> <no-gc>
+  fun @scoop$1$cb$0ef00edfd599eef8bc0078639175201cd3c15fef24574545d1b000fe300daafc() -> elided-zst<struct0 size=0 align=1> <no-gc>
   block entry
     t0 = aggregate () : struct0
     ret t0
-  fun @scoop$1$cb$801f225510650a3bc698b86ea18049ea370a0c11b0e58cba6d96b4f2190053b7(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$b5257d44f32701a282b81373de2e14ffddcdc04b219cd84df7548376c0c08def(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record
@@ -150,7 +150,7 @@ Module
     t13 = enum_tag e1 local0 : machine<enum-tag>
     t14 = MachineEq(EnumTag) t13, machine<enum-tag>(EnumTag(0)) : i1
     cbr t14 then @completed else @suspended
-  fun @scoop$1$cb$0ab1d0381ad02e0e84d09e882de17542a5d8d7056dd5a5c62737dac767310210(ptr<managed>, elided-zst<struct1 size=0 align=1>, ptr<managed>) -> sret<struct2 size=24 align=8 scan=none>
+  fun @scoop$1$cb$098adb34941c52dcca5f9279530c2f023dece21475140ce8d3b8e1a5300bcc9e(ptr<managed>, elided-zst<struct1 size=0 align=1>, ptr<managed>) -> sret<struct2 size=24 align=8 scan=none>
     local %0 $call.1: struct2
     local %1 $sc.1: struct2
   block entry

@@ -4,9 +4,9 @@ Module
   global @scoop$1$io$7d65c2f596d976bd50aa8234310272a0a0c6bd57f81ca63f6f755ba97bcdbe46 = "kept"
   global @scoop$1$io$0efbaaba307e5e92cd3edc06a032b5814c5bc2affd1abb3360fe64e52370f337 = "owner"
   global @scoop$1$io$8ccaca9d3401ab5a7f4cb00e871c8deb8bf8d4546e5f18bdd4f216d29ab79869 = "owner"
-  global @scoop$1$ss$442bead3f54c5bd5eb2d615f603674988d2c8676008680c7253720905ed5b954 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9ce03b64da37fec54e4c62968d405d1deb4f9e4cab21168228764ae2c33126f9 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$15c1f7b7a6e06da96f01aabcbadf148e7dbe7e8ad49896113617942799525512(i1) -> void
+  fun @scoop$1$cb$d5382837354218dc5f6cfb0303e5703b3622561ec1e15fb43396c56ff59e893c(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -30,7 +30,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$0cb4d707f4050972892f3e7857b190797b4b2acea61b32787df89c2773cd4f16() -> void
+  fun @scoop$1$cb$d7952757a27eea660a3b07fff39fdd4efaa60d876f49fa0127f831674519eee9() -> void
     local %0 plain: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.argument.0: i32
@@ -141,15 +141,15 @@ Module
     call managed-void-target4 sp<managed-call:14> live=[] sig=void4 (i1) local-fn0(local41)
     t17 = aggregate () : {}
     ret
-  fun @scoop$1$cb$64c32c5c36bd8183c388fe6b39a40219e53e9b541a1d8adb0590c8a2fb76d612(ptr<managed>, i32, i32) -> i32
+  fun @scoop$1$cb$5e76a5c41ea5657e9b670ef4bf4442328b94552de7d0576371eb26753905568c(ptr<managed>, i32, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
-  fun @scoop$1$cb$4cb5e7a23d0ae0edc610c8ea4cac24a440eedabb136d1eab8d05472924cf712f(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$8c40c77d696b7655efd9f6fb6298769a969d0cb1ae07372adf403dab34ab6c86(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param2:ptr<managed>@0]
     ret param2
-  fun @scoop$1$cb$476d4da98b94d5b7b4347681c7910b08d8f930e225d49fdafe08c2c527aff74d() -> ptr<managed>
+  fun @scoop$1$cb$81ff80a18049cc46926478584a46ca1173639207a844b5be4a37e6b204018864() -> ptr<managed>
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
@@ -158,15 +158,15 @@ Module
     call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn6(local0)
     t1 = aggregate () : {}
     ret local0
-  fun @scoop$1$cb$1e1a812a82291dfb0868caa8793fc458dc45cc94151fb82e079d4511ce568091(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$cef19b0f68d965fb0c919819dd88943958a4faff7ba5bce8dcc282241d1d3d53(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param2:ptr<managed>@0]
     ret param2
-  fun @scoop$1$cb$2a5f1a6a9cb1138ef8c2b67d6a169a043ec6bbeb08f82587d917da38ceec31a9(ptr<managed>) -> void
+  fun @scoop$1$cb$9248a7a2827e38ac9ee2e69ed09eb3b216c2d05373807ff3a7701d6302810251(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$2f07d4e5a36e86daa88c06809b23fbf1c659cf62bbc8cae1148c1d7d01c7d282() -> i32
+  fun @scoop$1$cb$8ff329df6333507a39a2b0b5be14768ca80ffea5d4cd846ea641074103d0f6ad() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -185,4 +185,4 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Generic value size=8 align=8 refs=[0]
   layout Generic size=16 align=8 refs=[]
-  output executable @scoop$1$cb$0cb4d707f4050972892f3e7857b190797b4b2acea61b32787df89c2773cd4f16
+  output executable @scoop$1$cb$d7952757a27eea660a3b07fff39fdd4efaa60d876f49fa0127f831674519eee9

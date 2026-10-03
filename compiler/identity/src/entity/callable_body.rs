@@ -12,9 +12,10 @@ use crate::{
     CallableOwner, CborIdentityRecord, ConeIdentity, DeclarationName, DecodedPersistentId,
     DuplicateSignatureKey, ExactOrdinaryNoArgUnitSignature, OdrMemberId, OdrMemberIdentityError,
     OdrMemberKey, OptionalSignatureType, PersistentCallableBodyId, PersistentConstructorId,
-    PersistentFunctionId, PersistentGeneratedCallableId, PersistentId, PersistentIdResolver,
-    PersistentInitializationUnitId, PersistentKeyResolver, PersistentPropertyAccessorId,
-    SourceDeclarationKey, SourceDeclarationKind, SourceSignatureFingerprint,
+    PersistentExactTypeId, PersistentFunctionId, PersistentGeneratedCallableId, PersistentId,
+    PersistentIdResolver, PersistentInitializationUnitId, PersistentKeyResolver,
+    PersistentPropertyAccessorId, SourceDeclarationKey, SourceDeclarationKind,
+    SourceSignatureFingerprint,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -67,6 +68,9 @@ pub enum CallableBodyKeyKind {
         main: MainCallableBodyId,
     },
     InitializationStartupGateway(PersistentInitializationUnitId),
+    ReleaseHook {
+        owner: PersistentExactTypeId,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -87,6 +91,10 @@ impl CallableBodyKey {
 
     pub const fn initialization_startup_gateway(unit: PersistentInitializationUnitId) -> Self {
         Self(CallableBodyKeyKind::InitializationStartupGateway(unit))
+    }
+
+    pub const fn release_hook(owner: PersistentExactTypeId) -> Self {
+        Self(CallableBodyKeyKind::ReleaseHook { owner })
     }
 
     pub const fn kind(&self) -> CallableBodyKeyKind {
@@ -111,13 +119,14 @@ impl RuntimeEncode for CallableBodyKey {
                 encoder.u32(4)?;
                 encoder.fixed(unit.as_array())
             }
+            CallableBodyKeyKind::ReleaseHook { owner } => encode_runtime_sum(encoder, 5, &owner),
         }
     }
 }
 
 impl PersistentCallableBodyId {
     pub fn from_key(key: &CallableBodyKey) -> Result<Self, HashError> {
-        derive_runtime_persistent_id("scoop-callable-body-v1", key)
+        derive_runtime_persistent_id("scoop-callable-body-v2", key)
     }
 }
 
@@ -221,6 +230,9 @@ pub enum DecodedCallableBodyKeyKind {
         main: DecodedPersistentId<PersistentCallableBodyId>,
     },
     InitializationStartupGateway(DecodedPersistentId<PersistentInitializationUnitId>),
+    ReleaseHook {
+        owner: DecodedPersistentId<PersistentExactTypeId>,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -243,6 +255,7 @@ impl DecodedCallableBodyKey {
             + PersistentKeyResolver<OdrMemberId, OdrMemberKey, Error = E>
             + PersistentIdResolver<ConeIdentity, Error = E>
             + PersistentIdResolver<PersistentCallableBodyId, Error = E>
+            + PersistentIdResolver<PersistentExactTypeId, Error = E>
             + PersistentIdResolver<PersistentInitializationUnitId, Error = E>,
     {
         match self.0 {
@@ -273,6 +286,10 @@ impl DecodedCallableBodyKey {
             DecodedCallableBodyKeyKind::InitializationStartupGateway(unit) => resolver
                 .resolve(unit)
                 .map(CallableBodyKey::initialization_startup_gateway)
+                .map_err(CallableBodyResolutionError::Reference),
+            DecodedCallableBodyKeyKind::ReleaseHook { owner } => resolver
+                .resolve(owner)
+                .map(CallableBodyKey::release_hook)
                 .map_err(CallableBodyResolutionError::Reference),
         }
     }
@@ -307,6 +324,9 @@ impl RuntimeDecode for DecodedCallableBodyKey {
             4 => DecodedCallableBodyKeyKind::InitializationStartupGateway(decode_persistent_id(
                 decoder,
             )?),
+            5 => DecodedCallableBodyKeyKind::ReleaseHook {
+                owner: decode_persistent_id(decoder)?,
+            },
             tag => return Err(decoder.error(RuntimeDecodeErrorKind::UnknownTag { tag })),
         };
         Ok(Self(kind))
@@ -325,6 +345,9 @@ impl RuntimeEncode for DecodedCallableBodyKey {
             }
             DecodedCallableBodyKeyKind::InitializationStartupGateway(unit) => {
                 encode_runtime_sum(encoder, 4, &unit)
+            }
+            DecodedCallableBodyKeyKind::ReleaseHook { owner } => {
+                encode_runtime_sum(encoder, 5, &owner)
             }
         }
     }

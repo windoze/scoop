@@ -307,7 +307,7 @@ impl RuntimeIdentityKey<PersistentCallableBodyId> for DecodedCallableBodyKey {
     type Error = scoop_wire::HashError;
 
     fn derive_identity(&self) -> Result<PersistentCallableBodyId, Self::Error> {
-        derive_runtime_persistent_id("scoop-callable-body-v1", self)
+        derive_runtime_persistent_id("scoop-callable-body-v2", self)
     }
 }
 
@@ -782,12 +782,12 @@ mod tests {
 
         let malformed = DecodedRuntimeIdentityRecord::<PersistentCallableBodyId> {
             id: DecodedPersistentId::from_unvalidated_bytes(*record.id().as_array()),
-            key_bytes: b"\x05\0\0\0".to_vec(),
+            key_bytes: b"\x06\0\0\0".to_vec(),
         };
         assert!(matches!(
             malformed.validate_key::<DecodedCallableBodyKey>(),
             Err(RuntimeIdentityRecordValidationError::Decode(error))
-                if error.kind() == (scoop_wire::RuntimeDecodeErrorKind::UnknownTag { tag: 5 })
+                if error.kind() == (scoop_wire::RuntimeDecodeErrorKind::UnknownTag { tag: 6 })
         ));
     }
 

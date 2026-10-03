@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v44_retains_each_interface_dispatch_selection() {
+fn source_interface_v45_retains_each_interface_dispatch_selection() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        44,
+        45,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,30 +14,30 @@ fn source_interface_v44_retains_each_interface_dispatch_selection() {
 }
 
 #[test]
-fn type_semantics_v12_retains_slot_table_roles() {
+fn type_semantics_v13_retains_slot_table_roles() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        12,
+        13,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v6_includes_definition_owned_coroutine_starts() {
+fn mir_type_bridge_v7_includes_definition_owned_coroutine_starts() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        6,
+        7,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn lir_layout_abi_v5_requires_application_callable_definitions() {
+fn lir_layout_abi_v6_requires_application_callable_definitions() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        5,
+        6,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -101,10 +101,10 @@ fn assert_retired_version(
 }
 
 #[test]
-fn hir_foundation_v3_rejects_retired_native_witnesses_in_every_profile_and_view() {
+fn hir_foundation_v4_rejects_retired_native_witnesses_in_every_profile_and_view() {
     assert_retired_version(
         hir_identity_foundation_capability(),
-        3,
+        4,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

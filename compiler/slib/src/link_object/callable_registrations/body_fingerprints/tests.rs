@@ -39,7 +39,7 @@ fn hashes_normalized_body_code_relocations_and_stackmap_inputs() {
     assert_eq!(actual.node(), plan.body_definition_node());
     assert_eq!(
         actual.fingerprint().to_string(),
-        "bb131b6c73d91fa9683fd97efae30a6e2d09964eca79412bbdfffaccf8a07b14"
+        "ae9aee8c0014562fb385854bca3b2427df30ad417643db80ae2bdaa327c53330"
     );
 }
 

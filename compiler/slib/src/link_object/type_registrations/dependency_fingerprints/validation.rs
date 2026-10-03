@@ -14,7 +14,7 @@ use crate::link_object::{
     VerifiedStrongTypeRegistrationV1,
 };
 
-pub(super) const TYPE_DESCRIPTOR_SIZE: usize = 144;
+pub(super) const TYPE_DESCRIPTOR_SIZE: usize = 152;
 
 pub(super) fn exact_bytes(
     object: &[u8],
@@ -207,14 +207,14 @@ where
                 None => false,
             },
             112 => relocation == descriptor.diagnostic_relocation(),
-            offset if offset >= 136 => {
+            offset if offset == 136 || offset >= 152 => {
                 let function = plan.semantic().relations();
                 let reference = if offset == 136 {
                     function.result().copied().flatten()
                 } else {
                     function
                         .related_types()
-                        .get(((offset - 144) / 8) as usize)
+                        .get(((offset - 152) / 8) as usize)
                         .copied()
                         .flatten()
                 };
@@ -291,7 +291,7 @@ fn expected_relocation_offsets<D: Copy, C>(plan: &StrongTypeRegistrationPlan<D, 
     }
     for (index, reference) in function.related_types().iter().enumerate() {
         if reference.is_some() {
-            expected.push(144 + index as u64 * 8);
+            expected.push(152 + index as u64 * 8);
         }
     }
     expected

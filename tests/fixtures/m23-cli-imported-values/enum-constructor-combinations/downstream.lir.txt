@@ -2,7 +2,7 @@ Module
   enum Choice tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16
   enum Flag tagged size=8 align=8 variants=()@8+0 ()@8+0
   enum Marker tagged size=8 align=8 variants=()@8+0
-  fun @scoop$1$cb$f703a4cc798144dd4c8975b398cf3d437ec810354b6512cf83e2070ce3b7830b() -> i64 <no-gc>
+  fun @scoop$1$cb$0c0ec40d46c9324b3856fa48bd6ada76f96a746cb1c52f9259588dc8a87d9d01() -> i64 <no-gc>
     local %0 $default.local.0: i64
     local %1 $default.local.1: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
     local %2 $default.local.2: i64
@@ -72,7 +72,7 @@ Module
     store local22 -> local23
     t12 = integer_Add<Long> local21, local23 : i64
     ret t12
-  fun @scoop$1$cb$97457ca28f6fdd96b790e0b43a8d706bb3d5239a5ca73cc881e85c93aed837b8(ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$99f2a693b9de6d39fc31f5bccf77a977d0c949bbc4de1eebb7c7675df1a744b5(ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn0()

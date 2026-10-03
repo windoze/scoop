@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$3173750cdb0c21f275b35890960aecb05e93e19f1562ef5ebdff0797fd7a449c() -> i1
+  fun @scoop$1$cb$2d36298810f0e05e46d5965c42f8b7d6eef3cc87c1ddd5feb603821e882a19b3() -> i1
     local %0 $dependency.argument.0: struct0 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
     local %1 $dependency.parameter.value: struct0 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
     local %2 $dependency.argument.0: struct0 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>

@@ -1,7 +1,7 @@
 Module
   global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "value"
   global @scoop$1$io$ee4c324db03d8bf90f722b315f9952a1a46fda3a19956d6a5e5bf22ed40db64a = "generic"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   global @scoop$1$bs$7e467273fcae97256279ebe871ed87ccbed15996ffe1909115591fcdb57c00b0 = c"call to abstract method `Continuation.resume`"
   global @scoop$1$bs$8dcd1c657db2152bca93d59851ec9992415390deded35c904dd7a301a6a8c0b8 = c"call to abstract method `Continuation.resumeWithException`"
   global @scoop$1$bs$79540464136d040027fe1511a98eb9d0516bfdb9891c5dcb4c150417746c1207 = c"call to abstract method `SuspendTask.run`"
@@ -9,15 +9,15 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<LocalCallHost> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<LocalCallHost> niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$f967cfca7287cf1f01f35228cc352e25724118871b4766862b8db083063b1aa3(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$0244d3b29f491b45b75e4650a5f4ef8652e2e78310a4e63ba1e9645dedf6f401(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param2:ptr<managed>@0]
     ret param2
-  fun @scoop$1$cb$b68fe95c76a340e87433af3d2affa2a2a39d61a58a9363d744a8019c04e22074(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$c120616b0dc3c3987bb125447e49c9ed312bfa1abe6bd5aa6356f2f9321e711c(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     ret param1
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.seed: ptr<managed>
     local %2 $result.0: ptr<managed>
@@ -57,51 +57,51 @@ Module
     call managed-direct-target3 sp<managed-call:3> live=[local5:ptr<managed>@0, local7:ptr<managed>@0] t3 = sig=direct3 (ptr<managed>, ptr<managed>) -> ptr<managed> local-fn5(local5, local7)
     store t3 -> local11
     ret
-  fun @scoop$1$cb$3216f89283c02b874649cefa0e612fd602e4b2bd10b7365e6f0789e06f58cbc4(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$802e3324291fd19e48b9a7bcb5db4e49a3a79dd149487dbc7f593a737b22f262(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$cb$7a13c2acea8ae86fd617feab4662bb75ad27374e2e4078e48318c044a0c2c4a2(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$22a9c49bcd83fbeb1e37f13067e2692b527b5d8236d61ebf397577432cf02352(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$cb$3a2f5f6f706f0b58891c20950f59f20983579001333ecb8542f447c6136a1c2a(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$3b428d73d3b5660083273e677c1bee07e5f04e81bcbddfc09b31a9b55d6e7729(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     ret param1
-  fun @scoop$1$cb$eb113d1f008a25e582920f5fa3298e4cba72860a68efd6b1713823851dee4d77(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$0028c1e1f4582158e441cc9d8cde9002d0d468136dcd561f7836aea63cae6e4e(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$c368ecdb7f8ea815494818c837ed812fb54af11fceb8795659db04fc4a89c2bb(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$3e359f8bd8c9fad004a5d7a2226e3767abeee24ae5ca90934228ba438216179d(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global4)
     unreachable
-  fun @scoop$1$cb$187479d0a292c09c30c5981517f88e7c4ee90c974670ecb0c9268ee5f2711040(ptr<managed>, ptr<managed>) -> enum1
+  fun @scoop$1$cb$8196abb3ba4307acff025feb87eca2190cd9c2e79f69ce1399fd6662e6e7c10b(ptr<managed>, ptr<managed>) -> enum1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global5)
     unreachable
-  fun @scoop$1$cb$7bccb0009ca3d2f34aa798b08b526b8fcc783be0415923e23a9b63f295749ed5(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$a9a09ed47a5ed44a4ff696cc87edfe00e86f9bc09ee9952f2283ad588cae60ee(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global6)
     unreachable
-  fun @scoop$1$cb$6dc25837768b3f2a4ec09dc63af2640413abc5cb9473408d6ba32e2e1311cac1(ptr<managed>) -> void
+  fun @scoop$1$cb$adfa818e6c13765a4504bd62e1d7b2ff11acd590d968756f006c942d23e5b9c1(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$05ca35c8e0758a35374918e8fc0bb25e6998c3e1a0edc2c9f4079080d0ab646a(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$cb3dec212501c3e2207b3d9e9fb565c3c09311b4f8f7574f7578ae09cb8d8343(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record
@@ -143,7 +143,7 @@ Module
     t14 = enum_tag e1 local0 : machine<enum-tag>
     t15 = MachineEq(EnumTag) t14, machine<enum-tag>(EnumTag(0)) : i1
     cbr t15 then @completed else @suspended
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
@@ -172,4 +172,4 @@ Module
   layout SuspendRegistration value size=8 align=8 refs=[0]
   layout LocalCallHost value size=8 align=8 refs=[0]
   layout LocalCallHost size=16 align=8 refs=[]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

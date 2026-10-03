@@ -5,12 +5,12 @@ Module
   global @scoop$1$io$06fe35a3cabf95178020d78c47b874e91b695c450987f297c0f4fdd0f98283d1 = "second"
   global @scoop$1$io$a82f1b4d580daebd270e00bef9c9e436c486343a9a529cebe0f661bd476b9eb1 = "one"
   global @scoop$1$io$65c03f6889155f31e8b0ec6edaaaa20d3f9810cb6e59334e1399a00c71af0d16 = "two"
-  global @scoop$1$ss$6d6453f56c7c0ffac5bf83837dfa49a25e13aa92818bb3c9cb489bda57be60ff : ptr<managed> scan=refs[0]
-  global @scoop$1$bs$2ed98b7f6a2f178d7cbcaa6314ba7cc53680389bc1fb745158c09e8fd2515d4c = c"array size overflow"
+  global @scoop$1$ss$fd5e873c945e7b714bd205c741b5ec11fae80ae85f67f4bdb900d5ffebaa1c46 : ptr<managed> scan=refs[0]
+  global @scoop$1$bs$a9be1ddad714ada6bd623ee161a9d06aa7a23dcead3c9753557df7ef5de48049 = c"array size overflow"
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Batches tagged size=16 align=8 variants=(ptr<managed>)@8+8:refs
-  fun @scoop$1$cb$29d3e1989cd5b01b818f76d8b8c853e29b8da6cd595c0a63dde1eaae8613f1de(i1) -> void
+  fun @scoop$1$cb$a37164ac9912d184fb4e529f4b19976745b2d3e663c79f1df5a68d5f71876138(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -34,7 +34,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$f965bff2e17a01406d1c47aad476102f9b3312ea338396d1852d06747dbfa272() -> void
+  fun @scoop$1$cb$a8e4782fb054686e6acfbf7e70bde430c671b6ac7f77d69a4437ebdbbeb224cd() -> void
     local %0 $dependency.parameter.values: ptr<managed>
     local %1 ints: ptr<managed>
     local %2 $dependency.argument.0: ptr<managed>
@@ -263,7 +263,7 @@ Module
     t38 = integer_compare_Equal<Int> local55, local57 : i1
     store t38 -> local58
     br @if.merge.12
-  fun @scoop$1$cb$94f095cd9fba0847418bad6392b9b180a77606e45214164513cb30b99f1f3065(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$612e47e3cf0900bca9e7d000f1f68334c0515b8bbacceaa0efa303378d353678(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: ptr<managed>
@@ -280,7 +280,7 @@ Module
     call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn12(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop$1$cb$6179282440f5f5ad14d541973d6156da5cb8b0fe66f54015aa51069dbeac2d25(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$86667ecd411ecb9a2406b784d339df221d1ebc88077001288c68bb37d0dcd85a(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: ptr<managed>
@@ -297,23 +297,23 @@ Module
     call managed-void-target0 sp<managed-call:1> live=[local2:ptr<managed>@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, ptr<managed>, i64) local-fn13(local4, local2, local3)
     t1 = aggregate () : {}
     ret local4
-  fun @scoop$1$cb$bed9f9c56fdd7eafc829a5956649ecb7c1cac6eb6836f5ec7550f167723614de(ptr<managed>, ptr<managed>) -> i32
+  fun @scoop$1$cb$961ca7db1535c6038b22a2b134802f42ba9ec2723a3c12938913ee873ff0a491(ptr<managed>, ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000001)
-  fun @scoop$1$cb$869924fcdfca280a82959cfede5337df3b1423aafeec638e3869c2fef515e259(ptr<managed>, ptr<managed>) -> i32
+  fun @scoop$1$cb$d713029129010c6c9eed2bbfbf5e2dd68ab7430668e19c583054c6589c1c6fc6(ptr<managed>, ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000001)
-  fun @scoop$1$cb$6992ceb35993340734f9c94d884516889b4b5232efc291bbf69d8bb3c444e180(ptr<managed>) -> i32
+  fun @scoop$1$cb$1c3606e93c29c604b2d6a54688005dff9565eba0551c395e30409fd1e321f150(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000001)
-  fun @scoop$1$cb$e703174b29faa45cbc5c8f4bbeb7bed0874232bc997f9bf0af8cdd4601cfbd03(ptr<managed>) -> i32
+  fun @scoop$1$cb$5ef54fa544f3b8aaaa441901e6a8b094da1ac987c2719c34af7970991c93ab42(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000001)
-  fun @scoop$1$cb$7a9d92220258c7a6a241849e9a98236b9e3fe8c177c01b5d56a8362eb912ceca(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
+  fun @scoop$1$cb$dd67f9a6cec68bf24271885e174705ad36aadb8bbf9f4235ed084faac5845eea(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: i64
@@ -384,7 +384,7 @@ Module
     store local10 -> local11
     t16 = enum_wrap e1 v0 (local11) : enum1
     ret t16
-  fun @scoop$1$cb$21523e7cc2b8d2195964bb147b3cc13cc1bad50547a0462bf84667eba702b5b9(ptr<managed>) -> enum0
+  fun @scoop$1$cb$e778eb4414466b01a43353d3641ad064dec7159991c6cf3b049eecdd4528b88d(ptr<managed>) -> enum0
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: i64
@@ -455,27 +455,27 @@ Module
     store local10 -> local11
     t16 = enum_wrap e0 v0 (local11) : enum0
     ret t16
-  fun @scoop$1$cb$634a383241f20522c2a092074ec29a201ba9cfd8083a6447ecfcb882b8e86dd1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$0c7057e439402f8f7926d2a702ad1369884824ef7cbc1178939eb87b4e378a75(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$1ac4e38b2616881fda9d2848288675869cc90ebeb83eefd59ca5fc9237abb067(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$08ee59d26aa42e7af18c3b808999ae6c094c8208a21558d58eac08db3ed805a7(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$b396f1d5d46be960b3d821c3e915b2e8a3f8a14362b64ffc3e47dbaba2b8b954(ptr<managed>, ptr<managed>, i64) -> void
+  fun @scoop$1$cb$8bff0bca9b7e404f4b91f1ecf6a73f7e5b9728c771c693739c79b3e222b015a9(ptr<managed>, ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
-  fun @scoop$1$cb$2912564784be4ce4380f231e7538deecd1e4df8924fce7adcd23db56d66d6308(ptr<managed>, ptr<managed>, i64) -> void
+  fun @scoop$1$cb$6730ef599a1d3a0b050c5bef460ab4d2e1918cb0e9c47e59a98b4f3d77dcb24b(ptr<managed>, ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1
     heap_store param0 +24 param2
     ret
-  fun @scoop$1$cb$d7c2c448d5447d6d20cfa69e75769dc33757a50cc0bf16409db907f1b09a85f8() -> i32
+  fun @scoop$1$cb$e4ad26b7ef5e0b9da5893ea27593519e5423f81f09dc4bdd945064ccca1f7742() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -519,4 +519,4 @@ Module
   layout ArrayIterator size=32 align=8 refs=[16]
   layout ArrayIterator value size=8 align=8 refs=[0]
   layout ArrayIterator size=32 align=8 refs=[16]
-  output executable @scoop$1$cb$f965bff2e17a01406d1c47aad476102f9b3312ea338396d1852d06747dbfa272
+  output executable @scoop$1$cb$a8e4782fb054686e6acfbf7e70bde430c671b6ac7f77d69a4437ebdbbeb224cd

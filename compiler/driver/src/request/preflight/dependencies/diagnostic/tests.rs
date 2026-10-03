@@ -43,7 +43,7 @@ fn reader_slots_follow_dependency_order_and_semantics_keep_the_provider() {
         location(&error, &order),
         Some((
             ConeIdentity::SINGLE_FILE,
-            "lir/cone-production/4/registrations/InitializationUnit".to_owned()
+            "lir/cone-production/5/registrations/InitializationUnit".to_owned()
         ))
     );
     assert_eq!(location(&error, &[]), location(&error, &order));
@@ -63,7 +63,7 @@ fn structured_artifact_error_keeps_raw_locator_bytes_and_member() {
             index: 2,
             path: path.clone(),
         },
-        semantic_path: "lir/cone-production/4/registrations".to_owned(),
+        semantic_path: "lir/cone-production/5/registrations".to_owned(),
         source: Box::new(
             slib::CrossConeArtifactClosureValidationError::MissingCompletedCurrentArtifact,
         ),
@@ -77,7 +77,7 @@ fn structured_artifact_error_keeps_raw_locator_bytes_and_member() {
         actual[0].origin(),
         &DiagnosticOriginV1::artifact_path(
             HostPathCarrier::from_path(&path).unwrap(),
-            "lir/cone-production/4/registrations".to_owned()
+            "lir/cone-production/5/registrations".to_owned()
         )
         .unwrap()
     );

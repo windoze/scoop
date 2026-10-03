@@ -1,11 +1,11 @@
 Module
   global @scoop$1$io$05ba476cbeaf27f0743c528ee5a01a9efef0a511b34cd427b0337a42d8ada596 = "illegal state"
   imported_global @scoop$1$ss$b08350df3763cf3a7d3ab085e716c3aeef45f25610a15d79a8c9ffb8e966fa1e : ptr<managed> provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 scan=refs[0]
-  global @scoop$1$ss$e3d976a6e1de49b636b7a196dae2d1920a51ed565d30bbafc90da734894c951e : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$e50c17af40309c9cce1bad0d77aa06ad9596dc7ef92ab30fac19bbf9f8d66f52 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum Choice tagged size=16 align=8 variants=()@8+0 (i32, i1)@8+8
   enum Other tagged size=16 align=8 variants=()@8+0 (i32, i1)@8+8
-  fun @scoop$1$cb$260e8618e5ebbe58766f44c184b86eda09538714c1b7dfb16bf73a2b232fedc6(i1) -> void
+  fun @scoop$1$cb$c86ed79ddf9783b0ebc0e9bc915e674ee4b305790815821faf332189a3f0a900(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -29,7 +29,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$4be7a7c3e62a2d8365b0cd343f201d4908e9afd4d512d5f60beb06fca093cf46() -> void
+  fun @scoop$1$cb$e88869bfec66edd86693a40cfd24bc86427d99499fcebaf3eae5e76d7ad1bd15() -> void
     local %0 samples: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $default.local.1: i32
@@ -261,11 +261,11 @@ Module
     call managed-void-target11 sp<managed-call:27> live=[] sig=void11 (i1) local-fn0(local64)
     t37 = aggregate () : {}
     ret
-  fun @scoop$1$cb$2f2aa97c977f25aab96d2360096fc17a4a1b970a30e29c178b354cfe24f98dc6(ptr<managed>) -> void
+  fun @scoop$1$cb$8eba493d59cd8b4835bbcf0dbbf547d4002a8ed5e3f8e4102178d6e932c08ed5(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$d4a6c4ed53b8124396696473d6911b028e969be38a9c4840d73d6bbb2d8586bd() -> i32
+  fun @scoop$1$cb$dd9bb6e780acd2f2dd51db7b2c6bbd37ced541ade55cafadb134746fbe9f76e1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -284,4 +284,4 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout MarkerValue value size=8 align=8 refs=[0]
   layout MarkerValue size=16 align=8 refs=[]
-  output executable @scoop$1$cb$4be7a7c3e62a2d8365b0cd343f201d4908e9afd4d512d5f60beb06fca093cf46
+  output executable @scoop$1$cb$e88869bfec66edd86693a40cfd24bc86427d99499fcebaf3eae5e76d7ad1bd15

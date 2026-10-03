@@ -261,6 +261,7 @@ fn emit_type_descriptor<'ctx>(
             .into(),
         i32_ty.const_int(related_types.len() as u64, false).into(),
         function_result.into(),
+        ptr.const_null().into(),
     ];
     if !related_types.is_empty() {
         fields.push(ptr.const_array(&related_types).into());

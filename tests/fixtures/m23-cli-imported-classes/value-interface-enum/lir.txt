@@ -1,6 +1,6 @@
 Module
   enum ReadChoice tagged size=8 align=8 variants=()@8+0 ()@8+0
-  fun @scoop$1$cb$0e22f4b09fac43db53e766c0f0a6219c5c3e74e0869df0be9c782cf725c7d996() -> ptr<managed>
+  fun @scoop$1$cb$c65b60de33352162899a694e48b07dc9253982f0a77a8f25a046d13a5303346c() -> ptr<managed>
     local %0 value: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.parameter.extra: i64

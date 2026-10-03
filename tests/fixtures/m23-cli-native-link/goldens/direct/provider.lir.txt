@@ -1,6 +1,6 @@
 Module
   extern ef0 add @m23_add(i32, i32) -> i32 <c exact=(Int,Int)->Int bridge=@scoop$1$br$8440a851b359429ef3074e840e6904b277edade464107b28a5208d2bbe4207de gc-leaf nounwind lib=m23_math>
-  fun @scoop$1$cb$e572649690e618435b0fb354fb4bda755b3f9734113ee817c45e3e656e3ba5e0(i32, i32) -> i32
+  fun @scoop$1$cb$9d944c514070b721dff05f4b490a2ca8811a89fc685a9376c210f14378ff606f(i32, i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
     local %2 $sc.2: i32

@@ -1,7 +1,7 @@
 Module
   global @scoop$1$io$e639ed3870dd9547151e14b5a67b420f6bbdc58aaa507f3284ee2da87aa504ad = "tuple"
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$e1218383f3b46041f799cf500a0dba1d03b9d5622df4368415e68144d659cec9() -> i64
+  fun @scoop$1$cb$ae3a197d7cd66d7b476094955fcda5c432bda2932c83b6eba403e3243aa9218d() -> i64
     local %0 number: i64
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.value: ptr<managed>

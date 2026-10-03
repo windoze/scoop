@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$63af79185611f0058550c0968330a96510db620ce23494428aa05593a303ce53 = "illegal state"
-  global @scoop$1$ss$6263229a31dc76264b8d5de859cbd77aa557d3eec4d086eb2a7c98ff77cd3b03 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$5c52bb2f0d528dbd59eca84ab7b5e28d3cb3a631e057cfd0a6bd5f9a78167248 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$c8b3474af7397726a583664795e363c610482cbe77e02d996a07ef539be798ee(i1) -> void
+  fun @scoop$1$cb$ad960f95350e24c802761292c501f6ec3117fa4378ad0239513c426adb18f60f(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -26,7 +26,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$c0f7e942a3a46d5f39a6095dcab8fe6c1649b8bae5c0e70d849e3a80d1e89512() -> void
+  fun @scoop$1$cb$e55298f1b4488fa11662dedcf6f2544730427b2f5f767c7c33c7e1e616ca8337() -> void
     local %0 $dependency.parameter.value: struct0 <logical-zst e658bb3a1870e0eb0f7c6375b6dd5c3c6326efd375cbd9627ac1efda9accc6de>
     local %1 $argument.0: i1
     local %2 $parameter.value: i1
@@ -46,7 +46,7 @@ Module
     call managed-void-target0 sp<managed-call:2> live=[] sig=void0 (i1) local-fn0(local2)
     t4 = aggregate () : {}
     ret
-  fun @scoop$1$cb$39781f02a67902be6de5deb695ff87b4aedbf81aeb6b1700416e7f2354d24944() -> i32
+  fun @scoop$1$cb$d9f7c66927a8c9fd1212aec75122aae226d1eea6bedf9c8ae84234733fcaa083() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -62,4 +62,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$c0f7e942a3a46d5f39a6095dcab8fe6c1649b8bae5c0e70d849e3a80d1e89512
+  output executable @scoop$1$cb$e55298f1b4488fa11662dedcf6f2544730427b2f5f767c7c33c7e1e616ca8337

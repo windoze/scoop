@@ -1,6 +1,6 @@
 Module
   global @scoop$1$io$e98968438cdf6a39f6b2d82ef2ea6e0777f2bf180f2d49a056eb7365de85c630 = "factory"
-  fun @scoop$1$cb$c4879bf0e04dbd31be6b31d8fe07a2127e1a69f18f1cdc49b2532fbf8ff97ab3() -> sret<struct0 size=16 align=8 scan=none>
+  fun @scoop$1$cb$4d2987678eb50d886e96a0c914c6e5b0d4e0e3044c6023fb0e007eb94be39863() -> sret<struct0 size=16 align=8 scan=none>
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.text: ptr<managed>
     local %2 $call.1: struct0

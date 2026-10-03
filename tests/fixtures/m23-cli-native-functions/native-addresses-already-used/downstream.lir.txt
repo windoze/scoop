@@ -1,6 +1,6 @@
 Module
-  callback cb0 Function(PersistentFunctionId([115, 90, 61, 138, 143, 200, 28, 244, 87, 129, 51, 159, 254, 223, 52, 199, 132, 223, 120, 134, 150, 54, 57, 77, 143, 241, 249, 59, 245, 218, 38, 59])) @scoop$1$cb$002cccc12986149e9d04c29ab31138047703dd510e908e09bafa788dc712413d -> @scoop$1$br$d4dd74127086ab2a5375255e4562a44c640ce416e7048a9b291a619b70f803aa c=(Long)->Long
-  fun @scoop$1$cb$f518fe8df625c77b4093d757c0ffde55422b9d60534246dc2025c1fef843bb01() -> i64
+  callback cb0 Function(PersistentFunctionId([115, 90, 61, 138, 143, 200, 28, 244, 87, 129, 51, 159, 254, 223, 52, 199, 132, 223, 120, 134, 150, 54, 57, 77, 143, 241, 249, 59, 245, 218, 38, 59])) @scoop$1$cb$7004e761538d6c474246691cd93301d432333f4044bbe6886ad9a6627fc321bb -> @scoop$1$br$d4dd74127086ab2a5375255e4562a44c640ce416e7048a9b291a619b70f803aa c=(Long)->Long
+  fun @scoop$1$cb$a7de8c3eb4248f866097a392eca46d60b18f44b8c9d6674bee1d071e6742919f() -> i64
     local %0 $argument.0: i64
     local %1 $parameter.number: i64
     local %2 value: ptr<managed>
@@ -40,7 +40,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local8
-  fun @scoop$1$cb$ff72cca4a5a0cec74b47d0db3ec21b8957d624bda06f0aba0e000a4ac8ad5e38(ptr<managed>) -> i64
+  fun @scoop$1$cb$6cd920458ba19c7f776cf02ca4cd9908e153a661b8cf33c1aee6bf8c2ce44489(ptr<managed>) -> i64
     local %0 $dependency.local.1: ptr<code>
     local %1 $dependency.local.2: ptr<code>
     local %2 $dependency.local.3: i64
@@ -73,7 +73,7 @@ Module
     store local10 -> local11
     t4 = integer_Add<Long> local9, local11 : i64
     ret t4
-  fun @scoop$1$cb$6903a1c9da641f13946e271d4f4d5468bb51c2ccbf1c112bb0e62f9b01b66a93(ptr<managed>, i64) -> void
+  fun @scoop$1$cb$8b757036c90e2046c3b505de81b2001b2eed079b73bbdd1b7ec40045d98e437e(ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

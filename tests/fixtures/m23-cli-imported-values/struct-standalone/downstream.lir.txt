@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$d0f433c5893de6d879cf70efc51129cc4b274035ef9a7f067a150e998918859c(elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> <no-gc>
+  fun @scoop$1$cb$6eadf7dd7fe686bc5076b4c61465780dbc3d8ba51cc0a4ff2818bdaffd244431(elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> <no-gc>
     local %0 $dependency.argument.0: struct0 <logical-zst 5c5388c6f24e9625e4d908148c7fd6cb7b92313e0cc7243150a8dd16c6c841bf>
     local %1 $dependency.parameter.value: struct0 <logical-zst 5c5388c6f24e9625e4d908148c7fd6cb7b92313e0cc7243150a8dd16c6c841bf>
     local %2 $call.1: struct0 <logical-zst 5c5388c6f24e9625e4d908148c7fd6cb7b92313e0cc7243150a8dd16c6c841bf>
@@ -9,7 +9,7 @@ Module
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 (elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1> external-fn0(elided-zst local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$51839337e8caf6bda6e78b885369cb6ce65632b0286fcfeb92fc29318bbd1e40(indirect<struct1 size=24 align=8 scan=none>) -> sret<struct1 size=24 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$51d25774ae3a802848e9f05702b99e538c2c3a900d07a254798825cab5153927(indirect<struct1 size=24 align=8 scan=none>) -> sret<struct1 size=24 align=8 scan=none> <no-gc>
     local %0 $dependency.argument.0: struct1
     local %1 $dependency.parameter.value: struct1
     local %2 $call.1: struct1

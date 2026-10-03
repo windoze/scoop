@@ -2,9 +2,9 @@ Module
   global @scoop$1$io$709d4aa00bbc82b002916aeb721872470ef75fc59ab68e11d8e7f931f04e579d = "cpeer"
   global @scoop$1$ss$336190880c922b1ad4e6d167f3c6629f20e3aac9023df9d38bbdd3e3644d37d8 : i64 scan=none
   global @scoop$1$ss$bd5c712a29b3307665e9703ec5543c680da81027ca03ca447c618c91cadd8d83 : ptr<managed> scan=refs[0]
-  init0 top-level:joined storage=@scoop$1$ss$336190880c922b1ad4e6d167f3c6629f20e3aac9023df9d38bbdd3e3644d37d8 failure=@scoop$1$ss$bd5c712a29b3307665e9703ec5543c680da81027ca03ca447c618c91cadd8d83 initializer=@scoop$1$cb$4397c6700aff241cf4a210463b8153a1d2c6c485ddbb16619b54e5e32e6f298c ensure=@scoop$1$cb$5f0d86aec84c38f04cb0360aef6b74cd627663f624c718b6d0c7993d73edb2df deps=[]
+  init0 top-level:joined storage=@scoop$1$ss$336190880c922b1ad4e6d167f3c6629f20e3aac9023df9d38bbdd3e3644d37d8 failure=@scoop$1$ss$bd5c712a29b3307665e9703ec5543c680da81027ca03ca447c618c91cadd8d83 initializer=@scoop$1$cb$0ed8ac47d9a0ee1634b8cad9e5858aac3886cf2ac58d7f0042c2b85dc34061d5 ensure=@scoop$1$cb$fc8d64e1a05d921cdf0382aac28dfa27d39f259275f3a6487a194778c26370a8 deps=[]
   extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$8befefe51284c9250620a7c902e7db26527ab0bc553f693a34f8b70d779ab137 gc-leaf nounwind lib=m23_runtime_images>
-  fun @scoop$1$cb$2faa5ceab37b40fe5163a5834572254b458c40dc79f397be0e22de5375f69f66(i64) -> void
+  fun @scoop$1$cb$f8725bb3aed0a2351ea9aba23e134107ffe4b7df7f9c5633efa759df7150ae22(i64) -> void
     local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -12,7 +12,7 @@ Module
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$d21213fb698f7ac56a26462d3a1c68c3086afea59045519ce293d8fa0692a783() -> i64
+  fun @scoop$1$cb$7a358b789542a66011dc73a1a59c987955255fb4884b6715ed62045b7213ba31() -> i64
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
     local %2 $dependency.receiver: i64
@@ -58,7 +58,7 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local9
-  fun @scoop$1$cb$4397c6700aff241cf4a210463b8153a1d2c6c485ddbb16619b54e5e32e6f298c() -> void
+  fun @scoop$1$cb$0ed8ac47d9a0ee1634b8cad9e5858aac3886cf2ac58d7f0042c2b85dc34061d5() -> void
     local %0 $call.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -66,7 +66,7 @@ Module
     store t0 -> local0
     global_store global1, local0
     ret
-  fun @scoop$1$cb$5f0d86aec84c38f04cb0360aef6b74cd627663f624c718b6d0c7993d73edb2df() -> void
+  fun @scoop$1$cb$fc8d64e1a05d921cdf0382aac28dfa27d39f259275f3a6487a194778c26370a8() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -145,14 +145,14 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$607b87b0e5f2840d180c6f976caaabeb6421d19ecc228b5b7481075b73571c02() -> i64
+  fun @scoop$1$cb$33d8e8ea63adabb1e6272424eda94daa4e4eb48ff43f4e0589291e9615d8d7bf() -> i64
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn3()
     t0 = aggregate () : {}
     t1 = global_load global1 : i64
     ret t1
-  fun @scoop$1$cb$a5f6394fc4147073f87fbfcc3d4ee8334744b7c232578f8b46faf60535383a2c() -> i32
+  fun @scoop$1$cb$2eb8f032f6aaf5e084e335b38a3a8ad67a3ba6424038e0271b3ac968d7cb2a25() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn3() normal @success unwind @failure

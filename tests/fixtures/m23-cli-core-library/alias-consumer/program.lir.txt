@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$a07a0d18dc5330c28b678aad1efb6ccfef713e07fa275e324adb8686181f086f = "illegal state"
-  global @scoop$1$ss$ca0d38cc752bb4bedf0d5f6fd3e536f80f84a022359b86625311e91f8119ffc2 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$8d9285b28b829cfe33db06b6f9ad74434a603689ba805db677fabcb18cc7a72a : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$c27974be2714591d0bb315bfc0db3b99ddd759e1bbbd90bfcf0ee229ca080f61() -> void
+  fun @scoop$1$cb$cb265de28b7316a7206695655de4717339ee6b85f788308d42693c32bd23d8dc() -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 value: i32
@@ -85,7 +85,7 @@ Module
     unreachable
   block if.merge.8
     ret
-  fun @scoop$1$cb$02a826080090a666deed3b9ac6be757d123dedb47636a47da1b47dc25f6d7efd(indirect<{i32, i1} size=8 align=4 scan=none>, indirect<{i32, i1} size=8 align=4 scan=none>) -> i1
+  fun @scoop$1$cb$0c1c6d31248a79979ef0d3eff69aa799bde14bbc76fa2655d34d12b920c1eb17(indirect<{i32, i1} size=8 align=4 scan=none>, indirect<{i32, i1} size=8 align=4 scan=none>) -> i1
     local %0 $logic.1: i1
     local %1 $call.2: i1
   block entry
@@ -106,7 +106,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local0
-  fun @scoop$1$cb$58eafbc1f5c3ef1cc5431720a2a30f29f0ec4d8224a793775089972607d68ede() -> i32
+  fun @scoop$1$cb$a9198257a5afa0a048e0ed54d461331f7bdd7089b458da25caa94475e477be54() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
@@ -122,4 +122,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$c27974be2714591d0bb315bfc0db3b99ddd759e1bbbd90bfcf0ee229ca080f61
+  output executable @scoop$1$cb$cb265de28b7316a7206695655de4717339ee6b85f788308d42693c32bd23d8dc

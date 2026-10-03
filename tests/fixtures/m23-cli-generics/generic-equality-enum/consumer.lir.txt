@@ -1,6 +1,6 @@
 Module
   enum Choice tagged size=32 align=8 variants=()@8+0 (ptr<managed>)@8+8:refs (ptr<managed>, ptr<managed>)@16+16:refs
-  fun @scoop$1$cb$0fb67bedbbc8b3908ad81bc907635c2179fb9a7edc756d15fd504f8905ffcad3() -> i32
+  fun @scoop$1$cb$137fb30ffedd2afb1f741030c314cc006576865b817433e913e188de1f3784e0() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -11,7 +11,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$5e34224ffc266e65bd95bd3fad524275648d83bb958c91477dc904a14b1dc978(i32) -> i32
+  fun @scoop$1$cb$eb6728892c675bfa0cbd8b25e61ce73e6b9c10cd4802294acad4cec2d6db9ed6(i32) -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.argument.1: i32
     local %2 $dependency.parameter.payload: i32
@@ -236,7 +236,7 @@ Module
     ret integer<Int>(0x00000005)
   block if.merge.16
     ret integer<Int>(0x0000002a)
-  fun @scoop$1$cb$4a1e87416dea6eec5ac4564aa37fe5ab6114193a79b7503e95c4b4739cdd700e(ptr<managed>, ptr<managed>) -> i1
+  fun @scoop$1$cb$7771b49bc38d256bc21652041ab7bca710f2759b0cf0239a7870cfabc447e44e(ptr<managed>, ptr<managed>) -> i1
     local %0 $dependency.local.2: i32
     local %1 $dependency.local.3: i32
     local %2 $dependency.local.4: i32
@@ -249,7 +249,7 @@ Module
     store local1 -> local2
     t2 = integer_compare_Equal<Int> local0, local2 : i1
     ret t2
-  fun @scoop$1$cb$239fff75895318964b85fa0485532773894aaab72efb84a1147d541f5dbd9947(ptr<managed>) -> sret<enum0 size=32 align=8 scan=refs[8, 16, 24]>
+  fun @scoop$1$cb$0f9f686b677e94d132ce5901f3931aca1ca5eb0bb36af2246b67c6870ad1360f(ptr<managed>) -> sret<enum0 size=32 align=8 scan=refs[8, 16, 24]>
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
   block entry
@@ -258,12 +258,12 @@ Module
     store local0 -> local1
     t0 = enum_wrap e0 v1 (local1) : enum0
     ret t0
-  fun @scoop$1$cb$2b0454d966b9c691785b5306e3b16355d45c0494d954e8bffeb2a93521e7cf16() -> sret<enum0 size=32 align=8 scan=refs[8, 16, 24]>
+  fun @scoop$1$cb$7e8611470af113bbb79e5c881d4f069cd50e97e3341eeeda8d491baf53af4145() -> sret<enum0 size=32 align=8 scan=refs[8, 16, 24]>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = enum_wrap e0 v0 () : enum0
     ret t0
-  fun @scoop$1$cb$6f50d1ca1bb9880fd3a6d792dfec6af886ddccdcf4c4d91999b1702fa860999b(indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1
+  fun @scoop$1$cb$703da339607f493db9f0dd36a6d91770e05ebcbfccd4de850edaffebfe85fb20(indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1
     local %0 $call.1: i1
     local %1 $sc.1: enum0
     local %2 $sc.2: enum0
@@ -274,7 +274,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local1:enum0@8+16+24, local2:enum0@8+16+24] t0 = sig=direct0 (indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1 local-fn6(indirect local1, indirect local2)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$ee195d2a0881cc4cd4ae41da03cf862ca23558c885de2f6c40936db466040901(indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1
+  fun @scoop$1$cb$8a628ce3737d7dbe7ef4358eb321506e850bd680d9ad23e7feb97283f181ce10(indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum0 size=32 align=8 scan=refs[8, 16, 24]>) -> i1
     local %0 $left.1.0: ptr<managed>
     local %1 $right.1.0: ptr<managed>
     local %2 $left.2.0: ptr<managed>
@@ -364,7 +364,7 @@ Module
     br @logic.merge.21
   block logic.merge.21
     ret local18
-  fun @scoop$1$cb$29b470da6ac9e8163034cceae66b8d21f1de67524540d3a0d770155a3c650df5(ptr<managed>, ptr<managed>) -> sret<enum0 size=32 align=8 scan=refs[8, 16, 24]>
+  fun @scoop$1$cb$66a634f31391abb1bd6adffc81d225b5499bcdf8435d5ce7e4aa1e2d3bd25976(ptr<managed>, ptr<managed>) -> sret<enum0 size=32 align=8 scan=refs[8, 16, 24]>
     local %0 $dependency.local.2: ptr<managed>
     local %1 $dependency.local.3: ptr<managed>
     local %2 $dependency.local.4: ptr<managed>
@@ -377,12 +377,12 @@ Module
     store local1 -> local3
     t0 = enum_wrap e0 v2 (local2, local3) : enum0
     ret t0
-  fun @scoop$1$cb$06685f9cfdee98dcad742384d6c42e7583e0e7aa89713553d3d36ea572997207(ptr<managed>) -> i32
+  fun @scoop$1$cb$b3b4f26d266b9f704c48fccd13e34947c6da4051e38348926624706d431b56ff(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +20 : i32
     ret t0
-  fun @scoop$1$cb$98c51eb00a909a4590edf5d4cc542f1d32f7b2915c711038b35239438f30e9c6(ptr<managed>, i32, i32) -> void
+  fun @scoop$1$cb$078c3bd50b6b192f700e0b5c022725e164d561d2143bdcc5219a430e3bda27cb(ptr<managed>, i32, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

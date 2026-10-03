@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$5006eae2b698bd6dd0943ac916f0b2a63dcc4f7d5e5b96ae3518b5491085f581 = "illegal state"
-  global @scoop$1$ss$87cba85cb0e87fb2b9faf4b8dba05d81da80e092c418b4a030c4e686ad97cd16 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$3e99e1f0e8bec7a089d97994f4a817653ba6932e5537f3f6a195509674d0ef68 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$6910f75d6fd566962a9486b9fea6da5576a21e4256fcd01325632d726b14dcc4(i1) -> void
+  fun @scoop$1$cb$204ac8a583133ebc15e71b2ea41fbd2082e0aa50117ac3a63e8e148d2176c8b4(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -26,11 +26,11 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$bb6ed614008509034023b41ed43b2392ab7b549c5481b18cbf4e0b693f674cb3() -> void
+  fun @scoop$1$cb$b84060b7029fea511bc58485c89f37a3f3b91b39bfbb6cf14c0415e6619e41f2() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$d0685c8ce4ea4f8816caf9a43135a898887530c1870d15f4eb25e53d96834468() -> void
+  fun @scoop$1$cb$11d2ec9341093c59a7ba91b82ad18c4361a3365061fee5747b712b3813d7dc12() -> void
     local %0 host: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.argument.0: struct0 <logical-zst 8ab0832615e144e4861fe579d20087e036f57bdd2a406ce5e8218280d5c46dab>
@@ -139,27 +139,27 @@ Module
     call managed-void-target6 sp<managed-call:14> live=[] sig=void6 (i1) local-fn0(local32)
     t27 = aggregate () : {}
     ret
-  fun @scoop$1$cb$3773ad62b32c8b5dc7233eb5e999be113962e81829d9bbef66a6c635345d7574(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
+  fun @scoop$1$cb$f8655507cd631069b584e35c872183de09cb4dca35f46f407ad2d5e432d66769(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true
-  fun @scoop$1$cb$5893092765057dfc4119239754aaa4f6810731545d5c3a26d3703653793a22fa(ptr<managed>, elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>, i1) -> i1
+  fun @scoop$1$cb$bf347f5919e4883176710e4e58dfeef26eacf564a7aba06b03c62fb5dddc4faf(ptr<managed>, elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>, i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param3
-  fun @scoop$1$cb$5864755d77e6fb6fecc9d5ba28d69927592d99fe3234235ea71a376d69fbdd44(elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>) -> i1
+  fun @scoop$1$cb$0eb03e7f8ff30e92c6d989477895dbec0cf801dd81f2ce8a6b746ee1df161476(elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true
-  fun @scoop$1$cb$62a7a36b11ddb62180b0736698d3ecd87fc3582bf41f0bd0e5271b9e8f61db2f(ptr<managed>, elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>, i1) -> i1
+  fun @scoop$1$cb$85538f88a1304b653482f795f1f9ef5ac9f4e95068d532cebaddf1c7be177b94(ptr<managed>, elided-zst<struct1 size=0 align=1>, elided-zst<struct1 size=0 align=1>, i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param3
-  fun @scoop$1$cb$0db9d0ccf412c07875564cca30e23c78b5e7385678d30da912488f4f9abe5d78(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
+  fun @scoop$1$cb$f8da311adb5c5511acc0695ec3b17fd856fe459e77c1c8117ae20cbe58c0125e(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true
-  fun @scoop$1$cb$7a4f1322b180d97093c72a667d368f23afd84215b5b1e3cea4db809a4a70c08e(elided-zst<{struct0, {}} size=0 align=1>, elided-zst<{struct0, {}} size=0 align=1>) -> i1
+  fun @scoop$1$cb$19be782268d1c37d8ca09acd684e9692032b3280bc19c9e46b881c573149e3fc(elided-zst<{struct0, {}} size=0 align=1>, elided-zst<{struct0, {}} size=0 align=1>) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
     local %2 $call.3: i1
@@ -182,23 +182,23 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop$1$cb$51c745fa7cbeee2b43a0e67d7e0877d0706fa4e5b348d82be5d6a2d204c5e868(ptr<managed>, elided-zst<{struct0, {}} size=0 align=1>, elided-zst<{struct0, {}} size=0 align=1>, i1) -> i1
+  fun @scoop$1$cb$ceb4bc1e848e4f737ebbbf758828c0da0ec1145446a23daf789cc1b4c78ff6c5(ptr<managed>, elided-zst<{struct0, {}} size=0 align=1>, elided-zst<{struct0, {}} size=0 align=1>, i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param3
-  fun @scoop$1$cb$f4316744a39bf9a5059841074b8cb8287a048da1051ca702351dd6e4061c4158() -> elided-zst<struct0 size=0 align=1> <no-gc>
+  fun @scoop$1$cb$9466252ca8be7c0eb9fcf2feef3d90bec07b0ee7ce1d2345baa43b1c277cd7c0() -> elided-zst<struct0 size=0 align=1> <no-gc>
   block entry
     t0 = aggregate () : struct0
     ret t0
-  fun @scoop$1$cb$75d7d075108561c09f357bb0ec313ad03e5ea3acc5296be5a1a788e88cc75530() -> elided-zst<struct1 size=0 align=1> <no-gc>
+  fun @scoop$1$cb$d2d3661afaf25cd3cd026f3cb3a6a4818e92f8376bf3c10e865f838311554318() -> elided-zst<struct1 size=0 align=1> <no-gc>
   block entry
     t0 = aggregate () : struct1
     ret t0
-  fun @scoop$1$cb$74b40f2613ba9ff0431401f74c1bbab9aad08966a5c591febfea9492e2475473() -> elided-zst<struct2 size=0 align=1> <no-gc>
+  fun @scoop$1$cb$4c74f39ff7df1871e4a14924bdc6278c14e5564ffac322f29153a77e0346cd7b() -> elided-zst<struct2 size=0 align=1> <no-gc>
   block entry
     t0 = aggregate () : struct2
     ret t0
-  fun @scoop$1$cb$97638c297d9439dfa1beb806352898d1e24e06eea1d52623111fa5c67b47ad9f() -> i32
+  fun @scoop$1$cb$39aedf2aa1aa9a11d837062f59e2137f6c830187226dedeadfbd86b768438ecb() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
@@ -220,4 +220,4 @@ Module
   layout Token size=0 align=1 refs=[]
   layout Token size=0 align=1 refs=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$d0685c8ce4ea4f8816caf9a43135a898887530c1870d15f4eb25e53d96834468
+  output executable @scoop$1$cb$11d2ec9341093c59a7ba91b82ad18c4361a3365061fee5747b712b3813d7dc12

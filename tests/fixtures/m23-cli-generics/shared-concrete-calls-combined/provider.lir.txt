@@ -1,13 +1,13 @@
 Module
   global @scoop$1$ss$b7f7ef2a4929f146812e2c572530a0e47463c3cfb46001d28a8a03d240ad7094 : i32 scan=none
-  fun @scoop$1$cb$3ebd1ee962b926c41cc960b750fd846d7b4c35a1c5da9575aedee933a92d075f() -> i32
+  fun @scoop$1$cb$450af09fbcee681eec51edaf5e753e3d6e6b111669c8abcc7675a8f7dc8d72d4() -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call no-gc-direct-target0 t0 = sig=direct0 () -> i32 local-fn2()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$1de0ad365884a82ba585263ea956b07f3762e135f7687fb103852bed03620010() -> void
+  fun @scoop$1$cb$1c9efd34b4fc758639f01a62b1cc83b2a64b69779f609409c9406a4562f6c10c() -> void
     local %0 $old.0: i32
     local %1 $dependency.receiver: i32
     local %2 $dependency.argument.0: i32
@@ -23,11 +23,11 @@ Module
     call no-gc-void-target0 sig=void0 (i32) local-fn3(t1)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$f6e2f47533495a1a70b700e2caddf6396f1b15a2c9706de3ec5ef81b3c8716b6() -> i32 <no-gc>
+  fun @scoop$1$cb$6be80f21f58c105283caf19459ed3a6bbda7529dac7933580693945b8cf39304() -> i32 <no-gc>
   block entry
     t0 = global_load global0 : i32
     ret t0
-  fun @scoop$1$cb$d75d7163735e979299ba21e3153be38ed1bd44d17e12e287c72cc2fafe80b862(i32) -> void <no-gc>
+  fun @scoop$1$cb$228abf184cfd3d55d5c7db6730510b693d65ba22a3cd20671b209283661da4e9(i32) -> void <no-gc>
   block entry
     global_store global0, param0
     ret

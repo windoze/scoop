@@ -1,7 +1,7 @@
 Module
   global @scoop$1$bs$4ebdda77c4612e6c035120b935d9a79e581d9a7580a912eceb34e77f3b123334 = c"call to abstract method `Iterator.next`"
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  fun @scoop$1$cb$552731cc1da95ef04782307c1e257ce22429a8e4303ee45a15cf5a79c89c3184() -> i32
+  fun @scoop$1$cb$9b636c1068c7ab71553449bf9ad1b71b004079f2bba17b8199168f9818eef511() -> i32
     local %0 total: i32
     local %1 $dependency.receiver: i32
     local %2 $dependency.argument.0: i32
@@ -50,7 +50,7 @@ Module
     t6 = integer_Add<Int> local11, local13 : i32
     store t6 -> local0
     br @while.cond.1
-  fun @scoop$1$cb$a3aa68a8f2b140a768e219d4554885609bea59662e14bd4f19b2ee2bf21ae272() -> i32
+  fun @scoop$1$cb$af02014a8278cd73a3e6b3d82a7ae2f57a0be4c79bac5ec7da77b32a8b362030() -> i32
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -63,7 +63,7 @@ Module
     store local1 -> local2
     t2 = integer_Add<Int> local0, local2 : i32
     ret t2
-  fun @scoop$1$cb$a78d406260273d031a29caf5a3cc37b746b371de430915a6fa12fef96779e455(ptr<managed>) -> sret<enum0 size=16 align=8 scan=none>
+  fun @scoop$1$cb$e467a9cd67423aa701663fee826edf69799ca08d50d4b899dd5612a02fdf337c(ptr<managed>) -> sret<enum0 size=16 align=8 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1

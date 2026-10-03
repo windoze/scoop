@@ -8,7 +8,7 @@ use scoop_wire::{
 
 use crate::{CapabilityContractRegistry, MemberPurposeSet, SectionLocation};
 
-const INITIAL_SCHEMA: u32 = 1;
+pub(crate) const METADATA_SCHEMA: u32 = 2;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum MetadataLocation {
@@ -137,7 +137,7 @@ impl WireEncode for MetadataEnvelope {
         encoder.field(1)?;
         encoder.bytes(self.location.magic())?;
         encoder.field(2)?;
-        encoder.unsigned(u64::from(INITIAL_SCHEMA))?;
+        encoder.unsigned(u64::from(METADATA_SCHEMA))?;
         encoder.field(3)?;
         encoder.array(self.sections.len() as u64)?;
         for section in &self.sections {
@@ -212,7 +212,7 @@ impl<'input> UnvalidatedMetadataEnvelope<'input> {
         if self.magic != location.magic() {
             return Err(MetadataReadError::BadMagic { expected: location });
         }
-        if self.outer_schema != INITIAL_SCHEMA {
+        if self.outer_schema != METADATA_SCHEMA {
             return Err(MetadataReadError::UnsupportedSchema {
                 actual: self.outer_schema,
             });

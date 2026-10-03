@@ -1,6 +1,6 @@
 Module
   global @scoop$1$bs$9e3c4c712d982a4449605e1a26b82834479f0058733f138e9477ce2917aaa6fc = c"call to abstract method `Reader.read`"
-  fun @scoop$1$cb$2b812e7418515afab802568c4f858083beab71d4b766e2bcce44d5e2a46ea97d() -> i32
+  fun @scoop$1$cb$21a5608344b657c785543d49203ea7e4d02ab2e64767f235b1fa262d8da03820() -> i32
     local %0 reader: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.argument.0: i32
@@ -60,7 +60,7 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local13
-  fun @scoop$1$cb$9a82b50271c8bcde9db33a6553f3bf0135108ae91a1b8798e05b819609f486b7(ptr<managed>) -> i32
+  fun @scoop$1$cb$8d75999131d131be8715594d586852a449fee2f3b1229f4b9fda914312134647(ptr<managed>) -> i32
     local %0 $dependency.local.1: ptr<managed>
     local %1 $call.1: i32
   block entry
@@ -71,7 +71,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(local0)
     store t2 -> local1
     ret local1
-  fun @scoop$1$cb$d98cd9059e660d472ceaa86b912aa487288bb33834d70d1b3fff713ec60966ab(ptr<managed>) -> i32
+  fun @scoop$1$cb$61630f1a2a4ebf0b875cce2ae0291262dc168ff44796429ac8ea18fc7fe5ae77(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1

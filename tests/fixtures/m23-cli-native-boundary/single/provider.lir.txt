@@ -1,6 +1,6 @@
 Module
   extern ef0 nativeNarrow @native_narrow(i8) -> i8 <scoop managed nounwind>
-  fun @scoop$1$cb$6016cb80045636c4c4a31e35abd0b52359332306e32a97b77ecce6f7e9684f63(i8) -> i8
+  fun @scoop$1$cb$3377f95020f615abd1822e998858a906b3338d90ffdcdcc5cd280108063d1609(i8) -> i8
     local %0 $call.1: i8
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]

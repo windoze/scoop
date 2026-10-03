@@ -1,10 +1,10 @@
 Module
   global @scoop$1$io$1c88b8c0804c475a3023b5ffe82421208a6bd889142c85fa6cde96475e5b6a91 = "illegal state"
   global @scoop$1$io$d767efc8d55edbcf86e3da0aff5de37161a9b2720d2a000f874a49968db60429 = "illegal state"
-  global @scoop$1$ss$eedbae1d1991d76129dd9e58e00202037fa84d6029f86e64089a882636805d2d : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$3419110fbe65bc447377fe3719597cbdadc4ffef4f8acbe144c03407f71fd2e8 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   extern ef0 collected @m23_class_gc_collected() -> i32 <c exact=()->Int bridge=@scoop$1$br$5caab88e33bc51353cf96443122e7dd31bc22c7495e6fe678800bbc0c3f8fcb1 gc-leaf nounwind lib=m23_class_gc>
-  fun @scoop$1$cb$3d05fede67640b30178a2d1bc2cf508b91ba71031ca622a66be2bc115acf6307() -> i32
+  fun @scoop$1$cb$208c788e9981e6af20660053199256cb3744fa98ab2d42c4aaa8b6d80f4ab971() -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
   block entry
@@ -12,7 +12,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern0()
     store local1 -> local0
     ret local0
-  fun @scoop$1$cb$5595d73bbf53046d7031100aa540372ee47d334bb14c4cc65861467e6b68b1f2() -> void
+  fun @scoop$1$cb$c157ebfeaf3b9bc72b8048319c4e03323864361e3be6d154331250f57c11fab1() -> void
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -69,7 +69,7 @@ Module
     unreachable
   block if.merge.4
     ret
-  fun @scoop$1$cb$3fe6131eb93d1a1e53c2c8b897a2590ee48f51ec6cae2f72bc097a122c9e0776() -> i32
+  fun @scoop$1$cb$fe2f2dddbbd1f8a5621c091240fff2ef1045d84e3a53b37cd7b2b5e5c816f41c() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -85,4 +85,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$5595d73bbf53046d7031100aa540372ee47d334bb14c4cc65861467e6b68b1f2
+  output executable @scoop$1$cb$c157ebfeaf3b9bc72b8048319c4e03323864361e3be6d154331250f57c11fab1

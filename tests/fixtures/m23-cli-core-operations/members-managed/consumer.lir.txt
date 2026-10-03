@@ -1,6 +1,6 @@
 Module
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$57256ac060ba8273f2de7781c6ceb0ac405d4a0253d6a51070c454f3bb62fd1a(i32) -> i32
+  fun @scoop$1$cb$e478aac7f4347f6370437f3f83b9eff1e22008f6974df23aba044ad569ddd8aa(i32) -> i32
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32

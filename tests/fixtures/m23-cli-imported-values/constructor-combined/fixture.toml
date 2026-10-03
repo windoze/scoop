@@ -6,8 +6,8 @@ targets = ["aarch64-apple-darwin"]
 tags = ["imported-values", "constructor", "stage-golden"]
 
 [vars]
-symbol_primary = "scoop$1$cb$2e8460187fd69ab4f111b6c6f7c3a8cbbe7d9fd2a1d51eef0dab0190384ec776"
-symbol_check = "scoop$1$cb$58ba5dbbb0b9a584a7ff577fc88f65bb62d2e429753147ea312a9d11164b0ca7"
+symbol_primary = "scoop$1$cb$062aac8a15a278a6c98b067b12e09cd79feb651955f384b6d51db4af221fef86"
+symbol_check = "scoop$1$cb$8dccbf7a5c9a77c2e2129dd81e38916975783c34488415541de5ae615d763f07"
 
 [[steps]]
 name = "prepare_core"

@@ -1,6 +1,6 @@
 Module
   imported_global @scoop$1$ss$c868344859bc1efa30728982fed34d918e59ee308f6bf0ab326183f6e7114413 : ptr<managed> provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a scan=refs[0]
-  fun @scoop$1$cb$014556b0d7696c733b1667c4a2378611107303f96dd95ec263a765aaaae2be15() -> ptr<managed>
+  fun @scoop$1$cb$ac55b16db0b6ce5f9b3da1f4ff25a3239cf46f0712129cb6a5d9355a8a237192() -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]

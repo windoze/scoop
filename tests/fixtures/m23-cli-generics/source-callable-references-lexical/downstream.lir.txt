@@ -6,7 +6,7 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Later> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Later> niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$bc983284abd40ead234dc75807fa0c54abd0c6bdbd90c63dfe1d960060a4aecb() -> i32
+  fun @scoop$1$cb$fb31db0dc100b43599cead8be2de0df9777430a182effe3d64c47740530d0796() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.number: i32
     local %2 value: ptr<managed>
@@ -88,7 +88,7 @@ Module
     ret integer<Int>(0x00000001)
   block if.merge.7
     ret local5
-  fun @scoop$1$cb$55ccafbe997b90cce59566bac6bc73cbb165a829f9accf46b410c6d87f71fea0(ptr<managed>) -> i32
+  fun @scoop$1$cb$2b31caaf12a9e5cd5194163c3e3734840b84b064884a568403cd8e5a0a6d2f39(ptr<managed>) -> i32
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -105,17 +105,17 @@ Module
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td12, machine<byte-size>(ByteSize(24)))
-    t1 = function_address @scoop$1$cb$d8cf85930c4946ba2048b35a48fa27c0ea571390d7e8c84a50c52a87a5b0fb51 : ptr
+    t1 = function_address @scoop$1$cb$0b17d1edc86f9f84c7385fcae654dd335bfdf4b28ea9403e1fbffc4637a31341 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
     call managed-direct-target1 sp<managed-call:1> live=[param0:ptr<managed>@0, local0:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td8, machine<byte-size>(ByteSize(40)))
-    t3 = function_address @scoop$1$cb$be6fb9f7718ed73da76ffc2c126be947f4b605a2a565046710c59851fd3bf159 : ptr
+    t3 = function_address @scoop$1$cb$b0c226d3ac3eaf70cd67048647e6591d50e3a09272d4308ae53d554dd2cb1afa : ptr
     heap_store t2 +16 t3
     heap_store t2 +32 local0
     heap_store t2 +24 param0
     store t2 -> local1
     call managed-direct-target2 sp<managed-call:2> live=[param0:ptr<managed>@0, local1:ptr<managed>@0] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td10, machine<byte-size>(ByteSize(32)))
-    t5 = function_address @scoop$1$cb$4e710525c9d7b491876e070ade8f00495ede53f41c3a7b66ae41951f2766df99 : ptr
+    t5 = function_address @scoop$1$cb$05af932c594220a7a79b3e4bf8ff22d11d55c0a9f4c7d7bc5aea20152f005097 : ptr
     heap_store t4 +16 t5
     heap_store t4 +24 local1
     store t4 -> local2
@@ -132,12 +132,12 @@ Module
     call managed-void-target0 sp<managed-call:7> live=[param0:ptr<managed>@0, local3:ptr<managed>@0, local11:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn1(local11, local8)
     t10 = aggregate () : {}
     call managed-direct-target7 sp<managed-call:8> live=[param0:ptr<managed>@0, local3:ptr<managed>@0, local11:ptr<managed>@0] t11 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td13, machine<byte-size>(ByteSize(32)))
-    t12 = function_address @scoop$1$cb$2716b02962d79d28da5e74803280ee4e8694ee2d01397a06dba19d19eacc6642 : ptr
+    t12 = function_address @scoop$1$cb$f84361b6a8c5dfbb15fada6201e7048f9b7cbced3ada40bc24e6c0bba4ab4590 : ptr
     heap_store t11 +16 t12
     heap_store t11 +24 local11
     store t11 -> local4
     call managed-direct-target8 sp<managed-call:9> live=[param0:ptr<managed>@0, local3:ptr<managed>@0, local4:ptr<managed>@0] t13 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(32)))
-    t14 = function_address @scoop$1$cb$c2e5139804fb8bb599396ce635a7cdca5664618e7028062041c7d59dbc47eb40 : ptr
+    t14 = function_address @scoop$1$cb$e3fe50a8cf35706fef697f5ee6f6631ec46e714c576b495fee5514370dd7fc1a : ptr
     heap_store t13 +16 t14
     heap_store t13 +24 local4
     store t13 -> local5
@@ -146,7 +146,7 @@ Module
     call managed-direct-target9 sp<managed-call:10> live=[local5:ptr<managed>@0] t16 = sig=direct9 (ptr<managed>) -> i32 dispatch[Closure:2] local5(local5)
     store t16 -> local12
     ret local12
-  fun @scoop$1$cb$9db6a7e77b156c86c3de35b3153c4c43e47af917692c0782ae2be90832dda799(i32) -> i32
+  fun @scoop$1$cb$cda69d552d261ea56e9fc1dd45377c4b1305ecbbbf28b82652ee4ee34b999285(i32) -> i32
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -163,17 +163,17 @@ Module
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td15, machine<byte-size>(ByteSize(24)))
-    t1 = function_address @scoop$1$cb$99d4b53820902a5bce229621ef5e9d35f2e3099c90c0d9671176df6068afa5a3 : ptr
+    t1 = function_address @scoop$1$cb$385ba771f0793e0a8ea3a6e8e24ebc824d6b4175dac127f5ddea709b8aeab5f4 : ptr
     heap_store t0 +16 t1
     store t0 -> local0
     call managed-direct-target1 sp<managed-call:1> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td9, machine<byte-size>(ByteSize(40)))
-    t3 = function_address @scoop$1$cb$aa33e0c8723cc71daa01528afef712a96d3270eabf168c2694c54c04dee3ccc3 : ptr
+    t3 = function_address @scoop$1$cb$9707645ba49bc1ac7707781ca019a1c9a372ef92fb0607cc1e32391c3554ff93 : ptr
     heap_store t2 +16 t3
     heap_store t2 +32 local0
     heap_store t2 +24 param0
     store t2 -> local1
     call managed-direct-target2 sp<managed-call:2> live=[local1:ptr<managed>@0] t4 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td11, machine<byte-size>(ByteSize(32)))
-    t5 = function_address @scoop$1$cb$87c1f0fde81c9cec10df00584eb1559767280d13613edc08c078368b21ff9d70 : ptr
+    t5 = function_address @scoop$1$cb$c6335144ad9ece043955b39846ccf13d133ae742fb8f890ccf0d6ad6e7004aaf : ptr
     heap_store t4 +16 t5
     heap_store t4 +24 local1
     store t4 -> local2
@@ -190,12 +190,12 @@ Module
     call managed-void-target0 sp<managed-call:7> live=[local11:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn1(local11, local8)
     t10 = aggregate () : {}
     call managed-direct-target7 sp<managed-call:8> live=[local11:ptr<managed>@0] t11 = sig=direct7 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td16, machine<byte-size>(ByteSize(32)))
-    t12 = function_address @scoop$1$cb$bfd6e82700bbbd82c7590cb3cb618cc063ec7a8facef444858379ef730eef6a0 : ptr
+    t12 = function_address @scoop$1$cb$41fe70db61b0601ac5c06658a36f8d60bc052bffbd575df2bac83dcff1f0891e : ptr
     heap_store t11 +16 t12
     heap_store t11 +24 local11
     store t11 -> local4
     call managed-direct-target8 sp<managed-call:9> live=[local4:ptr<managed>@0] t13 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td17, machine<byte-size>(ByteSize(32)))
-    t14 = function_address @scoop$1$cb$36bc3b3c6635d485f25484cd828c82e5f2a708daf5eb01911dd4c2596f9bcebb : ptr
+    t14 = function_address @scoop$1$cb$5c1c93e15ffb00801ae990032abf203f1be21b2ecd09d432a86cbf78ddeb360d : ptr
     heap_store t13 +16 t14
     heap_store t13 +24 local4
     store t13 -> local5
@@ -204,11 +204,11 @@ Module
     call managed-direct-target9 sp<managed-call:10> live=[local5:ptr<managed>@0] t16 = sig=direct9 (ptr<managed>) -> i32 dispatch[Closure:2] local5(local5)
     store t16 -> local12
     ret local12
-  fun @scoop$1$cb$1c5cd4fc94ff7f0d594ce151adf0ef4473dcc7c4193cd822684f1e529fd9d1fe(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$d1391681d92de72efd43bba9b0e26e6ab88c091f60f3f7ff95657d79dff9da98(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$cb$be6fb9f7718ed73da76ffc2c126be947f4b605a2a565046710c59851fd3bf159(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$b0c226d3ac3eaf70cd67048647e6591d50e3a09272d4308ae53d554dd2cb1afa(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -217,7 +217,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0, t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> dispatch[Closure:2] t0(t0, t1)
     store t2 -> local0
     ret local0
-  fun @scoop$1$cb$4e710525c9d7b491876e070ade8f00495ede53f41c3a7b66ae41951f2766df99(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$05af932c594220a7a79b3e4bf8ff22d11d55c0a9f4c7d7bc5aea20152f005097(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -225,25 +225,25 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] t0(t0)
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$18728c0f74a40db7eadecab6ff43d22de8407d3b3962f940b6824f1f5cec3e9a() -> ptr<managed>
+  fun @scoop$1$cb$f5194f8766cd5917c5ee942e4245db68e49bd03f0f0b17f2641b3efb654fa117() -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td18, machine<byte-size>(ByteSize(24)))
-    t1 = function_address @scoop$1$cb$dfe3b3ebe3ad4ff3e377a6fd036bf37fbbd1744065534f6a1baa55ddc0fd5bae : ptr
+    t1 = function_address @scoop$1$cb$947c091b1692780157c28f9c5a648c5ca6ff6ca0c868c07d3a91dc159f6e8356 : ptr
     heap_store t0 +16 t1
     ret t0
-  fun @scoop$1$cb$dbc499ed9205be5aeb981425082efa22fbc42e4c65f1264f3df8379a30db3be2(ptr<managed>) -> i32
+  fun @scoop$1$cb$a37dff47e0aa4769a138c8c1f0159f8586734af70d0561f16e3b79e6a2a5d3de(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 dispatch[Closure:2] param0(param0)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$5668a781426949fb66bc1d21dad946c2377965361ec4e99a7ff08ebc3f302c77(i32) -> i32
+  fun @scoop$1$cb$bc75979bfb3f950cc7424bf61209d58394910ab51eb1ac8fb0c4ba53535adbcb(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$aa33e0c8723cc71daa01528afef712a96d3270eabf168c2694c54c04dee3ccc3(ptr<managed>) -> i32
+  fun @scoop$1$cb$9707645ba49bc1ac7707781ca019a1c9a372ef92fb0607cc1e32391c3554ff93(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -252,7 +252,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, i32) -> i32 dispatch[Closure:2] t0(t0, t1)
     store t2 -> local0
     ret local0
-  fun @scoop$1$cb$87c1f0fde81c9cec10df00584eb1559767280d13613edc08c078368b21ff9d70(ptr<managed>) -> i32
+  fun @scoop$1$cb$c6335144ad9ece043955b39846ccf13d133ae742fb8f890ccf0d6ad6e7004aaf(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -260,56 +260,56 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i32 dispatch[Closure:2] t0(t0)
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$cbf98e92646a48b528ac75f942bab12a5c480deb96f1e41d42d7c1d8aabb83f3() -> ptr<managed>
+  fun @scoop$1$cb$52d7ae802fb740e5ac4119b6a48cf88d02bcc154a0522e91325608dfde83a418() -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td19, machine<byte-size>(ByteSize(24)))
-    t1 = function_address @scoop$1$cb$ea10fb64e674d694484cb490ad81bab90cf051798d5ccbcd6f9748d21444f4f3 : ptr
+    t1 = function_address @scoop$1$cb$4e0ff5825b6dd83a64d3fce5bf8f8e5a4dc6a178d8f224b78abae8825b929afa : ptr
     heap_store t0 +16 t1
     ret t0
-  fun @scoop$1$cb$25895a26138d8d47aa8f0d44705834a508e02e1b54413b8862a4fe28ef18e58b(ptr<managed>) -> i32
+  fun @scoop$1$cb$707ff19a35af0442cc9d2e2a28cfdfcb5dfaa29cccd08727b2ec1f77ee85747c(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 dispatch[Closure:2] param0(param0)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$f49d1db625d585cc516b5fef888dd6a3a1477f4dff09ffd96f22da2b78669a3a(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$c016d31b8a1a457914c82b53738968ef922badd5fadb239727435bbc3cf9c6b3(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$620dfcf6e8e03ddacc41d03db486b11858155fc5c79a7ab30f46549f219bdeb2(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$024531320f2ff5a5d66515ee46b54b04b096459f1f601453d4adb39646758cfb(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$379e65218b16eeb59fcb531348f839e8d07e81df7934b09c65cae3ce640c7a34(ptr<managed>, ptr<managed>) -> enum1
+  fun @scoop$1$cb$77fed2e2ddb9cec216043df938aeb677b5ba7e8fdf6992aa32a701f3543992cd(ptr<managed>, ptr<managed>) -> enum1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
     unreachable
-  fun @scoop$1$cb$f3e0ba6c795e0992367c27507df12a9fb32c5e6516b2180efebbff9a2d14a471(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$6655620d3fe14c0c11fef05884dfb5597e4526350b26bb86616d3cee75ad4402(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$d8cf85930c4946ba2048b35a48fa27c0ea571390d7e8c84a50c52a87a5b0fb51(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$0b17d1edc86f9f84c7385fcae654dd335bfdf4b28ea9403e1fbffc4637a31341(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn3(param1)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$2716b02962d79d28da5e74803280ee4e8694ee2d01397a06dba19d19eacc6642(ptr<managed>) -> i32
+  fun @scoop$1$cb$f84361b6a8c5dfbb15fada6201e7048f9b7cbced3ada40bc24e6c0bba4ab4590(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -317,7 +317,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i32 external-fn2(t0)
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$c2e5139804fb8bb599396ce635a7cdca5664618e7028062041c7d59dbc47eb40(ptr<managed>) -> i32
+  fun @scoop$1$cb$e3fe50a8cf35706fef697f5ee6f6631ec46e714c576b495fee5514370dd7fc1a(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -325,14 +325,14 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i32 local-fn7(t0)
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$99d4b53820902a5bce229621ef5e9d35f2e3099c90c0d9671176df6068afa5a3(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$385ba771f0793e0a8ea3a6e8e24ebc824d6b4175dac127f5ddea709b8aeab5f4(ptr<managed>, i32) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn8(param1)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$bfd6e82700bbbd82c7590cb3cb618cc063ec7a8facef444858379ef730eef6a0(ptr<managed>) -> i32
+  fun @scoop$1$cb$41fe70db61b0601ac5c06658a36f8d60bc052bffbd575df2bac83dcff1f0891e(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -340,7 +340,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i32 external-fn2(t0)
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$36bc3b3c6635d485f25484cd828c82e5f2a708daf5eb01911dd4c2596f9bcebb(ptr<managed>) -> i32
+  fun @scoop$1$cb$5c1c93e15ffb00801ae990032abf203f1be21b2ecd09d432a86cbf78ddeb360d(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -348,26 +348,26 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i32 local-fn12(t0)
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$dfe3b3ebe3ad4ff3e377a6fd036bf37fbbd1744065534f6a1baa55ddc0fd5bae(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$947c091b1692780157c28f9c5a648c5ca6ff6ca0c868c07d3a91dc159f6e8356(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> local-fn3(param1)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$ea10fb64e674d694484cb490ad81bab90cf051798d5ccbcd6f9748d21444f4f3(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$4e0ff5825b6dd83a64d3fce5bf8f8e5a4dc6a178d8f224b78abae8825b929afa(ptr<managed>, i32) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn8(param1)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$9d48834096ee13213d65bf89c516342a5407627d28949f318ceb389c5b2652f3(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$723fa9b9763f6a8d946b588b475c9a757aac64c95a5e52d2db34d9edd56310c5(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$800929a15fa2d411e2524193aee4c73c35681caa1fc4926e59703007fe54ddbd(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$b78bfd5b9b5d2e1ffcf16ae0dc0f3cfa705f2ec0ab2c18a98db9eccbb74a8505(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record
@@ -409,14 +409,14 @@ Module
     t14 = enum_tag e1 local0 : machine<enum-tag>
     t15 = MachineEq(EnumTag) t14, machine<enum-tag>(EnumTag(0)) : i1
     cbr t15 then @completed else @suspended
-  fun @scoop$1$cb$b5cd9858fa07f4bbf0d7991a623324fd4b98c644f71523d7f5fadeaa4a928ff5(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$28875facc9df79b09caf3f988196a2c5c506775452b5c7d5af70fa570bbb233f(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] param0(param0)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$273be72fccf86ee1320401b86e0eae1075973e0828ed79f775b3df0f57cba168(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$39b681d59eb084c96562bb595ef14a3a33a8d4caedac8d96efea5f6840814f19(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
   block entry
@@ -426,14 +426,14 @@ Module
     store local0 -> local1
     t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  fun @scoop$1$cb$d219ec594fd98e0b1dd83c09916cbdbf448f81cf08056a3b210f3bf88edef27e(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$185fdf786046c9c86b554e2a1d8e693879ab9e2f859349206c4df538fcf045f9(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] param0(param0)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$68e7a0ce539ae1d2ffdb1a49ae64825ccbf1e844edf532506f8db269245b5b95(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$17ef1ce57fe20c88bfee3c1633b99c450a5a98a29cd3a2b5cddbc5abcb9013cd(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
   block entry
@@ -443,14 +443,14 @@ Module
     store local0 -> local1
     t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  fun @scoop$1$cb$fe54e28a15ea759401e8198d4740e5b24f32bc737d4ed6a30e1be05520a92ced(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$e1773c8e2c2cab0301b184129495c9fd2f4fc6a42995be85bf6d24b24c504c5b(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> dispatch[Closure:2] param0(param0, param1)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$7d4f42315919016f17ba4b3aa3ec1bb1ecc9db9a71dce8a153cb92a7b03e4563(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$8b3695806eb65f57d7b586e34893f8f6af91cb40948bff2b2605d6791c23f306(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
   block entry
@@ -460,7 +460,7 @@ Module
     store local0 -> local1
     t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  fun @scoop$1$cb$6f274ec45d9dd196928f7320e2cd269dad52a83730faf366c2590d58e4196672(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$c732c564d1cd5a2702027da917e9d746c35031327f04787effc11d2e9bf90641(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
   block entry
@@ -470,7 +470,7 @@ Module
     store local0 -> local1
     t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  fun @scoop$1$cb$18e4f1880236a27fd2196d3849ed5b0ee3dbc0e0091c814a368ab4198c8b69d4(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$f8ab1f4a59444f47e3c6d50cbf99448fe1fb04d7309b35f6205acb65985a32b5(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
     local %2 $box.2: i32
@@ -482,7 +482,7 @@ Module
     store local0 -> local2
     t1 = box_value external-td0, local2 scan=none sp<managed-call:1> live=[]
     ret t1
-  fun @scoop$1$cb$7d2505f47e95f0b7a3614d61388ea99630bc5eaf7aa248292412f76ca67afba8(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$96c085206b0fc79b9e11313b71d87748be0348500ebfb61f3c4e099e313539be(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
   block entry
@@ -492,7 +492,7 @@ Module
     store local0 -> local1
     t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  fun @scoop$1$cb$110acc3750ff55de5b92b1dba5fbd9608308af114fb12fbc11da5dbfc0f0da3d(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$5f7f754ed84605e248f43a4bf752588fc2183519432a158c6254fad3e8c8034e(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
   block entry
@@ -502,14 +502,14 @@ Module
     store local0 -> local1
     t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  fun @scoop$1$cb$8f13d3fdffedee56d7c7efd2a7191e032e83b934723c4dc98f1825a7e4e8fef2(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$61a83e04051a1b0243d813b2a4fc3d983089e33024beddb4bf40b3324dd93547(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> dispatch[Closure:2] param0(param0, param1)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$6ad90adbf0bcae0f762003fd878f426aafcfc41b46a0651b1210124423faf7a6(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$4287a850952909d4356efdf2e8b52765070b069f7e807ab99df56c57f9da51fd(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
     local %2 $box.2: i32

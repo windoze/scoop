@@ -169,7 +169,8 @@ fn body_odr_member(
         CallableBodyKeyKind::Odr(member) => Some((member.group(), member.member(), member.role())),
         CallableBodyKeyKind::Strong(_)
         | CallableBodyKeyKind::RootGateway { .. }
-        | CallableBodyKeyKind::InitializationStartupGateway(_) => None,
+        | CallableBodyKeyKind::InitializationStartupGateway(_)
+        | CallableBodyKeyKind::ReleaseHook { .. } => None,
     }
 }
 

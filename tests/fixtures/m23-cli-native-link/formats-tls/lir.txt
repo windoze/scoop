@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
-  global @scoop$1$ss$93802dbdcef74f5f885f4432e94b44fce7fb95d165a8bc2bfa65d9b656a64508 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$2bdd256839dd0dfd31b5b4610d353261cad4d207e11664afa566270750d8588d : ptr<managed> scan=refs[0]
   extern ef0 native @m23_final(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$6202cfe0e2196296db974b62d8c6b69be38bfb10b98096b2c633b75e3ec32237 gc-leaf nounwind lib=m23_final>
-  fun @scoop$1$cb$b356773208300eefb761a74b5228e9fcf9e9916894f86a635609e99bb891cf5e(i32) -> i32
+  fun @scoop$1$cb$efba02334a588ca60976b1d20169bf4f40a6506bd7270bfdf75e8a0d3910ccde(i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
     local %2 $sc.2: i32
@@ -12,7 +12,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$a54e002f99a676a8d14b3859dd6630261dfb5d257672fda270701d0fa54e3d2a() -> void
+  fun @scoop$1$cb$996310387d9fe01e2a2202b63723d68b0d20fb16372b37e832896b7ec5173a34() -> void
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $dependency.argument.0: i32
@@ -30,7 +30,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i32) local-fn2(local3)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -49,7 +49,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$5f7bc73894f939965dd880440bdfe12b264db6cb675cc49b8033f344406deee2() -> i32
+  fun @scoop$1$cb$09ef775230d4a8c64638f64fb665a0d3c1db0e00625dc0426083c32b1e19b989() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -63,4 +63,4 @@ Module
     global_store global1, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$a54e002f99a676a8d14b3859dd6630261dfb5d257672fda270701d0fa54e3d2a
+  output executable @scoop$1$cb$996310387d9fe01e2a2202b63723d68b0d20fb16372b37e832896b7ec5173a34

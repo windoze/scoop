@@ -9,10 +9,10 @@ Module
   global @scoop$1$io$da7fcc449ad13291079a25609cfcf187f5cb60fc63b358cea2a2048dc017e1d8 = "text"
   global @scoop$1$io$6d47dfa106ff2aaabfea906acbf37b99343d13a2e8d2588c73f1ab8522e026f5 = "value"
   global @scoop$1$io$1c033ed80680ce226cf28a236076663ba373acfa10ede7bda7e72ee8094a9cfd = "value"
-  global @scoop$1$ss$c8d29bd0a3fc5b51c3d22780de9c60345679c4dbe1b187d3bf9935ebc37144c5 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$7c455e01d19e553130eb900fa588ed7b1ab1b59f6f256017cfdf438a9bdfada4 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum Message tagged size=24 align=8 variants=()@8+0 (ptr<managed>)@16+8:refs (i8)@8+1
-  fun @scoop$1$cb$d06d2615aa1f090d0fc77edadb6503be7b15908735e42a75009f7332a47010d7(i1) -> void
+  fun @scoop$1$cb$4cd5b8d94c7c93ab9c68c2719db5b6fbebce86da4332ac8d6c0c36967bad8445(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -36,7 +36,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$bd46daec5a2dba1468f246c608d9eda0783fec270a2f5ef9f647ec9c21ff03c7() -> void
+  fun @scoop$1$cb$b461eb7a62ff9edefe4fff3f3ed8f48df76d6a93951c6d7e33017ffe6edef878() -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 value: ptr<managed>
@@ -285,7 +285,7 @@ Module
     call managed-void-target8 sp<managed-call:24> live=[] sig=void8 (i1) local-fn0(local73)
     t36 = aggregate () : {}
     ret
-  fun @scoop$1$cb$00b2cd1a670f00814c42105cb78bfc35906032e8ff7c7acd08de3d762aefb833(indirect<{i8, ptr<managed>} size=16 align=8 scan=refs[8]>, indirect<{i8, ptr<managed>} size=16 align=8 scan=refs[8]>) -> i1
+  fun @scoop$1$cb$55efbc6963d2992f6a866a917c5106d2d172d64dd29ab35d9addf3cbc9a1026a(indirect<{i8, ptr<managed>} size=16 align=8 scan=refs[8]>, indirect<{i8, ptr<managed>} size=16 align=8 scan=refs[8]>) -> i1
     local %0 $logic.1: i1
     local %1 $call.2: i1
   block entry
@@ -306,19 +306,19 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local0
-  fun @scoop$1$cb$284098f789e486a8119a8f6af25eb6eaa4bf2a1099e6a18b5a82f3ce98110c60(i32, i64) -> i32
+  fun @scoop$1$cb$b66d4f1b6aafb4e529bde8e1db778b4fe49e69723c0d6afefb14ea06df712269(i32, i64) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$b4f4fa1efe24b07ffdbee85ff18fc3c57aa6aff09e2ac8fa6644de978eb09f9b(ptr<managed>, i64) -> ptr<managed>
+  fun @scoop$1$cb$d9cf975023d3e463caf9244e070addfa6fecabc4075401a5ee87f0f99007b223(ptr<managed>, i64) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$cb$377b87afe9287fde1b5c239cc3aa4a92b6f2407eb8922e99d98c4c9c3fc890f6(i64) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$afd62047a19b8fc9c0c870f483c605a74dfa09c0624a0fc1bec59a1ea0f08c19(i64) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  fun @scoop$1$cb$b5064c7de355c0f07cea0e25d968e68701510762b90570220bb7ab5213b6859d() -> i32
+  fun @scoop$1$cb$914879083d62e27ac3449959b8b96ce8d21517712b90a0f19b601df3336ca044() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -336,4 +336,4 @@ Module
   td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Generic size=8 align=8 refs=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$bd46daec5a2dba1468f246c608d9eda0783fec270a2f5ef9f647ec9c21ff03c7
+  output executable @scoop$1$cb$b461eb7a62ff9edefe4fff3f3ed8f48df76d6a93951c6d7e33017ffe6edef878

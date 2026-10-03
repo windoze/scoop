@@ -13,9 +13,9 @@ fn capability(name: &str) -> CapabilityId {
 #[test]
 fn empty_outer_envelopes_have_distinct_fixed_magic() {
     for (location, expected) in [
-        (MetadataLocation::Hir, "a3014853434f4f5048495202010380"),
-        (MetadataLocation::Mir, "a3014853434f4f504d495202010380"),
-        (MetadataLocation::Lir, "a3014853434f4f504c495202010380"),
+        (MetadataLocation::Hir, "a3014853434f4f5048495202020380"),
+        (MetadataLocation::Mir, "a3014853434f4f504d495202020380"),
+        (MetadataLocation::Lir, "a3014853434f4f504c495202020380"),
     ] {
         let envelope = MetadataEnvelope::new(location, Vec::new()).unwrap();
         assert_eq!(hex(&encode(&envelope).unwrap()), expected);
@@ -76,10 +76,10 @@ fn decoder_rejects_wrong_magic_schema_and_wire_order() {
 
     let mut unvalidated =
         decode_canonical_borrowed::<UnvalidatedMetadataEnvelope<'_>>(&encoded).unwrap();
-    unvalidated.outer_schema = 2;
+    unvalidated.outer_schema = 1;
     assert_eq!(
         unvalidated.validate(MetadataLocation::Hir),
-        Err(MetadataReadError::UnsupportedSchema { actual: 2 })
+        Err(MetadataReadError::UnsupportedSchema { actual: 1 })
     );
 
     let mut unvalidated =

@@ -1,6 +1,6 @@
 Module
   enum Choice tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16
-  fun @scoop$1$cb$35a5c7c03c932671aa32b9e4b97eb756d8d79a8c4ca59580135df7903624ebf7() -> i64 <no-gc>
+  fun @scoop$1$cb$9114b29ee9cd6585f47a2568c48b58da4b68ca56c63390808b557c00ae1902c8() -> i64 <no-gc>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.argument.1: i64
     local %2 $dependency.parameter.left: i64
@@ -36,7 +36,7 @@ Module
     store local9 -> local10
     t2 = integer_Add<Long> local8, local10 : i64
     ret t2
-  fun @scoop$1$cb$a5192389d2593044268a53f85c64cd4e75b46b7130de335853429adfec9aed35(ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$ec5a0b2959d04e9e766a159e7943982e344d322bc6ecc4af39aca073e1792e73(ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn0()

@@ -4,9 +4,9 @@ Module
   global @scoop$1$io$dc7cee9f33fbb24488bf34c3eb46835e1dc075052a58034552e11621f598a4dd = "illegal state"
   global @scoop$1$io$10750203c5d0faa7f610a89fc1c8d35629aca4e907d19028985b4afedeae3dd0 = "illegal state"
   global @scoop$1$io$2559c5fb9d71f8fec83f2f141fa30d6ce0d220b2671e76981dada12a6a267efb = "illegal state"
-  global @scoop$1$ss$77b21764e59ef5ea10f0cad43c7aab5e825c39da48a202f89758e43213ecce27 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$f8130352c298c3e510082e3f47af5216fc63bbcfcb9ee9848da665fbd198a78a : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$7c2c7e6fed4aece1680a349cab5a271ab20824701d80c3a308ec0883e5a08ea5() -> void
+  fun @scoop$1$cb$d00e5d4a2b7e154fdcfbb35a7bd66f9c7d9327aaf2ad55132b419c0e2bf69572() -> void
     local %0 $argument.0: i8
     local %1 $parameter.value: i8
     local %2 $dependency.receiver: i32
@@ -500,7 +500,7 @@ Module
     unreachable
   block if.merge.58
     ret
-  fun @scoop$1$cb$efd1499aeb23e03efb8cee2c04008ae5bc5feb62cd152727ad119ca46c633213(i8) -> i32
+  fun @scoop$1$cb$fbab32e8fda40b3621f1773026b4cc045eb026daa778d448fd92eca862c9c68a(i8) -> i32
     local %0 $result.16: i32
     local %1 $when.1: i8
   block entry
@@ -516,7 +516,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local0
-  fun @scoop$1$cb$277f9cf30bb5e438cb250bf795dd028d85453ccb89dc79d4b36dee7249208970(i16) -> i32
+  fun @scoop$1$cb$084a6b8764496faecd49574d35bf5d03a7eda8b937053c6381dcb30673577527(i16) -> i32
     local %0 $result.17: i32
     local %1 $when.1: i16
   block entry
@@ -532,7 +532,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local0
-  fun @scoop$1$cb$766dc26188d57f42a56865e390c046667a59dab108d4caff7aa67b01ef94c592(i32) -> i32
+  fun @scoop$1$cb$30113e203e0a94f55e98382561f905aabee1dd8816d88257d99726eff482837a(i32) -> i32
     local %0 $result.18: i32
     local %1 $when.1: i32
   block entry
@@ -548,7 +548,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local0
-  fun @scoop$1$cb$c1efed4b537552672d7b883fc69307cc4a63a59ac3b6fb8ae32a88d338e5f444(i64) -> i32
+  fun @scoop$1$cb$3d3dcc12df82c163bf706f5f5f2240f1f491d9643b1e6bb94f6234eae9fecf2d(i64) -> i32
     local %0 $result.19: i32
     local %1 $when.1: i64
   block entry
@@ -564,7 +564,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local0
-  fun @scoop$1$cb$75b955369fe90b6b2dca65a379c814827f8c028904180369853fb021829fb816(i8) -> i32
+  fun @scoop$1$cb$5fa9bd162b7ccccd215481bba154e2742abeebb733582b4e9713cb2503e28ca7(i8) -> i32
     local %0 $result.20: i32
     local %1 $when.1: i8
   block entry
@@ -580,7 +580,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local0
-  fun @scoop$1$cb$b22d46cf5ef86d9f2bc6d993cef8bc61ca9a114be4c455fc27a6ebeb5f29dcfd(i16) -> i32
+  fun @scoop$1$cb$4ca6a656928ed47d6df16331e37a10e539d6931571d13b3aaafa728b50cc64b7(i16) -> i32
     local %0 $result.21: i32
     local %1 $when.1: i16
   block entry
@@ -596,7 +596,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local0
-  fun @scoop$1$cb$eff790949482b32d4aaa01088e30a01a721a6618e7c967cd3a435b5a5636ffd7(i32) -> i32
+  fun @scoop$1$cb$0df5718903d8966f9491a9937cf28714645142e54756d7287c5fbbf980af7550(i32) -> i32
     local %0 $result.22: i32
     local %1 $when.1: i32
   block entry
@@ -612,7 +612,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local0
-  fun @scoop$1$cb$118fccec685c18877b0a7f55724ad64691f5f43a4e49dec91783a1b41b0b7942(i64) -> i32
+  fun @scoop$1$cb$bf71b1c2b068f1cd2698fc4bb3d2b25666d5a4798756df802cd784ebe530ba96(i64) -> i32
     local %0 $result.23: i32
     local %1 $when.1: i64
   block entry
@@ -628,7 +628,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local0
-  fun @scoop$1$cb$4cd56d2996b3a29df9ccc4469841c770a0a44b5b869c40cd7dd3f13606633204(i8) -> i1 <no-gc>
+  fun @scoop$1$cb$76cd3e3f0ff129b7c9526d23df4f25a67f0f71749455b30d7f9c50a6321dd905(i8) -> i1 <no-gc>
     local %0 $dependency.receiver: i8
     local %1 $dependency.argument.0: i8
     local %2 $dependency.parameter.other: i8
@@ -661,7 +661,7 @@ Module
     br @pattern.merge.3
   block pattern.merge.3
     ret local7
-  fun @scoop$1$cb$a9375b9176bcefb550c0a7ea912127d1dc096458657f88cdff54d2ff9fbdf409(indirect<{i32, i8} size=8 align=4 scan=none>) -> i32
+  fun @scoop$1$cb$7a3f1836b3043f0f6555a11008c343e1d86290f03b125ba29aa97c4cc3e24827(indirect<{i32, i8} size=8 align=4 scan=none>) -> i32
     local %0 $result.25: i32
     local %1 $when.1: {i32, i8}
   block entry
@@ -682,7 +682,7 @@ Module
     br @pattern.merge.4
   block pattern.merge.4
     ret local0
-  fun @scoop$1$cb$a41ee27f20aece12d598b92c0c36d94b9315107acb03eb665919658986180ef2(ptr<raw>, ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$560040aa2acc9c3557ac80eea51ff8cf3f559b63d87495180038cb3935b4a909(ptr<raw>, ptr<raw>) -> void <no-gc>
     local %0 $value: i1
   block entry
     t0 = raw_load param1 align 1 : i8
@@ -691,7 +691,7 @@ Module
     raw_store param0 local0 align 1
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$48b69df05858ec1de832471b1e46235e82b4d20131c7449ca47bbd24b6e8db00() -> i32
+  fun @scoop$1$cb$6285224c8eaf71fac194bf18da6571a2809475ded54ad5c733a3b05383fe1f83() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
@@ -707,4 +707,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$7c2c7e6fed4aece1680a349cab5a271ab20824701d80c3a308ec0883e5a08ea5
+  output executable @scoop$1$cb$d00e5d4a2b7e154fdcfbb35a7bd66f9c7d9327aaf2ad55132b419c0e2bf69572

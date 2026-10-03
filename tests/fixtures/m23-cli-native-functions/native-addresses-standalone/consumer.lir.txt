@@ -1,7 +1,7 @@
 Module
   extern ef0 nativeScalar @m23_call_scalar(ptr<code>, i64) -> i64 <c exact=(code-ptr<(Long)->Long,direct>,Long)->Long bridge=@scoop$1$br$212754d57eed1cf87d6c494dc120db8400bba694100807f1eb5c9589ee5706cd gc-leaf nounwind lib=m23_native_calls>
-  callback cb0 Function(PersistentFunctionId([4, 97, 222, 167, 246, 66, 223, 178, 103, 73, 237, 38, 173, 201, 60, 109, 56, 244, 233, 160, 46, 182, 148, 142, 7, 110, 176, 20, 17, 248, 159, 37])) @scoop$1$cb$df4ac534c85ff134e77fde1118fe448dc8d72957d17eb42bbaf7bdfb06b77bef -> @scoop$1$br$e29941cd1c736101300acf5996a442f991d33495807beb1844468ce3e0b73401 c=(Long)->Long
-  fun @scoop$1$cb$09b653c0266a4e9ba07db8ffc4228bbe5fe1be5c756da452016406240b8fe952(ptr<code>, i64) -> i64
+  callback cb0 Function(PersistentFunctionId([4, 97, 222, 167, 246, 66, 223, 178, 103, 73, 237, 38, 173, 201, 60, 109, 56, 244, 233, 160, 46, 182, 148, 142, 7, 110, 176, 20, 17, 248, 159, 37])) @scoop$1$cb$b9b7331145141cfb29b28c666f6b86194972649fd91ca3c1ddaf9da94b6fbf75 -> @scoop$1$br$e29941cd1c736101300acf5996a442f991d33495807beb1844468ce3e0b73401 c=(Long)->Long
+  fun @scoop$1$cb$fdbab362cd705e1e3205368df2051b9adcfcf0d935bfb9080c594e6e70a39860(ptr<code>, i64) -> i64
     local %0 $call.1: i64
     local %1 $sc.1: ptr<code>
     local %2 $sc.2: i64
@@ -13,7 +13,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local1), c-arg-address(local2))
     store local3 -> local0
     ret local0
-  fun @scoop$1$cb$3b77602f9d3a8a90a54b40c57fd3f215a6b0c7d77ef603acac38068a64d37a66(ptr<code>, i64) -> i64
+  fun @scoop$1$cb$21981797b20658b0b842c8d97a6f963c1c2d8c8aeaa8eabecdcee7f49ff39ac6(ptr<code>, i64) -> i64
     local %0 $argument.0: ptr<code>
     local %1 $argument.1: i64
     local %2 $parameter.callback: ptr<code>
@@ -33,7 +33,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local7 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local5), c-arg-address(local6))
     store local7 -> local4
     ret local4
-  fun @scoop$1$cb$205f0f54e329eec6dadfd0174b3fdb53d26c4d5979b48328ca251e911ecd2a48() -> i64
+  fun @scoop$1$cb$2c0511ff7211ba1fc3910dfe3e507317df8d75e174820b71e084559f08e29fc6() -> i64
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i64
@@ -44,7 +44,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i64 local-fn3(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$0b81d91e6d3e4a26bda29f8d0cee9d5bcd3535109102fe625f579fbbbbc112d3(i32) -> i64
+  fun @scoop$1$cb$a0b9bc69524e8f1154cb6d16fe15826d49f789617ce0c73ea8072637a2bef91f(i32) -> i64
     local %0 callback: ptr<code>
     local %1 $argument.0: ptr<code>
     local %2 $argument.1: i64

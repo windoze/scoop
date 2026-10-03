@@ -1,8 +1,8 @@
 Module
   global @scoop$1$ss$4281112811c2966f26135dce2f94dc503b08c5ceaed5db33a021fe52ad80520a : ptr<managed> scan=refs[0]
   global @scoop$1$ss$b6fc6cb465a28bfec494da1d5dd2968ba2ec71380d2fb321ae097cddc1cbc3dd : ptr<managed> scan=refs[0]
-  init0 object-private:dev.example:classes-initialization-singleton:0.1.0/src/main.scoop:Saved lazy storage=@scoop$1$ss$4281112811c2966f26135dce2f94dc503b08c5ceaed5db33a021fe52ad80520a failure=@scoop$1$ss$b6fc6cb465a28bfec494da1d5dd2968ba2ec71380d2fb321ae097cddc1cbc3dd initializer=@scoop$1$cb$bab5fe05b0ad1bd7e7e97afc5752d3be6311187fc50f6b9cac82875d96a9c629 ensure=@scoop$1$cb$d78868db1c94a1e1b1640fc8473d72805dcac5f4012ff82739faa18ba060c7dd deps=[]
-  fun @scoop$1$cb$bab5fe05b0ad1bd7e7e97afc5752d3be6311187fc50f6b9cac82875d96a9c629() -> void
+  init0 object-private:dev.example:classes-initialization-singleton:0.1.0/src/main.scoop:Saved lazy storage=@scoop$1$ss$4281112811c2966f26135dce2f94dc503b08c5ceaed5db33a021fe52ad80520a failure=@scoop$1$ss$b6fc6cb465a28bfec494da1d5dd2968ba2ec71380d2fb321ae097cddc1cbc3dd initializer=@scoop$1$cb$89718f2e20681e3a280de2c8abf79cf332131a10d570e3673dee336690b15d1c ensure=@scoop$1$cb$6ef1f4dbc9d0600019b47fab53b36c0b6bed93d82eb5961db2a63483603a7721 deps=[]
+  fun @scoop$1$cb$89718f2e20681e3a280de2c8abf79cf332131a10d570e3673dee336690b15d1c() -> void
     local %0 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
@@ -12,7 +12,7 @@ Module
     t1 = aggregate () : {}
     global_store global0, local0
     ret
-  fun @scoop$1$cb$d78868db1c94a1e1b1640fc8473d72805dcac5f4012ff82739faa18ba060c7dd() -> void
+  fun @scoop$1$cb$6ef1f4dbc9d0600019b47fab53b36c0b6bed93d82eb5961db2a63483603a7721() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -91,7 +91,7 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$4187bf88b85084f1c97dd28148252a4be1e132083b205146231692efd7be00e5() -> ptr<managed>
+  fun @scoop$1$cb$39718441ca0bbb55538db3aa279f8c164391cc54b7f6daa6eb36f8a2662b1e0f() -> ptr<managed>
     local %0 first: ptr<managed>
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.value: i64
@@ -156,7 +156,7 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local12
-  fun @scoop$1$cb$933a8abdd4250431c4322b1167dd646ea57f08ed0c8b924323884ff42926bbc4(ptr<managed>) -> void
+  fun @scoop$1$cb$c85baf151ea889089169053d407cdd653257bcbcf7f5dbe0144af81b456f34bc(ptr<managed>) -> void
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.value: i64
     local %2 $new.1: ptr<managed>

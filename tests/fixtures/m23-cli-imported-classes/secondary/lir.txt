@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$20b9bb8a397ba26277bae61a2800624755f59e6c74b73c075ebf9e79af609af0() -> ptr<managed>
+  fun @scoop$1$cb$3201ea66ffc87c9b58dc0b418063385ddcd948477ffaf64f2d2279359f3944a9() -> ptr<managed>
     local %0 $dependency.argument.0: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
     local %1 $dependency.parameter.marker: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
     local %2 $dependency.parameter.value: i64

@@ -14,16 +14,16 @@ Module
   global @scoop$1$ss$7c65bb664ccfdf62cf8f970f35ad673a6f909e109e046b5b5d72a50f6fd327d9 : ptr<managed> scan=refs[0]
   global @scoop$1$ss$8816eea880ddb7969e1a5ce92915ea654d5fd395bf735fccb35842d20536eb1e : ptr<managed> scan=refs[0]
   global @scoop$1$ss$cc34dd4be7f3d5fcd0f4cefbe40d7de5b1ae9233a7d24a97f55144608c6f9aa0 : ptr<managed> scan=refs[0]
-  init0 top-level:localDefault storage=@scoop$1$ss$2dc6d6a9d5bf01815721f1c29909d0136a7e2a5dac376fe099020fa54a956874 failure=@scoop$1$ss$45a2192227e02627b43b9ab809c7ca418cab69e7534a1603cc7c16234db9acca initializer=@scoop$1$cb$69e0df4eccbfb6f079460425c0928087b6f0bbe06ae2fd8acfb21791bd94153c ensure=@scoop$1$cb$8ba44d2549fde6c206c2c89a155d47c77cc8e1a212b77418e36fadca9dde7c21 deps=[]
-  init1 top-level:localExplicit storage=@scoop$1$ss$33c1ff9d704f88e9cf2aee364ffcfb88b40cad921efc0b9f4f0cba52354757f0 failure=@scoop$1$ss$9e4246a6f991f40c8e58cc578472f4b4ce71e237b426ae06aa0cd281ae624963 initializer=@scoop$1$cb$4a211b4feb7fdc22889e0cbfdb154fb5c8cb5e6c09b26a75fda5937997596cfe ensure=@scoop$1$cb$dfa3be03f6feafd13619472da65612330c9e9c5fd235ea6950fce26c376bc006 deps=[]
-  init2 top-level:localTwice storage=@scoop$1$ss$71345f0645e6c767eaead18cafb52ec921f6e61b96bab3b761c4f4b3c37e9941 failure=@scoop$1$ss$d6c0ce16fdec610d7637731716e52ec556c58a9363c7ec66aa0dbe33dc3832cc initializer=@scoop$1$cb$98b9c415e74db943deabc99c5ff7946ef95fabe24a552a9f8caec8ec760baf9b ensure=@scoop$1$cb$fbf62542ceb28b4e648de7318e36d674115999ed7bb608f5e8ce57b1ca2e0e3d deps=[]
-  init3 top-level:localWrite storage=@scoop$1$ss$b1da69432cf808baeda2a1b08e51337a4c3e2aff944f86c1daf114dded3db08a failure=@scoop$1$ss$591230fade861ce10c75edef6184ad296076931298438f4ef545ff77b7c6537b initializer=@scoop$1$cb$9f950508950b8d8429496bd8bee669682a53e8c6193c859352ccb4690edbfc4f ensure=@scoop$1$cb$16e12f31fd87b46c053591954175778fb5705dd7c7e249f9f5d43795c75ad428 deps=[]
-  init4 top-level:localComputed storage=@scoop$1$ss$adc7e934397628cc1ecdae4b4cb9a4018da4af61d4a2e435930197453eeadbb6 failure=@scoop$1$ss$7c65bb664ccfdf62cf8f970f35ad673a6f909e109e046b5b5d72a50f6fd327d9 initializer=@scoop$1$cb$f602f8b344b2e8b2bba2e12f21036de0f967459127b8f8d637369dfd67b7df9f ensure=@scoop$1$cb$7d83e557a423e3ae947122348f07cced987e9a548c797f3262b1ce75a81cd9b6 deps=[]
-  init5 top-level:localImage storage=@scoop$1$ss$b119671940ec923d4f36bc85a21bfef6208fb94b2bdfffa5f201e3f11fcd07ee failure=@scoop$1$ss$8816eea880ddb7969e1a5ce92915ea654d5fd395bf735fccb35842d20536eb1e initializer=@scoop$1$cb$df2e75710b6b3f1b7920d763e895d827b8029f1aec74af41afe379b647fcad5a ensure=@scoop$1$cb$783780cee4440bdd087c61272285d7cdc4ae9b55a1d34f7c87c73a85f7ab53d7 deps=[]
-  init6 top-level:localImageWrite storage=@scoop$1$ss$b8acec208b7dbfb7355ca90c21ec0c3ce81804ccf8916be477d3f1e38f98c59f failure=@scoop$1$ss$cc34dd4be7f3d5fcd0f4cefbe40d7de5b1ae9233a7d24a97f55144608c6f9aa0 initializer=@scoop$1$cb$6aed9b11ba14338c3178ff6f133e3c04db99974aa361a89d16f22b668a0df6aa ensure=@scoop$1$cb$5abee51112d24f71a6b557ea02eac17a8d79d9f4eebc826d74f82d9e420a15e3 deps=[]
+  init0 top-level:localDefault storage=@scoop$1$ss$2dc6d6a9d5bf01815721f1c29909d0136a7e2a5dac376fe099020fa54a956874 failure=@scoop$1$ss$45a2192227e02627b43b9ab809c7ca418cab69e7534a1603cc7c16234db9acca initializer=@scoop$1$cb$f9c14d8f77127289d40e35c02e604a5ece178756954e6e2bfe50ae38a0f51658 ensure=@scoop$1$cb$b4903b9ff267b81176f42a9a23f2ae7885d8629aeb1b6b056517e1baebb065d3 deps=[]
+  init1 top-level:localExplicit storage=@scoop$1$ss$33c1ff9d704f88e9cf2aee364ffcfb88b40cad921efc0b9f4f0cba52354757f0 failure=@scoop$1$ss$9e4246a6f991f40c8e58cc578472f4b4ce71e237b426ae06aa0cd281ae624963 initializer=@scoop$1$cb$cfbc930dba32572e5813b9c697ee21254f437c203386ffc255aad4d5a2db2e56 ensure=@scoop$1$cb$30f6c785f4d4d7981632a3b39390c6b91c93965a5835b31535820ce2ee56cd99 deps=[]
+  init2 top-level:localTwice storage=@scoop$1$ss$71345f0645e6c767eaead18cafb52ec921f6e61b96bab3b761c4f4b3c37e9941 failure=@scoop$1$ss$d6c0ce16fdec610d7637731716e52ec556c58a9363c7ec66aa0dbe33dc3832cc initializer=@scoop$1$cb$c0acbf03367f4ef2b492d6f3f2184d710e9127078405c2dbaa220d60fad99086 ensure=@scoop$1$cb$3a792bbc281f43de259562e1d62be165eadc30227596b6438268f38c84657758 deps=[]
+  init3 top-level:localWrite storage=@scoop$1$ss$b1da69432cf808baeda2a1b08e51337a4c3e2aff944f86c1daf114dded3db08a failure=@scoop$1$ss$591230fade861ce10c75edef6184ad296076931298438f4ef545ff77b7c6537b initializer=@scoop$1$cb$a8de7cd2f6d2e771bf4f232471a9559aa012adfc0cc2b365caa215dc37880a61 ensure=@scoop$1$cb$3e10119286c2f8d5b48500502f958e845f7cd3825c72be0cb93a1c3d277e12d9 deps=[]
+  init4 top-level:localComputed storage=@scoop$1$ss$adc7e934397628cc1ecdae4b4cb9a4018da4af61d4a2e435930197453eeadbb6 failure=@scoop$1$ss$7c65bb664ccfdf62cf8f970f35ad673a6f909e109e046b5b5d72a50f6fd327d9 initializer=@scoop$1$cb$4d9a6bf143b1f5a7ac75a515449fbfd523cffbe7361f0d0fdfc45c1ebd5e94fc ensure=@scoop$1$cb$eba3311413d851d73206c05674fa80313c1d05c6b5db68c6de2309a535c61ae7 deps=[]
+  init5 top-level:localImage storage=@scoop$1$ss$b119671940ec923d4f36bc85a21bfef6208fb94b2bdfffa5f201e3f11fcd07ee failure=@scoop$1$ss$8816eea880ddb7969e1a5ce92915ea654d5fd395bf735fccb35842d20536eb1e initializer=@scoop$1$cb$2fef478602592f7eb790f57832c59a39f694f5a6101a2034f48f8092bca9b26a ensure=@scoop$1$cb$819a6ea2c58dc69726cd1bb99a26fc948d13dbab9eb204e274b629a3e1dc641d deps=[]
+  init6 top-level:localImageWrite storage=@scoop$1$ss$b8acec208b7dbfb7355ca90c21ec0c3ce81804ccf8916be477d3f1e38f98c59f failure=@scoop$1$ss$cc34dd4be7f3d5fcd0f4cefbe40d7de5b1ae9233a7d24a97f55144608c6f9aa0 initializer=@scoop$1$cb$a053c6bae6746b786422f262ea16090d5728e28373eb0a4f15474cccff4597ab ensure=@scoop$1$cb$2334f33182a0020ea1180457854fda796e0ee256e9a7a78eb594841146d19045 deps=[]
   extern ef0 nativeIdentity @scoop_test_identity(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$b716b009cef6064b0e09a10a96ce423dd092851722436757354ffe4efca98ca1 gc-leaf nounwind>
   extern ef1 nativeOther @scoop_test_other(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$9dedffce49d407e25a7a74b4c94e1a6f27e687d999007319ce8f143be4b4ce75 gc-leaf nounwind>
-  fun @scoop$1$cb$d86f215e79f5c6aa5caf49cb99f9444e361dfc42a2b9b003ccbbfcb104dfc793(i32) -> i32
+  fun @scoop$1$cb$e7ddec721004c06d9f400369a22556e8f4e03077569c25df1fbc675f24bfd799(i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
     local %2 $sc.2: i32
@@ -33,7 +33,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$021de3189b192dfb5e470734febc7fde87a530ed000e2ecf19e9cb3081fa43c1(i32) -> i32
+  fun @scoop$1$cb$a20589565953bb56ecdf7d296c167dd728e16fc322395451f3de3ad3f07719f3(i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
     local %2 $sc.2: i32
@@ -43,26 +43,26 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern1(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$4a6f581ec8c9eb7f21084b68fe23f7562baf007403cb90d00404b099eac33592(i32) -> i32
+  fun @scoop$1$cb$1d8abb3ed0dc4cbad3b9c495dd5f4ec8823df6b9a9d77e5d6dc6dd63fd34ec3a(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$3b204774a60a1e16951c21b8cf6ab2aa9a3c5c4627b249891ee9eed3de5c3f7c() -> i32
+  fun @scoop$1$cb$26e0f8016852dded634b71cef1e51b677681acd9c04717f069b0065a918c87c4() -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 external-fn0()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$7f0ce7af1e4527959b75e062eef54e8b011e608c0c7513cbecb7ad0ac4329b81(i32) -> i32
+  fun @scoop$1$cb$a821b2c26cad158e964e8af7fbcc62b55831a468f704edc3b42b8c038f7f9d21(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$850825ffe287b1f7dc013c74245ac9b14bbf286b609b97c278ebbbb044757ee0() -> ptr<managed>
+  fun @scoop$1$cb$31cfb1a44c6e48cf7aef4670625be5623727e5c6a265bf2e3ed332a4dbc0d715() -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret global0
-  fun @scoop$1$cb$91d7887e0d6dafb6648b89c7405e2fe2ac70e201a25398e8a13e45803404a441(i32) -> i32
+  fun @scoop$1$cb$7a09f75708327a4e167fc8bdc4f2f11812fdfa20664632dc2ed8c6b6bf25620b(i32) -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $argument.0: i32
@@ -89,7 +89,7 @@ Module
     store local5 -> local6
     t0 = integer_Add<Int> local4, local6 : i32
     ret t0
-  fun @scoop$1$cb$69e0df4eccbfb6f079460425c0928087b6f0bbe06ae2fd8acfb21791bd94153c() -> void
+  fun @scoop$1$cb$f9c14d8f77127289d40e35c02e604a5ece178756954e6e2bfe50ae38a0f51658() -> void
     local %0 $parameter.value: i32
     local %1 $call.1: i32
   block entry
@@ -100,7 +100,7 @@ Module
     store t1 -> local1
     global_store global1, local1
     ret
-  fun @scoop$1$cb$8ba44d2549fde6c206c2c89a155d47c77cc8e1a212b77418e36fadca9dde7c21() -> void
+  fun @scoop$1$cb$b4903b9ff267b81176f42a9a23f2ae7885d8629aeb1b6b056517e1baebb065d3() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -179,14 +179,14 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$9129d072f89c823b6381a353998ffb5c97fcc48459809836a9230a0f6263ef8d() -> i32
+  fun @scoop$1$cb$ef0b5a378645a690366e6f9d20d9d1c834a67060c67e86d9b8097487e8020039() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn8()
     t0 = aggregate () : {}
     t1 = global_load global1 : i32
     ret t1
-  fun @scoop$1$cb$4a211b4feb7fdc22889e0cbfdb154fb5c8cb5e6c09b26a75fda5937997596cfe() -> void
+  fun @scoop$1$cb$cfbc930dba32572e5813b9c697ee21254f437c203386ffc255aad4d5a2db2e56() -> void
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -198,7 +198,7 @@ Module
     store t0 -> local2
     global_store global2, local2
     ret
-  fun @scoop$1$cb$dfa3be03f6feafd13619472da65612330c9e9c5fd235ea6950fce26c376bc006() -> void
+  fun @scoop$1$cb$30f6c785f4d4d7981632a3b39390c6b91c93965a5835b31535820ce2ee56cd99() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -277,14 +277,14 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$8030896811bf35e9a6b8feca721e0bf747f001c105ae6a0eef5c36a789359066() -> i32
+  fun @scoop$1$cb$7aa274085a64e828b87008d00fd38fbf69dbee79337eddd50eb165bd9ce50a29() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn11()
     t0 = aggregate () : {}
     t1 = global_load global2 : i32
     ret t1
-  fun @scoop$1$cb$98b9c415e74db943deabc99c5ff7946ef95fabe24a552a9f8caec8ec760baf9b() -> void
+  fun @scoop$1$cb$c0acbf03367f4ef2b492d6f3f2184d710e9127078405c2dbaa220d60fad99086() -> void
     local %0 $result.0: i32
     local %1 $call.1: i32
     local %2 $call.2: i32
@@ -299,7 +299,7 @@ Module
   block if.merge.3
     global_store global3, local0
     ret
-  fun @scoop$1$cb$fbf62542ceb28b4e648de7318e36d674115999ed7bb608f5e8ce57b1ca2e0e3d() -> void
+  fun @scoop$1$cb$3a792bbc281f43de259562e1d62be165eadc30227596b6438268f38c84657758() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -378,14 +378,14 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$a851d891bbc7f41dcf9888cf62982c026a39d02b6196194f0ea21adbc3e231bd() -> i32
+  fun @scoop$1$cb$89dc82fc22bd5d6d993feb802a906068f5572f5a1be2ebcddfcee699197150a0() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn14()
     t0 = aggregate () : {}
     t1 = global_load global3 : i32
     ret t1
-  fun @scoop$1$cb$9f950508950b8d8429496bd8bee669682a53e8c6193c859352ccb4690edbfc4f() -> void
+  fun @scoop$1$cb$a8de7cd2f6d2e771bf4f232471a9559aa012adfc0cc2b365caa215dc37880a61() -> void
     local %0 $result.1: i32
     local %1 $call.1: i32
     local %2 $call.2: i32
@@ -402,7 +402,7 @@ Module
   block if.merge.3
     global_store global4, local0
     ret
-  fun @scoop$1$cb$16e12f31fd87b46c053591954175778fb5705dd7c7e249f9f5d43795c75ad428() -> void
+  fun @scoop$1$cb$3e10119286c2f8d5b48500502f958e845f7cd3825c72be0cb93a1c3d277e12d9() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -481,14 +481,14 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$49aa25e7c642a410f9baeaec461cd45b711676449b7415786f7a978c89220b11() -> i32
+  fun @scoop$1$cb$9f097cd44609c40a17de18a81a009a286103d11ab718f2d6911a011eb48bd25b() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn17()
     t0 = aggregate () : {}
     t1 = global_load global4 : i32
     ret t1
-  fun @scoop$1$cb$f602f8b344b2e8b2bba2e12f21036de0f967459127b8f8d637369dfd67b7df9f() -> void
+  fun @scoop$1$cb$4d9a6bf143b1f5a7ac75a515449fbfd523cffbe7361f0d0fdfc45c1ebd5e94fc() -> void
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -496,7 +496,7 @@ Module
     store t0 -> local0
     global_store global5, local0
     ret
-  fun @scoop$1$cb$7d83e557a423e3ae947122348f07cced987e9a548c797f3262b1ce75a81cd9b6() -> void
+  fun @scoop$1$cb$eba3311413d851d73206c05674fa80313c1d05c6b5db68c6de2309a535c61ae7() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -575,14 +575,14 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$d8ab23b1caa95e5e4a46d087766328fc5091fba9ff55492bb0275d47c97f5c14() -> i32
+  fun @scoop$1$cb$19243017ed6a70cae44c21b14b6e3ab32ea8bf425844ab921e967566fa9bb6ea() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn20()
     t0 = aggregate () : {}
     t1 = global_load global5 : i32
     ret t1
-  fun @scoop$1$cb$df2e75710b6b3f1b7920d763e895d827b8029f1aec74af41afe379b647fcad5a() -> void
+  fun @scoop$1$cb$2fef478602592f7eb790f57832c59a39f694f5a6101a2034f48f8092bca9b26a() -> void
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -590,7 +590,7 @@ Module
     store t0 -> local0
     global_store global6, local0
     ret
-  fun @scoop$1$cb$783780cee4440bdd087c61272285d7cdc4ae9b55a1d34f7c87c73a85f7ab53d7() -> void
+  fun @scoop$1$cb$819a6ea2c58dc69726cd1bb99a26fc948d13dbab9eb204e274b629a3e1dc641d() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -669,14 +669,14 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$ace8f7ee7fdedad1027a07cc9f9c4c090fbb3363808cdf8b67d71375494c3d3c() -> i32
+  fun @scoop$1$cb$45513d7d4cc2fb8b8e85081f2a94b0c417a8bbfeddb4fd7892052958c9cafba7() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn23()
     t0 = aggregate () : {}
     t1 = global_load global6 : i32
     ret t1
-  fun @scoop$1$cb$6aed9b11ba14338c3178ff6f133e3c04db99974aa361a89d16f22b668a0df6aa() -> void
+  fun @scoop$1$cb$a053c6bae6746b786422f262ea16090d5728e28373eb0a4f15474cccff4597ab() -> void
     local %0 $result.2: i32
     local %1 $call.1: i32
     local %2 $call.2: i32
@@ -693,7 +693,7 @@ Module
   block if.merge.3
     global_store global7, local0
     ret
-  fun @scoop$1$cb$5abee51112d24f71a6b557ea02eac17a8d79d9f4eebc826d74f82d9e420a15e3() -> void
+  fun @scoop$1$cb$2334f33182a0020ea1180457854fda796e0ee256e9a7a78eb594841146d19045() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -772,14 +772,14 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$7a0651761d64a2646e440adf7bb386bee53be89092f1cd152ad3b828d713e0e1() -> i32
+  fun @scoop$1$cb$e3d0e35b8188b6fcdb5989f36f1610de082729ec9f15d9d74ea0144224352385() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn26()
     t0 = aggregate () : {}
     t1 = global_load global7 : i32
     ret t1
-  fun @scoop$1$cb$5217214860555833e19ba383097c415b2db4b4b2cd7049294fe156a3b15ae112() -> i32
+  fun @scoop$1$cb$6e878afc1c02a22e02906fd58ea77d7c8fbe61328c59846ba5716ab798cef5c6() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn8() normal @success unwind @failure
@@ -791,7 +791,7 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  fun @scoop$1$cb$7e2d417ccaf61bb96d2aabdc0c8f5551810e7668b732ac9a1a98143efe2a97c3() -> i32
+  fun @scoop$1$cb$d1f45328a64a794b3d68a26a3f48b901d9530b8d2e8214927169e935c5f79fb4() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn11() normal @success unwind @failure
@@ -803,7 +803,7 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  fun @scoop$1$cb$d39864b653b1fb8537987c898c6672f4d2359311d8304060bbb3bbe3935ea7e7() -> i32
+  fun @scoop$1$cb$805dc1f8faaecb7afe31a29645bf816d40082461fad2f49e6a2f1289d2db17c2() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn14() normal @success unwind @failure
@@ -815,7 +815,7 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  fun @scoop$1$cb$bf6b13042349f3aae908fba844fceba98f443afd971937bbe9ab4987fd6474af() -> i32
+  fun @scoop$1$cb$2662a640d1e460a820b46f928383b3abe028834834c093a28721972d6844115f() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn17() normal @success unwind @failure
@@ -827,7 +827,7 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  fun @scoop$1$cb$114403e1fbdf5b0ab9c5117bb22d3ef8266e9cf21f45fed7938e16036affa84d() -> i32
+  fun @scoop$1$cb$f958aaee7a2d717b295ab18d25350e75125aab4ba0cd416e55e78212d8d773cc() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn20() normal @success unwind @failure
@@ -839,7 +839,7 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  fun @scoop$1$cb$5068c109b66acfa222c9f29f21603d04e039370582f2cd013df0a4ff4fe7ba04() -> i32
+  fun @scoop$1$cb$b6093cd4ea088382654ee2a1b67949dccc40df40ed931b8b9a3d93e0c3bd84f9() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn23() normal @success unwind @failure
@@ -851,7 +851,7 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
-  fun @scoop$1$cb$84b8630fceb96f4fbd0e4b8503f7b2deae1617de11d208bdf7c4c67833cf7ef7() -> i32
+  fun @scoop$1$cb$9e637c5e997243d402010e6e1ee13c3bc415837856db387bb446fe5b7d160518() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn26() normal @success unwind @failure

@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$992fd6c118bd5212dcacacb6b46bb2fa743f66b7a6589eb77669745cc0249b89() -> i1
+  fun @scoop$1$cb$10ebade0ad646ba7e2007d637e5067b53ddfb28362169cafc120902389b2d07d() -> i1
     local %0 $call.1: i1
     local %1 $call.2: i1
     local %2 $call.3: i1

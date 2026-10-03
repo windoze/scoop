@@ -1,6 +1,6 @@
 Module
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$4dc4744e9936ce76e83c60b268189cbe06d6d6310d52a991f55fba86b81b6622(ptr<managed>) -> i32
+  fun @scoop$1$cb$3eead087bb9e41ebda25f8ac71c0a27efd768408e1163c110de938d9b91347c7(ptr<managed>) -> i32
     local %0 $cast.1: ptr<managed>
     local %1 $ub.2: i32
     local %2 $new.1: ptr<managed>

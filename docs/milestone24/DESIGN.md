@@ -1,6 +1,6 @@
 # M24 GC-free release hook 设计
 
-状态：设计完成，待实现。
+状态：实现中。共同 ABI、runtime 回收接线和 parser 模块拆分已落地；源码到 hook 的编译及跨 Cone 消费仍在实现。
 
 日期：2026-10-03（按 M23 总验收后的实现重新核对）。
 
@@ -240,7 +240,7 @@ C bridge 引用按已有 GeneratedBridgeSemanticTarget/unit 正规化。producer
 
 ### 4.3 版本迁移
 
-以下是相对本设计基线的目标版本，尚未在代码中实施。版本变化只落在现有容器、section、profile 和 ABI 上，不建立 release 专用格式或兼容 reader。
+以下是相对本设计基线的 M24 目标版本；共同版本、TD 布局和 body identity 已按此表迁移。版本变化只落在现有容器、section、profile 和 ABI 上，不建立 release 专用格式或兼容 reader。
 
 | 项目 | M23 基线 | M24 |
 | --- | --- | --- |

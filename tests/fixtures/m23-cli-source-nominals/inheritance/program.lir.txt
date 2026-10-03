@@ -5,12 +5,12 @@ Module
   global @scoop$1$io$442bd8867960e0e03f4ef67e5b7dd59859a0d3c782a9392508b0802e36a646c6 = "constructed"
   global @scoop$1$io$98e2184fa3d8ba9db78239ea74c689202ffd46a21f344dde95fa388320832161 = "constructed"
   imported_global @scoop$1$ss$1ed09dc134578776f6d2e382973eb480035371f925b629bf52db57c6670c89ae : ptr<managed> provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 scan=refs[0]
-  global @scoop$1$ss$722c175e64b92def204a59411fb8b4f3c5169a6ecca7a86e2d292aaf4c88451e : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$ab4f54a70f0b86991c5ae3c1822e485b4030d966628ed079e15257d15ad6fe4a : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum Choice tagged size=16 align=8 variants=()@8+0 (i32)@8+4 (i32)@8+4 (i32)@8+4
   enum GenericChoice tagged size=16 align=8 variants=()@8+0 (i32)@8+4 (i32)@8+4 (i32)@8+4
   enum GenericChoice tagged size=32 align=8 variants=()@8+0 (ptr<managed>)@8+8:refs (ptr<managed>)@16+8:refs (ptr<managed>)@24+8:refs
-  fun @scoop$1$cb$43b7cb831d75ac2b3f7f9b6b8092b3e63f0511a9758f0e64b52bbb3254ce395f(i1) -> void
+  fun @scoop$1$cb$f6cacc50e2c8696bb2697025a58814411d7714fe80cfdfe013c4c56ee6112acd(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -34,7 +34,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$6bd567fed4a83b89f053abdaf52ec3c75f3adaff5fa53b09d41cab8d91628cad() -> void
+  fun @scoop$1$cb$37b19ae932466724b92e8a7568d787ee501698fb2f2bedd4997721123aa735a3() -> void
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.receiver: i32
     local %2 $dependency.argument.0: i32
@@ -290,7 +290,7 @@ Module
     call managed-void-target12 sp<managed-call:26> live=[] sig=void12 (i1) local-fn0(local71)
     t50 = aggregate () : {}
     ret
-  fun @scoop$1$cb$aa52a50b03c90cbd6666d0fa0fdd82195d9566c78f44fb8ea1b42e12c8b24958(indirect<enum2 size=16 align=8 scan=none>, indirect<enum2 size=16 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$1fd988a40698ecfe69cd5315517e9f5d50af8f1aac989a2b52e6b224eaaf49bd(indirect<enum2 size=16 align=8 scan=none>, indirect<enum2 size=16 align=8 scan=none>) -> i1
     local %0 $left.1.0: i32
     local %1 $right.1.0: i32
     local %2 $left.2.0: i32
@@ -381,7 +381,7 @@ Module
     ret t16
   block pattern.else.23
     ret false
-  fun @scoop$1$cb$5fded7cd56011a21b203302977d55f721568b74d4ebd279bedd2f9ed11e71562(indirect<enum3 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum3 size=32 align=8 scan=refs[8, 16, 24]>) -> i1
+  fun @scoop$1$cb$850b82bd742e39273be002a78ea2051348fc7354315eae9d12dde8dc07c9c408(indirect<enum3 size=32 align=8 scan=refs[8, 16, 24]>, indirect<enum3 size=32 align=8 scan=refs[8, 16, 24]>) -> i1
     local %0 $left.1.0: ptr<managed>
     local %1 $right.1.0: ptr<managed>
     local %2 $left.2.0: ptr<managed>
@@ -478,7 +478,7 @@ Module
     ret local21
   block pattern.else.23
     ret false
-  fun @scoop$1$cb$7bc6c943d9e2d5f51132d437e96dfe938878dd2eefd5c9f786e4ecf8f6e9c9ce() -> i32
+  fun @scoop$1$cb$7324b9509734bcad462c63858f17eda796c4ba6e47725deb34a6f394b1bf1218() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -498,4 +498,4 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout GenericChoice size=16 align=8 enum-scan=none
   layout GenericChoice size=32 align=8 enum-scan=refs[8, 16, 24]
-  output executable @scoop$1$cb$6bd567fed4a83b89f053abdaf52ec3c75f3adaff5fa53b09d41cab8d91628cad
+  output executable @scoop$1$cb$37b19ae932466724b92e8a7568d787ee501698fb2f2bedd4997721123aa735a3

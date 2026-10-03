@@ -1,6 +1,6 @@
 Module
   imported_global @scoop$1$ss$1ff0753277ffc7a92df88337bcf72dd2e8c38396212f374430223bf3cb42a83b : ptr<managed> provider=0e526bad7c8ef1e62f708019e876041518f20b88feba3d6612378391bd365aca scan=refs[0]
-  fun @scoop$1$cb$cb1a33bc326282eccbdcfeafd5bc2fe647fba00e1693e60eed41614f6f518b5d() -> i32
+  fun @scoop$1$cb$ea4c0e2047b0d9ccf116765799e256e543a2f32075e48bf7f2260fbbfb6d2ff8() -> i32
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32

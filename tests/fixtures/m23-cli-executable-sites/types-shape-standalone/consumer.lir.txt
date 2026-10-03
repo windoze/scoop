@@ -1,13 +1,13 @@
 Module
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$211c55c0e341b6555a093eb2e3565ee8a8debd1d3e3f9c4c53fad5e44589eaf6(i32) -> ptr<managed>
+  fun @scoop$1$cb$37a80105c8d71ed815bc6d1283c194349be8b6d321b609ab70995905f909e948(i32) -> ptr<managed>
     local %0 $box.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     t0 = box_value external-td0, local0 scan=none sp<managed-call:0> live=[]
     ret t0
-  fun @scoop$1$cb$71dc64a351fa0d5a0e141ba23a55c10ab39bce92ee659d09a4907d7e92c516e5(ptr<managed>) -> i32
+  fun @scoop$1$cb$686a6c5dd784a9b9ecc8c72a654c2acd690e75c0ea071dd3b9dceb0682ece17f(ptr<managed>) -> i32
     local %0 $cast.1: ptr<managed>
     local %1 $ub.2: i32
     local %2 $new.1: ptr<managed>
@@ -29,7 +29,7 @@ Module
     unbox_value external-td0, local0 -> local3
     store local3 -> local1
     ret local1
-  fun @scoop$1$cb$b50f59d7498cea9b9509583467fc03654e217a1f68fefaa7f75003772f791c53(ptr<managed>) -> i1
+  fun @scoop$1$cb$5fcb69b2728057765c16c6f9218b69f1910b946713edaf40e6f5e7d009415f7c(ptr<managed>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td0)

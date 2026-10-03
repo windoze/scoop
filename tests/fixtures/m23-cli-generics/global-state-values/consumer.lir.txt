@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$45ba068112e3fb2f68dd7b8e5b5eb852e2d2194d12446878ffabca197a530b22() -> i32
+  fun @scoop$1$cb$76735dfbe4f8b44a85cf4b4bc1ec3801e1dbfe5e8472c2b5d849e89da2a9a133() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -10,7 +10,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$b8258fc016e15b4c74340f1ee43400b84f5acb7c42701b5d0787a3133f371b36(i32) -> i32
+  fun @scoop$1$cb$b4ab8950d83ed15be172617b22f4e44fd9a1bcbbd886451febf837ebafec2169(i32) -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 $call.1: i32
@@ -21,7 +21,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn2(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$74e181b6719112ff7b55efebf0c24d45bf17957fc0865e923831773a01ba2542(i32) -> i32
+  fun @scoop$1$cb$1b7c4ac63876fc43441692a68391c47b4a004d9900bfc067cf1c8bed98bfab2d(i32) -> i32
     local %0 $dependency.local.1: struct0
     local %1 $dependency.local.2: struct1 <logical-zst 50e085a3efda92a8a2e40e22406a889fe4ca326f395ce32f57806c641bfc423a>
     local %2 $dependency.local.3: i32

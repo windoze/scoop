@@ -1,7 +1,7 @@
 Module
-  global @scoop$1$ss$71802957ff9c28f5404ea5d16b230d5cb1ba40256d6aad4553cc90627ffb0ee7 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$5de18f71b0296ad8eaadee247e4e567a69c47f01306eaa91178a01e8fb715ad6 : ptr<managed> scan=refs[0]
   extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$910b9cad80f3280a3fa100ba7a5033b11b1e8abd8013cf1bdc2bd3e810b60601 gc-leaf nounwind lib=m23_runtime_images>
-  fun @scoop$1$cb$25f00235b032b672ecb5ab9e67a891efa5df3c124dea543a85507003a98b0717(i64) -> void
+  fun @scoop$1$cb$6777f40a2e4df50e59e28c00c6d8d32aaee053dadf086cd20f77de6ea4056aaf(i64) -> void
     local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -9,7 +9,7 @@ Module
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$f06dc9c896790b427f8709c77ef23d7f285f85f8d49eb769a64ff1ca0adf47cf() -> void
+  fun @scoop$1$cb$33d1db225358634e02a1c769298c9033f1c1d129706049720d27c5ac4245b498() -> void
     local %0 $dependency.receiver: i64
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.other: i64
@@ -29,7 +29,7 @@ Module
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local5))
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$b36e17ba3cf12b058cc937f54ca52fa9e904154e1af0ed488bca69b07dd4b7bb() -> i32
+  fun @scoop$1$cb$c0aa12eb9b45813a0449ab3f3f1ddd7240b75b9560bf25b3d2b03e81c2d422e5() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -43,4 +43,4 @@ Module
     global_store global0, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$f06dc9c896790b427f8709c77ef23d7f285f85f8d49eb769a64ff1ca0adf47cf
+  output executable @scoop$1$cb$33d1db225358634e02a1c769298c9033f1c1d129706049720d27c5ac4245b498

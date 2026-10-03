@@ -1,6 +1,6 @@
 Module
   native_global0 m23_default_value @m23_default_value : i32 c=Int mutable(get=ng-get0,set=ng-set0,address=ng-address0)
-  fun @scoop$1$cb$87c0a7b2cb628d1930b994e3dd4f30c38deb40f532f1964995e34c194b1c5676() -> i32
+  fun @scoop$1$cb$e0905cce87f4345b965c42726a5c27969594ca08133a51cf61a2f42cd70f14da() -> i32
     local %0 $dependency.parameter.value: i32
     local %1 $dependency.receiver: i32
     local %2 $dependency.argument.0: i32

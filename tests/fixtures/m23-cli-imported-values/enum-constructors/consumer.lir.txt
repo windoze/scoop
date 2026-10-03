@@ -3,10 +3,10 @@ Module
   enum Flag tagged size=8 align=8 variants=()@8+0 ()@8+0
   enum Marker tagged size=8 align=8 variants=()@8+0
   enum Draft tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16 (i64, struct0, i64)@8+16 (i64, struct0, i64)@8+16
-  fun @scoop$1$cb$1ed3055d429d860be8365720256db3856cc024a602f8937566ce6082437eb432(indirect<enum0 size=24 align=8 scan=none>) -> sret<enum0 size=24 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$ff70574151778af8947a92a0e2906967157ab424f8cd7b9184c3b958e46f0b61(indirect<enum0 size=24 align=8 scan=none>) -> sret<enum0 size=24 align=8 scan=none> <no-gc>
   block entry
     ret param0
-  fun @scoop$1$cb$f734f6ead97629c867b82808e96b44585f9bf250683b3136028c96129409cb90(indirect<enum0 size=24 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$df0fe4eb1ed649f6cfbea8983deb86e431e2f03e46a920c18b0de00cacebbbb5(indirect<enum0 size=24 align=8 scan=none>) -> i64 <no-gc>
     local %0 $dependency.argument.0: enum0
     local %1 $dependency.parameter.value: enum0
     local %2 $call.1: i64
@@ -18,7 +18,7 @@ Module
     call no-gc-direct-target0 t0 = sig=direct0 (indirect<enum0 size=24 align=8 scan=none>) -> i64 external-fn1(indirect local3)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$7542d4da9e87a3f970505a063744899b24940458376db248f868685fa549daf9(indirect<enum1 size=8 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$0355262f183427219171140c7e172b29a06efbfbfe492cd91292bd30a53755fb(indirect<enum1 size=8 align=8 scan=none>) -> i64 <no-gc>
     local %0 $result.0: i64
     local %1 $when.1: enum1
     local %2 $pattern.subject.2: enum1
@@ -44,7 +44,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$12cdd653121778f4aedc489ab6b187f8765168bbc422e813b269b56450218f05(indirect<enum2 size=8 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$79be11c1fd77e0d9784c2a21219ad88335b547fc424866ee39eb3e9ad9326bbe(indirect<enum2 size=8 align=8 scan=none>) -> i64 <no-gc>
     local %0 $result.1: i64
     local %1 $when.1: enum2
     local %2 $pattern.subject.2: enum2
@@ -60,7 +60,7 @@ Module
     unreachable
   block pattern.merge.3
     ret local0
-  fun @scoop$1$cb$cb366097b13ac686b072a6b3a3f262c71ca02191f26cbbec121801ab70b017b4(indirect<enum3 size=24 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$f376cc719215392d039b92216b27309fc9c61daabb073d0fe3cbe0c4a01f63eb(indirect<enum3 size=24 align=8 scan=none>) -> i64 <no-gc>
     local %0 left: i64
     local %1 right: i64
     local %2 $dependency.receiver: i64
@@ -145,7 +145,7 @@ Module
     unreachable
   block pattern.merge.12
     br @pattern.merge.9
-  fun @scoop$1$cb$fc60b3ef65230f4f40865f50f29e11180113b863314de15100516439c7acad01() -> i64 <no-gc>
+  fun @scoop$1$cb$7560195390a8640a8dd644962069a9bdcc67b806f64ccb248a44572df62c8de5() -> i64 <no-gc>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.argument.1: struct0 <logical-zst 2e5150f5508d1ccf2ff6c07c33404cda36145d153a1845fedc7134a3adeddfee>
     local %2 $dependency.argument.2: i64
@@ -511,7 +511,7 @@ Module
     ret integer<Long>(0x000000000000000c)
   block if.merge.30
     ret integer<Long>(0x0000000000000053)
-  fun @scoop$1$cb$06500e776fc2e5e7bb5bef0fe7508a1fc8678217af321e189ab6244ed6852ba0(ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$ff4e2f9815b55aa9f8dd9ce46a471593affabbff78003ad5d4238bd4e52dad13(ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn5()

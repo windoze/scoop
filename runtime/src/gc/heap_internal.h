@@ -23,6 +23,7 @@
 #define GC_CARD_SHIFT 9
 #define GC_CARD_TABLE_SIZE ((size_t)4 << 20)
 #define GC_PIN_BIT UINT64_C(2)
+#define GC_RELEASE_READY_BIT UINT64_C(4)
 #define GC_POISON_BYTE ((unsigned char)0xA5)
 
 typedef enum ScoopGcBlockState {

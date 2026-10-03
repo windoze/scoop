@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$f9f5166e303c632a452e03f999d2a773985b47ee3c1490caf95d9c2532e08a43() -> i32
+  fun @scoop$1$cb$a966137bb5c6e42eb0d587dc50bb7710a12e4eac8f55fac4647295ce59718655() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -10,7 +10,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$9a02840a9409a15c74597d66c137d2f9f1683bf15b9db4a03b5ba15f31c2fafd(i32) -> i32
+  fun @scoop$1$cb$e44858e59de68e1cd64a3c3781fa04c5187a1dd7cf5d817d90c38029d8acaed3(i32) -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.number: i32
     local %2 left: struct0
@@ -123,14 +123,14 @@ Module
     call managed-direct-target4 sp<managed-call:4> live=[] t8 = sig=direct4 (indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>, i1) -> i32 local-fn3(indirect local44, indirect local45, local30)
     store t8 -> local31
     ret local31
-  fun @scoop$1$cb$9649bd2777a1500538d760b39fea0d311f6a7d49ad70bf9ac4556d19377459e6(indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>) -> i1
+  fun @scoop$1$cb$415699539ad175478cb96fce6134404ccaf59ca0bdc270aac415b04022cde122(indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = extract param0, 0 : i32
     t1 = extract param1, 0 : i32
     t2 = integer_compare_Equal<Int> t0, t1 : i1
     ret t2
-  fun @scoop$1$cb$d1e0da9aaeaafb9bee467b54cfcf8ff3bcbb92fc7b60417deea045ad47a5092f(indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>, i1) -> i32
+  fun @scoop$1$cb$a02286380ef263e42fd5005367019e9e5bbac641643c331d334e0ec9db3d5051(indirect<struct0 size=4 align=4 scan=none>, indirect<struct0 size=4 align=4 scan=none>, i1) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     cbr param2 then @if.then.1 else @if.merge.2
@@ -138,7 +138,7 @@ Module
     ret integer<Int>(0x0000002a)
   block if.merge.2
     ret integer<Int>(0x00000000)
-  fun @scoop$1$cb$dbbc821c2504110737a6cd01e17840b2049d0b74d86804036adc9d6070c69e4d(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$af4346453817ef5202da57c962b2f378b03df3021f0c503e9cf6fc2ea615fba6(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0

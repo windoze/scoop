@@ -1,10 +1,10 @@
 Module
   global @scoop$1$io$e867e68498581fe80dccfd387efa79c6f87dfd4b5bf2b3c1a3a17a630608abfc = "illegal state"
   imported_global @scoop$1$ss$1ed09dc134578776f6d2e382973eb480035371f925b629bf52db57c6670c89ae : ptr<managed> provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 scan=refs[0]
-  global @scoop$1$ss$edd8d482e0fd48ec05aaca88be3fa74e41c319a0bab356b4176710fb8bdc8eef : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$78c61d3af70b33fc4b102c7b0a90888dbedca8dc586a66e7ef9f7ddabb1fbf51 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum Choice tagged size=8 align=8 variants=()@8+0
-  fun @scoop$1$cb$e4b5a0aff9584769236229b00b8a41dedadcb9f2b6b81fbc86f99679ff0d7147(i1) -> void
+  fun @scoop$1$cb$2efca8ae3b3f88ff7b4c0fe3a49f6b1d0e899eb81e95397eef090a29ccea3748(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -28,7 +28,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$d0ff186cae4dd465bfe2076378e0ddb01342793d2dbaf42dd251ffac4488d64c() -> void
+  fun @scoop$1$cb$fc4d888de2132ecca9f36688c554d4f4452a97db7a6d060111ed178e28973c7a() -> void
     local %0 token: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.reference: ptr<managed>
@@ -254,7 +254,7 @@ Module
     call managed-void-target6 sp<managed-call:25> live=[] sig=void6 (i1) local-fn0(local40)
     t51 = aggregate () : {}
     ret
-  fun @scoop$1$cb$880abfc5151912da608908a3b7a5bfefbf19227b8f0bcc559f4d1814af1d44c8() -> i32
+  fun @scoop$1$cb$a23f6fb35aa893275823af5dd8331be5a2cc2a966c8af5cc98af6df51a46bc56() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -270,4 +270,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$d0ff186cae4dd465bfe2076378e0ddb01342793d2dbaf42dd251ffac4488d64c
+  output executable @scoop$1$cb$fc4d888de2132ecca9f36688c554d4f4452a97db7a6d060111ed178e28973c7a

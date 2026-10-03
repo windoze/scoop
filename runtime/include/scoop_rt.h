@@ -44,9 +44,10 @@
 #define SCOOP_REFS_SEQUENCE (UINT64_MAX - 1)
 
 /* Runtime spec 2.1: 16 bytes. `gc_word` belongs to the GC and currently
- * carries the pin bit; mark, exact size and forwarding state live in the
- * arena-external side table. The remaining bits are reserved (hash cache
- * etc.). Mutator code must not touch it. TypeDescriptor shape determines each
+ * carries the pin and release-ready bits; mark, exact size and forwarding
+ * state live in the arena-external side table. The remaining bits are reserved (hash cache
+ * etc.). Only compiler-generated constructor publication may set release-ready.
+ * Source code must not touch it. TypeDescriptor shape determines each
  * aligned payload offset. */
 typedef struct ScoopObjectHeader {
     const ScoopTypeDescriptor *td;

@@ -6,7 +6,7 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Later> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Later> niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$caee9b23e74310baf0877def7713c74e923e36f984ade935b1746130b2a24872() -> i32
+  fun @scoop$1$cb$8895879399fd58e4a9fb73c4e569e25dac1d1782fa7099f86642998857344713() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $dependency.argument.0: ptr<managed>
@@ -50,7 +50,7 @@ Module
     store local13 -> local10
     t8 = heap_load local4 +16 : i32
     ret t8
-  fun @scoop$1$cb$9ea9ed7287e5877986b12f3620f893bfa2a0ffd6fdf12a017e35596b26ee7416(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$47e17cc553d06f9979de16080d988ae0bd1519e4c18e0f5a51f1d1b9bfa0f8b3(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
     local %2 $dependency.local.3: ptr<managed>
@@ -74,49 +74,49 @@ Module
     call managed-direct-target1 sp<managed-call:2> live=[local2:ptr<managed>@0, local4:ptr<managed>@0, local5:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed> local-fn2(local2, local4, local5)
     store t2 -> local7
     ret local7
-  fun @scoop$1$cb$ea2d85ca07783a95e383491234b1143162bd015e26dd4059ee049064c4de80c4(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$e4405db4074d732d40c999c0350d92966392f8dc556eb9435eb59c26cf12de9f(ptr<managed>, ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param2:ptr<managed>@0]
     ret param2
-  fun @scoop$1$cb$0a48fafc94554522363d137c4e7f4fa1600f1931e8a03e912164c45f02be5840(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$b398cacf55cf67d276d351c1a840b3f056734f9b8f81624d6a5b22c584d14dfe(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$ef23269d94cc768b3f77c84ea28f80d5ca2b68ae344ee7ab62d390fe5c55ee18(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$a11c2a13e8868427377e75a4c3a1526dad9d87d8d1325db1ae036eb91d5d5bad(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$6dcf1ccf831ca38a2145eb3509d71464403d09e8019a4a0432cd78f52a3df3da(ptr<managed>, ptr<managed>) -> enum1
+  fun @scoop$1$cb$77712e9510f0a5aed859a238202e6e2863f7fc0cfdfc06852651eba4e9f1ed71(ptr<managed>, ptr<managed>) -> enum1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
     unreachable
-  fun @scoop$1$cb$c375c6719962782a3169551a52d1c1e4358208bf6f19c7c5145bf78b97c36024(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$262b3e8a745acf21468c9a7bf219f03dac659210042afc4cf082e10a5931e6a1(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$2f2d805cb84d5f3e1146f67c925010c49f7aa7859b1df3a9fb2a30bf25915739(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$7b144baf655cb2942e5c242ce207b5b32af4364c4c0540cb1ced5f87643bcf2b(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$2645d44e8e6b6c60e4880d05534d2fe9750e7930f0af34c726794f5fe98a5656(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$43dd20057692accbb85853f8f798054d71dfc03e8556a8b9a3ec78ff86c0e624(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$4b031b6f51e62e6fe6b511caecc88ac42b46886ba6b2951d6e44b353244f12d7(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$fcb9496aa39136bf9ab95ef5cad5fd6ebd2db54b8c0945b13270a4f691d62719(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record

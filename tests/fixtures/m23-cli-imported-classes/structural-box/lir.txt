@@ -1,6 +1,6 @@
 Module
   global @scoop$1$io$2d6ddf0d8dd73d7d8ff38852ecde88ee7fcbc1c657ff02e4b36d05dfbffa55ae = "tuple"
-  fun @scoop$1$cb$ee4d7c8ca94d911f84c716eb889db803cf8fe265a86fb11d0840c1b87a19ab3a() -> ptr<managed>
+  fun @scoop$1$cb$9fff6d86bebc92d6f2b8acdf4a4159d8b2f42326dd19a72906e8bc83cd39e8b4() -> ptr<managed>
     local %0 number: i64
     local %1 boxed: ptr<managed>
     local %2 $binding.subject.0: {i64, ptr<managed>}

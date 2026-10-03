@@ -43,15 +43,15 @@ fn constant_and_constant_index_normalize_to_the_same_record() {
     assert_eq!(direct.canonical().locations().len(), 5);
     assert_eq!(
         direct.fingerprint().to_string(),
-        "94ca32b8033bbdef539ed5e240770aa1d6c68f2bb6af88603efd35279e47a00f"
+        "e434fed3e095642b7616438c30070458289ea15f5c74e86b4617e4a69cd53f6f"
     );
     assert_eq!(
         hex(&encode_runtime(direct.canonical()).unwrap()),
         concat!(
             "03000000",
-            "b5982017f75e012110a9e3ffda3958a9cc516e2426741f0ebf5160808b38c0d4",
-            "7e89c100ea2e22bbec077aa72907e24e6afebd82d42c3e42c379acf1bc526aee",
-            "a1302c04bcc634fd",
+            "24662ec09c17a05613852c3c83a7b291e4bd7886f402f146541333fd5909d75b",
+            "7dd7fe7fb2852b5e04cca6bba5d951dea84d4751d554a38f715cf043dea0e83a",
+            "17a3518c3eee2e33",
             "01000000",
             "01000000",
             "08000000",

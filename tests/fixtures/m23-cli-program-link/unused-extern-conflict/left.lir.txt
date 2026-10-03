@@ -1,6 +1,6 @@
 Module
   extern ef0 nativeValue @abs(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$e7ebc6e29e4520053499faf50ea33f600f6b487ddd85e52f4d732d1c17e82e5a gc-leaf nounwind>
-  fun @scoop$1$cb$1c83f3a36ed01ca6e8705eaa742d67dc31733e52790625e2b02253bac44e7835(i32) -> i32
+  fun @scoop$1$cb$14a54c7189564406fb5ce21c4a83c35da06ee76197a72eb6a978374ca7cecb43(i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
     local %2 $sc.2: i32

@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$bc983284abd40ead234dc75807fa0c54abd0c6bdbd90c63dfe1d960060a4aecb() -> i32
+  fun @scoop$1$cb$fb31db0dc100b43599cead8be2de0df9777430a182effe3d64c47740530d0796() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.number: i32
     local %2 value: ptr<managed>
@@ -60,7 +60,7 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local15
-  fun @scoop$1$cb$80b6b55d89949646fb5ad8c11c4384a9a83adf1daf8fa5893633aac6803d8dba(ptr<managed>) -> i32
+  fun @scoop$1$cb$5e368ba5c755d480c064fcb7242a4b309bb81723f9324c345c6e103b26a9adbc(ptr<managed>) -> i32
     local %0 $dependency.local.1: struct0
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: ptr<managed>
@@ -95,7 +95,7 @@ Module
     t1 = ptr_to_ulong local5 : i64
     store t1 -> local1
     call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(40)))
-    t3 = function_address @scoop$1$cb$55720ecfd6c1aec201b4d5a0ab282c99a520d3c70cdcf6984c137205cb5eb48d : ptr
+    t3 = function_address @scoop$1$cb$e0fb37bf67f5ff63d11428bb3d2e1e3cb307f4823025b4a2d38d5ce7fe3f9433 : ptr
     heap_store t2 +16 t3
     heap_store t2 +32 local0
     heap_store t2 +24 local1
@@ -135,7 +135,7 @@ Module
     store local22 -> local17
     t10 = extract local17, 0 : i32
     ret t10
-  fun @scoop$1$cb$a174189a748118361b7914d76620a2c8395ad4c3968ba9b61cfede62f89096e6(i32) -> i32
+  fun @scoop$1$cb$5e4a133031e41a591f1bd11ac4eee0a4d96f2663a358393f9ff1b26ba59e1951(i32) -> i32
     local %0 $dependency.local.1: struct0
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: ptr<managed>
@@ -170,7 +170,7 @@ Module
     t1 = ptr_to_ulong local5 : i64
     store t1 -> local1
     call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td3, machine<byte-size>(ByteSize(40)))
-    t3 = function_address @scoop$1$cb$58570990c261f0eff039945479521d74ed1756fae25afa218e96f5aef83f26ab : ptr
+    t3 = function_address @scoop$1$cb$3b333a0cc3761d6813bc610a1155d28db99b5372bb731ba02dfa0596d0944ccc : ptr
     heap_store t2 +16 t3
     heap_store t2 +32 local0
     heap_store t2 +24 local1
@@ -210,7 +210,7 @@ Module
     store local22 -> local17
     t10 = extract local17, 0 : i32
     ret t10
-  fun @scoop$1$cb$55720ecfd6c1aec201b4d5a0ab282c99a520d3c70cdcf6984c137205cb5eb48d(ptr<managed>) -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$e0fb37bf67f5ff63d11428bb3d2e1e3cb307f4823025b4a2d38d5ce7fe3f9433(ptr<managed>) -> sret<struct0 size=4 align=4 scan=none>
     local %0 $dependency.local.0: struct0
     local %1 $dependency.local.1: ptr<raw>
   block entry
@@ -223,7 +223,7 @@ Module
     t3 = raw_load local1 align 4 : struct0
     store t3 -> local0
     ret local0
-  fun @scoop$1$cb$022babec6c91f20635013281046e977aa18c99ec6ff648c7ac3a856ea46b60ef(i64) -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$0ad236dd1cf9ff1bb9966c714f5e6058ca2254edac91f72e10a495ac2b8453d5(i64) -> sret<struct0 size=4 align=4 scan=none>
     local %0 $dependency.local.0: ptr<raw>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -231,7 +231,7 @@ Module
     store t0 -> local0
     t1 = raw_load local0 align 4 : struct0
     ret t1
-  fun @scoop$1$cb$10c6b5eafa7730355d6c3bb10710eef94538eb3fc5bd92d7edd905573e014a32(indirect<struct0 size=4 align=4 scan=none>) -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$da2ffd9d0280b0e465170e2b56081347851726cdf24e926d9e90121101017352(indirect<struct0 size=4 align=4 scan=none>) -> sret<struct0 size=4 align=4 scan=none>
     local %0 value: struct0
     local %1 $dependency.local.1: i64
     local %2 $dependency.local.2: struct0
@@ -256,7 +256,7 @@ Module
     t3 = ptr_to_ulong local6 : i64
     store t3 -> local3
     call managed-direct-target0 sp<managed-call:1> live=[] t4 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td4, machine<byte-size>(ByteSize(40)))
-    t5 = function_address @scoop$1$cb$ba66ebe85ae6e87a0be1d31a23225a752ce414b39807c9ae57f8c3c76d985782 : ptr
+    t5 = function_address @scoop$1$cb$4a5f6a22a0617f9e7297324f41b9c2815dc13d27c5ad658dfb6598db4f150255 : ptr
     heap_store t4 +16 t5
     heap_store t4 +24 local2
     heap_store t4 +32 local3
@@ -264,7 +264,7 @@ Module
     call managed-indirect-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] local9 = sig=indirect1 (sret struct0 size=4 align=4 scan=none, ptr<managed>) dispatch[Closure:2] local4(local4)
     store local9 -> local7
     ret local7
-  fun @scoop$1$cb$58570990c261f0eff039945479521d74ed1756fae25afa218e96f5aef83f26ab(ptr<managed>) -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$3b333a0cc3761d6813bc610a1155d28db99b5372bb731ba02dfa0596d0944ccc(ptr<managed>) -> sret<struct0 size=4 align=4 scan=none>
     local %0 $dependency.local.0: struct0
     local %1 $dependency.local.1: ptr<raw>
   block entry
@@ -277,7 +277,7 @@ Module
     t3 = raw_load local1 align 4 : struct0
     store t3 -> local0
     ret local0
-  fun @scoop$1$cb$10ac5e64477fc6ac818aeaf905b1f5fae5a1d252c6b224ebf5188358b2c94c98(i64) -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$e64cccc09b6296c87bfbd2df3106c1e9a2b84681f9e6c9095d395adf0e0bc817(i64) -> sret<struct0 size=4 align=4 scan=none>
     local %0 $dependency.local.0: ptr<raw>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -285,7 +285,7 @@ Module
     store t0 -> local0
     t1 = raw_load local0 align 4 : struct0
     ret t1
-  fun @scoop$1$cb$e3f07309c6aec00c09f83d8c37dfb289966242fe7b670bdefa2ac539f895f3fb(i64) -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$96ce046fe3884efb08ce4fe13b353df866577b0459e819b69411eeaf94f59580(i64) -> sret<struct0 size=4 align=4 scan=none>
     local %0 $dependency.local.0: ptr<raw>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -293,7 +293,7 @@ Module
     store t0 -> local0
     t1 = raw_load local0 align 4 : struct0
     ret t1
-  fun @scoop$1$cb$ba66ebe85ae6e87a0be1d31a23225a752ce414b39807c9ae57f8c3c76d985782(ptr<managed>) -> sret<struct0 size=4 align=4 scan=none>
+  fun @scoop$1$cb$4a5f6a22a0617f9e7297324f41b9c2815dc13d27c5ad658dfb6598db4f150255(ptr<managed>) -> sret<struct0 size=4 align=4 scan=none>
     local %0 $dependency.local.0: struct0
     local %1 $dependency.local.1: ptr<raw>
   block entry
@@ -306,12 +306,12 @@ Module
     t3 = raw_load local1 align 4 : struct0
     store t3 -> local0
     ret local0
-  fun @scoop$1$cb$9d48834096ee13213d65bf89c516342a5407627d28949f318ceb389c5b2652f3(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$723fa9b9763f6a8d946b588b475c9a757aac64c95a5e52d2db34d9edd56310c5(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$274c64aa17da36d1eac081bb2ca6ecd562008fc43ac9f45bc2b1b67119120aa6(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$9afff99c98c3715bdd1a2b374b16174b07bf016210b63c0b12b782de78a9cb4f(ptr<managed>) -> ptr<managed>
     local %0 $call.1: struct0
     local %1 $sc.1: struct0
     local %2 $box.2: struct0
@@ -322,7 +322,7 @@ Module
     store local0 -> local2
     t0 = box_value external-td0, local2 scan=none sp<managed-call:1> live=[]
     ret t0
-  fun @scoop$1$cb$09d0586a8f046ac9af29290511f5b3f59a806c2faf255a245fd23c827a6fcb88(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$d65ac41f73bbad90a00c4b7d13a17579a9bbc64c3c7cdb5dba36e88d7069f30c(ptr<managed>) -> ptr<managed>
     local %0 $call.1: struct0
     local %1 $sc.1: struct0
     local %2 $box.2: struct0
@@ -333,7 +333,7 @@ Module
     store local0 -> local2
     t0 = box_value external-td0, local2 scan=none sp<managed-call:1> live=[]
     ret t0
-  fun @scoop$1$cb$c279319e9d153e6f7d2e9c0c0166ff90576deedf007cc569cc0fb3c2542e5b0d(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$7f45f6d023b2ec0a4d69b69f7a843a73d40409d2442f3f24f85586db710ae62e(ptr<managed>) -> ptr<managed>
     local %0 $call.1: struct0
     local %1 $sc.1: struct0
     local %2 $box.2: struct0

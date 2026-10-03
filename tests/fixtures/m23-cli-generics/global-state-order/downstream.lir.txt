@@ -1,6 +1,6 @@
 Module
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$a2fb0ce2693c63d8c08f6395bba6c4d7433c3dde79989cfa030db32f01da2a31() -> i32
+  fun @scoop$1$cb$187d34429dfca7cab43ef2265ae1bbf2b0cbef6c74b597621d2ca8ce4c44c4d3() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.number: i32
     local %2 value: ptr<managed>
@@ -86,7 +86,7 @@ Module
     br @if.merge.8
   block if.merge.8
     ret local21
-  fun @scoop$1$cb$3236a8d9ffbb82dded8f43dcbe4069286fcbb6248d8f44a01a152e4fa9157369(ptr<managed>) -> i32
+  fun @scoop$1$cb$ce6a1e8b5690be4047e40b4bafbb2ab459e00032188226140cf4045c674541cd(ptr<managed>) -> i32
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: i1
     local %2 $dependency.local.3: ptr<managed>
@@ -122,7 +122,7 @@ Module
     call managed-direct-target1 sp<managed-call:1> live=[local9:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>, i1) -> i32 local-fn3(local9, local10)
     store t3 -> local11
     ret local11
-  fun @scoop$1$cb$355a1393eac33478258f2c6ed8b252f52c92f0dd8dbd73ae8253348ea614589d(i32) -> i32
+  fun @scoop$1$cb$4b20fcb5c00abadf5920cf14fecd637c1e6f92d619721992c947c6c7235e7e61(i32) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i1
     local %2 $dependency.local.3: i32
@@ -158,7 +158,7 @@ Module
     call managed-direct-target1 sp<managed-call:1> live=[] t3 = sig=direct1 (i32, i1) -> i32 local-fn4(local9, local10)
     store t3 -> local11
     ret local11
-  fun @scoop$1$cb$52bc09809d149483e1b5dc423b7311873ad528a2c2b220ee3b2886abd599a974(ptr<managed>, i1) -> i32
+  fun @scoop$1$cb$4dd65e1107068bbd2bfd3d625f1ce4d84fd55ab7c480988b7d68273e5d39db6d(ptr<managed>, i1) -> i32
     local %0 $dependency.local.2: ptr<managed>
     local %1 $dependency.local.3: i32
     local %2 $dependency.local.4: i1
@@ -376,7 +376,7 @@ Module
     store local19 -> local20
     t30 = integer_compare_Equal<Int> local18, local20 : i1
     cbr t30 then @if.then.21 else @if.else.22
-  fun @scoop$1$cb$bf10cd9c793b3a3136283226bbffd7dd77dc47b1d0b8b4055e72bacfd2e89096(i32, i1) -> i32
+  fun @scoop$1$cb$bbd07600b63fca873c3ae19a5043de8c8d0b46e2ab3a405d77eeb703fdaa2972(i32, i1) -> i32
     local %0 $dependency.local.2: ptr<managed>
     local %1 $dependency.local.3: i32
     local %2 $dependency.local.4: i1
@@ -594,7 +594,7 @@ Module
     store local19 -> local20
     t30 = integer_compare_Equal<Int> local18, local20 : i1
     cbr t30 then @if.then.21 else @if.else.22
-  fun @scoop$1$cb$b51ed8e2b604357028b7e75568d07d08c6840d7ae6da4794ee004b2d7d8b45f4(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$8bfe4e1f29b7def2511e506561b568e3f6d2b3ebacb9f44686f079157b270056(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$adf45410d0e11b608ba9c090f5d45a658790b4bf3e4e04e02b9a13b5dd0b892e() -> i1
+  fun @scoop$1$cb$8b7961f41deb2451cf50863e2db18da128e2e5789298d49bc4f6e1beeb3e1c27() -> i1
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 $dependency.argument.0: ptr<managed>

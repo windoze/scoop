@@ -6,12 +6,12 @@ targets = ["aarch64-apple-darwin"]
 tags = ["imported-values", "struct", "stage-golden"]
 
 [vars]
-symbol0 = "scoop$1$cb$3e3ab086138e014657d865e53f88f298268f76b162a4d6d86ce3f7ba725d626c"
-symbol1 = "scoop$1$cb$58951ce0b95fa0914edc61bbd57984f7d73d2bf3b4522abe21840ad660916a7a"
-symbol2 = "scoop$1$cb$59ff30490f1af116c734ca2ff44d595bfac1e15be3b3e2c7e65c1aa5e36e1f18"
-symbol3 = "scoop$1$cb$12455135883667bbf9a8a40789f480aa64cd5ebce8ebcddda84158f2d90a559d"
-symbol4 = "scoop$1$cb$d0f433c5893de6d879cf70efc51129cc4b274035ef9a7f067a150e998918859c"
-symbol5 = "scoop$1$cb$51839337e8caf6bda6e78b885369cb6ce65632b0286fcfeb92fc29318bbd1e40"
+symbol0 = "scoop$1$cb$1f383547ac3febae604f2ec026f0bfbcb297be2953105a6fc5354678c230ee5f"
+symbol1 = "scoop$1$cb$db1b090557926612fe7e0d4bae3e0604ba352e6f89eaef764220b9bfd104d5f2"
+symbol2 = "scoop$1$cb$cd273dd696cf6809c39da6e7bcea1f4a38db857acfc3793cee34dca835b89f74"
+symbol3 = "scoop$1$cb$fdf98b946e2ab364e5087bbade1e7315b4ecee66af1ad8c0f0171e392d0254d8"
+symbol4 = "scoop$1$cb$6eadf7dd7fe686bc5076b4c61465780dbc3d8ba51cc0a4ff2818bdaffd244431"
+symbol5 = "scoop$1$cb$51d25774ae3a802848e9f05702b99e538c2c3a900d07a254798825cab5153927"
 
 [[steps]]
 name = "prepare_core"

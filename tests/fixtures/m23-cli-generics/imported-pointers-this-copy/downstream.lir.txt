@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$473b6e4575c48d5c453e340316ec39899d49fde29070220f6f98b65ee70974c8() -> i32
+  fun @scoop$1$cb$47f3e88285fe26d9287f39747cf2a8719444bf4893701117ed66358a6bfc64ac() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.number: i32
     local %2 value: ptr<managed>
@@ -60,7 +60,7 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local15
-  fun @scoop$1$cb$ee8c95cac44ebecb1a8ad884cc5cf744b2a981e91ec0da936ae24758397d3258(ptr<managed>) -> i32
+  fun @scoop$1$cb$06156a2431580e7799b53a356c41d6646b64e8c42d1231cf5c51a729ad1cd60e(ptr<managed>) -> i32
     local %0 $dependency.local.1: struct1
     local %1 $dependency.local.2: struct0
     local %2 $dependency.local.3: struct0
@@ -186,7 +186,7 @@ Module
     store local35 -> local36
     t10 = integer_Add<Int> local34, local36 : i32
     ret t10
-  fun @scoop$1$cb$fce926d75622df06ba10ce4e7eaeac3aa4dee36cac57587f2ee65876af684bfd(i32) -> i32
+  fun @scoop$1$cb$47cd0d6aff1dd75c05a9c5e5c06532838d1af6f5834c2f28dec3f8d39a84a981(i32) -> i32
     local %0 $dependency.local.1: struct1
     local %1 $dependency.local.2: struct0
     local %2 $dependency.local.3: struct0
@@ -312,7 +312,7 @@ Module
     store local35 -> local36
     t10 = integer_Add<Int> local34, local36 : i32
     ret t10
-  fun @scoop$1$cb$a0a7bbe6d0140d618bd36b9c573096a73b9263f72a7c534f44a460e025238d4b(indirect<struct1 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> sret<struct0 size=8 align=4 scan=none>
+  fun @scoop$1$cb$0092805aec28e34d06fd8483fa18709ecd17221dad632721dcf06ad34831359c(indirect<struct1 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> sret<struct0 size=8 align=4 scan=none>
     local %0 this: struct1
     local %1 $dependency.local.2: ptr<raw>
     local %2 $dependency.local.3: struct0
@@ -338,7 +338,7 @@ Module
     t1 = aggregate () : {}
     t2 = extract local0, 0 : struct0
     ret t2
-  fun @scoop$1$cb$2195129d3678c3a4688747d37aafdae51ea02075ce061658983858c5e3a1b687(indirect<struct0 size=8 align=4 scan=none>) -> sret<struct0 size=8 align=4 scan=none>
+  fun @scoop$1$cb$c2bfb8b39eb5e2b41a92d6dcad6b68af5ac347d633f2158f95d9ae7b0abd6dfa(indirect<struct0 size=8 align=4 scan=none>) -> sret<struct0 size=8 align=4 scan=none>
     local %0 value: struct0
     local %1 $dependency.local.1: ptr<raw>
     local %2 $dependency.local.2: ptr<raw>
@@ -350,7 +350,7 @@ Module
     store local1 -> local2
     t1 = raw_load local2 align 4 : struct0
     ret t1
-  fun @scoop$1$cb$f8405e411f2ca5e1b1728526dab73c6c68c8306cded46705352d038c5f6811b3(indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> sret<struct0 size=8 align=4 scan=none>
+  fun @scoop$1$cb$248b0175041cce31a1e8e369a7bc9fbc2a0639c5c4497608acf97066d74ac03c(indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> sret<struct0 size=8 align=4 scan=none>
     local %0 value: struct0
     local %1 $dependency.local.2: ptr<raw>
     local %2 $dependency.local.3: ptr<raw>
@@ -367,12 +367,12 @@ Module
     raw_store local2 local4 align 4
     t1 = aggregate () : {}
     ret local0
-  fun @scoop$1$cb$85e4062ab493d3caeaa90792fb7de23f186f92a59fa74539aa8427720de6dfcf(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$483b048d0302704fa327790edf5fc6d93ad78c22884996d85476d0959431cd1a(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$0c6fa62b3b8c222d0be1aafaefcedc9d618631f61613179cb68f3b98083ff741(indirect<struct0 size=8 align=4 scan=none>) -> sret<struct1 size=8 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$00d1ad976ee777ce3346a23404368a8ada2be935d3d8f164dd53cbf55dabe102(indirect<struct0 size=8 align=4 scan=none>) -> sret<struct1 size=8 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct1
     ret t0

@@ -1,11 +1,11 @@
 Module
-  fun @scoop$1$cb$28d4f0c5b89d1dd472749b22a59c0a5a4525933acf69971a9ef05236ac3f9373() -> elided-zst<struct0 size=0 align=1> <no-gc>
+  fun @scoop$1$cb$c51bbe8f47404ebb056499bb9eaf50214c4e99f70a908852805cb59099d0ee63() -> elided-zst<struct0 size=0 align=1> <no-gc>
     local %0 $call.1: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
   block entry
     call no-gc-elided-zst-target0 t0 = sig=elided-zst0 () -> elided-zst<struct0 size=0 align=1> external-fn1()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$2e8460187fd69ab4f111b6c6f7c3a8cbbe7d9fd2a1d51eef0dab0190384ec776() -> sret<struct1 size=24 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$062aac8a15a278a6c98b067b12e09cd79feb651955f384b6d51db4af221fef86() -> sret<struct1 size=24 align=8 scan=none> <no-gc>
     local %0 $dependency.argument.0: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
     local %1 $dependency.argument.1: i64
     local %2 $dependency.argument.2: i64
@@ -29,7 +29,7 @@ Module
     call no-gc-indirect-target0 local9 = sig=indirect0 (sret struct1 size=24 align=8 scan=none, i64, i64, i64, elided-zst<struct0 size=0 align=1>) external-fn2(local4, local5, local6, elided-zst local7)
     store local9 -> local8
     ret local8
-  fun @scoop$1$cb$83067079628af4c51c453f7decb5e355bff900364d684b694bd8e5c65e19b391() -> sret<struct1 size=24 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$faef989ed4e8006e66a33bdf32fa33e3045deb401295011bd5a62cfc0251de80() -> sret<struct1 size=24 align=8 scan=none> <no-gc>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.seed: i64
     local %2 $dependency.parameter.step: i64
@@ -62,7 +62,7 @@ Module
     call no-gc-indirect-target1 local13 = sig=indirect1 (sret struct1 size=24 align=8 scan=none, i64, i64) external-fn0(local8, local9)
     store local13 -> local11
     ret local11
-  fun @scoop$1$cb$71c92e89e423fed71a9e26b81cb161acb329cccfbf9cbefcc79552981bafd336() -> i64 <no-gc>
+  fun @scoop$1$cb$d4e639d74c6e6097c4a540adc15fe841aba0155defa0e6f4be658779afc59351() -> i64 <no-gc>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.argument.1: i64
     local %2 $dependency.argument.2: i64
@@ -91,7 +91,7 @@ Module
     call no-gc-direct-target0 t1 = sig=direct0 (indirect<struct1 size=24 align=8 scan=none>) -> i64 external-fn3(indirect local11)
     store t1 -> local9
     ret local9
-  fun @scoop$1$cb$77719573e2b1d371b84384ed7689b32dd750d3d2f2dbdd91964101140d90fc62(indirect<struct1 size=24 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$5e3c4f3ddfdf6a66529080dab84869de049b748bb5cf3255ac6d304dfd82bbe3(indirect<struct1 size=24 align=8 scan=none>) -> i64 <no-gc>
     local %0 $dependency.receiver: struct1
     local %1 $call.1: i64
     local %2 $sc.1: struct1
@@ -101,7 +101,7 @@ Module
     call no-gc-direct-target0 t0 = sig=direct0 (indirect<struct1 size=24 align=8 scan=none>) -> i64 external-fn4(indirect local2)
     store t0 -> local1
     ret local1
-  fun @scoop$1$cb$4abf98887c08c5e9fb338facadb6035848ccff54392728e0d95c3bc74ad05cdf(ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$d2494734bf527b90cc58992508e5bbef0034eafcdc1e7382336cf1f170c5afef(ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn3()

@@ -1,6 +1,6 @@
 Module
   enum Choice niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$c708289d72b5ef5d01207705d0f3b238c83692bd8d84e953a4704268c7f3d3ee() -> i32
+  fun @scoop$1$cb$c89011c46a51ececcbbe2f1e0622ea2d9b4ab2188e9d5e5ab5755bf36bb05295() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 cell: struct0
@@ -43,25 +43,25 @@ Module
     store local12 -> local13
     t4 = integer_Add<Int> local11, local13 : i32
     ret t4
-  fun @scoop$1$cb$c943fada324e3cec75cc3e040cde958c7f338da80b89f603eba7f93241884a0f() -> enum0
+  fun @scoop$1$cb$09cd64e7fa14d880fb4bd0e7db44b0eb714594ed57b959eb1d82fe6ba085cf43() -> enum0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = enum_wrap e0 v0 () : enum0
     ret t0
-  fun @scoop$1$cb$887fbef1463162ecbb59cb2c36fe4addb276efa276ddfa82c748dcab55ba59c3(indirect<struct0 size=4 align=4 scan=none>) -> i32
+  fun @scoop$1$cb$30504f937f14ef3a8725cc7845f5bd47a56c797df5b0aa1c23607a00dd865a34(indirect<struct0 size=4 align=4 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = extract param0, 0 : i32
     ret t0
-  fun @scoop$1$cb$eb95c014913bed337ee73f202d8057f2bacb8c091c16d77436fc9b2469ee3192(indirect<struct0 size=4 align=4 scan=none>, i32) -> i32
+  fun @scoop$1$cb$466d525f6930e987b5884d1bb5408a2f5b3ee4a042fb140eb6c18d54e4a60c1d(indirect<struct0 size=4 align=4 scan=none>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
-  fun @scoop$1$cb$58e6ddb0c3e72ce4d41d4a43137d0c19425fdf6afb210ef3606aacfc42691737(enum0, i32) -> i32
+  fun @scoop$1$cb$71ee3e26dfde876113215eafd860b40d4349810c193f060cddb6930b0416afa6(enum0, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
-  fun @scoop$1$cb$49a1be502afaa5a1fe1ff0a64901fc087c292e21e73af73ac121e4b6fb1e37a1(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$a1e3f013a7e7fc1f4f3cd5c37e100b6ddcf73bb2f009a838a242f5643e3e8cc2(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0

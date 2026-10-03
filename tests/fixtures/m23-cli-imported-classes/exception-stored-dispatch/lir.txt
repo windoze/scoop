@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$fbf6979a287fb7961e2541aebd91773df3c1931aff388c588f5449b62e80991a() -> ptr<managed>
+  fun @scoop$1$cb$c8c635d1ed6279971b9d81579d43a75ea2aca328d5a9d7a142b639bad0d0403e() -> ptr<managed>
     local %0 error: ptr<managed>
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.code: i64
@@ -142,7 +142,7 @@ Module
     store local26 -> local19
     end_catch
     br @scope.12
-  fun @scoop$1$cb$e309acfd2d1ef1bb14f62d45ec4b361ca6c721f66b2c20b340de533a322b433e() -> ptr<managed>
+  fun @scoop$1$cb$54b87ce48edd7fad5611f143889fcedaf0f4863c3983ae742eecbc9f8036e05f() -> ptr<managed>
     local %0 value: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.parameter.extra: i64
@@ -207,7 +207,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local14
-  fun @scoop$1$cb$e16d051e6f93976dce8ca90dbb263fadcc3f4e34ce5eb5336beed5bf8005dda8(ptr<managed>, ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$3a8f05dcbf37d0095eb495d9b9a7b85f00dee95a287bd6941acf381ea213071d(ptr<managed>, ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
     heap_store param0 +16 param1

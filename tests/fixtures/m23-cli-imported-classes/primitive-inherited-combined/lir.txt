@@ -1,6 +1,6 @@
 Module
   global @scoop$1$io$4002aa90336e92daae8f90cd84b13f58227b249ab6619af254c2ad980e69d9b3 = "mixed"
-  fun @scoop$1$cb$9bda65de6f99489140b1dee41abf625fbceeb263210e629be91de785b6d76690() -> ptr<managed>
+  fun @scoop$1$cb$b46d58a2a1613685414b8706c4f2c0559f7e525b74088f91ff64852006cb1b2a() -> ptr<managed>
     local %0 integer: i64
     local %1 boolean: i1
     local %2 text: ptr<managed>

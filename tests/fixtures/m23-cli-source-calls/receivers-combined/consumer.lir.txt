@@ -4,7 +4,7 @@ Module
   global @scoop$1$io$e68fdf9f7e8e2a9013d93d7602ea599f196a40508f309b5f343be1d96242a8f2 = "local-write"
   global @scoop$1$io$4793181a2427656471b8fb4724dbe7bdc02e1fda62fbe8b524d43e387e9b4308 = "local-read"
   global @scoop$1$io$062b310ff14670ecf9669d12b1733d41ceb4e3484c4a8e096c6c68da5e2a310c = "read"
-  fun @scoop$1$cb$4aabd8150c9f67cbe8342d686bcc6d3a470d588e3a6ac6ceb268227c5854cca7() -> i32
+  fun @scoop$1$cb$34d90a67d27ae7e4fbc5b2f9f84b6cc74c69c2e43ca34e4b3dd4254d16c0c122() -> i32
     local %0 $default.local.0: ptr<managed>
     local %1 $dependency.parameter.value: i32
     local %2 first: i32
@@ -30,11 +30,11 @@ Module
     call managed-direct-target3 sp<managed-call:5> live=[] t5 = sig=direct3 (ptr<managed>) -> i32 external-fn3(global4)
     store t5 -> local6
     ret local6
-  fun @scoop$1$cb$f85ab3323c360899b4321e3e1933056dbe50ebe7062b5ef7dfb615ae16e096d0(ptr<managed>) -> i32
+  fun @scoop$1$cb$c88d0d6acc041224a8bdf70ba403fa2037cf527346baca03108750ab860181f5(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000009)
-  fun @scoop$1$cb$82670c2bd6fdf65e1dba1d8c5dd7b13863bfe788c615916a1fc8d5371dd138da(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$95cdd37c24ef479285131aad3c5c0861988eaa9d230b873041f1ca43754a137d(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret

@@ -2,10 +2,10 @@ Module
   enum Choice tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16
   enum Packet tagged size=24 align=8 variants=()@8+0 ({i64, struct0, i64}, struct0)@8+16
   enum Flag tagged size=8 align=8 variants=()@8+0 ()@8+0
-  fun @scoop$1$cb$dbe120eb93302e68140da360ec2cc995e9b16862b92091f08d155273ef4c566a(indirect<enum0 size=24 align=8 scan=none>) -> sret<enum0 size=24 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$975175872ee23a48a7865d26bb7e77f3127dd529e5ebe513b63d609e4e7f4d44(indirect<enum0 size=24 align=8 scan=none>) -> sret<enum0 size=24 align=8 scan=none> <no-gc>
   block entry
     ret param0
-  fun @scoop$1$cb$324d35de8a6d8b7058732f56bed3d26b28e090793a209aab20dfc6a8d666f7df(indirect<enum0 size=24 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$1b0f941cef4a18381fb8ffdb61839593c944eb53d3d3bcfda271e2a7d9c724d4(indirect<enum0 size=24 align=8 scan=none>) -> i64 <no-gc>
     local %0 left: i64
     local %1 right: i64
     local %2 $dependency.receiver: i64
@@ -92,7 +92,7 @@ Module
     unreachable
   block pattern.merge.15
     br @pattern.merge.6
-  fun @scoop$1$cb$671866f2ab634820776c63e76a2034a408210fc4ec1743d644c26fec51f4c353(indirect<enum1 size=24 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$097d57b6d3a747bc3451ef34e07f9dfecdaf640c64309b4697ab9e3ace1cc0bc(indirect<enum1 size=24 align=8 scan=none>) -> i64 <no-gc>
     local %0 left: i64
     local %1 right: i64
     local %2 $dependency.receiver: i64
@@ -133,7 +133,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$1b219beb92bbdc26d46162a802510b031715b0fd0ccd83f255148a159ad2c4f5(indirect<enum2 size=8 align=8 scan=none>) -> i64 <no-gc>
+  fun @scoop$1$cb$d83f782811a1fee74719dd6b78d02b5ef123d40054514c207d1ffcc71b2fa270(indirect<enum2 size=8 align=8 scan=none>) -> i64 <no-gc>
     local %0 $result.3: i64
     local %1 $when.1: enum2
     local %2 $pattern.subject.2: enum2
@@ -159,10 +159,10 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$bdc5e1d1da6e23aa7f1f01a9b6e366d1839d334f579937dbe58cdfe0072c5b36(indirect<enum0 size=24 align=8 scan=none>, i64) -> i64 <no-gc>
+  fun @scoop$1$cb$a259768298731ea6d28864788d97afb2d44ff1f6fc5a014aa3f69b4364c074d6(indirect<enum0 size=24 align=8 scan=none>, i64) -> i64 <no-gc>
   block entry
     ret param1
-  fun @scoop$1$cb$45c8da831828320e9f221df6c88d24f647a41d8c49477ec568fbb51e59c3984a() -> i64 <no-gc>
+  fun @scoop$1$cb$42582d62627bb2299dfb9acc30fd297c413c0d9bfd5397f6c5176c6c4749f194() -> i64 <no-gc>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.argument.1: i64
     local %2 $dependency.parameter.left: i64
@@ -283,7 +283,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$26b27ebb7fd66b8c8991c808c8953db5c0747027645d19c8c7f8a5c2361228f0(ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$a5056d0900fd12aec7132ae1b175bb6fc928a65b36babdd0550d5645699b5fea(ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn5()

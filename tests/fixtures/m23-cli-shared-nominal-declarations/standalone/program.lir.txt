@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$14cdfec93ddfddfc1fde69396b1d9d5b07bb97da40d31a5d0b059a6188d07f90 = "illegal state"
-  global @scoop$1$ss$00403fb388fe08a5fc0f728df90060febbdd20e880509e5038f05de553b504e9 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$8ca3053fb43ef80d1b9f7ff382575746dd47d74b7cf2a5c790198d94cc2c0545 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$36627274cb191bf1774d785cf50463c480f91f4b8cf47dc8f07933a53b052eae(i1) -> void
+  fun @scoop$1$cb$e5371087d3a80458daea73bc8da6f43da916102080ccb4f17a9f1c931d915cbb(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -26,7 +26,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$c8173df18190b84c12ba5405f02f0bbbafe12121540fca6cc906f192690537e9() -> void
+  fun @scoop$1$cb$6a7eaa218d237394fa49f285aea9cab6c425beb4a9de53bb47596c1872d26a1a() -> void
     local %0 value: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $argument.0: i1
@@ -53,7 +53,7 @@ Module
     call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i1) local-fn0(local5)
     t6 = aggregate () : {}
     ret
-  fun @scoop$1$cb$2b2aabd9d1d78a093454220ebbc370c66438d1f2a4cfaa5103ada253d633ecf1() -> i32
+  fun @scoop$1$cb$820e2bdf60b315d00173b127eb06de0f77ab6f1155918c83d2ff069ff28efbdd() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -69,4 +69,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$c8173df18190b84c12ba5405f02f0bbbafe12121540fca6cc906f192690537e9
+  output executable @scoop$1$cb$6a7eaa218d237394fa49f285aea9cab6c425beb4a9de53bb47596c1872d26a1a
