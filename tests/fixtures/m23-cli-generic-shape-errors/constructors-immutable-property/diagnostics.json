@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "cannot assign to immutable property `echoed`",
+    "notes": [],
+    "origin": {
+      "cone": "5c7d805ba76378c3e60b19f82b826be42b22e18e738811837927edefcec198df",
+      "end": 103,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 97
+    },
+    "severity": "error"
+  }
+]
