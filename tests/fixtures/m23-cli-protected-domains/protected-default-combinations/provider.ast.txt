@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  public fun defaultIdentity<T>(seed: T, value: T = <expr>): T
+    =
+      Var value
+  public class DefaultContainer()
+    protected nested class Generic
+    protected nested enum Choice
+    protected nested class Nested
+    protected fun local

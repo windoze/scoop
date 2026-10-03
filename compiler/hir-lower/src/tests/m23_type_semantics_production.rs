@@ -30,6 +30,7 @@ mod shared_nominal_declarations;
 mod shared_object_initialization;
 mod shared_property_declarations;
 mod source_constructors;
+mod source_default_captures;
 mod source_default_derived_order;
 mod source_dispatch;
 mod source_fields;

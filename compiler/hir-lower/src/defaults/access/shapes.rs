@@ -198,9 +198,6 @@ impl ReferenceCollector<'_> {
             self.type_reference(ty, origin);
         }
         self.capture_shapes(&reference.captures);
-        for capture in &reference.captures {
-            self.expression(&capture.source);
-        }
     }
 
     fn lexical_callable_shape(
@@ -217,12 +214,10 @@ impl ReferenceCollector<'_> {
             }
         }
         self.capture_shapes(captures);
-        for capture in captures {
-            self.expression(&capture.source);
-        }
     }
 
     fn capture_shapes(&mut self, captures: &[hir::Capture]) {
+        // Exported captures are binding descriptors, not nested body expressions.
         for capture in captures {
             let mut origin = capture.source.origin.definition();
             origin.span = capture.first_use_span;

@@ -1,0 +1,20 @@
+SourceFile
+  RootPackage
+  public fun defaults(): DefaultContainer
+    =
+      Call DefaultContainer
+SourceFile
+  RootPackage
+  public fun defaultIdentity<T>(seed: T, value: T = <expr>): T
+    =
+      Var value
+  public class DefaultContainer()
+    public fun inspectLocal
+    public fun integerPair
+    public fun stringPair
+    public fun inspectNested
+    public fun inspectChoice
+    protected nested class Generic
+    protected nested enum Choice
+    protected nested class Nested
+    protected fun local
