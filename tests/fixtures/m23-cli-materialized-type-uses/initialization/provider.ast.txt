@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  fun initial(): Boolean
+    =
+      BoolLiteral true
+  val ready: Boolean = <expr>

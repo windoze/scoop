@@ -1,0 +1,61 @@
+SourceFile
+  RootPackage
+  public fun observe(): (Boolean, String, String, Boolean)
+    val packet
+      Call Packet
+        TupleLiteral
+          BoolLiteral true
+          StringLiteral "payload"
+    val cell
+      Call Cell
+        MethodCall Present
+          Var Envelope
+          Var packet
+    val reader: Reader
+      Var cell
+    val present
+      WhenExpression
+        FieldAccess data
+          Var cell
+        arm Empty
+          BoolLiteral false
+        arm Present(value)
+          FieldAccess _1
+            FieldAccess pair
+              Var value
+    return
+      TupleLiteral
+        Var present
+        MethodCall read
+          Var reader
+        Invoke
+          Call capture
+            Var packet
+        Call matches
+          Var cell
+  public fun observedMatch(value: Any): Boolean
+    =
+      Call matches
+        Var value
+SourceFile
+  RootPackage
+  struct Packet
+    field pair: (Boolean, String)
+  enum Envelope
+    Empty
+    Present(Packet)
+  interface Reader
+    fun read
+  class Cell(val data: Envelope), Reader
+    fun read
+  fun capture(value: Packet): () -> String
+    val text
+      StringLiteral "captured"
+    return
+      Lambda 0 suspend=false
+        parameters omitted
+        Var text
+  fun matches(value: Any): Boolean
+    =
+      Is Cell false
+        Var value

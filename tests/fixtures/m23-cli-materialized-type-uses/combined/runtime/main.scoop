@@ -1,0 +1,6 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    verifyType(observe() == (true, "cell", "captured", true))
+    verifyType(!observedMatch("text"))
+}

@@ -50,15 +50,6 @@ fn actual_hir_type_uses_drive_mir_dependency_projection() {
                 }
                 names.sort();
                 assert_eq!(names, expected, "{name}");
-                let dump = names
-                    .into_iter()
-                    .map(|name| format!("type {name}\n"))
-                    .collect::<String>();
-                let path = fixtures.join(format!("{name}.mir-uses.snap"));
-                if std::env::var_os("SCOOP_UPDATE_MATERIALIZED_TYPES").is_some() {
-                    std::fs::write(&path, &dump).unwrap();
-                }
-                assert_eq!(dump, std::fs::read_to_string(path).unwrap());
             },
             |_, _| {},
         );

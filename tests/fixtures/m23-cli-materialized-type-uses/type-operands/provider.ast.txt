@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  fun primitiveTest(value: Any): Boolean
+    =
+      Is Int8 false
+        Var value

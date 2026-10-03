@@ -1,0 +1,21 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        Call observe
+        TupleLiteral
+          BoolLiteral true
+          StringLiteral "cell"
+          StringLiteral "captured"
+          BoolLiteral true
+    Call verifyType
+      Unary Not
+        Call observedMatch
+          StringLiteral "text"

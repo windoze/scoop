@@ -1,0 +1,5 @@
+public fun observe(): Boolean {
+    val value: SourceOnly<Long> = Deferred()
+    return flag() && value is SourceOnly<Long>
+}
+public fun observedFlag(value: Boolean): Boolean = flag(value)

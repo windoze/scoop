@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Call observe
+    Call verifyType
+      Unary Not
+        Call observedFlag
+          BoolLiteral false

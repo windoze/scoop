@@ -1,0 +1,25 @@
+Module
+  class box<Int8> vtable=0 itables=0
+  generated_exact_type get0 location=class0 nominal_id=de537a479a9750a662a38e8bc8144b7035afa0c1849733a99c565fd3a7bc87b1 exact_id=db9e3cb3d8fc84aff6fadcd13ed41bfabfeba931a2091e153f787fa001f8bcd3
+  fun observe @fn0(value: Any) -> Boolean
+    bb0 entry
+      val $argument.0: Any
+        Type Any
+        Local value
+      val $parameter.value: Any
+        Type Any
+        Local $argument.0
+      call $call.1: Boolean = @fn1 direct
+        Type Any
+        Local $parameter.value
+      return
+        Type Boolean
+        Local $call.1
+  fun primitiveTest @fn1(value: Any) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IsInstance Int8
+          Type Any
+          Local value
+  output library
