@@ -1,0 +1,7 @@
+SourceFile
+  RootPackage
+  fun bad(value: Int): Int
+    =
+      MethodCall div
+        Var value
+        IntLiteral 2

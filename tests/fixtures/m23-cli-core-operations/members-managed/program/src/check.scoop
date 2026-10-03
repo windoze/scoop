@@ -1,0 +1,5 @@
+fun main() {
+    if (bad(12) != 6 || bad(-17) != -8) {
+        throw IllegalStateException()
+    }
+}

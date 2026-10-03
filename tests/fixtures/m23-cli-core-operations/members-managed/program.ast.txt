@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  fun main()
+    if
+      Binary Or
+        Binary Ne
+          Call bad
+            IntLiteral 12
+          IntLiteral 6
+        Binary Ne
+          Call bad
+            Unary Neg
+              IntLiteral 17
+          Unary Neg
+            IntLiteral 8
+      throw
+        Call IllegalStateException
+SourceFile
+  RootPackage
+  fun bad(value: Int): Int
+    =
+      MethodCall div
+        Var value
+        IntLiteral 2
