@@ -8,3 +8,4 @@
 | `mir-boxing-production` | 2／14／26／8 | struct／enum、菱形接口、默认方法与属性；保留实际 adjust 的唯一直接调用、目标绑定、payload 集合、itable 槽以及两例 2／24 个调整函数。 |
 | `mir-constructor-production` | 2／13／22／7 | ZST、主次构造、protected／private、默认参数、managed 字段；保留语义构造签名、实际 initializer receiver、结果和字段 assembly／GC 差异检查。 |
 | `mir-dispatch-production` | 2／14／26／8 | 父类前缀、final override、重新抽象、class／object／值类型派发；保留实际 slot、实现角色、object override 的独立 receiver 及完整依赖检查。 |
+| `mir-equality-production` | 2／13／22／7 | ZST、嵌套字段、enum、显式 equals 与异类型重载；用实际调用映射保留 Leaf／Pair／Choice／UsesManual 的依赖，Manual 与 NotComparable 不产生错误的派生 binding。 |

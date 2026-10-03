@@ -1,0 +1,215 @@
+Module
+  struct Token ()
+  struct Hidden ()
+  struct Unrequested ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Unrequested>
+    Completed(value: Unrequested)
+    Suspended()
+  enum CoroutineSlot<Unrequested>
+    Empty()
+    Value(value: Unrequested)
+  enum CoroutineStep<Token>
+    Completed(value: Token)
+    Suspended()
+  enum CoroutineSlot<Token>
+    Empty()
+    Value(value: Token)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Unrequested> vtable=0 itables=0
+  class box<Token> vtable=0 itables=0
+  interface Continuation<Token>
+  interface SuspendTask<Token>
+  interface SuspendRegistration<Token>
+  interface Continuation<Unrequested>
+  interface SuspendTask<Unrequested>
+  interface SuspendRegistration<Unrequested>
+  generated_exact_type get0 location=class4 nominal_id=9fdf8a0a808a971b8d6a738e44252740b5ea4b05b789833c3e9d9fcf1f6231fb exact_id=39747632c60a17cbdf560f220a00f9e5e094e83a0a7f3181e113a2107fcb1542
+  generated_exact_type get1 location=class3 nominal_id=ff6971772d5d770b34a6b9f55650e354398b152738fbab490ecc2cf94ebd7f0a exact_id=77cc3903c9ec11871155757388c8d4d306d302c69c6679a790845c5c686ca960
+  generated_exact_type get2 location=enum2 nominal_id=95bbf9a507787168b6650da6b74e82096b97ea0ccc832387f89210fc5f637091 exact_id=c03366a4dbdb89a0798002af2edc9a834dcf550c9156e02a34074602be15dd03
+  generated_exact_type get3 location=enum4 nominal_id=8ec0ae4903fb3bb8e5668ebe380983ddb48a139a3e26c020591cde39a41b7768 exact_id=c529ad6b99a4ea9cf081527fc78ba9ff3fcecd87d5d9d46cef13ae5c411e3395
+  generated_exact_type get4 location=enum1 nominal_id=818f60681c4d0c466dc80cbbbb6d13addb2016bc684accfe71e2676cfa3ff6bc exact_id=e4d9c3c174a224bd7bb4a4e67ede175daf2c4b388510e3172030c3604908211e
+  generated_exact_type get5 location=enum3 nominal_id=4ea6b66d7d03c79e912cbb80401be8f0da35c97cd767ca8a671b71e06a68f67f exact_id=f0ef0e76863e442384e451f1db8b948d5f7cd9dbaa89e7f1b6bba84e77442ba1
+  generated_callable gc0 function=@fn17 id=122b4d747bc6af1889b1d755e91355b9d85338d738cee6bd10673cf71ac681e7
+  generated_callable gc1 function=@fn16 id=470638b69e604653289a42835800602126ed6bea58a23d764945bbcb19c40177
+  fun Token.equals @fn0(this: Token, other: Token) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Hidden.equals @fn1(this: Hidden, other: Hidden) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun Unrequested.equals @fn2(this: Unrequested, other: Unrequested) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun same @fn3(left: Token, right: Token) -> Boolean
+    bb0 entry
+      call $call.1: Boolean = @fn0 direct
+        Type Token
+        Local left
+        Type Token
+        Local right
+      return
+        Type Boolean
+        Local $call.1
+  fun hiddenUse @fn4() -> Boolean
+    bb0 entry
+      call $call.1: Hidden = @fn14 direct
+      call $call.2: Hidden = @fn14 direct
+      call $call.3: Boolean = @fn1 direct
+        Type Hidden
+        Local $call.1
+        Type Hidden
+        Local $call.2
+      return
+        Type Boolean
+        Local $call.3
+  fun Continuation.resume @fn5(this: Continuation<Token>, value: Token) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn6(this: Continuation<Token>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn7(this: SuspendTask<Token>, $completion: Continuation<Token>) -> CoroutineStep<Token>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn8(this: SuspendRegistration<Token>, continuation: Continuation<Token>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn9(this: Continuation<Unrequested>, value: Unrequested) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Unrequested>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Unrequested>, $completion: Continuation<Unrequested>) -> CoroutineStep<Unrequested>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Unrequested>, continuation: Continuation<Unrequested>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Token.$c0 @fn13() -> Token <no-gc>
+    bb0 entry
+      return
+        Type Token
+        StructInit Token
+  fun ctor.Hidden.$c1 @fn14() -> Hidden <no-gc>
+    bb0 entry
+      return
+        Type Hidden
+        StructInit Hidden
+  fun ctor.Unrequested.$c2 @fn15() -> Unrequested <no-gc>
+    bb0 entry
+      return
+        Type Unrequested
+        StructInit Unrequested
+  fun startCoroutine<Unrequested> @fn16(task: SuspendTask<Unrequested>, completion: Continuation<Unrequested>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<Unrequested>[0]
+        Type Continuation<Unrequested>
+        Local completion
+        Type Unrequested
+        EnumField v0 f0
+          Type CoroutineStep<Unrequested>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<Unrequested>[1]
+        Type Continuation<Unrequested>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Unrequested> = @fn11 interface SuspendTask<Unrequested>[0]
+        Type SuspendTask<Unrequested>
+        Local task
+        Type Continuation<Unrequested>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Unrequested>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Token> @fn17(task: SuspendTask<Token>, completion: Continuation<Token>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn5 interface Continuation<Token>[0]
+        Type Continuation<Token>
+        Local completion
+        Type Token
+        EnumField v0 f0
+          Type CoroutineStep<Token>
+          Local $step
+      return
+    bb2 failed
+      call @fn6 interface Continuation<Token>[1]
+        Type Continuation<Token>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Token> = @fn7 interface SuspendTask<Token>[0]
+        Type SuspendTask<Token>
+        Local task
+        Type Continuation<Token>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Token>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Unrequested> result=Unrequested
+  coroutine_step cs1 CoroutineStep<Token> result=Token
+  coroutine_slot cl0 CoroutineSlot<Unrequested> value=Unrequested
+  coroutine_slot cl1 CoroutineSlot<Token> value=Token
+  coroutine_start ct0 result=Unrequested function=fn16
+  coroutine_start ct1 result=Token function=fn17
+  coroutine_fn cf0 @fn7 source_return=Token step=cs1 immediate
+  coroutine_fn cf1 @fn11 source_return=Unrequested step=cs0 immediate
+  instance mi0 function=@fn5 <- Continuation.resume
+  instance mi1 function=@fn6 <- Continuation.resumeWithException
+  instance mi2 function=@fn7 <- SuspendTask.run
+  instance mi3 function=@fn8 <- SuspendRegistration.register
+  instance mi4 function=@fn9 <- Continuation.resume
+  instance mi5 function=@fn10 <- Continuation.resumeWithException
+  instance mi6 function=@fn11 <- SuspendTask.run
+  instance mi7 function=@fn12 <- SuspendRegistration.register
+  output library

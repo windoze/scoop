@@ -1,0 +1,14 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val pair = Pair(Leaf(), Leaf())
+    verifyType(pair == Pair(Leaf(), Leaf()))
+    verifyType(sameChoice(Choice.Full(pair), Choice.Full(pair)))
+    verifyType(!sameChoice(Choice.Empty, Choice.Full(pair)))
+    verifyType(!sameManual(UsesManual(Manual()), UsesManual(Manual())))
+    verifyType(sameOverloaded(Overloaded(), Overloaded()))
+    verifyType(Overloaded() == Leaf())
+    val value = notComparable()
+    val erased: Any = value
+    verifyType((erased as NotComparable).value === value.value)
+}

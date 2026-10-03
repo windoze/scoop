@@ -1,5 +1,0 @@
-Choice.equals: Managed -> Managed; calls=["Pair.equals"]
-Leaf.equals: Managed -> Managed; calls=[]
-Overloaded.equals: Managed -> Managed; calls=[]
-Pair.equals: Managed -> Managed; calls=["Leaf.equals", "Leaf.equals"]
-UsesManual.equals: Managed -> Managed; calls=["Manual.equals"]
