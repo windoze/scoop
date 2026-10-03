@@ -9,3 +9,5 @@
 退役前运行原构造器结构与 wire 断言，53 项 Rust 回归全部通过，包括完整声明表编解码等价和按真实 constructor identity 核对 source／concrete safety。上述数据由新的完整 HIR／MIR／LIR golden 与实际下游读取持续覆盖。删除 `m19_nogc` 文件 runner、render helper、`m19_safety` 的文件测试、两项 source constructor wire 文件测试、注册及四份旧快照；保留直接修改 typed AST 的 compiler exception constructor 单元测试。
 
 最终只读验证：4 个用例、32 次进程、52 份阶段／link-plan golden 全部通过。原 negative 构造器用例已在此前的 CLI 迁移中保留，本次不修改任何诊断或 negative 期望。
+
+全仓首轮复验发现四份声明的 single-file 步骤仍带有多 Cone 路径参数。按 Stage 11 设计 3.1 的既定单文件规则，仅移除该步骤中的 `--cone-path`；library、consumer 与独立 link 的 locator 保持。四份原源码、52 份 golden、构造器 effect／safety 和普通／移动运行期望均未修改，专项只读复验继续通过。

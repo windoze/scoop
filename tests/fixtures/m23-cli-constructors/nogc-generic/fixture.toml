@@ -8,7 +8,7 @@ tags = ["constructors", "constructor-nogc", "stage-golden", "source-and-artifact
 
 [[steps]]
 name = "single"
-argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-single", "--cone-path", "${work}/artifacts", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump/single", "-o", "${work}/single", "--runtime-root", "${runtime}"]
+argv = ["${scoop}", "build", "${root}", "--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-single", "--message-format", "json", "--emit", "all", "--dump-dir", "${work}/dump/single", "-o", "${work}/single", "--runtime-root", "${runtime}"]
 exit = 0
 stdout = ""
 stderr = ""
