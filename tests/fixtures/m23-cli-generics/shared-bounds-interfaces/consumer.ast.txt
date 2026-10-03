@@ -1,0 +1,43 @@
+SourceFile
+  QualifiedPackage consumer.sharedbounds
+  ImportStar Local upstream.sharedbounds.*
+  private interface LocalReader<T>
+    fun read
+  private interface Left<T> : LocalReader<T>
+  private interface Right<T> : LocalReader<T>
+  private interface Both<T> : Left<T>, Right<T>
+  private class LocalHolder<T>(val value: T), Both<T>
+    public fun read
+  private class Bridge<T>(val value: T), BothReader<T>
+    public fun read
+  private fun readBase<T>(source: LocalReader<T>): T
+    =
+      MethodCall read
+        Var source
+  private fun readLocal<T, R : Both<T>>(source: R): T
+    =
+      Call readBase
+        Var source
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val local
+      Call readLocal
+        Call LocalHolder<T>
+          Var seed
+    val imported
+      Call readBound
+        Call Holder<T>
+          Var local
+    val bridge
+      Call readBound
+        Call Bridge<T>
+          Var imported
+    return
+      Call read
+        Var bridge
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value
