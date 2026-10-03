@@ -1,3 +1,0 @@
-span=105..133
-expression=Pair<Int, Unit>(value, true)
-`@NoGC` code may not call managed constructor `Pair`

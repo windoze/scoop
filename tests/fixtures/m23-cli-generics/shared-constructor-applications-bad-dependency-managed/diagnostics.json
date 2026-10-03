@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` code may not call managed constructor `Pair`",
+    "notes": [],
+    "origin": {
+      "cone": "060fd999c67437eb9c7adc4d96690ee3af3578e2c405a90a73550fcf2d4c5aff",
+      "end": 133,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 105
+    },
+    "severity": "error"
+  }
+]

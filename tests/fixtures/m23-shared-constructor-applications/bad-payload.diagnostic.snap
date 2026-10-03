@@ -1,5 +1,0 @@
-span=89..111
-expression=Pair<String, Unit>(42)
-no applicable candidate for `Pair` in star import layer:
-  - dependency constructor `Pair` expects 2 argument(s), but 1 were supplied
-  - dependency function `Pair`: Int is not a subtype of String
