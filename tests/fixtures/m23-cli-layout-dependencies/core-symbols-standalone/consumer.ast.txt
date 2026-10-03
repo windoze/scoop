@@ -1,0 +1,17 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.runtimeValue
+    @Extern(name = "scoop_test_identity")
+  fun nativeIdentity(value: Int): Int
+  public val localValue: Int = <expr>
+  public fun outside(): Int
+    =
+      Var runtimeValue
+  public fun linkLabel(): String
+    =
+      StringLiteral "link-symbol-uses"
+  public fun nativeCall(value: Int): Int
+    @Unsafe block
+      return
+        Call nativeIdentity
+          Var value

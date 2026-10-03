@@ -18,3 +18,4 @@
 | 外部 extension receiver | `core-extension-combined`、`core-extension-standalone` | 6／16 |
 | Any 调用签名、getter、默认值与错误结果类型 | `core-any-combined`、`core-any-standalone`、`ordinary-any-combined`、`ordinary-any-standalone`、`ordinary-any-wrong-result` | 17／44 |
 | 实际对象内容与物理引用 | `core-objects-combined`、`core-objects-standalone` | 6／16 |
+| 定义符号、未定义引用与 runtime 内容 | `core-symbols-combined`、`core-symbols-standalone` | 6／16 |
