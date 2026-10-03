@@ -1,0 +1,8 @@
+import callbacks.selected as chosen
+import callbacks.*
+
+fun main() {
+    if (chosen(mark()) != 42 || trace != 12 || operation(40) != 42 || Singleton(40) != 42) {
+        throw IllegalStateException()
+    }
+}

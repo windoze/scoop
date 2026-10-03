@@ -8,6 +8,7 @@ use crate::overload::{CallArgumentProtocol, NamedCallReceiver, OverloadCall};
 pub(in crate::expr) enum PropertyExtensionInvokeOrigin {
     Member(hir::PropertyId),
     NamedValue(ValueTarget),
+    DependencyValue(hir::ImportedTarget),
     Extension(ExtensionPropertyIdentity),
 }
 
