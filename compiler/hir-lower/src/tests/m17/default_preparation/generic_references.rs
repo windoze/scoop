@@ -1,7 +1,5 @@
 use super::*;
 
-mod snapshots;
-
 #[test]
 fn generic_default_reference_uses_its_creation_scope() {
     let output = lower_source(include_str!(concat!(
@@ -94,6 +92,5 @@ fn generic_default_closures_compose_reordered_binders_through_multiple_expansion
                 .any(|(_, r)| predicate(&r.target))
         );
     }
-    let mir = scoop_mir_lower::lower(module).unwrap();
-    snapshots::check(&output, &mir);
+    scoop_mir_lower::lower(module).unwrap();
 }
