@@ -2,9 +2,9 @@ use std::fmt::Write;
 
 use crate::LocalConcreteHirOutput;
 
-/// Dumps only the concrete graph, in arena order, without lookup-map order or
-/// borrowed dependency worlds. Persistent identities and expression origins
-/// remain visible alongside the distinct local entity ids.
+/// Dumps the concrete graph and shape-support roots in their existing order,
+/// without lookup maps or borrowed dependency worlds. Persistent identities
+/// and expression origins remain visible alongside the distinct local ids.
 pub fn dump_local(output: &LocalConcreteHirOutput) -> String {
     let module = output.module();
     let mut text = format!("LocalConcrete {} {:?}\n", module.cone, output.output_kind());
@@ -61,5 +61,8 @@ pub fn dump_local(output: &LocalConcreteHirOutput) -> String {
     writeln!(text, "  callbacks {:?}", module.native_callback_signatures)
         .expect("writing to String");
     writeln!(text, "  coroutines {:?}", module.coroutine_protocols).expect("writing to String");
+    for root in output.materialization().roots() {
+        writeln!(text, "  shape-support {root:?}").expect("writing to String");
+    }
     text
 }

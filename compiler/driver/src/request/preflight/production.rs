@@ -53,9 +53,10 @@ impl ParsedSingleConeBuildRequest<'_, '_> {
                 })?;
         dump.extend(capture_stage_dump(emit, StageDumpKind::Hir, || {
             format!(
-                "== Export ==\n{}== LocalConcrete ==\n{}",
+                "== Export ==\n{}== LocalConcrete ==\n{}== CrossCone ==\n{}",
                 scoop_hir::dump(&hir.hir.output().export),
-                scoop_hir::dump_local(&hir.hir.output().local)
+                scoop_hir::dump_local(&hir.hir.output().local),
+                scoop_hir::dump_cross_cone(&hir.hir, &hir.cross_cone_section)
             )
         }));
         let artifact = (|| {

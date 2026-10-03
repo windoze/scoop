@@ -20,3 +20,22 @@ LocalConcrete 4cdcd3ffdca7e09816374882a8dab64a7e66a01cba1a50887ab2187d13bce3ca E
   generated []
   callbacks []
   coroutines []
+== CrossCone ==
+CrossCone 4cdcd3ffdca7e09816374882a8dab64a7e66a01cba1a50887ab2187d13bce3ca
+  public_bindings count=0
+  nominal_interfaces count=0
+  callable_interfaces count=0
+  property_interfaces count=0
+  type_aliases count=0
+  source_interfaces count=0
+  default_templates count=0
+  constants count=0
+  external_references count=1
+    external_references[0] ExternalHirReferenceV1 { origin: ConeIdentity([94, 165, 245, 232, 255, 36, 129, 130, 200, 248, 199, 225, 4, 60, 170, 226, 15, 22, 59, 206, 253, 52, 204, 164, 233, 125, 140, 106, 3, 191, 98, 13]), target: Nominal(Concrete(PersistentTypeId([234, 29, 227, 89, 126, 15, 48, 172, 202, 44, 98, 198, 216, 113, 230, 147, 100, 142, 247, 225, 9, 124, 200, 176, 8, 45, 49, 106, 205, 126, 118, 57]))), roles: CanonicalExternalHirReferenceRolesV1 { roles: [ExecutableTypeDependency] }, witnesses: CanonicalDependencyBindingWitnessesV1 { witnesses: [] }, call_sites: CanonicalHirDependencyCallSitesV1 { records: [] }, type_sites: CanonicalHirDependencyTypeSitesV1 { records: [CallableSignature { root: CallableMaterialization { template: Function(PersistentFunctionId([213, 147, 222, 184, 97, 23, 63, 222, 254, 110, 203, 80, 254, 239, 27, 64, 165, 139, 144, 41, 131, 53, 97, 58, 240, 41, 52, 111, 60, 171, 86, 61])), context: NoSubstitution }, position: Result, exact: PersistentExactTypeId([29, 255, 88, 167, 0, 124, 97, 209, 77, 236, 200, 88, 82, 212, 78, 64, 209, 19, 178, 110, 150, 236, 77, 36, 179, 101, 188, 222, 52, 25, 102, 220]) }] } }
+  generic_callable_bodies count=0
+  generic_initializations count=0
+  generic_delegates count=0
+  nominal_support count=0
+  callable_support count=0
+  property_support count=0
+  definition_sources count=0

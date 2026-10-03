@@ -214,7 +214,7 @@ JSON 是现有 typed result 的展示格式，不是新的 child/build 协议；
 
 `--emit all` 表示 AST、HIR、MIR、LIR 四项；其余值只请求对应项。`root` scope 只观察 root；`sources` scope 观察完整图中所有源码节点，包括实际从源码构建的 core，不对 prebuilt 请求其未保存的 AST／LocalConcrete。
 
-每项内容来自同次真实 pipeline：AST 为按 source identity 排序的当前源码；HIR 分别显示共同 Export 与 LocalConcrete，保留两者边界；MIR/LIR 为本次生产的完整模块。跨 Cone 身份改变可以导致受控 golden 更新，不能靠删掉 imports、origin 或 generated identity 让旧输出看起来不变。
+每项内容来自同次真实 pipeline：AST 为按 source identity 排序的当前源码；HIR 分别显示共同 Export 与 LocalConcrete，保留两者边界；追加的 CrossCone 区域直接显示同次生产的共享接口、source constructor 合同和导入 application，LocalConcrete 显示实际 shape-support roots。canonical 表和 arena 分别沿自身的稳定顺序输出，不为观察重新生产或验证元数据。MIR/LIR 为本次生产的完整模块。跨 Cone 身份改变可以导致受控 golden 更新，不能靠删掉 imports、origin 或 generated identity 让旧输出看起来不变。
 
 LIR 模块中的 `deps` 是本地 arena 引用；含外部初始化依赖的单元还追加 `init-dependencies`，记录同次 production 的 canonical 单元与带 provider 的完整依赖序列。该输出保留跨 Cone 委托初始化的实际关系，不要求测试重读内部产物，也不新增观察命令或持久字段。
 

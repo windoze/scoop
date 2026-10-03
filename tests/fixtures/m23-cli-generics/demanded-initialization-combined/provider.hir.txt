@@ -21,3 +21,25 @@ LocalConcrete 51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5 L
   generated []
   callbacks []
   coroutines []
+== CrossCone ==
+CrossCone 51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5
+  public_bindings count=1
+    public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([76, 243, 176, 10, 116, 158, 190, 5, 159, 96, 157, 31, 81, 50, 96, 153, 76, 40, 182, 170, 166, 124, 230, 220, 201, 217, 64, 41, 26, 84, 249, 181]), source: DeclaredCurrent { declaration: Function(PersistentFunctionId([141, 49, 69, 158, 216, 87, 253, 182, 201, 95, 131, 251, 139, 89, 37, 11, 221, 253, 74, 237, 142, 207, 55, 234, 196, 89, 135, 28, 64, 165, 193, 255])) } }
+  nominal_interfaces count=0
+  callable_interfaces count=1
+    callable_interfaces[0] CallableInterfaceRecordV1 { data: CallableDeclarationRecordV1 { declaration: Function(PersistentFunctionId([141, 49, 69, 158, 216, 87, 253, 182, 201, 95, 131, 251, 139, 89, 37, 11, 221, 253, 74, 237, 142, 207, 55, 234, 196, 89, 135, 28, 64, 165, 193, 255])), owner: TopLevel, type_parameters: CanonicalBinderListV1 { binders: [] }, receiver: None, parameters: CanonicalSourceParameterShapesV1 { parameters: [], len: 0 }, result: Nominal(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247])), effects: CallableSourceEffectsV1 { execution: Ordinary, safety: Safe, gc_effect: Managed, implementation: Scoop, operator_role: None, infix: Ordinary }, modality: Final, visibility: Public, slots: CanonicalPersistentIdsV1 { values: [] } }, access: DirectOnly }
+  property_interfaces count=0
+  type_aliases count=0
+  source_interfaces count=1
+    source_interfaces[0] CallableSourceInterfaceV1 { owner: Function(PersistentFunctionId([141, 49, 69, 158, 216, 87, 253, 182, 201, 95, 131, 251, 139, 89, 37, 11, 221, 253, 74, 237, 142, 207, 55, 234, 196, 89, 135, 28, 64, 165, 193, 255])), parameters: CanonicalCallableSourceParametersV1 { parameters: [], len: 0 } }
+  default_templates count=0
+  constants count=0
+  external_references count=1
+    external_references[0] ExternalHirReferenceV1 { origin: ConeIdentity([94, 165, 245, 232, 255, 36, 129, 130, 200, 248, 199, 225, 4, 60, 170, 226, 15, 22, 59, 206, 253, 52, 204, 164, 233, 125, 140, 106, 3, 191, 98, 13]), target: Nominal(Concrete(PersistentTypeId([53, 127, 120, 215, 48, 12, 0, 174, 152, 226, 43, 41, 180, 159, 199, 188, 242, 192, 167, 244, 137, 159, 211, 41, 223, 107, 93, 243, 207, 215, 145, 247]))), roles: CanonicalExternalHirReferenceRolesV1 { roles: [SignatureDependency, ExecutableTypeDependency] }, witnesses: CanonicalDependencyBindingWitnessesV1 { witnesses: [] }, call_sites: CanonicalHirDependencyCallSitesV1 { records: [] }, type_sites: CanonicalHirDependencyTypeSitesV1 { records: [Expression(HirExpressionTypeSiteV1 { position: ExecutableExpressionPosition { root: CallableMaterialization { template: Function(PersistentFunctionId([141, 49, 69, 158, 216, 87, 253, 182, 201, 95, 131, 251, 139, 89, 37, 11, 221, 253, 74, 237, 142, 207, 55, 234, 196, 89, 135, 28, 64, 165, 193, 255])), context: NoSubstitution }, expression_index: 0 }, origin: ConcreteExpressionOrigin { definition: DefinitionOrigin { source: SourceIdentity { cone: ConeIdentity([81, 82, 138, 187, 34, 246, 69, 234, 160, 212, 185, 166, 209, 131, 180, 165, 127, 11, 18, 196, 171, 70, 72, 54, 127, 201, 72, 88, 165, 109, 50, 181]), logical_path: NormalizedSourcePath("src/main.scoop") }, span: SourceSpan { start_byte: 49, end_byte: 51 }, context: PersistentSourceContextId([152, 235, 55, 100, 180, 77, 50, 137, 33, 207, 222, 172, 125, 63, 211, 237, 198, 115, 14, 72, 86, 119, 72, 224, 134, 16, 122, 128, 248, 20, 78, 26]) }, evaluation: EvaluationOrigin { source: SourceIdentity { cone: ConeIdentity([81, 82, 138, 187, 34, 246, 69, 234, 160, 212, 185, 166, 209, 131, 180, 165, 127, 11, 18, 196, 171, 70, 72, 54, 127, 201, 72, 88, 165, 109, 50, 181]), logical_path: NormalizedSourcePath("src/main.scoop") }, span: SourceSpan { start_byte: 49, end_byte: 51 }, context: PersistentSourceContextId([152, 235, 55, 100, 180, 77, 50, 137, 33, 207, 222, 172, 125, 63, 211, 237, 198, 115, 14, 72, 86, 119, 72, 224, 134, 16, 122, 128, 248, 20, 78, 26]) } }, role: Value, exact: PersistentExactTypeId([91, 65, 115, 231, 102, 190, 185, 216, 193, 232, 2, 226, 103, 187, 9, 62, 199, 120, 14, 222, 201, 184, 60, 26, 155, 164, 6, 27, 168, 134, 245, 49]) }), CallableSignature { root: CallableMaterialization { template: Function(PersistentFunctionId([141, 49, 69, 158, 216, 87, 253, 182, 201, 95, 131, 251, 139, 89, 37, 11, 221, 253, 74, 237, 142, 207, 55, 234, 196, 89, 135, 28, 64, 165, 193, 255])), context: NoSubstitution }, position: Result, exact: PersistentExactTypeId([91, 65, 115, 231, 102, 190, 185, 216, 193, 232, 2, 226, 103, 187, 9, 62, 199, 120, 14, 222, 201, 184, 60, 26, 155, 164, 6, 27, 168, 134, 245, 49]) }] } }
+  generic_callable_bodies count=0
+  generic_initializations count=0
+  generic_delegates count=0
+  nominal_support count=0
+  callable_support count=0
+  property_support count=0
+  definition_sources count=0

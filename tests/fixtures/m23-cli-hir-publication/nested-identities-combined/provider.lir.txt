@@ -1,0 +1,22 @@
+Module
+  fun @scoop$1$cb$98b3349d4833fcd5916c47ba9103e6e9813e44880dd0520ef040b97dd35a6fa9() -> i32
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret integer<Int>(0x00000001)
+  fun @scoop$1$cb$69eca4d75ed12e398d0936872cc7eb76a727a5b1d00b7d48aff0f6e316b718cf() -> ptr<managed>
+    local %0 $new.1: ptr<managed>
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(16)))
+    store t0 -> local0
+    call managed-void-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn2(local0)
+    t1 = aggregate () : {}
+    ret local0
+  fun @scoop$1$cb$618994bb92b61858b285334aa6444caaa537d9b1c9f2a31d439432d8937891d8(ptr<managed>) -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  td td0 a(n(c=dev.example%3Acombined%3A0.1.0;p=;o=-;k=C;x=NestedBinderHost);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$aba6d7b3a3c7c1809927f698d26ce8c3e3328a916d4fbecf25c36bdc127ea637 type-id=2400358072318291669 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
+  layout NestedBinderHost value size=8 align=8 refs=[0]
+  layout NestedBinderHost size=16 align=8 refs=[]
+  output library

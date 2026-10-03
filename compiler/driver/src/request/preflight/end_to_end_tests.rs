@@ -13,7 +13,6 @@ use crate::{ExplicitDependencyInputs, HostArtifactLocator};
 mod cross_cone;
 mod default_call_domains;
 mod default_callable_access;
-mod default_nested_identities;
 mod default_reference_closure;
 mod default_type_access;
 mod default_value_access;
