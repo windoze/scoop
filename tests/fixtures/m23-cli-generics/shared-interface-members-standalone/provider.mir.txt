@@ -1,0 +1,113 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<NumberReader>
+    Completed(value: NumberReader)
+    Suspended()
+  enum CoroutineSlot<NumberReader>
+    Empty()
+    Value(value: NumberReader)
+  class NumberReader vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Reader<Int>
+  interface Continuation<NumberReader>
+  interface SuspendTask<NumberReader>
+  interface SuspendRegistration<NumberReader>
+  generated_exact_type get0 location=enum2 nominal_id=8c783682acf79c728dd8a4c78505a29e59623c2774ca94f9d44253b474d490c2 exact_id=45d98599f2c94e66c192f8416d8d6b71381382309e43ee1a200e435b02da87ee
+  generated_exact_type get1 location=enum1 nominal_id=e9abd83b9302dfb84c0943f67fcd81830077bdbccfc8c510cd3be95550c2f94a exact_id=731dab28bcdfa72e3eb94f4ca669cacdc2c05c8f461e8e771cbe7bb5a8c42972
+  generated_callable gc0 function=@fn9 id=80b7f0de0b7a49d9a709552eea72ad4e3d53471e09b155b650dd43a6b5f29f49
+  fun NumberReader.read @fn0(this: NumberReader) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+  fun NumberReader.read @fn1(this: NumberReader, fallback: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local fallback
+  fun Continuation.resume @fn2(this: Continuation<NumberReader>, value: NumberReader) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn3(this: Continuation<NumberReader>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn4(this: SuspendTask<NumberReader>, $completion: Continuation<NumberReader>) -> CoroutineStep<NumberReader>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn5(this: SuspendRegistration<NumberReader>, continuation: Continuation<NumberReader>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Reader.again @fn6(this: Reader<Int>) -> Int
+    bb0 entry
+      val $receiver: Reader<Int>
+        Type Reader<Int>
+        Local this
+      call $call.1: Int = @fn7 interface Reader<Int>[0]
+        Type Reader<Int>
+        Local $receiver
+      return
+        Type Int
+        Local $call.1
+  fun Reader.read @fn7(this: Reader<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Reader.read`"
+  fun init.NumberReader.$c0 @fn8(this: NumberReader) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<NumberReader> @fn9(task: SuspendTask<NumberReader>, completion: Continuation<NumberReader>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn2 interface Continuation<NumberReader>[0]
+        Type Continuation<NumberReader>
+        Local completion
+        Type NumberReader
+        EnumField v0 f0
+          Type CoroutineStep<NumberReader>
+          Local $step
+      return
+    bb2 failed
+      call @fn3 interface Continuation<NumberReader>[1]
+        Type Continuation<NumberReader>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<NumberReader> = @fn4 interface SuspendTask<NumberReader>[0]
+        Type SuspendTask<NumberReader>
+        Local task
+        Type Continuation<NumberReader>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<NumberReader>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<NumberReader> result=NumberReader
+  coroutine_slot cl0 CoroutineSlot<NumberReader> value=NumberReader
+  coroutine_start ct0 result=NumberReader function=fn9
+  coroutine_fn cf0 @fn4 source_return=NumberReader step=cs0 immediate
+  instance mi0 function=@fn2 <- Continuation.resume
+  instance mi1 function=@fn3 <- Continuation.resumeWithException
+  instance mi2 function=@fn4 <- SuspendTask.run
+  instance mi3 function=@fn5 <- SuspendRegistration.register
+  instance mi4 function=@fn6 <- Reader.again
+  instance mi5 function=@fn7 <- Reader.read
+  output library

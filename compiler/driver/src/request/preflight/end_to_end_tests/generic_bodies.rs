@@ -12,7 +12,6 @@ mod nominals;
 mod options;
 mod publication;
 mod qualified_types;
-mod ranges;
 mod rebuilt_core;
 mod reexported_namespaces;
 mod reference_targets;
