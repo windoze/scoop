@@ -1,0 +1,27 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyType
+      Binary Eq
+        FieldAccess number
+          Var Registry
+        IntLiteral 1
+    Call verifyType
+      Binary RefEq
+        Var Registry
+        Var Registry
+    val captured
+      Lambda 0 suspend=false
+        parameters omitted
+        FieldAccess number
+          Var Registry
+    Call verifyType
+      Binary Eq
+        Call captured
+        IntLiteral 1
