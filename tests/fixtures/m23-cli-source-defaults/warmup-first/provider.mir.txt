@@ -1,0 +1,17 @@
+Module
+  fun warmup @fn0(left: (Unit, Unit), right: (Unit, Unit), equal: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local equal
+  fun unitDefault @fn1(left: Unit, right: Unit, equal: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local equal
+  fun tupleDefault @fn2(left: (Unit, Unit), right: (Unit, Unit), equal: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local equal
+  output library

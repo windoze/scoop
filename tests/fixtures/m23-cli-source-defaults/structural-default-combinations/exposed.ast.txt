@@ -1,0 +1,23 @@
+SourceFile
+  RootPackage
+  public fun defaultStructuralChild(): Child
+    =
+      Call Child
+  public fun defaultStructuralHolder(): Holder
+    =
+      Call Holder
+  public fun readStructuralHolder(value: Holder): Boolean
+    =
+      FieldAccess equal
+        Var value
+SourceFile
+  RootPackage
+  public struct Point
+  public fun nestedDefault(left: (Point, (Unit, Unit)), right: (Point, (Unit, Unit)), equal: Boolean = <expr>): Boolean
+    =
+      Var equal
+  public open class Base()
+    public fun same
+  public class Child() : Base(<0 args>)
+    public fun same
+  public class Holder(val equal: Boolean = <expr>)

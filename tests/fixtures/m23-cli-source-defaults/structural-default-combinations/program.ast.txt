@@ -1,0 +1,45 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun defaultUnit()
+  fun main()
+    Call verifyDefault
+      Call nestedDefault
+        TupleLiteral
+          Call Point
+          TupleLiteral
+            Call defaultUnit
+            Call defaultUnit
+        TupleLiteral
+          Call Point
+          TupleLiteral
+            Call defaultUnit
+            Call defaultUnit
+    val base: Base
+      Call defaultStructuralChild
+    Call verifyDefault
+      MethodCall same
+        Var base
+        TupleLiteral
+          Call Point
+          Call Point
+        TupleLiteral
+          Call Point
+          Call Point
+    Call verifyDefault
+      MethodCall same
+        Call defaultStructuralChild
+        TupleLiteral
+          Call Point
+          Call Point
+        TupleLiteral
+          Call Point
+          Call Point
+    Call verifyDefault
+      Call readStructuralHolder
+        Call defaultStructuralHolder
