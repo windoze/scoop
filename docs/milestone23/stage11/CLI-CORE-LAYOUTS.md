@@ -36,3 +36,4 @@
 | `shared_initialization_abi_replays_the_protocol_role_and_complete_layout_contract` | `shared-init-abi-standalone`、`shared-init-abi-combined` | 4／16 | 逐字相同 |
 | `shared_strong_digests_replay_complete_runtime_registration_roles` | `shared-digests-standalone`、`shared-digests-combined` | 4／16 | 逐字相同 |
 | `shared_strong_reader_replays_complete_sections_from_actual_artifact_bytes` | `shared-production-standalone`、`shared-production-combined` | 4／16 | 逐字相同 |
+| `property_initialization_uses_close_source_mir_lir_and_both_artifact_views` | `property-initialization-provider` | 2／8 | 逐字相同 |
