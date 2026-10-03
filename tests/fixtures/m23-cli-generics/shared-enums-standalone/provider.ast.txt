@@ -1,0 +1,40 @@
+SourceFile
+  QualifiedPackage upstream.enums
+  public enum Choice<T>
+    Empty
+    Item(T)
+    Named <named>
+      payload: T
+      amount: Int
+    Defaults <ctor>
+      payload: T
+      amount: Int = <expr>
+  public fun select<T>(value: Choice<T>, fallback: T, selected: T = <expr>): T
+    =
+      Var selected
+  public fun pack<T>(value: T): Choice<T>
+    =
+      MethodCall Item
+        Var Choice
+        Var value
+  public fun score<T>(value: Choice<T>, read: (T) -> Int): Int
+    =
+      WhenExpression
+        Var value
+        arm Empty
+          IntLiteral 0
+        arm Item(payload)
+          Call read
+            Var payload
+        arm Named{payload, amount}
+          Binary Add
+            Call read
+              Var payload
+            Var amount
+        arm Defaults{payload, amount}
+          Binary Add
+            Call read
+              Var payload
+            Var amount
+  public typealias IntChoice = Choice<Int>
+  public typealias TextChoice = Choice<String>

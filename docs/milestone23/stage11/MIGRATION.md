@@ -411,3 +411,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `closures_share_bodies_arguments_and_captures_through_artifacts` | `m23-shared-closure-bodies` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
 | `default_bodies_share_capture_and_substitution_rules_through_artifacts` | `m23-shared-default-bodies` | 2／2 | 30／26 | 6 份阶段、2 份诊断逐项相同 |
 | `enum_definitions_reuse_binders_for_recursive_payloads_and_interfaces` | `m23-shared-enum-definitions` | 2／0 | 24／26 | 6 份阶段、0 份诊断逐项相同 |
+| `shared_enum_references_republish_and_execute_from_artifacts` | `m23-shared-enums` | 5／0 | 60／65 | 15 份阶段、0 份诊断逐项相同 |
