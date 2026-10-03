@@ -1,0 +1,77 @@
+SourceFile
+  RootPackage
+  public struct ContractValue<T>
+    field first: T
+    field second: T = <expr>
+  public enum ContractChoice<T>
+    Item <ctor>
+      first: T
+      second: T = <expr>
+  public open class ContractBase<A, B>()
+    public fun check
+    protected fun pick
+    protected fun copy
+    internal fun number
+    internal fun successive
+    protected nested class Static
+  public class ContractChild<T>() : ContractBase<T, T>(<0 args>)
+    protected fun pick
+  public fun declarationSeed(value: Int = <expr>): Int
+    =
+      Var value
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        FieldAccess second
+          Call ContractValue
+            IntLiteral 3
+        IntLiteral 3
+    val choice: ContractChoice<Int>
+      MethodCall Item
+        Var ContractChoice
+        IntLiteral 4
+    val explicit: ContractChoice<Int>
+      MethodCall Item
+        Var ContractChoice
+        IntLiteral 4
+        IntLiteral 4
+    Call verifyDefault
+      Binary Eq
+        Var choice
+        Var explicit
+    Call verifyDefault
+      Binary Eq
+        MethodCall check
+          Call ContractBase<Int, String>
+          IntLiteral 3
+          StringLiteral "text"
+        TupleLiteral
+          IntLiteral 3
+          StringLiteral "text"
+          IntLiteral 1
+          IntLiteral 3
+          IntLiteral 3
+    Call verifyDefault
+      Binary Eq
+        MethodCall check
+          Call ContractChild<Int>
+          IntLiteral 5
+          IntLiteral 6
+        TupleLiteral
+          IntLiteral 5
+          IntLiteral 6
+          IntLiteral 1
+          IntLiteral 5
+          IntLiteral 5
+    Call verifyDefault
+      Binary Eq
+        Call declarationSeed
+        IntLiteral 7

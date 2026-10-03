@@ -1,0 +1,1125 @@
+Module
+  global0 locationSeed: Int managed initial=encoded(Int:0x7)
+  global1 $singleton$LocationMarker: LocationMarker managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  init0 object:LocationMarker singleton lazy global1 initializer=@fn8 ensure=@fn9 failure=2 deps=[]
+  struct LocationValue (field: Int)
+  enum LocationChoice
+    Item(value: Int)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<LocationChild>
+    Completed(value: LocationChild)
+    Suspended()
+  enum CoroutineSlot<LocationChild>
+    Empty()
+    Value(value: LocationChild)
+  enum CoroutineStep<LocationChoice>
+    Completed(value: LocationChoice)
+    Suspended()
+  enum CoroutineSlot<LocationChoice>
+    Empty()
+    Value(value: LocationChoice)
+  enum CoroutineStep<LocationMarker>
+    Completed(value: LocationMarker)
+    Suspended()
+  enum CoroutineSlot<LocationMarker>
+    Empty()
+    Value(value: LocationMarker)
+  enum CoroutineStep<LocationValue>
+    Completed(value: LocationValue)
+    Suspended()
+  enum CoroutineSlot<LocationValue>
+    Empty()
+    Value(value: LocationValue)
+  enum CoroutineStep<LocationHost>
+    Completed(value: LocationHost)
+    Suspended()
+  enum CoroutineSlot<LocationHost>
+    Empty()
+    Value(value: LocationHost)
+  class LocationMarker vtable=0 itables=0
+  class LocationHost vtable=1 itables=0
+  class LocationChild vtable=1 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<LocationChoice> vtable=0 itables=0
+  class box<LocationValue> vtable=0 itables=0
+  interface Continuation<LocationValue>
+  interface SuspendTask<LocationValue>
+  interface SuspendRegistration<LocationValue>
+  interface Continuation<LocationChoice>
+  interface SuspendTask<LocationChoice>
+  interface SuspendRegistration<LocationChoice>
+  interface Continuation<LocationMarker>
+  interface SuspendTask<LocationMarker>
+  interface SuspendRegistration<LocationMarker>
+  interface Continuation<LocationHost>
+  interface SuspendTask<LocationHost>
+  interface SuspendRegistration<LocationHost>
+  interface Continuation<LocationChild>
+  interface SuspendTask<LocationChild>
+  interface SuspendRegistration<LocationChild>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn14 captures=1
+    bridge function_type1 -> @fn45 id=cc776df15b3bf5e9d42a6726fe34f2447c659aa601d414ba740ef98be45cf09a
+  generated_exact_type get0 location=enum6 nominal_id=ba083d3e1e84b5557dfe93125d3694af57698c0217c4fc763bd3ae0bd2dcaf8b exact_id=080c8308c1fffedfb065cc26eeba8bc31c962a9b367999f2067271c853331193
+  generated_exact_type get1 location=enum10 nominal_id=d8a13524dab0b060cafb42ac32049f04fc230d8ee422f3acc6f3e8d54fd56f1b exact_id=159dbd6c7662015553ddc45df8409149f9c124127be3b610ea99b1de983dfcd6
+  generated_exact_type get2 location=closure0 nominal_id=19b5df528a194873bd20984a8279469a143b1e3530b282ecfd3e998046c1a8e6 exact_id=172e9edac8e55418c876466ff193c962c62205c1eccdd412a07f5307de28ccfb
+  generated_exact_type get3 location=enum8 nominal_id=1c79e9050c54610d0d31297fca13bf1d4844da7813a96b77d3d313b0c237fc5d exact_id=20e1c0226b5253b38b5f39e8be5ef37a2b4323be814b3ee0394eae6319e47fee
+  generated_exact_type get4 location=enum3 nominal_id=0f4a924754586cc62ba03b51f1af093699c028b7f0cdca63b945f68b53cd0ccb exact_id=31a5c719e8db84b27c0a9a05429ce92813e0973f8c800583d5e6b0873ff090ba
+  generated_exact_type get5 location=enum11 nominal_id=c9babc562ac38df899b69d1e57d53f4d32adba1737e47e9092302c2204109839 exact_id=321f32238262a3b4e801b979afa7affd9955dd09f87ed3915e6de6bb03e19bba
+  generated_exact_type get6 location=enum7 nominal_id=47836eb4c7e143e66e4eca88a9aec560c84429fcb5ad0d4c378cfb08049516e3 exact_id=40b146ba75fa3c13057c60b81baeb6a4faef400d22ce1d26484515e11d41984f
+  generated_exact_type get7 location=class7 nominal_id=89968d214298384e8203c536aa5b63b71f9b707f98d9225d533d3484adf65a4b exact_id=4a3f40c5cee7ef815b6eff1f0a291cb5412765af4df6880b59383064bc38ca3a
+  generated_exact_type get8 location=enum9 nominal_id=ea0ecba6dcce602d71ffd7935f94352fa2ddf87bb54f5b3f1314803de6846163 exact_id=5ca0d94355f984fe8ccb271236336aa9dc30357eb201def08ee86f72947b4c4a
+  generated_exact_type get9 location=enum4 nominal_id=9c8c45643bc62f35a428bcf8ed311add861c1d50cabd95c40bdf6dde9749e3bd exact_id=90be894d8d1f78aa83f4d897d6a613729b18c186be17318cabed21b4e83e6026
+  generated_exact_type get10 location=enum5 nominal_id=42bc5031e8a4941d870e5e761b1912543f51dd2c4bfed81bf1a5c222e2a5f3bb exact_id=dac37d8914d4e966b4821630a6ad9b3ad9349ab17c74933450b1a2f15df378f4
+  generated_exact_type get11 location=enum2 nominal_id=b495d43af4fcc6dde0c49be30d1a0fbd0abae15c2641d427b20adad4d9ff6b83 exact_id=dbd0a915af4f55fa84d5e949dca501bbfb20dce2e7e39fcd4a3c655b10cdbce5
+  generated_exact_type get12 location=class6 nominal_id=2cc19d522d33102259097de428c23f6877cf5c01e25ca2619ae7e82ffcf04304 exact_id=fb688e779f78bfefd97116b8e7d2fb98c787d37d02a64e4140aa68aa0abeba4d
+  generated_callable gc0 function=@fn43 id=285869d8c47ce0fef5cc096ad69822666fa8930dd6cf6d2c9f3950e1d6e33176
+  generated_callable gc1 function=@fn41 id=43924179330a67c7e053a9bafe7a10ab7b0d260b102fd0f7255b0b45628be8f8
+  generated_callable gc2 function=@fn42 id=acb5b12d7a8495ff3e59b482e3ab28619e6d23fb81cfd9255478bc88e7d9340f
+  generated_callable gc3 function=@fn40 id=c6102192572eca885c39a551420c35f5990c7564dad9617ae349734e1b859495
+  generated_callable gc4 function=@fn44 id=c6f9d5429e4554ffe56872c3cfd9adfae4b4270ead6dee6fc38046f8a9e65c16
+  generated_callable gc5 function=@fn45 id=cc776df15b3bf5e9d42a6726fe34f2447c659aa601d414ba740ef98be45cf09a
+  fun LocationValue.equals @fn0(this: LocationValue, other: LocationValue) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          FieldAccess 0
+            Type LocationValue
+            Local this
+          Type Int
+          FieldAccess 0
+            Type LocationValue
+            Local other
+  fun LocationChoice.equals @fn1(this: LocationChoice, other: LocationChoice) -> Boolean
+    bb0 entry
+      val $when.1: LocationChoice
+        Type LocationChoice
+        Local this
+      val $pattern.subject.2: LocationChoice
+        Type LocationChoice
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest LocationChoice v0
+          Type LocationChoice
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Int
+        Type Int
+        VariantPayloadProject LocationChoice v0 f0
+          Type LocationChoice
+          Local $pattern.subject.2
+      val $when.3: LocationChoice
+        Type LocationChoice
+        Local other
+      val $pattern.subject.4: LocationChoice
+        Type LocationChoice
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest LocationChoice v0
+          Type LocationChoice
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      unreachable
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Int
+        Type Int
+        VariantPayloadProject LocationChoice v0 f0
+          Type LocationChoice
+          Local $pattern.subject.4
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.0.0
+          Type Int
+          Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+  fun LocationHost.check @fn2(this: LocationHost) -> (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+    bb0 entry
+      val $receiver: LocationHost
+        Type LocationHost
+        Local this
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral true
+    bb1 if.then.1
+      val copy: Int
+        Type Int
+        Local $parameter.seed
+      assign $result.0
+        Type Int
+        Local copy
+      goto bb3
+    bb2 if.else.2
+      assign $result.0
+        Type Int
+        Local $parameter.seed
+      goto bb3
+    bb3 if.merge.3
+      val $parameter.value: Int
+        Type Int
+        Local $result.0
+      val $receiver: LocationHost
+        Type LocationHost
+        Local this
+      val $argument.0: String
+        Type String
+        StringConst @str0
+      val $parameter.seed: String
+        Type String
+        Local $argument.0
+      val $parameter.value: () -> String
+        Type () -> String
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type String
+            Local $parameter.seed
+      val $receiver: LocationHost
+        Type LocationHost
+        Local this
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.field: Int
+        Type Int
+        Local $argument.0
+      call @fn9 direct
+      call $call.1: Int = @fn10 direct
+      call $call.2: Int = @fn13 direct
+      call $call.3: LocationValue = @fn39 direct
+        Type Int
+        Local $parameter.field
+      val $parameter.value: (Int, Int, LocationMarker, Int)
+        Type (Int, Int, LocationMarker, Int)
+        TupleLiteral
+          Type Int
+          Local $call.1
+          Type Int
+          Local $call.2
+          Type LocationMarker
+          GlobalRead $singleton$LocationMarker
+          Type Int
+          FieldAccess 0
+            Type LocationValue
+            Local $call.3
+      val $receiver: LocationHost
+        Type LocationHost
+        Local this
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.seed
+      val $receiver: LocationHost
+        Type LocationHost
+        Local this
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.seed: Int
+        Type Int
+        Local $argument.0
+      val $parameter.value: Int
+        Type Int
+        Local $parameter.seed
+      call $call.4: Int = @fn3 direct
+        Type LocationHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      call $call.5: () -> String = @fn4 direct
+        Type LocationHost
+        Local $receiver
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
+      call $call.6: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.5
+      call $call.7: (Int, Int, LocationMarker, Int) = @fn5 direct
+        Type LocationHost
+        Local $receiver
+        Type (Int, Int, LocationMarker, Int)
+        Local $parameter.value
+      call $call.8: Int = @fn15 direct
+        Type LocationHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      call $call.9: Int = @fn6 virtual[0]
+        Type LocationHost
+        Local $receiver
+        Type Int
+        Local $parameter.seed
+        Type Int
+        Local $parameter.value
+      return
+        Type (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+        TupleLiteral
+          Type Int
+          Local $call.4
+          Type String
+          Local $call.6
+          Type (Int, Int, LocationMarker, Int)
+          Local $call.7
+          Type Int
+          Local $call.8
+          Type Int
+          Local $call.9
+  fun LocationHost.local @fn3(this: LocationHost, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun LocationHost.callback @fn4(this: LocationHost, seed: String, value: () -> String) -> () -> String
+    bb0 entry
+      return
+        Type () -> String
+        Local value
+  fun LocationHost.combined @fn5(this: LocationHost, value: (Int, Int, LocationMarker, Int)) -> (Int, Int, LocationMarker, Int)
+    bb0 entry
+      return
+        Type (Int, Int, LocationMarker, Int)
+        Local value
+  fun LocationHost.inherited @fn6(this: LocationHost, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun LocationChild.inherited @fn7(this: LocationChild, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun $init$body$0 @fn8() -> Unit
+    bb0 entry
+      assign $new.1
+        Type LocationMarker
+        ClassAlloc LocationMarker
+      call @fn36 direct
+        Type LocationMarker
+        Local $new.1
+      global_assign $singleton$LocationMarker
+        Type LocationMarker
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn9() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocationMarker
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn8 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocationMarker
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocationMarker
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocationMarker
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:LocationMarker
+      call external2 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun locationFirst @fn10() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun verifyDefault @fn11(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str1
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn12() -> Unit
+    bb0 entry
+      val $parameter.field: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call $call.1: LocationValue = @fn39 direct
+        Type Int
+        Local $parameter.field
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type LocationValue
+          Local $call.1
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $parameter.value: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $equality.lhs: LocationChoice
+        Type LocationChoice
+        VariantConstruct LocationChoice v0
+          Type Int
+          Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Boolean = @fn1 direct
+        Type LocationChoice
+        Local $equality.lhs
+        Type LocationChoice
+        VariantConstruct LocationChoice v0
+          Type Int
+          Local $parameter.value
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.2
+        Type LocationChild
+        ClassAlloc LocationChild
+      call @fn38 direct
+        Type LocationChild
+        Local $new.2
+      val $receiver: LocationChild
+        Type LocationChild
+        Local $new.2
+      call result: (Int, String, (Int, Int, LocationMarker, Int), Int, Int) = @fn2 direct
+        Type LocationHost
+        Retype LocationHost
+          Type LocationChild
+          Local $receiver
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+          Local result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb1 if.then.1
+      val $dependency.receiver: String
+        Type String
+        FieldAccess 1
+          Type (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+          Local result
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.1: Boolean = external1 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb3
+    bb2 if.else.2
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 if.merge.3
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type (Int, Int, LocationMarker, Int)
+          FieldAccess 2
+            Type (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+            Local result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb4 if.then.4
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 1
+          Type (Int, Int, LocationMarker, Int)
+          FieldAccess 2
+            Type (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+            Local result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb6
+    bb5 if.else.5
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 if.merge.6
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.2
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      call @fn9 direct
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type LocationMarker
+          FieldAccess 2
+            Type (Int, Int, LocationMarker, Int)
+            FieldAccess 2
+              Type (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+              Local result
+          Type LocationMarker
+          GlobalRead $singleton$LocationMarker
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 3
+          Type (Int, Int, LocationMarker, Int)
+          FieldAccess 2
+            Type (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+            Local result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb7 bb8
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+    bb7 if.then.7
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 3
+          Type (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+          Local result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb9
+    bb8 if.else.8
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.3
+    bb10 if.then.10
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 4
+          Type (Int, String, (Int, Int, LocationMarker, Int), Int, Int)
+          Local result
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb12
+    bb11 if.else.11
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral false
+      goto bb12
+    bb12 if.merge.12
+      val $argument.0: Boolean
+        Type Boolean
+        Local $shortCircuit.4
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn11 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $get$locationSeed @fn13() -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        GlobalRead locationSeed
+  fun $lambda.0 @fn14($closure: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc0 0
+          Type () -> String
+          Local $closure
+  fun LocationHost.generic @fn15(this: LocationHost, seed: Int, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun Continuation.resume @fn16(this: Continuation<LocationValue>, value: LocationValue) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<LocationValue>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<LocationValue>, $completion: Continuation<LocationValue>) -> CoroutineStep<LocationValue>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<LocationValue>, continuation: Continuation<LocationValue>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn20(this: Continuation<LocationChoice>, value: LocationChoice) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<LocationChoice>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<LocationChoice>, $completion: Continuation<LocationChoice>) -> CoroutineStep<LocationChoice>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<LocationChoice>, continuation: Continuation<LocationChoice>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn24(this: Continuation<LocationMarker>, value: LocationMarker) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn25(this: Continuation<LocationMarker>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn26(this: SuspendTask<LocationMarker>, $completion: Continuation<LocationMarker>) -> CoroutineStep<LocationMarker>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<LocationMarker>, continuation: Continuation<LocationMarker>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn28(this: Continuation<LocationHost>, value: LocationHost) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn29(this: Continuation<LocationHost>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn30(this: SuspendTask<LocationHost>, $completion: Continuation<LocationHost>) -> CoroutineStep<LocationHost>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn31(this: SuspendRegistration<LocationHost>, continuation: Continuation<LocationHost>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn32(this: Continuation<LocationChild>, value: LocationChild) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn33(this: Continuation<LocationChild>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn34(this: SuspendTask<LocationChild>, $completion: Continuation<LocationChild>) -> CoroutineStep<LocationChild>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn35(this: SuspendRegistration<LocationChild>, continuation: Continuation<LocationChild>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.LocationMarker.$c2 @fn36(this: LocationMarker) -> Unit
+    bb0 entry
+      return
+  fun init.LocationHost.$c0 @fn37(this: LocationHost, seed: Int) -> Unit
+    bb0 entry
+      return
+  fun init.LocationChild.$c1 @fn38(this: LocationChild) -> Unit
+    bb0 entry
+      val $parameter.seed: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      call @fn37 direct
+        Type LocationHost
+        Retype LocationHost
+          Type LocationChild
+          Local this
+        Type Int
+        Local $parameter.seed
+      return
+  fun ctor.LocationValue.$c0 @fn39(field: Int) -> LocationValue <no-gc>
+    bb0 entry
+      return
+        Type LocationValue
+        StructInit LocationValue
+          Type Int
+          Local field
+  fun startCoroutine<LocationChild> @fn40(task: SuspendTask<LocationChild>, completion: Continuation<LocationChild>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn32 interface Continuation<LocationChild>[0]
+        Type Continuation<LocationChild>
+        Local completion
+        Type LocationChild
+        EnumField v0 f0
+          Type CoroutineStep<LocationChild>
+          Local $step
+      return
+    bb2 failed
+      call @fn33 interface Continuation<LocationChild>[1]
+        Type Continuation<LocationChild>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocationChild> = @fn34 interface SuspendTask<LocationChild>[0]
+        Type SuspendTask<LocationChild>
+        Local task
+        Type Continuation<LocationChild>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocationChild>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocationChoice> @fn41(task: SuspendTask<LocationChoice>, completion: Continuation<LocationChoice>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn20 interface Continuation<LocationChoice>[0]
+        Type Continuation<LocationChoice>
+        Local completion
+        Type LocationChoice
+        EnumField v0 f0
+          Type CoroutineStep<LocationChoice>
+          Local $step
+      return
+    bb2 failed
+      call @fn21 interface Continuation<LocationChoice>[1]
+        Type Continuation<LocationChoice>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocationChoice> = @fn22 interface SuspendTask<LocationChoice>[0]
+        Type SuspendTask<LocationChoice>
+        Local task
+        Type Continuation<LocationChoice>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocationChoice>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocationMarker> @fn42(task: SuspendTask<LocationMarker>, completion: Continuation<LocationMarker>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn24 interface Continuation<LocationMarker>[0]
+        Type Continuation<LocationMarker>
+        Local completion
+        Type LocationMarker
+        EnumField v0 f0
+          Type CoroutineStep<LocationMarker>
+          Local $step
+      return
+    bb2 failed
+      call @fn25 interface Continuation<LocationMarker>[1]
+        Type Continuation<LocationMarker>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocationMarker> = @fn26 interface SuspendTask<LocationMarker>[0]
+        Type SuspendTask<LocationMarker>
+        Local task
+        Type Continuation<LocationMarker>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocationMarker>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocationValue> @fn43(task: SuspendTask<LocationValue>, completion: Continuation<LocationValue>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn16 interface Continuation<LocationValue>[0]
+        Type Continuation<LocationValue>
+        Local completion
+        Type LocationValue
+        EnumField v0 f0
+          Type CoroutineStep<LocationValue>
+          Local $step
+      return
+    bb2 failed
+      call @fn17 interface Continuation<LocationValue>[1]
+        Type Continuation<LocationValue>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocationValue> = @fn18 interface SuspendTask<LocationValue>[0]
+        Type SuspendTask<LocationValue>
+        Local task
+        Type Continuation<LocationValue>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocationValue>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<LocationHost> @fn44(task: SuspendTask<LocationHost>, completion: Continuation<LocationHost>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn28 interface Continuation<LocationHost>[0]
+        Type Continuation<LocationHost>
+        Local completion
+        Type LocationHost
+        EnumField v0 f0
+          Type CoroutineStep<LocationHost>
+          Local $step
+      return
+    bb2 failed
+      call @fn29 interface Continuation<LocationHost>[1]
+        Type Continuation<LocationHost>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<LocationHost> = @fn30 interface SuspendTask<LocationHost>[0]
+        Type SuspendTask<LocationHost>
+        Local task
+        Type Continuation<LocationHost>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<LocationHost>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun function_bridge.$Closure$lambda0.() -> Any @fn45($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  coroutine_step cs0 CoroutineStep<LocationChild> result=LocationChild
+  coroutine_step cs1 CoroutineStep<LocationChoice> result=LocationChoice
+  coroutine_step cs2 CoroutineStep<LocationMarker> result=LocationMarker
+  coroutine_step cs3 CoroutineStep<LocationValue> result=LocationValue
+  coroutine_step cs4 CoroutineStep<LocationHost> result=LocationHost
+  coroutine_slot cl0 CoroutineSlot<LocationChild> value=LocationChild
+  coroutine_slot cl1 CoroutineSlot<LocationChoice> value=LocationChoice
+  coroutine_slot cl2 CoroutineSlot<LocationMarker> value=LocationMarker
+  coroutine_slot cl3 CoroutineSlot<LocationValue> value=LocationValue
+  coroutine_slot cl4 CoroutineSlot<LocationHost> value=LocationHost
+  coroutine_start ct0 result=LocationChild function=fn40
+  coroutine_start ct1 result=LocationChoice function=fn41
+  coroutine_start ct2 result=LocationMarker function=fn42
+  coroutine_start ct3 result=LocationValue function=fn43
+  coroutine_start ct4 result=LocationHost function=fn44
+  coroutine_fn cf0 @fn18 source_return=LocationValue step=cs3 immediate
+  coroutine_fn cf1 @fn22 source_return=LocationChoice step=cs1 immediate
+  coroutine_fn cf2 @fn26 source_return=LocationMarker step=cs2 immediate
+  coroutine_fn cf3 @fn30 source_return=LocationHost step=cs4 immediate
+  coroutine_fn cf4 @fn34 source_return=LocationChild step=cs0 immediate
+  instance mi0 function=@fn15 <- LocationHost.generic
+  instance mi1 function=@fn16 <- Continuation.resume
+  instance mi2 function=@fn17 <- Continuation.resumeWithException
+  instance mi3 function=@fn18 <- SuspendTask.run
+  instance mi4 function=@fn19 <- SuspendRegistration.register
+  instance mi5 function=@fn20 <- Continuation.resume
+  instance mi6 function=@fn21 <- Continuation.resumeWithException
+  instance mi7 function=@fn22 <- SuspendTask.run
+  instance mi8 function=@fn23 <- SuspendRegistration.register
+  instance mi9 function=@fn24 <- Continuation.resume
+  instance mi10 function=@fn25 <- Continuation.resumeWithException
+  instance mi11 function=@fn26 <- SuspendTask.run
+  instance mi12 function=@fn27 <- SuspendRegistration.register
+  instance mi13 function=@fn28 <- Continuation.resume
+  instance mi14 function=@fn29 <- Continuation.resumeWithException
+  instance mi15 function=@fn30 <- SuspendTask.run
+  instance mi16 function=@fn31 <- SuspendRegistration.register
+  instance mi17 function=@fn32 <- Continuation.resume
+  instance mi18 function=@fn33 <- Continuation.resumeWithException
+  instance mi19 function=@fn34 <- SuspendTask.run
+  instance mi20 function=@fn35 <- SuspendRegistration.register
+  str @str0 "bound"
+  str @str1 "illegal state"
+  str @str2 "bound"
+  output executable @fn12

@@ -1,0 +1,2 @@
+public open class ContractBase<A, B> {
+    public fun check(first: A, second: B): (A, B, Int, A, A) = (pick(first, second), copy<B>(first, second), number(), successive(first), Static().copy(first))

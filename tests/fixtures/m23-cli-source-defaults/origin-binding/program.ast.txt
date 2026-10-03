@@ -1,0 +1,89 @@
+SourceFile
+  RootPackage
+  public struct LocationValue
+    field field: Int = <expr>
+  public enum LocationChoice
+    Item <ctor>
+      value: Int = <expr>
+  public object LocationMarker
+  public val locationSeed: Int = <expr>
+  public fun locationFirst(): Int
+    =
+      IntLiteral 1
+  public open class LocationHost(seed: Int = <expr>)
+    public fun check
+    private fun local
+    protected fun callback
+    private fun combined
+    internal fun generic
+    protected fun inherited
+  public class LocationChild() : LocationHost(<0 args>)
+    protected fun inherited
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call verifyDefault
+      Binary Eq
+        FieldAccess field
+          Call LocationValue
+        IntLiteral 1
+    Call verifyDefault
+      Binary Eq
+        MethodCall Item
+          Var LocationChoice
+        MethodCall Item
+          Var LocationChoice
+          IntLiteral 2
+    val result
+      MethodCall check
+        Call LocationChild
+    Call verifyDefault
+      Binary And
+        Binary Eq
+          FieldAccess _1
+            Var result
+          IntLiteral 5
+        Binary Eq
+          FieldAccess _2
+            Var result
+          StringLiteral "bound"
+    Call verifyDefault
+      Binary And
+        Binary Eq
+          FieldAccess _1
+            FieldAccess _3
+              Var result
+          IntLiteral 1
+        Binary Eq
+          FieldAccess _2
+            FieldAccess _3
+              Var result
+          IntLiteral 7
+    Call verifyDefault
+      Binary RefEq
+        FieldAccess _3
+          FieldAccess _3
+            Var result
+        Var LocationMarker
+    Call verifyDefault
+      Binary And
+        Binary And
+          Binary Eq
+            FieldAccess _4
+              FieldAccess _3
+                Var result
+            IntLiteral 4
+          Binary Eq
+            FieldAccess _4
+              Var result
+            IntLiteral 9
+        Binary Eq
+          FieldAccess _5
+            Var result
+          IntLiteral 11

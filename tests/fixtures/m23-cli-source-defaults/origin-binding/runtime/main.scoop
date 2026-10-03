@@ -1,0 +1,12 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(LocationValue().field == 1)
+    verifyDefault(LocationChoice.Item() == LocationChoice.Item(2))
+    val result = LocationChild().check()
+    verifyDefault(result._1 == 5 && result._2 == "bound")
+    verifyDefault(result._3._1 == 1 && result._3._2 == 7)
+    verifyDefault(result._3._3 === LocationMarker)
+    verifyDefault(result._3._4 == 4 && result._4 == 9 && result._5 == 11)
+}
