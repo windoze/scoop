@@ -1,0 +1,177 @@
+SourceFile
+  QualifiedPackage templates.coroutines
+  public suspend fun immediate(value: Long): Long
+    =
+      Var value
+  public suspend fun identity<T>(value: T): T
+    =
+      Var value
+  public class Completion<T>(), Continuation<T>
+    public var value: T? = <expr>
+      Var None
+    public var failure: Throwable? = <expr>
+      Var None
+    public var calls: Int = <expr>
+      IntLiteral 0
+    public fun resume
+    public fun resumeWithException
+  public class Task<T>(val value: T), SuspendTask<T>
+    public suspend fun run
+  public class Counter()
+    public var value: Int = <expr>
+      IntLiteral 0
+  public class Gate<T>()
+    public var waiter: Continuation<T>? = <expr>
+      Var None
+    public fun complete
+    public fun fail
+  public class Registration<T>(val gate: Gate<T>), SuspendRegistration<T>
+    public fun register
+  public suspend fun await<T>(gate: Gate<T>): T
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  public suspend fun awaitLong(gate: Gate<Long>): Long
+    =
+      Call await
+        Var gate
+  public class WaitingTask<T>(val gate: Gate<T>, val saved: T, val read: (T) -> Int, val counter: Counter), SuspendTask<T>
+    public suspend fun run
+  public suspend fun recover<T>(gate: Gate<T>, fallback: T, counter: Counter): T
+    try
+      return
+        Call await
+          Var gate
+    catch exception: UnwrapException
+      return
+        Var fallback
+    finally
+      compound-assign Add
+        Var counter
+        IntLiteral 1
+  public suspend fun delayedFinally<T>(gate: Gate<T>, cleanup: Gate<Unit>, counter: Counter): T
+    try
+      return
+        Call await
+          Var gate
+    finally
+      Call await
+        Var cleanup
+      compound-assign Add
+        Var counter
+        IntLiteral 1
+  public class RecoveryTask<T>(val gate: Gate<T>, val fallback: T, val counter: Counter), SuspendTask<T>
+    public suspend fun run
+  public class FinallyTask<T>(val gate: Gate<T>, val cleanup: Gate<Unit>, val counter: Counter), SuspendTask<T>
+    public suspend fun run
+  public struct ValueTask<T> : SuspendTask<T>
+    field value: T
+    public suspend fun run
+  public fun valueTask<T>(value: T): SuspendTask<T>
+    =
+      Call ValueTask
+        Var value
+  public open class BaseResult(val value: Int)
+  public class DerivedResult(value: Int) : BaseResult(<1 args>)
+  public class DerivedTask(), SuspendTask<DerivedResult>
+    public suspend fun run
+  public class DeferredDerivedTask(val gate: Gate<DerivedResult>), SuspendTask<DerivedResult>
+    public suspend fun run
+  public fun constant<T>(value: T): suspend () -> T
+    =
+      Lambda 0 suspend=true
+        parameters omitted
+        Call identity
+          Var value
+  public fun deferred<T>(gate: Gate<T>, saved: T, read: (T) -> Int, counter: Counter): suspend () -> T
+    =
+      Lambda 1 suspend=true
+        parameters omitted
+        val result
+          Call await
+            Var gate
+        assign .value
+          Var counter
+          Call read
+            Var saved
+        Var result
+  public suspend fun acceptAny(value: Any): Int
+    =
+      IntLiteral 42
+  public fun widenedFunction(): suspend (Int) -> Any
+    val exact: suspend (Any) -> Int
+      CallableReference 0 acceptAny
+    return
+      Var exact
+  public fun erasedFunction(): Any
+    val exact: suspend (Any) -> Int
+      CallableReference 1 acceptAny
+    return
+      Var exact
+  public struct WaitingValueTask<T> : SuspendTask<T>
+    field gate: Gate<T>
+    public suspend fun run
+  public fun waitingValueTask<T>(gate: Gate<T>): SuspendTask<T>
+    =
+      Call WaitingValueTask
+        Var gate
+  public suspend fun synchronous<T>(value: T): T
+    =
+      Call suspendCoroutine
+        Lambda 2 suspend=false
+          param continuation: Continuation<T>
+          MethodCall resume
+            Var continuation
+            Var value
+  public suspend fun synchronousFailure<T>(): T
+    =
+      Call suspendCoroutine
+        Lambda 3 suspend=false
+          param continuation: Continuation<T>
+          MethodCall resumeWithException
+            Var continuation
+            Call UnwrapException
+  public suspend fun registrationFailure<T>(): T
+    =
+      Call suspendCoroutine
+        Lambda 4 suspend=false
+          param continuation: Continuation<T>
+          throw
+            Call UnwrapException
+  public suspend fun resumedThenThrows<T>(value: T): T
+    =
+      Call suspendCoroutine
+        Lambda 5 suspend=false
+          param continuation: Continuation<T>
+          MethodCall resume
+            Var continuation
+            Var value
+          throw
+            Call UnwrapException
+  public suspend fun resumedTwice<T>(value: T): T
+    =
+      Call suspendCoroutine
+        Lambda 6 suspend=false
+          param continuation: Continuation<T>
+          MethodCall resume
+            Var continuation
+            Var value
+          MethodCall resume
+            Var continuation
+            Var value
+  public fun recoveringFunction<T>(gate: Gate<T>, cleanup: Gate<Unit>, fallback: T, counter: Counter): suspend () -> T
+    =
+      Lambda 7 suspend=true
+        parameters omitted
+        try
+          Call await
+            Var gate
+        catch exception: UnwrapException
+          Var fallback
+        finally
+          Call await
+            Var cleanup
+          compound-assign Add
+            Var counter
+            IntLiteral 1

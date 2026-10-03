@@ -378,3 +378,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `constructor_bodies_preserve_initialization_order_and_captures_through_artifacts` | `m23-shared-constructor-bodies` | 2／5 | 39／26 | 6 份阶段、5 份诊断逐项相同 |
 | `constructor_requests_reuse_original_applications_without_emitting_lexical_parents` | `m23-shared-constructor-requests` | 4／1 | 51／52 | 12 份阶段、1 份诊断逐项相同 |
 | `imported_coroutines_republish_and_execute` | `m23-coroutines` | 3／0 | 36／39 | 9 份阶段、0 份诊断逐项相同 |
+| `imported_coroutine_adapters_republish_and_execute` | `m23-coroutines` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
