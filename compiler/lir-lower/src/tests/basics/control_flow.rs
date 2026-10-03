@@ -465,10 +465,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store true -> local0
     store false -> local1
-    cbr local0 then @logic.short.2 else @logic.rhs.1
-  block logic.rhs.1
-    store local1 -> local2
-    br @logic.merge.3
+    br @logic.short.2
   block logic.short.2
     store true -> local2
     br @logic.merge.3

@@ -1,0 +1,215 @@
+SourceFile
+  RootPackage
+  class Item(val value: Int)
+  fun copied(): Int
+    val first
+      BoolLiteral true
+    val second
+      Var first
+    return
+      IfExpression
+        Var second
+        FieldAccess value
+          Call Item
+            IntLiteral 1
+        else
+        FieldAccess value
+          Call Item
+            IntLiteral 2
+  fun overwritten(): Int
+    var flag
+      BoolLiteral true
+    assign flag
+      BoolLiteral false
+    return
+      IfExpression
+        Var flag
+        FieldAccess value
+          Call Item
+            IntLiteral 3
+        else
+        FieldAccess value
+          Call Item
+            IntLiteral 4
+  fun changed(input: Boolean): Int
+    var flag
+      BoolLiteral true
+    val original
+      Var flag
+    assign flag
+      Var input
+    val item
+      IfExpression
+        Var flag
+        Call Item
+          IntLiteral 5
+        else
+        Call Item
+          IntLiteral 6
+    return
+      IfExpression
+        Var original
+        FieldAccess value
+          Var item
+        else
+        IntLiteral 0
+  fun escaped(): Int
+    var flag
+      BoolLiteral true
+    @Unsafe block
+      MethodCall store
+        Call addressOf
+          Var flag
+        BoolLiteral false
+    return
+      IfExpression
+        Var flag
+        FieldAccess value
+          Call Item
+            IntLiteral 7
+        else
+        FieldAccess value
+          Call Item
+            IntLiteral 8
+    @Unsafe
+  fun writeFlag(pointer: Ptr<Boolean>, value: Boolean)
+    MethodCall store
+      Var pointer
+      Var value
+  fun escapedCall(input: Boolean): Int
+    var flag
+      BoolLiteral true
+    @Unsafe block
+      Call writeFlag
+        Call addressOf
+          Var flag
+        Var input
+    return
+      IfExpression
+        Var flag
+        FieldAccess value
+          Call Item
+            IntLiteral 13
+        else
+        FieldAccess value
+          Call Item
+            IntLiteral 14
+  fun copiedAddress(): Int
+    var flag
+      BoolLiteral true
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var flag
+      val copy
+        Var pointer
+      MethodCall store
+        Var copy
+        BoolLiteral false
+      return
+        IfExpression
+          MethodCall load
+            Var pointer
+          FieldAccess value
+            Call Item
+              IntLiteral 15
+          else
+          FieldAccess value
+            Call Item
+              IntLiteral 16
+  fun negated(): Int
+    val flag
+      BoolLiteral false
+    return
+      IfExpression
+        Unary Not
+          Var flag
+        FieldAccess value
+          Call Item
+            IntLiteral 9
+        else
+        FieldAccess value
+          Call Item
+            IntLiteral 10
+  fun compared(): Int
+    val left
+      BoolLiteral true
+    val right
+      BoolLiteral false
+    return
+      IfExpression
+        Binary Ne
+          Var left
+          Var right
+        FieldAccess value
+          Call Item
+            IntLiteral 11
+        else
+        FieldAccess value
+          Call Item
+            IntLiteral 12
+  fun main()
+    if
+      Binary Ne
+        Call copied
+        IntLiteral 1
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call overwritten
+        IntLiteral 4
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call changed
+          BoolLiteral true
+        IntLiteral 5
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call changed
+          BoolLiteral false
+        IntLiteral 6
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call escaped
+        IntLiteral 8
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call escapedCall
+          BoolLiteral true
+        IntLiteral 13
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call escapedCall
+          BoolLiteral false
+        IntLiteral 14
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call copiedAddress
+        IntLiteral 16
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call negated
+        IntLiteral 9
+      throw
+        Call IllegalStateException
+    if
+      Binary Ne
+        Call compared
+        IntLiteral 11
+      throw
+        Call IllegalStateException
