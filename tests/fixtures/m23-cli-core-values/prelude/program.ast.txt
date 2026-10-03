@@ -1,0 +1,67 @@
+SourceFile
+  RootPackage
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val first
+      Var PreludeStore
+    val second
+      Var PreludeStore
+    Call check
+      Binary RefEq
+        Var first
+        Var second
+    Call check
+      Binary And
+        Binary Eq
+          MethodCall increment
+            Var first
+          IntLiteral 1
+        Binary Eq
+          FieldAccess count
+            Var PreludeStore
+          IntLiteral 1
+    assign .count
+      Var PreludeStore
+      IntLiteral 7
+    Call check
+      Binary And
+        Binary Eq
+          FieldAccess count
+            Var second
+          IntLiteral 7
+        Binary Eq
+          FieldAccess text
+            Var second
+          StringLiteral "initial"
+    assign .text
+      Var first
+      StringLiteral "changed"
+    Call check
+      Binary Eq
+        FieldAccess text
+          Var PreludeStore
+        StringLiteral "changed"
+    val capture
+      Lambda 0 suspend=false
+        parameters omitted
+        Var first
+    Call check
+      Binary RefEq
+        Call capture
+        Var second
+    val PreludeStore: Int
+      IntLiteral 9
+    Call check
+      Binary And
+        Binary Eq
+          Var PreludeStore
+          IntLiteral 9
+        Binary Eq
+          FieldAccess count
+            Var first
+          IntLiteral 7

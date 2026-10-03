@@ -1,0 +1,15 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val first = PreludeStore
+    val second = PreludeStore
+    check(first === second)
+    check(first.increment() == 1 && PreludeStore.count == 1)
+    PreludeStore.count = 7
+    check(second.count == 7 && second.text == "initial")
+    first.text = "changed"
+    check(PreludeStore.text == "changed")
+    val capture = { first }
+    check(capture() === second)
+    val PreludeStore: Int = 9
+    check(PreludeStore == 9 && first.count == 7)
+}

@@ -212,6 +212,7 @@ impl Lowerer {
                                 | hir::ImportedTarget::Property(_)
                                 | hir::ImportedTarget::ExtensionProperty(_)
                                 | hir::ImportedTarget::EnumVariant(_)
+                                | hir::ImportedTarget::ObjectValue(_)
                         )
                     })
                     .cloned()

@@ -1,0 +1,6 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val flags = Storage.flags()
+    check(flags._1 && flags._2)
+    check(Storage === Storage)
+}

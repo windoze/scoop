@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val flags
+      MethodCall flags
+        Var Storage
+    Call check
+      Binary And
+        FieldAccess _1
+          Var flags
+        FieldAccess _2
+          Var flags
+    Call check
+      Binary RefEq
+        Var Storage
+        Var Storage
