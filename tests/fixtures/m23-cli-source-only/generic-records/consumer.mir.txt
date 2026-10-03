@@ -1,0 +1,75 @@
+Module
+  fun result @fn0() -> Int
+    bb0 entry
+      val $default.local.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $default.local.1: Int
+        Type Int
+        Local $default.local.0
+      call $dependency.parameter.value: Int = @fn1 direct
+        Type Int
+        Local $default.local.1
+      call $dependency.receiver: Int = external0 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.seed: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn2 direct
+        Type Int
+        Local $dependency.parameter.seed
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.receiver: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=26 bits=0x0000001a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.0: Int = @fn1 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun requested @fn1(value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun dormantBody @fn2(seed: Int) -> Int
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.local.2: Int
+        Type Int
+        Local $dependency.local.1
+      call $call.1: Int = @fn1 direct
+        Type Int
+        Local $dependency.local.2
+      return
+        Type Int
+        Local $call.1
+  instance mi0 function=@fn1 <- requested
+  instance mi1 function=@fn2 <- dormantBody
+  output library

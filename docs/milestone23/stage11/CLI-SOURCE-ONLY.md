@@ -8,3 +8,4 @@
 | --- | --- | --- | --- |
 | `formal_publication_retains_open_templates_beside_concrete_roots` | `standalone`、`combined`、`shape-demand` | 9／24 | 开放 nominal template 与非空 binder 保留；具体布局根均有对应声明；闭合父类型的 owner 均在根集合，前两例至少有一个闭合父类型 |
 | `source_only_objects_preserve_required_initialization_through_all_emitted_stages` | `initialization-demand` | 3／8 | 原 HIR／MIR／LIR 三份快照逐字相同；实际发布产物的 shape support closure 数仍为 2 |
+| Concrete demand | `actual-demand`、`generic-records` | 6／16 | 正式产物消费触发普通需求、accessor 需求及泛型实例；保留 HIR crate 的局部 typed 不变量单元测试 |
