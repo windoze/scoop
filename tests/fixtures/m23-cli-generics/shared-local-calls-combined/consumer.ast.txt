@@ -1,0 +1,38 @@
+SourceFile
+  QualifiedPackage consumer.localcalls
+  ImportStar Local upstream.localcalls.*
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val first
+      Call choose<T, Unit>
+        Var seed
+        UnitLiteral
+    val second
+      Call choose<T, String>
+        Var seed
+        StringLiteral "complete"
+    fun read(value: T): T
+      return
+        Var value
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            Var first
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            Call read
+          IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call measure<T>
+        Var seed
+        Var inspect
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value

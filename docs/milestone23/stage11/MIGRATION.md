@@ -387,3 +387,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `implicit_receiver_properties_republish_from_both_declaration_locations` | `m23-shared-host-properties` | 2／2 | 30／26 | 6 份阶段、2 份诊断逐项相同 |
 | `imported_iteration_republishes_and_executes_from_artifacts` | `m23-iteration` | 8／0 | 96／104 | 24 份阶段、0 份诊断逐项相同 |
 | `imported_iteration_rejections_have_source_diagnostics` | `m23-iteration` | 0／11 | 33／0 | 0 份阶段、11 份诊断逐项相同 |
+| `local_calls_share_complete_arguments_and_recursive_captures_through_artifacts` | `m23-shared-local-calls` | 2／3 | 33／26 | 6 份阶段、3 份诊断逐项相同 |

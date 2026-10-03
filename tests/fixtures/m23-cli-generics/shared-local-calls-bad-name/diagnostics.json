@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `read` in lexical local candidate layer:\n  - fun read(value: Int): Int — has no parameter named `missing`",
+    "notes": [],
+    "origin": {
+      "cone": "1bee7f53512a9b7e4ed34e217e139cb6064abf8e07fe3e22625b2d2dc736b185",
+      "end": 123,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 105
+    },
+    "severity": "error"
+  }
+]

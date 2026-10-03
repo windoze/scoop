@@ -1,0 +1,152 @@
+SourceFile
+  QualifiedPackage consumer.localcalls
+  private class Trace(var value: Int)
+  public fun choose<T, U>(seed: T, marker: U): T
+    fun pick<V>(tag: V, depth: Int): T
+      if
+        Binary Gt
+          Var depth
+          IntLiteral 0
+        return
+          Call pick<V>
+            Var tag
+            Binary Sub
+              Var depth
+              IntLiteral 1
+      return
+        Var seed
+    fun recur(depth: Int): T
+      if
+        Binary Gt
+          Var depth
+          IntLiteral 0
+        return
+          Call recur
+            Binary Sub
+              Var depth
+              IntLiteral 1
+      val self: (Int) -> T
+        CallableReference 0 recur
+      return
+        Call pick<U>
+          Var marker
+          IntLiteral 0
+    fun finish(value: T): T
+      return
+        Var value
+    return
+      Call finish
+  public fun measure<T>(seed: T, inspect: (T) -> Int): Int
+    val base
+      Binary Div
+        Call inspect
+          Var seed
+        IntLiteral 2
+    val trace
+      Call Trace
+        IntLiteral 0
+    fun step(value: Int): Int
+      assign .value
+        Var trace
+        Binary Add
+          Binary Mul
+            FieldAccess value
+              Var trace
+            IntLiteral 10
+          Var value
+      return
+        Var value
+    fun combine(first: Int, second: Int): Int
+      Binary Add
+        Var first
+        Var second
+    fun sum(values: Int): Int
+      var result
+        IntLiteral 0
+      var index: Long
+        IntLiteral 0
+      while
+        Binary Lt
+          Var index
+          FieldAccess size
+            Var values
+        assign result
+          Binary Add
+            Var result
+            Index
+              Var values
+              Var index
+        assign index
+          Binary Add
+            Var index
+            IntLiteral 1
+      return
+        Var result
+    if
+      Binary Or
+        Binary Ne
+          Call combine
+            Argument second=
+              Call step
+                IntLiteral 2
+            Argument first=
+              Call step
+                IntLiteral 1
+          IntLiteral 3
+        Binary Ne
+          FieldAccess value
+            Var trace
+          IntLiteral 21
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Call combine
+          IntLiteral 42
+        Binary Ne
+          Call sum
+          IntLiteral 0
+      return
+        IntLiteral 2
+    return
+      Call sum
+        Var base
+        Argument *
+          ArrayLiteral
+            Var base
+  public fun exercise<T>(seed: T, inspect: (T) -> Int): Int
+    val first
+      Call choose<T, Unit>
+        Var seed
+        UnitLiteral
+    val second
+      Call choose<T, String>
+        Var seed
+        StringLiteral "complete"
+    fun read(value: T): T
+      return
+        Var value
+    if
+      Binary Or
+        Binary Ne
+          Call inspect
+            Var first
+          IntLiteral 42
+        Binary Ne
+          Call inspect
+            Call read
+          IntLiteral 42
+      return
+        IntLiteral 1
+    return
+      Call measure<T>
+        Var seed
+        Var inspect
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        Lambda 0 suspend=false
+          param value: _
+          Var value
