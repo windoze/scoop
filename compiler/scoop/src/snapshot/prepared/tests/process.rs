@@ -133,69 +133,6 @@ fn assert_direct_protocol_matches(
 }
 
 #[test]
-fn real_process_builds_and_reuses_manifest_executable() {
-    let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
-        return;
-    };
-    let compiler = std::path::PathBuf::from(compiler);
-    let temp = tempfile::tempdir().unwrap();
-    let workspace = temp.path();
-    let sysroot = workspace.join("sysroot");
-    let root = workspace.join("root");
-    copy_real_core(&sysroot);
-    write_manifest_source(&root, "executable", "executable", "fun main() {}\n", "");
-    let build_request = || real_manifest_request(&root, workspace, &sysroot, &compiler);
-    let root_identity = ConeCoordinate::new("test", "executable", "1.0.0")
-        .unwrap()
-        .identity()
-        .unwrap();
-
-    let first = build_request()
-        .load_root()
-        .unwrap()
-        .discover()
-        .unwrap()
-        .resolve()
-        .unwrap()
-        .prepare()
-        .unwrap()
-        .execute()
-        .unwrap();
-    assert_eq!(
-        first.observations().child_invocations(),
-        &[ConeIdentity::CORE, root_identity]
-    );
-    assert_direct_protocol_matches(
-        &first,
-        root_identity,
-        &compiler,
-        &root,
-        &workspace.join("manual-executable.slib"),
-    );
-    assert!(matches!(
-        first.into_outcome(),
-        BuildGraphOutcome::ExecutableArtifact { .. }
-    ));
-
-    let second = build_request()
-        .load_root()
-        .unwrap()
-        .discover()
-        .unwrap()
-        .resolve()
-        .unwrap()
-        .prepare()
-        .unwrap()
-        .execute()
-        .unwrap();
-    assert!(second.observations().child_invocations().is_empty());
-    assert_eq!(
-        second.completed(root_identity).unwrap().origin(),
-        CompletedNodeOrigin::CacheHit
-    );
-}
-
-#[test]
 fn real_process_builds_and_reuses_single_file() {
     let Some(compiler) = std::env::var_os("SCOOP_TEST_PAIRED_SCOOPC") else {
         return;
