@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public interface Bound
+  public open class Envelope()
+    protected nested class Box
+    protected nested enum Choice
+    protected nested struct Pair
+    protected nested class GenericOuter
+    protected nested object Cache
+  private fun topLevel(value: Int = <expr>): Int
+    =
+      Var value
