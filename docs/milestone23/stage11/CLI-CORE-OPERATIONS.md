@@ -42,3 +42,4 @@ artifact slot 取得已经编译的 core，不传额外 Cone locator。完整输
 | 功能 | 新 case 前缀与范围 | 用例／进程／golden | 原断言与实际验证 |
 | --- | --- | --- | --- |
 | 成员调用与参数 | `members-`：`methods`、`wrong-name`、`wrong-type`、`non-infix`、`conversion-argument` | 5／14／9 | typed core 成员选择、窄整数回绕、转换、Boolean/String 运算及 4 个完整错误 |
+| 整数相等 | `members-`：`equality`、`equality-width`、`equality-signedness`、`equality-extension` | 4／12／9 | 8 种整数宽度／符号、操作数恰好一次及求值次序、3 个精确类型错误 |
