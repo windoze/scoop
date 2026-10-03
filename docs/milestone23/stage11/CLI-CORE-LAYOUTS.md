@@ -30,3 +30,4 @@
 | `shared_lir_layouts_replay_recursive_references_zst_and_base_prefixes` | `shared-layouts-standalone`、`shared-layouts-combined` | 4／16 | 逐字相同 |
 | `shared_lir_callable_abis_replay_zst_indirect_results_and_boxing_adjustments` | `shared-abi-standalone`、`shared-abi-combined` | 4／16 | 逐字相同 |
 | `shared_lir_dispatch_replays_complete_tables_and_actual_callable_abis` | `shared-lir-dispatch-standalone`、`shared-lir-dispatch-combined` | 4／16 | 逐字相同 |
+| `shared_lir_descriptors_replay_ancestry_scans_and_registration_from_constituents` | `shared-td-standalone`、`shared-td-combined` | 4／16 | 逐字相同 |
