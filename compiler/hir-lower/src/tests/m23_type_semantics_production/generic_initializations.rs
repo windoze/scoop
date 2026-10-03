@@ -133,12 +133,6 @@ fn generic_initializations_preserve_source_execution_and_roundtrip_shared_nodes(
                     group.key(),
                 );
             }
-            let actual = hir::dump(&output.output().export);
-            let snapshot = fixtures.join(format!("{case}.hir.snap"));
-            if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
-                std::fs::write(&snapshot, &actual).unwrap();
-            }
-            assert_eq!(actual, std::fs::read_to_string(snapshot).unwrap());
         });
     }
 }

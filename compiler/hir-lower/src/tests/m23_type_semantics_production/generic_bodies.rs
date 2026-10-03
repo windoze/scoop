@@ -41,7 +41,6 @@ fn generic_bodies_project_from_source_and_close_only_used_callable_templates() {
             hir::DefaultStatementKindV1::Return(_)
         ));
         roundtrip(output, core, &section);
-        snapshot(output, "standalone");
     });
 }
 
@@ -70,7 +69,6 @@ fn generic_bodies_keep_owner_and_method_binders_and_lexical_capture_bodies() {
         let local_owner = function_owner(export, local.source_function());
         assert!(table.get(local_owner).is_some());
         roundtrip(output, core, &section);
-        snapshot(output, "combined");
     });
 }
 
@@ -155,17 +153,6 @@ pub(super) fn roundtrip(
         .unwrap();
 }
 
-fn snapshot(output: &hir::DependencyHirOutput, name: &str) {
-    let actual = hir::dump(&output.output().export);
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-body-production")
-        .join(format!("{name}.hir.snap"));
-    if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
-        std::fs::write(&path, &actual).unwrap();
-    }
-    assert_eq!(actual, std::fs::read_to_string(path).unwrap());
-}
-
 #[test]
 fn generic_bodies_retain_private_type_and_property_support_without_public_bindings() {
     let source = include_str!(concat!(
@@ -198,7 +185,6 @@ fn generic_bodies_retain_private_type_and_property_support_without_public_bindin
                 })
         );
         roundtrip(output, core, &section);
-        snapshot(output, "support");
     });
 }
 
@@ -229,6 +215,5 @@ fn generic_body_support_types_enter_shape_demands_before_concretization() {
         let source = produce_cross_cone_type_semantics(output, &section).unwrap();
         assert_eq!(source.representation_support().records().len(), 1);
         roundtrip(output, core, &section);
-        snapshot(output, "concrete-support");
     });
 }

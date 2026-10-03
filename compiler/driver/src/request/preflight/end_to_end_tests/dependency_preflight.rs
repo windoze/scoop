@@ -2,9 +2,7 @@ use super::*;
 
 #[test]
 fn dependency_preflight_validates_artifacts_and_closure_before_source_discovery() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
 

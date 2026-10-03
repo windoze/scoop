@@ -34,9 +34,7 @@ use support::*;
 
 #[test]
 fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     let core = bootstrap_core(sysroot.path(), &target);
     assert_graph_dependencies(&core, &target, &[]);
@@ -107,9 +105,7 @@ fn formal_pipeline_publishes_manifest_library_and_executable_artifacts() {
 
 #[test]
 fn formal_pipeline_is_byte_reproducible_for_every_stage3_input_form() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let workspace = tempfile::tempdir().unwrap();
     let first_sysroot = workspace.path().join("checkout-a/sysroot");
     let second_sysroot = workspace.path().join("checkout-b/sysroot");
@@ -195,9 +191,7 @@ fn formal_pipeline_is_byte_reproducible_for_every_stage3_input_form() {
 
 #[test]
 fn formal_pipeline_preserves_source_extern_without_attempting_final_link() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     bootstrap_core(sysroot.path(), &target);
 
@@ -235,9 +229,7 @@ fun main() {
 
 #[test]
 fn formal_pipeline_preserves_combined_stage3_language_features() {
-    let Some(target) = resolved_target() else {
-        return;
-    };
+    let target = resolved_target().expect("artifact integration tests require a host target");
     let sysroot = tempfile::tempdir().unwrap();
     bootstrap_core(sysroot.path(), &target);
 
