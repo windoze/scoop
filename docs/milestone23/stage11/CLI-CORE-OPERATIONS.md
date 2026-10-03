@@ -65,3 +65,4 @@ MIR/LIR golden 保留。
 | 常量与普通 core 调用组合 | `constant-combinations` | 1／5／5 |
 | 整数默认参数组合 | `integer-defaults` | 1／5／5 |
 | 托管整数默认值的异常布局 | `integer-exception` | 1／5／5 |
+| 分支、局部值与默认参数组合 | `branch-default`、`branch-combinations` | 2／10／10 |
