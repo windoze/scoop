@@ -40,6 +40,7 @@ FILES = {
     "remove": {"path"},
     "mkdir": {"path"},
     "write": {"path", "data"},
+    "concat": {"path", "parts"},
     "replace": {"path", "old", "new"},
     "patch": {"path", "offset", "hex"},
     "truncate": {"path", "size"},

@@ -36,6 +36,22 @@ class CriteriaTests(unittest.TestCase):
         with self.assertRaises(ConfigurationError):
             validate(data)
 
+    def test_concat_validates_parts_and_their_references(self):
+        operation = {"path": "combined", "parts": [{"file": "first"}, "\n", {"hex": "00ff"}]}
+        self.data["steps"].insert(0, {"name": "combine", "files": [{"concat": operation}]})
+        validate(self.data)
+        for parts in (
+            "first",
+            [True],
+            [{"file": 3}],
+            [{"hex": "zz"}],
+            [{"unknown": "x"}],
+            ["${build.stdout}"],
+        ):
+            with self.subTest(parts=parts), self.assertRaises(ConfigurationError):
+                operation["parts"] = parts
+                validate(self.data)
+
     def test_references_and_background_must_be_resolved(self):
         self.data["steps"][0]["argv"] = ["${future.result.output}"]
         with self.assertRaisesRegex(ConfigurationError, "forward reference"):

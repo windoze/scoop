@@ -12,7 +12,7 @@ def prepare(operations, context, base):
         kind, value = next(iter(operation.items()))
         target = path(value.get("to", value.get("path")), base)
         source = path(value["from"], base) if "from" in value else None
-        if kind in {"copy", "move", "write", "symlink", "hardlink", "touch"}:
+        if kind in {"copy", "move", "write", "concat", "symlink", "hardlink", "touch"}:
             target.parent.mkdir(parents=True, exist_ok=True)
         if kind == "copy":
             if source.is_dir():
@@ -34,6 +34,9 @@ def prepare(operations, context, base):
             target.mkdir(parents=True, exist_ok=True)
         elif kind == "write":
             target.write_bytes(byte_value(value["data"], base))
+        elif kind == "concat":
+            contents = b"".join(byte_value(part, base) for part in value["parts"])
+            target.write_bytes(contents)
         elif kind == "replace":
             old, new = byte_value(value["old"], base), byte_value(value["new"], base)
             contents = target.read_bytes()

@@ -111,6 +111,10 @@ def file_values(kind, value):
     for key in ("data", "old", "new"):
         if key in value:
             byte_value(value[key], f"{kind}.{key}")
+    if kind == "concat":
+        require(isinstance(value["parts"], list), "concat.parts: expected an array")
+        for part in value["parts"]:
+            byte_value(part, "concat.parts")
     if kind == "patch":
         integer(value["offset"], "patch offset")
         hex_value(value["hex"], "patch bytes")

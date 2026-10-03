@@ -13,6 +13,59 @@ from fixture_runner.model import ConfigurationError
 
 
 class FileTests(unittest.TestCase):
+    def test_concat_preserves_bytes_and_explicit_separators(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            original = "源码\r\n".encode()
+            (base / "first").write_bytes(original)
+            (base / "second").write_bytes(b"\x80\x00\xff")
+            prepare(
+                [
+                    {
+                        "concat": {
+                            "path": "out/combined",
+                            "parts": [{"file": "first"}, "\n", {"file": "second"}, {"hex": "00ff"}],
+                        }
+                    }
+                ],
+                {},
+                base,
+            )
+            self.assertEqual(
+                (base / "out/combined").read_bytes(), original + b"\n\x80\x00\xff\x00\xff"
+            )
+            self.assertEqual((base / "first").read_bytes(), original)
+            self.assertEqual((base / "second").read_bytes(), b"\x80\x00\xff")
+
+    def test_concat_reads_inputs_before_replacement_and_composes_with_patch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            target = base / "output"
+            target.write_bytes(b"original")
+            with self.assertRaises(FileNotFoundError):
+                prepare(
+                    [
+                        {
+                            "concat": {
+                                "path": "output",
+                                "parts": [{"file": "output"}, {"file": "missing"}],
+                            }
+                        }
+                    ],
+                    {},
+                    base,
+                )
+            self.assertEqual(target.read_bytes(), b"original")
+            prepare(
+                [
+                    {"concat": {"path": "output", "parts": [{"file": "output"}, "${suffix}"]}},
+                    {"patch": {"path": "output", "offset": 8, "hex": "ff"}},
+                ],
+                {"suffix": b"\x00\x01"},
+                base,
+            )
+            self.assertEqual(target.read_bytes(), b"original\xff\x01")
+
     def test_remove_unlinks_fifo_and_symlink_without_reading_the_target(self):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
