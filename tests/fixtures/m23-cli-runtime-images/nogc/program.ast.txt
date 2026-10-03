@@ -1,0 +1,4 @@
+SourceFile
+  RootPackage
+    @NoGC
+  fun main()

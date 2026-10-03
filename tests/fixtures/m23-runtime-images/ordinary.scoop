@@ -1,5 +1,5 @@
 
-@Extern(name = "m23_trace")
+@Extern(lib = "m23_runtime_images", name = "m23_trace")
 private fun trace(value: Long)
 
 fun main() { @Unsafe { trace(if (unused() == 7) { 42L } else { 0L }) } }

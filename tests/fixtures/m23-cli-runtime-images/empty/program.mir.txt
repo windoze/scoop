@@ -1,0 +1,5 @@
+Module
+  fun main @fn0() -> Unit
+    bb0 entry
+      return
+  output executable @fn0

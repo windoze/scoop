@@ -7,40 +7,6 @@ mod support;
 use support::{build_fixture, run};
 
 #[test]
-fn multi_image_startup_runs_empty_ordinary_and_nogc_roots() {
-    let target = resolved_target().unwrap();
-    let sysroot = tempfile::tempdir().unwrap();
-    let core = bootstrap_core(sysroot.path(), &target);
-    let provider = build_fixture(
-        sysroot.path(),
-        &target,
-        "empty-provider",
-        "library",
-        &[],
-        &[],
-    );
-    let library = runtime::build(&target, &sysroot.path().join("runtime"));
-    for (name, expected) in [("empty", ""), ("ordinary", "42\n"), ("nogc", "")] {
-        let root = build_fixture(
-            sysroot.path(),
-            &target,
-            name,
-            "executable",
-            &[&provider],
-            &[],
-        );
-        run(
-            &target,
-            &[&core, &provider, &root],
-            &library,
-            &sysroot.path().join(format!("run-{name}")),
-            expected,
-            None,
-        );
-    }
-}
-
-#[test]
 fn multi_image_startup_uses_the_current_ready_set_and_complete_roots() {
     let target = resolved_target().unwrap();
     let sysroot = tempfile::tempdir().unwrap();
