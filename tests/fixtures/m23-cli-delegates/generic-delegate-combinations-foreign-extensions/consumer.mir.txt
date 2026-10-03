@@ -2,7 +2,7 @@ Module
   global0 foreign$delegate: ExtensionSlot managed initial=zeroed-for-runtime-unit
   global1 $singleton$5d8701b93e623666bdc797c10404fbb82cdd5520e3d7464eb97c13ef7c1702ce: Trace imported provider=db7ae4f18a6559b5f50bdbe4793388614cc4615b56078554e93d0f9e9b5fa72f storage=f8cec4510d4459538b46f0979dfd5ce1c39b1d23a5ad58fccced24eb224457b7
   global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
-  init0 extension-private:main.scoop:Receiver<T0>:foreign generic-delegate lazy global0 initializer=@fn4 ensure=@fn5 failure=2 deps=[]
+  init0 extension-private:dev.example:delegate-foreign-extensions:0.1.0/src/main.scoop:Receiver<T0>:foreign generic-delegate lazy global0 initializer=@fn4 ensure=@fn5 failure=2 deps=[]
   class Trace vtable=0 itables=0
   class Receiver<Int> vtable=0 itables=0
   class Payload vtable=0 itables=0
@@ -191,7 +191,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:foreign
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-foreign-extensions:0.1.0/src/main.scoop:Receiver<T0>:foreign
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -235,7 +235,7 @@ Module
       call @fn4 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:foreign
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-foreign-extensions:0.1.0/src/main.scoop:Receiver<T0>:foreign
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -250,7 +250,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:foreign
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-foreign-extensions:0.1.0/src/main.scoop:Receiver<T0>:foreign
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -271,14 +271,14 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:foreign
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-foreign-extensions:0.1.0/src/main.scoop:Receiver<T0>:foreign
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:foreign
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-foreign-extensions:0.1.0/src/main.scoop:Receiver<T0>:foreign
       call external7 direct
         Type String
         Local $init.message

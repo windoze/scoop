@@ -1,0 +1,44 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportExact Local templates.delegateCombinations.Receiver
+  ImportExact Local templates.delegateCombinations.Trace
+  ImportExact Local templates.delegateCombinations.Payload
+  ImportExact Local templates.delegateCombinations.ExtensionSeed
+  ImportExact Local templates.delegateCombinations.provideDelegate as prepare
+  ImportExact Local templates.delegateCombinations.getValue as read
+  ImportExact Local templates.delegateCombinations.setValue as write
+  private var <T>Receiver<T>.foreign: Int by <expr>
+  public fun exercise<T>(value: T): Int
+    assign .order
+      Var Trace
+      IntLiteral 0
+    assign .foreign
+      Call Receiver<T>
+        Var value
+      IntLiteral 42
+    if
+      Binary Ne
+        FieldAccess order
+          Var Trace
+        IntLiteral 45
+      return
+        IntLiteral 1
+    Call Payload
+      IntLiteral 0
+    val answer
+      FieldAccess foreign
+        Call Receiver<T>
+          Var value
+    return
+      IfExpression
+        Binary Eq
+          FieldAccess order
+            Var Trace
+          IntLiteral 456
+        Var answer
+        else
+        IntLiteral 2
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

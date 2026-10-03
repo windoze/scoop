@@ -3,8 +3,8 @@ Module
   global1 localSpecific$delegate: LocalSpecific<Int> managed initial=zeroed-for-runtime-unit
   global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
   global3 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
-  init0 extension-private:main.scoop:Receiver<T0>:inheritedSpecific generic-delegate lazy global0 initializer=@fn5 ensure=@fn6 failure=2 deps=[]
-  init1 extension-private:main.scoop:Receiver<T0>:localSpecific generic-delegate lazy global1 initializer=@fn8 ensure=@fn9 failure=3 deps=[]
+  init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific generic-delegate lazy global0 initializer=@fn5 ensure=@fn6 failure=2 deps=[]
+  init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific generic-delegate lazy global1 initializer=@fn8 ensure=@fn9 failure=3 deps=[]
   class Receiver<Int> vtable=0 itables=0
   class Payload vtable=0 itables=0
   class LocalBroad<Int> vtable=0 itables=0
@@ -130,7 +130,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:inheritedSpecific
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -174,7 +174,7 @@ Module
       call @fn5 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:inheritedSpecific
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -189,7 +189,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:inheritedSpecific
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -210,14 +210,14 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:inheritedSpecific
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init0 extension-private:main.scoop:Receiver<T0>:inheritedSpecific
+        InitializationUnitAddress init0 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:inheritedSpecific
       call external2 direct
         Type String
         Local $init.message
@@ -245,7 +245,7 @@ Module
     bb0 entry
       call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 extension-private:main.scoop:Receiver<T0>:localSpecific
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
       branch bb1 bb2
         Type Boolean
         Binary MachineEq(InitializationOutcome)
@@ -289,7 +289,7 @@ Module
       call @fn8 direct
       call @scoop_rt_init_succeed direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 extension-private:main.scoop:Receiver<T0>:localSpecific
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
       goto bb10
     bb12 try.catch.12
       call $catch.1: Any = @scoop_rt_materialize_exception direct
@@ -304,7 +304,7 @@ Module
     bb13 scope.13 unwind bb6
       call @scoop_rt_init_fail direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 extension-private:main.scoop:Receiver<T0>:localSpecific
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
         Type Any
         Local $init.caught
       throw unwind bb6
@@ -325,14 +325,14 @@ Module
     bb17 if.then.17
       call $init.failure: Any = @scoop_rt_init_failure direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 extension-private:main.scoop:Receiver<T0>:localSpecific
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
       throw
         Type Any
         Local $init.failure
     bb18 if.else.18
       call $init.message: String = @scoop_rt_init_cycle_message direct
         Type Ptr<Unit>
-        InitializationUnitAddress init1 extension-private:main.scoop:Receiver<T0>:localSpecific
+        InitializationUnitAddress init1 extension-private:dev.example:delegate-mixed-members:0.1.0/src/main.scoop:Receiver<T0>:localSpecific
       call external2 direct
         Type String
         Local $init.message

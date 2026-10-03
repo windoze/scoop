@@ -2,7 +2,7 @@ Module
   global @scoop$1$ss$d9386d1b59ad6e22346ccf9ddbc053a7aef7016d24a16d0989774b5c2a73baf5 : ptr<managed> scan=refs[0]
   imported_global @scoop$1$ss$f8cec4510d4459538b46f0979dfd5ce1c39b1d23a5ad58fccced24eb224457b7 : ptr<managed> provider=db7ae4f18a6559b5f50bdbe4793388614cc4615b56078554e93d0f9e9b5fa72f scan=refs[0]
   global @scoop$1$ss$6ed46b5df89c5b87a96f50e5cac5fd9cd1be5dd39ee6440e383842123416c98c : ptr<managed> scan=refs[0]
-  init0 extension-private:main.scoop:Receiver<T0>:foreign lazy storage=@scoop$1$ss$d9386d1b59ad6e22346ccf9ddbc053a7aef7016d24a16d0989774b5c2a73baf5 failure=@scoop$1$ss$6ed46b5df89c5b87a96f50e5cac5fd9cd1be5dd39ee6440e383842123416c98c initializer=@scoop$1$cb$d0909c8ac323b7e4f265381c7bc6d021a6095db11ffa3e1a86091dfcd9fcb7e5 ensure=@scoop$1$cb$7376c8b70fa51a07ef1e57e046d93576433655568f18d3c3a541c792c2bb891e deps=[]
+  init0 extension-private:dev.example:delegate-foreign-extensions:0.1.0/src/main.scoop:Receiver<T0>:foreign lazy storage=@scoop$1$ss$d9386d1b59ad6e22346ccf9ddbc053a7aef7016d24a16d0989774b5c2a73baf5 failure=@scoop$1$ss$6ed46b5df89c5b87a96f50e5cac5fd9cd1be5dd39ee6440e383842123416c98c initializer=@scoop$1$cb$d0909c8ac323b7e4f265381c7bc6d021a6095db11ffa3e1a86091dfcd9fcb7e5 ensure=@scoop$1$cb$7376c8b70fa51a07ef1e57e046d93576433655568f18d3c3a541c792c2bb891e deps=[]
   fun @scoop$1$cb$52df99e2775f1ec5bd98f953c9811ab09d4c0917b2e737bb7e108cd4b439c7e8() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32

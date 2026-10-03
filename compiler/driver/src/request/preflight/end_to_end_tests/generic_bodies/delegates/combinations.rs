@@ -1,9 +1,5 @@
 use super::*;
 
-fn check_cases(cases: &[&str]) {
-    check_fixture_cases("m23-generic-delegate-combinations", cases);
-}
-
 fn check_fixture_cases(fixture: &str, cases: &[&str]) {
     let target = resolved_target().expect("generic delegate combinations require a target");
     let sysroot = tempfile::tempdir().unwrap();
@@ -194,11 +190,6 @@ fn check_fixture_cases(fixture: &str, cases: &[&str]) {
             }
         }
     }
-}
-
-#[test]
-fn generic_delegate_mixed_roles_republish_and_execute() {
-    check_cases(&["mixed-members", "foreign-extensions"]);
 }
 
 #[test]

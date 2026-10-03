@@ -1,0 +1,27 @@
+SourceFile
+  QualifiedPackage consumer.delegates
+  ImportStar Local templates.delegateCombinations.*
+  private class LocalBroad<T>() : SpecificBase<T>(<0 args>)
+    operator fun getValue
+  private class LocalSpecific<T>() : BroadBase(<0 args>)
+    operator fun getValue
+  private val <T>Receiver<T>.inheritedSpecific: Int by <expr>
+  private val <T>Receiver<T>.localSpecific: Int by <expr>
+  public fun exercise<T>(value: T): Int
+    val receiver
+      Call Receiver<T>
+        Var value
+    val inherited
+      FieldAccess inheritedSpecific
+        Var receiver
+    Call Payload
+      IntLiteral 0
+    return
+      Binary Add
+        Var inherited
+        FieldAccess localSpecific
+          Var receiver
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1
