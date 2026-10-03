@@ -365,3 +365,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `imported_array_constructors_republish_and_execute_from_artifacts` | `m23-array-construction` | 5／16 | 108／65 | 15 份阶段、16 份诊断逐项相同 |
 | `shared_binding_lowering_republishes_and_executes_from_artifacts` | `m23-shared-bindings` | 5／0 | 60／65 | 15 份阶段、0 份诊断逐项相同 |
 | `shared_binding_rejections_have_source_diagnostics` | `m23-shared-bindings` | 0／11 | 33／0 | 0 份阶段、11 份诊断逐项相同 |
+| `class_bound_properties_republish_with_original_storage_and_accessors` | `m23-shared-bound-properties` | 2／3 | 33／26 | 6 份阶段、3 份诊断逐项相同 |
