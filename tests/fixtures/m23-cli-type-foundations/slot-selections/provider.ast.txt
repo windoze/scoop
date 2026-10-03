@@ -1,0 +1,12 @@
+SourceFile
+  QualifiedPackage dependency.slotSelections
+  public interface Root
+    fun value
+  public interface Specific : Root
+    fun value
+  public open class Base()
+    public fun count
+  public class Leaf() : Base(<0 args>), Specific
+    public fun count
+  public class ClassWinner() : Base(<0 args>), Specific
+    public fun value

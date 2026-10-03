@@ -1,0 +1,10 @@
+SourceFile
+  RootPackage
+  ImportStar Local dependency.slotCombinations.*
+  public fun read(value: Root): Int
+    =
+      Binary Add
+        MethodCall evaluate
+          Var value
+        FieldAccess value
+          Var value
