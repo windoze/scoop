@@ -1,0 +1,31 @@
+SourceFile
+  QualifiedPackage consumer.nesting
+  ImportExact Local facade.nesting.Outer.Middle.Deep
+  ImportExact Local facade.nesting.Outer.Box
+  public typealias DeepAlias = facade.nesting.Outer.Middle.Deep
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val deep: DeepAlias
+      Call Deep
+        IntLiteral 42
+    val box
+      Call Box<T>
+        Var value
+    return
+      IfExpression
+        Binary Eq
+          Call read
+            FieldAccess value
+              Var box
+          IntLiteral 42
+        FieldAccess number
+          Var deep
+        else
+        IntLiteral 0
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        CallableReference 0 readInt

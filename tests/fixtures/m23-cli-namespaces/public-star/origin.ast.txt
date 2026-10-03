@@ -1,0 +1,22 @@
+SourceFile
+  QualifiedPackage origin.nesting
+  public class Outer<T>()
+    public nested struct Leaf
+    public nested struct Box
+    public nested class Middle
+    public nested object Tools
+    public companion object
+      public val companionBase: Int <computed>
+        get()
+          IntLiteral 40
+      public fun companionAdd
+      public nested struct CompanionLeaf
+      private nested struct SecretCompanion
+    public fun instance
+    private nested struct Hidden
+    internal nested struct InternalLeaf
+    protected nested class Guarded
+  public enum Choice<T>
+    Missing
+    Present <ctor>
+      value: T

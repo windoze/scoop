@@ -1,0 +1,266 @@
+schema = 1
+name = "namespace-exact"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "origin", "../../m23-reexported-namespaces/provider.scoop", "first", "../../m23-reexported-namespaces/facade.scoop", "second", "../../m23-reexported-namespaces/facade.scoop", "consumer", "../../m23-reexported-namespaces/exact.scoop", "downstream", "../../m23-reexported-namespaces/downstream.scoop", "runtime-fixture", "../../m23-cli-imported-classes/support/gc.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["namespaces", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_origin"
+files = [
+  {"copy" = {"from" = "${fixture}/origin", "to" = "${work}/sources/origin"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reexported-namespaces/provider.scoop", "to" = "${work}/sources/origin/src/main.scoop"}},
+]
+
+[[steps]]
+name = "origin"
+argv = ["${scoop}", "build", "${work}/sources/origin", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-origin", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-origin/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/origin"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${origin.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/origin/${origin.result.root.identity}/ast.txt", "snapshot" = "origin.ast.txt"},
+  {"file" = "${work}/dump/origin/${origin.result.root.identity}/hir.txt", "snapshot" = "origin.hir.txt"},
+  {"file" = "${work}/dump/origin/${origin.result.root.identity}/mir.txt", "snapshot" = "origin.mir.txt"},
+  {"file" = "${work}/dump/origin/${origin.result.root.identity}/lir.txt", "snapshot" = "origin.lir.txt"},
+]
+
+[[steps]]
+name = "remove_origin"
+files = [
+  {"remove" = {"path" = "${work}/sources/origin"}},
+]
+
+[[steps]]
+name = "prepare_first"
+files = [
+  {"copy" = {"from" = "${fixture}/first", "to" = "${work}/sources/first"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reexported-namespaces/facade.scoop", "to" = "${work}/sources/first/src/main.scoop"}},
+]
+
+[[steps]]
+name = "first"
+argv = ["${scoop}", "build", "${work}/sources/first", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-first", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-first/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/first"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${first.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/first/${first.result.root.identity}/ast.txt", "snapshot" = "first.ast.txt"},
+  {"file" = "${work}/dump/first/${first.result.root.identity}/hir.txt", "snapshot" = "first.hir.txt"},
+  {"file" = "${work}/dump/first/${first.result.root.identity}/mir.txt", "snapshot" = "first.mir.txt"},
+  {"file" = "${work}/dump/first/${first.result.root.identity}/lir.txt", "snapshot" = "first.lir.txt"},
+]
+
+[[steps]]
+name = "remove_first"
+files = [
+  {"remove" = {"path" = "${work}/sources/first"}},
+]
+
+[[steps]]
+name = "prepare_second"
+files = [
+  {"copy" = {"from" = "${fixture}/second", "to" = "${work}/sources/second"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reexported-namespaces/facade.scoop", "to" = "${work}/sources/second/src/main.scoop"}},
+]
+
+[[steps]]
+name = "second"
+argv = ["${scoop}", "build", "${work}/sources/second", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-second", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-second/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/second"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${second.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/second/${second.result.root.identity}/ast.txt", "snapshot" = "second.ast.txt"},
+  {"file" = "${work}/dump/second/${second.result.root.identity}/hir.txt", "snapshot" = "second.hir.txt"},
+  {"file" = "${work}/dump/second/${second.result.root.identity}/mir.txt", "snapshot" = "second.mir.txt"},
+  {"file" = "${work}/dump/second/${second.result.root.identity}/lir.txt", "snapshot" = "second.lir.txt"},
+]
+
+[[steps]]
+name = "remove_second"
+files = [
+  {"remove" = {"path" = "${work}/sources/second"}},
+]
+
+[[steps]]
+name = "prepare_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reexported-namespaces/exact.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-exact/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/consumer"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${consumer.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
+  {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", "snapshot" = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "remove_consumer"
+files = [
+  {"remove" = {"path" = "${work}/sources/consumer"}},
+]
+
+[[steps]]
+name = "prepare_downstream"
+files = [
+  {"copy" = {"from" = "${fixture}/downstream", "to" = "${work}/sources/downstream"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reexported-namespaces/downstream.scoop", "to" = "${work}/sources/downstream/src/main.scoop"}},
+]
+
+[[steps]]
+name = "downstream"
+argv = ["${scoop}", "build", "${work}/sources/downstream", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-downstream", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-downstream-exact/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/downstream"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {"actual" = "${downstream.result.observations.child_invocations.length}", "equals" = 1},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/ast.txt", "snapshot" = "downstream.ast.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/hir.txt", "snapshot" = "downstream.hir.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/mir.txt", "snapshot" = "downstream.mir.txt"},
+  {"file" = "${work}/dump/downstream/${downstream.result.root.identity}/lir.txt", "snapshot" = "downstream.lir.txt"},
+]
+
+[[steps]]
+name = "remove_downstream"
+files = [
+  {"remove" = {"path" = "${work}/sources/downstream"}},
+]
+
+[[steps]]
+name = "prepare_runtime"
+files = [
+  {"copy" = {"from" = "${fixture}/runtime-fixture", "to" = "${work}/sources/runtime-fixture"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/gc.c", "to" = "${work}/native/gc.c"}},
+]
+
+[[steps]]
+name = "compile_gc"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-I", "${runtime}/include", "-c", "${work}/native/gc.c", "-o", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_gc"
+argv = ["${ar}", "qcS", "${work}/native/libm23_class_gc.a", "${work}/native/gc.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"ZERO_AR_DATE" = "1"}
+
+[[steps]]
+name = "remove_native_source"
+files = [
+  {"remove" = {"path" = "${work}/native/gc.c"}},
+  {"remove" = {"path" = "${work}/native/gc.o"}},
+]
+
+[[steps]]
+name = "program"
+argv = ["${scoop}", "build", "${work}/sources/runtime-fixture", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-program", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/built-program", "--runtime-root", "${runtime}", "--library-path", "${work}/native"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "isolate"
+files = [
+  {"copy" = {"from" = "${program.result.root.path}", "to" = "${work}/artifacts/root.slib"}},
+  {"copy" = {"from" = "${scoop}", "to" = "${work}/standalone/scoop"}},
+  {"remove" = {"path" = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${program.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--library-path", "${work}/native", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {"PATH" = "/usr/bin:/bin", "LLVM_CONFIG_PATH" = "/absent/llvm-config", "LLVM_SYS_221_PREFIX" = "/absent/llvm"}
+checks = [
+  {"actual" = "${link.result.link_plan_fingerprint}", "equals" = "${program.result.link_plan_fingerprint}"},
+  {"actual" = "${link.result.dependencies.length}", "equals" = 6},
+  {"actual" = "${link.result.link_plan}", "snapshot" = "link.plan.txt", "normalize" = ["paths"]},
+]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "run_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {"SCOOP_GC_STRESS_MOVE" = "1"}
+
+[[steps]]
+name = "symbols"
+argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "${work}/program"]
+exit = 0
+stdout = {"file" = "symbols.txt"}
+stderr = ""
+
+[[steps]]
+name = "strong_symbols"
+argv = ["/usr/bin/nm", "-j", "--defined-only", "--extern-only", "--no-weak", "${work}/program"]
+exit = 0
+stdout = {"file" = "strong_symbols.txt"}
+stderr = ""

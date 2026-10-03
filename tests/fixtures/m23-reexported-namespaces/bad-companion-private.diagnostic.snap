@@ -1,3 +1,0 @@
-span=7..43
-expression=facade.nesting.Outer.SecretCompanion
-import target is not available in the current compilation unit

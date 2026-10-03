@@ -1,0 +1,4 @@
+SourceFile
+  QualifiedPackage facade.nesting
+  ImportExact PublicReexport origin.nesting.Outer
+  ImportExact PublicReexport origin.nesting.Choice

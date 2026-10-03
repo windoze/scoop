@@ -1,0 +1,44 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.nesting.exercise
+  ImportExact Local consumer.nesting.result
+  private class Later(val number: Int)
+  private fun readLater(value: Later): Int
+    =
+      FieldAccess number
+        Var value
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  private fun readUnit(value: Unit): Int
+    =
+      IntLiteral 42
+  public fun check(): Int
+    val value
+      Call Later
+        Call result
+    val answer
+      Call exercise<Later>
+        Var value
+        CallableReference 0 readLater
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary Eq
+              Call exercise<Int>
+                IntLiteral 42
+                CallableReference 1 readInt
+              IntLiteral 42
+            Binary Eq
+              Call exercise<Unit>
+                UnitLiteral
+                CallableReference 2 readUnit
+              IntLiteral 42
+          Binary Eq
+            FieldAccess number
+              Var value
+            IntLiteral 42
+        Var answer
+        else
+        IntLiteral 1

@@ -1,0 +1,118 @@
+schema = 1
+name = "namespace-bad-private"
+inputs = ["../../m23-cli-imported-classes/support/stage3_test.scoop", "origin", "../../m23-reexported-namespaces/provider.scoop", "first", "../../m23-reexported-namespaces/facade.scoop", "second", "../../m23-reexported-namespaces/facade.scoop", "consumer", "../../m23-reexported-namespaces/bad-private.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["namespaces", "negative"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"copy" = {"from" = "${fixture}/../../m23-cli-imported-classes/support/stage3_test.scoop", "to" = "${work}/core-source/src/stage3_test.scoop"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_core_source"
+files = [
+  {"remove" = {"path" = "${work}/core-source"}},
+]
+
+[[steps]]
+name = "prepare_origin"
+files = [
+  {"copy" = {"from" = "${fixture}/origin", "to" = "${work}/sources/origin"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reexported-namespaces/provider.scoop", "to" = "${work}/sources/origin/src/main.scoop"}},
+]
+
+[[steps]]
+name = "origin"
+argv = ["${scoop}", "build", "${work}/sources/origin", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-origin", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-origin/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_origin"
+files = [
+  {"remove" = {"path" = "${work}/sources/origin"}},
+]
+
+[[steps]]
+name = "prepare_first"
+files = [
+  {"copy" = {"from" = "${fixture}/first", "to" = "${work}/sources/first"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reexported-namespaces/facade.scoop", "to" = "${work}/sources/first/src/main.scoop"}},
+]
+
+[[steps]]
+name = "first"
+argv = ["${scoop}", "build", "${work}/sources/first", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-first", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-first/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_first"
+files = [
+  {"remove" = {"path" = "${work}/sources/first"}},
+]
+
+[[steps]]
+name = "prepare_second"
+files = [
+  {"copy" = {"from" = "${fixture}/second", "to" = "${work}/sources/second"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reexported-namespaces/facade.scoop", "to" = "${work}/sources/second/src/main.scoop"}},
+]
+
+[[steps]]
+name = "second"
+argv = ["${scoop}", "build", "${work}/sources/second", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-second", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/namespace-second/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = []
+
+[[steps]]
+name = "remove_second"
+files = [
+  {"remove" = {"path" = "${work}/sources/second"}},
+]
+
+[[steps]]
+name = "prepare_consumer"
+files = [
+  {"copy" = {"from" = "${fixture}/consumer", "to" = "${work}/sources/consumer"}},
+  {"copy" = {"from" = "${fixture}/../../m23-reexported-namespaces/bad-private.scoop", "to" = "${work}/sources/consumer/src/main.scoop"}},
+]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/sources/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.example/bad-private/0.1.0/cone.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/artifacts/dev.example/bad-private/0.1.0/cone.slib", "exists" = false},
+]

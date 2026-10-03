@@ -1,0 +1,30 @@
+SourceFile
+  QualifiedPackage consumer.nesting
+  ImportExact Local facade.nesting.Outer.Leaf
+  ImportExact Local facade.nesting.Outer.Box as ImportedBox
+  public fun exercise<T>(value: T, read: (T) -> Int): Int
+    val box
+      Call ImportedBox<T>
+        Var value
+    val leaf
+      Call Leaf
+        IfExpression
+          Binary Eq
+            Call read
+              FieldAccess value
+                Var box
+            IntLiteral 42
+          IntLiteral 42
+          else
+          IntLiteral 0
+    return
+      FieldAccess number
+        Var leaf
+  private fun readInt(value: Int): Int
+    =
+      Var value
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 42
+        CallableReference 0 readInt

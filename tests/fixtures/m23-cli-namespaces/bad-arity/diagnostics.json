@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "type `Box` takes 1 type argument(s), but 2 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "e06a2140c06fdbada0d96ad7ab13eb467dd10357eec07043563730f624d5d345",
+      "end": 62,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 59
+    },
+    "severity": "error"
+  }
+]

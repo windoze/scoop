@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "unknown type `Hidden`",
+    "notes": [],
+    "origin": {
+      "cone": "e4f85f8007d216a783bb19dadd969d657767c0850423bfe081ca7228d94cdcff",
+      "end": 63,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 57
+    },
+    "severity": "error"
+  }
+]
