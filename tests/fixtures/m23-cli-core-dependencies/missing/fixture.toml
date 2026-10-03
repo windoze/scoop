@@ -1,0 +1,27 @@
+schema = 1
+name = "core-dependencies-missing"
+inputs = ["../../core-library/dependency-locals.scoop", "../../core-library/dependency-missing.scoop"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["core-dependencies", "negative", "stage-golden"]
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {"copy" = {"from" = "${sysroot}/lib/scoop.core", "to" = "${work}/core-source"}},
+  {"mkdir" = {"path" = "${work}/empty-sysroot"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/dependency-missing.scoop", "to" = "${work}/core-source/src/dependency-calls.scoop"}},
+  {"copy" = {"from" = "${fixture}/../../core-library/dependency-locals.scoop", "to" = "${work}/core-source/src/dependency-locals.scoop"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {"file" = "diagnostics.json"}
+checks = [
+  {"file" = "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "exists" = false},
+]
