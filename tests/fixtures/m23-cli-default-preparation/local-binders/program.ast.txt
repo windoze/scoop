@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  public class LocalGenericHost()
+    internal fun pick
+  public fun genericLocalDependency<Unused, T>(seed: T, value: T = <expr>): T
+    =
+      Var value
+  public class GenericLocalHost<H>(val stored: H)
+    internal fun direct
+    internal fun expanded
+  fun main()
+    val plain
+      Call LocalGenericHost
+    MethodCall pick
+      Var plain
+      IntLiteral 1
+    val generic
+      Call GenericLocalHost
+        StringLiteral "stored"
+    MethodCall direct
+      Var generic
+      IntLiteral 1
+      StringLiteral "direct"
+    MethodCall expanded
+      Var generic
+      IntLiteral 2
+      StringLiteral "expanded"
+    Call genericLocalDependency<String, Int>
+      IntLiteral 3
