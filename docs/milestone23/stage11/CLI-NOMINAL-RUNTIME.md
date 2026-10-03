@@ -16,3 +16,4 @@
 | `shared-property-declarations` | 2／14／26／8 | restricted setter、默认接口属性、private 泛型 storage 与 object 更新；保留 getter/setter 闭包、重复/提升错误及 arena 稳定性。 |
 | `shared-nominal-declarations` | 3／21／39／12 | private storage、nested/generic/protected 声明、published object 与普通下游；保留真实产物的 public/support 数量及缺失关系诊断。 |
 | `shared-interior-mutability` | 2／13／22／7 | unsafe 构造、读取和装箱、CLayout、泛型以及嵌套私有结构；保留 source/shared/MIR interior_mutable 一致和是否实际物化的对应。 |
+| `type-slot-production` | 1／7／13／4 | abstract/open/final override、属性读写、internal 成员与 object，沿真实父类接收器执行虚调用；完整 HIR 锁定原槽布局。 |
