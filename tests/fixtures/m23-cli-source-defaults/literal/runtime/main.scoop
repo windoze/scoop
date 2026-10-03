@@ -1,0 +1,7 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+
+fun main() {
+    verifyDefault(hidden() == "isolated")
+    verifyDefault(hidden("explicit") == "explicit")
+}

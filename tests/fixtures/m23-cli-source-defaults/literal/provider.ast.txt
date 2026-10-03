@@ -1,0 +1,5 @@
+SourceFile
+  RootPackage
+  private fun hidden(value: String = <expr>): String
+    =
+      Var value
