@@ -242,26 +242,6 @@ fn higher_non_native_property_blocks_lower_raw_storage() {
 }
 
 #[test]
-fn generic_stored_property_remains_non_addressable() {
-    let source = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-global-state/bad-address.scoop"
-    ));
-    let errors = lower(&[complete_core_file(), scoop_parser::parse(source).unwrap()])
-        .expect_err("a generated accessor does not make an ordinary property addressable");
-    let start = source.rfind("answer").unwrap() as u32;
-    assert!(
-        errors.iter().any(|diagnostic| {
-            diagnostic.file == 1
-                && diagnostic.span == Some(ast::Span::new(start, start + 6))
-                && diagnostic.message
-                    == "`addressOf` argument must be an addressable local, parameter, global, or value-type `this`"
-        }),
-        "{errors:?}"
-    );
-}
-
-#[test]
 fn same_layer_raw_global_ambiguity_is_terminal_and_lists_origins() {
     let left = package(file(vec![raw_global("left", 1)]), "left");
     let right = package(file(vec![raw_global("right", 2)]), "right");

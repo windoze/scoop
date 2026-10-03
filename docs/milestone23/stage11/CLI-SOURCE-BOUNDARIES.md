@@ -7,3 +7,4 @@
 | 功能 | 用例／进程／golden／指纹 | 保留的行为与清理 |
 | --- | --- | --- |
 | empty array rejection | 1／2／0／1 | 空数组无法推导元素类型；原六个正例已在 CLI-NOMINAL-RUNTIME.md 验收。删去 Rust 中重复的文件诊断断言，保留 imported Array 身份测试。 |
+| stored property address rejection | 1／2／0／1 | 普通存储属性不能因生成 accessor 变成 addressable global；保留 addressOf 原错误文字与 answer 的精确位置。 |
