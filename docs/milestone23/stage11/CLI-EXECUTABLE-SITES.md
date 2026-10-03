@@ -18,3 +18,4 @@
 | 装箱、拆箱、cast 与类型测试 | `types-shape-standalone`、`types-shape-combined` | 12／18 |
 | 按实际操作选择外部 shape owner | `types-shape-selection-standalone`、`types-shape-selection-combined` | 12／18 |
 | 泛型／可选 cast、默认值展开及异常 | `types-casts`、`types-ordinary-cast-default` | 11／14 |
+| 不活跃默认值与未实例化泛型不选择机器正文 | `callables-standalone`、`callables-uninstantiated` | 16／34 |

@@ -1,0 +1,7 @@
+Module
+  fun dormant @fn0(value: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local value
+  output library

@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  ImportStar Local consumer.*
+  fun main()
+    if
+      Unary Not
+        Call dormant
+      throw
+        Call IllegalStateException

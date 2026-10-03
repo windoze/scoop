@@ -1,0 +1,15 @@
+Module
+  fun run @fn0() -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun combineUnits @fn1(first: Unit, second: Unit) -> Unit
+    bb0 entry
+      return
+  fun choose @fn2(flag: Boolean) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        Local flag
+  output library
