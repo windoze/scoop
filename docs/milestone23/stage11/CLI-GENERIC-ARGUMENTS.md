@@ -1,0 +1,9 @@
+# M23-11 泛型参数、重载与定义点诊断
+
+九个用例保留原源码，以原 test:generic-provider:1.0.0 和 test:scoop-hir-lower:0.0.0 坐标经过正式 CLI 发布／消费。成功用例移走源码后独立链接，运行普通和 moving GC 变体；错误用例检查完整 canonical JSON 与失败后不发布产物。诊断在保存前逐项核对原消息及源码字节 span。
+
+只退役文件 golden 比较和由新用例覆盖的 negative 文件入口；局部 typed HIR 断言继续留在原 crate。原始 `.scoop` 未被删除或内联到 Rust。
+
+| 功能 | 用例 | 只读进程／golden | 保留的断言 |
+| --- | --- | --- | --- |
+| materialization | `consumer` | 12／9 | 原 HIR／MIR 两份快照逐字相同；显式／推断类型、局部值、relay、extension、默认值、NoGC 与递归实际运行，原 HIR template 数量与 typed 正文断言继续保留 |

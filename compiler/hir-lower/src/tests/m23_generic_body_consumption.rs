@@ -174,22 +174,8 @@ fn imported_generic_bodies_infer_and_materialize_provider_templates() {
     let _ = scoop_wire::encode(&foundation).unwrap();
     let dependencies =
         scoop_mir::SelectedExternalMirSet::try_from_callables(local.cone, Vec::new()).unwrap();
-    let mir = scoop_mir_lower::lower_current_cone(&output, dependencies)
+    scoop_mir_lower::lower_current_cone(&output, dependencies)
         .expect("dependency templates lower through the ordinary MIR body path");
-    let mir_dump = scoop_mir::dump(mir.module());
-    let mir_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-body-consumption/consumer.mir.snap");
-    if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
-        std::fs::write(&mir_path, &mir_dump).unwrap();
-    }
-    assert_eq!(std::fs::read_to_string(mir_path).unwrap(), mir_dump);
-    let dump = hir::dump(&output.output().export);
-    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/fixtures/m23-generic-body-consumption/consumer.hir.snap");
-    if std::env::var_os("SCOOP_UPDATE_GENERIC_BODY_SNAPSHOTS").is_some() {
-        std::fs::write(&path, &dump).unwrap();
-    }
-    assert_eq!(std::fs::read_to_string(path).unwrap(), dump);
 }
 
 #[test]
