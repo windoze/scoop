@@ -1,0 +1,29 @@
+SourceFile
+  QualifiedPackage consumer.nominals
+  ImportExact Local dependency.nominals.Parcel
+  ImportExact Local dependency.nominals.pack
+  ImportExact Local dependency.nominals.unpack
+  ImportExact Local dependency.nominals.relay
+  class Number(val value: Int)
+  public fun result(): Int
+    val first: Parcel<Number>
+      Call relay
+        Call pack
+          Call Number
+            IntLiteral 41
+    val second
+      Call pack
+        Call Number
+          IntLiteral 1
+    return
+      Binary Add
+        FieldAccess value
+          Call unpack
+            Var first
+            Call Number
+              IntLiteral 0
+        FieldAccess value
+          Call unpack
+            Var second
+            Call Number
+              IntLiteral 0

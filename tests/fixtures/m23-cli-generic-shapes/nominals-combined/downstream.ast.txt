@@ -1,0 +1,6 @@
+SourceFile
+  RootPackage
+  ImportExact Local consumer.nominals.result
+  public fun check(): Int
+    =
+      Call result
