@@ -1,0 +1,66 @@
+SourceFile
+  QualifiedPackage consumer.options
+  ImportExact Local dependency.options.Packet
+  ImportExact Local dependency.options.IntPacket
+  ImportExact Local dependency.options.Packet.Item as Pick
+  ImportStar Local dependency.options.ValuePacket.*
+  ImportExact Local dependency.options.restore
+  public fun exercise<T>(value: T): Int
+    val empty: T?
+      FieldAccess None
+        Var Option
+    val present
+      MethodCall Some<T>
+        Var Option
+        Var value
+    val inferred
+      MethodCall Some
+        Var Option
+        IntLiteral 40
+    val packet: Packet<T>
+      MethodCall Item
+        Var Packet
+        Var value
+    val picked
+      Call Pick
+        Var value
+    val named
+      MethodCall Named
+        Var IntPacket
+        Argument value=
+          Call restore
+            Var inferred
+            IntLiteral 0
+    val absent: Packet<T>
+      FieldAccess Empty
+        Var Packet
+    val bounded
+      Call Value
+        IntLiteral 42
+    if
+      WhenExpression
+        Var bounded
+        arm Value(number)
+          Binary Ne
+            Var number
+            IntLiteral 42
+      return
+        IntLiteral 3
+    return
+      WhenExpression
+        Var packet
+        arm Item(item)
+          WhenExpression
+            Var named
+            arm Named(n, amount)
+              Binary Add
+                Var n
+                Var amount
+            else
+              IntLiteral 1
+        else
+          IntLiteral 2
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

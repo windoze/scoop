@@ -1,0 +1,131 @@
+SourceFile
+  QualifiedPackage consumer.options
+  ImportExact Local dependency.options.absent
+  ImportExact Local dependency.options.force
+  private var events: Int = <expr>
+  private fun mark(value: Int): Int
+    assign events
+      Binary Add
+        Binary Mul
+          Var events
+          IntLiteral 10
+        Var value
+    return
+      Var value
+  private class Cell(val number: Int)
+    public fun read
+    public fun maybe
+  private fun receiver(present: Boolean): Cell?
+    Call mark
+      IntLiteral 1
+    return
+      IfExpression
+        Var present
+        Call Some
+          Call Cell
+            IntLiteral 40
+        else
+        Var None
+  public fun exercise<T>(value: T): Int
+    assign events
+      IntLiteral 0
+    val missing
+      MethodCall ?read
+        Call receiver
+          BoolLiteral false
+        Call mark
+          IntLiteral 2
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var events
+            IntLiteral 1
+          Binary Ne
+            Elvis
+              Var missing
+              Call mark
+                IntLiteral 4
+            IntLiteral 4
+        Binary Ne
+          Var events
+          IntLiteral 14
+      return
+        IntLiteral 1
+    assign events
+      IntLiteral 0
+    val present
+      MethodCall ?read
+        Call receiver
+          BoolLiteral true
+        Call mark
+          IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Var events
+          IntLiteral 12
+        Binary Ne
+          Elvis
+            Var present
+            IntLiteral 0
+          IntLiteral 42
+      return
+        IntLiteral 2
+    assign events
+      IntLiteral 0
+    val defaulted
+      MethodCall ?read
+        Call receiver
+          BoolLiteral true
+    if
+      Binary Or
+        Binary Ne
+          Var events
+          IntLiteral 13
+        Binary Ne
+          Elvis
+            Var defaulted
+            IntLiteral 0
+          IntLiteral 43
+      return
+        IntLiteral 3
+    val nested: Int??
+      MethodCall ?maybe
+        Call receiver
+          BoolLiteral true
+    if
+      Binary Ne
+        Elvis
+          FieldAccess ?number
+            Call receiver
+              BoolLiteral true
+          IntLiteral 0
+        IntLiteral 40
+      return
+        IntLiteral 4
+    val checked
+      Call force
+        Call Some
+          Var value
+    var caught: Int
+      IntLiteral 0
+    try
+      Call force
+        Call absent<Int>
+    catch error: UnwrapException
+      assign caught
+        IntLiteral 2
+    return
+      WhenExpression
+        Var nested
+        arm Some(Some(number))
+          Binary Add
+            Var number
+            Var caught
+        else
+          IntLiteral 5
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

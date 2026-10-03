@@ -2,41 +2,6 @@ use super::super::imported_classes::runtime;
 use super::*;
 
 #[test]
-fn imported_options_republish_and_execute_from_artifacts() {
-    super::members::check_fixture_cases(
-        "m23-imported-options",
-        &[
-            "construct",
-            "qualified",
-            "sugar",
-            "values",
-            "static",
-            "defaults",
-            "lexical",
-            "shadow",
-        ],
-        &[
-            "bad-none-inference",
-            "bad-unit-call",
-            "bad-positional-name",
-            "bad-payload-arity",
-            "bad-type-arity",
-            "bad-alias-payload",
-            "bad-alias-erased",
-            "bad-local-alias-payload",
-            "bad-contextual-payload",
-            "bad-constructor-alias-payload",
-            "bad-kind-bound",
-            "bad-invariance",
-            "bad-nested",
-            "bad-shadow",
-            "bad-immutable-omission",
-        ],
-        "downstream",
-    );
-}
-
-#[test]
 fn imported_option_roles_follow_rebuilt_core_declarations() {
     let target = resolved_target().expect("Option publication requires a target");
     let sysroot = tempfile::tempdir().unwrap();

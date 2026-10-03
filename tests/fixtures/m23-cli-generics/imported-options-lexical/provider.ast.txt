@@ -1,0 +1,78 @@
+SourceFile
+  QualifiedPackage dependency.options
+  public fun wrap<T>(value: T): T?
+    =
+      Call Some
+        Var value
+  public fun absent<T>(): T?
+    =
+      Var None
+  public fun restore<T>(value: T?, fallback: T): T
+    =
+      WhenExpression
+        Var value
+        arm Some(item)
+          Var item
+        arm None
+          Var fallback
+  public fun nest<T>(value: T): T??
+    =
+      Call Some
+        Call Some
+          Var value
+  public fun force<T>(value: T?): T
+    =
+      NullAssert
+        Var value
+  public fun optionalDefault<T>(fallback: T, value: T? = <expr>): T
+    =
+      Elvis
+        Var value
+        Var fallback
+  public fun noneDefault<T>(fallback: T, value: T? = <expr>): T
+    =
+      Elvis
+        Var value
+        Var fallback
+  public fun nestedDefault<T>(value: T, wrapped: T?? = <expr>): T
+    =
+      WhenExpression
+        Var wrapped
+        arm Some(Some(item))
+          Var item
+        else
+          Var value
+  public class Holder<T>(val value: T)
+  public fun safeDefault<T>(fallback: T, holder: Holder<T>?, value: T? = <expr>): T
+    =
+      Elvis
+        Var value
+        Var fallback
+  public fun capture<T>(value: T): () -> T?
+    fun local(): T?
+      MethodCall Some
+        Var Option
+        Var value
+    return
+      Lambda 0 suspend=false
+        parameters omitted
+        Call local
+  public enum Packet<T>
+    Empty
+    Item(T)
+    Named <ctor>
+      value: T
+      amount: Int = <expr>
+  public typealias IntPacket = Packet<Int>
+  public enum ValuePacket<T : value>
+    Value(T)
+  public fun packet<T>(value: T): Packet<T>
+    =
+      Call Item
+        Var value
+  public fun first(): Int
+    =
+      Call restore
+        Call wrap
+          IntLiteral 42
+        IntLiteral 0

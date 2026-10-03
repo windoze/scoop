@@ -1,0 +1,93 @@
+Module
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  fun first @fn0() -> Int
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Option<Int> = @fn1 direct
+        Type Int
+        Local $parameter.value
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      val $parameter.fallback: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Int = @fn2 direct
+        Type Option<Int>
+        Local $parameter.value
+        Type Int
+        Local $parameter.fallback
+      return
+        Type Int
+        Local $call.1
+  fun wrap @fn1(value: Int) -> Option<Int>
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+  fun restore @fn2(value: Option<Int>, fallback: Int) -> Int
+    bb0 entry
+      val $when.1: Option<Int>
+        Type Option<Int>
+        Local value
+      val $pattern.subject.2: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val item: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $pattern.subject.2
+      assign $result.2
+        Type Int
+        Local item
+      goto bb3
+    bb2 pattern.else.2
+      val $pattern.subject.3: Option<Int>
+        Type Option<Int>
+        Local $when.1
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Int> v1
+          Type Option<Int>
+          Local $pattern.subject.3
+    bb3 pattern.merge.3
+      return
+        Type Int
+        Local $result.2
+    bb4 pattern.pass.4
+      assign $result.2
+        Type Int
+        Local fallback
+      goto bb6
+    bb5 pattern.else.5
+      unreachable
+    bb6 pattern.merge.6
+      goto bb3
+  instance mi0 function=@fn1 <- wrap
+  instance mi1 function=@fn2 <- restore
+  output library

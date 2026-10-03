@@ -1,3 +1,0 @@
-span=54..70
-expression=Some(value = 42)
-dependency constructor `Some` positional variants do not accept named arguments

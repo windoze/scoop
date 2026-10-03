@@ -1,0 +1,55 @@
+SourceFile
+  QualifiedPackage consumer.options
+  ImportExact Local dependency.options.wrap
+  ImportExact Local dependency.options.absent
+  ImportExact Local dependency.options.restore
+  ImportExact Local dependency.options.nest
+  public fun exercise<T>(value: T): Int
+    val present: T?
+      Call Some
+        Var value
+    val missing: T?
+      Var None
+    val deep: T??
+      Call Some
+        Var missing
+    val nested
+      Call nest
+        Var value
+    val intValue: Int?
+      Call Some
+        IntLiteral 20
+    val text: String?
+      Var None
+    val checked
+      Call restore
+        Call wrap
+          Var value
+        Var value
+    return
+      WhenExpression
+        Var present
+        arm Some(item)
+          WhenExpression
+            Var deep
+            arm Some(None)
+              WhenExpression
+                Var nested
+                arm Some(Some(inner))
+                  Binary Add
+                    Call restore
+                      Var intValue
+                      IntLiteral 0
+                    Call restore
+                      Call absent<Int>
+                      IntLiteral 22
+                else
+                  IntLiteral 1
+            else
+              IntLiteral 2
+        arm None
+          IntLiteral 3
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

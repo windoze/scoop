@@ -1,0 +1,95 @@
+SourceFile
+  QualifiedPackage consumer.options
+  ImportExact Local dependency.options.capture
+  ImportExact Local dependency.options.force
+  private class Cell(val number: Int)
+  public fun exercise<T>(value: T): Int
+    val saved
+      Call capture
+        Var value
+    fun local(): T?
+      Call Some
+        Var value
+    val invoke: () -> T?
+      CallableReference 0 local
+    val callback: () -> Int?
+      Lambda 0 suspend=false
+        parameters omitted
+        Call Some
+          IntLiteral 42
+    val erased: Any
+      Call Cell
+        IntLiteral 40
+    val found
+      Cast Cell optional=true
+        Var erased
+    val missing
+      Cast String optional=true
+        Var erased
+    val text: Any
+      StringLiteral "present"
+    val present
+      Cast String optional=true
+        Var text
+    val boxed: Any
+      IntLiteral 2
+    val number
+      Cast Int optional=true
+        Var boxed
+    val missingNumber
+      Cast Int optional=true
+        Var text
+    val first
+      Call force
+        Call saved
+    val second
+      Call force
+        Call invoke
+    val allocated
+      Call Cell
+        IntLiteral 0
+    if
+      Binary Or
+        Binary Ne
+          Elvis
+            FieldAccess ?number
+              Var found
+            IntLiteral 0
+          IntLiteral 40
+        Binary Ne
+          Elvis
+            Var missing
+            StringLiteral "absent"
+          StringLiteral "absent"
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Elvis
+              Var present
+              StringLiteral "absent"
+            StringLiteral "present"
+          Binary Ne
+            Elvis
+              Var number
+              IntLiteral 0
+            IntLiteral 2
+        Binary Ne
+          Elvis
+            Var missingNumber
+            IntLiteral 3
+          IntLiteral 3
+      return
+        IntLiteral 2
+    return
+      Binary Add
+        Call force
+          Call callback
+        FieldAccess number
+          Var allocated
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 1

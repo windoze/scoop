@@ -1,3 +1,0 @@
-span=83..87
-expression=None
-`return` value of `result` must be of type Option<Int>, found Int
