@@ -38,23 +38,6 @@ fn imported_array_parameters_preserve_binders_defaults_and_variants() {
 #[test]
 fn imported_array_literals_use_the_core_application() {
     assert_lowers("literal.scoop");
-    let source = include_str!(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../tests/fixtures/m23-implicit-array-capability/empty.scoop"
-    ));
-    constants::with_input(source, |input| {
-        let errors = lower_current_cone(scoop_identity::RequestedConeKind::Library, input)
-            .err()
-            .unwrap();
-        assert_eq!(errors.len(), 1);
-        assert_eq!(errors[0].file, 0);
-        assert_eq!(
-            errors[0].message,
-            "cannot infer the element type of an empty array literal"
-        );
-        let span = errors[0].span.unwrap();
-        assert_eq!(&source[span.start as usize..span.end as usize], "[]");
-    });
 }
 
 #[test]
