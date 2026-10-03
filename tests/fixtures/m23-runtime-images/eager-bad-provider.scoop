@@ -1,5 +1,5 @@
 package startup.bad
-@Extern(name = "m23_trace") private fun trace(value: Long)
+@Extern(lib = "m23_runtime_images", name = "m23_trace") private fun trace(value: Long)
 private fun initialize(): Long {
     @Unsafe { trace(1L) }
     throw IllegalStateException()

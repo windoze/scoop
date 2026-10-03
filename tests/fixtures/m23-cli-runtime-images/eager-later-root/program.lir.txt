@@ -1,0 +1,38 @@
+Module
+  global @scoop$1$ss$b1b832cdb4c25cdd5476db5fb00f660035ba5745e16d0b78692597eabbe21551 : ptr<managed> scan=refs[0]
+  extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$46f2d86b25e5993158dc442917b3e44d34a630b4642130dc8e9f1537676dce1b gc-leaf nounwind lib=m23_runtime_images>
+  fun @scoop$1$cb$e4300e0b0e2280ea6f4c4a88b5dba62c5cc9371f6d5e942f9323c3946e475601(i64) -> void
+    local %0 $sc.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store param0 -> local0
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$1a9846f73300148814dddd3739775226e4abcfd698275eaa276c67b9d7be2690() -> void
+    local %0 $argument.0: i64
+    local %1 $parameter.value: i64
+    local %2 $sc.1: i64
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    store integer<Long>(0x0000000000000064) -> local0
+    store local0 -> local1
+    store local1 -> local2
+    call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local2))
+    t0 = aggregate () : {}
+    ret
+  fun @scoop$1$cb$8b7021ec724a91a221a292bdc5181d659d0a8be8d50589e5076e3b6b6bd9c68f() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global0, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  output executable @scoop$1$cb$1a9846f73300148814dddd3739775226e4abcfd698275eaa276c67b9d7be2690

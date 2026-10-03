@@ -13,3 +13,4 @@
 | `multi_image_startup_reports_managed_root_and_eager_failures` | `root-failure`、`eager-failure` | 14／18 | root／eager 异常均 SIGABRT，完整 stderr 和 abort 前 11 的输出 |
 | `early_ensure_runs_each_eager_unit_once_before_its_scheduled_turn` | `early-root` | 8／9 | 6 个初始化 unit；持久 ID 顺序 v2、v4、v5、v0、v3、v1，执行 v5 → v0 各一次，main 最后输出 7 |
 | `lazy_initialization_retains_failed_roots_and_catches_cycles` | `unused-lazy-root`、`lazy-failure-root`、`lazy-cycle-root`、`cycle-recovery-root` | 32／36 | 未使用 lazy 不执行；失败对象与 payload 保活且重复读取相同；cycle message 身份稳定；可捕获 cycle 并恢复 |
+| `failed_provider_stops_later_eager_units_and_main` | `eager-later-root` | 9／13 | 坏 provider 只输出 1 后 SIGABRT，后续 eager 和 main 不输出 99／100 |

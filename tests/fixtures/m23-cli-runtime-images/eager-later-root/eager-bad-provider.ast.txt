@@ -1,0 +1,11 @@
+SourceFile
+  QualifiedPackage startup.bad
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  private fun initialize(): Long
+    @Unsafe block
+      Call trace
+        IntLiteral 1L
+    throw
+      Call IllegalStateException
+  public val bad: Long = <expr>

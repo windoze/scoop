@@ -49,27 +49,6 @@ pub(super) fn build_fixture(
     result
 }
 
-pub(super) fn run(
-    target: &scoop_toolchain::ResolvedTargetProfile,
-    artifacts: &[&SingleConeProductionSuccess],
-    library: &Path,
-    directory: &Path,
-    expected: &str,
-    failure: Option<&str>,
-) {
-    assert!(
-        artifacts.len() >= 3,
-        "the runtime receives a real multi-Cone closure"
-    );
-    let closure = runtime::read(target, artifacts);
-    let template = std::fs::read_to_string(
-        crate::workspace_root().join("tests/fixtures/m23-runtime-images/runtime.c"),
-    )
-    .unwrap();
-    let executable = runtime::link_program(target, &closure, library, &template, directory);
-    check_runs(&executable, expected, failure);
-}
-
 pub(super) fn check_runs(executable: &Path, expected: &str, failure: Option<&str>) {
     let directory = executable.parent().unwrap();
     for stress in [false, true] {
