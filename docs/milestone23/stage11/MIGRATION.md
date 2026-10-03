@@ -406,3 +406,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `shared_specificity_survives_artifact_republication` | `m23-shared-selection` | 3／6 | 54／39 | 9 份阶段、6 份诊断逐项相同 |
 | `shared_bounds_propagate_through_source_and_artifact_calls` | `m23-shared-bounds` | 3／0 | 36／39 | 9 份阶段、0 份诊断逐项相同 |
 | `shared_bounds_reject_conflicts_and_unconstrained_parameters` | `m23-shared-bounds` | 0／4 | 12／0 | 0 份阶段、4 份诊断逐项相同 |
+| `shared_class_instances_republish_and_execute_from_artifacts` | `m23-shared-classes` | 2／2 | 30／26 | 4 份阶段、2 份诊断逐项相同；combined 的 MIR/LIR 仅将 private State 的源码显示路径改为正式 Cone 坐标与 src/main.scoop；其余正文和所有实体符号逐字相同 |

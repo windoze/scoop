@@ -1,0 +1,14 @@
+SourceFile
+  QualifiedPackage upstream.classes
+  public interface ValueSource<T>
+    fun read
+  public open class Base<T>(val value: T), ValueSource<T>
+    public fun read
+    public fun select
+  public class Remote<T>(value: T, val alternate: T) : Base<T>(<1 args>)
+    public fun select
+  public fun create<T>(value: T): Remote<T>
+    =
+      Call Remote
+        Var value
+        Var value
