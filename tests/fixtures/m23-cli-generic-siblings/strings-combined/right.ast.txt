@@ -1,0 +1,26 @@
+SourceFile
+  QualifiedPackage sibling.right
+  ImportStar Local dependency.odr.*
+  public fun right(): String
+    =
+      FieldAccess label
+        Call Named<Int>
+          IntLiteral 22
+  public fun rightMethod(): String
+    =
+      MethodCall text
+        Call Named<Int>
+          IntLiteral 22
+  public fun rightExtension(): String
+    =
+      FieldAccess constantText
+        IntLiteral 22
+  public fun rightNested(): String
+    =
+      Call nestedConstant<Int>
+        IntLiteral 22
+  public fun distinct(): String
+    =
+      FieldAccess label
+        Call Named<Long>
+          IntLiteral 22L

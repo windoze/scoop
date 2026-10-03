@@ -7,3 +7,4 @@
 | 原功能 | 用例 | 只读进程／golden | 保留的检查 |
 | --- | --- | --- | --- |
 | `sibling_generic_instances_merge_through_artifacts_and_run_with_moving_gc` | `standalone`、`combined` | 32／44 | 每例共享正文和 registration 均至少 2；真实符号只保留一份 weak 定义 |
+| `generic_string_constants_merge_through_artifacts_and_preserve_identity` | `strings`、`strings-combined` | 32／44 | 每例共享 immortal 至少 4；保留相同实例字符串同址、不同实例异址、嵌套／成员／extension 字符串与后续分配后的身份断言 |
