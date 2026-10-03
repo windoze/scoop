@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+  public fun store(): Store
+    =
+      Call Store
+SourceFile
+  RootPackage
+  private class Hidden()
+  public class Store()
+    private val computed: Hidden <computed>
+      get()
+        Call Hidden
+    private var state: Int = <expr>
+      IntLiteral 0
+    public var value: Int <computed>
+      get()
+        Var state
+      private set(next)
+        assign state
+          Var next
+    public fun read
+    public fun update

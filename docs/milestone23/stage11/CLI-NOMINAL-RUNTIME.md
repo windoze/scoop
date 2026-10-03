@@ -13,3 +13,4 @@
 | `nominal-signature-scope` | 2／13／22／7 | 同一签名中的依赖引用、本地 aggregate 与 ZST；保留 MIR/LIR 语义签名相等、direct/indirect/elided 参数和结果布局。 |
 | `materialized-type-uses` | 4／28／52／16 | 父类、签名、capture、type operand、初始化隐含 String 与未调用默认值；保留精确类型集合和 HIR 到 MIR 的实际 provider 对应。 |
 | `shared-callable-declarations` | 2／14／26／8 | restricted 构造、方法、接口、访问器及 object；保留普通 metadata、support 可查但不可公开 lookup、缺失和错误 owner 拒绝。 |
+| `shared-property-declarations` | 2／14／26／8 | restricted setter、默认接口属性、private 泛型 storage 与 object 更新；保留 getter/setter 闭包、重复/提升错误及 arena 稳定性。 |

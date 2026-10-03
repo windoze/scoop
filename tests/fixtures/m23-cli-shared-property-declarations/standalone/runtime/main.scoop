@@ -1,0 +1,8 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val value = store()
+    verifyType(value.read() == 0 && value.value == 0)
+    value.update(17)
+    verifyType(value.read() == 17 && value.value == 17)
+}

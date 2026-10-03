@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  public interface View
+    public open val value: Int <computed>
+      get()
+        Var hidden
+    private open val hidden: Int <computed>
+      get()
+        IntLiteral 4
+  public open class Base()
+    private var count: Int = <expr>
+      IntLiteral 1
+    protected open var state: Int <computed>
+      get()
+        Var count
+      private set(next)
+        assign count
+          Var next
+  public class Service() : Base(<0 args>), View
+  public class Outer()
+    private nested class Cell
+  public object Cache
+    internal var size: Int = <expr>
+      IntLiteral 0
