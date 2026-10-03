@@ -1,0 +1,31 @@
+SourceFile
+  QualifiedPackage startup.early
+    @Extern(lib = "m23_runtime_images", name = "m23_trace")
+  private fun trace(value: Long)
+  private class Number(val value: Long)
+  private fun ready(marker: Long, value: Long): Long
+    @Unsafe block
+      Call trace
+        Var marker
+    return
+      Binary Add
+        Var value
+        IntLiteral 1L
+  private fun last(): Long
+    val retained
+      Call Number
+        IntLiteral 0L
+    return
+      Call ready
+        IntLiteral 6L
+        FieldAccess value
+          Var retained
+  private val v0: Long = <expr>
+  private val v1: Long = <expr>
+  private val v2: Long = <expr>
+  private val v3: Long = <expr>
+  private val v4: Long = <expr>
+  private val v5: Long = <expr>
+  public fun answer(): Long
+    =
+      Var v0

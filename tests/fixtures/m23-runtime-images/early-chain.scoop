@@ -1,5 +1,5 @@
 package startup.early
-@Extern(name = "m23_trace") private fun trace(value: Long)
+@Extern(lib = "m23_runtime_images", name = "m23_trace") private fun trace(value: Long)
 private class Number(val value: Long)
 private fun ready(marker: Long, value: Long): Long {
     @Unsafe { trace(marker) }
