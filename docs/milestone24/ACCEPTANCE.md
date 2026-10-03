@@ -27,7 +27,7 @@
 
 ## 尚未完成
 
-其余 GC 根组合、机器属性与 ODR 冲突/缓存检查、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至五批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+其余 GC 根组合、缓存检查、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至六批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
 
 ## 第二批：ReleaseValue 与 NoTransition
 
@@ -65,3 +65,10 @@
 - 跨 Cone 泛型 owner 保存三份聚合字段，覆盖大对象回收；release 同时调用外来私有泛型值类型的次构造函数和 method、泛型 NoGc helper，以及外来值 method。`Owner<Int>` 与 `Owner<Unit>` 的实际字段布局和 C 结果均正确。
 - 独立及跨 Cone 两个用例均通过普通和 moving stress 运行；跨 Cone 用例删除源码后重新 artifact-only link，输出仍为 42。原 runner 无更新模式 `--filter 'release-blocks-native-aggregate-*'` 为 2/2，通过 15 次进程执行、10 份 stage golden；报告为 `tmp/m24/aggregate-acceptance/report.json`。
 - 本批未改变编译器实现。格式化与全 workspace/all-targets clippy 通过；继续使用第四批固定工具。此前分别清理 `target/m24-cli` 和默认 `target` 的开发产物，释放约 2.9 GiB、2.2 GiB。
+
+## 第六批：实际机器属性与 ODR 冲突
+
+- driver 测试复用四份正式 fixture 源码，经完整 HIR/MIR/LIR 和 LLVM 生成路径检查每一个 hook：入口为 raw pointer、返回 void、nounwind、地址有意义；函数正文无 AS1/addrspacecast、statepoint/relocate、GC strategy、异常边或 runtime transition。普通函数的外部声明不被错误当作 hook 正文。
+- 同一测试发射实际对象，确认 hook 所在物理 member 不含 LSDA 或 stackmap section；普通函数的 EH/CFI 仍由既有对象 verifier 负责。
+- 复用实际双 consumer ODR 测试：两个独立构建使用相同 provider identity 和泛型 owner，但 hook 正文不同。ABI、group 和 member identity 不变，ReleaseHook 与 registration 的定义摘要发生变化，原 ODR 合并路径明确拒绝冲突。
+- 格式化和全 workspace/all-targets clippy 通过；`cargo test -p scoopc release_hooks` 的两项端到端测试均通过，日志为 `tmp/m24/logs/machine-tests.log`。没有增加生产侧验证管线或新的来源机制。

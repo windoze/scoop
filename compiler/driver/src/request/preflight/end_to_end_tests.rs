@@ -24,6 +24,7 @@ mod layout_exports;
 mod nominal_signatures;
 mod program_link;
 mod publication;
+mod release_hooks;
 mod setter_domains;
 mod shape_materialization;
 mod shared_lir_selection;
