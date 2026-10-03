@@ -1,0 +1,19 @@
+package releasecache
+
+@Extern(lib = "m24_release", name = "m24_release_add64")
+private fun record(value: Long)
+
+@NoGC private fun adjusted(value: Long): Long = value + 1
+@NoGC private fun <T> keep(value: T): T = value
+
+public class Owner<T> public constructor(
+    private val value: T,
+    private val marker: Int,
+    private val handle: Long
+) {
+    release {
+        val copied = keep(value)
+        val copiedMarker = marker
+        @Unsafe { record(adjusted(handle) + 1) }
+    }
+}

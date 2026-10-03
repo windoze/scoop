@@ -1,0 +1,15 @@
+[
+  {
+    "severity": "error",
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`release` requires ReleaseValue values and direct NoTransition calls; allocation, managed access, transitions and trapping operations are forbidden",
+    "origin": {
+      "kind": "source",
+      "cone": "a0b3e88a9783e46b4458cdd67a6328b7c2b949cab7e99c2473c8a72c0ef14e3f",
+      "path": "src/main.scoop",
+      "start": 450,
+      "end": 466
+    },
+    "notes": []
+  }
+]

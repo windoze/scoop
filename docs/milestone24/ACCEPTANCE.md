@@ -27,7 +27,7 @@
 
 ## 尚未完成
 
-缓存检查、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至七批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+隐式操作的独立用例、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至八批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
 
 ## 第二批：ReleaseValue 与 NoTransition
 
@@ -79,3 +79,10 @@
 - 每个 owner 在根有效期间经历两次显式 GC，保持未释放；解除持有并退出调用作用域后再收集，只释放一次。C companion 对每个 owner 的重复释放直接断言失败，不依赖对象地址或回收顺序。
 - callback 在 C→Scoop 回调期间执行 GC，同时检查外层 native caller 保存的 owner；协程在挂起及恢复后均执行 GC，继续使用保存在 frame 中的 owner。
 - 格式化和全 workspace/all-targets clippy 通过。使用第四批固定工具，原 runner 无更新模式 `--filter 'release-blocks-roots-*'` 为 3/3，通过 15 次进程执行、12 份 stage golden；普通及 moving stress 输出均一致，报告为 `tmp/m24/roots-acceptance/report.json`。
+
+## 第八批：实际构建缓存失效
+
+- 正式 CLI 用例依次修改 provider 的泛型 release 正文、实际字段类型和私有 helper 正文，每次均重编 provider/consumer 并复用未变 core；随后的同输入构建均为零 child invocation，产物摘要不变。
+- 普通与 moving stress 的结果依次为 42、43、43、44，确认下游消费的是新正文。最后去掉 helper 的 NoGc 合同，构建在 release 调用处给出精确 canonical 诊断，上一次成功的可执行文件保持完整且仍输出 44。
+- 格式化和全 workspace/all-targets clippy 通过。原 runner 无更新模式 `--filter 'release-blocks-cache-invalidation'` 为 1/1，通过 20 次进程执行、12 份 stage golden；报告为 `tmp/m24/cache-acceptance/report.json`。
+- 清理早期 effects 验收的私有 cases/cache，保留报告和工具副本，`tmp/m24` 从约 16 GiB 降至约 2 GiB。

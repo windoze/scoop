@@ -1,0 +1,8 @@
+schema = 1
+[cone]
+group = "test"
+name = "release-cache-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"test:release-cache-provider" = {version = "0.1.0", path = "../provider"}

@@ -1,0 +1,158 @@
+Module
+  extern ef0 count @m24_release_count64() -> Long <abi=c no-gc lib=m24_release>
+  extern ef1 m24_release_add64 @m24_release_add64(Long) -> Unit <abi=c no-gc lib=m24_release>
+  class Owner<Int> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun count @fn0() -> Long
+    bb0 entry
+      call $call.1: Long = extern0 @m24_release_count64 direct
+      return
+        Type Long
+        Local $call.1
+  fun allocate @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=40 bits=0x0000000000000028
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.marker: Int
+        Type Int
+        Local $dependency.argument.1
+      val $dependency.parameter.handle: Long
+        Type Long
+        Local $dependency.argument.2
+      assign $new.1
+        Type Owner<Int>
+        ClassAlloc Owner<Int>
+      call @fn5 direct
+        Type Owner<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+        Type Int
+        Local $dependency.parameter.marker
+        Type Long
+        Local $dependency.parameter.handle
+      publish_release_ready Owner
+        Type Owner<Int>
+        Local $new.1
+      val owner: Owner<Int>
+        Type Owner<Int>
+        Local $new.1
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      call @fn1 direct
+      call @scoop_rt_gc_collect direct
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Long = extern0 @m24_release_count64 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Long
+        Local $dependency.parameter.value
+      return
+  fun keep @fn3(value: Int) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun println @fn4(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Owner.$c0 @fn5(this: Owner<Int>, value: Int, marker: Int, handle: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type Owner<Int>
+        Local this
+        Type Int
+        Local marker
+      field_set 2
+        Type Owner<Int>
+        Local this
+        Type Long
+        Local handle
+      return
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val $dependency.release.local.2: Int
+        Type Int
+        ReleaseFieldLoad Owner.field0
+      val $dependency.release.local.3: Int
+        Type Int
+        Local $dependency.release.local.2
+      call $dependency.release.local.0: Int = @fn3 direct
+        Type Int
+        Local $dependency.release.local.3
+      val $dependency.release.local.1: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      val $dependency.release.local.4: Long
+        Type Long
+        ReleaseFieldLoad Owner.field2
+      val $dependency.release.local.5: Long
+        Type Long
+        Local $dependency.release.local.4
+      call $dependency.release.local.6: Long = external0 direct
+        Type Long
+        Local $dependency.release.local.5
+      val $dependency.release.local.7: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.release.local.8: Long
+        Type Long
+        Local $dependency.release.local.7
+      val $dependency.release.local.9: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.release.local.6
+          Type Long
+          Local $dependency.release.local.8
+      val $dependency.release.local.10: Long
+        Type Long
+        Local $dependency.release.local.9
+      call extern1 @m24_release_add64 direct
+        Type Long
+        Local $dependency.release.local.10
+      return
+  instance mi0 function=@fn3 <- keep
+  instance mi1 function=@fn4 <- println
+  str @str0 "\n"
+  output executable @fn2
