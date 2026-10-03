@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.runtimeValue
+  ImportExact Local dependency.api.relayAny
+  public val localValue: Int = <expr>
+  public fun outside(value: Any): Any
+    val initial
+      Var runtimeValue
+    return
+      Call relayAny
+        Var value

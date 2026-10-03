@@ -1,0 +1,47 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.runtimeValue as remote
+  ImportExact Local dependency.api.imageValue
+  ImportExact Local dependency.api.imageMutable
+  ImportExact Local dependency.api.computedValue
+  ImportExact Local dependency.api.relayAny
+  ImportExact Local dependency.api.acceptAny
+  ImportExact Local dependency.api.anyDefault
+  ImportExact Local dependency.api.anyValue
+  fun defaultRead(value: Int = <expr>): Int
+    =
+      Var value
+  public val localDefault: Int = <expr>
+  public val localExplicit: Int = <expr>
+  public val localTwice: Int = <expr>
+  public val localWrite: Int = <expr>
+  public val localComputed: Int = <expr>
+  public val localImage: Int = <expr>
+  public val localImageWrite: Int = <expr>
+  public fun outside(): Any
+    val initial
+      Var remote
+    val accepted
+      MethodCall acceptAny
+        StringLiteral "receiver"
+    assign .anyValue
+      StringLiteral "write"
+      Call relayAny
+        Var accepted
+    val selected
+      FieldAccess anyValue
+        StringLiteral "read"
+    val copiedDefault
+      Call anyDefault
+    val boxedUnit
+      Call relayAny
+        UnitLiteral
+    val boxedInt
+      Call relayAny
+        IntLiteral 4
+    return
+      Call relayAny
+        Var selected
+  public fun unusedDefault(value: Int = <expr>): Int
+    =
+      Var value
