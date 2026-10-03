@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "iterator operator result type `I` implements multiple distinct `Iterator<T>` applications",
+    "notes": [],
+    "origin": {
+      "cone": "d074df36a868e7402cebb52df78bb7c791bb11e22e73bc4c2ce134a2594e0c50",
+      "end": 145,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 126
+    },
+    "severity": "error"
+  }
+]

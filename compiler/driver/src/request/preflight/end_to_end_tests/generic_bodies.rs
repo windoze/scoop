@@ -5,7 +5,6 @@ mod constructors;
 mod coroutines;
 mod delegates;
 mod initialization;
-mod iteration;
 mod local_calls;
 mod machine;
 mod members;

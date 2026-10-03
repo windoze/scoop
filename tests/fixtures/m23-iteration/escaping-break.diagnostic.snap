@@ -1,3 +1,0 @@
-span=125..130
-expression=break
-`break` is only allowed inside a loop

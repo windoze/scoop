@@ -1,3 +1,0 @@
-span=192..200
-expression=Source()
-iterator operator result type `Int` does not implement `Iterator<T>`

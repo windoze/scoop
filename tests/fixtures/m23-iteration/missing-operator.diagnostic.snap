@@ -1,3 +1,0 @@
-span=141..149
-expression=Source()
-type `Source` has no method `iterator`
