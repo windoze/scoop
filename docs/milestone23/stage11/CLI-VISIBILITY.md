@@ -8,3 +8,4 @@
 | --- | --- | --- |
 | 独立 setter 访问域与继承槽 | `property-setter-slots`、`error-property-setter-slot-narrowing` | 7／5 |
 | 方法／属性 override 不得收窄已扩大的公开槽 | `error-protected-override-public` | 2／0 |
+| object／companion 的实际基类及 protected receiver | `object-protected`、`error-object-protected-receiver` | 7／5 |
