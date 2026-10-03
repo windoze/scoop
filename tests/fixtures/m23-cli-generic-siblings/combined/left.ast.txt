@@ -1,0 +1,17 @@
+SourceFile
+  QualifiedPackage sibling.left
+  ImportExact Local dependency.odr.Payload
+  ImportExact Local dependency.odr.checked
+  ImportExact Local dependency.odr.defaulted
+  ImportExact Local dependency.odr.recover
+  public fun left(value: Payload): Payload
+    =
+      Call checked
+        Call defaulted
+          Var value
+        IntLiteral 1
+  public fun leftNumber(error: Throwable): Int
+    =
+      Call recover
+        Var error
+        IntLiteral 20

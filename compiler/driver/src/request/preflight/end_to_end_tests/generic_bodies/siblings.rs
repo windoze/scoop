@@ -6,11 +6,6 @@ mod definitions;
 mod unions;
 
 #[test]
-fn sibling_generic_instances_merge_through_artifacts_and_run_with_moving_gc() {
-    check_siblings("m23-generic-odr-siblings", &["standalone", "combined"]);
-}
-
-#[test]
 fn generic_string_constants_merge_through_artifacts_and_preserve_identity() {
     check_siblings("m23-generic-odr-siblings", &["strings", "strings-combined"]);
 }

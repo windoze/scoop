@@ -1,0 +1,24 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.odr.Payload
+  ImportExact Local sibling.left.left
+  ImportExact Local sibling.left.leftNumber
+  ImportExact Local sibling.right.right
+  ImportExact Local sibling.right.rightNumber
+  public fun check(): Int
+    val first
+      Call left
+        Call Payload
+          Call leftNumber
+            IntLiteral 20
+    val second
+      Call right
+        Call Payload
+          Call rightNumber
+            IntLiteral 22
+    return
+      Binary Add
+        FieldAccess number
+          Var first
+        FieldAccess number
+          Var second
