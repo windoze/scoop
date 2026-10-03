@@ -1,0 +1,206 @@
+Module
+  extern ef0 rotate @m24_release_rotate(Wide) -> Wide <abi=c no-gc lib=m24_release>
+  extern ef1 record @m24_release_wide(Wide) -> Unit <abi=c no-gc lib=m24_release>
+  struct Wide (first: Long, second: Long, third: Long) <c-layout aligned=natural packed=natural>
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Wide>
+    Completed(value: Wide)
+    Suspended()
+  enum CoroutineSlot<Wide>
+    Empty()
+    Value(value: Wide)
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Wide> vtable=0 itables=0
+  interface Continuation<Wide>
+  interface SuspendTask<Wide>
+  interface SuspendRegistration<Wide>
+  generated_exact_type get0 location=enum2 nominal_id=3f09d8db290bc19583cfe22848a8a2822f0e7c8ce66437275c8e58b90a48979d exact_id=a0f5d9960d3f168d2fc8f4e9f88d9e6ec5c36577568fc2a07e0fb07b34a5d78d
+  generated_exact_type get1 location=enum1 nominal_id=841bd2be8bc5a8501eef197cd6581bbc8c63dca14093077dc9ebf0da85a6875f exact_id=ac599b0c4439448040017c959c695db8cba66b23479f30d41a01b79c52b6ed55
+  generated_exact_type get2 location=class3 nominal_id=c4927ea9057d66948480f3ff2ae3dc9ee2b2d4c1734fd2d6b76b1a0ada8e5d6b exact_id=b40903c7a74788387b4732cb0909dce18c6e83c037adc524c25fd94c03a185cf
+  generated_callable gc0 function=@fn9 id=05070a3e891f2a400566b3176aa32dcb422a6925b07a0f03377ae57e1bf8ac4d
+  fun Wide.sum @fn0(this: Wide) -> Long <no-gc>
+    bb0 entry
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 0
+          Type Wide
+          Local this
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 1
+          Type Wide
+          Local this
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 2
+          Type Wide
+          Local this
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      return
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+  fun Wide.equals @fn1(this: Wide, other: Wide) -> Boolean
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 0
+            Type Wide
+            Local this
+          Type Long
+          FieldAccess 0
+            Type Wide
+            Local other
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 1
+            Type Wide
+            Local this
+          Type Long
+          FieldAccess 1
+            Type Wide
+            Local other
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 logic.rhs.4
+      assign $logic.2
+        Type Boolean
+        IntegerCompare equal operands=Long result=Boolean
+          Type Long
+          FieldAccess 2
+            Type Wide
+            Local this
+          Type Long
+          FieldAccess 2
+            Type Wide
+            Local other
+      goto bb6
+    bb5 logic.short.5
+      assign $logic.2
+        Type Boolean
+        BoolLiteral false
+      goto bb6
+    bb6 logic.merge.6
+      return
+        Type Boolean
+        Local $logic.2
+  fun rotate @fn2(arg0: Wide) -> Wide
+    bb0 entry
+      call $call.1: Wide = extern0 @m24_release_rotate direct
+        Type Wide
+        Local arg0
+      return
+        Type Wide
+        Local $call.1
+  fun record @fn3(arg0: Wide) -> Unit
+    bb0 entry
+      call extern1 @m24_release_wide direct
+        Type Wide
+        Local arg0
+      return
+  fun Continuation.resume @fn4(this: Continuation<Wide>, value: Wide) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn5(this: Continuation<Wide>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn6(this: SuspendTask<Wide>, $completion: Continuation<Wide>) -> CoroutineStep<Wide>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn7(this: SuspendRegistration<Wide>, continuation: Continuation<Wide>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun ctor.Wide.$c0 @fn8(first: Long, second: Long, third: Long) -> Wide <no-gc>
+    bb0 entry
+      return
+        Type Wide
+        StructInit Wide
+          Type Long
+          Local first
+          Type Long
+          Local second
+          Type Long
+          Local third
+  fun startCoroutine<Wide> @fn9(task: SuspendTask<Wide>, completion: Continuation<Wide>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn4 interface Continuation<Wide>[0]
+        Type Continuation<Wide>
+        Local completion
+        Type Wide
+        EnumField v0 f0
+          Type CoroutineStep<Wide>
+          Local $step
+      return
+    bb2 failed
+      call @fn5 interface Continuation<Wide>[1]
+        Type Continuation<Wide>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Wide> = @fn6 interface SuspendTask<Wide>[0]
+        Type SuspendTask<Wide>
+        Local task
+        Type Continuation<Wide>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Wide>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Wide> result=Wide
+  coroutine_slot cl0 CoroutineSlot<Wide> value=Wide
+  coroutine_start ct0 result=Wide function=fn9
+  coroutine_fn cf0 @fn6 source_return=Wide step=cs0 immediate
+  instance mi0 function=@fn4 <- Continuation.resume
+  instance mi1 function=@fn5 <- Continuation.resumeWithException
+  instance mi2 function=@fn6 <- SuspendTask.run
+  instance mi3 function=@fn7 <- SuspendRegistration.register
+  output library

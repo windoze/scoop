@@ -27,7 +27,7 @@
 
 ## 尚未完成
 
-大值与 native aggregate bridge、其余 GC 根和 helper 组合、机器属性与 ODR 冲突/缓存检查、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三、四批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+其余 GC 根组合、机器属性与 ODR 冲突/缓存检查、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至五批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
 
 ## 第二批：ReleaseValue 与 NoTransition
 
@@ -58,3 +58,10 @@
 - 新增 provider、left、right、consumer 组合：两个库和下游共同实例化 `Owner<Int>`，另有独立 `Owner<Long>`；不同库使用不同 method，release 还调用私有普通与泛型 NoGc helper。删除所有源码后，独立 artifact-only link 与普通/moving stress 运行均输出 `3`、`69`。
 - 格式化和全 workspace/all-targets clippy 通过。六个相关 crate 共执行 3,382 项测试，其中一处旧未知 tag 断言迁移后，HIR 的全部 873 项复核通过；日志为 `tmp/m24/logs/generic-hooks-regression.log` 与 `tmp/m24/logs/generic-hooks-hir-recheck.log`，首轮非零退出事实保留。
 - 使用 `tmp/m24/generic-hooks-tools/` 的三个固定命令运行原 runner，无更新模式 `--filter 'release-*'` 退出码为 0：76/76 通过，覆盖 128 次进程执行、50 份 stage/plan golden；报告为 `tmp/m24/generic-hooks-acceptance/report.json`。最终全量验收仍须使用最终版本的工具重新执行。
+
+## 第五批：聚合 native ABI 与值 helper 组合
+
+- 新增 24-byte C struct 的参数与返回值 fixture，release 字段复制后经已有纯 storage bridge 传入 C。同一 C 声明在普通 caller 和 hook 中分别保持原 transition 协议与 native leaf 协议。
+- 跨 Cone 泛型 owner 保存三份聚合字段，覆盖大对象回收；release 同时调用外来私有泛型值类型的次构造函数和 method、泛型 NoGc helper，以及外来值 method。`Owner<Int>` 与 `Owner<Unit>` 的实际字段布局和 C 结果均正确。
+- 独立及跨 Cone 两个用例均通过普通和 moving stress 运行；跨 Cone 用例删除源码后重新 artifact-only link，输出仍为 42。原 runner 无更新模式 `--filter 'release-blocks-native-aggregate-*'` 为 2/2，通过 15 次进程执行、10 份 stage golden；报告为 `tmp/m24/aggregate-acceptance/report.json`。
+- 本批未改变编译器实现。格式化与全 workspace/all-targets clippy 通过；继续使用第四批固定工具。此前分别清理 `target/m24-cli` 和默认 `target` 的开发产物，释放约 2.9 GiB、2.2 GiB。

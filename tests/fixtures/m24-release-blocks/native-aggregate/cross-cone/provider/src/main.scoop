@@ -1,0 +1,37 @@
+package releaseaggregate
+
+@CLayout
+public struct Wide(val first: Long, val second: Long, val third: Long) {
+    @NoGC public fun sum(): Long = first + second + third
+}
+
+@Extern(lib = "m24_release", name = "m24_release_rotate")
+private fun rotate(value: Wide): Wide
+
+@Extern(lib = "m24_release", name = "m24_release_wide")
+private fun record(value: Wide)
+
+@NoGC private fun <T> keep(value: T): T = value
+
+private struct Native<T>(val value: T) {
+    @NoGC constructor(value: T, ignored: Boolean): this(keep(value)) {}
+    @NoGC fun copied(): T = value
+}
+
+public fun <T> ordinary(value: T, wide: Wide): T {
+    @Unsafe { val rotated = rotate(wide) }
+    return value
+}
+
+public class Owner<T> public constructor(
+    private val value: T,
+    private val first: Wide,
+    private val second: Wide,
+    private val third: Wide
+) {
+    release {
+        val copied = Native(value, true).copied()
+        val aggregate = Wide(first.sum(), second.sum(), third.sum())
+        @Unsafe { record(rotate(aggregate)) }
+    }
+}
