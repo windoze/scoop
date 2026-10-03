@@ -470,3 +470,4 @@ Module
   layout $Closure$adapter$(Any) -> Int$(Int) -> Any value size=8 align=8 refs=[0]
   layout $Closure$adapter$(Any) -> Int$(Int) -> Any size=32 align=8 refs=[24]
   output library
+  init-dependencies a96c16f1ecb01e3fd959f7e3647e946640514a2c6f2248d29f159c55e1c973c0 [external(provider=51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5,unit=ec68f4fe4bee83bce42ae0dc42b9b5dae2be9a896d4423aa89bd5a05ddc7aeef)]

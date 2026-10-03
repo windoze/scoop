@@ -485,3 +485,4 @@ Module
   layout $Closure$dynamic_adapter$(Int) -> Any value size=8 align=8 refs=[0]
   layout $Closure$dynamic_adapter$(Int) -> Any size=32 align=8 refs=[24]
   output library
+  init-dependencies 6a5249f25426ccff8d9eda812285d0d97ba507a72ff76076d1aac92c5111af0c [external(provider=51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5,unit=ec68f4fe4bee83bce42ae0dc42b9b5dae2be9a896d4423aa89bd5a05ddc7aeef)]

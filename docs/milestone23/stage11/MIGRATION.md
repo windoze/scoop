@@ -423,3 +423,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `source_calls_share_targets_defaults_and_evaluation_order` | `m23-shared-source-calls` | 2／3 | 33／26 | 6 份阶段、3 份诊断逐项相同 |
 | `dependency_value_wrappers_preserve_inline_layout_boundaries` | `m23-shared-value-layouts` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
 | `pointer_function_adapters_republish_and_execute` | `m23-function-adapters` | 4／4 | 60／52 | 12 份阶段、4 份诊断逐项相同 |
+| `delegate_initializer_adapters_republish_and_execute` | `m23-function-adapters` | 2／0 | 24／26 | 4 份阶段、0 份诊断逐项相同；LIR 仅补显已有的 external init-dependencies；完整旧输出逐字不变，provider Cone 与 initialization unit 身份在 provider HIR 中逐项核对；LIR 仅补显已有的 external init-dependencies；完整旧输出逐字不变，provider Cone 与 initialization unit 身份在 provider HIR 中逐项核对 |
