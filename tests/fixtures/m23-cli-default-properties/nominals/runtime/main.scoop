@@ -1,0 +1,17 @@
+import defaults.*
+
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    check(localCheck())
+    val reader = Reader(19)
+    val view: Reading<Int> = reader
+    check(reader.fallback == 19 && reader.size == 2 && view.fallback == 19)
+    check(Packet("remote").fallback == "remote")
+    val choice = Choice.Item(23)
+    check(choice.fallback == 23 && choice.size == 1)
+    check(Child().size == 3 && Singleton.fallback == 7)
+    val store = Store()
+    store.value = 29
+    store.value += 2
+    check(store.value == 31)
+}

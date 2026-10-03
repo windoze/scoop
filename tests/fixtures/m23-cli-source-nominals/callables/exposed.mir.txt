@@ -1,0 +1,950 @@
+Module
+  global0 $singleton$Argument: Argument managed initial=zeroed-for-runtime-unit
+  global1 $singleton$Cache: Envelope.Cache managed initial=zeroed-for-runtime-unit
+  global2 $init$failure$0: Any managed initial=zeroed-for-runtime-unit
+  global3 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
+  init0 object:Argument singleton lazy global0 initializer=@fn5 ensure=@fn6 failure=2 deps=[]
+  init1 object:Envelope.Cache singleton lazy global1 initializer=@fn9 ensure=@fn10 failure=3 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Envelope.Choice<Int>
+    Empty()
+    Positional(_1: Int)
+    Named(value: Int)
+    Constructed(value: Int, count: Int)
+  enum CoroutineStep<Bound>
+    Completed(value: Bound)
+    Suspended()
+  enum CoroutineSlot<Bound>
+    Empty()
+    Value(value: Bound)
+  enum CoroutineStep<Envelope.GenericOuter.Static>
+    Completed(value: Envelope.GenericOuter.Static)
+    Suspended()
+  enum CoroutineSlot<Envelope.GenericOuter.Static>
+    Empty()
+    Value(value: Envelope.GenericOuter.Static)
+  enum CoroutineStep<Envelope>
+    Completed(value: Envelope)
+    Suspended()
+  enum CoroutineSlot<Envelope>
+    Empty()
+    Value(value: Envelope)
+  enum CoroutineStep<Envelope.Cache>
+    Completed(value: Envelope.Cache)
+    Suspended()
+  enum CoroutineSlot<Envelope.Cache>
+    Empty()
+    Value(value: Envelope.Cache)
+  enum CoroutineStep<Argument>
+    Completed(value: Argument)
+    Suspended()
+  enum CoroutineSlot<Argument>
+    Empty()
+    Value(value: Argument)
+  class Argument vtable=0 itables=1
+  class Envelope vtable=0 itables=0
+  class Envelope.Cache vtable=0 itables=0
+  class Envelope.GenericOuter.Static vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface Bound
+  interface Continuation<Bound>
+  interface SuspendTask<Bound>
+  interface SuspendRegistration<Bound>
+  interface Continuation<Argument>
+  interface SuspendTask<Argument>
+  interface SuspendRegistration<Argument>
+  interface Continuation<Envelope>
+  interface SuspendTask<Envelope>
+  interface SuspendRegistration<Envelope>
+  interface Continuation<Envelope.Cache>
+  interface SuspendTask<Envelope.Cache>
+  interface SuspendRegistration<Envelope.Cache>
+  interface Continuation<Envelope.GenericOuter.Static>
+  interface SuspendTask<Envelope.GenericOuter.Static>
+  interface SuspendRegistration<Envelope.GenericOuter.Static>
+  generated_exact_type get0 location=enum3 nominal_id=954418b4d8363a7ca73dc62a1ed07ca726f3dc35ba460449b96d0148bdb6c905 exact_id=51b7d9691589bac5cd72ecfa3ceacba4758c23ac3332e1e960a17c19998b26b7
+  generated_exact_type get1 location=enum8 nominal_id=75b767b1b5768e93a3502bbac2e6d413057dc43f377f226ba874bd40c21273a6 exact_id=5f58298cbf04b971c3dc429ba88eaee14c2571db22993e77a739fb0131266ee0
+  generated_exact_type get2 location=enum9 nominal_id=b6a2546ab8377c65cf0ffb8b1b3e7aff8248cd141e61d867f4477352f1e69731 exact_id=8dce9c14dfe2e0d4a8082b3bc41ae7fd166dd5ebf3fd53f642bfa345c3796f3a
+  generated_exact_type get3 location=enum2 nominal_id=a2be56db06f8be9b0248928e4e7dfd4e3f6f8c4ec52a55a851d3e3fc6cf5af77 exact_id=a8d227e1d3eacfc660aa77b590ca6be07180ebde0d39d26f2f9a9d818c39c2ff
+  generated_exact_type get4 location=enum4 nominal_id=5832e7b2cb1137c16be9fdee75652d9865cf3ca1c80e02c68d81a67c6f8b748c exact_id=ccbdeeb5f0ee80f10045922a929cbc6dbf3aa16d8f5a216cfab26557f30030fd
+  generated_exact_type get5 location=enum7 nominal_id=b60618b10887730831f30b4f56dc6ca7971fe2f5d704186e8fd331a6f1c2509f exact_id=cf463f9d71d251a3e14bc63622da5d82176fa031b8b5dc4110cdf13b09168c13
+  generated_exact_type get6 location=enum5 nominal_id=4102c646345c6bfae00640dfad02cd475a0859de36a5a8ec0525e25caa1bb1d8 exact_id=d6f751852bec3bb6491594d4501f8f73cea858be4852df3c23a9f0433c92f301
+  generated_exact_type get7 location=enum11 nominal_id=f159aab1c36b3522fc92858bc91180fa0c7e9125f28f1064ef5ec25310f46caa exact_id=e965f55f3d5efa265ba6fb370dc50431a242f6f2ed20397ebe14028598f11e17
+  generated_exact_type get8 location=enum6 nominal_id=ae806aa70c5520717505eea9c83cbdb05a9ca55b887346b070365bc0415ade56 exact_id=f16b9e27267901690a7e42336239eaa98301c1931c9e1a8b43deac39b010988b
+  generated_exact_type get9 location=enum10 nominal_id=30deafc123c612996e2f8209c59abb1bf478284b0c2e13fe24584396d1c1ee51 exact_id=fc8165b61385fc56ec430b954392a98aa3e2c58d68084b73e4045c2a352073c6
+  generated_callable gc0 function=@fn40 id=1e9194bd68dc62dcf0d5296add71f37745b5298b41bbe9ea74e9a376190f31d6
+  generated_callable gc1 function=@fn38 id=1f623697873bf2e1629fa2b702d437f024e972765105b5f12ef8ba7cb0d96525
+  generated_callable gc2 function=@fn36 id=3c858728129968d33b9940d7c7f63c66d016eae1a7abb66990980e808ac4c9df
+  generated_callable gc3 function=@fn37 id=6cbfe41f762a00ebdeea874be21cda9b1a40cad5c934a4388dd340b9eaee8635
+  generated_callable gc4 function=@fn39 id=d613e723ee1fca19d05f2403c280f9725cb84f7acdf1014d3e0b96e74e95368b
+  fun Envelope.cached @fn0(this: Envelope) -> Int
+    bb0 entry
+      call @fn10 direct
+      val $receiver: Envelope.Cache
+        Type Envelope.Cache
+        GlobalRead $singleton$Cache
+      call $dependency.receiver: Int = @fn2 direct
+        Type Envelope.Cache
+        Local $receiver
+      call $dependency.argument.0: Int = @fn8 direct
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Envelope.variant @fn1(this: Envelope, value: Int) -> Boolean
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.count: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $equality.lhs: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        VariantConstruct Envelope.Choice<Int> v3
+          Type Int
+          Local $parameter.value
+          Type Int
+          Local $parameter.count
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.count: Int
+        Type Int
+        Local $argument.1
+      call $call.1: Boolean = @fn11 direct
+        Type Envelope.Choice<Int>
+        Local $equality.lhs
+        Type Envelope.Choice<Int>
+        VariantConstruct Envelope.Choice<Int> v3
+          Type Int
+          Local $parameter.value
+          Type Int
+          Local $parameter.count
+      return
+        Type Boolean
+        Local $call.1
+  fun Envelope.Cache.inspect @fn2(this: Envelope.Cache) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $receiver: Envelope.Cache
+        Type Envelope.Cache
+        Local this
+      call $dependency.argument.0: Int = @fn3 direct
+        Type Envelope.Cache
+        Local $receiver
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun Envelope.Cache.cached @fn3(this: Envelope.Cache) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Envelope.Cache
+          Local this
+  fun Envelope.GenericOuter.Static.count @fn4(this: Envelope.GenericOuter.Static) -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+  fun $init$body$0 @fn5() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Argument
+        ClassAlloc Argument
+      call @fn32 direct
+        Type Argument
+        Local $new.1
+      global_assign $singleton$Argument
+        Type Argument
+        Local $new.1
+      return
+  fun $init$ensure$0 @fn6() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Argument
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn5 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Argument
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Argument
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Argument
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init0 object:Argument
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun envelope @fn7() -> Envelope
+    bb0 entry
+      assign $new.1
+        Type Envelope
+        ClassAlloc Envelope
+      call @fn33 direct
+        Type Envelope
+        Local $new.1
+      return
+        Type Envelope
+        Local $new.1
+  fun topLevel @fn8() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+  fun $init$body$1 @fn9() -> Unit
+    bb0 entry
+      assign $new.1
+        Type Envelope.Cache
+        ClassAlloc Envelope.Cache
+      call @fn34 direct
+        Type Envelope.Cache
+        Local $new.1
+      global_assign $singleton$Cache
+        Type Envelope.Cache
+        Local $new.1
+      return
+  fun $init$ensure$1 @fn10() -> Unit
+    bb0 entry
+      call $init.state: machine<initialization-outcome> = @scoop_rt_init_enter direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Envelope.Cache
+      branch bb1 bb2
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(RunInitializer)
+    bb1 if.then.1
+      goto bb11
+    bb2 if.else.2
+      branch bb14 bb15
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Ready)
+    bb3 if.merge.3
+      return
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb12
+    bb6 try.handler_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.handler_cleanup.7
+      end_catch
+      resume
+    bb8 try.exit_pad.8
+      landing_pad cleanup=true
+      goto bb9
+    bb9 try.exit_cleanup.9
+      end_catch
+      resume
+    bb10 try.end.10
+      goto bb3
+    bb11 try.body.11 unwind bb4
+      call @fn9 direct
+      call @scoop_rt_init_succeed direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Envelope.Cache
+      goto bb10
+    bb12 try.catch.12
+      call $catch.1: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val $init.caught: Any
+        Type Any
+        Retype Any
+          Type Any
+          Local $catch.1
+      goto bb13
+    bb13 scope.13 unwind bb6
+      call @scoop_rt_init_fail direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Envelope.Cache
+        Type Any
+        Local $init.caught
+      throw unwind bb6
+        Type Any
+        Local $init.caught
+    bb14 if.then.14
+      goto bb16
+    bb15 if.else.15
+      branch bb17 bb18
+        Type Boolean
+        Binary MachineEq(InitializationOutcome)
+          Type machine<initialization-outcome>
+          Local $init.state
+          Type machine<initialization-outcome>
+          MachineScalarLiteral InitializationOutcome(Failed)
+    bb16 if.merge.16
+      goto bb3
+    bb17 if.then.17
+      call $init.failure: Any = @scoop_rt_init_failure direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Envelope.Cache
+      throw
+        Type Any
+        Local $init.failure
+    bb18 if.else.18
+      call $init.message: String = @scoop_rt_init_cycle_message direct
+        Type Ptr<Unit>
+        InitializationUnitAddress init1 object:Envelope.Cache
+      call external0 direct
+        Type String
+        Local $init.message
+      unreachable
+    bb19 if.merge.19
+      unreachable
+  fun Envelope.Choice.equals @fn11(this: Envelope.Choice<Int>, other: Envelope.Choice<Int>) -> Boolean
+    bb0 entry
+      val $when.1: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local this
+      val $pattern.subject.2: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Envelope.Choice<Int> v0
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $when.3: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local other
+      val $pattern.subject.4: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Envelope.Choice<Int> v0
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Envelope.Choice<Int> v1
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      return
+        Type Boolean
+        BoolLiteral true
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $left.1.0: Int
+        Type Int
+        VariantPayloadProject Envelope.Choice<Int> v1 f0
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.5
+      val $when.6: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local other
+      val $pattern.subject.7: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Envelope.Choice<Int> v1
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      val $pattern.subject.8: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local $when.1
+      branch bb13 bb14
+        Type Boolean
+        VariantTest Envelope.Choice<Int> v2
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.8
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      val $right.1.0: Int
+        Type Int
+        VariantPayloadProject Envelope.Choice<Int> v1 f0
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.7
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.1.0
+          Type Int
+          Local $right.1.0
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+    bb13 pattern.pass.13
+      val $left.2.0: Int
+        Type Int
+        VariantPayloadProject Envelope.Choice<Int> v2 f0
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.8
+      val $when.9: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local other
+      val $pattern.subject.10: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local $when.9
+      branch bb16 bb17
+        Type Boolean
+        VariantTest Envelope.Choice<Int> v2
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.10
+    bb14 pattern.else.14
+      val $pattern.subject.11: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local $when.1
+      branch bb19 bb20
+        Type Boolean
+        VariantTest Envelope.Choice<Int> v3
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.11
+    bb15 pattern.merge.15
+      unreachable
+    bb16 pattern.pass.16
+      val $right.2.0: Int
+        Type Int
+        VariantPayloadProject Envelope.Choice<Int> v2 f0
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.10
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.2.0
+          Type Int
+          Local $right.2.0
+    bb17 pattern.else.17
+      return
+        Type Boolean
+        BoolLiteral false
+    bb18 pattern.merge.18
+      unreachable
+    bb19 pattern.pass.19
+      val $left.3.0: Int
+        Type Int
+        VariantPayloadProject Envelope.Choice<Int> v3 f0
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.11
+      val $left.3.1: Int
+        Type Int
+        VariantPayloadProject Envelope.Choice<Int> v3 f1
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.11
+      val $when.12: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local other
+      val $pattern.subject.13: Envelope.Choice<Int>
+        Type Envelope.Choice<Int>
+        Local $when.12
+      branch bb22 bb23
+        Type Boolean
+        VariantTest Envelope.Choice<Int> v3
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.13
+    bb20 pattern.else.20
+      unreachable
+    bb21 pattern.merge.21
+      unreachable
+    bb22 pattern.pass.22
+      val $right.3.0: Int
+        Type Int
+        VariantPayloadProject Envelope.Choice<Int> v3 f0
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.13
+      val $right.3.1: Int
+        Type Int
+        VariantPayloadProject Envelope.Choice<Int> v3 f1
+          Type Envelope.Choice<Int>
+          Local $pattern.subject.13
+      branch bb25 bb26
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.3.0
+          Type Int
+          Local $right.3.0
+    bb23 pattern.else.23
+      return
+        Type Boolean
+        BoolLiteral false
+    bb24 pattern.merge.24
+      unreachable
+    bb25 logic.rhs.25
+      assign $logic.1
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $left.3.1
+          Type Int
+          Local $right.3.1
+      goto bb27
+    bb26 logic.short.26
+      assign $logic.1
+        Type Boolean
+        BoolLiteral false
+      goto bb27
+    bb27 logic.merge.27
+      return
+        Type Boolean
+        Local $logic.1
+  fun Continuation.resume @fn12(this: Continuation<Bound>, value: Bound) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn13(this: Continuation<Bound>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn14(this: SuspendTask<Bound>, $completion: Continuation<Bound>) -> CoroutineStep<Bound>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn15(this: SuspendRegistration<Bound>, continuation: Continuation<Bound>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn16(this: Continuation<Argument>, value: Argument) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn17(this: Continuation<Argument>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn18(this: SuspendTask<Argument>, $completion: Continuation<Argument>) -> CoroutineStep<Argument>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn19(this: SuspendRegistration<Argument>, continuation: Continuation<Argument>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn20(this: Continuation<Envelope>, value: Envelope) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn21(this: Continuation<Envelope>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn22(this: SuspendTask<Envelope>, $completion: Continuation<Envelope>) -> CoroutineStep<Envelope>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn23(this: SuspendRegistration<Envelope>, continuation: Continuation<Envelope>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn24(this: Continuation<Envelope.Cache>, value: Envelope.Cache) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn25(this: Continuation<Envelope.Cache>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn26(this: SuspendTask<Envelope.Cache>, $completion: Continuation<Envelope.Cache>) -> CoroutineStep<Envelope.Cache>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn27(this: SuspendRegistration<Envelope.Cache>, continuation: Continuation<Envelope.Cache>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun Continuation.resume @fn28(this: Continuation<Envelope.GenericOuter.Static>, value: Envelope.GenericOuter.Static) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn29(this: Continuation<Envelope.GenericOuter.Static>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn30(this: SuspendTask<Envelope.GenericOuter.Static>, $completion: Continuation<Envelope.GenericOuter.Static>) -> CoroutineStep<Envelope.GenericOuter.Static>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn31(this: SuspendRegistration<Envelope.GenericOuter.Static>, continuation: Continuation<Envelope.GenericOuter.Static>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Argument.$c5 @fn32(this: Argument) -> Unit
+    bb0 entry
+      return
+  fun init.Envelope.$c0 @fn33(this: Envelope) -> Unit
+    bb0 entry
+      return
+  fun init.Envelope.Cache.$c6 @fn34(this: Envelope.Cache) -> Unit
+    bb0 entry
+      field_set 0
+        Type Envelope.Cache
+        Local this
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      return
+  fun init.Envelope.GenericOuter.Static.$c4 @fn35(this: Envelope.GenericOuter.Static) -> Unit
+    bb0 entry
+      return
+  fun startCoroutine<Bound> @fn36(task: SuspendTask<Bound>, completion: Continuation<Bound>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn12 interface Continuation<Bound>[0]
+        Type Continuation<Bound>
+        Local completion
+        Type Bound
+        EnumField v0 f0
+          Type CoroutineStep<Bound>
+          Local $step
+      return
+    bb2 failed
+      call @fn13 interface Continuation<Bound>[1]
+        Type Continuation<Bound>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Bound> = @fn14 interface SuspendTask<Bound>[0]
+        Type SuspendTask<Bound>
+        Local task
+        Type Continuation<Bound>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Bound>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Envelope.GenericOuter.Static> @fn37(task: SuspendTask<Envelope.GenericOuter.Static>, completion: Continuation<Envelope.GenericOuter.Static>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn28 interface Continuation<Envelope.GenericOuter.Static>[0]
+        Type Continuation<Envelope.GenericOuter.Static>
+        Local completion
+        Type Envelope.GenericOuter.Static
+        EnumField v0 f0
+          Type CoroutineStep<Envelope.GenericOuter.Static>
+          Local $step
+      return
+    bb2 failed
+      call @fn29 interface Continuation<Envelope.GenericOuter.Static>[1]
+        Type Continuation<Envelope.GenericOuter.Static>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Envelope.GenericOuter.Static> = @fn30 interface SuspendTask<Envelope.GenericOuter.Static>[0]
+        Type SuspendTask<Envelope.GenericOuter.Static>
+        Local task
+        Type Continuation<Envelope.GenericOuter.Static>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Envelope.GenericOuter.Static>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Envelope> @fn38(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn20 interface Continuation<Envelope>[0]
+        Type Continuation<Envelope>
+        Local completion
+        Type Envelope
+        EnumField v0 f0
+          Type CoroutineStep<Envelope>
+          Local $step
+      return
+    bb2 failed
+      call @fn21 interface Continuation<Envelope>[1]
+        Type Continuation<Envelope>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Envelope> = @fn22 interface SuspendTask<Envelope>[0]
+        Type SuspendTask<Envelope>
+        Local task
+        Type Continuation<Envelope>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Envelope>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Envelope.Cache> @fn39(task: SuspendTask<Envelope.Cache>, completion: Continuation<Envelope.Cache>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn24 interface Continuation<Envelope.Cache>[0]
+        Type Continuation<Envelope.Cache>
+        Local completion
+        Type Envelope.Cache
+        EnumField v0 f0
+          Type CoroutineStep<Envelope.Cache>
+          Local $step
+      return
+    bb2 failed
+      call @fn25 interface Continuation<Envelope.Cache>[1]
+        Type Continuation<Envelope.Cache>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Envelope.Cache> = @fn26 interface SuspendTask<Envelope.Cache>[0]
+        Type SuspendTask<Envelope.Cache>
+        Local task
+        Type Continuation<Envelope.Cache>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Envelope.Cache>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  fun startCoroutine<Argument> @fn40(task: SuspendTask<Argument>, completion: Continuation<Argument>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn16 interface Continuation<Argument>[0]
+        Type Continuation<Argument>
+        Local completion
+        Type Argument
+        EnumField v0 f0
+          Type CoroutineStep<Argument>
+          Local $step
+      return
+    bb2 failed
+      call @fn17 interface Continuation<Argument>[1]
+        Type Continuation<Argument>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Argument> = @fn18 interface SuspendTask<Argument>[0]
+        Type SuspendTask<Argument>
+        Local task
+        Type Continuation<Argument>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Argument>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Bound> result=Bound
+  coroutine_step cs1 CoroutineStep<Envelope.GenericOuter.Static> result=Envelope.GenericOuter.Static
+  coroutine_step cs2 CoroutineStep<Envelope> result=Envelope
+  coroutine_step cs3 CoroutineStep<Envelope.Cache> result=Envelope.Cache
+  coroutine_step cs4 CoroutineStep<Argument> result=Argument
+  coroutine_slot cl0 CoroutineSlot<Bound> value=Bound
+  coroutine_slot cl1 CoroutineSlot<Envelope.GenericOuter.Static> value=Envelope.GenericOuter.Static
+  coroutine_slot cl2 CoroutineSlot<Envelope> value=Envelope
+  coroutine_slot cl3 CoroutineSlot<Envelope.Cache> value=Envelope.Cache
+  coroutine_slot cl4 CoroutineSlot<Argument> value=Argument
+  coroutine_start ct0 result=Bound function=fn36
+  coroutine_start ct1 result=Envelope.GenericOuter.Static function=fn37
+  coroutine_start ct2 result=Envelope function=fn38
+  coroutine_start ct3 result=Envelope.Cache function=fn39
+  coroutine_start ct4 result=Argument function=fn40
+  coroutine_fn cf0 @fn14 source_return=Bound step=cs0 immediate
+  coroutine_fn cf1 @fn18 source_return=Argument step=cs4 immediate
+  coroutine_fn cf2 @fn22 source_return=Envelope step=cs2 immediate
+  coroutine_fn cf3 @fn26 source_return=Envelope.Cache step=cs3 immediate
+  coroutine_fn cf4 @fn30 source_return=Envelope.GenericOuter.Static step=cs1 immediate
+  instance mi0 function=@fn12 <- Continuation.resume
+  instance mi1 function=@fn13 <- Continuation.resumeWithException
+  instance mi2 function=@fn14 <- SuspendTask.run
+  instance mi3 function=@fn15 <- SuspendRegistration.register
+  instance mi4 function=@fn16 <- Continuation.resume
+  instance mi5 function=@fn17 <- Continuation.resumeWithException
+  instance mi6 function=@fn18 <- SuspendTask.run
+  instance mi7 function=@fn19 <- SuspendRegistration.register
+  instance mi8 function=@fn20 <- Continuation.resume
+  instance mi9 function=@fn21 <- Continuation.resumeWithException
+  instance mi10 function=@fn22 <- SuspendTask.run
+  instance mi11 function=@fn23 <- SuspendRegistration.register
+  instance mi12 function=@fn24 <- Continuation.resume
+  instance mi13 function=@fn25 <- Continuation.resumeWithException
+  instance mi14 function=@fn26 <- SuspendTask.run
+  instance mi15 function=@fn27 <- SuspendRegistration.register
+  instance mi16 function=@fn28 <- Continuation.resume
+  instance mi17 function=@fn29 <- Continuation.resumeWithException
+  instance mi18 function=@fn30 <- SuspendTask.run
+  instance mi19 function=@fn31 <- SuspendRegistration.register
+  output library

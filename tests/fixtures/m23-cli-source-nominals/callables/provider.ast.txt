@@ -1,0 +1,12 @@
+SourceFile
+  RootPackage
+  public interface Bound
+  public open class Envelope()
+    protected nested class Box
+    protected nested interface View
+    protected nested enum Choice
+    protected nested object Cache
+    protected nested class GenericOuter
+  private fun topLevel(): Int
+    =
+      IntLiteral 5

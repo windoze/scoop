@@ -1,0 +1,15 @@
+SourceFile
+  RootPackage
+  public open class Envelope()
+    protected nested class Box
+    protected nested interface View
+    protected nested object Constants
+    protected nested struct Pair
+    protected nested class Holder
+    public companion object
+      private const val cached: UInt <const> = <expr>
+        IntLiteral 9u
+  public object Ordinary
+    public const val exposed: Int <const> = <expr>
+      IntLiteral 3
+  private val TOP: Int <const> = <expr>

@@ -202,6 +202,8 @@ M24起class body member sum增加独立`ReleaseBlock`。`release`只在class mem
 
 隐式 receiver 的属性预查询用于区分值名称与类型限定名，复用完整 nominal application 的既有属性与可见性查询。宿主可以来自当前源码、依赖或完整 class 上界；不能假定 class 声明必有本地 arena ID，也不另建一套按裸 class ID 遍历继承的属性规则。预查询不提交候选或诊断，实际访问继续走普通 getter／setter 与成员调用路径。
 
+具体名义类型没有自身或基类属性声明时，属性查询还须包含继承检查已选定的接口默认访问器，保留实际 property、接口 application 及代入后的类型。该查询与普通方法复用同一 interface implementation selection，不按接口列表重新选择默认正文；class、object、struct、enum 的直接访问和接口视图访问遵守语言规范 §9.1.4 的相同 getter／setter 规则。
+
 数组的隐式 application 从当前 core 声明或已导入 core 协议取得同一 typed owner，不复制外来声明到本地 class arena。Export HIR 的数组 assembly 保存完整 `TypeId` 作为结果类型，允许本地与外来数组 application；LocalConcrete HIR 再统一解析为具体 class。依赖调用的实参映射保留每个元素／spread 的源码索引，命名整数组直接使用显式值，省略时按实际协议选择默认模板或新空数组；所有显式表达式先求值，再按形参序物化参数。共有模板消费直接重建已有数组节点与实际成员调用，复用普通具体化、数组表示和运行时操作，不增加数组专用产物格式、来源资格或第二套布局验证。
 
 `Array(source)`／`MutableArray(source)` 从实际 intrinsic 数组声明建立转换候选，分别以另一数组种类的同元素 application 为唯一必需参数。导入候选在同一名称层的声明准备阶段解析真实 owner binder 和完整参数类型，与本地构造共用参数映射、约束求解、固定 typealias 及 MSC；不得以当前调用已推断的类型替代声明签名参与候选比较。选中后直接生成完整目标类型的 `ArrayClone`，沿既有泛型正文、默认值、布局与 GC 路径执行，不补造源码 constructor 或机器 callable。数组转换和 `Ptr` 构造都是 intrinsic registry 规定的封闭源码入口。
