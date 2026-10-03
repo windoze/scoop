@@ -1,0 +1,14 @@
+SourceFile
+  RootPackage
+  ImportExact Local projection.provider.text
+  public object Holder
+    public val value: String = <expr>
+      Call text
+  public val message: String = <expr>
+  public fun read(): String
+    =
+      FieldAccess value
+        Var Holder
+  public fun readTop(): String
+    =
+      Var message

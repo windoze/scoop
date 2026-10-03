@@ -33,55 +33,35 @@ fn shared_protocol_and_lir_projection_uses_actual_providers() {
         &provider_root,
         &sysroot.path().join("output/provider.slib"),
     );
-    for name in ["standalone", "combined"] {
-        let root = sysroot.path().join(name);
-        let cone_name = format!("projection-{name}");
-        write_manifest_cone(&root, "dev.example", &cone_name, "library", &fixture(name));
-        let direct = if name == "combined" {
-            write_dependency_manifest(&root, &cone_name, &[&provider_coordinate]);
-            vec![provider.artifact().path().to_path_buf()]
-        } else {
-            vec![]
-        };
-        let output = sysroot.path().join(format!("output/{name}.slib"));
-        let request = || {
-            build_manifest_request(
-                sysroot.path(),
-                &target,
-                &root,
-                &output,
-                direct.clone(),
-                vec![],
-            )
-        };
-        if name == "combined" {
-            let loaded = request().load_preflight().unwrap();
-            let validated = loaded.validate().unwrap();
-            let closure = &validated.dependencies().closure;
-            let core = closure
-                .semantic()
-                .direct_provider(ConeIdentity::CORE)
-                .unwrap();
-            let ordinary = closure
-                .semantic()
-                .direct_provider(provider_coordinate.identity().unwrap())
-                .unwrap();
-            selections::check(closure.semantic(), &core, &ordinary);
-            descriptors::check(closure.semantic(), &core, &ordinary);
-            protocols::check(closure.semantic(), &core, &ordinary);
-        }
-        for (kind, suffix) in [(StageDumpKind::Mir, "mir"), (StageDumpKind::Lir, "lir")] {
-            let mut request = request();
-            request.emit = StageDumpPolicy::Stages(scoop_protocol::StageDumpSet::one(kind));
-            let artifact = request.build_and_publish().unwrap();
-            let dump = artifact.emitted_dumps().first().unwrap().text();
-            let snapshot = crate::workspace_root().join(format!(
-                "tests/fixtures/m23-shared-lir-selection/{name}.{suffix}.snap"
-            ));
-            if std::env::var_os("SCOOP_UPDATE_SHARED_LIR_SNAPSHOTS").is_some() {
-                std::fs::write(&snapshot, dump).unwrap();
-            }
-            assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
-        }
-    }
+    let root = sysroot.path().join("combined");
+    write_manifest_cone(
+        &root,
+        "dev.example",
+        "projection-combined",
+        "library",
+        &fixture("combined"),
+    );
+    write_dependency_manifest(&root, "projection-combined", &[&provider_coordinate]);
+    let request = build_manifest_request(
+        sysroot.path(),
+        &target,
+        &root,
+        &sysroot.path().join("output/combined.slib"),
+        vec![provider.artifact().path().to_path_buf()],
+        vec![],
+    );
+    let loaded = request.load_preflight().unwrap();
+    let validated = loaded.validate().unwrap();
+    let closure = &validated.dependencies().closure;
+    let core = closure
+        .semantic()
+        .direct_provider(ConeIdentity::CORE)
+        .unwrap();
+    let ordinary = closure
+        .semantic()
+        .direct_provider(provider_coordinate.identity().unwrap())
+        .unwrap();
+    selections::check(closure.semantic(), &core, &ordinary);
+    descriptors::check(closure.semantic(), &core, &ordinary);
+    protocols::check(closure.semantic(), &core, &ordinary);
 }

@@ -1,0 +1,9 @@
+SourceFile
+  RootPackage
+  private fun initialMessage(): String
+    =
+      StringLiteral "standalone"
+  public val message: String = <expr>
+  public fun read(): String
+    =
+      Var message

@@ -1,0 +1,6 @@
+SourceFile
+  QualifiedPackage projection.provider
+  public struct Empty
+  public fun text(): String
+    =
+      StringLiteral "provider"

@@ -6,3 +6,4 @@
 | --- | --- | --- |
 | intrinsic-source-shapes | 2／11／22／5 | 真实 core 增加原 declarations 与 consumers；普通同名 struct/class、CLayout、泛型数组、常量、Bool vararg/spread、装箱与 gcCollect。保留 14 个 intrinsic family、nominal kind、binder bounds、实际字段、常量类型与 vararg Array application 的 typed 断言，退役 declarations.snap。 |
 | image-dependencies | 1／8／17／5 | core、已选择 provider、unused provider、consumer 与 program 形成真实闭包，结果 42；未使用的直接依赖 image 仍保留。保留 Compile/Link image 相等、直接依赖集合和唯一已选择 callable 的 typed 检查，退役 image.snap。 |
+| shared-lir-selection | 2／13／22／7 | standalone 与跨 provider 的引用、字符串、属性与 GC 后读取；四份 consumer MIR/LIR 与原快照逐字相同。删除重复按阶段重建的 Rust fixture loop，保留实际 provider 的 selection、descriptor 和 protocol 查询检查。 |
