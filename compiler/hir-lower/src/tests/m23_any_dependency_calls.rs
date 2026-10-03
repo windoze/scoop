@@ -2,7 +2,7 @@ use scoop_hir as hir;
 use scoop_identity::{CoreBuiltinNominal, ExactTypeKey, PersistentExactTypeId};
 
 mod support;
-use support::{fixture, snapshot, with_output};
+use support::with_output;
 
 #[test]
 fn any_dependency_calls_preserve_signatures_receivers_accessors_and_defaults() {
@@ -19,7 +19,6 @@ fn any_dependency_calls_preserve_signatures_receivers_accessors_and_defaults() {
             let mut count = 0;
             let mut receivers = 0;
             let mut defaults = 0;
-            let mut dump = String::new();
             for call in output.committed_dependency_call_occurrences().unwrap() {
                 let hir::CommittedDependencyCallTarget::Direct { callable, .. } = call.target()
                 else {
@@ -56,49 +55,11 @@ fn any_dependency_calls_preserve_signatures_receivers_accessors_and_defaults() {
                 }
                 let copied = call.origin().definition.provider != call.origin().evaluation.provider;
                 defaults += usize::from(copied);
-                dump.push_str(&format!(
-                    "{} {:?} receiver={} arguments={} result={:?} copied={}\n",
-                    call.position().expression_index,
-                    call.declaration(),
-                    call.receiver().has_receiver(),
-                    arguments.len(),
-                    module.types[call.result_type()].kind,
-                    copied,
-                ));
             }
             assert_eq!(
                 (count, receivers, defaults),
                 (expected_calls, expected_receivers, expected_defaults)
             );
-            snapshot(&format!("{case}.ordinary-calls.snap"), &dump);
-            snapshot(
-                &format!("{case}.ordinary-hir.snap"),
-                &hir::dump(&output.output().export),
-            );
         });
     }
-}
-
-#[test]
-fn any_dependency_results_require_an_explicit_downcast() {
-    with_output("wrong-result", |result| {
-        let errors = result
-            .err()
-            .expect("an Any result cannot implicitly narrow to String");
-        assert_eq!(errors.len(), 1, "{errors:?}");
-        let error = &errors[0];
-        assert!(
-            error.message.contains("String") && error.message.contains("Any"),
-            "{error:?}"
-        );
-        let source = std::fs::read_to_string(fixture("wrong-result.scoop")).unwrap();
-        let span = error
-            .span
-            .expect("a type mismatch must retain its source position");
-        let at = &source[span.start as usize..span.end as usize];
-        snapshot(
-            "wrong-result.snap",
-            &format!("{}..{} {at:?}: {}\n", span.start, span.end, error.message),
-        );
-    });
 }

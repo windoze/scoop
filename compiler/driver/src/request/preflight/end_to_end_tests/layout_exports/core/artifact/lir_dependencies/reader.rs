@@ -86,8 +86,6 @@ pub(in super::super) fn read_sections<'a>(
 }
 
 pub(super) fn check(
-    name: &str,
-    fixtures: &Path,
     core: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &scoop_slib::AssembledCrossConeLayoutArtifactV1,
     layout: &lir::CrossConeLayoutAbiSectionV1<'_>,
@@ -112,24 +110,6 @@ pub(super) fn check(
         encode(link.lir_layout_abi_wire()).unwrap(),
         encode(layout).unwrap()
     );
-    let mut dump = format!(
-        "providers={}\ndirect={}\nselected={}\n",
-        closure.dependency_first().count(),
-        closure.direct_providers().len(),
-        expected.len()
-    );
-    for relation in expected {
-        dump.push_str(&format!(
-            "{} {:?}\n",
-            relation.provider(),
-            relation.target()
-        ));
-    }
-    let snapshot = fixtures.join(format!("{name}.lir.snap"));
-    if std::env::var_os("SCOOP_UPDATE_LIR_DEPENDENCY_GRAPH").is_some() {
-        std::fs::write(&snapshot, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(snapshot).unwrap());
     closure
         .replay_physical_imports()
         .map(|physical| {

@@ -149,14 +149,6 @@ pub(super) fn check(
                 )
                 .unwrap();
                 let production = registration.validate_layout_abi(&layout).unwrap();
-                snapshot(
-                    &fixtures.join(format!("{name}.mir.snap")),
-                    &mir::dump(input.mir.module()),
-                );
-                snapshot(
-                    &fixtures.join(format!("{name}.lir.snap")),
-                    &lir::dump(lir_input.lir.module()),
-                );
                 let objects = tempfile::tempdir().unwrap();
                 let artifact = assembly::assemble_with_production(
                     objects.path(),
@@ -172,10 +164,6 @@ pub(super) fn check(
                 super::source_calls::check(input, core_input, core_artifact, &artifact);
                 super::link_materializations::check(core_artifact, &artifact);
                 if family != "m23-property-initialization" {
-                    snapshot(
-                        &fixtures.join(format!("{name}.hir.snap")),
-                        &hir::dump(&input.hir.output().export),
-                    );
                     if family == "m23-extension-call-receivers" {
                         super::source_calls::check_receivers(input, core_artifact, &artifact);
                     } else if family == "m23-any-call-signatures" {
@@ -186,35 +174,27 @@ pub(super) fn check(
                             &artifact,
                             target.c_bridge_toolchain().profile(),
                         );
-                        super::source_calls::check_any(
-                            &fixtures.join(format!("{name}.rejections.snap")),
-                            input,
-                            core_artifact,
-                            &artifact,
-                        );
+                        super::source_calls::check_any(input, core_artifact, &artifact);
                     } else if family == "m23-link-object-contents" {
                         super::link_object_contents::check(
-                            name,
                             core_artifact,
                             &artifact,
                             target.c_bridge_toolchain().profile(),
                         );
                     } else if family == "m23-link-symbol-uses" {
                         super::link_symbol_uses::check(
-                            &fixtures.join(format!("{name}.symbols.snap")),
                             core_artifact,
                             &artifact,
                             target.c_bridge_toolchain().profile(),
                         );
                     }
                 }
-                let mut dump = format!("mir-uses={count}\n");
                 if family == "m23-any-call-signatures" {
-                    dump.push_str(&super::source_calls::check_any_link(
+                    super::source_calls::check_any_link(
                         core_artifact,
                         &artifact,
                         target.c_bridge_toolchain().profile(),
-                    ));
+                    );
                 }
                 for (view, closure) in [
                     ("compile", reader::read(core_artifact, &artifact)),
@@ -229,7 +209,6 @@ pub(super) fn check(
                                 encode(current.lir_physical_imports()).unwrap(),
                                 encode(selected.physical_imports()).unwrap(),
                             );
-                            let physical_count = current.lir_physical_imports().records().len();
                             let units = current
                                 .lir_strong_production()
                                 .initialization_registrations();
@@ -244,30 +223,13 @@ pub(super) fn check(
                                 })
                                 .collect::<Vec<_>>();
                             assert_eq!(edges.len(), if name == "standalone" { 1 } else { 3 });
-                            dump.push_str(&format!(
-                                "{view}: physical={physical_count} unit-edges={}\n",
-                                edges.len()
-                            ));
-                            for (local, edge) in edges {
+                            for (_, edge) in edges {
                                 assert_eq!(edge.definition().provider(), core_mir.provider());
-                                dump.push_str(&format!(
-                                    "{local} -> {} {}\n",
-                                    edge.definition().provider(),
-                                    edge.unit()
-                                ));
                             }
                         })
                         .unwrap();
                 }
-                snapshot(&fixtures.join(format!("{name}.artifact.snap")), &dump);
             },
         );
     }
-}
-
-fn snapshot(path: &Path, text: &str) {
-    if std::env::var_os("SCOOP_UPDATE_PROPERTY_INITIALIZATION").is_some() {
-        std::fs::write(path, text).unwrap();
-    }
-    assert_eq!(text, std::fs::read_to_string(path).unwrap());
 }

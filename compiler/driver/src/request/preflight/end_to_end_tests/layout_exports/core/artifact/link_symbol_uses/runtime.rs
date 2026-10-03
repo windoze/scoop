@@ -11,17 +11,13 @@ mod rejection;
 pub(super) enum RuntimeMutation {
     Field(u32),
     Body(slib::SlibMemberId, u64),
-    Patch(
-        scoop_identity::DigestSemanticFieldRole,
-        slib::SlibMemberId,
-        u64,
-    ),
+    Patch(slib::SlibMemberId, u64),
 }
 
 pub(super) fn inspect(
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     proof: &slib::ReplayedLayoutLinkSymbolUsesV1,
-) -> String {
+) {
     let payloads = link_archive::payloads(artifact);
     let finalized = proof.final_objects();
     for object in finalized.objects() {
@@ -29,18 +25,6 @@ pub(super) fn inspect(
     }
     let registrations = finalized.runtime_images().fingerprint().registrations();
     assert_eq!(registrations.producer(), proof.provider());
-    let counts = [
-        registrations.safepoints().fingerprints().len(),
-        registrations.callables().fingerprints().len(),
-        registrations.types().fingerprints().len(),
-        registrations.immortal_objects().fingerprints().len(),
-        registrations.static_storages().fingerprints().len(),
-        registrations.initializations().fingerprints().len(),
-    ];
-    format!(
-        "objects={} registrations={counts:?}\n",
-        finalized.objects().len()
-    )
 }
 
 pub(super) fn cases(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> Vec<RuntimeMutation> {
@@ -50,9 +34,11 @@ pub(super) fn cases(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> Vec<Runtime
     }
     let mut cases = (3..=6)
         .map(RuntimeMutation::Field)
-        .chain(by_role.into_iter().map(|(role, patch)| {
-            RuntimeMutation::Patch(role, patch.member(), patch.checked_offset())
-        }))
+        .chain(
+            by_role
+                .into_values()
+                .map(|patch| RuntimeMutation::Patch(patch.member(), patch.checked_offset())),
+        )
         .collect::<Vec<_>>();
     cases.push(body_mutation(proof));
     cases
@@ -84,35 +70,12 @@ fn body_mutation(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> RuntimeMutatio
 }
 
 pub(super) fn check(
-    symbols_path: &Path,
     core: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
     cases: Vec<RuntimeMutation>,
-    mut dump: String,
 ) {
     for mutation in cases {
         rejection::check(core, artifact, profile, mutation);
-        match mutation {
-            RuntimeMutation::Field(field) => dump.push_str(&format!("reject field {field}\n")),
-            RuntimeMutation::Patch(role, _, _) => {
-                dump.push_str(&format!("reject {role:?} patch\n"))
-            }
-            RuntimeMutation::Body(_, _) => {
-                dump.push_str("reject changed body runtime fingerprint\n")
-            }
-        }
     }
-    let name = symbols_path
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .strip_suffix(".symbols.snap")
-        .unwrap();
-    let path = symbols_path.with_file_name(format!("{name}.runtime.snap"));
-    if std::env::var_os("SCOOP_UPDATE_LINK_RUNTIME").is_some() {
-        std::fs::write(&path, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(path).unwrap());
 }

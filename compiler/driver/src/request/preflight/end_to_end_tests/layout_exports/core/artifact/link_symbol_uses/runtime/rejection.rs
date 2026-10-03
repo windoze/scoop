@@ -10,7 +10,7 @@ pub(super) fn check(
         RuntimeMutation::Field(field) => {
             link_archive::rewrite_production(artifact, |data| corrupt_field(data, field))
         }
-        RuntimeMutation::Patch(_, member, offset) | RuntimeMutation::Body(member, offset) => {
+        RuntimeMutation::Patch(member, offset) | RuntimeMutation::Body(member, offset) => {
             link_archive::rewrite(artifact, |record, data| {
                 if record.id() != member {
                     return Rewrite::Keep;
@@ -48,7 +48,7 @@ pub(super) fn check(
                 if actual == field),
             "wrong error for {mutation:?}: {source:?}"
         ),
-        RuntimeMutation::Patch(_, member, _) => assert!(
+        RuntimeMutation::Patch(member, _) => assert!(
             matches!(*source,
             slib::LayoutLinkSymbolUseError::FinalObjects(slib::StrongLinkObjectFinalizationError::FinalObjectMismatch(
                 slib::ReconstructedScoopObjectError::ByteMismatch(actual))) if actual == member),

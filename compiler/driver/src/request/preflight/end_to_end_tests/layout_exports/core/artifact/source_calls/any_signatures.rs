@@ -7,7 +7,7 @@ pub(in super::super) fn check_link(
     provider: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
-) -> String {
+) {
     use super::super::lir_dependencies::reader as artifact_reader;
     let source = artifact_reader::open_link(artifact)
         .into_shared_sections()
@@ -24,12 +24,6 @@ pub(in super::super) fn check_link(
                 expected,
                 slib::FingerprintAvailability::Available(proof.code_fingerprint())
             );
-            format!(
-                "link-objects={} physical={} code={}\n",
-                proof.final_objects().objects().len(),
-                physical.lir_physical_imports().records().len(),
-                proof.code_fingerprint(),
-            )
         })
         .unwrap()
 }
@@ -41,7 +35,6 @@ enum Slot {
 }
 
 pub(in super::super) fn check(
-    path: &Path,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     provider_artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
@@ -60,7 +53,7 @@ pub(in super::super) fn check(
     ))
     .unwrap();
     assert_ne!(any, string);
-    let mut dump = String::new();
+    let mut checked = 0;
     for (reference_index, reference) in input
         .public
         .external_references()
@@ -116,22 +109,15 @@ pub(in super::super) fn check(
                     };
                     assert_eq!(position, call.position());
                     check_error(slot, *source, any, string);
-                    dump.push_str(&format!(
-                        "link={link} call={} reject {slot:?}\n",
-                        position.expression_index
-                    ));
+                    checked += 1;
                 }
             }
         }
     }
     assert!(
-        !dump.is_empty(),
+        checked > 0,
         "the fixture must contain actual Any signatures"
     );
-    if std::env::var_os("SCOOP_UPDATE_ANY_CALLS").is_some() {
-        std::fs::write(path, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(path).unwrap());
 }
 
 fn check_error(

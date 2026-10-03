@@ -50,11 +50,3 @@ pub(super) fn with_output<T>(
         &input,
     ))
 }
-
-pub(super) fn snapshot(name: &str, text: &str) {
-    let path = fixture(name);
-    if std::env::var_os("SCOOP_UPDATE_ANY_CALLS").is_some() {
-        std::fs::write(&path, text).unwrap();
-    }
-    assert_eq!(text, std::fs::read_to_string(path).unwrap());
-}

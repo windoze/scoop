@@ -21,3 +21,7 @@
 | 定义符号、未定义引用与 runtime 内容 | `core-symbols-combined`、`core-symbols-standalone` | 6／16 |
 | MIR shape 依赖与真实机器物化 | `shape-combined`、`shape-standalone` | 6／16 |
 | LIR 依赖与 ABI 选择 | `lir-combined`、`lir-standalone` | 6／16 |
+
+原 78 份文件快照及专用格式化／比较 helper 已删除，相关 Rust 代码净减少 347 行。source call、receiver、初始化 use 与 registration edge、Compile／Link section 相等、ABI／物理选择、实际 final object 字节、完整定义／未定义符号集合、Code／runtime 内容、11 类对象 mutation 和 reader 精确拒绝继续用原 typed 断言检查。`RuntimeMutation::Patch` 不再携带仅供旧 dump 打印的角色字段，生成 mutation 时仍按每个实际 semantic field role 选取代表。
+
+清理后格式化和 lint 通过；两个 HIR 初始化／Any 专项，以及 `actual_core_sources_produce_closed_mir_and_lir_export_tables`、`property_initialization_uses_close_source_mir_lir_and_both_artifact_views` 两个完整 producer／reader 测试均在关闭更新开关时通过。CLI 的 20 项也已在清理后只读运行通过。此记录不替代 M23-11 最终全仓验收。

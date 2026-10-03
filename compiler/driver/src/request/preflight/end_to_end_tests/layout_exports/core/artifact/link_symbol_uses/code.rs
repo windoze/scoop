@@ -24,7 +24,7 @@ enum Case {
 pub(super) fn inspect(
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     proof: &slib::ReplayedLayoutLinkSymbolUsesV1,
-) -> String {
+) {
     let expected = reader::open_link(artifact)
         .into_shared_sections()
         .unwrap()
@@ -34,20 +34,12 @@ pub(super) fn inspect(
         expected,
         slib::FingerprintAvailability::Available(proof.code_fingerprint())
     );
-    format!(
-        "code={} native={} libraries={}\n",
-        proof.code_fingerprint(),
-        proof.native_requirements().contracts().len(),
-        proof.native_requirements().library_requirements().len(),
-    )
 }
 
 pub(super) fn check(
-    symbols_path: &Path,
     core: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
-    mut dump: String,
 ) {
     let core_manifest = encode(reader::open_link(core).production_manifest_wire()).unwrap();
     let contracts = wire::field_range(&core_manifest, 8);
@@ -78,22 +70,6 @@ pub(super) fn check(
         }
         for case in cases {
             rejection::check(core, artifact, profile, dependency, case, &seed);
-            dump.push_str(&format!(
-                "reject {} {case:?}\n",
-                if dependency { "dependency" } else { "current" }
-            ));
         }
     }
-    let name = symbols_path
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .strip_suffix(".symbols.snap")
-        .unwrap();
-    let path = symbols_path.with_file_name(format!("{name}.code.snap"));
-    if std::env::var_os("SCOOP_UPDATE_LINK_CODE").is_some() {
-        std::fs::write(&path, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(path).unwrap());
 }

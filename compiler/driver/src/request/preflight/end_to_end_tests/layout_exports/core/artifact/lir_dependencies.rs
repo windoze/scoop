@@ -98,7 +98,7 @@ pub(super) fn check(
                         .validate_layout_abi(&layout)
                         .unwrap(),
                 );
-                reader::check(name, &fixtures, core, &artifact, &layout);
+                reader::check(core, &artifact, &layout);
             },
         );
     }

@@ -30,7 +30,7 @@ enum Case {
     EntryBranch,
 }
 
-pub(super) fn inspect(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> String {
+pub(super) fn inspect(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) {
     let objects = proof.object_contents();
     let mut members = objects
         .objects()
@@ -49,20 +49,12 @@ pub(super) fn inspect(proof: &slib::ReplayedLayoutLinkSymbolUsesV1) -> String {
             .map(|member| member.member())
             .collect::<Vec<_>>()
     );
-    format!(
-        "scoop={} bridges={} final_members={}\n",
-        objects.objects().objects().len(),
-        objects.generated_objects().len(),
-        members.len(),
-    )
 }
 
 pub(super) fn check(
-    symbols_path: &Path,
     core: &slib::AssembledCrossConeLayoutArtifactV1,
     artifact: &slib::AssembledCrossConeLayoutArtifactV1,
     profile: &lir::CBridgeToolchainProfileV1,
-    mut dump: String,
 ) {
     let cases = [Surface::Identity, Surface::Ordinary, Surface::Shape]
         .into_iter()
@@ -84,7 +76,6 @@ pub(super) fn check(
         .chain([Case::EntryBranch]);
     for case in cases {
         rejection::check(core, artifact, profile, case, false);
-        dump.push_str(&format!("reject {case:?}\n"));
     }
     rejection::check(
         core,
@@ -93,17 +84,4 @@ pub(super) fn check(
         Case::Members(Surface::Identity, Change::Fingerprint),
         true,
     );
-    dump.push_str("reject dependency final fingerprint\n");
-    let name = symbols_path
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .strip_suffix(".symbols.snap")
-        .unwrap();
-    let path = symbols_path.with_file_name(format!("{name}.coverage.snap"));
-    if std::env::var_os("SCOOP_UPDATE_LINK_COVERAGE").is_some() {
-        std::fs::write(&path, &dump).unwrap();
-    }
-    assert_eq!(dump, std::fs::read_to_string(path).unwrap());
 }

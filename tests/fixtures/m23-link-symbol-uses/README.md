@@ -1,15 +1,15 @@
 # 实际 Link 用途与 Code 重放
 
-独立用例包含外来属性初始化、普通 callable、String 和 native 调用；组合用例继续加入
-default、重复 getter/setter 及多种初始化路径。两个用例从真实源码产生完整 layout 产物，
-各自通过共有 Compile 和 Link metadata 重放。
+独立源码覆盖外来属性初始化、普通 callable、String 和 native 调用；组合源码
+继续加入 default、重复 getter/setter 及多种初始化路径。
 
-`*.symbols.snap` 锁定各 provider 的定义和完整 relocation 分区，`*.runtime.snap`
-与 `*.coverage.snap` 锁定最终对象、登记指纹、owner 及 coverage 重放。
-`*.code.snap` 保存 reader 重算的实际 Code 值及 native contract/library 数量；这些值
-必须与 producer 的原值一致。反例在重建合法 archive hash 后分别篡改 distribution、
-output 分支、两个 Code 字段和 native 表，包含两个 Code 值一致但都错误的情况。
-依赖和当前产物执行相同反例；累计预算须在精确边界成功、少一个单位失败。
+正式 CLI 声明位于 `../m23-cli-layout-dependencies/core-symbols-*`，保留完整
+AST/HIR/MIR/LIR 和产物 fingerprint。移走 core 与当前库源码后，下一层继续
+读取实际 `.slib`；产物 fingerprint 同时固定原对象、登记、relocation 分区、
+Code 与 native contract/library 内容。
 
-执行入口为 driver 测试 `property_initialization_uses_close_source_mir_lir_and_both_artifact_views`。
-只在有意更新 Code 快照时设置 `SCOOP_UPDATE_LINK_CODE=1`。
+driver 内部测试继续核对定义与用途分区、最终对象及登记、Compile/Link 读取，
+并在重建 archive hash 后定点破坏 distribution、output 分支、两个 Code 字段、
+native 表和 dependency owner。两个 Code 值一致但都错误的反例也必须被拒绝。
+原重复的文件快照和更新环境变量已删除，迁移对照见
+`../../../docs/milestone23/stage11/CLI-LAYOUT-DEPENDENCIES.md`。

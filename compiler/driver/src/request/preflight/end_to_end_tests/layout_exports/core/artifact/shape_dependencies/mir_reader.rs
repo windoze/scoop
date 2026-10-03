@@ -4,8 +4,6 @@ use scoop_slib::SharedMirDependencyGraphError as Error;
 mod wire;
 
 pub(super) fn check(
-    name: &str,
-    fixtures: &Path,
     input: scoop_mir_lower::MirTypeBridgeExportInputV1<'_>,
     section: &mir::CrossConeMirTypeBridgeSectionV1<'_>,
     core: mir::MirTypeBridgeDependencyViewV1<'_>,
@@ -110,9 +108,4 @@ pub(super) fn check(
         )
         .is_err()
     );
-    let dump = expected
-        .iter()
-        .map(|relation| format!("{} {:?}\n", relation.provider(), relation.target()))
-        .collect::<String>();
-    snapshot(&fixtures.join(format!("{name}.mir.snap")), &dump);
 }
