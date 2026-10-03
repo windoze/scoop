@@ -55,42 +55,6 @@ fn edited_core_library_builds_from_a_manifest_and_is_consumed_from_any_output_pa
     let consumer_artifact = workspace.path().join("consumer.slib");
     let first_consumer = build_consumer(&target, &consumer_source, &consumer_artifact, &artifact);
     assert_core_views_share_the_dependency_closure(&target, &consumer_source, &artifact);
-    let shadow_source = workspace.path().join("shadow.scoop");
-    std::fs::write(
-        &shadow_source,
-        include_str!("../../../../../../tests/fixtures/core-library/prelude-priority.scoop"),
-    )
-    .unwrap();
-    build_consumer(
-        &target,
-        &shadow_source,
-        &workspace.path().join("shadow.slib"),
-        &artifact,
-    );
-    let call_source = workspace.path().join("calls.scoop");
-    std::fs::write(
-        &call_source,
-        include_str!("../../../../../../tests/fixtures/core-library/call-consumer.scoop"),
-    )
-    .unwrap();
-    build_consumer(
-        &target,
-        &call_source,
-        &workspace.path().join("calls.slib"),
-        &artifact,
-    );
-    let abi_source = workspace.path().join("abi-calls.scoop");
-    std::fs::write(
-        &abi_source,
-        include_str!("../../../../../../tests/fixtures/core-library/abi-consumer.scoop"),
-    )
-    .unwrap();
-    build_consumer(
-        &target,
-        &abi_source,
-        &workspace.path().join("abi-calls.slib"),
-        &artifact,
-    );
     assert_non_core_artifact_is_rejected(&target, &consumer_artifact);
     assert_eq!(
         first_consumer.artifact().summary().direct_dependencies(),

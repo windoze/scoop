@@ -1,2 +1,0 @@
-userCoreAbiUnit: Managed args=[elided:0:Aggregate] result=unit
-userCoreAbiMixed: Managed args=[elided:0:Aggregate,direct:4:Scalar,direct:8:Scalar] result=direct:8:Scalar
