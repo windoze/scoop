@@ -7,3 +7,4 @@
 | 功能 | 用例 | 只读进程／golden | 保留的断言与清理 |
 | --- | --- | --- | --- |
 | `formal_publication_retains_open_templates_beside_concrete_roots` | `standalone`、`combined`、`shape-demand` | 9／24 | 开放 nominal template 与非空 binder 保留；具体布局根均有对应声明；闭合父类型的 owner 均在根集合，前两例至少有一个闭合父类型 |
+| `source_only_objects_preserve_required_initialization_through_all_emitted_stages` | `initialization-demand` | 3／8 | 原 HIR／MIR／LIR 三份快照逐字相同；实际发布产物的 shape support closure 数仍为 2 |
