@@ -1,3 +1,0 @@
-span=72..118
-expression=public enum Invalid { Value(Carrier<String>) }
-`@NoGC` struct `Scalar` specialization is not GC-free because it directly or indirectly contains a ref type

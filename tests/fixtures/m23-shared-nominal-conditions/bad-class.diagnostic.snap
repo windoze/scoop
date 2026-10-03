@@ -1,3 +1,0 @@
-span=72..125
-expression=public fun wrong(value: Cursor<Managed>): Unit = Unit
-type Cursor<Managed> requires a GC-free `Ptr` pointee argument

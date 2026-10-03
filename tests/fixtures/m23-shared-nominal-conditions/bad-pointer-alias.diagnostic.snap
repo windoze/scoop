@@ -1,3 +1,0 @@
-span=72..115
-expression=public typealias Invalid = Pointer<Managed>
-type Pointer<Managed> requires a GC-free `Ptr` pointee argument

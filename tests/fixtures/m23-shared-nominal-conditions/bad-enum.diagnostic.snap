@@ -1,3 +1,0 @@
-span=96..110
-expression=Choice<String>
-`@NoGC` enum specialization `Choice<String>` is not GC-free because it directly or indirectly contains a ref type
