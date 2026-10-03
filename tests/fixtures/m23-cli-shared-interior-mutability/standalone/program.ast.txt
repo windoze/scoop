@@ -1,0 +1,32 @@
+SourceFile
+  RootPackage
+  fun verifyType(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    @Unsafe block
+      val cell
+        Call Cell
+          IntLiteral 17
+      Call verifyType
+        Binary And
+          Binary Eq
+            FieldAccess value
+              Var cell
+            IntLiteral 17
+          Binary Eq
+            FieldAccess value
+              Call Plain
+                IntLiteral 23
+            IntLiteral 23
+      val erased: Any
+        Var cell
+      Call verifyType
+        Binary Eq
+          FieldAccess value
+            Cast Cell optional=false
+              Var erased
+          IntLiteral 17

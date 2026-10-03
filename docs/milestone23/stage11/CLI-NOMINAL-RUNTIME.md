@@ -15,3 +15,4 @@
 | `shared-callable-declarations` | 2／14／26／8 | restricted 构造、方法、接口、访问器及 object；保留普通 metadata、support 可查但不可公开 lookup、缺失和错误 owner 拒绝。 |
 | `shared-property-declarations` | 2／14／26／8 | restricted setter、默认接口属性、private 泛型 storage 与 object 更新；保留 getter/setter 闭包、重复/提升错误及 arena 稳定性。 |
 | `shared-nominal-declarations` | 3／21／39／12 | private storage、nested/generic/protected 声明、published object 与普通下游；保留真实产物的 public/support 数量及缺失关系诊断。 |
+| `shared-interior-mutability` | 2／13／22／7 | unsafe 构造、读取和装箱、CLayout、泛型以及嵌套私有结构；保留 source/shared/MIR interior_mutable 一致和是否实际物化的对应。 |
