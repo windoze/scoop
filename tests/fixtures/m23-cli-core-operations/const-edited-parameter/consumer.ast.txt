@@ -1,0 +1,4 @@
+SourceFile
+  RootPackage
+  public val named: Int <const> = <expr>
+  public val shifted: Int <const> = <expr>

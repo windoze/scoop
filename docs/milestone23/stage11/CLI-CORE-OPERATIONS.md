@@ -48,3 +48,4 @@ artifact slot 取得已经编译的 core，不传额外 Cone locator。完整输
 | 成员源码参数改名 | `members-`：`edited-parameter`、`edited-old-name` | 2／8／9 | 真实 Int.shl 声明的具名参数与回绕，旧参数名拒绝 |
 | 常量运算符 | `const-`：`operators`、`division-zero`、`type-mismatch` | 3／10／9 | 11 个 const 值、编码静态值、除零及声明类型不匹配 |
 | 常量成员与 infix | `const-`：`methods`、`wrong-argument`、`non-infix`、`method-division-zero`、`conversion-argument` | 5／14／9 | 6 个 const 值、静态 Long 初值及赋值、4 个完整错误 |
+| 常量源码参数改名 | `const-`：`edited-parameter`、`unknown-method`、`edited-parameter-old-name` | 3／10／9 | 具名与 infix 均折叠为 12，未声明方法与旧参数名拒绝 |
