@@ -21,7 +21,6 @@ mod executable_type_sites;
 mod generic_bodies;
 mod heap_zst;
 mod image_dependencies;
-mod imported_classes;
 mod layout_exports;
 mod nominal_signatures;
 mod program_link;

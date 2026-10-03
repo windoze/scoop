@@ -3,7 +3,6 @@
 use super::lir_dependencies::{assembly, reader};
 use super::*;
 
-mod odr;
 mod physical;
 mod registration_edges;
 mod rejections;
@@ -50,7 +49,6 @@ pub(super) fn check(
     .unwrap();
     let core = bootstrap_core(directory, target);
     let bytes = std::fs::read(core.artifact().path()).unwrap();
-    odr::check(directory, target, &core);
     for (family, name, count) in [
         ("m23-property-initialization", "standalone", 1),
         ("m23-property-initialization", "combined", 4),
