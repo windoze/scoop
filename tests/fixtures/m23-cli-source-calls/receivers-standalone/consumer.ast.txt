@@ -1,0 +1,13 @@
+SourceFile
+  QualifiedPackage receiver.consumer
+  ImportExact Local receiver.provider.answer
+  private fun Any.localAnswer(): Int
+    =
+      IntLiteral 9
+  public fun standalone(): Int
+    val local
+      MethodCall localAnswer
+        StringLiteral "local"
+    return
+      MethodCall answer
+        StringLiteral "standalone"

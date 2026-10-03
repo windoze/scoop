@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test"
+name = "scoop-hir-lower"
+version = "0.0.0"
+kind = "library"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"test:source-receivers" = "1.0.0"
