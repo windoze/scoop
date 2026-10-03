@@ -20,3 +20,4 @@
 | `actual_layout_artifacts_retain_alias_chains_and_combined_member_signatures` | `shared-aliases-standalone`、`shared-aliases-combined` | 4／16 | 逐字相同 |
 | `shared_mir_types_replay_standalone_and_combined_source_policies` | `shared-mir-standalone`、`shared-mir-combined` | 4／16 | 逐字相同 |
 | `shared_accessor_forms_select_only_actual_source_machine_bodies` | `shared-accessors-standalone`、`shared-accessors-combined` | 4／16 | 逐字相同 |
+| `shared_source_callable_inventory_replays_bodies_and_abstract_overrides` | `shared-callables-standalone`、`shared-callables-combined` | 4／16 | 逐字相同 |
