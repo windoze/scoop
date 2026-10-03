@@ -372,3 +372,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `generic_bound_values_merge_with_downstream_box_dispatch` | `m23-generic-bounds` | 1／0 | 12／13 | 3 份阶段、0 份诊断逐项相同 |
 | `call_candidates_share_constraints_and_failed_transactions` | `m23-shared-call-probes` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
 | `function_values_preserve_callee_and_argument_evaluation_order` | `m23-shared-callable-order` | 2／0 | 24／26 | 6 份阶段、0 份诊断逐项相同 |
+| `shared_callable_signatures_preserve_effects_and_lexical_bodies` | `m23-shared-callable-signatures` | 2／5 | 39／26 | 6 份阶段、5 份诊断逐项相同 |

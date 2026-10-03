@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "suspend function `delayed` cannot be called from non-suspend default expression `value` of `invalid`",
+    "notes": [],
+    "origin": {
+      "cone": "14c063f14bfdf84ac48a1544f0289acdf189a78845bc5c6ea072896d06036c5a",
+      "end": 84,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 68
+    },
+    "severity": "error"
+  }
+]

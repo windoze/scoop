@@ -1,3 +1,0 @@
-span=74..93
-expression=delayed<Int>(value)
-suspend function `delayed` cannot be called from non-suspend function `invalid`
