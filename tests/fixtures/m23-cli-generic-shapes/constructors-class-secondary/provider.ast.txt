@@ -1,0 +1,88 @@
+SourceFile
+  QualifiedPackage templates.constructors
+  public open class DefaultBase<T>(val count: Int = <expr>)
+SourceFile
+  QualifiedPackage templates.constructors
+  private fun keep<T>(value: T): T
+    =
+      Var value
+  public struct Pair<T>
+    field first: T
+    field second: T = <expr>
+    constructor(value: T) : this(<2 args>)
+  public class Trace(var count: Int)
+  public struct Observed<T>
+    field value: T
+    constructor(value: T, trace: Trace) : this(<1 args>)
+      Call keep
+        FieldAccess value
+          This
+      assign .count
+        Var trace
+        Binary Add
+          FieldAccess count
+            Var trace
+          IntLiteral 5
+  public open class Box<T>(var value: T)
+    public val echoed: T = <expr>
+      Call keep
+        FieldAccess value
+          This
+    public var count: Int = <expr>
+      IntLiteral 1
+    init
+      assign .count
+        This
+        Binary Add
+          FieldAccess count
+            This
+          IntLiteral 1
+    constructor(value: T, extra: Int) : this(<1 args>)
+      assign .count
+        This
+        Binary Add
+          FieldAccess count
+            This
+          Var extra
+  public class Derived<T>(value: T) : Box<T>(<2 args>)
+  public class Nested<T>(value: T) : Box<Pair<T>>(<2 args>)
+  public struct ValueOnly<T : value>
+    field value: T
+  public class Locked<T>(val value: T)
+    constructor(value: T, marker: Boolean) : this(<1 args>)
+  public class DefaultDerived<T>() : DefaultBase<T>(<0 args>)
+  public class Alternate<T>(), Box<T>
+    public val carried: T = <expr>
+      FieldAccess value
+        This
+    public var extra: Int = <expr>
+      FieldAccess count
+        This
+    init
+      assign .extra
+        This
+        Binary Add
+          FieldAccess extra
+            This
+          IntLiteral 1
+    constructor(value: T, adjustment: Int) : super(<1 args>)
+      assign .extra
+        This
+        Binary Add
+          FieldAccess extra
+            This
+          Var adjustment
+    constructor(value: T) : this(<2 args>)
+  public class Captured<T>(value: T)
+    public var output: T = <expr>
+      Var value
+    init
+      fun copy(): T
+        Var value
+      val saved
+        Call copy
+      fun fromSaved(): T
+        Var saved
+      assign .output
+        This
+        Call fromSaved
