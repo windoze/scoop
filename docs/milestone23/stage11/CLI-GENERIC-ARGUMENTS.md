@@ -10,3 +10,4 @@
 | overload | `overload` | 12／9 | tuple 选择双参数泛型声明，运行结果为 2；原单一胜出 template 与 tuple 参数断言继续保留 |
 | `imported_generic_kind_bound_reports_the_consumer_argument` | `bad-kind` | 3／0 | value 约束错误定位完整 valueOnly 调用，保留额外的公开签名可见性错误 |
 | `imported_generic_ambiguity_reports_both_declared_signatures` | `bad-overload` | 3／0 | conflict(1, 2) 的精确 span；错误仍包含两个完整候选签名 |
+| `imported_generic_effects_and_pointee_predicates_reach_consumer_calls` | `bad-nogc`、`bad-nogc-argument`、`bad-pointee` | 9／0 | managed 调用、GC-free 类型参数及 Ptr pointee 条件均保留；完整诊断集合还锁定签名与两处 Ptr 类型使用错误 |
