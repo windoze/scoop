@@ -1,3 +1,0 @@
-span=136..143
-expression="wrong"
-copy update field `value` expects Int, found String
