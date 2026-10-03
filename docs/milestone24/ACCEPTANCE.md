@@ -1,6 +1,6 @@
 # M24 实施与验收记录
 
-状态：实现中，尚未完成 M24。本文只记录已执行的检查，不把设计、内部测试或版本迁移视为完整语言交付。
+状态：已完成 M24（2026-10-04）。本文按批次保留实际检查、迁移和失败历史；最终工具的完整无更新验收见第十一批。
 
 ## 已落实的基础
 
@@ -11,7 +11,7 @@
 - runtime 加载阶段从 exact type registration 派生 hook body ID，复用 callable map 与已检查的 executable entry。
 - nominal parser 按成员、构造和修饰符拆分；主文件从 1,177 行降到 565 行。此提交未改变语法行为。
 
-## 已执行检查
+## 第一批检查
 
 验证使用本机 LLVM 22.1；为缩短大型产物测试时间，Rust 开发 profile 设置 `OPT_LEVEL=1`、`DEBUG=0`、`CARGO_INCREMENTAL=0`，构建放在 `target/m24-cli`。这些设置只影响编译器工具自身，不改变 fixture 中 Scoop 程序的编译选项。
 
@@ -25,9 +25,9 @@
 - 无更新模式的正式 `--all` 已覆盖全部 2,067 项既有 fixture：1,997 项通过，70 项停在摘要基线差异。差异仅涉及 ABI 迁移和临时目录迁入仓库后 BSD ar 保存的 group id，归档成员 payload 未改变。同步基线后，70 项均已分批用原 runner 无更新模式复核通过（首轮 68 项，随后产物图和归档冲突各 1 项）。这不是一次全量命令的零退出结果；M24 完整交付前仍需对最终工具执行正式全量验收。
 - 临时工具副本、测试工作目录和日志统一使用仓库根目录下已忽略的 `tmp/m24/`。已清理旧 fixture 工作目录，并用 `cargo clean --profile dev --target-dir target` 清理默认开发构建，释放约 24.5 GiB。
 
-## 尚未完成
+## 完成结论
 
-最终格式基线已完成迁移，仍须对最终工具执行一次无更新模式的完整正式 CLI 回归。已经完成的源码和依赖闭环见第三至九批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+DESIGN 第 6 节的源码编译、产物消费、独立链接和运行闭环已完成。最终源码的完整 Rust/Python 检查，以及固定工具的正式 CLI 无更新全量验收全部通过；各功能证据见第三至九批，最终结果见第十一批。
 
 ## 第二批：ReleaseValue 与 NoTransition
 
@@ -102,3 +102,22 @@
 - 两处二进制向量随当前格式迁移：委托用例保留五种原 registration 删除或交换，optional/required member 用例保留原 capability 与 requirement。重新计算实际 member、语义及产物摘要后，原 reader/linker 到达原有验收边界；两项用例均通过，覆盖 26 次进程执行、19 份 stage/plan golden，报告为 `tmp/m24/final-vector-recheck/report.json`。该轮使用开发用快照更新，最终仍由无更新全量运行复核。
 - 本批格式化、全 workspace/all-targets clippy 和 `git diff --check` 通过。新 Rust 子模块按职责拆分；新增文件中最长的 660 行是从原模块移出的 MIR 验证错误定义，其余新增文件均不超过 339 行。
 - 清理已结束和中断批次的私有 cases/cache，释放约 48 GiB；报告、日志和固定工具继续保留在仓库 `tmp/m24/`。
+
+## 第十一批：最终全量验收
+
+- 使用 `tmp/m24/final-tools/` 中固定的 `scoop`、`scoopc`、`scoop-link`，执行原 fixture runner 的完整无更新模式，退出码为 0。发现并选择全部 2,158 项，全部通过；报告 `complete = true`、`unselected = 0`，没有失败或中断。
+- 完整覆盖 2,248 个变体、11,793 次进程执行和 11,100 份 stage/plan golden；其中 M24 的 91 项专用用例全部通过。这一次完整命令包含迁移后的摘要和二进制向量复核。
+- 完整报告为 `tmp/m24/final-all-verified/report.json`，命令日志为 `tmp/m24/logs/final-all-verified.log`。本轮基于第十批已提交的源码与基线，沿用已通过的格式化、全 workspace/all-targets clippy、5,244 项 Rust 测试和 29 项 Python 测试结果。
+
+命令从仓库根运行，`TMPDIR` 指向仓库的 `tmp/`，本机 LLVM 为 22.1：
+
+```sh
+python3 tests/run_fixtures.py --all --jobs 24 \
+  --scoop tmp/m24/final-tools/scoop \
+  --scoopc tmp/m24/final-tools/scoopc \
+  --scoop-link tmp/m24/final-tools/scoop-link \
+  --work-dir tmp/m24/final-all-verified \
+  > tmp/m24/logs/final-all-verified.log 2>&1
+```
+
+完整验收结束后清理本轮及向量复核的 cases/cache，保留报告、日志、固定工具和向量输入。`target` 的开发构建已按批通过 `cargo clean` 清理；临时数据统一位于已加入 `.gitignore` 的仓库 `tmp/`。

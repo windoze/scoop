@@ -946,7 +946,7 @@ base class的全部constructor body与初始化项先于derived自有字段。�
 
 #### 9.1.6 GC-free release block
 
-M24 为普通 final class 增加至多一个 `release { ... }`，在遗漏显式释放时兜底清理 native resource。本节是待实现的 M24 契约；实现范围、跨 Cone 数据流及验收见 [M24 设计](../milestone24/DESIGN.md)。
+M24 为普通 final class 增加至多一个 `release { ... }`，在遗漏显式释放时兜底清理 native resource。实现范围与跨 Cone 数据流见 [M24 设计](../milestone24/DESIGN.md)，实际检查与完成情况见 [M24 验收记录](../milestone24/ACCEPTANCE.md)。
 
 ```scoop
 @Extern(name = "free")

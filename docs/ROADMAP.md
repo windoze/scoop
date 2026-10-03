@@ -409,16 +409,16 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 将现有 Rust fixture infra（含阶段 golden、program-link/native 编排）迁到统一 Python infra；源码注释或附加 TOML 用同一 schema 表达执行条件、步骤、断言和变体，新增 fixture 原则上只加数据，不写 case-by-case 分支。覆盖恢复后删除原 Rust runner、专用 helper、入口与不再使用的依赖，保留普通 Rust 内部单元测试；以仅改 fixture 数据的新增用例验证扩展性，完整验收同时运行 Rust 测试与 Python suite。
 - 总验收覆盖 6a 的共同语义／wire／声明位置／双向泛型矩阵及 Stage 7–10 的 ODR、初始化、native、corruption/reproducibility、cache 和 moving-GC/exception/closure/coroutine/FFI 组合；修复实际产物路径暴露的共同实现缺口，删除仅供运行验收的临时 link/startup 旁路。`.slib` 和 runtime metadata ABI 3 保持，不实现 final-link cache。
 
-### M24 GC-free release hook（[设计](milestone24/DESIGN.md)已修订，实现中）
+### M24 GC-free release hook ✅（2026-10-04 完成，[设计](milestone24/DESIGN.md)）
 
-2026-10-03 按 M23-11 已验收代码重做实施设计，承接 M15/M19/M23-11/M25；语言、runtime 和 pipeline 契约已同步修订。共同 ABI、runtime 回收、源码运行、参数自由 A→B→C 依赖，以及泛型模板在多个 consumer 中的 ODR 组合已落地；其余表示组合、产物检查和总验收仍在推进。实际检查记录见 [M24 验收记录](milestone24/ACCEPTANCE.md)。
+2026-10-04 完成普通与泛型 release hook 的源码编译、参数自由 A→B→C 依赖、跨 Cone 模板与 ODR、聚合 native ABI、GC 根与真实挂起、产物检查和缓存失效闭环。最终无更新模式的正式 CLI 全量验收 2,158/2,158 通过，Rust workspace 5,244 项及 Python runner 29 项测试全部通过。实际命令、各批检查与最终报告见 [M24 验收记录](milestone24/ACCEPTANCE.md)。
 
 - 普通 final class 可声明至多一个不可显式调用的 `release { ... }`。无 managed this，只可只读本 owner 的合格 backing field；generic/static nested 合法，Throwable、object、intrinsic/generated class 与值类型不能声明。
 - `ReleaseValue` 在 GC-free 基础上排除 handle/pin/callback 等实际表示。定义方在既有 NoGc 分析中推导 `ReleaseCallability` 和泛型条件，沿共有 callable 接口传递；默认值与 operator/accessor/for/vararg 展开一并检查，依赖方不重放完整 helper 调用图。
 - TypeDescriptor 追加静态 hook；完整构造的正常结果路径设置内部 ready，失败与 base/this delegation 不设置。collector 区分逻辑死亡和 moving 旧副本，Dead 对象在 poison/复用/unmap 前原子 clear/test 并同步调用，不复制 payload 或建立队列。
 - 直接 C leaf 保留显式 Unsafe 与正常 native contract，在 release 中不做线程 transition；普通调用协议保持。显式 close/release 先将字段置 inert 再释放资源；hook 不保证及时性、顺序、执行线程、退出时调用或 native release 成功。
 - 完整 generic profile 从已实现的 `/2` 升至 `/3`，三层 outer schema 升至 2，foundation 从 3/1/2 升至 4/2/3；TD 固定部分 144→152 bytes，callable body 统一 v2，runtime record prefix ABI 保持 3。共有 HIR、MIR/LIR type/layout、production/link section 与 runtime contract 的精确迁移见设计第 4.3 节，旧产物与缓存重建。
-- 按共同 ABI → 最小 native owner 闭环 → 源码规则/参数自由依赖 → 泛型/ODR → 总验收推进；测试使用正式 CLI 和公共 Python fixture schema，覆盖 small/large、构造失败、显式关闭、moving、A→B→C 与双 consumer ODR。各边界只承担必要检查，不增加来源资格、证明包或重复验证。
+- 分批完成共同 ABI、最小 native owner、源码规则与参数自由依赖、泛型与 ODR，并通过总验收；测试使用正式 CLI 和公共 Python fixture schema，覆盖 small/large、构造失败、显式关闭、moving、A→B→C 与双 consumer ODR。各边界只承担必要检查，不增加来源资格、证明包或重复验证。
 - ByteBuffer、外部内存压力记账、公开 arm/disarm、full finalizer、对象复活和异步 cleaner 不进入 M24；M26 继续负责字符串与 off-heap buffer 的具体设计。
 
 ### M25 自有异常 ABI 与 libc++abi 退役 ✅（2026-09-05 完成，设计见 `docs/milestone25/DESIGN.md`）
@@ -595,7 +595,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 
 ### 来自 M15（设计预留）
 
-- GC-free release hook → M24（2026-10-03 已按 M23 总验收基线修订[设计](milestone24/DESIGN.md)，实现中；完整构造后 ready，逻辑死亡且真正 reclaim 前同步调用 TypeDescriptor hook，验收走正式 CLI 与公共 fixture）。
+- GC-free release hook → M24（2026-10-04 已完成，[设计](milestone24/DESIGN.md)与[验收](milestone24/ACCEPTANCE.md)；完整构造后 ready，逻辑死亡且真正 reclaim 前同步调用 TypeDescriptor hook，正式 CLI 全量验收通过）。
 
 ### 来自 M22（设计预留）
 
