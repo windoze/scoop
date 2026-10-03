@@ -1,0 +1,327 @@
+Module
+  struct DeferredBox<Int> (value: Int)
+  class DeferredFixed vtable=0 itables=0
+  class DeferredBase<Int> vtable=0 itables=0
+  class DeferredPlain vtable=0 itables=0
+  class DeferredChoice<String> vtable=0 itables=0
+  class DeferredChain<Int> vtable=0 itables=0
+  class DeferredRecursive<Int> vtable=0 itables=0
+  class DeferredDerived<Int> vtable=0 itables=0
+  fun main @fn0() -> Unit
+    bb0 entry
+      val $argument.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.0
+      assign $new.1
+        Type DeferredChoice<String>
+        ClassAlloc DeferredChoice<String>
+      call @fn8 direct
+        Type DeferredChoice<String>
+        Local $new.1
+        Type Boolean
+        Local $parameter.flag
+      val choice: DeferredChoice<String>
+        Type DeferredChoice<String>
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      assign $new.2
+        Type DeferredChain<Int>
+        ClassAlloc DeferredChain<Int>
+      call @fn9 direct
+        Type DeferredChain<Int>
+        Local $new.2
+        Type Int
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      val chain: DeferredChain<Int>
+        Type DeferredChain<Int>
+        Local $new.2
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.flag: Boolean
+        Type Boolean
+        Local $argument.1
+      call box: DeferredBox<Int> = @fn14 direct
+        Type Int
+        Local $parameter.value
+        Type Boolean
+        Local $parameter.flag
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.3
+        Type DeferredRecursive<Int>
+        ClassAlloc DeferredRecursive<Int>
+      call @fn10 direct
+        Type DeferredRecursive<Int>
+        Local $new.3
+        Type Int
+        Local $parameter.value
+      val recursive: DeferredRecursive<Int>
+        Type DeferredRecursive<Int>
+        Local $new.3
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.4
+        Type DeferredDerived<Int>
+        ClassAlloc DeferredDerived<Int>
+      call @fn11 direct
+        Type DeferredDerived<Int>
+        Local $new.4
+        Type Int
+        Local $parameter.value
+      val derived: DeferredDerived<Int>
+        Type DeferredDerived<Int>
+        Local $new.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.5
+        Type DeferredFixed
+        ClassAlloc DeferredFixed
+      call @fn5 direct
+        Type DeferredFixed
+        Local $new.5
+        Type Int
+        Local $parameter.value
+      val fixed: DeferredFixed
+        Type DeferredFixed
+        Local $new.5
+      assign $new.6
+        Type DeferredPlain
+        ClassAlloc DeferredPlain
+      call @fn6 direct
+        Type DeferredPlain
+        Local $new.6
+      val plain: DeferredPlain
+        Type DeferredPlain
+        Local $new.6
+      return
+  fun $local.0.local @fn1() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+  fun makeChain @fn2(value: Int) -> DeferredChain<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type DeferredChain<Int>
+        ClassAlloc DeferredChain<Int>
+      call @fn13 direct
+        Type DeferredChain<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type DeferredChain<Int>
+        Local $new.1
+  fun makeBox @fn3(value: Int) -> DeferredBox<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: DeferredBox<Int> = @fn15 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type DeferredBox<Int>
+        Local $call.1
+  fun makeRecursive @fn4(value: Int) -> DeferredRecursive<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type DeferredRecursive<Int>
+        ClassAlloc DeferredRecursive<Int>
+      call @fn10 direct
+        Type DeferredRecursive<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+      return
+        Type DeferredRecursive<Int>
+        Local $new.1
+  fun init.DeferredFixed.$c8 @fn5(this: DeferredFixed, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn12 direct
+        Type DeferredBase<Int>
+        Retype DeferredBase<Int>
+          Type DeferredFixed
+          Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.DeferredPlain.$c9 @fn6(this: DeferredPlain) -> Unit
+    bb0 entry
+      return
+  fun init.DeferredPlain.$c10 @fn7(this: DeferredPlain, flag: Boolean) -> Unit
+    bb0 entry
+      return
+  fun init.DeferredChoice.$c1 @fn8(this: DeferredChoice<String>, flag: Boolean) -> Unit
+    bb0 entry
+      call $call.1: Int = @fn1 direct
+      return
+  fun init.DeferredChain.$c3 @fn9(this: DeferredChain<Int>, value: Int, flag: Boolean) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn13 direct
+        Type DeferredChain<Int>
+        Local this
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: DeferredChain<Int> = @fn2 direct
+        Type Int
+        Local $parameter.value
+      return
+  fun init.DeferredRecursive.$c4 @fn10(this: DeferredRecursive<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type DeferredRecursive<Int>
+        Local this
+        Type Int
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        BoolLiteral false
+    bb1 if.then.1
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: DeferredRecursive<Int> = @fn4 direct
+        Type Int
+        Local $parameter.value
+      goto bb2
+    bb2 if.merge.2
+      return
+  fun init.DeferredDerived.$c7 @fn11(this: DeferredDerived<Int>, value: Int) -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call @fn12 direct
+        Type DeferredBase<Int>
+        Retype DeferredBase<Int>
+          Type DeferredDerived<Int>
+          Local this
+        Type Int
+        Local $parameter.value
+      return
+  fun init.DeferredBase.$c5 @fn12(this: DeferredBase<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type DeferredBase<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun init.DeferredChain.$c2 @fn13(this: DeferredChain<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type DeferredChain<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.DeferredBox.$c1 @fn14(value: Int, flag: Boolean) -> DeferredBox<Int>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $this: DeferredBox<Int> = @fn15 direct
+        Type Int
+        Local $parameter.value
+      val $argument.0: Int
+        Type Int
+        Local value
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call $call.1: DeferredBox<Int> = @fn3 direct
+        Type Int
+        Local $parameter.value
+      return
+        Type DeferredBox<Int>
+        Local $this
+  fun ctor.DeferredBox.$c0 @fn15(value: Int) -> DeferredBox<Int> <no-gc>
+    bb0 entry
+      return
+        Type DeferredBox<Int>
+        StructInit DeferredBox<Int>
+          Type Int
+          Local value
+  instance mi0 function=@fn1 <- $local.0.local
+  instance mi1 function=@fn2 <- makeChain
+  instance mi2 function=@fn3 <- makeBox
+  instance mi3 function=@fn4 <- makeRecursive
+  output executable @fn0
