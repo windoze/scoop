@@ -1,0 +1,1 @@
+public fun read(): Boolean = identity(Flag(true)).enabled

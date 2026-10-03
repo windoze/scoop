@@ -20,3 +20,4 @@
 | 实际对象内容与物理引用 | `core-objects-combined`、`core-objects-standalone` | 6／16 |
 | 定义符号、未定义引用与 runtime 内容 | `core-symbols-combined`、`core-symbols-standalone` | 6／16 |
 | MIR shape 依赖与真实机器物化 | `shape-combined`、`shape-standalone` | 6／16 |
+| LIR 依赖与 ABI 选择 | `lir-combined`、`lir-standalone` | 6／16 |
