@@ -1,4 +1,0 @@
-span=44..63
-expression=Array<Int, Int>([])
-no applicable candidate for constructor `Array` in nominal constructor candidate layer:
-  - class Array<T>(source: MutableArray<T>) — expects 1 explicit type argument(s), but 2 were supplied

@@ -1,4 +1,0 @@
-span=197..201
-expression=Base
-no applicable candidate for constructor `Array` in nominal constructor candidate layer:
-  - class Array<T>(source: MutableArray<T>) — conflicting types for `T`: Base and Child

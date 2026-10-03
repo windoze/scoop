@@ -1,0 +1,155 @@
+SourceFile
+  QualifiedPackage dependency.arrayconstruction
+  public typealias IntSnapshot = Array<Int>
+  public typealias IntBuffer = MutableArray<Int>
+  public fun snapshot<T>(source: MutableArray<T>): Array<T>
+    =
+      Call Array
+        Argument source=
+          Var source
+  public fun buffer<T>(source: Array<T>): MutableArray<T>
+    =
+      Call MutableArray<_>
+        Var source
+  public fun defaultSnapshot<T>(source: MutableArray<T>, copied: Array<T> = <expr>): Array<T>
+    =
+      Var copied
+  public fun nestedSnapshot<T>(source: MutableArray<T>): Array<T>
+    fun copy(): Array<T>
+      Call Array<T>
+        Var source
+    val action: () -> Array<T>
+      Lambda 0 suspend=false
+        parameters omitted
+        Call Array
+          Var source
+    val first
+      Call copy
+    val second
+      Call action
+    return
+      IfExpression
+        Binary RefNe
+          Var first
+          Var second
+        Var second
+        else
+        ArrayLiteral
+  public var trace: Int = <expr>
+  public fun marked(digit: Int): MutableArray<Int>
+    assign trace
+      Binary Add
+        Binary Mul
+          Var trace
+          IntLiteral 10
+        Var digit
+    return
+      Call MutableArray<Int>
+        ArrayLiteral
+          IntLiteral 42
+  public fun selected(source: MutableArray<Int>): Array<Int>
+    =
+      ArrayLiteral
+        Binary Add
+          Index
+            Var source
+            IntLiteral 0L
+          IntLiteral 1
+  public fun broad<T>(source: T): Array<Int>
+    =
+      ArrayLiteral
+        IntLiteral 7
+  public fun genericCopy<T>(source: MutableArray<T>): Array<T>
+    assign trace
+      Binary Add
+        Binary Mul
+          Var trace
+          IntLiteral 10
+        IntLiteral 9
+    return
+      Call Array
+        Var source
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val original: Array<T>
+      ArrayLiteral
+        Var seed
+        Var seed
+    val mutable
+      Call buffer<T>
+        Var original
+    val copied
+      Call snapshot<T>
+        Var mutable
+    val defaulted
+      Call defaultSnapshot<T>
+        Var mutable
+    val nested
+      Call nestedSnapshot<T>
+        Var mutable
+    val empty: Array<T>
+      Call Array<T>
+        ArrayLiteral
+    val other: Array<T>
+      Call Array<_>
+        ArrayLiteral
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary And
+              Binary And
+                Binary And
+                  Binary And
+                    Binary And
+                      Binary And
+                        Binary And
+                          Binary And
+                            Binary RefNe
+                              Var copied
+                              Var original
+                            Binary RefNe
+                              Var defaulted
+                              Var copied
+                          Binary RefNe
+                            Var nested
+                            Var defaulted
+                        Binary Eq
+                          FieldAccess size
+                            Var copied
+                          IntLiteral 2L
+                      Binary Eq
+                        FieldAccess size
+                          Var nested
+                        IntLiteral 2L
+                    Binary Eq
+                      Call read
+                        Index
+                          Var copied
+                          IntLiteral 0L
+                      IntLiteral 42
+                  Binary Eq
+                    Call read
+                      Index
+                        Var defaulted
+                        IntLiteral 1L
+                    IntLiteral 42
+                Binary Eq
+                  Call read
+                    Index
+                      Var nested
+                      IntLiteral 0L
+                  IntLiteral 42
+              Binary Eq
+                FieldAccess size
+                  Var empty
+                IntLiteral 0L
+            Binary Eq
+              FieldAccess size
+                Var other
+              IntLiteral 0L
+          Binary RefNe
+            Var empty
+            Var other
+        IntLiteral 42
+        else
+        IntLiteral 0

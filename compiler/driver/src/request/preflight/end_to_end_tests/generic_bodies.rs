@@ -1,7 +1,6 @@
 use super::*;
 
 mod adapters;
-mod arrays;
 mod bindings;
 mod bound_properties;
 mod bounds;

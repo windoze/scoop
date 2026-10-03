@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — expects 1 argument(s), but 0 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "3d1e2cd4521c1da1933caa4e12729544642de29a376c90b492f794ca5719ffe2",
+      "end": 56,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 44
+    },
+    "severity": "error"
+  }
+]

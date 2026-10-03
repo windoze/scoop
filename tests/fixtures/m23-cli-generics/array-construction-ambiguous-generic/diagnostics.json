@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "call to `Make` is ambiguous in exact import layer:\n  - Make<T>(source: MutableArray<T>): Array<T> — applicable; tied by MSC\n  - class Array<T>(source: MutableArray<T>) — applicable; tied by MSC",
+    "notes": [],
+    "origin": {
+      "cone": "0b1ff3021775cfcb7127a058f29c6a61cadff73d772f342e89bc547455364f66",
+      "end": 175,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 163
+    },
+    "severity": "error"
+  }
+]

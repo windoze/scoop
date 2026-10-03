@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — conflicting types for `T`: Long and Int",
+    "notes": [],
+    "origin": {
+      "cone": "68369feb9bc6eef1098cf08fa196be75e5339014e986d4c62b7cdba967bbf09e",
+      "end": 111,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 98
+    },
+    "severity": "error"
+  }
+]
