@@ -1,0 +1,60 @@
+Module
+  global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "mixed ABI"
+  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$d89e8e0c3143de2f4b93a4263d22f3444dedf4d7a3ed59e1c0ecb9c782a10e99() -> void
+  block entry
+    poll managed-void-target0 sp<managed-poll:0> live=[]
+    ret
+  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+    local %0 $dependency.argument.0: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %1 $dependency.parameter.value: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %2 $dependency.argument.0: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %3 $dependency.parameter.value: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %4 $dependency.argument.0: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %5 $dependency.argument.1: i32
+    local %6 $dependency.argument.2: ptr<managed>
+    local %7 $dependency.parameter.token: {} <logical-zst 1dff58a7007c61d14decc85852d44e40d113b26e96ec4d24b365bcde341966dc>
+    local %8 $dependency.parameter.number: i32
+    local %9 $dependency.parameter.text: ptr<managed>
+    local %10 text: ptr<managed>
+  block entry
+    poll managed-void-target4 sp<managed-poll:0> live=[]
+    call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn0()
+    t0 = aggregate () : {}
+    t1 = aggregate () : {}
+    store t1 -> local0
+    store local0 -> local1
+    call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (elided-zst<{} size=0 align=1>) external-fn0(elided-zst local1)
+    t2 = aggregate () : {}
+    call managed-void-target2 sp<managed-call:2> live=[] sig=void2 () local-fn0()
+    t3 = aggregate () : {}
+    t4 = aggregate () : {}
+    store t4 -> local2
+    store local2 -> local3
+    call managed-void-target3 sp<managed-call:3> live=[] sig=void3 (elided-zst<{} size=0 align=1>) external-fn0(elided-zst local3)
+    t5 = aggregate () : {}
+    t6 = aggregate () : {}
+    store t6 -> local4
+    store integer<Int>(0x00000007) -> local5
+    store global0 -> local6
+    store local4 -> local7
+    store local5 -> local8
+    store local6 -> local9
+    call managed-direct-target0 sp<managed-call:4> live=[local9:ptr<managed>@0] t7 = sig=direct0 (elided-zst<{} size=0 align=1>, i32, ptr<managed>) -> ptr<managed> external-fn1(elided-zst local7, local8, local9)
+    store t7 -> local10
+    ret
+  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  block entry
+    poll managed-void-target1 sp<managed-poll:0> live=[]
+    invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
+    br @success
+  block success
+    ret integer<UInt>(0x00000000)
+  block failure
+    (t0, t1) = landingpad : (exception_record, ptr<raw>)
+    t2 = begin_catch t1 : ptr<managed>
+    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    global_store global1, t3
+    end_catch
+    ret integer<UInt>(0x00000001)
+  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
