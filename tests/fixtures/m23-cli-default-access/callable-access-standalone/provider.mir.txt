@@ -1,0 +1,7 @@
+Module
+  fun callableSeed @fn0() -> Int
+    bb0 entry
+      return
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+  output library

@@ -1,0 +1,148 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun unitValue()
+  class IntReader(), CallableReader<Int>
+    public fun read
+  fun main()
+    val host
+      Call callableHost<Int>
+    Call verifyDefault
+      Binary Eq
+        MethodCall direct
+          Var host
+        IntLiteral 2
+    Call verifyDefault
+      Binary Eq
+        MethodCall generic<String>
+          Var host
+          StringLiteral "generic"
+        StringLiteral "generic"
+    val cell
+      Call callableCell<Int>
+        IntLiteral 7
+    Call verifyDefault
+      Binary Eq
+        MethodCall getter
+          Var host
+          Var cell
+        IntLiteral 7
+    Call verifyDefault
+      Binary Eq
+        MethodCall setter
+          Var host
+          Var cell
+          IntLiteral 11
+        IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        FieldAccess number
+          Var cell
+        IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall lambda
+            Var host
+        IntLiteral 1
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall anonymous
+            Var host
+        IntLiteral 1
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall reference
+            Var host
+        IntLiteral 1
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall extension
+            Var host
+            IntLiteral 13
+        IntLiteral 13
+    Call verifyDefault
+      Binary Eq
+        MethodCall local
+          Var host
+        IntLiteral 1
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall localReference
+            Var host
+        IntLiteral 1
+    Call verifyDefault
+      MethodCall equality
+        Var host
+        Call CallableValue<Int>
+        Call CallableValue<Int>
+    val unit
+      Call unitValue
+    Call verifyDefault
+      MethodCall unit
+        Var host
+        Var unit
+        Var unit
+    Call verifyDefault
+      MethodCall tuple
+        Var host
+        TupleLiteral
+          Call CallableValue<Int>
+          Var unit
+        TupleLiteral
+          Call CallableValue<Int>
+          Var unit
+    val base
+      Call callableBase<Int>
+    Call verifyDefault
+      Binary Eq
+        MethodCall classBound<CallableBase<Int>>
+          Var host
+          Var base
+          IntLiteral 17
+        IntLiteral 17
+    Call verifyDefault
+      Binary Eq
+        MethodCall interfaceBound<IntReader>
+          Var host
+          Call IntReader
+          IntLiteral 19
+        IntLiteral 19
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall boundReference<CallableBase<Int>>
+            Var host
+            Var base
+          IntLiteral 23
+        IntLiteral 23
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall factory<String>
+            Var host
+            StringLiteral "captured"
+        StringLiteral "captured"
+    Call verifyDefault
+      Binary Eq
+        Invoke
+          MethodCall factoryReference<Int>
+            Var host
+          IntLiteral 29
+        IntLiteral 29
+    Call verifyDefault
+      Binary Eq
+        MethodCall pair<Int, String>
+          Var host
+          IntLiteral 31
+          StringLiteral "pair"
+        IntLiteral 1

@@ -1,0 +1,8 @@
+SourceFile
+  RootPackage
+  public fun callableSeed(): Int
+    =
+      IntLiteral 5
+  public fun callableDefault<T>(value: Int = <expr>): Int
+    =
+      Var value

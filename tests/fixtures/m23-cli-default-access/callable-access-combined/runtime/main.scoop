@@ -1,0 +1,33 @@
+fun verifyDefault(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun unitValue() {}
+class IntReader : CallableReader<Int> {
+    public override fun read(value: Int): Int = value
+}
+
+fun main() {
+    val host = callableHost<Int>()
+    verifyDefault(host.direct() == 2)
+    verifyDefault(host.generic<String>("generic") == "generic")
+    val cell = callableCell<Int>(7)
+    verifyDefault(host.getter(cell) == 7)
+    verifyDefault(host.setter(cell, 11) == 11)
+    verifyDefault(cell.number == 11)
+    verifyDefault(host.lambda()() == 1)
+    verifyDefault(host.anonymous()() == 1)
+    verifyDefault(host.reference()() == 1)
+    verifyDefault(host.extension(13)() == 13)
+    verifyDefault(host.local() == 1)
+    verifyDefault(host.localReference()() == 1)
+    verifyDefault(host.equality(CallableValue<Int>(), CallableValue<Int>()))
+    val unit = unitValue()
+    verifyDefault(host.unit(unit, unit))
+    verifyDefault(host.tuple((CallableValue<Int>(), unit), (CallableValue<Int>(), unit)))
+    val base = callableBase<Int>()
+    verifyDefault(host.classBound<CallableBase<Int>>(base, 17) == 17)
+    verifyDefault(host.interfaceBound<IntReader>(IntReader(), 19) == 19)
+    verifyDefault(host.boundReference<CallableBase<Int>>(base)(23) == 23)
+    verifyDefault(host.factory<String>("captured")() == "captured")
+    verifyDefault(host.factoryReference<Int>()(29) == 29)
+    verifyDefault(host.pair<Int, String>(31, "pair") == 1)
+}
