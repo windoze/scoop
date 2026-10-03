@@ -1,0 +1,46 @@
+private var saved: Owner? = None
+
+private fun stackRoot() {
+    val owner = Owner(1)
+    retained(1)
+    println(owner.code == 1)
+}
+
+private fun globalRoot() {
+    saved = Some(Owner(2))
+    retained(2)
+    println(saved!!.code == 2)
+    saved = None
+}
+
+@Unsafe private fun makeHandle(): GcHandle<Owner> = getGcHandle(Owner(3))
+@Unsafe private fun makePin(): PinnedPtr<Owner> = pin(Owner(4))
+
+private fun handleRoot() {
+    @Unsafe {
+        val handle = makeHandle()
+        retained(3)
+        val owner = releaseGcHandle(handle)
+        println(owner.code == 3)
+    }
+}
+
+private fun pinRoot() {
+    @Unsafe {
+        val handle = makePin()
+        retained(4)
+        val owner = unpin(handle)
+        println(owner.code == 4)
+    }
+}
+
+fun main() {
+    stackRoot()
+    reclaimed(1)
+    globalRoot()
+    reclaimed(2)
+    handleRoot()
+    reclaimed(3)
+    pinRoot()
+    reclaimed(4)
+}

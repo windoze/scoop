@@ -1,0 +1,109 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m24_release", name = "m24_release_owner")
+  private fun record(id: Int)
+    @Extern(lib = "m24_release", name = "m24_release_owner_count")
+  private fun count(id: Int): Int
+  class Owner(val code: Int)
+    release
+      @Unsafe block
+        Call record
+          Var code
+  private fun retained(id: Int)
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Binary Eq
+          Call count
+            Var id
+          IntLiteral 0
+  private fun reclaimed(id: Int)
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Binary Eq
+          Call count
+            Var id
+          IntLiteral 1
+  private var saved: Owner? = <expr>
+  private fun stackRoot()
+    val owner
+      Call Owner
+        IntLiteral 1
+    Call retained
+      IntLiteral 1
+    Call println
+      Binary Eq
+        FieldAccess code
+          Var owner
+        IntLiteral 1
+  private fun globalRoot()
+    assign saved
+      Call Some
+        Call Owner
+          IntLiteral 2
+    Call retained
+      IntLiteral 2
+    Call println
+      Binary Eq
+        FieldAccess code
+          NullAssert
+            Var saved
+        IntLiteral 2
+    assign saved
+      Var None
+    @Unsafe
+  private fun makeHandle(): GcHandle<Owner>
+    =
+      Call getGcHandle
+        Call Owner
+          IntLiteral 3
+    @Unsafe
+  private fun makePin(): PinnedPtr<Owner>
+    =
+      Call pin
+        Call Owner
+          IntLiteral 4
+  private fun handleRoot()
+    @Unsafe block
+      val handle
+        Call makeHandle
+      Call retained
+        IntLiteral 3
+      val owner
+        Call releaseGcHandle
+          Var handle
+      Call println
+        Binary Eq
+          FieldAccess code
+            Var owner
+          IntLiteral 3
+  private fun pinRoot()
+    @Unsafe block
+      val handle
+        Call makePin
+      Call retained
+        IntLiteral 4
+      val owner
+        Call unpin
+          Var handle
+      Call println
+        Binary Eq
+          FieldAccess code
+            Var owner
+          IntLiteral 4
+  fun main()
+    Call stackRoot
+    Call reclaimed
+      IntLiteral 1
+    Call globalRoot
+    Call reclaimed
+      IntLiteral 2
+    Call handleRoot
+    Call reclaimed
+      IntLiteral 3
+    Call pinRoot
+    Call reclaimed
+      IntLiteral 4

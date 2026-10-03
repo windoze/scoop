@@ -1,0 +1,79 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m24_release", name = "m24_release_owner")
+  private fun record(id: Int)
+    @Extern(lib = "m24_release", name = "m24_release_owner_count")
+  private fun count(id: Int): Int
+  class Owner(val code: Int)
+    release
+      @Unsafe block
+        Call record
+          Var code
+  private fun retained(id: Int)
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Binary Eq
+          Call count
+            Var id
+          IntLiteral 0
+  private fun reclaimed(id: Int)
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Binary Eq
+          Call count
+            Var id
+          IntLiteral 1
+  class Gate()
+    var waiter: Continuation<Int>? =
+      Var None
+    fun complete
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  class Completion(), Continuation<Int>
+    var value: Int =
+      IntLiteral 0
+    public fun resume
+    public fun resumeWithException
+  private suspend fun waitWithOwner(gate: Gate): Int
+    val owner
+      Call Owner
+        IntLiteral 6
+    val extra
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+    Call gcCollect
+    return
+      Binary Add
+        FieldAccess code
+          Var owner
+        Var extra
+  private fun coroutineRoot()
+    val gate
+      Call Gate
+    val done
+      Call Completion
+    Call startCoroutine
+      Lambda 0 suspend=true
+        parameters omitted
+        Call waitWithOwner
+          Var gate
+      Var done
+    Call retained
+      IntLiteral 6
+    MethodCall complete
+      Var gate
+      IntLiteral 0
+    Call println
+      Binary Eq
+        FieldAccess value
+          Var done
+        IntLiteral 6
+  fun main()
+    Call coroutineRoot
+    Call reclaimed
+      IntLiteral 6

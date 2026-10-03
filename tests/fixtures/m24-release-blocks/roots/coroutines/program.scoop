@@ -1,0 +1,41 @@
+class Gate {
+    var waiter: Continuation<Int>? = None
+    fun complete(value: Int) {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(value)
+    }
+}
+
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    public override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+
+class Completion : Continuation<Int> {
+    var value: Int = 0
+    public override fun resume(value: Int) { this.value = value }
+    public override fun resumeWithException(exception: Throwable) { value = -1 }
+}
+
+private suspend fun waitWithOwner(gate: Gate): Int {
+    val owner = Owner(6)
+    val extra = suspendCoroutine(Registration(gate))
+    gcCollect()
+    return owner.code + extra
+}
+
+private fun coroutineRoot() {
+    val gate = Gate()
+    val done = Completion()
+    startCoroutine(suspend { waitWithOwner(gate) }, done)
+    retained(6)
+    gate.complete(0)
+    println(done.value == 6)
+}
+
+fun main() {
+    coroutineRoot()
+    reclaimed(6)
+}

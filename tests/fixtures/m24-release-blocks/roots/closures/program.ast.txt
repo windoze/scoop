@@ -1,0 +1,102 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m24_release", name = "m24_release_owner")
+  private fun record(id: Int)
+    @Extern(lib = "m24_release", name = "m24_release_owner_count")
+  private fun count(id: Int): Int
+  class Owner(val code: Int)
+    release
+      @Unsafe block
+        Call record
+          Var code
+  private fun retained(id: Int)
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Binary Eq
+          Call count
+            Var id
+          IntLiteral 0
+  private fun reclaimed(id: Int)
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Binary Eq
+          Call count
+            Var id
+          IntLiteral 1
+    @Extern(lib = "m24_release", name = "m24_release_invoke")
+  private fun invokeNative(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Int
+  private fun makeClosure(): () -> Int
+    val owner
+      Call Owner
+        IntLiteral 5
+    return
+      Lambda 0 suspend=false
+        parameters omitted
+        FieldAccess code
+          Var owner
+  private fun closureRoot()
+    val read
+      Call makeClosure
+    Call retained
+      IntLiteral 5
+    Call println
+      Binary Eq
+        Call read
+        IntLiteral 5
+    @Unsafe
+  private fun registered(): ForeignCallback<(Int, Ptr<Unit>) -> Int>
+    val owner
+      Call Owner
+        IntLiteral 7
+    return
+      Call foreignCallback<(Int, Ptr<Unit>) -> Int>
+        Lambda 1 suspend=false
+          param value: Int
+          Call gcCollect
+          Binary Add
+            FieldAccess code
+              Var owner
+            Var value
+        IntLiteral 1L
+        FieldAccess Reusable
+          Var ForeignCallbackMode
+  private fun foreignRoots()
+    @Unsafe block
+      val callback
+        Call registered
+      val callerOwner
+        Call Owner
+          IntLiteral 8
+      Call retained
+        IntLiteral 7
+      Call retained
+        IntLiteral 8
+      Call println
+        Binary Eq
+          Call invokeNative
+            FieldAccess function
+              Var callback
+            FieldAccess context
+              Var callback
+            IntLiteral 0
+          IntLiteral 7
+      Call println
+        Binary Eq
+          FieldAccess code
+            Var callerOwner
+          IntLiteral 8
+      Call releaseForeignCallback
+        Var callback
+  fun main()
+    Call closureRoot
+    Call reclaimed
+      IntLiteral 5
+    Call foreignRoots
+    Call reclaimed
+      IntLiteral 7
+    Call reclaimed
+      IntLiteral 8

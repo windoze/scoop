@@ -27,7 +27,7 @@
 
 ## 尚未完成
 
-其余 GC 根组合、缓存检查、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至六批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+缓存检查、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至七批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
 
 ## 第二批：ReleaseValue 与 NoTransition
 
@@ -72,3 +72,10 @@
 - 同一测试发射实际对象，确认 hook 所在物理 member 不含 LSDA 或 stackmap section；普通函数的 EH/CFI 仍由既有对象 verifier 负责。
 - 复用实际双 consumer ODR 测试：两个独立构建使用相同 provider identity 和泛型 owner，但 hook 正文不同。ABI、group 和 member identity 不变，ReleaseHook 与 registration 的定义摘要发生变化，原 ODR 合并路径明确拒绝冲突。
 - 格式化和全 workspace/all-targets clippy 通过；`cargo test -p scoopc release_hooks` 的两项端到端测试均通过，日志为 `tmp/m24/logs/machine-tests.log`。没有增加生产侧验证管线或新的来源机制。
+
+## 第七批：GC 根与真实挂起
+
+- 三项独立组合 fixture 覆盖栈、普通全局变量、GcHandle、pin、闭包捕获、foreign callback registry、native caller 根和真正挂起的 coroutine frame。
+- 每个 owner 在根有效期间经历两次显式 GC，保持未释放；解除持有并退出调用作用域后再收集，只释放一次。C companion 对每个 owner 的重复释放直接断言失败，不依赖对象地址或回收顺序。
+- callback 在 C→Scoop 回调期间执行 GC，同时检查外层 native caller 保存的 owner；协程在挂起及恢复后均执行 GC，继续使用保存在 frame 中的 owner。
+- 格式化和全 workspace/all-targets clippy 通过。使用第四批固定工具，原 runner 无更新模式 `--filter 'release-blocks-roots-*'` 为 3/3，通过 15 次进程执行、12 份 stage golden；普通及 moving stress 输出均一致，报告为 `tmp/m24/roots-acceptance/report.json`。
