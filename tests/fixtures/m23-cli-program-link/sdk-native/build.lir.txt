@@ -1,14 +1,14 @@
 Module
   global @scoop$1$io$dd17f4654edc53b138549f9f16451e8934fc9452d5f4ff2240a02d1b1b70c1ee = "root\n"
-  global @scoop$1$ss$c5d59bdf3d71cd984fc05c4c97422b835684da75e9bf9b8900577b4c7148c9cb : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$73da29cdb0d9e9e5aa039e91081f77015e733757d143c36ebaa8120fa8286951 : ptr<managed> scan=refs[0]
   extern ef0 rootWrite @scoop_rt_write(ptr<managed>) -> void <scoop managed nounwind>
-  fun @scoop$1$cb$fe90cc2db17c5c5db33ab03af2fae608d0a9d58ce260e5a9b6ce33685291258e(ptr<managed>) -> void
+  fun @scoop$1$cb$5ce84429e32d323e5a0b25acdfce8a188238e48177049790a93deb6f4a1fa572(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[param0] sig=void0 (ptr<managed>) extern0(param0)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$607a6104aa7c792238ca19834e3b3b5b9303c7b67d1c4eb593bc8b4b0428b06b() -> void
+  fun @scoop$1$cb$9be218f8b9871734f246f4342f8b4d62339ef3d26bbdaca463470ec35ad214b6() -> void
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
   block entry
@@ -20,7 +20,7 @@ Module
     call native-borrowed-void-target0 sp<native-borrowed:0> roots=[local1] sig=void1 (ptr<managed>) extern0(local1)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$cb$cd4ffdfa4f6d5f376256b40bb08c4bc8b1a209ac4c818bf5547d6ec13e7f5a71() -> i32
+  fun @scoop$1$cb$a4e38c352b28e09e0d568760541d88c2c51b35caff37196ae4ee6184df8a3b8b() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -34,4 +34,4 @@ Module
     global_store global1, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$607a6104aa7c792238ca19834e3b3b5b9303c7b67d1c4eb593bc8b4b0428b06b
+  output executable @scoop$1$cb$9be218f8b9871734f246f4342f8b4d62339ef3d26bbdaca463470ec35ad214b6

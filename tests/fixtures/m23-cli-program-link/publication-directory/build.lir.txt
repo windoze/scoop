@@ -1,10 +1,10 @@
 Module
-  global @scoop$1$ss$7c5fe0a75929613e0d0a3b5c4526425ea06dbc7f1fde94c568b3d314fa611329 : ptr<managed> scan=refs[0]
-  fun @scoop$1$cb$bf5ce4fc3895eb2b327f47bf70f70a593b452673e083953a681768fb10463b63() -> void
+  global @scoop$1$ss$c1c4a586b610f614e650b4896ef3efd0e3369cc67e8cd86004d72051da33782a : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$cab30ef211016794a16a36102e845feaf8102b1954b79841d9db089b91214d66() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$09f46dabea2ea68beda7b36dfbb7b44bc59df469c387928f7aa0fbb6f4e5b95c() -> i32
+  fun @scoop$1$cb$675cde27ea06ee2dc41974dfab3021e180a146d7b29b442d4727eabe15997a1a() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
@@ -18,4 +18,4 @@ Module
     global_store global0, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$bf5ce4fc3895eb2b327f47bf70f70a593b452673e083953a681768fb10463b63
+  output executable @scoop$1$cb$cab30ef211016794a16a36102e845feaf8102b1954b79841d9db089b91214d66

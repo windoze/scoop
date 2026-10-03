@@ -1,6 +1,9 @@
 use super::*;
 use crate::{IntegerKind, MirCLayoutContract};
 
+mod release;
+pub use release::MirClassReleasePolicyV1;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MirRepresentationFieldV1 {
     pub field: PersistentFieldId,
@@ -57,6 +60,7 @@ pub enum MirTypeRepresentationV1 {
     Class {
         kind: MirClassKindV1,
         declared_fields: Vec<MirRepresentationFieldV1>,
+        release_policy: MirClassReleasePolicyV1,
     },
     Interface,
     InlineArray {
@@ -79,6 +83,12 @@ pub enum MirTypeRepresentationV1 {
     },
 }
 impl MirTypeRepresentationV1 {
+    pub const fn release_policy(&self) -> MirClassReleasePolicyV1 {
+        match self {
+            Self::Class { release_policy, .. } => *release_policy,
+            _ => MirClassReleasePolicyV1::None,
+        }
+    }
     pub fn fields(&self) -> &[MirRepresentationFieldV1] {
         match self {
             Self::Struct { fields, .. } => fields,

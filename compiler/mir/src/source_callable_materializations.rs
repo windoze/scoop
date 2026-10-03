@@ -48,7 +48,8 @@ impl SourceCallableMaterialization {
                     CallableTemplateOwner::Accessor(id) => CallableOwner::Accessor(id),
                     CallableTemplateOwner::Generated(id) => CallableOwner::Generated(id),
                     CallableTemplateOwner::GenericFunction(_)
-                    | CallableTemplateOwner::VariantConstructor(_) => {
+                    | CallableTemplateOwner::VariantConstructor(_)
+                    | CallableTemplateOwner::ReleaseHook(_) => {
                         return Err(SourceCallableMaterializationError::InvalidStrongTemplate);
                     }
                 };

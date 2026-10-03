@@ -156,6 +156,15 @@ pub enum Instruction {
         object: Value,
         offset: u64,
     },
+    /// Read a value from this release hook's private AS0 reclaiming receiver.
+    ReleaseFieldLoad {
+        out: TempId,
+        offset: u64,
+    },
+    /// Atomic release OR of RELEASE_READY in the constructed object's header.
+    PublishReleaseReady {
+        object: Value,
+    },
     /// Non-atomic load of one compiler-owned state word from managed storage.
     /// This is separate from `HeapLoad` so an `i64` field access cannot relabel
     /// a machine state, and one machine domain cannot be read as another.
@@ -192,20 +201,17 @@ pub enum Instruction {
     NativeGlobalLoad {
         out: TempId,
         global: NativeGlobalId,
-        safepoint: SafepointSiteRef,
-        roots: NativeSafeRootSet,
+        protocol: NativeStorageProtocol,
     },
     NativeGlobalStore {
         global: NativeGlobalId,
         value: Value,
-        safepoint: SafepointSiteRef,
-        roots: NativeSafeRootSet,
+        protocol: NativeStorageProtocol,
     },
     NativeGlobalAddress {
         out: TempId,
         global: NativeGlobalId,
-        safepoint: SafepointSiteRef,
-        roots: NativeSafeRootSet,
+        protocol: NativeStorageProtocol,
     },
     /// Store a typed value at the byte address `object + offset`.
     /// Class fields use their natural layout offsets, base-class fields
@@ -436,16 +442,42 @@ pub enum FunctionAddressTarget {
     CallbackTrampoline(CallbackBridgeId),
 }
 
+/// Pure non-TLS storage bridges can run in NoGc bodies without transitioning.
+#[derive(Debug)]
+pub enum NativeStorageProtocol {
+    NoTransition,
+    NativeSafe {
+        safepoint: SafepointSiteRef,
+        roots: NativeSafeRootSet,
+    },
+}
+
+impl NativeStorageProtocol {
+    pub fn safepoint(&self) -> Option<SafepointSiteRef> {
+        match self {
+            Self::NoTransition => None,
+            Self::NativeSafe { safepoint, .. } => Some(*safepoint),
+        }
+    }
+
+    pub fn roots(&self) -> &[CallerRoot] {
+        match self {
+            Self::NoTransition => &[],
+            Self::NativeSafe { roots, .. } => roots.as_slice(),
+        }
+    }
+}
+
 impl Instruction {
     /// Function-local safepoint reference and the semantic role fixed by this
     /// instruction variant. NoGc instructions have no safepoint.
     pub fn safepoint(&self) -> Option<(SafepointSiteRole, SafepointSiteRef)> {
         match self {
-            Self::NativeGlobalLoad { safepoint, .. }
-            | Self::NativeGlobalStore { safepoint, .. }
-            | Self::NativeGlobalAddress { safepoint, .. } => {
-                Some((SafepointSiteRole::NativeSafeTransition, *safepoint))
-            }
+            Self::NativeGlobalLoad { protocol, .. }
+            | Self::NativeGlobalStore { protocol, .. }
+            | Self::NativeGlobalAddress { protocol, .. } => protocol
+                .safepoint()
+                .map(|site| (SafepointSiteRole::NativeSafeTransition, site)),
             Self::Call { site } => match site {
                 CallSite::Managed(site) => Some((SafepointSiteRole::ManagedCall, site.safepoint)),
                 CallSite::NativeSafe(site) => {
@@ -454,7 +486,9 @@ impl Instruction {
                 CallSite::NativeBorrowed(site) => {
                     Some((SafepointSiteRole::NativeBorrowedTransition, site.safepoint))
                 }
-                CallSite::NoGc(_) => None,
+                CallSite::NoGc(_) | CallSite::ReleaseScoop(_) | CallSite::ReleaseNativeLeaf(_) => {
+                    None
+                }
             },
             Self::ManagedPoll { site } => Some((SafepointSiteRole::ManagedPoll, site.safepoint)),
             Self::Invoke {

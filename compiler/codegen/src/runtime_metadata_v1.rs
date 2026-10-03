@@ -147,7 +147,7 @@ const ITABLE_ENTRY: ExpectedStruct = ExpectedStruct {
 };
 const TYPE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopTypeDescriptor",
-    size: 144,
+    size: 152,
     alignment: 8,
     fields: expected_fields!(
         "type_id" => 0,
@@ -161,6 +161,7 @@ const TYPE_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
         "relation_kind" => 128,
         "related_type_count" => 132,
         "function_result" => 136,
+        "release_hook" => 144,
     ),
 };
 const REGISTRATION_IDENTITY: ExpectedStruct = ExpectedStruct {
@@ -384,6 +385,7 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
                 byte_span.into(),
                 i32.into(),
                 i32.into(),
+                ptr.into(),
                 ptr.into(),
             ],
             false,

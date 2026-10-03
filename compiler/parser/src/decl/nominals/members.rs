@@ -56,6 +56,10 @@ impl Parser {
                 self.require_empty_member_prefix(&prefix, "an `init` block")?;
                 self.parse_init_block().map(ClassMember::InitBlock)
             }
+            TokenKind::Ident(text) if text == "release" => {
+                self.require_empty_member_prefix(&prefix, "a `release` block")?;
+                self.parse_release_block().map(ClassMember::ReleaseBlock)
+            }
             TokenKind::Ident(text) if text == "constructor" => self
                 .require_unmodified_nominal_prefix(&prefix, "constructor")
                 .and_then(|()| {
@@ -270,6 +274,9 @@ impl Parser {
                     .map(StructMember::Property),
                 TokenKind::Ident(text) if text == "init" => {
                     Err(Diagnostic::at(self.peek().span, "`init` blocks are not allowed in structs"))
+                }
+                TokenKind::Ident(text) if text == "release" => {
+                    self.invalid_release_owner("structs")
                 }
                 TokenKind::Struct | TokenKind::Enum | TokenKind::Class | TokenKind::Interface => {
                     self.parse_nested_nominal(prefix)

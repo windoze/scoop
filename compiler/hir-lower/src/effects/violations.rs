@@ -216,6 +216,7 @@ impl Lowerer {
                 expr.span,
                 "managed field access is not allowed in `@NoGC` code".to_string(),
             )),
+            ExprKind::ReleaseFieldLoad(_) => {}
             ExprKind::MethodCall {
                 receiver,
                 callee,

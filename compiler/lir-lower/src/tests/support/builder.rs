@@ -236,6 +236,7 @@ impl Builder {
         itables: Vec<mir::ItableRecord>,
     ) -> mir::ClassId {
         self.classes.alloc(mir::ClassDef {
+            release_policy: Default::default(),
             modifier: mir::ClassModifier::Final,
             name: name.to_string(),
             type_arguments: Vec::new(),
@@ -262,6 +263,7 @@ impl Builder {
         element: mir::Type,
     ) -> mir::ClassId {
         self.classes.alloc(mir::ClassDef {
+            release_policy: Default::default(),
             modifier: mir::ClassModifier::Final,
             name: name.to_string(),
             type_arguments: Vec::new(),

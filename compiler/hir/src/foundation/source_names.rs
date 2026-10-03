@@ -131,6 +131,12 @@ impl CanonicalHirFoundation {
             CallableTemplateOwner::Generated(id) => {
                 return self.generated_names(record_key(&self.generated_callables, id)?);
             }
+            CallableTemplateOwner::ReleaseHook(exact) => {
+                return Some(SourceContextNames {
+                    function: String::new(),
+                    type_name: self.nominal_name(self.release_hook_owner(exact)?)?,
+                });
+            }
         }?;
         self.declaration_names(declaration)
     }

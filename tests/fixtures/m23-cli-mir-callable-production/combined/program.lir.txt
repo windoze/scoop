@@ -1,9 +1,9 @@
 Module
   global @scoop$1$io$446fb33574d89d67f9450e63b013f3c78d832133ebb756fe2a574bebd58c56ab = "illegal state"
   imported_global @scoop$1$ss$3a526283084ebedba97eaa36d7f52805272cb4afce09bb5e17c04d14d61a27bc : ptr<managed> provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 scan=refs[0]
-  global @scoop$1$ss$d6638ab99c73f742a361dea5286646c40fe58a566405ee53839a3ffd7f366958 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$402a024cb0efb310822b59717f29419ecab9c747edd0c7c1347d8011c79e1e57 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$9d57291d5fdb99143e643272393c3c501c0980c37c3200e70462b1e4a3088639(i1) -> void
+  fun @scoop$1$cb$a137362a5cb750d715f6f31f5bdaf680cea4fc1fd0a5ff4fad463b4bbb9dd927(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -27,7 +27,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$3ce5aaa13a37390fb6f575b09f0d207139704b26cd81d296a1f961966306b4f3() -> void
+  fun @scoop$1$cb$537decd4988f090615315b0b953209f7ad8ade0225334cf23f2e12d7ff74e7a4() -> void
     local %0 token: struct0 <logical-zst 5bf44b79690a11869516d585c1b3c244026126b0a73e6f53c399e4bdbfdae618>
     local %1 impl: ptr<managed>
     local %2 base: ptr<managed>
@@ -300,7 +300,7 @@ Module
     call managed-void-target10 sp<managed-call:41> live=[] sig=void10 (i1) local-fn0(local53)
     t63 = aggregate () : {}
     ret
-  fun @scoop$1$cb$25bd9f115128930710f17ff5d9409d9ba76f39997ba9f14e34457ff0f9d97c53(elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>, elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>) -> i1
+  fun @scoop$1$cb$c99427e18a3d8c8038e2ddb9d9fcc0f35d26e44576057fb9d536081b89bbd3a6(elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>, elided-zst<{struct0, struct0, struct0, struct0} size=0 align=1>) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
     local %2 $call.3: i1
@@ -351,7 +351,7 @@ Module
     br @logic.merge.9
   block logic.merge.9
     ret local5
-  fun @scoop$1$cb$eac05effd98fdf896385d4444435c1023002e71b157c3f5c3b4ab0a25b14936e() -> i32
+  fun @scoop$1$cb$abc10847a797c346502d72722381f2876c7c86d9061c63899cc39382c3c4e710() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -367,4 +367,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$3ce5aaa13a37390fb6f575b09f0d207139704b26cd81d296a1f961966306b4f3
+  output executable @scoop$1$cb$537decd4988f090615315b0b953209f7ad8ade0225334cf23f2e12d7ff74e7a4

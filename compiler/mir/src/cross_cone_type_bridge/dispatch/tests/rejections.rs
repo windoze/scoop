@@ -301,6 +301,7 @@ fn abstract_class_keeps_original_typed_trap_and_derived_replaces_only_target() {
         base.origin().clone(),
         base.facts(),
         MirTypeRepresentationV1::Class {
+            release_policy: Default::default(),
             kind: MirClassKindV1::Abstract,
             declared_fields: vec![],
         },

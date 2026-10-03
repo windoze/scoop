@@ -1,6 +1,6 @@
 Module
   global @scoop$1$io$0a5e51ae14f329276c2404b81635dea719c4cd046e9ca4a59bf8e82b098c4cfe = "downstream"
-  fun @scoop$1$cb$aecdf3ba130e903ce9dd73a951d5fd479089c137e22c9c560505a693d99580d7() -> ptr<managed>
+  fun @scoop$1$cb$1570b9fb663fa267c8936dede107acd95dcf07ff139ce362cafa7584374ecea4() -> ptr<managed>
     local %0 value: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.receiver: i64

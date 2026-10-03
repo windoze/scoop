@@ -1,7 +1,7 @@
 use super::*;
 
 impl Lowerer {
-    fn imported_body_generic_call(
+    pub(in crate::effects) fn imported_body_generic_call(
         &self,
         application: hir::ImportedGenericCallableApplicationId,
         span: scoop_ast::Span,
@@ -61,6 +61,7 @@ impl Lowerer {
             | ExprKind::ConstructorReceiver
             | ExprKind::ConstructorParam(_)
             | ExprKind::InitializingClassFieldAccess { .. }
+            | ExprKind::ReleaseFieldLoad(_)
             | ExprKind::InitializingStructFieldAccess { .. }
             | ExprKind::GlobalRead(_)
             | ExprKind::GenericDelegateStorageRead(_)

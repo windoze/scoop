@@ -22,14 +22,15 @@ pub(super) struct LocalValueRegistry {
 impl LocalValueRegistry {
     pub(super) fn record(
         &mut self,
-        function: mir::FunctionId,
+        function: impl Into<mir::LocalValueOwner>,
         local: mir::LocalId,
         identity: &hir::LocalValueIdentityRecord,
     ) {
         self.observe_selector(identity.key().owner(), identity.key().selector());
-        self.entries.push(mir::LocalValueIdentity::from_hir(
-            function,
+        self.entries.push(mir::LocalValueIdentity::for_owner(
+            function.into(),
             local,
+            mir::LocalValueIdentityAuthority::Hir,
             identity.clone(),
         ));
     }
@@ -41,16 +42,17 @@ impl LocalValueRegistry {
     ) -> Option<&mir::LocalValueIdentityRecord> {
         self.entries
             .iter()
-            .find(|entry| entry.function() == function && entry.local() == local)
+            .find(|entry| entry.owner() == function.into() && entry.local() == local)
             .map(mir::LocalValueIdentity::identity_record)
     }
 
     pub(super) fn record_generated(
         &mut self,
-        function: mir::FunctionId,
+        function: impl Into<mir::LocalValueOwner>,
         owner: hir::CallableMaterialization,
         values: &[GeneratedLocalValue],
     ) {
+        let function = function.into();
         for value in values {
             self.record_generated_local(function, value.local, owner, value.site_role, value.role);
         }
@@ -87,7 +89,7 @@ impl LocalValueRegistry {
 
     pub(super) fn record_generated_local(
         &mut self,
-        function: mir::FunctionId,
+        function: impl Into<mir::LocalValueOwner>,
         local: mir::LocalId,
         owner: hir::CallableMaterialization,
         site_role: hir::StructuralDefinitionSiteRole,
@@ -106,8 +108,12 @@ impl LocalValueRegistry {
             hir::LocalValueSelector::Synthetic { path, role },
         ))
         .expect("generated MIR local selectors have hashable identities");
-        self.entries
-            .push(mir::LocalValueIdentity::from_mir(function, local, identity));
+        self.entries.push(mir::LocalValueIdentity::for_owner(
+            function.into(),
+            local,
+            mir::LocalValueIdentityAuthority::Mir,
+            identity,
+        ));
     }
 
     fn observe_selector(
@@ -147,7 +153,7 @@ impl LocalValueRegistry {
     ) {
         let mut remapped = Vec::with_capacity(self.entries.len() + wrapper_parameters.len());
         for entry in self.entries.drain(..) {
-            if entry.function() != source {
+            if entry.owner() != source.into() {
                 remapped.push(entry);
                 continue;
             }

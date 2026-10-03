@@ -43,8 +43,7 @@ pub(super) fn validate_external_metadata(module: &Module) -> Result<(), CodegenE
 fn validate_callable_metadata(module: &Module) -> Result<(), CodegenError> {
     let mut bodies = HashSet::new();
     let local_bodies = module
-        .functions
-        .iter()
+        .callable_bodies()
         .map(|function| function.callable_body.id())
         .collect::<HashSet<_>>();
     for (_, callable) in module.meta.external_callables.iter() {

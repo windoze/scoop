@@ -64,7 +64,7 @@ pub(crate) fn definitions(
                     // Gateways are unit-owned entries, not ordinary dispatch targets.
                     continue;
                 }
-                CallableBodyKeyKind::Odr(_) => continue,
+                CallableBodyKeyKind::Odr(_) | CallableBodyKeyKind::ReleaseHook { .. } => continue,
                 CallableBodyKeyKind::RootGateway { .. } => {
                     return Err(Error::CallableBody(callable.body()));
                 }

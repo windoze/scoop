@@ -1,3 +1,4 @@
+use super::release::IndexedReleaseTemplate;
 use super::*;
 use crate::{IndexedExportTemplateFragmentV1, TemplateFragmentIndexError};
 
@@ -9,6 +10,7 @@ struct IndexedNominalInitialization<'a> {
     owner: PersistentGenericTypeId,
     common: Vec<IndexedCommonStep<'a>>,
     constructors: Vec<IndexedConstructor<'a>>,
+    release_policy: crate::ReleasePolicy<IndexedReleaseTemplate<'a>>,
 }
 
 enum IndexedCommonStep<'a> {
@@ -76,6 +78,14 @@ impl CanonicalExportGenericInitializationsV1 {
                     owner: record.owner,
                     common,
                     constructors,
+                    release_policy: match record.release_policy() {
+                        crate::ReleasePolicy::None => crate::ReleasePolicy::None,
+                        crate::ReleasePolicy::SynchronousGcFree { hook } => {
+                            crate::ReleasePolicy::SynchronousGcFree {
+                                hook: IndexedReleaseTemplate::new(hook)?,
+                            }
+                        }
+                    },
                 })
             })
             .collect::<Result<_, TemplateFragmentIndexError>>()?;
@@ -132,13 +142,15 @@ impl WireEncode for IndexedExportGenericInitializationsV1<'_> {
 
 impl WireEncode for IndexedNominalInitialization<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.owner.encode(encoder)?;
         encoder.field(2)?;
         encode_values(encoder, &self.common)?;
         encoder.field(3)?;
-        encode_values(encoder, &self.constructors)
+        encode_values(encoder, &self.constructors)?;
+        encoder.field(4)?;
+        self.release_policy.encode(encoder)
     }
 }
 

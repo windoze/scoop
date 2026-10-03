@@ -1,11 +1,11 @@
 Module
   global @scoop$1$io$eab48b09884d1dcf7b3134bef5d3351fe533ff5ac8ec09a74aef92fce462bee6 = "local"
   global @scoop$1$io$67606e0227d9d831141c1128ba2efc484a3f21717560bd991527cba95a54e5a9 = "standalone"
-  fun @scoop$1$cb$c444426bd94192952d4f6dc54be8b3f35313a0987d0fc4e62d4ee64fea6c841e(ptr<managed>) -> i32
+  fun @scoop$1$cb$1b1ee31a37a6d7441d600d5ce2694a4d0be832025c80514b24aa09b86bd58317(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000009)
-  fun @scoop$1$cb$3a2afd6c6af952afcf53ec3f43209d817841a83820d365d45fe23c5dc909e5cc() -> i32
+  fun @scoop$1$cb$b0cb8a8a4efb53efe0cf51f7f8e33e0a4f6c388392ca9353568369cbf3e9d021() -> i32
     local %0 $receiver: ptr<managed>
     local %1 local: i32
     local %2 $dependency.receiver: ptr<managed>

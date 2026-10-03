@@ -42,6 +42,7 @@ impl Lowerer {
         );
         let function = self.functions.alloc(Function {
             signature: hir::CallableSignature {
+                release_callability: Default::default(),
                 name,
                 is_suspend: false,
                 modifiers: hir::CallableModifiers::default(),

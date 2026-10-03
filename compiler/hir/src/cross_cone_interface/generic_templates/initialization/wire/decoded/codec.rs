@@ -16,7 +16,7 @@ impl WireEncode for DecodedCanonicalExportGenericInitializationsV1 {
 
 impl WireDecode for DecodedNominalInitialization {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(3)?;
+        decoder.expect_map(4)?;
         Ok(Self {
             owner: decoder.field(1, DecodedPersistentId::decode)?,
             common: decoder.field(2, |decoder| {
@@ -25,19 +25,22 @@ impl WireDecode for DecodedNominalInitialization {
             constructors: decoder.field(3, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedConstructor::decode(decoder))
             })?,
+            release_policy: decoder.field(4, crate::ReleasePolicy::decode)?,
         })
     }
 }
 
 impl WireEncode for DecodedNominalInitialization {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(3)?;
+        encoder.map(4)?;
         encoder.field(1)?;
         self.owner.encode(encoder)?;
         encoder.field(2)?;
         encode_values(encoder, &self.common)?;
         encoder.field(3)?;
-        encode_values(encoder, &self.constructors)
+        encode_values(encoder, &self.constructors)?;
+        encoder.field(4)?;
+        self.release_policy.encode(encoder)
     }
 }
 

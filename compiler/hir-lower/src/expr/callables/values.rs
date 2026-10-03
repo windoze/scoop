@@ -57,6 +57,7 @@ impl Lowerer {
                 .expect("the suspension context stack is initialized");
             if let SuspensionContext::Forbidden(reason) = context {
                 let location = match reason {
+                    ForbiddenSuspendContext::Release => "a `release` block".to_string(),
                     ForbiddenSuspendContext::TopLevel => "a non-suspend declaration".to_string(),
                     ForbiddenSuspendContext::Function => {
                         format!("non-suspend function `{}`", self.current_fn_name)

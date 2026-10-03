@@ -1,0 +1,36 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m24_release", name = "m24_native_count")
+    @Global
+  private var nativeCount: Int
+    @NoGC
+    @Unsafe
+  private fun addCount(amount: Int = <expr>)
+    assign nativeCount
+      Binary Add
+        Var nativeCount
+        Var amount
+  class Owner(val handle: Int)
+    release
+      @Unsafe block
+        val address
+          Call addressOf
+            Var nativeCount
+        MethodCall store
+          Var address
+          Binary Add
+            MethodCall load
+              Var address
+            Var handle
+        Call addCount
+  private fun allocate()
+    val owner
+      Call Owner
+        IntLiteral 41
+  fun main()
+    Call allocate
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Var nativeCount

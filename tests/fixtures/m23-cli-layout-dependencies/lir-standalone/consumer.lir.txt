@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$32705299da0d3524b8fb9edfdda6bfd2b723e8c6f9facade33203639d67462a4(i1) -> i1
+  fun @scoop$1$cb$684212f2aaa655d6c3f26878abedb7cf8bb9a36c89499c20d74fbc08083c1764(i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0

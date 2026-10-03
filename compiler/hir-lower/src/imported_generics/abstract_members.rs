@@ -118,6 +118,10 @@ impl Lowerer {
                     parameters,
                     return_type,
                     declaration.interface().effects(),
+                    self.imported_release_callability(
+                        &declaration.interface().effects(),
+                        &bindings,
+                    )?,
                     span,
                 ),
                 type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),

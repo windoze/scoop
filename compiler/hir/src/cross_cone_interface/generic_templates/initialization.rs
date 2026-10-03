@@ -10,8 +10,10 @@ use crate::{
     GenericTemplatePredicatesV1,
 };
 
+mod release;
 mod sources;
 mod wire;
+pub use release::ExportReleaseTemplateV1;
 pub use wire::*;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -121,8 +123,8 @@ impl ExportConstructorInitializationV1 {
         &self.inputs
     }
 
-    pub const fn effects(&self) -> CallableSourceEffectsV1 {
-        self.effects
+    pub fn effects(&self) -> CallableSourceEffectsV1 {
+        self.effects.clone()
     }
 
     pub const fn predicates(&self) -> &GenericTemplatePredicatesV1 {
@@ -143,6 +145,7 @@ pub struct ExportGenericNominalInitializationV1 {
     owner: PersistentGenericTypeId,
     common: Vec<ExportCommonInitializationStepV1>,
     constructors: Vec<ExportConstructorInitializationV1>,
+    release_policy: crate::ReleasePolicy<ExportReleaseTemplateV1>,
 }
 
 impl ExportGenericNominalInitializationV1 {
@@ -150,15 +153,17 @@ impl ExportGenericNominalInitializationV1 {
         owner: PersistentGenericTypeId,
         common: Vec<ExportCommonInitializationStepV1>,
         mut constructors: Vec<ExportConstructorInitializationV1>,
+        release_policy: crate::ReleasePolicy<ExportReleaseTemplateV1>,
     ) -> Result<Self, GenericInitializationBuildError> {
         constructors.sort_unstable_by(|left, right| left.declaration.cmp(&right.declaration));
-        Self::from_canonical(owner, common, constructors)
+        Self::from_canonical(owner, common, constructors, release_policy)
     }
 
     fn from_canonical(
         owner: PersistentGenericTypeId,
         common: Vec<ExportCommonInitializationStepV1>,
         constructors: Vec<ExportConstructorInitializationV1>,
+        release_policy: crate::ReleasePolicy<ExportReleaseTemplateV1>,
     ) -> Result<Self, GenericInitializationBuildError> {
         if constructors.is_empty() {
             return Err(GenericInitializationBuildError::MissingConstructors);
@@ -186,10 +191,21 @@ impl ExportGenericNominalInitializationV1 {
         {
             return Err(GenericInitializationBuildError::StructCommonInitialization);
         }
+        if release_policy.hook().is_some()
+            && constructors.iter().any(|constructor| {
+                matches!(
+                    constructor.declaration,
+                    DefaultConstructorRefV1::Struct { .. }
+                )
+            })
+        {
+            return Err(GenericInitializationBuildError::ReleaseOwner);
+        }
         Ok(Self {
             owner,
             common,
             constructors,
+            release_policy,
         })
     }
 
@@ -203,6 +219,10 @@ impl ExportGenericNominalInitializationV1 {
 
     pub fn constructors(&self) -> &[ExportConstructorInitializationV1] {
         &self.constructors
+    }
+
+    pub const fn release_policy(&self) -> &crate::ReleasePolicy<ExportReleaseTemplateV1> {
+        &self.release_policy
     }
 }
 
@@ -286,6 +306,8 @@ pub enum GenericInitializationBuildError {
     FieldInitializer,
     StatementResults,
     StructCommonInitialization,
+    ReleaseOwner,
+    ReleaseInputs,
 }
 
 impl fmt::Display for GenericInitializationBuildError {
@@ -303,6 +325,8 @@ impl fmt::Display for GenericInitializationBuildError {
             Self::FieldInitializer => "class field initializer must yield exactly one value",
             Self::StatementResults => "statement-only initialization fragment yields a value",
             Self::StructCommonInitialization => "struct template has class common initialization",
+            Self::ReleaseOwner => "release template requires a class owner",
+            Self::ReleaseInputs => "release template cannot have receiver or parameter inputs",
         })
     }
 }

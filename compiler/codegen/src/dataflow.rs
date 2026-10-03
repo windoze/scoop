@@ -50,6 +50,7 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
             payload.source().map(Value::Local).into_iter().collect()
         }
         Instruction::UnboxValue { object, .. } => vec![*object],
+        Instruction::PublishReleaseReady { object } => vec![*object],
         Instruction::BinOp { lhs, rhs, .. }
         | Instruction::IntegerBinary { lhs, rhs, .. }
         | Instruction::SafeIntegerDivRem { lhs, rhs, .. }
@@ -135,7 +136,8 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
             ..
         } => vec![*array, *index, *value],
         Instruction::EnumWrap { fields, .. } => fields.clone(),
-        Instruction::MakeZstValue { .. }
+        Instruction::ReleaseFieldLoad { .. }
+        | Instruction::MakeZstValue { .. }
         | Instruction::GlobalLoad { .. }
         | Instruction::GlobalAddress { .. }
         | Instruction::NativeGlobalLoad { .. }
@@ -183,6 +185,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::MakeAggregate { out, .. }
         | Instruction::MakeZstValue { out, .. }
         | Instruction::ExtractValue { out, .. }
+        | Instruction::ReleaseFieldLoad { out, .. }
         | Instruction::HeapLoad { out, .. }
         | Instruction::MachineHeapLoad { out, .. }
         | Instruction::AtomicLoad { out, .. }
@@ -217,6 +220,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
             return vec![LiveValue::Temp(*record), LiveValue::Temp(*raw)];
         }
         Instruction::GlobalStore { .. }
+        | Instruction::PublishReleaseReady { .. }
         | Instruction::NativeGlobalStore { .. }
         | Instruction::HeapStore { .. }
         | Instruction::MachineHeapStore { .. }

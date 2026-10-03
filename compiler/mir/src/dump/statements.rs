@@ -11,6 +11,13 @@ pub(super) fn dump_statements(
     for statement in statements {
         let pad = "  ".repeat(indent);
         match &statement.kind {
+            StatementKind::PublishReleaseReady { class, receiver } => {
+                out.push_str(&format!(
+                    "{pad}publish_release_ready {}\n",
+                    module.classes[*class].name
+                ));
+                dump_expr(module, locals, receiver, indent + 1, out);
+            }
             StatementKind::Expr(expr) => dump_expr(module, locals, expr, indent, out),
             StatementKind::Call(effect) => match effect {
                 CallEffect::Unit(call) => dump_call(module, locals, call, None, indent, out),

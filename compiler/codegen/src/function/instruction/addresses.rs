@@ -156,8 +156,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::NativeGlobalLoad {
                 out,
                 global,
-                safepoint,
-                roots,
+                protocol,
             } => {
                 let native = &self.native_globals[*global];
                 let storage_type = native.storage_type();
@@ -182,18 +181,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .identity
                     .symbol();
                 let callee = self.native_global_bridge(symbol);
-                let transition = self.publish_native_roots(
-                    roots.as_slice(),
-                    None,
-                    NativeTransitionKind::Safe,
-                    self.safepoint_id(*safepoint),
-                )?;
-                self.emit_native_global_call(callee, slot)?;
-                self.finish_native_transition(
-                    transition,
-                    NativeTransitionKind::Safe,
-                    roots.as_slice(),
-                )?;
+                self.emit_native_global_call(callee, slot, *global, protocol)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_value")
                     .map_err(|error| CodegenError(format!("native global load: {error}")))?;
@@ -202,8 +190,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             Instruction::NativeGlobalStore {
                 global,
                 value,
-                safepoint,
-                roots,
+                protocol,
             } => {
                 let native = &self.native_globals[*global];
                 let storage_type = native.storage_type();
@@ -236,24 +223,12 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 };
                 let symbol = self.native_global_bridges.sets[set].identity.symbol();
                 let callee = self.native_global_bridge(symbol);
-                let transition = self.publish_native_roots(
-                    roots.as_slice(),
-                    None,
-                    NativeTransitionKind::Safe,
-                    self.safepoint_id(*safepoint),
-                )?;
-                self.emit_native_global_call(callee, slot)?;
-                self.finish_native_transition(
-                    transition,
-                    NativeTransitionKind::Safe,
-                    roots.as_slice(),
-                )?;
+                self.emit_native_global_call(callee, slot, *global, protocol)?;
             }
             Instruction::NativeGlobalAddress {
                 out,
                 global,
-                safepoint,
-                roots,
+                protocol,
             } => {
                 let native = &self.native_globals[*global];
                 let storage_type = native.storage_type();
@@ -273,18 +248,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     .identity
                     .symbol();
                 let callee = self.native_global_bridge(symbol);
-                let transition = self.publish_native_roots(
-                    roots.as_slice(),
-                    None,
-                    NativeTransitionKind::Safe,
-                    self.safepoint_id(*safepoint),
-                )?;
-                self.emit_native_global_call(callee, slot)?;
-                self.finish_native_transition(
-                    transition,
-                    NativeTransitionKind::Safe,
-                    roots.as_slice(),
-                )?;
+                self.emit_native_global_call(callee, slot, *global, protocol)?;
                 let value = builder
                     .build_load(ty, slot, "native_global_pointer")
                     .map_err(|error| CodegenError(format!("native global pointer: {error}")))?;

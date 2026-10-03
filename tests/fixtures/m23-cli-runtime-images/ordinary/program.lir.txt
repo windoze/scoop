@@ -1,7 +1,7 @@
 Module
-  global @scoop$1$ss$44b366669744287cb551dbe35c48cf74bec71d02fa926f5564ec39c2996f5b04 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$68f583175fa1ac2f9fad291cefd91e1e79d6a384ccad452bace68fa9cc995edf : ptr<managed> scan=refs[0]
   extern ef0 trace @m23_trace(i64) -> void <c exact=(Long)->void bridge=@scoop$1$br$87ba2037e6e00fa3d6ea0a371d9157abf2ca2627b952bd48ec98487626ba0339 gc-leaf nounwind lib=m23_runtime_images>
-  fun @scoop$1$cb$b97065bf967ea6240503ef2959945e4d5dd778e515c4a0f2116eee7418ee202b(i64) -> void
+  fun @scoop$1$cb$9606cde77c73d211348c86822dfd09418afd5995da64136308cfa30d995eb84b(i64) -> void
     local %0 $sc.1: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -9,7 +9,7 @@ Module
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local0))
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$5435c57358686c3e2076b37be4f0c383b9c772d4286cdd5e318260030fbdf9b2() -> void
+  fun @scoop$1$cb$4fe786104c49a8fcc63fc282cc4a1a9d2d42ce0d729a737f1596bf910177f69f() -> void
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -38,7 +38,7 @@ Module
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 (ptr<raw>) extern0(c-arg-address(local6))
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$95e4f63d9e49c133b73f922460793cc49f15032671afd40c9f3cfed8c54bfea8() -> i32
+  fun @scoop$1$cb$61d67a11a67583b91ee7eacf35f4a768db42d4bfb29f3b6e55ea64b133bdf581() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -52,4 +52,4 @@ Module
     global_store global0, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$5435c57358686c3e2076b37be4f0c383b9c772d4286cdd5e318260030fbdf9b2
+  output executable @scoop$1$cb$4fe786104c49a8fcc63fc282cc4a1a9d2d42ce0d729a737f1596bf910177f69f

@@ -524,6 +524,7 @@ fn root_plan_test_module(
     entry_index: usize,
 ) -> Module {
     let mut module = Module {
+        release_hooks: Default::default(),
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::new(),
         initialization_units: Arena::new(),
@@ -683,6 +684,7 @@ fn duplicate_type_descriptor_identity_is_rejected() {
         .identity
         .clone();
     module.meta.type_descriptors.alloc(TypeDescriptor {
+        release_policy: Default::default(),
         relations: Default::default(),
         diagnostic_name: "DuplicateString".to_string(),
         identity,

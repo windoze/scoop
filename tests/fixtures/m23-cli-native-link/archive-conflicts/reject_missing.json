@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "unresolved native symbol _missing in default namespace (unresolved symbol _missing); reference chain: _missing <- native object 9385ed25366addaa53f4847c47b8370a153ad264952dea93d4dce07307260994-member-1-668 selected by _helper <- native object 9385ed25366addaa53f4847c47b8370a153ad264952dea93d4dce07307260994-member-0-8 selected by _m23_add <- Cone dev.programlink:archive:0.1.0 member 264b89b1182212490e7ec904e0d4b960f265b87dbfe5e95b11d2f286c1a75464",
+    "message": "unresolved native symbol _missing in default namespace (unresolved symbol _missing); reference chain: _missing <- native object 925de817dbaa1d134950dd3ac80355961197ded476a823e0c53424a95c15a21f-member-1-668 selected by _helper <- native object 925de817dbaa1d134950dd3ac80355961197ded476a823e0c53424a95c15a21f-member-0-8 selected by _m23_add <- Cone dev.programlink:archive:0.1.0 member 264b89b1182212490e7ec904e0d4b960f265b87dbfe5e95b11d2f286c1a75464",
     "notes": [],
     "origin": {
       "kind": "none"

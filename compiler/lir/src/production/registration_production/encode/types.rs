@@ -5,7 +5,7 @@ impl<D: crate::StrongDescriptorReference, C: WireEncode> WireEncode
 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         let semantic = self.semantic();
-        encoder.map(29)?;
+        encoder.map(30)?;
         encode_field(encoder, 1, &self.exact_type())?;
         encode_field(encoder, 2, &self.runtime_type())?;
         encode_field(encoder, 3, &self.symbol())?;
@@ -49,7 +49,8 @@ impl<D: crate::StrongDescriptorReference, C: WireEncode> WireEncode
             .relations()
             .encode_with(encoder, |reference, encoder| {
                 D::encode_optional(*reference, encoder)
-            })
+            })?;
+        encode_field(encoder, 30, &semantic.release_policy())
     }
 }
 

@@ -1,11 +1,11 @@
 Module
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Signal tagged size=16 align=8 variants=()@8+0 (i32, i1)@8+8 (i32, i1)@8+8 (i32)@8+4
-  fun @scoop$1$cb$bf42c7bfb26239d312782c77a2b1daf68dde4607ba02310f5f581ec1a6c4cce0(indirect<enum0 size=16 align=8 scan=none>) -> void
+  fun @scoop$1$cb$3299b363a049903749bc398d9944de721c0ff9801a8717488db85c681c7476c7(indirect<enum0 size=16 align=8 scan=none>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $argument.0: i32
     local %1 $argument.1: i1
     local %2 $parameter._1: i32
@@ -37,7 +37,7 @@ Module
     call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (indirect<enum0 size=16 align=8 scan=none>) local-fn0(indirect local10)
     t3 = aggregate () : {}
     ret
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -53,4 +53,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Signal) @scoop$1$td$169e602dc68e91cf30797bf323ec5bb693a61d602e7d651452b70cf43599e705 type-id=11821722871246130035 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Signal size=16 align=8 enum-scan=none
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

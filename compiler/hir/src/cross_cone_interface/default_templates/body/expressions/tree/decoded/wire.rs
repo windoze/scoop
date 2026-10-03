@@ -124,6 +124,10 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
                 operation,
                 callback,
             } => encode_two(encoder, 30, operation, callback.as_ref()),
+            Self::ReleaseFieldLoad {
+                owner_type,
+                declaration,
+            } => encode_two(encoder, 61, owner_type, declaration),
             Self::FieldAccess { receiver, field } => {
                 encode_two(encoder, 31, receiver.as_ref(), field)
             }
@@ -307,6 +311,13 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
                 })
             }
             12 => decode_one(decoder, fields, |decoder| decoder.u32()).map(Self::Local),
+            61 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::ReleaseFieldLoad {
+                    owner_type: decoder.field(1, DecodedSignatureTypeKey::decode)?,
+                    declaration: decoder.field(2, DecodedPersistentId::decode)?,
+                })
+            }
             59 => decode_one(decoder, fields, |decoder| decoder.u32()).map(Self::Capture),
             13 => decode_one(decoder, fields, DecodedPersistentId::decode).map(Self::GlobalRead),
             60 => decode_one(

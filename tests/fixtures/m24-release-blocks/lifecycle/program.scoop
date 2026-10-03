@@ -1,0 +1,105 @@
+@Extern(lib = "m24_release", name = "m24_create")
+private fun create(value: Int): Ptr<Unit>
+
+@Extern(lib = "m24_release", name = "m24_drop")
+private fun drop(pointer: Ptr<Unit>)
+
+@Extern(lib = "m24_release", name = "m24_count")
+private fun count(): Int
+
+private fun allocateNative(value: Int): Ptr<Unit> { @Unsafe { return create(value) } }
+
+class Payload(val value: Int)
+open class Base(val inherited: Int)
+
+class Owner(initial: Ptr<Unit>?, fail: Boolean = false) : Base(7) {
+    private var handle: Ptr<Unit>? = initial
+    val payload: Payload = Payload(31)
+
+    init {
+        gcCollect()
+        if (fail) { throw ArithmeticException() }
+    }
+
+    constructor(value: Int) : this(Some(allocateNative(value))) {}
+    constructor() : this(5) {}
+
+    fun acquire(value: Int) { @Unsafe { handle = Some(create(value)) } }
+
+    fun close() {
+        val saved = handle
+        handle = None
+        when (saved) {
+            Some(pointer) -> { @Unsafe { drop(pointer) } }
+            None -> {}
+        }
+    }
+
+    release {
+        when (handle) {
+            Some(pointer) -> { @Unsafe { drop(pointer) } }
+            None -> {}
+        }
+    }
+}
+
+class GetterOwner(pointer: Ptr<Unit>) {
+    private val handle: Ptr<Unit>? = Some(pointer)
+        get() = None
+    private val empty: Unit = Unit
+    release {
+        val empty = empty
+        when (handle) {
+            Some(pointer) -> { @Unsafe { drop(pointer) } }
+            None -> {}
+        }
+    }
+}
+
+class EmptyOwner { release {} }
+
+private fun closed() {
+    val owner = Owner(3)
+    gcCollect()
+    println(owner.payload.value + owner.inherited)
+    @Unsafe { println(count()) }
+    owner.close()
+    owner.close()
+}
+
+private fun delegated() { val owner = Owner() }
+
+private fun lazyAcquisition() {
+    val owner = Owner(None)
+    owner.acquire(11)
+}
+
+private fun getter() { @Unsafe { val owner = GetterOwner(create(13)) } }
+
+private fun failed() {
+    @Unsafe {
+        val resource = create(17)
+        try { val owner = Owner(Some(resource), true) }
+        catch (error: ArithmeticException) { drop(resource) }
+    }
+}
+
+private fun collectAndPrint() {
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(count()) }
+}
+
+fun main() {
+    closed()
+    collectAndPrint()
+    delegated()
+    collectAndPrint()
+    lazyAcquisition()
+    collectAndPrint()
+    getter()
+    collectAndPrint()
+    failed()
+    collectAndPrint()
+    val empty = EmptyOwner()
+}

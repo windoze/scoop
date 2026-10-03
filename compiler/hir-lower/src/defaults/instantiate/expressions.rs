@@ -6,6 +6,18 @@ impl Lowerer {
         source: &hir::Expr,
         context: &mut InstantiationContext,
     ) -> hir::Expr {
+        if self.current_release.is_some()
+            && matches!(source.kind, hir::ExprKind::CallableReference(_))
+        {
+            self.error(
+                context.statement_span,
+                "a callable reference in an expanded default is not allowed in a `release` block"
+                    .into(),
+            );
+            // Keep the already valid template reference for diagnostic recovery.
+            // A rejected release block never acquires a lexical callable owner.
+            return source.clone();
+        }
         if let hir::ExprKind::Local(local) = source.kind {
             let mut value = context.locals[arena_index(local)].clone();
             value.span = source.span;
@@ -22,6 +34,12 @@ impl Lowerer {
         }
         let origin = instantiate_origin(source.origin, context.evaluation);
         let kind = match &source.kind {
+            hir::ExprKind::ReleaseFieldLoad(field) => {
+                hir::ExprKind::ReleaseFieldLoad(hir::ReleaseFieldRef {
+                    owner: self.instantiate_method_ty(field.owner, &context.bindings),
+                    field: field.field,
+                })
+            }
             hir::ExprKind::StringLiteral { value, owner } => hir::ExprKind::StringLiteral {
                 value: value.clone(),
                 owner: *owner,

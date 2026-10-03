@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$92325e437574eaaf65411c37467f069a2ea578f0289874cfcc99f3eff4882783() -> i32
+  fun @scoop$1$cb$d9ce92ffeb0da45378eda4c10703ee36fec8130cbb4bbacc46b719807e35e80a() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.argument.1: i32
     local %2 $dependency.parameter.marker: i32
@@ -28,7 +28,7 @@ Module
     store local8 -> local9
     t4 = integer_Add<Int> local7, local9 : i32
     ret t4
-  fun @scoop$1$cb$b1178441f601761b827cbb70199020df74ab3d477744b9176fb5eb8d06d6c83a(i32, i32) -> i32
+  fun @scoop$1$cb$7a5ef53b084d7bd3a8f966b181fbe53f4f112e011d4ff8ea315aaeeca24efa7b(i32, i32) -> i32
     local %0 $dependency.local.2: i32
     local %1 $dependency.local.3: i32
     local %2 $dependency.local.4: i32

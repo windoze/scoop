@@ -1,0 +1,10 @@
+package releaseblocks
+
+@Extern(lib = "m24_release", name = "m24_release_add")
+private fun dropNative(value: Int)
+
+@NoGC private fun adjusted(value: Int): Int = value + 1
+
+public class Owner public constructor(private val handle: Int) {
+    release { @Unsafe { dropNative(adjusted(handle)) } }
+}

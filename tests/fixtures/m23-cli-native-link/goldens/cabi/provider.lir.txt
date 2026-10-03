@@ -34,7 +34,7 @@ Module
   extern ef8 transformWidths @m23_widths(struct0) -> struct0 <c exact=(c-struct0)->c-struct0 bridge=@scoop$1$br$df2864ec385e36594dd83b0c1da46a766f77759fda4ba2d676b389f53605d071 gc-leaf nounwind lib=m23_cabi>
   extern ef9 transformEnvelope @m23_envelope(struct1, ptr<code>) -> struct1 <c exact=(c-struct1,code-ptr<(c-struct1)->c-struct1,direct>)->c-struct1 bridge=@scoop$1$br$248c4ec08256958b882e9833a43148f73bb2445c4d5899e252d50bc134042372 gc-leaf nounwind lib=m23_cabi>
   extern ef10 transformPointer @m23_pointer(ptr<raw>, enum1, enum2) -> i32 <c exact=(data-ptr<Int,direct>,data-ptr<Int,nullable=enum1<Int>>,code-ptr<(Int)->Int,nullable=enum2<(Int)->Int>>)->Int bridge=@scoop$1$br$0a3c53558a4d9d410141acd8529e80b7d77144b7c03c33d80c89b589ea3f8a16 gc-leaf nounwind lib=m23_cabi>
-  fun @scoop$1$cb$de1eee63c828e3348ed63efca81e9de85e03aab346a63cbb350208b61d7146ff(indirect<struct2 size=8 align=8 scan=none>, indirect<struct2 size=8 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$cb79cb6d8bad6073e358fd075372773f95253a76ab9ff65c03c6013a9d3b57c0(indirect<struct2 size=8 align=8 scan=none>, indirect<struct2 size=8 align=8 scan=none>) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
   block entry
@@ -55,7 +55,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop$1$cb$eb0dd8a55c1761ddfad5c516e3a023c35f99f581649a981d98fb389a522b1b11(indirect<struct1 size=32 align=16 scan=none>, indirect<struct1 size=32 align=16 scan=none>) -> i1
+  fun @scoop$1$cb$f2d10a21e088256d15381aab6986dd76afa84dea7b1148f4ced8600c4301dfd7(indirect<struct1 size=32 align=16 scan=none>, indirect<struct1 size=32 align=16 scan=none>) -> i1
     local %0 $logic.1: i1
     local %1 $call.2: i1
     local %2 $logic.3: i1
@@ -92,7 +92,7 @@ Module
     br @logic.merge.6
   block logic.merge.6
     ret local2
-  fun @scoop$1$cb$1a03686793e0b05c4ed52284097bc0bc7e700be0f1a541cccb17d972ff6dce37(indirect<struct0 size=32 align=8 scan=none>, indirect<struct0 size=32 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$a5ae54df8f9e19d4d118d7d09b710fc96f5faa3ddd74644a43f0f05c56156d62(indirect<struct0 size=32 align=8 scan=none>, indirect<struct0 size=32 align=8 scan=none>) -> i1
     local %0 $logic.1: i1
     local %1 $logic.2: i1
     local %2 $logic.3: i1
@@ -183,7 +183,7 @@ Module
     br @logic.merge.21
   block logic.merge.21
     ret local6
-  fun @scoop$1$cb$a70ef5c6750bae4d02f14607e3f1e8fa0f19db613c06b4983330a3504f421074(i8) -> i8
+  fun @scoop$1$cb$90f50c53484a7493764e0d241197d9c879717ab602ab542d458efc54e44afb7e(i8) -> i8
     local %0 $call.1: i8
     local %1 $sc.1: i8
     local %2 $sc.2: i8
@@ -193,7 +193,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i8 size=1 align=1 scan=none, ptr<raw>) extern0(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$a5e52969c00f062784bcaeaaf8b368cff674010b0292abdf349e51ecdb58d3a3(i16) -> i16
+  fun @scoop$1$cb$39f5591138ddc469987936090efcf4bf513a2106040d9cab107c83fc647c813e(i16) -> i16
     local %0 $call.1: i16
     local %1 $sc.1: i16
     local %2 $sc.2: i16
@@ -203,7 +203,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i16 size=2 align=2 scan=none, ptr<raw>) extern1(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$a44b194a76a1c72f6d98e558efc8586d3a2f1e664d83b957b227d6b8a7d617a8(i32) -> i32
+  fun @scoop$1$cb$5c30991b401c4f24162d1bb9afe3b35d9e1c58369342c7388b21f203f3c37a82(i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
     local %2 $sc.2: i32
@@ -213,7 +213,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern2(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$3ba250e7f89f371788fc6f16dc72678ba05c8e92c95c75df8c6e71e79f3e8204(i64) -> i64
+  fun @scoop$1$cb$d1905f4df4986aa5d20f7af7c0da3c6780615530652bbe1f094b071423e47a0c(i64) -> i64
     local %0 $call.1: i64
     local %1 $sc.1: i64
     local %2 $sc.2: i64
@@ -223,7 +223,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern3(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$2ff535ea23cf0d9ab442c048099722ab27aa3a235298545b922e3a277c57e648(i8) -> i8
+  fun @scoop$1$cb$e50aefe2de3c06694d7e6c9729140957e7f5019caea6b252f367d64e46aa3655(i8) -> i8
     local %0 $call.1: i8
     local %1 $sc.1: i8
     local %2 $sc.2: i8
@@ -233,7 +233,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i8 size=1 align=1 scan=none, ptr<raw>) extern4(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$9c08c6cbf0adcaa2eccda65d7fdc0d0f1bbfcb874d3ef8d51b01dfb11a6cff3e(i16) -> i16
+  fun @scoop$1$cb$ebed23f3806d530eabcbdcde3d4b03a4f46c162c038ac29944869bb5d10922f7(i16) -> i16
     local %0 $call.1: i16
     local %1 $sc.1: i16
     local %2 $sc.2: i16
@@ -243,7 +243,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i16 size=2 align=2 scan=none, ptr<raw>) extern5(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$8c63808d3f5f94e785f7f817bea3334c90ae3a95627c16ec9159adbe7f16b105(i32) -> i32
+  fun @scoop$1$cb$2b3c9a093e62cd32f082d560bfe2e73c66868d0c9980deb1c704b6be132a324b(i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
     local %2 $sc.2: i32
@@ -253,7 +253,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern6(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$4f986134360ca987a0916495a185c704776e6adc202f66944b3f3f0e0f57ed1d(i64) -> i64
+  fun @scoop$1$cb$3a08fe44c94ed7e799077f7d5939db4cf413e76ef91f0ec0873ec82e62d1e682(i64) -> i64
     local %0 $call.1: i64
     local %1 $sc.1: i64
     local %2 $sc.2: i64
@@ -263,7 +263,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>) extern7(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$14b07613a02a5c4a417f3e10a1779e472d70241d27e82be0d911bfee887b512e(indirect<struct0 size=32 align=8 scan=none>) -> sret<struct0 size=32 align=8 scan=none>
+  fun @scoop$1$cb$4edd51976a9a86a10fab38906291f2e4b7ac3eec890de1fa05912bc394deb11e(indirect<struct0 size=32 align=8 scan=none>) -> sret<struct0 size=32 align=8 scan=none>
     local %0 $call.1: struct0
     local %1 $sc.1: struct0
     local %2 $sc.2: struct0
@@ -273,7 +273,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer struct0 size=32 align=8 scan=none, ptr<raw>) extern8(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$0a4fc09eb4d817f3489012df745030cf0e74ef37012d7eea9e0db47f7bac1902(indirect<struct1 size=32 align=16 scan=none>, ptr<code>) -> sret<struct1 size=32 align=16 scan=none>
+  fun @scoop$1$cb$5ba1898fab7eeb659e23a1691760dd31621ebec192e5765b94092b6cb3fb8a61(indirect<struct1 size=32 align=16 scan=none>, ptr<code>) -> sret<struct1 size=32 align=16 scan=none>
     local %0 $call.1: struct1
     local %1 $sc.1: struct1
     local %2 $sc.2: ptr<code>
@@ -285,7 +285,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer struct1 size=32 align=16 scan=none, ptr<raw>, ptr<raw>) extern9(c-arg-address(local1), c-arg-address(local2))
     store local3 -> local0
     ret local0
-  fun @scoop$1$cb$75f90da63812290924c8a5d513fa11cffb1eeeac88e58ece3831b43ba7fab59d(ptr<raw>, enum1, enum2) -> i32
+  fun @scoop$1$cb$2686cc51762b17c545ea8d11e053c09b0c9c8748e26b5cda586e1205aea845ae(ptr<raw>, enum1, enum2) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: ptr<raw>
     local %2 $sc.2: enum1
@@ -299,103 +299,103 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>, ptr<raw>, ptr<raw>) extern10(c-arg-address(local1), c-arg-address(local2), c-arg-address(local3))
     store local4 -> local0
     ret local0
-  fun @scoop$1$cb$a33f0a590434ef3bfa22f09f4381e102d2174d1d333b36c586b73650cdc8e5c8(ptr<managed>, indirect<struct0 size=32 align=8 scan=none>) -> void
+  fun @scoop$1$cb$91a5b82d79b85fb0acef96458a4b0fd9d6c3e8168263da53209944c0b0b8e588(ptr<managed>, indirect<struct0 size=32 align=8 scan=none>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$d9b640be428cacee0dbbc38ed5de028810dea427e4626f6e9f2e72c977dec99d(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$bc6a931c7467f1f9af7fd9d62e6b58047627e74bf8b91a32835ef3d2b01098cc(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$bb99d452904de6b6db44843bda489fad4bed5cb70abc3e46d432d51e19e59871(ptr<managed>, ptr<managed>) -> sret<enum5 size=40 align=8 scan=none>
+  fun @scoop$1$cb$9f3dd10c13d9f9712c879ffc15ca3ab8638c7194acf3a7db9f1e7f5145782065(ptr<managed>, ptr<managed>) -> sret<enum5 size=40 align=8 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
     unreachable
-  fun @scoop$1$cb$d22a35b3da31773192edcc39549e53a19f43b63fdd66b4793b7f2b1efc96839b(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$9308bdad863d919a5b3da0a58bb6bac7ccaece0924710269f8c9d655f9b46bca(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$83a39fc9d738e8af9861780f709762d3dd0424576245f8458f0d6ff639bb93c4(ptr<managed>, indirect<struct1 size=32 align=16 scan=none>) -> void
+  fun @scoop$1$cb$d65e5b0f15af911d618c5317bb0614d33291f769bc0c753d1b2e4dabb5dca7e9(ptr<managed>, indirect<struct1 size=32 align=16 scan=none>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global4)
     unreachable
-  fun @scoop$1$cb$3898debab9339be8711ebaae422b596469f53d3b9993304c693d45ef11326b46(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$38d3340632d25de4919fd4a05f45f25f1f54ad1125eb49fa538b8dcb67342511(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global5)
     unreachable
-  fun @scoop$1$cb$45258e44240cc04483c6a410e2b9df797291f4fc5a015f106e1ec29357ec17a9(ptr<managed>, ptr<managed>) -> sret<enum3 size=48 align=16 scan=none>
+  fun @scoop$1$cb$738a9f7b991a62ee73cdde915f482f6a10c6de331970dcdac7d3cca3cb816d04(ptr<managed>, ptr<managed>) -> sret<enum3 size=48 align=16 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global6)
     unreachable
-  fun @scoop$1$cb$5c07ad6dfc975b44ffa4a8e68b0f5e285d4ae7a1ec97d98a07d2db5616e0d74f(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$4c43bde304c165840d5ae0c2651e1ae6cf946556994c84d2fed15302830c795c(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global7)
     unreachable
-  fun @scoop$1$cb$6c31745a191f87b546004d1dd13ab4d22d2cfc37bd79043d5d109df0280fa1c7(ptr<managed>, indirect<struct2 size=8 align=8 scan=none>) -> void
+  fun @scoop$1$cb$ddb400c0fb0c900a6e87f1a44eeeb63f6fe3ffd8ffb37825b670a2907e7e960f(ptr<managed>, indirect<struct2 size=8 align=8 scan=none>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global8)
     unreachable
-  fun @scoop$1$cb$cd99f4bd430a021813ad1ae0aad5c5df3c9ebdb0554045193228520bf9de5d4f(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$5501ee96da121adaba691419fed3e73495d06f281fefd5d005f4e8c18aa20628(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global9)
     unreachable
-  fun @scoop$1$cb$b384ddefd9a10b6ec9b23b88a15c6fe1bed041301491d53cffda377c903b8050(ptr<managed>, ptr<managed>) -> sret<enum7 size=16 align=8 scan=none>
+  fun @scoop$1$cb$ea07eebfed2e091f9735a56612fb2aee6c4cf2a71f67dafe99264c6e5ec15960(ptr<managed>, ptr<managed>) -> sret<enum7 size=16 align=8 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global10)
     unreachable
-  fun @scoop$1$cb$10d266467fcf528323af86215f8792321ddafdde741c41880ac8cbd3ff7e126d(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$5f832c362d190965741b772ee9ee1748fcced646363cb4cfad88f89492c08098(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global11)
     unreachable
-  fun @scoop$1$cb$f38343eda253d9414fed56d01a113466b4294060db20497f8a2816fba75b50b3(i8, i16, i32, i64, i8, i16, i32, i64) -> sret<struct0 size=32 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$49fd7d05999ad5e2c6973dc9d23a37b717f7086c118cb822235ff21329366dbb(i8, i16, i32, i64, i8, i16, i32, i64) -> sret<struct0 size=32 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2, param3, param4, param5, param6, param7) : struct0
     ret t0
-  fun @scoop$1$cb$e6744d4fde5b82abcf628cc51597350987b07c0e13dfd65e53394047dd9f880c(i1, i32) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$aac37104d2aba28accb3011b54fb6bb6016ca7578e6b3f2d2ecf271b59e3a3b8(i1, i32) -> sret<struct2 size=8 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct2
     ret t0
-  fun @scoop$1$cb$4d85479932fe7bd490ad4007eb0277e25bf34827678acd7aca6068a4c9e2f498(i16, indirect<struct2 size=8 align=8 scan=none>, i64) -> sret<struct1 size=32 align=16 scan=none> <no-gc>
+  fun @scoop$1$cb$7aabf954f4e771814a1db8865c822d0d522faf51e30609fc06ec189cf3640df4(i16, indirect<struct2 size=8 align=8 scan=none>, i64) -> sret<struct1 size=32 align=16 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1, param2) : struct1
     ret t0
-  fun @scoop$1$cb$cbb09aa52fa0573f195d0ddc695ecca3dde3ef2d141c863f30787adb958298ed(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$1900697b62e1d71bd72278554fb912133ffaa1c721809db765f39454de7d4808(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum3
     local %1 $exception: ptr<managed>
     local %2 $sc.1: struct1
@@ -440,7 +440,7 @@ Module
     t13 = enum_tag e3 local0 : machine<enum-tag>
     t14 = MachineEq(EnumTag) t13, machine<enum-tag>(EnumTag(0)) : i1
     cbr t14 then @completed else @suspended
-  fun @scoop$1$cb$8df892e2cf5c908138a44bfaefcf29a3fad58f1610fead63445775150bf004fe(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$f7f9eeca22daad7110fd2cbe8439b3cc21bcf044eeb02f4399aae1ab5d22db22(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum5
     local %1 $exception: ptr<managed>
     local %2 $sc.1: struct0
@@ -485,7 +485,7 @@ Module
     t13 = enum_tag e5 local0 : machine<enum-tag>
     t14 = MachineEq(EnumTag) t13, machine<enum-tag>(EnumTag(0)) : i1
     cbr t14 then @completed else @suspended
-  fun @scoop$1$cb$3c881f7b8899dd55531323be4d43cbdedecc66efc33e050a3e99c71c0c0d2e15(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$bd4d55d2c27c6029289a349347a257ecb00f3c25515b85f94401bb5b4a6977cc(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum7
     local %1 $exception: ptr<managed>
     local %2 $sc.1: struct2

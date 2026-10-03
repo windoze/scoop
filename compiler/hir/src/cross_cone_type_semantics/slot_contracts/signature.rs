@@ -43,8 +43,8 @@ impl InheritanceCallableSignatureV1 {
     pub const fn exact_signature(&self) -> &ExactCallableSignature {
         &self.exact_signature
     }
-    pub const fn effects(&self) -> CallableSourceEffectsV1 {
-        self.effects
+    pub fn effects(&self) -> CallableSourceEffectsV1 {
+        self.effects.clone()
     }
 
     pub fn receiver(&self) -> PersistentExactTypeId {

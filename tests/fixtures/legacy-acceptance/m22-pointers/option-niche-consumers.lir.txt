@@ -3,12 +3,12 @@ Module
   global @scoop$1$io$ee4c324db03d8bf90f722b315f9952a1a46fda3a19956d6a5e5bf22ed40db64a = "fallback"
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option niche(kind=raw,payload_variant=0)
   enum Option niche(kind=code,payload_variant=0)
-  fun @scoop$1$cb$38a11ff19f815703c220b28790200d4914bd9706f161829c101cd03918cda951(indirect<enum1 size=16 align=8 scan=none>, i32) -> i32
+  fun @scoop$1$cb$a98cb318573d51f85aa9ef80db0694057754b07455bbb3e34f001b32e423f84e(indirect<enum1 size=16 align=8 scan=none>, i32) -> i32
     local %0 $opt.0: enum1
     local %1 $res.1: i32
   block entry
@@ -25,7 +25,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$bd48f09bb542776e8285408a1bad69cb3b30d52d34b48e19c1429d1a633ecc93(enum0, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$1e8f67b4089e779ee364358647aba2cb4da9424c220f6beb8f115429ea7754d7(enum0, ptr<managed>) -> ptr<managed>
     local %0 $opt.2: enum0
     local %1 $res.3: ptr<managed>
   block entry
@@ -42,7 +42,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$54ac8eee1b572e1bc8811ef87257a2681e3e751afd8a173851d6fcae2a668608(enum2) -> ptr<raw>
+  fun @scoop$1$cb$25b005255d9577fab30e4a3f3733edab2624642aa58304f85f5c4581184cf4ce(enum2) -> ptr<raw>
     local %0 $opt.1: enum2
     local %1 $uw.2: ptr<raw>
     local %2 $new.1: ptr<managed>
@@ -64,7 +64,7 @@ Module
     unreachable
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$1821febd0f03329f4f301439cbec2d30202b610f0a84bdbae79ed1bde67354f6(enum3) -> ptr<code>
+  fun @scoop$1$cb$72d8dfa89b71310f8438b0461ad59c0b7523f0bc3fefc1122e9e3efa3b97acb9(enum3) -> ptr<code>
     local %0 $opt.1: enum3
     local %1 $uw.2: ptr<code>
     local %2 $new.1: ptr<managed>
@@ -86,7 +86,7 @@ Module
     unreachable
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter._1: i32
     local %2 $argument.0: enum1
@@ -132,7 +132,7 @@ Module
     call managed-void-target1 sp<managed-call:3> live=[local15:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn6(local15)
     t5 = aggregate () : {}
     ret
-  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -151,7 +151,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$0e2592cda2d841ffaeeb4ca9ee19ab89cff7a7c2584f848c9feaa95e67b36371(ptr<managed>) -> void
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -170,7 +170,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @success unwind @failure
@@ -192,4 +192,4 @@ Module
   layout Option size=16 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=none
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

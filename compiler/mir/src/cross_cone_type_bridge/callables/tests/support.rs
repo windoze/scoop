@@ -239,6 +239,7 @@ impl Fixture {
             (
                 MirValueKindV1::Reference,
                 MirTypeRepresentationV1::Class {
+                    release_policy: Default::default(),
                     kind: MirClassKindV1::Abstract,
                     declared_fields: vec![],
                 },

@@ -7,6 +7,23 @@
 #include "heap_internal.h"
 #include "../platform/platform.h"
 
+static void release_dead_object(void *object) {
+    ScoopObjectHeader *header = object;
+    ScoopReleaseHookV1 hook = header->td->release_hook;
+    if (hook == NULL) {
+        if (__atomic_load_n(&header->gc_word, __ATOMIC_ACQUIRE) &
+            GC_RELEASE_READY_BIT) {
+            heap_fatal("release-ready object has no release hook");
+        }
+        return;
+    }
+    uint64_t previous = __atomic_fetch_and(
+        &header->gc_word, ~GC_RELEASE_READY_BIT, __ATOMIC_ACQ_REL);
+    if (previous & GC_RELEASE_READY_BIT) {
+        hook(object);
+    }
+}
+
 static void free_run_push(uint32_t block_index, size_t first_line,
                           size_t line_count) {
     if (line_count == 0 || first_line == 0 ||
@@ -139,6 +156,10 @@ static bool finish_small_block(uint32_t index, bool stress) {
             if (size == 0) {
                 heap_fatal("allocated object lost its exact size");
             }
+            if (!marked) {
+                release_dead_object((char *)block_base(index) +
+                                    word * sizeof(uint64_t));
+            }
             if (stress) {
                 memset((char *)block_base(index) +
                            word * sizeof(uint64_t),
@@ -207,6 +228,9 @@ static bool finish_large_block(uint32_t index, bool stress) {
     }
     bool keep = block->large_marked && !moved;
     if (!keep) {
+        if (!block->large_marked) {
+            release_dead_object((char *)block_base(index) + GC_LINE_SIZE);
+        }
         if (stress) {
             memset((char *)block_base(index) + GC_LINE_SIZE,
                    GC_POISON_BYTE, block->exact_size);

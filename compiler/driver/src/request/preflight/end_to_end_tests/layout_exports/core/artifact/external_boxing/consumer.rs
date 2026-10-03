@@ -14,6 +14,7 @@ pub(super) fn module(
     let mut external_type_descriptors = Arena::new();
     let string = TypeDescriptorRef::External(external_type_descriptors.alloc(string));
     Module {
+        release_hooks: Default::default(),
         cone,
         globals: Arena::new(),
         initialization_units: Arena::new(),

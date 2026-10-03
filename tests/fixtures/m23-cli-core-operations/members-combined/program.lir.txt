@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$028418d42f741570b70690d64e7b758ed7ac81f01a0e54030be4c65ba071f9f4 = "!"
   global @scoop$1$io$787bf9f8a0abd5624bcaa228a6a48d3694b8d367093d5cdf8ac4fdd68bf5cff5 = "z"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
-  fun @scoop$1$cb$108858490ba82f80db3504073a64cd9421a18a456209bcd903478185f987447a(i32) -> i64
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$2b52dada8268cab6608bb5a65cefb3db28c3ce74b771ccb3bbc42bb1cf3ea5ca(i32) -> i64
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -13,14 +13,14 @@ Module
     store local1 -> local2
     t0 = integer_compare_to<Int> local0, local2 : i64
     ret t0
-  fun @scoop$1$cb$d5a31ef06e18dc1ed0f7870cc6ca6c5cbbdb62fd9bb68ffa9582a1e8803fd49a(i64) -> i32
+  fun @scoop$1$cb$cb9195f1e6daf11f3f6e736edd80210120b419360ad3ec77ce4e43677e096c6e(i64) -> i32
     local %0 $dependency.receiver: i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     t0 = integer_convert<Long->Int> local0 : i32
     ret t0
-  fun @scoop$1$cb$4650147a8fc7bb57cd700c563b42b657350e8b62bca44c2f8d653272719e80f9(i32) -> i32
+  fun @scoop$1$cb$cd5f6bde7f2f30994d1f8a84d53fbec6d5a433d1e50f5e54780ab669644dd86d(i32) -> i32
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.count: i64
@@ -33,7 +33,7 @@ Module
     t1 = integer_convert<Long->UInt> t0 : i32
     t2 = integer_shift_Left<UInt> local0, normalized=t1 : i32
     ret t2
-  fun @scoop$1$cb$ed210321316d425eac6f08008d031428e78e6a841bd27beda551abce00fd4420(i32) -> i64
+  fun @scoop$1$cb$9bf1a5bfc11c0c920815393e1a0f660a2e8f2c7bbd6779868c388a61f4aae656(i32) -> i64
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -54,7 +54,7 @@ Module
     store local5 -> local6
     t2 = integer_compare_to<Int> local4, local6 : i64
     ret t2
-  fun @scoop$1$cb$979d0068c59646c1c10525bcd727f89eb669ba8bb95647f8c0115202d22e6116() -> i64
+  fun @scoop$1$cb$45cc31d113e2bfd02c78b39eab5a7600428a5c70ac8cdeb5732625bfb9734ef8() -> i64
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -65,7 +65,7 @@ Module
     store local1 -> local2
     t0 = integer_compare_to<Int> local0, local2 : i64
     ret t0
-  fun @scoop$1$cb$e5b7151c9bdccc9d6bcb3716dda9882dd77179c1cbdc0e05e0ca13850885bb0f() -> i8
+  fun @scoop$1$cb$c3b1d572ffc6e2d084b98d1c00cf46ceb726bfb0c1ca038461d5e407505d4bc3() -> i8
     local %0 $dependency.receiver: i8
     local %1 $dependency.argument.0: i8
     local %2 $dependency.parameter.other: i8
@@ -76,14 +76,14 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int8> local0, local2 : i8
     ret t0
-  fun @scoop$1$cb$fda274d20b33e84457ad146bb6f958e816c8e4f48f71c4c472b671034d8efbd0(i1) -> i1
+  fun @scoop$1$cb$fe4537d7d88af48c4141c00493410ebb37dcdbad17df8fb22995e1a5cf2d3937(i1) -> i1
     local %0 $dependency.receiver: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
     t0 = Not local0 : i1
     ret t0
-  fun @scoop$1$cb$a1dd3690a8ae2476c7da9c4fdb45863ce673cffb6158bc6a4966457a8e147b89(i32) -> i1
+  fun @scoop$1$cb$8001d724bd385949084f9fc402f62b6a24355dfdb3c4d754b572bab4c846c018(i32) -> i1
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -94,7 +94,7 @@ Module
     store local1 -> local2
     t0 = integer_compare_Equal<Int> local0, local2 : i1
     ret t0
-  fun @scoop$1$cb$03e18664bc09ccc7e8f33353edc3a5f455532ddccef9bfc2ca53e37423528987(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$2756ef6da22da3c996b6a2fc24f90ff1eacb658bac9853534955d54b7640c291(ptr<managed>) -> ptr<managed>
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.other: ptr<managed>
@@ -107,7 +107,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
     store t0 -> local3
     ret local3
-  fun @scoop$1$cb$a6c93e9482d15783099aa24c0c04803f8e83c41068b8187d4b7bedfa70cd0a5c(ptr<managed>) -> i64
+  fun @scoop$1$cb$ccf319d80b0ef1cda370fe0170617511370a4e1c1680e74bb831c5bdfdfe926f(ptr<managed>) -> i64
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.other: ptr<managed>
@@ -120,17 +120,17 @@ Module
     call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> i64 runtime @scoop_rt_string_compare(local0, local2)
     store t0 -> local3
     ret local3
-  fun @scoop$1$cb$24c3137eb0f70599f0c0950c543c83f80ddc8532d18af4b244175c65337eb582(i32) -> i32 <no-gc>
+  fun @scoop$1$cb$ae1e10cf480feb1643d6f61815e57d278d7c0f968fbad6adf68bd2606aace78e(i32) -> i32 <no-gc>
     local %0 $dependency.receiver: i32
   block entry
     store param0 -> local0
     t0 = integer_Add<Int> local0, integer<Int>(0x00000001) : i32
     ret t0
-  fun @scoop$1$cb$34c153f4bf352c8c07f025644ec0ba1faf120acc9be27b1c8e24d3b8e5b6001f(i32, i32) -> i64
+  fun @scoop$1$cb$da1f63d05368fb9b54727ec73141a2abe8c85d8d441d9fad1ae069fbe5d14f2e(i32, i32) -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Long>(0x0000000000000063)
-  fun @scoop$1$cb$99fbfdfbb55d7e12f14c93c4f040911cd053a4baf235439f6ac1a7d8052eb7b7(i8) -> i64
+  fun @scoop$1$cb$b5b7ca0f15b25a4bc005beb2eec84110365397cbd23ea56a2314362d23bbfb78(i8) -> i64
     local %0 $dependency.receiver: i8
     local %1 $dependency.argument.0: i8
     local %2 $dependency.parameter.other: i8
@@ -151,7 +151,7 @@ Module
     store local5 -> local6
     t2 = integer_compare_to<Int8> local4, local6 : i64
     ret t2
-  fun @scoop$1$cb$785393f45081144e6e1be3d7e4d56960a605ae056ddf7e6c553dc034c4c59616() -> i8
+  fun @scoop$1$cb$894317e388fc7a53bba9a2408d967d31a0f3038ef8acd0ac9b513f819e0c7251() -> i8
     local %0 $dependency.receiver: i8
     local %1 $dependency.argument.0: i8
     local %2 $dependency.parameter.other: i8
@@ -162,7 +162,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int8> local0, local2 : i8
     ret t0
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -206,7 +206,7 @@ Module
     call managed-direct-target2 sp<managed-call:2> live=[] t7 = sig=direct2 (i32) -> i32 external-fn0(local14)
     store t7 -> local15
     ret
-  fun @scoop$1$cb$579c64e1feb2f05a1249cf782542ea164544037931a81112749f9e0203aa2a97(ptr<raw>, ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$66c8773e549db10a26529b6b99b2f731a4fca2ffa8ec6bb0d0e6bc4beb086425(ptr<raw>, ptr<raw>) -> void <no-gc>
     local %0 $value: i32
   block entry
     t0 = raw_load param1 align 4 : i32
@@ -215,7 +215,7 @@ Module
     raw_store param0 local0 align 4
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn14() normal @success unwind @failure
@@ -229,4 +229,4 @@ Module
     global_store global2, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

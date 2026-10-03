@@ -1,0 +1,127 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m24_release", name = "m24_create")
+  private fun create(value: Int): Ptr<Unit>
+    @Extern(lib = "m24_release", name = "m24_drop")
+  private fun drop(pointer: Ptr<Unit>)
+    @Extern(lib = "m24_release", name = "m24_count")
+  private fun count(): Int
+  private fun allocateNative(value: Int): Ptr<Unit>
+    @Unsafe block
+      return
+        Call create
+          Var value
+  class Payload(val value: Int)
+  open class Base(val inherited: Int)
+  class Owner(initial: Ptr<Unit>?, fail: Boolean = <expr>) : Base(<1 args>)
+    private var handle: Ptr<Unit>? = <expr>
+      Var initial
+    val payload: Payload =
+      Call Payload
+        IntLiteral 31
+    init
+      Call gcCollect
+      if
+        Var fail
+        throw
+          Call ArithmeticException
+    constructor(value: Int) : this(<1 args>)
+    constructor() : this(<1 args>)
+    fun acquire
+    fun close
+    release
+      when
+        Var handle
+        arm Some(pointer)
+          @Unsafe block
+            Call drop
+              Var pointer
+        arm None
+  class GetterOwner(pointer: Ptr<Unit>)
+    private val handle: Ptr<Unit>? = <expr>
+      Call Some
+        Var pointer
+      get()
+        Var None
+    private val empty: Unit = <expr>
+      UnitLiteral
+    release
+      val empty
+        Var empty
+      when
+        Var handle
+        arm Some(pointer)
+          @Unsafe block
+            Call drop
+              Var pointer
+        arm None
+  class EmptyOwner()
+    release
+  private fun closed()
+    val owner
+      Call Owner
+        IntLiteral 3
+    Call gcCollect
+    Call println
+      Binary Add
+        FieldAccess value
+          FieldAccess payload
+            Var owner
+        FieldAccess inherited
+          Var owner
+    @Unsafe block
+      Call println
+        Call count
+    MethodCall close
+      Var owner
+    MethodCall close
+      Var owner
+  private fun delegated()
+    val owner
+      Call Owner
+  private fun lazyAcquisition()
+    val owner
+      Call Owner
+        Var None
+    MethodCall acquire
+      Var owner
+      IntLiteral 11
+  private fun getter()
+    @Unsafe block
+      val owner
+        Call GetterOwner
+          Call create
+            IntLiteral 13
+  private fun failed()
+    @Unsafe block
+      val resource
+        Call create
+          IntLiteral 17
+      try
+        val owner
+          Call Owner
+            Call Some
+              Var resource
+            BoolLiteral true
+      catch error: ArithmeticException
+        Call drop
+          Var resource
+  private fun collectAndPrint()
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Call count
+  fun main()
+    Call closed
+    Call collectAndPrint
+    Call delegated
+    Call collectAndPrint
+    Call lazyAcquisition
+    Call collectAndPrint
+    Call getter
+    Call collectAndPrint
+    Call failed
+    Call collectAndPrint
+    val empty
+      Call EmptyOwner

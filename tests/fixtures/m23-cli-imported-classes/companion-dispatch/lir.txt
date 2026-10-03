@@ -1,6 +1,6 @@
 Module
   imported_global @scoop$1$ss$c868344859bc1efa30728982fed34d918e59ee308f6bf0ab326183f6e7114413 : ptr<managed> provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a scan=refs[0]
-  fun @scoop$1$cb$13c222fea40641102058cf34b331ac964978878ad236df80c21e2e42b6391655() -> ptr<managed>
+  fun @scoop$1$cb$791620763a4014d0ae1880e29cdbad3f59c674ca18601ffd5748b875d7c0270d() -> ptr<managed>
     local %0 reader: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.argument.0: i64

@@ -2,10 +2,10 @@ Module
   global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "x"
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   global @scoop$1$io$f0fefd5ee848e76be5b8c0e31b49e0950fab7b3c446de18d43af30a7d8ec6681 = "\n"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter._1: i32
     local %2 $argument.0: enum0
@@ -80,7 +80,7 @@ Module
     call managed-void-target3 sp<managed-call:7> live=[] sig=void3 (i1) local-fn4(local24)
     t10 = aggregate () : {}
     ret
-  fun @scoop$1$cb$191659095f3d61e0352f13b9588812f320a3b6f1ee47a0a2fef6c8ad533c52b2(indirect<enum0 size=16 align=8 scan=none>, i32) -> i32
+  fun @scoop$1$cb$c98a1fd41187823ecb50eddccf5078438d928b670c54d5786c5567cac106ffb8(indirect<enum0 size=16 align=8 scan=none>, i32) -> i32
     local %0 $opt.0: enum0
     local %1 $res.1: i32
   block entry
@@ -97,7 +97,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -116,7 +116,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$ea1fd35a2d843e2b2c656566e1575916e8ab807b0dadd7d68091399c7f1fd43e(enum1) -> i1
+  fun @scoop$1$cb$ed8a9673695de244b83e24528c6e0a2edcfcc0abce84d18e022d0d44ede6a71b(enum1) -> i1
     local %0 $result.2: i1
     local %1 $when.1: enum1
     local %2 $pattern.subject.2: enum1
@@ -143,7 +143,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$71a8bdb7e9069d4ec0fedc224c7d96f852fc7cc568868eb03032ab468e4c5207(i1) -> void
+  fun @scoop$1$cb$b0c2bbaec5d3e971bdbf6b7be42ee32b5cd27aa28cd91cd80288f41a25f3b6cf(i1) -> void
     local %0 $dependency.local.1: i1
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -162,7 +162,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn2(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$a069738686adb8890442ff9054be8960f6532b6f4780b0b2e825d84114b6e32a(indirect<enum0 size=16 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$c105c837b1f0be59ad3c8cc2ceaf9a4d183690de02ada0b5991b650b2e29bb9c(indirect<enum0 size=16 align=8 scan=none>) -> i1
     local %0 $result.2: i1
     local %1 $when.1: enum0
     local %2 $pattern.subject.2: enum0
@@ -189,7 +189,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
@@ -207,4 +207,4 @@ Module
   td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=16 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

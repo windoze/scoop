@@ -1,0 +1,7 @@
+import releaseeffects.identity
+import releaseeffects.plain
+
+@NoGC fun <T> forward(value: T): T = identity(value)
+@NoGC fun consume(value: Int): Int = forward(value) + plain(value + 1)
+
+fun main() { println(consume(20)) }

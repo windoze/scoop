@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$8c2ef8ed1e158a0288b0fe64064d8c15205aabfc75f36112be0b8843675e8fd6(ptr<managed>) -> elided-zst<struct2 size=0 align=1>
+  fun @scoop$1$cb$5ed43cf0d1610b87ba17a9dd630f5ef4daadb166e03dba00fb763669932a2af4(ptr<managed>) -> elided-zst<struct2 size=0 align=1>
     local %0 $dependency.argument.0: struct2 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
     local %1 $dependency.parameter.value: struct2 <logical-zst 307f6d500e893433b620323e5ddfe0a97bab5274c907b2d0170e144371453e6e>
     local %2 $dependency.receiver: ptr<managed>

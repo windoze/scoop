@@ -195,6 +195,7 @@ pub(super) fn exceptions_module() -> Module {
     };
 
     let mut module = Module {
+        release_hooks: Default::default(),
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),

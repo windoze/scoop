@@ -99,6 +99,7 @@ typedef struct ScoopTypeInstanceShapeV1 {
 } ScoopTypeInstanceShapeV1;
 
 typedef struct ScoopTypeDescriptor ScoopTypeDescriptor;
+typedef void (*ScoopReleaseHookV1)(void *object_start);
 
 typedef struct ScoopItableEntryV1 {
     const ScoopTypeDescriptor *interface;
@@ -117,6 +118,7 @@ struct ScoopTypeDescriptor {
     uint32_t relation_kind;
     uint32_t related_type_count;
     const ScoopTypeDescriptor *function_result;
+    ScoopReleaseHookV1 release_hook;
     const ScoopTypeDescriptor *related_types[];
 };
 
@@ -285,7 +287,7 @@ SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeInstanceShapeV1, inline_scan, 56);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopItableEntryV1, 16, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopItableEntryV1, interface, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopItableEntryV1, slots, 8);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopTypeDescriptor, 144, 8);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopTypeDescriptor, 152, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, type_id, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, instance_shape, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, object_scan, 72);
@@ -297,7 +299,8 @@ SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, diagnostic_name, 112);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, relation_kind, 128);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, related_type_count, 132);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, function_result, 136);
-SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, related_types, 144);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, release_hook, 144);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeDescriptor, related_types, 152);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopRegistrationIdentityV1, 136, 4);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, linkage_kind, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopRegistrationIdentityV1, reserved_zero, 4);

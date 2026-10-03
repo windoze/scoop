@@ -5,7 +5,7 @@ Module
   enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option tagged size=16 align=8 variants=(i64)@8+8 ()@8+0
-  fun @scoop$1$cb$761aec9dc480b558b41e7802cd0b54706d4109a0f29bebd9463dd93f172e5980() -> i32
+  fun @scoop$1$cb$db9e8dc12cd50916ae0f102563f82aaed9c0b5fb39f2c599227d798178a3ba9d() -> i32
     local %0 longStart: i64
     local %1 longEnd: i64
     local %2 uintStart: i32
@@ -213,21 +213,21 @@ Module
     br @if.merge.18
   block if.merge.18
     ret local62
-  fun @scoop$1$cb$948f52c57438986a837520820ad6e76e2d815e17234b555e7c22697db43b372f(ptr<managed>) -> sret<enum0 size=16 align=8 scan=none>
+  fun @scoop$1$cb$6d5fd0e5fb2d1ecfcc14c84911e7d3dc1225b6c308e33885ac7d3edf3ee8fab1(ptr<managed>) -> sret<enum0 size=16 align=8 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$1786ed84c5612a18270dc88ab220ea700bf5cb962d036e0aa3bf0e66ef3f6718(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
+  fun @scoop$1$cb$addbb3824bc8805aaf7b77de9b1e677a7cc4830dee190037813650251a58eeb6(ptr<managed>) -> sret<enum1 size=16 align=8 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$6404cd28070e327ef0afae3774594b1a4548686031473febb7fdb0c0ea0e3c04(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
+  fun @scoop$1$cb$cefc86a7f843b514255427bb4edc8a14b1bb4d0bd42dee205a8aeb10176c8e18(ptr<managed>) -> sret<enum2 size=16 align=8 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1

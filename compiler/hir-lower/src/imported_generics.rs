@@ -10,6 +10,7 @@ mod local;
 mod methods;
 mod prepare;
 mod protocols;
+mod release;
 
 use std::collections::BTreeMap;
 use std::ops::{Deref, Index};

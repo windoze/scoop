@@ -2,31 +2,31 @@ Module
   raw_global @scoop$1$ss$a529c7104a2a8895815aad131cde90c85b4ca1678e95303e7134ed154c987549 : i32
   raw_thread_local @scoop$1$ss$b1da90b1f18e556d97a3d8e3df705298ca1c12de4d9d410b5ed96bad51b02ba0 : i32
   native_global0 nativeDefaultValue @m23_default_value : i32 c=Int mutable(get=ng-get0,set=ng-set0,address=ng-address0)
-  fun @scoop$1$cb$9d48dadd680540e23741f1469b0624756cf4152d1f31b518ca3ab6be7c6253a2(i32) -> i32
+  fun @scoop$1$cb$890cb349e4de439899676e0c9ff93accc0b7ccd1009681d32400ef67a413f9e9(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$25b505e622e9cae63bf42f391488aef123ff40283051c9829fa4c601a099f624(i32) -> i32
+  fun @scoop$1$cb$a11fb83130f4d9484e4b8c13487bcdf68342c50db1bc1f27a30216f492003a57(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$feec1de9f5314391b6d42a7815d81402471f12f0b49af51faa3bb1a184f0d3cd(i32) -> i32
+  fun @scoop$1$cb$283d406881dc6831b7961289cbc2bf4b7e74002a8f29dc63039f9eda6f3c722a(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$7821fd6b0682e2a91068aafb6533966861f87f81a5f88e395bfce05ec24456d5() -> i32 <no-gc>
+  fun @scoop$1$cb$67397240e0138cdd40de4c12404aaaa170e120c18710944807c326bbbc877d1c() -> i32 <no-gc>
   block entry
     t0 = global_load global0 : i32
     ret t0
-  fun @scoop$1$cb$65dd4fa591e22f72f2b39c39f91cf34a25ff086877ca53099b88dd31df8c27aa(i32) -> void <no-gc>
+  fun @scoop$1$cb$dc2046e667c6a2cce56abe971a28d550b5958a26a5d99d11790defe609a873f1(i32) -> void <no-gc>
   block entry
     global_store global0, param0
     ret
-  fun @scoop$1$cb$4c937b3a63535d59571498dae50ce62ef06f6754b3b2a563c22be221fd2b13d1() -> i32 <no-gc>
+  fun @scoop$1$cb$3260c23d18c9a9c64ea075f3277ce85d8377d68aa10ccb010fdca2f4c8b8c139() -> i32 <no-gc>
   block entry
     t0 = global_load global1 : i32
     ret t0
-  fun @scoop$1$cb$0aa92b0ef387d23db6c776989230a8501464d447c16bd85c612d12c31bfaa810(i32) -> void <no-gc>
+  fun @scoop$1$cb$394b0c20d0d7ae65d7d87bea3d625825c346f5f7928e661a375f4e28fcb34638(i32) -> void <no-gc>
   block entry
     global_store global1, param0
     ret

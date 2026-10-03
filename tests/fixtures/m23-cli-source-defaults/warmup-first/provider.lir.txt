@@ -1,13 +1,13 @@
 Module
-  fun @scoop$1$cb$d627e29a3db130ee37fbda7ca5b2ea0ecacc6d50324b8291f8ad816379ef5c4c(elided-zst<{{}, {}} size=0 align=1>, elided-zst<{{}, {}} size=0 align=1>, i1) -> i1
+  fun @scoop$1$cb$7492b714ef205153616b860d1259b007a0ee8637e7fc81e91aea07a5e8ced5b3(elided-zst<{{}, {}} size=0 align=1>, elided-zst<{{}, {}} size=0 align=1>, i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
-  fun @scoop$1$cb$e4a5b585d769097b81a0566417040c3e03a2d1470e39523da319b828b626d42a(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>, i1) -> i1
+  fun @scoop$1$cb$b860bdaa98a8806293ec9444f8c282b8916c8952af523f30616dcc67e2d16e6f(elided-zst<{} size=0 align=1>, elided-zst<{} size=0 align=1>, i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2
-  fun @scoop$1$cb$4b976bcc49b05b3b58b935e6f3118b69bb9c23715430d41e9e0308d599f92b2a(elided-zst<{{}, {}} size=0 align=1>, elided-zst<{{}, {}} size=0 align=1>, i1) -> i1
+  fun @scoop$1$cb$19c0a29a8bb30e1f30b0532c7cb498e757d37987ebe63dcc1f07d297dcd0005e(elided-zst<{{}, {}} size=0 align=1>, elided-zst<{{}, {}} size=0 align=1>, i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param2

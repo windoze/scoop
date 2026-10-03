@@ -1,0 +1,162 @@
+Module
+  extern ef0 rotate @m24_release_rotate(Wide) -> Wide <abi=c no-gc lib=m24_release>
+  extern ef1 record @m24_release_wide(Wide) -> Unit <abi=c no-gc lib=m24_release>
+  extern ef2 count @m24_release_wide_count() -> Long <abi=c no-gc lib=m24_release>
+  struct Wide (first: Long, second: Long, third: Long) <c-layout aligned=natural packed=natural>
+  class Owner vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun rotate @fn0(arg0: Wide) -> Wide
+    bb0 entry
+      call $call.1: Wide = extern0 @m24_release_rotate direct
+        Type Wide
+        Local arg0
+      return
+        Type Wide
+        Local $call.1
+  fun record @fn1(arg0: Wide) -> Unit
+    bb0 entry
+      call extern1 @m24_release_wide direct
+        Type Wide
+        Local arg0
+      return
+  fun count @fn2() -> Long
+    bb0 entry
+      call $call.1: Long = extern2 @m24_release_wide_count direct
+      return
+        Type Long
+        Local $call.1
+  fun allocate @fn3() -> Unit
+    bb0 entry
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=11 bits=0x000000000000000b
+      val $argument.1: Long
+        Type Long
+        IntegerLiteral Long value=21 bits=0x0000000000000015
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $parameter.first: Long
+        Type Long
+        Local $argument.0
+      val $parameter.second: Long
+        Type Long
+        Local $argument.1
+      val $parameter.third: Long
+        Type Long
+        Local $argument.2
+      call $argument.0: Wide = @fn7 direct
+        Type Long
+        Local $parameter.first
+        Type Long
+        Local $parameter.second
+        Type Long
+        Local $parameter.third
+      val $parameter.value: Wide
+        Type Wide
+        Local $argument.0
+      call value: Wide = extern0 @m24_release_rotate direct
+        Type Wide
+        Local $parameter.value
+      val $argument.0: Wide
+        Type Wide
+        Local value
+      val $parameter.value: Wide
+        Type Wide
+        Local $argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn6 direct
+        Type Owner
+        Local $new.1
+        Type Wide
+        Local $parameter.value
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val owner: Owner
+        Type Owner
+        Local $new.1
+      return
+  fun main @fn4() -> Unit
+    bb0 entry
+      call @fn3 direct
+      call @scoop_rt_gc_collect direct
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Long = extern2 @m24_release_wide_count direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Long
+        Local $dependency.parameter.value
+      return
+  fun println @fn5(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Owner.$c0 @fn6(this: Owner, value: Wide) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner
+        Local this
+        Type Wide
+        Local value
+      return
+  fun ctor.Wide.$c0 @fn7(first: Long, second: Long, third: Long) -> Wide <no-gc>
+    bb0 entry
+      return
+        Type Wide
+        StructInit Wide
+          Type Long
+          Local first
+          Type Long
+          Local second
+          Type Long
+          Local third
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val copied: Wide
+        Type Wide
+        ReleaseFieldLoad Owner.field0
+      val $argument.0: Wide
+        Type Wide
+        Local copied
+      val $parameter.value: Wide
+        Type Wide
+        Local $argument.0
+      call $argument.0: Wide = extern0 @m24_release_rotate direct
+        Type Wide
+        Local $parameter.value
+      val $parameter.value: Wide
+        Type Wide
+        Local $argument.0
+      call extern1 @m24_release_wide direct
+        Type Wide
+        Local $parameter.value
+      return
+  instance mi0 function=@fn5 <- println
+  str @str0 "\n"
+  output executable @fn4

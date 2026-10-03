@@ -140,6 +140,7 @@ impl Lowerer {
             .collect();
         let access = self.fixed_representation_access(Owner::Struct(id));
         let constructor = self.struct_constructors.alloc(hir::StructConstructor {
+            release_callability: Default::default(),
             owner: id,
             access,
             safety: hir::Safety::Safe,
@@ -187,6 +188,7 @@ impl Lowerer {
             let safety = self.constructor_safety(&source.annotations, source.span);
             let gc_effect = self.constructor_gc_effect(&source.annotations, true);
             let constructor = self.struct_constructors.alloc(hir::StructConstructor {
+                release_callability: Default::default(),
                 owner: id,
                 access,
                 safety,

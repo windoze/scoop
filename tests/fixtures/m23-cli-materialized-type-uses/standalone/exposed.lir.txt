@@ -7,7 +7,7 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Deferred> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Deferred> niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$706e569a44565c95604b8c66471ccf66cc545808a37e9ca806fcd76fd810fcba() -> i1
+  fun @scoop$1$cb$bea174b4834f0207bf32cbb54438e601730fa2e536c60063560ac338e2ca3b52() -> i1
     local %0 value: ptr<managed>
     local %1 $argument.0: ptr<managed>
     local %2 $parameter.value: ptr<managed>
@@ -38,7 +38,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local6
-  fun @scoop$1$cb$94ff7e48df0ebaffe87c420d51c8193797f008f82a6da19efdb144632bc49792(i1) -> i1
+  fun @scoop$1$cb$2e3f4ca9c0b3eafd4eaea07714f9da1d6cb4ba4a6d5d1901996ceae276721da9(i1) -> i1
     local %0 $argument.0: i1
     local %1 $parameter.value: i1
     local %2 $call.1: i1
@@ -49,47 +49,47 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i1) -> i1 local-fn2(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$a5d5ff86e7cada8d0d3d21761ace55986f6824d1b5d1e0d70e2bfad2f90c93cf(i1) -> i1
+  fun @scoop$1$cb$cb22933b01a1c1e483c44c0e9fd37dd44dd45d44c2e9d83c3b8374e6f7593f24(i1) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$369d49eaf7ce54d2017e75a0f83256e5d348f5eb280bd31bfea965be8c58e493(ptr<managed>) -> i1
+  fun @scoop$1$cb$7a122c29557dc80510c473d3b9e0703d39c33c21b6a30dd70ef9e3139ea59bb1(ptr<managed>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true
-  fun @scoop$1$cb$07254ff31aa92124af0e6d6ad929c526540fc809d88adb516f6f1a0d8921fbd1(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$474e3487c750a301d29f386d979c9ca6e0036a9e1c4993c5fbc6b55af14a034c(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$16651ea95664f95df3ce1dffb145813ff787857658ab0040b43ab2edc6133b89(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$b3b256daff4a4a58e8c5fc34ae19279946788cf6309cde5406b9bcb2c05ab45f(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
     unreachable
-  fun @scoop$1$cb$bc56ad41aed2e58e1ddf35ee0019d1e9e0cbf4a97adbb5af27e7e6a038c7cb39(ptr<managed>, ptr<managed>) -> enum1
+  fun @scoop$1$cb$d7cc22d57e7909fe451d388429d2e48d3299774c6a61001a94a8493c4265b7ed(ptr<managed>, ptr<managed>) -> enum1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$3d7d54c608e33f130ae563a3c1537380981cdfcef57584cc4493b273f1ac4f92(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$5b8a04c784a488dbeab9ba2efbed08e4f8cf089ef6bf737e24dfa65a807ea4b2(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global4)
     unreachable
-  fun @scoop$1$cb$89ab5719ec44e2f3cdaf6df7f206827cf5b08d41a8424bb24d4df7776c3a1541(ptr<managed>) -> void
+  fun @scoop$1$cb$838d7edc0b407eab012514c4f9941729b5d3a00a17ad772aad029545e114177f(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$a22411ccab9c784e45851d6999653ccb877cc48a139204e37bc1bb84adb0017a(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$ef7630508ac6e211b74585ec5614b693d1be0d3600797b9981aec4c8008d4d12(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record

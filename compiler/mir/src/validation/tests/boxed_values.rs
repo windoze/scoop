@@ -6,6 +6,7 @@ fn module_with_box() -> Module {
     let (mut module, _) = module_with_variants(Vec::new());
     let payload = Type::Unit;
     let class = module.classes.alloc(ClassDef {
+        release_policy: Default::default(),
         modifier: ClassModifier::Final,
         name: "box<Unit>".to_string(),
         type_arguments: Vec::new(),

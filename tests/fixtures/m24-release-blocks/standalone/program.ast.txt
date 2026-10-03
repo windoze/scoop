@@ -1,0 +1,22 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m24_release", name = "m24_release_add")
+  private fun dropNative(value: Int)
+    @Extern(lib = "m24_release", name = "m24_release_count")
+  private fun released(): Int
+  class Owner(val handle: Int)
+    release
+      @Unsafe block
+        Call dropNative
+          Var handle
+  fun allocate()
+    val owner
+      Call Owner
+        IntLiteral 42
+  fun main()
+    Call allocate
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Call released

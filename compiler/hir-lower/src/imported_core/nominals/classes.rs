@@ -76,6 +76,7 @@ impl Lowerer {
             hir::LoadedClassDefinition {
                 declaration: Arc::clone(&declaration),
                 definition: hir::ClassDefinition {
+                    release_policy: Default::default(),
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
                         &declaration,
                         &type_params,
@@ -134,6 +135,20 @@ impl Lowerer {
         definition.fields = fields;
         definition.base_class = base_class;
         definition.interfaces = interfaces;
+        definition.release_policy =
+            match declaration.interface.declaration_details().release_policy() {
+                hir::NominalReleasePolicyV1::None => hir::ReleasePolicy::None,
+                hir::NominalReleasePolicyV1::SynchronousGcFree { requirements } => {
+                    hir::ReleasePolicy::SynchronousGcFree {
+                        hook: hir::ExportReleaseHookRef::Imported {
+                            requirements: requirements
+                                .iter()
+                                .map(|binder| type_params[binder.index as usize].id)
+                                .collect(),
+                        },
+                    }
+                }
+            };
         let scope_len = self.type_params_in_scope.len();
         self.type_params_in_scope.extend(type_params);
         let dispatch = self.resolve_imported_class_dispatch(self_type, &declaration);
@@ -145,6 +160,24 @@ impl Lowerer {
             .expect("the class builder registered its identity");
         loaded.virtual_methods = virtual_methods;
         loaded.definition.interface_implementations = implementations;
+        if matches!(owner, hir::SourceNominalId::GenericTemplate(_))
+            && matches!(
+                declaration.interface.declaration_details().release_policy(),
+                hir::NominalReleasePolicyV1::SynchronousGcFree { .. }
+            )
+        {
+            let hook = self
+                .load_imported_release_hook(&declaration, &bindings)
+                .map_err(|_| ImportedSignatureTypeError::Structural)?;
+            let hook = self.release_hooks.alloc(hook);
+            self.loaded_class_definitions
+                .get_mut(&owner)
+                .expect("the class builder registered its identity")
+                .definition
+                .release_policy = hir::ReleasePolicy::SynchronousGcFree {
+                hook: hir::ExportReleaseHookRef::Template(hook),
+            };
+        }
         Ok(())
     }
 }

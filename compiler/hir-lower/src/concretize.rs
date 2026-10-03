@@ -34,6 +34,7 @@ mod objects;
 mod output;
 mod prepare;
 mod protocols;
+mod release;
 mod requests;
 mod run;
 mod runtime_exceptions;
@@ -118,6 +119,7 @@ struct Concretizer<'a> {
     >,
     virtual_method_by_source: HashMap<export::VirtualMethodId, concrete::VirtualMethodId>,
     classes: Arena<concrete::ClassDef>,
+    release_hook_slots: Vec<Option<release::PendingReleaseHook>>,
     class_by_key: HashMap<(export::SourceNominalId, Vec<concrete::TypeId>), concrete::ClassId>,
     class_type: HashMap<concrete::ClassId, concrete::TypeId>,
     class_source: HashMap<concrete::ClassId, export::ClassId>,
@@ -302,6 +304,7 @@ impl<'a> Concretizer<'a> {
             interface_slot_by_source: HashMap::new(),
             virtual_method_by_source: HashMap::new(),
             classes: Arena::new(),
+            release_hook_slots: Vec::new(),
             class_by_key: HashMap::new(),
             class_type: HashMap::new(),
             class_source: HashMap::new(),

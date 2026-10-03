@@ -120,7 +120,7 @@ fn canonical_body_set_is_computed_from_actual_functions() {
     let module = scalar(false);
     assert_eq!(
         fingerprint(&module).to_string(),
-        "795e15ef011549138beb4ab03928c4ee59838a7edef6ffa57132a499cf2cea55"
+        "2063fc4458b130064f80be6d5ef2a212822129d84e10c6e513af25df1e3e5b9b"
     );
     let foundation = foundation(&module);
     let definitions = CanonicalCallableLirDefinitionsV1::from_module(&module, &foundation).unwrap();
@@ -146,7 +146,7 @@ fn callable_leaf_order_is_independent_of_the_foundation_topology() {
         ExecutableSourceEntryIdentity, PackagePath, PersistentExactTypeId, SourceDeclarationKey,
         SourceDeclarationSite,
     };
-    let producer = ConeCoordinate::new("dev.example", "stage3.source-extern", "0.1.0")
+    let producer = ConeCoordinate::new("dev.example", "m24.release", "0.1.0")
         .unwrap()
         .identity()
         .unwrap();

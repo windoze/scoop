@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$c6cfbe3737d6f6d6b3997fa560672e3e9de213bb82d4e2b3695b43ffbbf7aeec() -> i32
+  fun @scoop$1$cb$1fef7354d792b85e9f54624c06fb0a49a850a1edf9ca6c8655d0827d35ee1236() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.number: i32
     local %2 value: ptr<managed>
@@ -85,7 +85,7 @@ Module
     br @if.merge.8
   block if.merge.8
     ret local21
-  fun @scoop$1$cb$b4f900bb71df95bf599d92e57c59c44f0b119660d643163c63d0ded7f93d9107(ptr<managed>) -> i32
+  fun @scoop$1$cb$a75ddd6125827d5d4b7a8aad15077b2588c0ee23d5e4afa6857842bb2481483d(ptr<managed>) -> i32
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $call.1: i32
@@ -96,7 +96,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 local-fn3(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$b8258fc016e15b4c74340f1ee43400b84f5acb7c42701b5d0787a3133f371b36(i32) -> i32
+  fun @scoop$1$cb$b4ab8950d83ed15be172617b22f4e44fd9a1bcbbd886451febf837ebafec2169(i32) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
     local %2 $call.1: i32
@@ -107,7 +107,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn4(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$022fc4ffe79cf7db43ba6ee54ca3ac921b7234da0df92e4935553ccfc2343294(ptr<managed>) -> i32
+  fun @scoop$1$cb$f5e632b52c5e1ba68816ef9d5f5f3be66cd6eacc1f5faeafdec992f048f2b0f9(ptr<managed>) -> i32
     local %0 $dependency.local.1: struct0
     local %1 $dependency.local.2: struct1 <logical-zst 50e085a3efda92a8a2e40e22406a889fe4ca326f395ce32f57806c641bfc423a>
     local %2 $dependency.local.3: i32
@@ -333,7 +333,7 @@ Module
     store local52 -> local53
     t44 = integer_Add<Int> local51, local53 : i32
     ret t44
-  fun @scoop$1$cb$74e181b6719112ff7b55efebf0c24d45bf17957fc0865e923831773a01ba2542(i32) -> i32
+  fun @scoop$1$cb$1b7c4ac63876fc43441692a68391c47b4a004d9900bfc067cf1c8bed98bfab2d(i32) -> i32
     local %0 $dependency.local.1: struct0
     local %1 $dependency.local.2: struct1 <logical-zst 50e085a3efda92a8a2e40e22406a889fe4ca326f395ce32f57806c641bfc423a>
     local %2 $dependency.local.3: i32
@@ -559,7 +559,7 @@ Module
     store local52 -> local53
     t44 = integer_Add<Int> local51, local53 : i32
     ret t44
-  fun @scoop$1$cb$93ea8367509ab8849ca89071f634de36a622a4d8e402356fabc37cdb1d3b34c4(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$02aa90e300197108c70b857cf23394224a2a932ca7d0f027cb5fcc300ae91508(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

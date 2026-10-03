@@ -37,7 +37,7 @@ impl Lowerer {
     pub(crate) fn body_lowerer<'a>(
         &'a mut self,
         module: &'a hir::Module,
-        function: mir::FunctionId,
+        function: impl Into<mir::LocalValueOwner>,
         materialization: hir::CallableMaterialization,
         string_owner: mir::ImmortalObjectOwner,
     ) -> BodyLowerer<'a> {
@@ -47,7 +47,7 @@ impl Lowerer {
             external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
             local_values: &mut self.local_values,
-            current_function: function,
+            current_owner: function.into(),
             current_materialization: materialization,
             current_string_owner: string_owner,
             next_string_ordinal: 0,
@@ -58,6 +58,7 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
+            extern_functions: &mut self.extern_functions,
             imported_dependency_callable_map: &self.imported_dependency_callable_map,
             imported_singleton_map: &self.imported_singleton_map,
             global_map: &self.global_map,

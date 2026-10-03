@@ -1,6 +1,6 @@
 Module
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$d5a5c4864e2bda77e26c06fc4a0974b1a12b0c2c9b8875ba0c1abb8f4069a11f() -> i32
+  fun @scoop$1$cb$5926936a1891252752fab832ee753fa3e4a3ae32f962d8bb5f0c67add775eb9d() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -11,7 +11,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$355a1393eac33478258f2c6ed8b252f52c92f0dd8dbd73ae8253348ea614589d(i32) -> i32
+  fun @scoop$1$cb$4b20fcb5c00abadf5920cf14fecd637c1e6f92d619721992c947c6c7235e7e61(i32) -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.argument.1: i1
     local %2 $dependency.parameter.value: i32
@@ -47,7 +47,7 @@ Module
     call managed-direct-target1 sp<managed-call:1> live=[] t3 = sig=direct1 (i32, i1) -> i32 local-fn2(local9, local10)
     store t3 -> local11
     ret local11
-  fun @scoop$1$cb$bf10cd9c793b3a3136283226bbffd7dd77dc47b1d0b8b4055e72bacfd2e89096(i32, i1) -> i32
+  fun @scoop$1$cb$bbd07600b63fca873c3ae19a5043de8c8d0b46e2ab3a405d77eeb703fdaa2972(i32, i1) -> i32
     local %0 $dependency.local.2: ptr<managed>
     local %1 $dependency.local.3: i32
     local %2 $dependency.local.4: i1

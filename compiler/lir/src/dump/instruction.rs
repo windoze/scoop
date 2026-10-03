@@ -151,6 +151,15 @@ pub(super) fn dump_instruction(
             index,
             function.temps[*out].ty.dump()
         )),
+        Instruction::PublishReleaseReady { object } => buf.push_str(&format!(
+            "    publish_release_ready {}\n",
+            value_name(*object)
+        )),
+        Instruction::ReleaseFieldLoad { out, offset } => buf.push_str(&format!(
+            "    t{} = release_field_load +{offset} : {}\n",
+            out.into_raw(),
+            function.temps[*out].ty.dump()
+        )),
         Instruction::HeapLoad {
             out,
             object,
@@ -207,39 +216,33 @@ pub(super) fn dump_instruction(
         Instruction::NativeGlobalLoad {
             out,
             global,
-            safepoint,
-            roots,
+            protocol,
         } => buf.push_str(&format!(
-            "    t{} = native_global_load ng{} sp{} roots=[{}] : {}\n",
+            "    t{} = native_global_load ng{} {} : {}\n",
             out.into_raw(),
             global.into_raw(),
-            safepoint_name(function, *safepoint),
-            caller_roots_name(roots.as_slice()),
+            native_storage_protocol_name(function, protocol),
             function.temps[*out].ty.dump()
         )),
         Instruction::NativeGlobalStore {
             global,
             value,
-            safepoint,
-            roots,
+            protocol,
         } => buf.push_str(&format!(
-            "    native_global_store ng{}, {} sp{} roots=[{}]\n",
+            "    native_global_store ng{}, {} {}\n",
             global.into_raw(),
             value_name(*value),
-            safepoint_name(function, *safepoint),
-            caller_roots_name(roots.as_slice())
+            native_storage_protocol_name(function, protocol),
         )),
         Instruction::NativeGlobalAddress {
             out,
             global,
-            safepoint,
-            roots,
+            protocol,
         } => buf.push_str(&format!(
-            "    t{} = native_global_address ng{} sp{} roots=[{}]\n",
+            "    t{} = native_global_address ng{} {}\n",
             out.into_raw(),
             global.into_raw(),
-            safepoint_name(function, *safepoint),
-            caller_roots_name(roots.as_slice())
+            native_storage_protocol_name(function, protocol),
         )),
         Instruction::HeapStore {
             object,
@@ -617,5 +620,16 @@ pub(super) fn dump_instruction(
             value_name(*operand),
             function.temps[*out].ty.dump()
         )),
+    }
+}
+
+fn native_storage_protocol_name(function: &Function, protocol: &NativeStorageProtocol) -> String {
+    match protocol {
+        NativeStorageProtocol::NoTransition => "no_transition".into(),
+        NativeStorageProtocol::NativeSafe { safepoint, roots } => format!(
+            "sp{} roots=[{}]",
+            safepoint_name(function, *safepoint),
+            caller_roots_name(roots.as_slice()),
+        ),
     }
 }

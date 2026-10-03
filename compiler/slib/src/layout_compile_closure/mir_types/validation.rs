@@ -170,6 +170,7 @@ impl<'s> Comparison<'s, '_> {
             (
                 CoreBuiltinNominal::Any,
                 mir::MirTypeRepresentationV1::Class {
+                    release_policy: mir::MirClassReleasePolicyV1::None,
                     kind: mir::MirClassKindV1::Abstract,
                     declared_fields,
                 },

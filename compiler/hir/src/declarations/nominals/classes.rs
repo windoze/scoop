@@ -19,6 +19,7 @@ pub struct ClassDecl {
 /// Checked fields and parents in the original declaration's binder domain.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClassDefinition {
+    pub release_policy: ReleasePolicy<ExportReleaseHookRef>,
     pub gc_free_pointee_requirements: Vec<RequiresGcFreePointee>,
     pub modifier: ClassModifier,
     pub self_application: ClassApplicationId,

@@ -1,0 +1,257 @@
+schema = 1
+name = "release-blocks-cache-invalidation"
+inputs = ["provider", "consumer", "native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["m24", "release-blocks", "cache", "stage-golden"]
+
+[vars]
+options = ["--sysroot", "${sysroot}", "--scoopc", "${scoopc}", "--cache-dir", "${work}/cache", "--target-dir", "${work}/target", "--runtime-root", "${runtime}", "--library-path", "${work}/native", "--message-format", "json", "-o", "${work}/program"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${fixture}/provider", to = "${work}/sources/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/sources/consumer"}},
+  {mkdir = {path = "${work}/native"}},
+]
+
+[[steps]]
+name = "compile_native"
+argv = ["${cc}", "-target", "arm64-apple-macos", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-Wall", "-Wextra", "-Werror", "-fno-common", "-c", "${fixture}/native.c", "-o", "${work}/native/trace.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive_native"
+argv = ["${ar}", "qcS", "${work}/native/libm24_release.a", "${work}/native/trace.o"]
+exit = 0
+stdout = ""
+stderr = ""
+env = {ZERO_AR_DATE = "1"}
+
+[[steps]]
+name = "cold"
+argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/cold"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${cold.result.observations.child_invocations}", equals = ["${cold.result.dependencies.0.identity}", "${cold.result.dependencies.1.identity}", "${cold.result.root.identity}"]},
+  {file = "${work}/dumps/cold/${cold.result.root.identity}/hir.txt", snapshot = "cold.hir.txt"},
+  {file = "${work}/dumps/cold/${cold.result.root.identity}/mir.txt", snapshot = "cold.mir.txt"},
+  {file = "${work}/dumps/cold/${cold.result.root.identity}/lir.txt", snapshot = "cold.lir.txt"},
+]
+
+[[steps]]
+name = "cold_warm"
+argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${cold_warm.result.observations.child_invocations}", equals = []},
+  {actual = "${cold_warm.result.root.artifact_fingerprint}", equals = "${cold.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "cold_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "cold_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "edit_body"
+files = [
+  {replace = {path = "${work}/sources/provider/src/main.scoop", old = "record(adjusted(handle) + 1)", new = "record(adjusted(handle) + 2)"}},
+]
+
+[[steps]]
+name = "body"
+argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/body"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${body.result.observations.child_invocations}", equals = ["${body.result.dependencies.1.identity}", "${body.result.root.identity}"]},
+  {actual = "${body.result.root.artifact_fingerprint}", not_equals = "${cold.result.root.artifact_fingerprint}"},
+  {actual = "${body.result.dependencies.1.artifact_fingerprint}", not_equals = "${cold.result.dependencies.1.artifact_fingerprint}"},
+  {actual = "${body.result.dependencies.0.artifact_fingerprint}", equals = "${cold.result.dependencies.0.artifact_fingerprint}"},
+  {file = "${work}/dumps/body/${body.result.root.identity}/hir.txt", snapshot = "body.hir.txt"},
+  {file = "${work}/dumps/body/${body.result.root.identity}/mir.txt", snapshot = "body.mir.txt"},
+  {file = "${work}/dumps/body/${body.result.root.identity}/lir.txt", snapshot = "body.lir.txt"},
+]
+
+[[steps]]
+name = "body_warm"
+argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${body_warm.result.observations.child_invocations}", equals = []},
+  {actual = "${body_warm.result.root.artifact_fingerprint}", equals = "${body.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "body_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+
+[[steps]]
+name = "body_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "edit_field"
+files = [
+  {replace = {path = "${work}/sources/provider/src/main.scoop", old = "private val marker: Int", new = "private val marker: Long"}},
+]
+
+[[steps]]
+name = "field"
+argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/field"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${field.result.observations.child_invocations}", equals = ["${field.result.dependencies.1.identity}", "${field.result.root.identity}"]},
+  {actual = "${field.result.root.artifact_fingerprint}", not_equals = "${body.result.root.artifact_fingerprint}"},
+  {actual = "${field.result.dependencies.1.artifact_fingerprint}", not_equals = "${body.result.dependencies.1.artifact_fingerprint}"},
+  {actual = "${field.result.dependencies.0.artifact_fingerprint}", equals = "${body.result.dependencies.0.artifact_fingerprint}"},
+  {file = "${work}/dumps/field/${field.result.root.identity}/hir.txt", snapshot = "field.hir.txt"},
+  {file = "${work}/dumps/field/${field.result.root.identity}/mir.txt", snapshot = "field.mir.txt"},
+  {file = "${work}/dumps/field/${field.result.root.identity}/lir.txt", snapshot = "field.lir.txt"},
+]
+
+[[steps]]
+name = "field_warm"
+argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${field_warm.result.observations.child_invocations}", equals = []},
+  {actual = "${field_warm.result.root.artifact_fingerprint}", equals = "${field.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "field_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+
+[[steps]]
+name = "field_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "43\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "edit_helper"
+files = [
+  {replace = {path = "${work}/sources/provider/src/main.scoop", old = "= value + 1", new = "= value + 2"}},
+]
+
+[[steps]]
+name = "helper"
+argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}, "--emit", "all", "--dump-dir", "${work}/dumps/helper"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${helper.result.observations.child_invocations}", equals = ["${helper.result.dependencies.1.identity}", "${helper.result.root.identity}"]},
+  {actual = "${helper.result.root.artifact_fingerprint}", not_equals = "${field.result.root.artifact_fingerprint}"},
+  {actual = "${helper.result.dependencies.1.artifact_fingerprint}", not_equals = "${field.result.dependencies.1.artifact_fingerprint}"},
+  {actual = "${helper.result.dependencies.0.artifact_fingerprint}", equals = "${field.result.dependencies.0.artifact_fingerprint}"},
+  {file = "${work}/dumps/helper/${helper.result.root.identity}/hir.txt", snapshot = "helper.hir.txt"},
+  {file = "${work}/dumps/helper/${helper.result.root.identity}/mir.txt", snapshot = "helper.mir.txt"},
+  {file = "${work}/dumps/helper/${helper.result.root.identity}/lir.txt", snapshot = "helper.lir.txt"},
+]
+
+[[steps]]
+name = "helper_warm"
+argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {actual = "${helper_warm.result.observations.child_invocations}", equals = []},
+  {actual = "${helper_warm.result.root.artifact_fingerprint}", equals = "${helper.result.root.artifact_fingerprint}"},
+]
+
+[[steps]]
+name = "helper_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "44\n"
+stderr = ""
+
+[[steps]]
+name = "helper_moving"
+argv = ["${work}/program"]
+exit = 0
+stdout = "44\n"
+stderr = ""
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+
+[[steps]]
+name = "edit_effect"
+files = [
+  {copy = {from = "${work}/program", to = "${work}/last-program"}},
+  {replace = {path = "${work}/sources/provider/src/main.scoop", old = "@NoGC private fun adjusted", new = "private fun adjusted"}},
+]
+
+[[steps]]
+name = "effect"
+argv = ["${scoop}", "build", "${work}/sources/consumer", {each = "${options}"}]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "effect.diagnostics.json"}
+checks = [
+  {file = "${work}/program", same_as = "${work}/last-program"},
+]
+
+[[steps]]
+name = "last_run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "44\n"
+stderr = ""

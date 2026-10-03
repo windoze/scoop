@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$210251a5b60519c5e389a82dbb0f0d1f1ff723d92d907ac65c7da879b7138e45 = "illegal state"
-  global @scoop$1$ss$58d814a3b5090d2dfa46ccaed59dd7bab49bbab37cd044ebefdde0a9cfb4ad6f : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$83a3501bda5778e78bcdf2afde03310b4467f2bb8bee125d93b5615e8fe2da4e : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$7f769dc2b14c9c8f26c34698a508142bca04a85d2d54f9bc583b171af6257151(i1) -> void
+  fun @scoop$1$cb$97b8230b65d12be1780955b58cce1ed42fa2fd33e10739a0d4e686de1484e149(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -26,7 +26,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$415050105d01e1954a0a66ddefd4e15e98b5db48039a41e63a8d1ba411489bc2() -> void
+  fun @scoop$1$cb$3a86918977d1b7560a89fe6173b98c3dfe21d981e83bbdf99382b5607efe5f0d() -> void
     local %0 $dependency.receiver: i64
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.other: i64
@@ -120,7 +120,7 @@ Module
     call managed-void-target3 sp<managed-call:5> live=[] sig=void3 (i1) local-fn0(local20)
     t14 = aggregate () : {}
     ret
-  fun @scoop$1$cb$8cfee09b039434fd8f664d050a3971661ac928f60b3ea76490077eaa536b12c3() -> i32
+  fun @scoop$1$cb$60050e3031b1c1600359d72b64d66080618231ecfe82d584dd1a2a4826fc2b51() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -136,4 +136,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$415050105d01e1954a0a66ddefd4e15e98b5db48039a41e63a8d1ba411489bc2
+  output executable @scoop$1$cb$3a86918977d1b7560a89fe6173b98c3dfe21d981e83bbdf99382b5607efe5f0d

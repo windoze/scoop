@@ -40,6 +40,7 @@ impl Lowerer {
                 }
                 ast::ClassMember::StoredProperty(_)
                 | ast::ClassMember::InitBlock(_)
+                | ast::ClassMember::ReleaseBlock(_)
                 | ast::ClassMember::SecondaryConstructor(_)
                 | ast::ClassMember::Function(_) => {}
             }
@@ -159,6 +160,7 @@ impl Lowerer {
                 }
                 ast::ClassMember::StoredProperty(_)
                 | ast::ClassMember::InitBlock(_)
+                | ast::ClassMember::ReleaseBlock(_)
                 | ast::ClassMember::SecondaryConstructor(_)
                 | ast::ClassMember::Function(_) => {}
             }

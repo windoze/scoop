@@ -8,9 +8,9 @@ runtime objects=54
 images=5 root=_scoop$1$re$9008616c5c650030a0c9696decd6a69fee269a10966bdd6fafa1f366f11f0725
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library m23_struct_abi requirement=fdbc42f59ae1e16fd97338deeb80fed71e3f6493a53d1563d408649f85b814c2 input=9d00e2efbb99e040a92400caa4745d7c56d91ddb08180a15eb79b8fb07171075 origins=dev.example:value-runtime-struct-combined:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([20, 153, 163, 69, 155, 20, 86, 35, 222, 246, 62, 3, 247, 123, 242, 216, 239, 169, 113, 81, 60, 128, 86, 175, 43, 164, 76, 97, 42, 230, 203, 79])])
-native archive 9d00e2efbb99e040a92400caa4745d7c56d91ddb08180a15eb79b8fb07171075 members=1
-  member 0 header=8 payload=68..1708 name="abi.o" digest=859092b28f782698fdb6339ffe9ed34101677e08ed47156c1b86d188bf44276a selected=true
+native library m23_struct_abi requirement=fdbc42f59ae1e16fd97338deeb80fed71e3f6493a53d1563d408649f85b814c2 input=32a70ef4483f2808f29066a3fdb726a9d56e72c33f639ede5d4d460e34702764 origins=dev.example:value-runtime-struct-combined:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([20, 153, 163, 69, 155, 20, 86, 35, 222, 246, 62, 3, 247, 123, 242, 216, 239, 169, 113, 81, 60, 128, 86, 175, 43, 164, 76, 97, 42, 230, 203, 79])])
+native archive 32a70ef4483f2808f29066a3fdb726a9d56e72c33f639ede5d4d460e34702764 members=1
+  member 0 header=8 payload=68..1708 name="abi.o" digest=6c1c002b1588611e2a501d4befb161e932f7b56a4c5d74031560ee73e1a363dc selected=true
 startup object references:
   _scoop$1$im$13aa13ff953ff1a4b1ce525340a2b36a9fe8e5cb1a982dcdc1340e0f958b9c66
   _scoop$1$im$5ea5f5e8ff248182c8f8c7e1043caae20f163bcefd34cca4e97d8c6a03bf620d

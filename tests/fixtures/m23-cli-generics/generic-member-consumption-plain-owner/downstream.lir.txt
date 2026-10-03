@@ -6,7 +6,7 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Later> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Later> niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$b430193218321a038e2db673cff740e32311a0696479d18f0e5f156b79cc04fa() -> i32
+  fun @scoop$1$cb$b8e450fac49194a212d21289fd56c4d798f67949e600491299854b94e172d1cb() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $dependency.argument.0: ptr<managed>
@@ -50,7 +50,7 @@ Module
     store local13 -> local10
     t8 = heap_load local4 +16 : i32
     ret t8
-  fun @scoop$1$cb$54d10b4e98952b6dfa0a2f0690d3bd58296d6e2d93e5951ad58d26b19fa17473(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$98f858ff461d0e8c0ab91120ff7eed26f8982d2246988dff1df28dd33c4bd131(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -68,44 +68,44 @@ Module
     call managed-direct-target1 sp<managed-call:2> live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>, ptr<managed>) -> ptr<managed> local-fn2(local0, local2)
     store t2 -> local4
     ret local4
-  fun @scoop$1$cb$3fd096223408e615b8dc61a40ff608cefb36375d5dc304deac20e6997c2b6b67(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$83ba64dd71808cdf1e2bc3a3f8ebdae8d3bab6d23689db0ee3a9238935998bac(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     ret param1
-  fun @scoop$1$cb$cac65608948cc4f75d405ebd1a61a15285fadadeefcbbfde93792d4c064b7ab7(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$6d7960a719cfcc90ec41621aac8632839fc926316567ab116b8a1d2a9e1ac4cd(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$6975ba284799f29ccd11dfb632fd389616b26d65fc8467469de523021eaf308e(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$010313220ca56219bbf9a6b4bfefcb7180b92a7ffa41e5e15e23b623075aa5db(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$ddb3337a74a910e99c144f3b348e63039c1828377cea2e88e86af50b1304b575(ptr<managed>, ptr<managed>) -> enum1
+  fun @scoop$1$cb$72e8c59da4011994a02d8530d832d7bfcb92c725cfe028a60ad7fda8f2f98a63(ptr<managed>, ptr<managed>) -> enum1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
     unreachable
-  fun @scoop$1$cb$a6aa02451cf175a0ea22f06dbd7338186dcd79c6ecd53bdab90f14a441af6839(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$a6045e6b7362894f6a8f07ba01fd31ec809327fbcec912e98b2690cd7c9a92e0(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$d0f5047bf4cdc099b02d0f772ba6022b7762256a68dc62c9d89093000643ef79(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$f291912596356f27714d8b7c8e622f6228f9df55bd7ebab82383e3292169cda1(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$257f0f7eb589462cac4804094c096f8e0c65684e8bd29add40ee7b126615eae9(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$8d50115400b2bdf3161f54cac09b418ea1527e1e17b0ca773cfdbd2ca13701ec(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record

@@ -236,6 +236,7 @@ fn aggregate_dispatch_caller() -> Function {
 
 fn aggregate_abi_module() -> Module {
     let mut module = Module {
+        release_hooks: Default::default(),
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::new(),
         initialization_units: Arena::new(),
@@ -393,6 +394,7 @@ fn native_aggregate_module() -> Module {
     };
 
     let mut module = Module {
+        release_hooks: Default::default(),
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::new(),
         initialization_units: Arena::new(),

@@ -6,9 +6,11 @@ mod decode;
 pub use conditions::{DecodedNominalInstantiationConditionsV1, NominalInstantiationConditionsV1};
 mod inventory;
 mod references;
+mod release;
 pub use decode::{DecodedNominalDeclarationDetailsV1, NominalDeclarationDetailsResolutionError};
 pub use inventory::NominalDeclarationInventoryError;
 pub use references::*;
+pub use release::NominalReleasePolicyV1;
 
 /// Declaration relationships shared by public lookup and representation queries.
 /// Kind, binders, supertypes and storage remain in the enclosing nominal record.
@@ -23,6 +25,7 @@ pub struct NominalDeclarationDetailsV1 {
     dispatch_selections: CanonicalNominalDispatchSelectionsV1,
     primary_value_constructor: Option<PersistentConstructorId>,
     instantiation_conditions: NominalInstantiationConditionsV1,
+    release_policy: NominalReleasePolicyV1,
 }
 
 impl NominalDeclarationDetailsV1 {
@@ -37,6 +40,7 @@ impl NominalDeclarationDetailsV1 {
         dispatch_selections: CanonicalNominalDispatchSelectionsV1,
         primary_value_constructor: Option<PersistentConstructorId>,
         instantiation_conditions: NominalInstantiationConditionsV1,
+        release_policy: NominalReleasePolicyV1,
     ) -> Self {
         Self {
             modality,
@@ -48,11 +52,16 @@ impl NominalDeclarationDetailsV1 {
             dispatch_selections,
             primary_value_constructor,
             instantiation_conditions,
+            release_policy,
         }
     }
 
     pub const fn instantiation_conditions(&self) -> &NominalInstantiationConditionsV1 {
         &self.instantiation_conditions
+    }
+
+    pub const fn release_policy(&self) -> &NominalReleasePolicyV1 {
+        &self.release_policy
     }
 
     pub const fn primary_value_constructor(&self) -> Option<PersistentConstructorId> {
@@ -161,7 +170,7 @@ impl NominalDeclarationDetailsV1 {
 
 impl WireEncode for NominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -182,7 +191,9 @@ impl WireEncode for NominalDeclarationDetailsV1 {
             primary.encode(encoder)?;
         }
         encoder.field(9)?;
-        self.instantiation_conditions.encode(encoder)
+        self.instantiation_conditions.encode(encoder)?;
+        encoder.field(10)?;
+        self.release_policy.encode(encoder)
     }
 }
 

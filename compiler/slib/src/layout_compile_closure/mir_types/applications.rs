@@ -88,6 +88,7 @@ pub(super) fn validate(
             Repr::Class {
                 kind,
                 declared_fields,
+                release_policy,
             },
         ) => {
             let matches = matches!(
@@ -104,6 +105,15 @@ pub(super) fn validate(
                 )
             );
             Error::require(exact, Component::ClassKind, matches)?;
+            Error::require(
+                exact,
+                Component::ReleasePolicy,
+                *release_policy
+                    == super::representation::policies::release(
+                        declaration.declaration_details().release_policy(),
+                        exact,
+                    ),
+            )?;
             Some((source.fields(), declared_fields.as_slice()))
         }
         (Source::Enum(source), Repr::Enum { variants }) => {

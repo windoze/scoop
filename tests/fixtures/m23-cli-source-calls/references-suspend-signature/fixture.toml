@@ -23,7 +23,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "45d75884dda0cc2740c1215a8c49f84bdd82e8ec3ee793ff10a3cf2a341413c4"},
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "b6309a8829112829e502e38426013a3cf608185d73304fb066a0f7eb01aaef42"},
 ]
 
 [[steps]]
@@ -50,7 +50,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${provider.result.root.artifact_fingerprint}", "equals" = "099aa5d1971b7e8bc9da6c79a8d23b3a020cd57195a77c39eb677bfa01980efd"},
+  {"actual" = "${provider.result.root.artifact_fingerprint}", "equals" = "c3a0c9bb449ed2fb3b9160b07839241342914aab9359b1f79e3886cb2f37109f"},
   {"file" = "${work}/dump/provider/${provider.result.root.identity}/ast.txt", "snapshot" = "provider.ast.txt"},
   {"file" = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", "snapshot" = "provider.hir.txt"},
   {"file" = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", "snapshot" = "provider.mir.txt"},
@@ -81,7 +81,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${consumer.result.root.artifact_fingerprint}", "equals" = "b906270b6f1ce1a569a2550b2eef37010fa8f2d10061246da8e8ed15267f84b9"},
+  {"actual" = "${consumer.result.root.artifact_fingerprint}", "equals" = "32105fbfe0795d3842f0d43af0a34dc94cd74e7d96961a563119d4db7d1b5193"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/ast.txt", "snapshot" = "consumer.ast.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", "snapshot" = "consumer.hir.txt"},
   {"file" = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", "snapshot" = "consumer.mir.txt"},
@@ -107,7 +107,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "6382b52ace86996633b05f904aa9bbc0e7ae2b7abd3dc23fa73277171ed930f0"},
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "36b446695b4fa541d96dc5aaf29c0e4fd0a3b3e48822540a9bd3e1060a7bb284"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/mir.txt", "snapshot" = "program.mir.txt"},

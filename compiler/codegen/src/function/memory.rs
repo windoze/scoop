@@ -53,13 +53,42 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
     }
 
     pub(super) fn emit_native_global_call(
-        &self,
+        &mut self,
         callee: inkwell::values::FunctionValue<'ctx>,
         storage: PointerValue<'ctx>,
+        global: scoop_lir::NativeGlobalId,
+        protocol: &scoop_lir::NativeStorageProtocol,
     ) -> Result<(), CodegenError> {
-        self.builder
-            .build_call(callee, &[storage.into()], "native_global_call")
-            .map_err(|error| CodegenError(format!("native global call: {error}")))?;
+        match protocol {
+            scoop_lir::NativeStorageProtocol::NoTransition => {
+                if self.native_globals[global].thread_local
+                    || self.function.gc_effect != scoop_lir::GcEffect::NoGc
+                {
+                    return Err(CodegenError(
+                        "a native storage leaf requires a non-TLS global in a NoGc body".into(),
+                    ));
+                }
+                self.builder
+                    .build_call(callee, &[storage.into()], "native_global_call")
+                    .map_err(|error| CodegenError(format!("native global call: {error}")))?;
+            }
+            scoop_lir::NativeStorageProtocol::NativeSafe { safepoint, roots } => {
+                let transition = self.publish_native_roots(
+                    roots.as_slice(),
+                    None,
+                    NativeTransitionKind::Safe,
+                    self.safepoint_id(*safepoint),
+                )?;
+                self.builder
+                    .build_call(callee, &[storage.into()], "native_global_call")
+                    .map_err(|error| CodegenError(format!("native global call: {error}")))?;
+                self.finish_native_transition(
+                    transition,
+                    NativeTransitionKind::Safe,
+                    roots.as_slice(),
+                )?;
+            }
+        }
         Ok(())
     }
 

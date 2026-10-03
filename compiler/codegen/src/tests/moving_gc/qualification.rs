@@ -52,6 +52,7 @@ fn stackmap_qualification_module() -> Module {
 
     let pair = LirType::Aggregate(vec![MANAGED_PTR, MANAGED_PTR]);
     Module {
+        release_hooks: Default::default(),
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),

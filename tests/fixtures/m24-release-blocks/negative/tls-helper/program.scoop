@@ -1,0 +1,4 @@
+@ThreadLocal var local: Int = 1
+@NoGC @Unsafe fun helper(): Int = local
+class Owner { release { @Unsafe { helper() } } }
+fun main() {}

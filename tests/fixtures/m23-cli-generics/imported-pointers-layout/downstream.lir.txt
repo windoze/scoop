@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$ad1e1da74be73f4d8b3d953e5208e22777dbd4ba6f7f46a16ef73e2ba4f8e656() -> i32
+  fun @scoop$1$cb$36962f92148b28f79f48bab47cef7682aa64b242310191fce7fe87b5c5f43159() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.number: i32
     local %2 value: ptr<managed>
@@ -60,7 +60,7 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local15
-  fun @scoop$1$cb$9d8e796c949ac14ee1cc31d8a9d5062ef584723dd33af5507a963a3635aff8e6(ptr<managed>) -> i32
+  fun @scoop$1$cb$43e153357e994acbb09f2bfec2965fb417fa9961c206066427f6d6603499c3c8(ptr<managed>) -> i32
     local %0 $dependency.local.1: i64
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: i64
@@ -172,7 +172,7 @@ Module
     ret integer<Int>(0x00000004)
   block if.merge.17
     ret integer<Int>(0x0000002a)
-  fun @scoop$1$cb$b3d7c30e9eb5e06cb1df3b50ee803706f165f5cae1a09a201c3d1e0846f3baf4(i32) -> i32
+  fun @scoop$1$cb$7cd19ace8443e92e2596d826de4ae1c1d06df78901cf25ab198242f93fab46c6(i32) -> i32
     local %0 $dependency.local.1: i64
     local %1 $dependency.local.2: i64
     local %2 $dependency.local.3: i64
@@ -284,23 +284,23 @@ Module
     ret integer<Int>(0x00000004)
   block if.merge.17
     ret integer<Int>(0x0000002a)
-  fun @scoop$1$cb$b2612a95a3abc7e34b2718fa82f0b3b15d57921433a0bc822d80664ff2c1d2af() -> i64
+  fun @scoop$1$cb$de1e2ef9cac189643ad2724c8ca3e485681c3853eee1556e70b30deea37e0bd1() -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<ULong>(0x0000000000000001)
-  fun @scoop$1$cb$325ef3022d7123d2a725c8df8b4f168f6ec03b4a3ed431cdedb8054afde26bac() -> i64
+  fun @scoop$1$cb$f99b8b6a8d289111e1efc27165493af59ad76d51227d3ddc723edfed19daf080() -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<ULong>(0x0000000000000008)
-  fun @scoop$1$cb$e86088518312146156f605ec481461df286a2642cd30310119248c687bca2407() -> i64
+  fun @scoop$1$cb$196b006c892b3132c55d527482d9d94f9a362cfd4197e480a37b73789ae3950e() -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<ULong>(0x0000000000000010)
-  fun @scoop$1$cb$a5f47a661188114074bc21f4efb86fcf6f99be8d4c55f9150de0b6218f8f5640() -> i64
+  fun @scoop$1$cb$16c9d1580f7e60f1ef6382281ae06aab2db101776c3b53a2c203c4d568d9c17e() -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<ULong>(0x0000000000000008)
-  fun @scoop$1$cb$acb5ea873c7d01f250f883d4c5da092639f153bc19e034e92968bf6557fd287d(i64, i64) -> i64
+  fun @scoop$1$cb$ae9f6afd51df0f90ba776a2b07c4c4f6d0b87a8d364cc2e2c01647f722695c1f(i64, i64) -> i64
     local %0 $dependency.local.2: i64
     local %1 $dependency.local.3: i64
     local %2 $dependency.local.4: i64
@@ -311,7 +311,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<ULong> local0, local2 : i64
     ret t0
-  fun @scoop$1$cb$36bae4f5fd55046cfbce413078bfe533ac2e7cd681ee712173dfd4ff56742c8d(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$5dcee7f8b6dd314898b5905f77d52eeba37d8dba02d3ca493b62a69f3f6b8a58(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

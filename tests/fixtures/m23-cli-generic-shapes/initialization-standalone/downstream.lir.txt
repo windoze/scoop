@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$ca8c8d823046b90b0ff2e20a1a236beaa46a82be5f0922ba4edff8debcb2c44f() -> i32
+  fun @scoop$1$cb$58d038f6441fcac85b0fba82981ad8898b823baa47257d42a5cf3c4dc29b497b() -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]

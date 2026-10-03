@@ -86,6 +86,15 @@ impl CallableDeclarationRecordV1 {
             .validate_bound_semantics(outer_arity, authority)
             .map_err(CallableInterfaceSemanticValidationError::TypeParameters)?;
         let scope = self.type_parameters.signature_scope(outer_arity);
+        if let crate::CallableReleaseCallabilityV1::NoTransition { requirements } =
+            self.effects.release_callability()
+        {
+            for requirement in requirements {
+                scope
+                    .validate(&requirement.signature())
+                    .map_err(CallableInterfaceSemanticValidationError::ReleaseRequirement)?;
+            }
+        }
         if let Some(receiver) = &self.receiver {
             scope
                 .validate_signature_semantics(receiver, authority)

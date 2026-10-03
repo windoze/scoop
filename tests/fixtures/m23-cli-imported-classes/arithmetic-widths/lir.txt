@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$11367010f1b483a4444757ab1af9140090a4e7255dbae085cffccae92dbe6dfe() -> ptr<managed>
+  fun @scoop$1$cb$ed3c50ce556d88cb754bc27bdf1d5a46b778dd0f9aed02e63777384d2e6491cb() -> ptr<managed>
     local %0 a: i8
     local %1 b: i16
     local %2 c: i32

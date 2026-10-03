@@ -20,8 +20,10 @@ mod dataflow;
 mod identity;
 mod layout;
 mod plans;
+mod release;
 mod roots;
 mod scans;
+pub(crate) use release::validate as validate_release_bodies;
 
 #[cfg(test)]
 mod tests;

@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$dbbe3d56dbcf0adb4eeb715b380ad37b7dbe59e8d762eb64e4150437d16eed2c() -> i32
+  fun @scoop$1$cb$254fb0356efa5d6cb54e4522daefb20722fea80c21e653408832240db7775fa3() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 $call.1: i32

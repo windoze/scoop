@@ -1,10 +1,10 @@
 Module
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$c122bf92b09e868408ddced42dcc982bb260bb89b9899998a75f4c760ca0afab(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$2e229c34fe59f7041bca8f6c619e25a768a5dcada1c61205751950c5a1517e5c(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
-  fun @scoop$1$cb$b08aa99b6cba460d04c67243bc7ff19aaf09cfdb797d564648f99b84f601d4d1(ptr<managed>, ptr<managed>) -> i32
+  fun @scoop$1$cb$5df5fc1ada601848a806990896fe6b7881460daa9619553cfe228a367f9bef4d(ptr<managed>, ptr<managed>) -> i32
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
     local %2 $parameter.result: i32
@@ -69,7 +69,7 @@ Module
     store local9 -> local10
     t10 = integer_Add<Int> local8, local10 : i32
     ret t10
-  fun @scoop$1$cb$fdf764220c9d9a600a97d660a6ac5abc39047c6911b4db097b4782cc5c076e97(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$85954e9fc25efe53221307789cfc9f2bd9609dcb436811574319cabcd40e1fd2(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0

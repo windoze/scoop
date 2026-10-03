@@ -93,6 +93,7 @@ pub(super) fn semantic_module(lazy: bool) -> Module {
         dependencies: Vec::new(),
     });
     Module {
+        release_hooks: Default::default(),
         cone: scoop_lir::ConeIdentity::SINGLE_FILE,
         globals,
         initialization_units,

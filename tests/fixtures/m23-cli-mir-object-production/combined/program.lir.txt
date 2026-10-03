@@ -6,9 +6,9 @@ Module
   imported_global @scoop$1$ss$c601a4151f54c2f5bd45ba5824d70f36daae5d915a5c0688b7e95caf76ba513d : ptr<managed> provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 scan=refs[0]
   imported_global @scoop$1$ss$8bf27bf5baf7969d31072973a68e18b451f0d652a32bf156d0a9ca5375de0cf3 : ptr<managed> provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 scan=refs[0]
   imported_global @scoop$1$ss$98d53b52c6281c6dec500d87ef30bb4033b5d327be544da96f015d8d761383ac : ptr<managed> provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 scan=refs[0]
-  global @scoop$1$ss$899005c0b98a205f22037dd29aff9c40af6e1a69a80986df0db848060ffecec1 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$86444aceed6879577633e2be2b1bc6fcd48edaffff0542ac6f654f52c55f4386 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$e20678ac703f4ad58d2aa41617740aec690ac79b80a8ca1ae6a4dc083f6844ae(i1) -> void
+  fun @scoop$1$cb$fccfdd875e65a86099e070c5898d125b6c3adf04f4915fb8c1fef54065ea55bb(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -32,7 +32,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$6311335872ab51795074dcb24ca3477dae45226181c3e0fc8e2f6373227b6657() -> void
+  fun @scoop$1$cb$6931e67de81aa50a998261b07989f803cf75e0bce0bf8c759abbc2cccd0ca0e7() -> void
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -178,7 +178,7 @@ Module
     call managed-void-target11 sp<managed-call:18> live=[] sig=void11 (i1) local-fn0(local28)
     t33 = aggregate () : {}
     call managed-direct-target7 sp<managed-call:19> live=[] t34 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(24)))
-    t35 = function_address @scoop$1$cb$8f0893b4a4ea412c103e731bb1aafd6407e8dff892c8c050c44bb86b47c67c3c : ptr
+    t35 = function_address @scoop$1$cb$3894d191b61bb80a071050ad04dd4d64fc5bb94969d250fc150d92c53ebc692f : ptr
     heap_store t34 +16 t35
     store t34 -> local29
     call managed-direct-target8 sp<managed-call:20> live=[local29:ptr<managed>@0] t36 = sig=direct9 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] local29(local29)
@@ -191,7 +191,7 @@ Module
     call managed-void-target12 sp<managed-call:22> live=[] sig=void12 (i1) local-fn0(local34)
     t38 = aggregate () : {}
     ret
-  fun @scoop$1$cb$8f0893b4a4ea412c103e731bb1aafd6407e8dff892c8c050c44bb86b47c67c3c(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$3894d191b61bb80a071050ad04dd4d64fc5bb94969d250fc150d92c53ebc692f(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
@@ -201,14 +201,14 @@ Module
     call managed-direct-target0 sp<managed-call:1> live=[t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>) -> ptr<managed> external-fn3(t1)
     store t2 -> local0
     ret local0
-  fun @scoop$1$cb$77532c708b0fcebc168e2da9e71ebde345bb3e6e1375f1f917e61b03dc562fcd(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$610a675ff341ebeba63b6f6d78f5cda134a510a7000794b7b1832545d7cc4cde(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> ptr<managed> dispatch[Closure:2] param0(param0)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$8f444824ea26614ad506c4c4e3a5c6c58379cd30c0319a901511299455023c56() -> i32
+  fun @scoop$1$cb$d6960e98a360a303b047941a28a069c59240ece0a91a61d595bf15fffe7d0caa() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -228,4 +228,4 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]
   layout $Closure$lambda0 size=24 align=8 refs=[]
-  output executable @scoop$1$cb$6311335872ab51795074dcb24ca3477dae45226181c3e0fc8e2f6373227b6657
+  output executable @scoop$1$cb$6931e67de81aa50a998261b07989f803cf75e0bce0bf8c759abbc2cccd0ca0e7

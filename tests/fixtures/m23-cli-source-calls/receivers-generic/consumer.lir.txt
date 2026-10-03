@@ -1,11 +1,11 @@
 Module
   global @scoop$1$io$80783fa19270c7fc27f9bb383480141a07a85b5428846f403de2c68671594c22 = "generic"
   global @scoop$1$io$145143fa265f6b4b36af557f662cf4fc98ef1365bcdf1254a62c261a11eb44f6 = "generic"
-  fun @scoop$1$cb$c444426bd94192952d4f6dc54be8b3f35313a0987d0fc4e62d4ee64fea6c841e(ptr<managed>) -> i32
+  fun @scoop$1$cb$1b1ee31a37a6d7441d600d5ce2694a4d0be832025c80514b24aa09b86bd58317(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000009)
-  fun @scoop$1$cb$a6d871620b6906a2d06303a4aa3b6f243f720a8f1b4a4e2db1e3eb61a7d81183() -> i32
+  fun @scoop$1$cb$8febbd06faabdfde6c0b3cbeaeb5bdf143841e863128950911587c2da0f652fe() -> i32
     local %0 $argument.0: ptr<managed>
     local %1 $parameter.value: ptr<managed>
     local %2 $receiver: ptr<managed>
@@ -26,7 +26,7 @@ Module
     call managed-direct-target2 sp<managed-call:2> live=[local5:ptr<managed>@0] t2 = sig=direct2 (ptr<managed>) -> i32 external-fn0(local5)
     store t2 -> local6
     ret local6
-  fun @scoop$1$cb$21caf2f95f6335f3459a2891fcd2a5479151628f476e54dd549588b58696b4e9(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$f2a82e1e9684efb81c457b8a9b1be735f942c3a1c107f019d5bc656166b88535(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1

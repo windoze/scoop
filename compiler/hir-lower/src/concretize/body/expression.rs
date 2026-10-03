@@ -55,6 +55,21 @@ impl Concretizer<'_> {
             return location;
         }
         let kind = match &source.kind {
+            export::ExprKind::ReleaseFieldLoad(field) => {
+                let concrete::FieldRef::ClassField { class_id, index } = self.lower_field_ref(
+                    export::FieldRef::ClassField {
+                        owner: field.owner,
+                        field: field.field,
+                    },
+                    substitution,
+                ) else {
+                    unreachable!("a release field is a class backing field")
+                };
+                concrete::ExprKind::ReleaseFieldLoad {
+                    class: class_id,
+                    index,
+                }
+            }
             export::ExprKind::StringLiteral { value, owner } => concrete::ExprKind::StringLiteral {
                 value: value.clone(),
                 owner: match *owner {

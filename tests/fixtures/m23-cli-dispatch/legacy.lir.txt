@@ -3,18 +3,18 @@ Module
   global @scoop$1$io$05c1b758a591e2b791bba5ae48acb31e42be3dcc64e23221befcf3538175b1ec = "string"
   global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "x"
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   global @scoop$1$bs$17c2bb6457580b8768d33e98d25d63263a30292da352b540b16cf91ac1686397 = c"call to abstract method `Describe.describe`"
   global @scoop$1$bs$08f54fa482ca9df87fad07b1ca5d4379d020d05b727324de3ed055b3f26c961e = c"call to abstract method `Describe.describe`"
-  fun @scoop$1$cb$65a9f84c885e4443f06faeb8e8fb9250225dd60ce534b7cc5f75b6d083be298c(ptr<managed>, i32) -> ptr<managed>
+  fun @scoop$1$cb$3818c7ef79edca5f0b654510fabcc0aaed3824a24a36cf42fd65c2940def58b5(ptr<managed>, i32) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret global0
-  fun @scoop$1$cb$d252011111dfc5222d76e01fa8a54918798c092507fc13b9533bfa42b6beedf6(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$e0efcc9eea57700afc30f14ce72a99d891e840bde1c89fe577233c8cd7d5e217(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret global1
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 intView: ptr<managed>
     local %1 stringView: ptr<managed>
     local %2 $receiver: ptr<managed>
@@ -62,7 +62,7 @@ Module
     call managed-void-target3 sp<managed-call:7> live=[local11:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn3(local11)
     t11 = aggregate () : {}
     ret
-  fun @scoop$1$cb$0e2592cda2d841ffaeeb4ca9ee19ab89cff7a7c2584f848c9feaa95e67b36371(ptr<managed>) -> void
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -81,25 +81,25 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$2504cfe5ca5a2c3ffb19bef89b6a0ed662e2ded530e739ac96d27ca37971c744(ptr<managed>, i32) -> ptr<managed>
+  fun @scoop$1$cb$4fab5c4a76e813a9a36efff36fe082313174972eaae17fe95e64742561114b46(ptr<managed>, i32) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global5)
     unreachable
-  fun @scoop$1$cb$065bcbe135a5aa60471cd812880817e67d136f7f382ebb4dee9c8395c78daa55(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$f1ce0856e3be73262015351ee3008db55450091c2cf60c3d8ff20bb9977050de(ptr<managed>, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global6)
     unreachable
-  fun @scoop$1$cb$2cdd5d4fe33916c40e9b91c9630260715a1951dbdb316336d4f2af3ca2b38f43(ptr<managed>) -> void
+  fun @scoop$1$cb$2dc67081cadab8b88c777bf824114ec5c97432db03b2e0cf3cd8215ce5552bc1(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
@@ -120,4 +120,4 @@ Module
   layout Describe value size=8 align=8 refs=[0]
   layout Both value size=8 align=8 refs=[0]
   layout Both size=16 align=8 refs=[]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

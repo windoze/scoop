@@ -289,9 +289,16 @@ impl<'a> FunctionLowerer<'a> {
                     live: lir::StatepointLiveSet::default(),
                 })
             }
-            LoweredCallDestination::NoGc(destination) => lir::CallSite::NoGc(lir::NoGcCallSite {
-                call: bind_typed_call(&mut self.call_targets.no_gc_targets, destination, call),
-            }),
+            LoweredCallDestination::NoGc(destination) => {
+                let site = lir::NoGcCallSite {
+                    call: bind_typed_call(&mut self.call_targets.no_gc_targets, destination, call),
+                };
+                if self.callable_body.release_owner().is_some() {
+                    lir::CallSite::ReleaseScoop(site)
+                } else {
+                    lir::CallSite::NoGc(site)
+                }
+            }
         }
     }
 
@@ -307,15 +314,20 @@ impl<'a> FunctionLowerer<'a> {
                     &lir::RefScan::None,
                     "native-safe C ABI results must be GC-free"
                 );
-                lir::CallSite::NativeSafe(lir::NativeSafeCallSite {
-                    call: bind_typed_call(
-                        &mut self.call_targets.native_safe_targets,
-                        destination,
+                let call = bind_typed_call(
+                    &mut self.call_targets.native_safe_targets,
+                    destination,
+                    call,
+                );
+                if self.callable_body.release_owner().is_some() {
+                    lir::CallSite::ReleaseNativeLeaf(lir::ReleaseNativeLeafCallSite { call })
+                } else {
+                    lir::CallSite::NativeSafe(lir::NativeSafeCallSite {
                         call,
-                    ),
-                    safepoint: self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition),
-                    roots: lir::NativeSafeRootSet::default(),
-                })
+                        safepoint: self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition),
+                        roots: lir::NativeSafeRootSet::default(),
+                    })
+                }
             }
             NativeCallDestination::Borrowed(destination) => {
                 let result_scan = call.result_scan(&self.call_targets).clone();

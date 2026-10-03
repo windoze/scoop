@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$acae3628439d3c76a40b26d6c9213fb6a8fd342893b943d180fe56358568f4e2(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$97d23f9fe45a7e124b731dd568b60ed98beb136c1b3c436d6396cb3e49e750f6(ptr<managed>) -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]

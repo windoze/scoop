@@ -6,6 +6,12 @@ mod integers;
 impl Writer<'_, '_> {
     pub(super) fn instruction(&mut self, instruction: &Instruction) -> Result {
         match instruction {
+            Instruction::PublishReleaseReady { object } => {
+                record!(self, 62; self.value(*object))
+            }
+            Instruction::ReleaseFieldLoad { out, offset } => {
+                record!(self, 61; self.temp(*out), self.u(*offset))
+            }
             Instruction::BoxValue {
                 out,
                 payload,
@@ -135,27 +141,39 @@ impl Writer<'_, '_> {
             Instruction::NativeGlobalLoad {
                 out,
                 global,
-                safepoint,
-                roots,
+                protocol: NativeStorageProtocol::NativeSafe { safepoint, roots },
             } => {
                 record!(self, 22; self.temp(*out), self.native_global(*global), self.safepoint(*safepoint), self.caller_roots(roots.as_slice()))
             }
             Instruction::NativeGlobalStore {
                 global,
                 value,
-                safepoint,
-                roots,
+                protocol: NativeStorageProtocol::NativeSafe { safepoint, roots },
             } => {
                 record!(self, 23; self.native_global(*global), self.value(*value), self.safepoint(*safepoint), self.caller_roots(roots.as_slice()))
             }
             Instruction::NativeGlobalAddress {
                 out,
                 global,
-                safepoint,
-                roots,
+                protocol: NativeStorageProtocol::NativeSafe { safepoint, roots },
             } => {
                 record!(self, 24; self.temp(*out), self.native_global(*global), self.safepoint(*safepoint), self.caller_roots(roots.as_slice()))
             }
+            Instruction::NativeGlobalLoad {
+                out,
+                global,
+                protocol: NativeStorageProtocol::NoTransition,
+            } => record!(self, 63; self.temp(*out), self.native_global(*global)),
+            Instruction::NativeGlobalStore {
+                global,
+                value,
+                protocol: NativeStorageProtocol::NoTransition,
+            } => record!(self, 64; self.native_global(*global), self.value(*value)),
+            Instruction::NativeGlobalAddress {
+                out,
+                global,
+                protocol: NativeStorageProtocol::NoTransition,
+            } => record!(self, 65; self.temp(*out), self.native_global(*global)),
             Instruction::HeapStore {
                 object,
                 offset,

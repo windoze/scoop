@@ -1,12 +1,12 @@
 Module
   global @scoop$1$io$a9b396b99e43ece2ecbc1b8fe39099594d1cd577909b54e2877012da53237d6e = "illegal state"
-  global @scoop$1$ss$df80c806425e452f94f76aadc4021babad31f93d2470632daac88f702cc882cc : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$723a1a1e0a84687ede395a13521929d5920409fd4c09e38f33d15534e737979c : ptr<managed> scan=refs[0]
   c-struct struct0 Packed fields=[Boolean@0/1,Int@1/1]
   c-struct struct1 Outer fields=[Boolean@0/1,c-struct0@2/2]
   c-struct struct2 CBox fields=[Int@0/4]
   c-struct struct3 CBox fields=[ULong@0/8]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$c2216aad0ae8f891bb283fc3a82e300507842cf6db2e8d012ac9d9b5e9eddd57(i1) -> void
+  fun @scoop$1$cb$901318c7c782befe40d20b8ebc0cd17027d7e73ad62380fd36a9b8b403b0cc53(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -30,7 +30,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$0e256ad09c5bf5f0a7311edf481b382e0b624cd2f8918797446d1846348ac1e0() -> void
+  fun @scoop$1$cb$55c253ccdf8c0b3f14438abdcb2cf95c312ff43350829f6744ed029bb120fd21() -> void
     local %0 $dependency.argument.0: i1
     local %1 $dependency.argument.1: i32
     local %2 $dependency.parameter.flag: i1
@@ -266,7 +266,7 @@ Module
     call managed-void-target6 sp<managed-call:15> live=[] sig=void6 (i1) local-fn0(local76)
     t20 = aggregate () : {}
     ret
-  fun @scoop$1$cb$55cc938f8910b0ca7fa50265d0b7fc3ec40fc54fe37284ea60cbcef2e410ca2e(indirect<{i1, i32} size=8 align=4 scan=none>, indirect<{i1, i32} size=8 align=4 scan=none>) -> i1
+  fun @scoop$1$cb$ddd37d27b9883668b171268caf15953d4bba28548513c01be745289a31fa7979(indirect<{i1, i32} size=8 align=4 scan=none>, indirect<{i1, i32} size=8 align=4 scan=none>) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
   block entry
@@ -287,25 +287,25 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop$1$cb$d49037f83faaa98f8e3885e8f8d596f73dc99d464137955e14054751a15d83af(indirect<struct2 size=4 align=4 scan=none>) -> i32
+  fun @scoop$1$cb$2f8d0adf6b8a82069e020eb0ebbb68d59d4481ab3ba6d11eb89cffe05f56abd1(indirect<struct2 size=4 align=4 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = extract param0, 0 : i32
     ret t0
-  fun @scoop$1$cb$c4e725a65d10c5bf9fd5670953ebfd7a77197ce6ed16ebbe0ebe6b8f2dd683bf(indirect<struct3 size=8 align=8 scan=none>) -> i64
+  fun @scoop$1$cb$0db89d87df78aa572daf81a225b85e940bcfb912330912612a447e55037b69aa(indirect<struct3 size=8 align=8 scan=none>) -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = extract param0, 0 : i64
     ret t0
-  fun @scoop$1$cb$095c22ef02ee39407b7d207379b072628150c7c31aae970f02630b326847e479(i32) -> sret<struct2 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$09b5139883b730754cbebb024b3adb842fa55dea991514e3b521d99bfa48c4a2(i32) -> sret<struct2 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct2
     ret t0
-  fun @scoop$1$cb$7b1c64b9797688c4319b9a4f378db4593b14a158e5271365502df562407adac3(i64) -> sret<struct3 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$eb9decde8f4490d53cf02a2c570d864edb2c3ff99bd83f4a7dfa17dc2c39d24a(i64) -> sret<struct3 size=8 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct3
     ret t0
-  fun @scoop$1$cb$38661e0acd7d14aaf1a7346184d4d089609113819a57e7ea215c75aa7caae77d() -> i32
+  fun @scoop$1$cb$0220aca4a293b0d022e442fa5ebdab797456c10aa1bb8db0a5195a5e3b9aea25() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -331,4 +331,4 @@ Module
   layout CBox size=8 align=8 refs=[]
   layout-meta CBox c-layout(aligned=0,packed=0) fields=[0@8] interior-mutable=false
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$0e256ad09c5bf5f0a7311edf481b382e0b624cd2f8918797446d1846348ac1e0
+  output executable @scoop$1$cb$55c253ccdf8c0b3f14438abdcb2cf95c312ff43350829f6744ed029bb120fd21

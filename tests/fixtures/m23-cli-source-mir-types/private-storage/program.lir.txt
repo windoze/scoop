@@ -2,11 +2,11 @@ Module
   global @scoop$1$io$d0443c16b5f145e682ee568f2539dcdaeb527889f16d747fb7026c56641d781f = "illegal state"
   global @scoop$1$io$9e69f04c346a15b191b0d836027a59885c23f71395461fb1832888e73d039892 = "value"
   global @scoop$1$io$8e5887287a07b8cdbedd794e9f2ff7a0249931bee43868a837cc6809d4c7d51c = "value"
-  global @scoop$1$ss$eb9129190e07d4c95478dd7e07f82fa7508641447f30aca65c4a70072b3251bb : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$441494c2f2443efad050fe0e43479d41d9b1d4642f42d128fa3a4f5b3079f9a4 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum Parcel niche(kind=managed,payload_variant=1)
   enum Parcel tagged size=16 align=8 variants=()@8+0 (i32)@8+4
-  fun @scoop$1$cb$cf1f228e2870f687695366bd82415a76d8fffe4d2f3caffea8aa9341d2be4c19(i1) -> void
+  fun @scoop$1$cb$2aa143d662a42f0eb4cc30b3af16d48c5f4913cd174e50af42d323bcaf62beee(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -30,7 +30,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$674cd96e5074e7097eb3e39cdded2434eb4451c2980c02446ece6e57fd3c5158() -> void
+  fun @scoop$1$cb$9a5788e6eae0c4e20615626d731f0074836b98115b6c759c2172edb582f52ae5() -> void
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -82,7 +82,7 @@ Module
     call managed-void-target2 sp<managed-call:5> live=[] sig=void2 (i1) local-fn0(local14)
     t10 = aggregate () : {}
     ret
-  fun @scoop$1$cb$a7652dc8de5422ee858408fae72bc986ef5ea42d0622ec83406e1d58b7fa24b8(enum1, enum1) -> i1
+  fun @scoop$1$cb$20e4c0a188762050d91ef5d8234e9365d25322ac269372b7df7894f64e448240(enum1, enum1) -> i1
     local %0 $left.1.0: ptr<managed>
     local %1 $right.1.0: ptr<managed>
     local %2 $when.1: enum1
@@ -129,7 +129,7 @@ Module
     ret local9
   block pattern.else.11
     ret false
-  fun @scoop$1$cb$0e06ac0b6a891c7b604c9a09bfcbef83c78ff44d03390f8f2c632c7be7d63f0c(indirect<enum2 size=16 align=8 scan=none>, indirect<enum2 size=16 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$bf7e5270e683b5de3783e8e3abd0b1dd1303d1ca6a2b775b3eb8a6f1702bc181(indirect<enum2 size=16 align=8 scan=none>, indirect<enum2 size=16 align=8 scan=none>) -> i1
     local %0 $left.1.0: i32
     local %1 $right.1.0: i32
     local %2 $when.1: enum2
@@ -174,7 +174,7 @@ Module
     ret t6
   block pattern.else.11
     ret false
-  fun @scoop$1$cb$266a7a79604c8d021dc4bd03472f8761bf3b8391d881bfdb0572eaf18ef93eea() -> i32
+  fun @scoop$1$cb$72c82d7c0483bf08defbb78ab1a6adc4f184396328c32418dbcb7ceb6b017485() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -194,4 +194,4 @@ Module
   layout Option size=8 align=8 enum-scan=refs[0]
   layout Parcel size=8 align=8 enum-scan=refs[0]
   layout Parcel size=16 align=8 enum-scan=none
-  output executable @scoop$1$cb$674cd96e5074e7097eb3e39cdded2434eb4451c2980c02446ece6e57fd3c5158
+  output executable @scoop$1$cb$9a5788e6eae0c4e20615626d731f0074836b98115b6c759c2172edb582f52ae5

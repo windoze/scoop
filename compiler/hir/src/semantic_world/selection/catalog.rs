@@ -29,6 +29,7 @@ pub(super) struct CallableCatalogEntry {
     pub(super) definition_sources: Arc<ImportedDependencyDefinitionSources>,
     pub(super) definition_origin: crate::ExportDefinitionSourceV1,
     pub(super) callable_body: Option<Arc<crate::ExportGenericCallableBodyV1>>,
+    pub(super) native_contract: Option<Arc<scoop_identity::SourceNativeExternalContractRecord>>,
 }
 
 #[derive(Clone, Debug)]
@@ -72,10 +73,8 @@ pub(super) struct DependencyCatalog {
     pub(super) bodies: BTreeMap<crate::DefaultCallableDeclarationV1, super::ImportedCallableBody>,
     pub(super) generated_callables:
         BTreeMap<scoop_identity::PersistentGeneratedCallableId, GeneratedCallableCatalogEntry>,
-    pub(super) initializations: BTreeMap<
-        scoop_identity::PersistentGenericTypeId,
-        Arc<crate::ExportGenericNominalInitializationV1>,
-    >,
+    pub(super) initializations:
+        BTreeMap<scoop_identity::PersistentGenericTypeId, super::ImportedNominalInitialization>,
     pub(super) delegates: BTreeMap<
         scoop_identity::PersistentExtensionPropertyId,
         Arc<crate::ExportGenericDelegateTemplateV1>,
@@ -149,7 +148,13 @@ impl ImportedSemanticWorld<'_> {
             }
             let definition_sources = Arc::new(imported_definition_sources(provider, self)?);
             for initialization in provider.interface().generic_initializations().records() {
-                initializations.insert(initialization.owner(), Arc::new(initialization.clone()));
+                initializations.insert(
+                    initialization.owner(),
+                    super::ImportedNominalInitialization {
+                        initialization: Arc::new(initialization.clone()),
+                        definition_sources: Arc::clone(&definition_sources),
+                    },
+                );
             }
             for delegate in provider.interface().generic_delegates().records() {
                 if delegates
@@ -267,6 +272,10 @@ impl ImportedSemanticWorld<'_> {
                     _ => None,
                 };
                 let entry = CallableCatalogEntry {
+                    native_contract: provider.foundation().canonical_for_semantic_authority().source_native_contracts().iter()
+                        .find(|record| matches!((declaration, record.key().owner()),
+                            (CallableTemplateOrigin::Function(function), scoop_identity::SourceNativeExternalOwner::Function(owner)) if function == owner))
+                        .cloned().map(Arc::new),
                     name: super::intrinsics::callable_catalog_name(provider, declaration)?,
                     provider: provider.identity(),
                     interface: callable.clone(),

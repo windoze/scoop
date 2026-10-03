@@ -511,6 +511,7 @@ impl Lowerer {
             self.functions[id].kind = FunctionKind::User(body);
         }
         self.lower_property_accessor_bodies();
+        self.lower_release_blocks(&pending_classes, &pending_objects);
         if self.diagnostics.is_empty()
             && let Err(error) = self.prepare_coroutine_declarations()
         {
@@ -526,8 +527,12 @@ impl Lowerer {
         self.validate_c_ffi_types();
         self.check_generic_recursion();
         let type_sites = self.validate_gc_free_pointee_requirements();
-        self.check_no_gc_types(type_sites);
+        self.check_no_gc_types(type_sites.clone());
         self.check_no_gc_functions();
+        if self.diagnostics.is_empty() {
+            let release_values = self.infer_release_callability();
+            self.check_release_blocks(&release_values, &type_sites);
+        }
 
         self.warnings.sort_by_key(|diagnostic| {
             let span = diagnostic.span.unwrap_or(Span {

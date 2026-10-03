@@ -181,6 +181,7 @@ impl Fixture {
                     BASE..=OTHER => (
                         MirValueKindV1::Reference,
                         MirTypeRepresentationV1::Class {
+                            release_policy: Default::default(),
                             kind: if index == BASE {
                                 MirClassKindV1::Open
                             } else {

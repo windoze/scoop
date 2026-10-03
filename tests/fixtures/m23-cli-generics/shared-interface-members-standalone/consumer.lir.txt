@@ -1,14 +1,14 @@
 Module
   global @scoop$1$bs$540dcabef77479ec79d3e9154bc303670fcbd3306c81ecff1afbd0bb978da090 = c"call to abstract method `Reader.read`"
-  fun @scoop$1$cb$a2570dbc482838f7d8bd19550873c025f5a1f043abb200806169b696c0c3066b(ptr<managed>) -> i32
+  fun @scoop$1$cb$104c30fbdae74af48d0932d4abb77f5622296f7496e0c53820ba7e3997d306fb(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x0000002a)
-  fun @scoop$1$cb$09f2ad758d9e6ea1e6983a7f1f3324b3a636962d29032fe071015464520b9da5(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$e0b5e4064086520d26ff024f1351d4ec69fd1a40fb0310ed5a53a53c728a59d3(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
-  fun @scoop$1$cb$86e97190d1ed809c91de07e8ec29d27de91b07a9384f46bdfdc36a38533f8c76() -> i32
+  fun @scoop$1$cb$4dd9851a1b4c2d8cbfcc125abb67dbb34c93b2899efeebd4502367c66d5dad76() -> i32
     local %0 reader: ptr<managed>
     local %1 $receiver: ptr<managed>
     local %2 $argument.0: i32
@@ -68,7 +68,7 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local13
-  fun @scoop$1$cb$7a01dde09968ea30203f64ab94286dc7ca267ff2babd0476079f98d9a66eb3e1(ptr<managed>) -> i32
+  fun @scoop$1$cb$5c5bce7d9d6a2f5612b90e4adf9902498d0a2c3000e40e0d59f3e69e17c18be0(ptr<managed>) -> i32
     local %0 $receiver: ptr<managed>
     local %1 $call.1: i32
   block entry
@@ -79,14 +79,14 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(local0)
     store t2 -> local1
     ret local1
-  fun @scoop$1$cb$4fb70e2203ea55167668afec9d6ca8fcd5acf6e75bc70ddf9e7f1a792bf70729(ptr<managed>) -> i32
+  fun @scoop$1$cb$4da07edcd1cc1fc0f936f2d52d6a27a987fd450ad54d6b0a8031191a81c8cc1a(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$70950161f2466be62245130ec8bc8d27af89510593ce78c4bc3d51cf586d1f53(ptr<managed>) -> void
+  fun @scoop$1$cb$e88039552bc8cfdb7f32769336739bab00da15650b05424107ed13d3f9ad8095(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret

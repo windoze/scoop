@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 
 #include "../value_shape.h"
 #include "internal.h"
@@ -103,6 +104,39 @@ static void collect_sites(ScoopImageRegistry *registry) {
                      "64-bit safepoint ID collision");
 }
 
+static void check_release_hook(const ScoopImageRegistry *registry,
+                               const ScoopMetadataCheck *check,
+                               const ScoopTypeRegistrationDescriptorV1 *type) {
+    const ScoopTypeDescriptor *td = type->descriptor;
+    if (td->release_hook == NULL) {
+        return;
+    }
+    if (td->instance_shape.instance_kind != SCOOP_TYPE_INSTANCE_FIXED_OBJECT_V1) {
+        scoop_metadata_fatal(check, "release hook requires a fixed object");
+    }
+    /* RuntimeEncode: ByteSpan(domain), u32 tag 5, exact type ID. */
+    static const char domain[] = "scoop-callable-body-v2";
+    uint8_t encoding[8 + sizeof domain - 1 + 4 + 32] = {0};
+    encoding[0] = sizeof domain - 1;
+    memcpy(encoding + 8, domain, sizeof domain - 1);
+    encoding[8 + sizeof domain - 1] = 5;
+    memcpy(encoding + 8 + sizeof domain - 1 + 4,
+           type->registration.semantic_id.bytes, 32);
+    ScoopDigest256V1 body_id;
+    if (!scoop_platform_sha256(encoding, sizeof encoding, body_id.bytes)) {
+        scoop_metadata_fatal(check, "release hook identity digest");
+    }
+    const ScoopRegisteredRecord *record =
+        scoop_record_by_id(registry, SCOOP_RECORD_CALLABLE, &body_id);
+    if (record == NULL) {
+        scoop_metadata_fatal(check, "release hook callable registration");
+    }
+    const ScoopCallableRegistrationDescriptorV1 *callable = record->record;
+    if ((uintptr_t)callable->entry != (uintptr_t)td->release_hook) {
+        scoop_metadata_fatal(check, "release hook entry disagrees with exact owner");
+    }
+}
+
 void scoop_image_validate_code_and_types(ScoopImageRegistry *registry) {
     if (registry->type_addresses != NULL) {
         scoop_metadata_fatal(NULL, "type registration repeated");
@@ -120,5 +154,6 @@ void scoop_image_validate_code_and_types(ScoopImageRegistry *registry) {
         scoop_metadata_scan(registry, &check, td->object_scan);
         scoop_metadata_scan(registry, &check, td->instance_shape.inline_scan);
         scoop_shape_validate(td);
+        check_release_hook(registry, &check, type);
     }
 }

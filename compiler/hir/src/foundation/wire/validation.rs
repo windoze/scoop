@@ -320,6 +320,7 @@ fn validate_foundation(
         &enum_variants,
         &enum_variant_fields,
         &generated_callables,
+        &exact_types,
         &initialization_units,
         &local_bindings,
         &local_values,

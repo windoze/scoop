@@ -120,6 +120,7 @@ pub(super) fn representation(
             };
             (
                 Repr::Class {
+                    release_policy: Default::default(),
                     kind,
                     declared_fields: fields,
                 },

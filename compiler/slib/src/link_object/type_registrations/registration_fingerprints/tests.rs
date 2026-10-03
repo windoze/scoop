@@ -35,6 +35,6 @@ fn computes_the_canonical_type_strong_registration_fingerprint() {
     );
     assert_eq!(
         actual.registration().to_string(),
-        "d74f6783cd2611837c9b581a102ab027d7d70ff194a04c27835bb635fa1276c4"
+        "108961b5171bf8858b23297b5e30d110d00ddc2f3c0b85b03874cd878ca492a7"
     );
 }

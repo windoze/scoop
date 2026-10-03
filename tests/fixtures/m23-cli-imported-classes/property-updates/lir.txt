@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$2fe59e9f59a0acc8786d2391d7d21641f8a7ea130a98a6bb0d8b31e0f43ca370(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$036022af6077a6d344928980adcadddb7206981915afa78b614129131241e2d8(ptr<managed>) -> ptr<managed>
     local %0 $place.0: ptr<managed>
     local %1 $old.1: i64
     local %2 $dependency.receiver: i64
@@ -20,7 +20,7 @@ Module
     call managed-direct-target1 sp<managed-call:2> live=[param0:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> ptr<managed> external-fn2(param0)
     store t3 -> local5
     ret local5
-  fun @scoop$1$cb$d8e5f3ad20d112111c763f55dbd3a325bbb995dff24e030fb4a126514ec3758d(ptr<managed>) -> i64
+  fun @scoop$1$cb$73310734d7e0e8a6d3e403e53e1437077469815fd9b716398920c874586a8af8(ptr<managed>) -> i64
     local %0 $place.2: ptr<managed>
     local %1 $old.3: i64
     local %2 $dependency.receiver: i64
@@ -56,7 +56,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local8
-  fun @scoop$1$cb$099f85c1ba12cd035698695c1976ef1f0bc0f60a813d47db39f47c5249633a70() -> ptr<managed>
+  fun @scoop$1$cb$0506172fa7d61e644fe4835b5bf9cad29a7019aee6d91be85f9ee837f9cb5576() -> ptr<managed>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.value: i64
     local %2 $dependency.argument.0: ptr<managed>

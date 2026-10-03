@@ -1,0 +1,850 @@
+Module
+  extern ef0 record @m24_release_add(Int) -> Unit <abi=c no-gc lib=m24_release>
+  extern ef1 count @m24_release_count() -> Int <abi=c no-gc lib=m24_release>
+  struct Pair<Int> (first: Int, second: Int)
+  struct Phantom<String> (code: Int)
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Container>
+    Completed(value: Container)
+    Suspended()
+  enum CoroutineSlot<Container>
+    Empty()
+    Value(value: Container)
+  class Container vtable=0 itables=0
+  class Owner<Int> vtable=0 itables=0
+  class Owner<Pair<Int>> vtable=0 itables=0
+  class Owner<Option<Int>> vtable=0 itables=0
+  class Owner<Unit> vtable=0 itables=0
+  class PhantomOwner<String> vtable=0 itables=0
+  class Container.Nested<Int> vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Container>
+  interface SuspendTask<Container>
+  interface SuspendRegistration<Container>
+  generated_exact_type get0 location=enum2 nominal_id=9b031943e4f1db2c488d7a3324903f4a9b1900e2b28d8bf849a9a13d83e3d517 exact_id=52985760fd755a0e7c089dcddb2938f71f1d4545dc8ccd76f17b8cb6be03b36b
+  generated_exact_type get1 location=enum3 nominal_id=18639b3db43105d5549bad7fd8ac1912b01096b3824713f2f8a7c0839c40863a exact_id=bd8016dab464f567fe9595a76d494dc75da92a9b80971254a08d955e59fe616e
+  generated_callable gc0 function=@fn22 id=5ca1767be9f30bd694a8badda0b8756b7954284201fc10c8168a9bee569232e1
+  fun record @fn0(arg0: Int) -> Unit
+    bb0 entry
+      call extern0 @m24_release_add direct
+        Type Int
+        Local arg0
+      return
+  fun count @fn1() -> Int
+    bb0 entry
+      call $call.1: Int = extern1 @m24_release_count direct
+      return
+        Type Int
+        Local $call.1
+  fun allocate @fn2() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      val $parameter.code: Int
+        Type Int
+        Local $argument.1
+      assign $new.1
+        Type Owner<Int>
+        ClassAlloc Owner<Int>
+      call @fn14 direct
+        Type Owner<Int>
+        Local $new.1
+        Type Int
+        Local $parameter.value
+        Type Int
+        Local $parameter.code
+      publish_release_ready Owner
+        Type Owner<Int>
+        Local $new.1
+      val scalar: Owner<Int>
+        Type Owner<Int>
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=5 bits=0x00000005
+      val $parameter.first: Int
+        Type Int
+        Local $argument.0
+      val $parameter.second: Int
+        Type Int
+        Local $argument.1
+      call $argument.0: Pair<Int> = @fn20 direct
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $parameter.value: Pair<Int>
+        Type Pair<Int>
+        Local $argument.0
+      val $parameter.code: Int
+        Type Int
+        Local $argument.1
+      assign $new.2
+        Type Owner<Pair<Int>>
+        ClassAlloc Owner<Pair<Int>>
+      call @fn15 direct
+        Type Owner<Pair<Int>>
+        Local $new.2
+        Type Pair<Int>
+        Local $parameter.value
+        Type Int
+        Local $parameter.code
+      publish_release_ready Owner
+        Type Owner<Pair<Int>>
+        Local $new.2
+      val aggregate: Owner<Pair<Int>>
+        Type Owner<Pair<Int>>
+        Local $new.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $dependency.parameter._1: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      val $parameter.code: Int
+        Type Int
+        Local $argument.1
+      assign $new.3
+        Type Owner<Option<Int>>
+        ClassAlloc Owner<Option<Int>>
+      call @fn16 direct
+        Type Owner<Option<Int>>
+        Local $new.3
+        Type Option<Int>
+        Local $parameter.value
+        Type Int
+        Local $parameter.code
+      publish_release_ready Owner
+        Type Owner<Option<Int>>
+        Local $new.3
+      val optional: Owner<Option<Int>>
+        Type Owner<Option<Int>>
+        Local $new.3
+      val $argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $argument.1: Int
+        Type Int
+        IntegerLiteral Int value=13 bits=0x0000000d
+      val $parameter.value: Unit
+        Type Unit
+        Local $argument.0
+      val $parameter.code: Int
+        Type Int
+        Local $argument.1
+      assign $new.4
+        Type Owner<Unit>
+        ClassAlloc Owner<Unit>
+      call @fn17 direct
+        Type Owner<Unit>
+        Local $new.4
+        Type Unit
+        Local $parameter.value
+        Type Int
+        Local $parameter.code
+      publish_release_ready Owner
+        Type Owner<Unit>
+        Local $new.4
+      val empty: Owner<Unit>
+        Type Owner<Unit>
+        Local $new.4
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=8 bits=0x00000008
+      val $parameter.code: Int
+        Type Int
+        Local $argument.0
+      call $argument.0: Phantom<String> = @fn21 direct
+        Type Int
+        Local $parameter.code
+      val $argument.1: String
+        Type String
+        StringConst @str0
+      val $parameter.phantom: Phantom<String>
+        Type Phantom<String>
+        Local $argument.0
+      val $parameter.retained: String
+        Type String
+        Local $argument.1
+      assign $new.5
+        Type PhantomOwner<String>
+        ClassAlloc PhantomOwner<String>
+      call @fn18 direct
+        Type PhantomOwner<String>
+        Local $new.5
+        Type Phantom<String>
+        Local $parameter.phantom
+        Type String
+        Local $parameter.retained
+      publish_release_ready PhantomOwner
+        Type PhantomOwner<String>
+        Local $new.5
+      val phantom: PhantomOwner<String>
+        Type PhantomOwner<String>
+        Local $new.5
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      assign $new.6
+        Type Container.Nested<Int>
+        ClassAlloc Container.Nested<Int>
+      call @fn19 direct
+        Type Container.Nested<Int>
+        Local $new.6
+        Type Int
+        Local $parameter.value
+      publish_release_ready Container.Nested
+        Type Container.Nested<Int>
+        Local $new.6
+      val nested: Container.Nested<Int>
+        Type Container.Nested<Int>
+        Local $new.6
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      call @fn2 direct
+      call @scoop_rt_gc_collect direct
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Int = extern1 @m24_release_count direct
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun keep @fn4(value: Int) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun keep @fn5(value: Pair<Int>) -> Pair<Int> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Int>
+        Local value
+  fun keep @fn6(value: Option<Int>) -> Option<Int> <no-gc>
+    bb0 entry
+      return
+        Type Option<Int>
+        Local value
+  fun keep @fn7(value: Unit) -> Unit <no-gc>
+    bb0 entry
+      Type Unit
+      Local value
+      return
+  fun println @fn8(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Continuation.resume @fn9(this: Continuation<Container>, value: Container) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn10(this: Continuation<Container>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn11(this: SuspendTask<Container>, $completion: Continuation<Container>) -> CoroutineStep<Container>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn12(this: SuspendRegistration<Container>, continuation: Continuation<Container>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Container.$c2 @fn13(this: Container) -> Unit
+    bb0 entry
+      return
+  fun init.Owner.$c0 @fn14(this: Owner<Int>, value: Int, code: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type Owner<Int>
+        Local this
+        Type Int
+        Local code
+      return
+  fun init.Owner.$c0 @fn15(this: Owner<Pair<Int>>, value: Pair<Int>, code: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner<Pair<Int>>
+        Local this
+        Type Pair<Int>
+        Local value
+      field_set 1
+        Type Owner<Pair<Int>>
+        Local this
+        Type Int
+        Local code
+      return
+  fun init.Owner.$c0 @fn16(this: Owner<Option<Int>>, value: Option<Int>, code: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner<Option<Int>>
+        Local this
+        Type Option<Int>
+        Local value
+      field_set 1
+        Type Owner<Option<Int>>
+        Local this
+        Type Int
+        Local code
+      return
+  fun init.Owner.$c0 @fn17(this: Owner<Unit>, value: Unit, code: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner<Unit>
+        Local this
+        Type Unit
+        Local value
+      field_set 1
+        Type Owner<Unit>
+        Local this
+        Type Int
+        Local code
+      return
+  fun init.PhantomOwner.$c1 @fn18(this: PhantomOwner<String>, phantom: Phantom<String>, retained: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type PhantomOwner<String>
+        Local this
+        Type Phantom<String>
+        Local phantom
+      field_set 1
+        Type PhantomOwner<String>
+        Local this
+        Type String
+        Local retained
+      return
+  fun init.Container.Nested.$c3 @fn19(this: Container.Nested<Int>, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Container.Nested<Int>
+        Local this
+        Type Int
+        Local value
+      return
+  fun ctor.Pair.$c0 @fn20(first: Int, second: Int) -> Pair<Int> <no-gc>
+    bb0 entry
+      return
+        Type Pair<Int>
+        StructInit Pair<Int>
+          Type Int
+          Local first
+          Type Int
+          Local second
+  fun ctor.Phantom.$c1 @fn21(code: Int) -> Phantom<String> <no-gc>
+    bb0 entry
+      return
+        Type Phantom<String>
+        StructInit Phantom<String>
+          Type Int
+          Local code
+  fun startCoroutine<Container> @fn22(task: SuspendTask<Container>, completion: Continuation<Container>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn9 interface Continuation<Container>[0]
+        Type Continuation<Container>
+        Local completion
+        Type Container
+        EnumField v0 f0
+          Type CoroutineStep<Container>
+          Local $step
+      return
+    bb2 failed
+      call @fn10 interface Continuation<Container>[1]
+        Type Continuation<Container>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Container> = @fn11 interface SuspendTask<Container>[0]
+        Type SuspendTask<Container>
+        Local task
+        Type Continuation<Container>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Container>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        ReleaseFieldLoad Owner.field0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call copied: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+      var remaining: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local remaining
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $old.0: Int
+        Type Int
+        Local remaining
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign remaining
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        Local remaining
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 if.then.4
+      goto bb1
+    bb5 if.merge.5
+      val $argument.0: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call extern0 @m24_release_add direct
+        Type Int
+        Local $parameter.value
+      goto bb2
+  release_hook rh1 Owner <no-gc>
+    bb0 entry
+      val $argument.0: Pair<Int>
+        Type Pair<Int>
+        ReleaseFieldLoad Owner.field0
+      val $parameter.value: Pair<Int>
+        Type Pair<Int>
+        Local $argument.0
+      call copied: Pair<Int> = @fn5 direct
+        Type Pair<Int>
+        Local $parameter.value
+      var remaining: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local remaining
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $old.0: Int
+        Type Int
+        Local remaining
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign remaining
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        Local remaining
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 if.then.4
+      goto bb1
+    bb5 if.merge.5
+      val $argument.0: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call extern0 @m24_release_add direct
+        Type Int
+        Local $parameter.value
+      goto bb2
+  release_hook rh2 Owner <no-gc>
+    bb0 entry
+      val $argument.0: Option<Int>
+        Type Option<Int>
+        ReleaseFieldLoad Owner.field0
+      val $parameter.value: Option<Int>
+        Type Option<Int>
+        Local $argument.0
+      call copied: Option<Int> = @fn6 direct
+        Type Option<Int>
+        Local $parameter.value
+      var remaining: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local remaining
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $old.0: Int
+        Type Int
+        Local remaining
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign remaining
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        Local remaining
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 if.then.4
+      goto bb1
+    bb5 if.merge.5
+      val $argument.0: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call extern0 @m24_release_add direct
+        Type Int
+        Local $parameter.value
+      goto bb2
+  release_hook rh3 Owner <no-gc>
+    bb0 entry
+      val $argument.0: Unit
+        Type Unit
+        ReleaseFieldLoad Owner.field0
+      val $parameter.value: Unit
+        Type Unit
+        Local $argument.0
+      call @fn7 direct
+        Type Unit
+        Local $parameter.value
+      val copied: Unit
+        Type Unit
+        UnitLiteral
+      var remaining: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      val $dependency.receiver: Int
+        Type Int
+        Local remaining
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb3 bb2
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb2 while.exit.2
+      return
+    bb3 while.body.3
+      val $old.0: Int
+        Type Int
+        Local remaining
+      val $dependency.receiver: Int
+        Type Int
+        Local $old.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign remaining
+        Type Int
+        IntegerBinary subtract kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.receiver: Int
+        Type Int
+        Local remaining
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb4 bb5
+        Type Boolean
+        IntegerCompare greater-than operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Int result=Long
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb4 if.then.4
+      goto bb1
+    bb5 if.merge.5
+      val $argument.0: Int
+        Type Int
+        ReleaseFieldLoad Owner.field1
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call extern0 @m24_release_add direct
+        Type Int
+        Local $parameter.value
+      goto bb2
+  release_hook rh4 PhantomOwner <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        FieldAccess 0
+          Type Phantom<String>
+          ReleaseFieldLoad PhantomOwner.field0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call extern0 @m24_release_add direct
+        Type Int
+        Local $parameter.value
+      return
+  release_hook rh5 Container.Nested <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        ReleaseFieldLoad Container.Nested.field0
+      val $parameter.value: Int
+        Type Int
+        Local $argument.0
+      call copied: Int = @fn4 direct
+        Type Int
+        Local $parameter.value
+      return
+  coroutine_step cs0 CoroutineStep<Container> result=Container
+  coroutine_slot cl0 CoroutineSlot<Container> value=Container
+  coroutine_start ct0 result=Container function=fn22
+  coroutine_fn cf0 @fn11 source_return=Container step=cs0 immediate
+  instance mi0 function=@fn4 <- keep
+  instance mi1 function=@fn5 <- keep
+  instance mi2 function=@fn6 <- keep
+  instance mi3 function=@fn7 <- keep
+  instance mi4 function=@fn8 <- println
+  instance mi5 function=@fn9 <- Continuation.resume
+  instance mi6 function=@fn10 <- Continuation.resumeWithException
+  instance mi7 function=@fn11 <- SuspendTask.run
+  instance mi8 function=@fn12 <- SuspendRegistration.register
+  str @str0 "retained"
+  str @str1 "\n"
+  output executable @fn3

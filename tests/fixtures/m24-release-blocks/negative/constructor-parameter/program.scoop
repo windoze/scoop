@@ -1,0 +1,2 @@
+class Owner(value: Int) { release { val copy = value } }
+fun main() {}

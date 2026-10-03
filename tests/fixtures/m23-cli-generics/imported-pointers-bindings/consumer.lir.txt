@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$90af3fb8e74291e60b6d51eaa1059df44db47a02b26da30f06783268d2b294b6(i32) -> i32
+  fun @scoop$1$cb$be81146dbdb6633be13553360fa62afebf63212da081ad77e357a9e43e771a69(i32) -> i32
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -10,7 +10,7 @@ Module
     store local1 -> local2
     t0 = integer_Add<Int> local0, local2 : i32
     ret t0
-  fun @scoop$1$cb$18d9364425ce33c31aee12301dc6b6a85b724af521372d2c464d721bfe2f9cdd() -> i32
+  fun @scoop$1$cb$8b5ca52e65030d91ff2e50ef2a95a9a1f561f569ad1b37e3c0141092483c6b3a() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -21,7 +21,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn2(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$ecbf1ab8c95d3458ad6a1c21d45599c93ae2ce3a2c056ae87b0ef35f407bcb54(i32) -> i32
+  fun @scoop$1$cb$a867b90faebda97a3929484c51af5c4a9adeae25f4c34846dc8ce9cffb7de0c5(i32) -> i32
     local %0 number: i32
     local %1 pointer: ptr<raw>
     local %2 $argument.0: i32

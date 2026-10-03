@@ -1,9 +1,9 @@
 Module
-  fun @scoop$1$cb$9796e8efca6d98ec054c11affe20a2d358a7a733f804ee5de81bf976b85e273e(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$e493bd0986b3dfce838858be46365e687683cc31aec95ada7f5ea9372e9ad54f(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$cb$bbe8da77473c5b9d47e69db35dc16d5464fd56428c98599119090e3b07b63e52(elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1>
+  fun @scoop$1$cb$7213e9a9d6a744911e4546267bda2db9f245e6bad9255e7e53b330b61635c889(elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0

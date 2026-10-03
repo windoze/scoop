@@ -14,6 +14,9 @@ impl Lowerer {
         statement: &ast::Statement,
         out: &mut Vec<hir::Statement>,
     ) {
+        if self.reject_release_statement(statement) {
+            return;
+        }
         let kind = match &statement.kind {
             ast::StatementKind::Expr(expr) => {
                 let mut sink = Vec::new();

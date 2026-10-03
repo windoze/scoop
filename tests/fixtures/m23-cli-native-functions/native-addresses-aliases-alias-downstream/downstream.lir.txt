@@ -1,6 +1,6 @@
 Module
-  callback cb0 Function(PersistentFunctionId([4, 97, 222, 167, 246, 66, 223, 178, 103, 73, 237, 38, 173, 201, 60, 109, 56, 244, 233, 160, 46, 182, 148, 142, 7, 110, 176, 20, 17, 248, 159, 37])) @scoop$1$cb$df4ac534c85ff134e77fde1118fe448dc8d72957d17eb42bbaf7bdfb06b77bef -> @scoop$1$br$c07b1b44dff18a37c8efb3f46bb1beef49bf785a9fd5c7bbcb597a0d64610825 c=(Long)->Long
-  fun @scoop$1$cb$3db0f2692c9e8295a360f4683e2d6c47b7b9aa6648ee918d9a814aff7537b0bd() -> i64
+  callback cb0 Function(PersistentFunctionId([4, 97, 222, 167, 246, 66, 223, 178, 103, 73, 237, 38, 173, 201, 60, 109, 56, 244, 233, 160, 46, 182, 148, 142, 7, 110, 176, 20, 17, 248, 159, 37])) @scoop$1$cb$b9b7331145141cfb29b28c666f6b86194972649fd91ca3c1ddaf9da94b6fbf75 -> @scoop$1$br$c07b1b44dff18a37c8efb3f46bb1beef49bf785a9fd5c7bbcb597a0d64610825 c=(Long)->Long
+  fun @scoop$1$cb$79075cf377467797af11f6a7f9df12f579c7389817d823dfc9835c80162c71e7() -> i64
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.value: i64
     local %2 $argument.0: i64
@@ -56,7 +56,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local15
-  fun @scoop$1$cb$1613b4026c86f4be24fb8599ee81e3cc4b00669d5fa293b09ace3724adf0b132(i64) -> i64
+  fun @scoop$1$cb$e5dfdb0dccebc836430c40e5cb7087283a7ff33bd1927d3211a70c57dc1c2687(i64) -> i64
     local %0 $dependency.local.1: ptr<code>
     local %1 $dependency.local.2: ptr<code>
     local %2 $dependency.local.3: i64
@@ -74,7 +74,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<code>, i64) -> i64 external-fn1(local3, local4)
     store t1 -> local5
     ret local5
-  fun @scoop$1$cb$38065ea2e7269d3f6535f2bd47bc578079679d3beb16d81e85338a8ae576edac(ptr<managed>) -> i64
+  fun @scoop$1$cb$198aab5db7b8c22d83c62dddcc32343571cc9f54a65cd6db3696c2976d87a92f(ptr<managed>) -> i64
     local %0 $dependency.local.1: ptr<code>
     local %1 $dependency.local.2: ptr<code>
     local %2 $dependency.local.3: i64
@@ -92,7 +92,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<code>, i64) -> i64 external-fn1(local3, local4)
     store t1 -> local5
     ret local5
-  fun @scoop$1$cb$607433db7f3b2251496d5849f051a122ae8af0c92661810f0b764e8439b8c054(ptr<managed>, i64) -> void
+  fun @scoop$1$cb$114f959a65b74d8100408ff536e235198b7eee8c6079b5e89427d7da04466262(ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

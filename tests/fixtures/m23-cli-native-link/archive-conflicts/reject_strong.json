@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOP_LINK_FAILED",
-    "message": "native object 8545258feb3cd7cec78ff5ecc3f4ebb0dce1359d427abccb9a60c9c1ea61fcc1-member-1-668 selected by _helper <- native object 8545258feb3cd7cec78ff5ecc3f4ebb0dce1359d427abccb9a60c9c1ea61fcc1-member-0-8 selected by _m23_add <- Cone dev.programlink:archive:0.1.0 member 264b89b1182212490e7ec904e0d4b960f265b87dbfe5e95b11d2f286c1a75464 (${work}/native/libm23_math.a) conflicts with Native(ArchiveMember(NativeArchiveMemberId { input: NativeInputId(Digest256([133, 69, 37, 143, 235, 60, 215, 206, 199, 143, 245, 236, 195, 244, 235, 176, 220, 225, 53, 157, 66, 122, 188, 203, 154, 96, 201, 193, 234, 97, 252, 193])), ordinal: 0, header_offset: 8, payload_offset: 68, payload_length: 600 })) at _m23_add",
+    "message": "native object f02129e657cee4fdfaf25118fec1d6ed180cbecac41e6ca3a3b2764803a79dc6-member-1-668 selected by _helper <- native object f02129e657cee4fdfaf25118fec1d6ed180cbecac41e6ca3a3b2764803a79dc6-member-0-8 selected by _m23_add <- Cone dev.programlink:archive:0.1.0 member 264b89b1182212490e7ec904e0d4b960f265b87dbfe5e95b11d2f286c1a75464 (${work}/native/libm23_math.a) conflicts with Native(ArchiveMember(NativeArchiveMemberId { input: NativeInputId(Digest256([240, 33, 41, 230, 87, 206, 228, 253, 250, 242, 81, 24, 254, 193, 214, 237, 24, 12, 190, 202, 196, 30, 108, 163, 163, 178, 118, 72, 3, 167, 157, 198])), ordinal: 0, header_offset: 8, payload_offset: 68, payload_length: 600 })) at _m23_add",
     "notes": [],
     "origin": {
       "kind": "none"

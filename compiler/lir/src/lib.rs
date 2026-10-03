@@ -130,6 +130,9 @@ pub use gateway::{GatewayValidationError, validate_startup_gateways};
 mod function;
 pub use function::*;
 
+mod release;
+pub use release::*;
+
 mod boxing;
 pub use boxing::*;
 

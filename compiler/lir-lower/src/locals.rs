@@ -144,6 +144,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::MachineScalarLiteral(_)
             | mir::ExprKind::BoolLiteral(_)
             | mir::ExprKind::UnitLiteral
+            | mir::ExprKind::ReleaseFieldLoad { .. }
             | mir::ExprKind::Local(_)
             | mir::ExprKind::GlobalRead(_)
             | mir::ExprKind::InitializationUnitAddress(_)
@@ -166,6 +167,9 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
         for statement in &block.statements {
             match &statement.kind {
                 mir::StatementKind::Expr(value) => collect_expr(value, &mut out),
+                mir::StatementKind::PublishReleaseReady { receiver, .. } => {
+                    collect_expr(receiver, &mut out)
+                }
                 mir::StatementKind::Call(effect) => match effect {
                     mir::CallEffect::Unit(call) | mir::CallEffect::Value { call, .. } => {
                         collect_call(call, &mut out)

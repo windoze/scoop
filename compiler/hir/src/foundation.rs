@@ -36,6 +36,7 @@ mod identities;
 mod imported;
 mod imported_protocols;
 mod projection;
+mod release;
 mod source_names;
 mod source_queries;
 mod strong_profile;

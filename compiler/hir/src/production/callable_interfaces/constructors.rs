@@ -97,6 +97,7 @@ pub(super) fn project_struct(
         &constructor.access,
         constructor.safety,
         constructor.source_gc_effect(),
+        &constructor.release_callability,
     )
 }
 
@@ -150,6 +151,7 @@ pub(super) fn project_class(
         &constructor.access,
         constructor.safety,
         crate::GcEffect::Managed,
+        &crate::ReleaseCallability::Unavailable,
     )
     .map(Some)
 }
@@ -166,6 +168,7 @@ fn project_source(
     declaration_access: &crate::DeclarationAccess,
     safety: crate::Safety,
     gc_effect: crate::GcEffect,
+    release_callability: &crate::ReleaseCallability,
 ) -> Result<CallableDeclarationRecordV1, CallableProjectionError> {
     validate_source_key(projection, key, owner)?;
     let DuplicateSignatureKey::Constructor {
@@ -192,8 +195,8 @@ fn project_source(
         .signatures
         .map_type(result_type, &binders)
         .map_err(CallableProjectionError::Signature)?;
-    let effects =
-        effects::source_constructor(safety, gc_effect).map_err(CallableProjectionError::Effects)?;
+    let effects = effects::source_constructor(safety, gc_effect, release_callability, &binders)
+        .map_err(CallableProjectionError::Effects)?;
     CallableDeclarationRecordV1::try_new(
         declaration,
         PublicDeclarationOwnerV1::Nominal(owner),

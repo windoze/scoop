@@ -5,7 +5,7 @@ Module
   raw_global @scoop$1$ss$9f6a6a9b23025f58255814d6688e7100578eb3e460628399eae5134230de1b7a : struct0
   raw_global @scoop$1$ss$5dc39799be71846257131c2c271a8975294ac1ca3e4c5f517d4e0af1d3c3c14e : enum0
   raw_global @scoop$1$ss$140ddae19168bb93095a283f1cab7c72c74aaa523cc2fe07a508ae9c8e27430e : enum1
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   native_global0 nativeCounter @native_counter : i32 c=Int mutable(get=ng-get0,set=ng-set0,address=ng-address0)
   native_global1 nativeTlsCounter @native_tls_counter : i32 c=Int mutable(get=ng-get1,set=ng-set1,address=ng-address1) thread_local
   native_global2 nativeLimit @native_limit : i32 c=Int readonly(get=ng-get2,address=ng-address2)
@@ -13,7 +13,7 @@ Module
   c-struct struct0 NativePair fields=[Int@0/4,Int@4/4]
   enum Option niche(kind=raw,payload_variant=0)
   enum Option niche(kind=code,payload_variant=0)
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 $dependency.argument.0: i32
@@ -192,47 +192,47 @@ Module
     call managed-void-target16 sp<managed-call:16> live=[] sig=void16 (i32) local-fn11(local47)
     t45 = aggregate () : {}
     ret
-  fun @scoop$1$cb$ea3a9bba4266b1b2d516954954a6000d4e6f0a1e6b39b47c8410c51730d5d207() -> i32 <no-gc>
+  fun @scoop$1$cb$17e9287c3a19a62e884ed693f5df37a1055b1dbe5d38a859aa02ed1eb4a37c1f() -> i32 <no-gc>
   block entry
     t0 = global_load global1 : i32
     ret t0
-  fun @scoop$1$cb$cf67f4d15d98e015f5640caf59ad1f8a44597b8e69e23e73c0ba7935847313fa(i32) -> void <no-gc>
+  fun @scoop$1$cb$345bff058bc5d728cf7a76545f9dc7e05d43e504cdab120c4625db58c333d6ec(i32) -> void <no-gc>
   block entry
     global_store global1, param0
     ret
-  fun @scoop$1$cb$336cbaec004e1f75e7f699dace78c39970dd03192ec2527d00c1a51bdf5dc047() -> i32 <no-gc>
+  fun @scoop$1$cb$0f37a6612d1f283a6566d362415011892172203404940caa059b0ec7dc61189e() -> i32 <no-gc>
   block entry
     t0 = global_load global2 : i32
     ret t0
-  fun @scoop$1$cb$48d8187214a5b3087466b4200be8d981c94d9c293252d0a0f8372bdc12fa09fa(i32) -> void <no-gc>
+  fun @scoop$1$cb$ae73a03b00539638f2b781adf26affc2caa9ac7ff95e17c0b1611015415e8387(i32) -> void <no-gc>
   block entry
     global_store global2, param0
     ret
-  fun @scoop$1$cb$05ac0c0c906d9631f5765d11cc911b372fa03d800c734db1eb5f6fcb7c382f53() -> sret<struct0 size=8 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$e82e910f10533b0955fa0fc2f397ad9de39ae3df8cfb19d72396927397188338() -> sret<struct0 size=8 align=4 scan=none> <no-gc>
   block entry
     t0 = global_load global3 : struct0
     ret t0
-  fun @scoop$1$cb$e70beda7c72ef67acf2a099240952ac340d4f4eef0b8bac444d4e31a6a3a90e0(indirect<struct0 size=8 align=4 scan=none>) -> void <no-gc>
+  fun @scoop$1$cb$e5c65a1bf7b0ae8c35f744c1f8d37c16b31b96de93347d18378469936ff1120c(indirect<struct0 size=8 align=4 scan=none>) -> void <no-gc>
   block entry
     global_store global3, param0
     ret
-  fun @scoop$1$cb$2627b0dc362e011cc1ed8daa5e7328e6d9944af20c9dea1f6da4f5cf368b774c() -> enum0 <no-gc>
+  fun @scoop$1$cb$c577e9d2c1c2db99c3fa94df5389e8c1d87b0fb4ae081b935005aa0d857a21f4() -> enum0 <no-gc>
   block entry
     t0 = global_load global4 : enum0
     ret t0
-  fun @scoop$1$cb$6aa35990f35d6586195136ec683c9d0f3aa82914778574d32bcd0842294b5460(enum0) -> void <no-gc>
+  fun @scoop$1$cb$1276ed83cd2e044dfbe321830142bf5b9e621ecce7b41de94c340ba037beb7c4(enum0) -> void <no-gc>
   block entry
     global_store global4, param0
     ret
-  fun @scoop$1$cb$a1d1e5e0e354f64324ada9b4b10f5d82d0ca2272047309fe532557db5415fad1() -> enum1 <no-gc>
+  fun @scoop$1$cb$83894b34bed9abe717a05aa79bbc3b94c0f2430ca1c7122aeea706b3ec9775d6() -> enum1 <no-gc>
   block entry
     t0 = global_load global5 : enum1
     ret t0
-  fun @scoop$1$cb$c8800aadb5bc36c81bec92919d3ad1cc892b02d643c5683f7840ef5c548a5ba8(enum1) -> void <no-gc>
+  fun @scoop$1$cb$db524f2afb7540e1c5ed45243dc434e5786c25c82e61da4579c61da4e0150e42(enum1) -> void <no-gc>
   block entry
     global_store global5, param0
     ret
-  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -251,11 +251,11 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$cedd88607f4fea7bf34efae472676a1cee323f3ec72c42855859528cb5ba27c6(i32, i32) -> sret<struct0 size=8 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$c3c4d539c254411679ae04c8b7824ea3745f03a549ef61da948ed7597ceb297d(i32, i32) -> sret<struct0 size=8 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
@@ -278,4 +278,4 @@ Module
   layout-meta NativePair c-layout(aligned=0,packed=0) fields=[0@4,4@4] interior-mutable=false
   layout Option size=8 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=none
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

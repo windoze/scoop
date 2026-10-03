@@ -62,7 +62,7 @@ fn strong_callable_body_has_fixed_runtime_bytes_and_identity() {
         PersistentCallableBodyId::from_key(&key)
             .unwrap()
             .to_string(),
-        "e8de63b8e2758608238897adc56513f83fd4083605bfcbe293c67e8d41c9d2bd"
+        "636b6be175963f052db8a83269bd46e5ad1f75749e1c86a0cfd40dff5522fd49"
     );
 }
 
@@ -125,6 +125,7 @@ fn decoded_body_keys_round_trip_every_runtime_variant() {
         ]
         .concat(),
         [b"\x04\0\0\0".as_slice(), bytes.as_slice()].concat(),
+        [b"\x05\0\0\0".as_slice(), bytes.as_slice()].concat(),
     ];
 
     for bytes in encoded {
@@ -160,6 +161,25 @@ fn decoded_body_keys_round_trip_every_runtime_variant() {
     ));
 }
 
+#[test]
+fn release_hook_body_is_keyed_by_its_exact_owner() {
+    let owner = PersistentExactTypeId(ConeIdentity::CORE.0);
+    let key = CallableBodyKey::release_hook(owner);
+    let bytes = encode_runtime(&key).unwrap();
+    assert_eq!(bytes, [b"\x05\0\0\0".as_slice(), owner.as_array()].concat());
+    let decoded = decode_runtime::<DecodedCallableBodyKey>(&bytes).unwrap();
+    assert!(
+        matches!(decoded.kind(), DecodedCallableBodyKeyKind::ReleaseHook { owner: actual } if actual.as_array() == owner.as_array())
+    );
+    assert_ne!(
+        PersistentCallableBodyId::from_key(&key).unwrap(),
+        PersistentCallableBodyId::from_key(&CallableBodyKey::release_hook(PersistentExactTypeId(
+            [1; 32]
+        )))
+        .unwrap()
+    );
+}
+
 fn source_function(
     name: &str,
     receiver: Option<crate::SignatureTypeKey>,
@@ -183,10 +203,10 @@ fn source_function(
 
 #[test]
 fn decoded_body_key_rejects_unknown_and_incomplete_variants() {
-    let unknown = decode_runtime::<DecodedCallableBodyKey>(b"\x05\0\0\0").unwrap_err();
+    let unknown = decode_runtime::<DecodedCallableBodyKey>(b"\x06\0\0\0").unwrap_err();
     assert_eq!(
         unknown.kind(),
-        RuntimeDecodeErrorKind::UnknownTag { tag: 5 }
+        RuntimeDecodeErrorKind::UnknownTag { tag: 6 }
     );
 
     let unknown_owner =

@@ -38,6 +38,17 @@ fn source_call_retains_every_unit_argument() {
 }
 
 #[test]
+fn a_native_leaf_cannot_name_an_ordinary_scoop_call() {
+    let fixture = Fixture::simple();
+    let mut site = fixture.call(0, vec![unit_exact(); 2], unit_exact());
+    site.instantiation = crate::HirDependencyCallInstantiationV1::NativeLeaf;
+    assert!(matches!(
+        validate(&fixture, &site),
+        Err(HirDependencyCallSignatureError::NativeLeaf(_))
+    ));
+}
+
+#[test]
 fn source_call_checks_later_arguments_and_result_at_each_occurrence() {
     let fixture = Fixture::simple();
     validate(

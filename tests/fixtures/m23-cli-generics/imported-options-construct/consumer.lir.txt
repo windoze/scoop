@@ -2,7 +2,7 @@ Module
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option tagged size=24 align=8 variants=(enum0)@8+16 ()@8+0
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$f6f4645d02e8012e07628d6f740a9d368306e1e48c31db70309011342ec6cfb1() -> i32
+  fun @scoop$1$cb$dcc746727e550b11ced82d788f8b887ba582a046e431bbe86893e3da8af074ac() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -13,7 +13,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$525a64fa353dbb830729091b81b4b5f35c9c3b61d3169169560f50570f761d53(i32) -> i32
+  fun @scoop$1$cb$731701067c167232df8956c57f6ed7cb5af35f59913af3e893865e56709cba6e(i32) -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter._1: i32
     local %2 present: enum0
@@ -171,7 +171,7 @@ Module
     unreachable
   block pattern.merge.14
     br @pattern.merge.3
-  fun @scoop$1$cb$e25e50ab93f5e233a015e8f8a918725eec08d5f067ad6be9793cce855575cdea(i32) -> sret<enum1 size=24 align=8 scan=none>
+  fun @scoop$1$cb$d62256d327347c0a110865b0fec437728d64de4246ad9bace3c36f123f35c49f(i32) -> sret<enum1 size=24 align=8 scan=none>
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
     local %2 $dependency.local.3: enum0
@@ -185,7 +185,7 @@ Module
     store local2 -> local3
     t1 = enum_wrap e1 v0 (local3) : enum1
     ret t1
-  fun @scoop$1$cb$5b74d1146bc8b432ac3cd22c17efcc4afc3fe5b7b5ac3041ab79acda0a742b57(i32) -> sret<enum0 size=16 align=8 scan=none>
+  fun @scoop$1$cb$6f054c42780dd26e3d704e52647dc4dc3af7194919659bda48f28b1eb224b6a7(i32) -> sret<enum0 size=16 align=8 scan=none>
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
   block entry
@@ -194,7 +194,7 @@ Module
     store local0 -> local1
     t0 = enum_wrap e0 v0 (local1) : enum0
     ret t0
-  fun @scoop$1$cb$efc66227ed58c3129740b8215ce6c92d5ffc22f5572077ca8332d51413d7106e(indirect<enum0 size=16 align=8 scan=none>, i32) -> i32
+  fun @scoop$1$cb$be03303c26a4c9de01940899f4776eaaf7d8c1d433420b1d7f4d1972c98c74d1(indirect<enum0 size=16 align=8 scan=none>, i32) -> i32
     local %0 $dependency.local.2: i32
     local %1 $dependency.local.3: i32
     local %2 $when.1: enum0
@@ -224,7 +224,7 @@ Module
     unreachable
   block pattern.merge.6
     br @pattern.merge.3
-  fun @scoop$1$cb$0f9f1d1094639a18f8d1ae0429cd19707377f86cafc3688ffaae85652794fc98() -> sret<enum0 size=16 align=8 scan=none>
+  fun @scoop$1$cb$3342f671e1b982f49e3c69dec81233140b4ec80e21dde835311be48bdfdb4d34() -> sret<enum0 size=16 align=8 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = enum_wrap e0 v1 () : enum0

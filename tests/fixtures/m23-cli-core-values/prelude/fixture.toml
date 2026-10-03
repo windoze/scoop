@@ -23,7 +23,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "9f9892036c860d9db1dbd040d0801df400b2df898186c55b2cd31aaa6f98b4f8"},
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "1c102c374074a3a0a7d44daa1d0e8f33dc5c5312bf60a8a78746d21e93026622"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/ast.txt", "snapshot" = "core.ast.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/hir.txt", "snapshot" = "core.hir.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/mir.txt", "snapshot" = "core.mir.txt"},
@@ -48,7 +48,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "cf98b3b61f97af1283fe64a7d5bdebf9c36f2fe80491667f6e2adbb0a79457e5"},
+  {"actual" = "${program.result.root.artifact_fingerprint}", "equals" = "fa418cba48eca25d7d783d800abcdbc337d264e11e9b4e1db57f39291f692c45"},
   {"actual" = "${program.result.observations.child_invocations.length}", "equals" = 1},
   {"file" = "${work}/dump/program/${program.result.root.identity}/ast.txt", "snapshot" = "program.ast.txt"},
   {"file" = "${work}/dump/program/${program.result.root.identity}/hir.txt", "snapshot" = "program.hir.txt"},

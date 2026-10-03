@@ -43,6 +43,8 @@ pub(super) fn project(
             let effects = crate::production::callable_interfaces::source_constructor_effects(
                 constructor.safety,
                 constructor.source_gc_effect(),
+                &constructor.release_callability,
+                &projection.binders,
             )
             .map_err(Error::Effects)?;
             ExportConstructorInitializationV1::try_new(
@@ -62,6 +64,11 @@ pub(super) fn project(
             .map_err(Error::Initialization)
         })
         .collect::<Result<_, Error>>()?;
-    ExportGenericNominalInitializationV1::try_new(owner, Vec::new(), constructors)
-        .map_err(Error::Initialization)
+    ExportGenericNominalInitializationV1::try_new(
+        owner,
+        Vec::new(),
+        constructors,
+        crate::ReleasePolicy::None,
+    )
+    .map_err(Error::Initialization)
 }

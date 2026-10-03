@@ -1,6 +1,6 @@
 Module
   global @scoop$1$ss$63dbd3bebab2a9ab26aea447f30bee1e7aee3809b4a4714cfc130bb2a1af8dc1 : i8 scan=none
-  fun @scoop$1$cb$4fb1024b14137a1013b09f7afddca913e9f410377de3df4c1bc12a6f183949c9() -> i8 <no-gc>
+  fun @scoop$1$cb$14cea0cbd3fb6f7f75173c9fe36d1e1961644b59dda2913686f245c777112aa5() -> i8 <no-gc>
   block entry
     t0 = global_load global0 : i8
     ret t0

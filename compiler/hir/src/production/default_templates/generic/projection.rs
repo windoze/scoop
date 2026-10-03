@@ -66,8 +66,9 @@ pub(super) fn project(
     let result = entities
         .type_key(function.return_ty, &binders)
         .map_err(Error::Entity)?;
-    let effects = crate::production::callable_interfaces::source_function_effects(export, function)
-        .map_err(Error::Effects)?;
+    let effects =
+        crate::production::callable_interfaces::source_function_effects(export, function, &binders)
+            .map_err(Error::Effects)?;
     let type_parameters = binder_uses(
         function
             .type_params()

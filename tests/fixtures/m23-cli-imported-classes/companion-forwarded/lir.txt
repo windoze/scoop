@@ -1,6 +1,6 @@
 Module
   imported_global @scoop$1$ss$c868344859bc1efa30728982fed34d918e59ee308f6bf0ab326183f6e7114413 : ptr<managed> provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a scan=refs[0]
-  fun @scoop$1$cb$c80a26f737d1c4d1090cdd2f2d835bcaa52a4722bfcba358034f2407f5057a18() -> ptr<managed>
+  fun @scoop$1$cb$44514233afd4aa863134657f5956f2c9fb6ba2de1fb47dfa4fa2ab5a458416e4() -> ptr<managed>
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
     local %2 $dependency.parameter.marker: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>

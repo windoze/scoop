@@ -202,6 +202,7 @@ pub(crate) enum SuspensionContext {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ForbiddenSuspendContext {
+    Release,
     TopLevel,
     Function,
     DefaultExpression,

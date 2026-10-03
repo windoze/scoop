@@ -108,7 +108,7 @@ fn object_logical_keys_have_fixed_canonical_wire() {
 
     assert_eq!(
         hex(&encode(&lir.logical_key()).unwrap()),
-        "a201010258205c92e8508804f27d465a5aea2872c64d0c25072cd3cd3cbb55dddca6bd02a921"
+        "a20101025820c7c28659647907a4047c152309c83398b7c32cb5a48a8dc4a322f30d023a686c"
     );
     assert_eq!(
         hex(&encode(&generated.logical_key()).unwrap()),

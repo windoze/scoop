@@ -16,6 +16,11 @@ impl Lowerer {
         assign: &ast::Assign,
         out: &mut Vec<hir::Statement>,
     ) -> Option<hir::StatementKind> {
+        if let ast::AssignTarget::Name(name) = &assign.target
+            && self.reject_release_field_write(name)
+        {
+            return None;
+        }
         if let ast::AssignmentOp::Compound(op) = assign.op {
             return self.lower_compound_assign(assign, op, out);
         }

@@ -26,6 +26,7 @@ pub(crate) fn module(functions: Vec<Function>) -> Module {
     let string_descriptor = external_type_descriptors
         .alloc(ExternalTypeDescriptor::new(ConeIdentity::CORE, string.id()).unwrap());
     Module {
+        release_hooks: Arena::new(),
         cone: ConeIdentity::SINGLE_FILE,
         globals: Arena::new(),
         initialization_units: Arena::new(),

@@ -12,7 +12,7 @@ Module
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum CoroutineStep<Later> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<Later> niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$c6cfbe3737d6f6d6b3997fa560672e3e9de213bb82d4e2b3695b43ffbbf7aeec() -> i32
+  fun @scoop$1$cb$1fef7354d792b85e9f54624c06fb0a49a850a1edf9ca6c8655d0827d35ee1236() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.number: i32
     local %2 value: ptr<managed>
@@ -98,7 +98,7 @@ Module
     br @if.merge.8
   block if.merge.8
     ret local21
-  fun @scoop$1$cb$4f4c9edadc32d30ad648997662501ecc3c2376585bd1d529c94aabacf54a8793(ptr<managed>) -> i32
+  fun @scoop$1$cb$23126886fb105bf6f74ea61207f703ddc1c60c73ea83c83dd25892d013ad3a71(ptr<managed>) -> i32
     local %0 $dependency.local.1: enum1
     local %1 $dependency.local.2: enum2
     local %2 $dependency.local.3: enum3
@@ -234,7 +234,7 @@ Module
     t14 = enum_wrap e4 v1 () : enum4
     store t14 -> local4
     call managed-direct-target5 sp<managed-call:9> live=[local0:enum1@0, local1:enum2@8+16+24, local2:enum3@8] t15 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td5, machine<byte-size>(ByteSize(24)))
-    t16 = function_address @scoop$1$cb$973483d2f2950e57a378451d9eb71cfc46cd2732f5091a199dc1e2a98df9d509 : ptr
+    t16 = function_address @scoop$1$cb$28df0b84e7efec4e6acd28a882ec5da5a813968a244b60d618dc64e402965138 : ptr
     heap_store t15 +16 t16
     store t15 -> local34
     store local34 -> local35
@@ -360,7 +360,7 @@ Module
     store local62 -> local63
     t44 = integer_Add<Int> local61, local63 : i32
     ret t44
-  fun @scoop$1$cb$e596682614edfd91a6dc3b983b54c377995ad00fa4895e99dabbb2ad197eadc2(i32) -> i32
+  fun @scoop$1$cb$e65192df1a1e3fe080ee41c9336234779109f5204fa1c53365cc12836f4fd9bc(i32) -> i32
     local %0 $dependency.local.1: enum6
     local %1 $dependency.local.2: enum2
     local %2 $dependency.local.3: enum3
@@ -498,7 +498,7 @@ Module
     t13 = enum_wrap e4 v1 () : enum4
     store t13 -> local4
     call managed-direct-target4 sp<managed-call:9> live=[local1:enum2@8+16+24, local2:enum3@8] t14 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td6, machine<byte-size>(ByteSize(24)))
-    t15 = function_address @scoop$1$cb$69cbc11120667f803575c6f044080c5a5cacd488dce992602aaa9ede89d480a9 : ptr
+    t15 = function_address @scoop$1$cb$a2ff8e0fd3d48d7caecaca7533d7b97d60e29a8266ebe21d72f6f5879c04a22c : ptr
     heap_store t14 +16 t15
     store t14 -> local34
     store local34 -> local35
@@ -625,7 +625,7 @@ Module
     store local62 -> local63
     t43 = integer_Add<Int> local61, local63 : i32
     ret t43
-  fun @scoop$1$cb$20f48d8a86f995fbdc57949a444765b36eaf662ad70beaae25061d0ec815b830(ptr<managed>) -> enum1
+  fun @scoop$1$cb$80c9813a49e3bfe7656d36de9ad00617c4cf575d6d68585b953aaa30ec5a8f6c(ptr<managed>) -> enum1
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
   block entry
@@ -634,11 +634,11 @@ Module
     store local0 -> local1
     t0 = enum_wrap e1 v0 (local1) : enum1
     ret t0
-  fun @scoop$1$cb$973483d2f2950e57a378451d9eb71cfc46cd2732f5091a199dc1e2a98df9d509(ptr<managed>) -> i32
+  fun @scoop$1$cb$28df0b84e7efec4e6acd28a882ec5da5a813968a244b60d618dc64e402965138(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x0000002a)
-  fun @scoop$1$cb$146dbbb5c0a95882914d1fe53deeada88c0289f842bef518fb947129036b7b38(enum1) -> ptr<managed>
+  fun @scoop$1$cb$21369c8fb269beb739a82109b99014f15a52e44cca0d5442c6221619b811ed0c(enum1) -> ptr<managed>
     local %0 $opt.1: enum1
     local %1 $uw.2: ptr<managed>
     local %2 $new.1: ptr<managed>
@@ -660,7 +660,7 @@ Module
     unreachable
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$27494edc73692ae17b9ed7a8c9dd4018a9e29cbef9423a50b602663211763648(indirect<enum2 size=32 align=8 scan=refs[8, 16, 24]>) -> sret<struct0 size=24 align=8 scan=refs[0, 8, 16]>
+  fun @scoop$1$cb$946d34bbd1b93b9c537b131f55a105d9dbe2c4f41fc916529138ff38188127e9(indirect<enum2 size=32 align=8 scan=refs[8, 16, 24]>) -> sret<struct0 size=24 align=8 scan=refs[0, 8, 16]>
     local %0 $opt.1: enum2
     local %1 $uw.2: struct0
     local %2 $new.1: ptr<managed>
@@ -682,7 +682,7 @@ Module
     unreachable
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$3259692cbdc47b26e989d6247306c62205a7ffe936cb9761451accd90e3d4fc0(indirect<enum3 size=24 align=8 scan=refs[8]>) -> sret<{ptr<managed>, i32} size=16 align=8 scan=refs[0]>
+  fun @scoop$1$cb$68c6c4a8da55647771a1a059b05ce024315fbbd42122f878db53650799bea4bc(indirect<enum3 size=24 align=8 scan=refs[8]>) -> sret<{ptr<managed>, i32} size=16 align=8 scan=refs[0]>
     local %0 $opt.1: enum3
     local %1 $uw.2: {ptr<managed>, i32}
     local %2 $new.1: ptr<managed>
@@ -704,7 +704,7 @@ Module
     unreachable
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$1919467436a91b8afceca98b90c4f073cf9219fc62013a1b41e6fce1bd68ce86(enum5) -> ptr<managed>
+  fun @scoop$1$cb$d27633ac56c1778a2eecadc5e9a9da702fc6880282047321d7388d249f7cd15c(enum5) -> ptr<managed>
     local %0 $opt.1: enum5
     local %1 $uw.2: ptr<managed>
     local %2 $new.1: ptr<managed>
@@ -726,7 +726,7 @@ Module
     unreachable
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$5b74d1146bc8b432ac3cd22c17efcc4afc3fe5b7b5ac3041ab79acda0a742b57(i32) -> sret<enum6 size=16 align=8 scan=none>
+  fun @scoop$1$cb$6f054c42780dd26e3d704e52647dc4dc3af7194919659bda48f28b1eb224b6a7(i32) -> sret<enum6 size=16 align=8 scan=none>
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
   block entry
@@ -735,11 +735,11 @@ Module
     store local0 -> local1
     t0 = enum_wrap e6 v0 (local1) : enum6
     ret t0
-  fun @scoop$1$cb$69cbc11120667f803575c6f044080c5a5cacd488dce992602aaa9ede89d480a9(ptr<managed>) -> i32
+  fun @scoop$1$cb$a2ff8e0fd3d48d7caecaca7533d7b97d60e29a8266ebe21d72f6f5879c04a22c(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x0000002a)
-  fun @scoop$1$cb$82c60c143c3e591424d327602743a6ed5083344cd626be465e01c78d3d103edf(indirect<enum6 size=16 align=8 scan=none>) -> i32
+  fun @scoop$1$cb$6214be2fe2c276aaa831ce746ea241848e477c07eafcb8ad825841b10c3fd72f(indirect<enum6 size=16 align=8 scan=none>) -> i32
     local %0 $opt.1: enum6
     local %1 $uw.2: i32
     local %2 $new.1: ptr<managed>
@@ -761,40 +761,40 @@ Module
     unreachable
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$ada5b3724283dbe3f7a5bc77b33de60db860b9cd8e66f96ce1c77895c35b0e67(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$e2bc39f8389a5c86c21a8333bb706790a89f261a091e0bc6837031cf845ee435(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$dd54df0f289743fbb9e9fec2aab97c1c9f77772d1854e6d8df1370e06d902ddb(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$7bf5d937636c5db57830cce1067ef17981ab2442c09cb7cc39afce3d2bf9656e(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$189be44c6d881d917a57a857d88979c5be56ff894735fbbd49b3a1aabb989a28(ptr<managed>, ptr<managed>) -> enum7
+  fun @scoop$1$cb$6052c779bb03c1e858ddf277779f0b9fb86e155566f4196fd0f52aa7f6b1fea3(ptr<managed>, ptr<managed>) -> enum7
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
     unreachable
-  fun @scoop$1$cb$b6e62bb63ef8fd127ffdcf39701ad3683990eb1d045e5b9c97e1793c7c29009a(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$71f443a30a896195bd74c8e13a4a7402bb7024f98fa8b5f8d6a81309564be7f3(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$93ea8367509ab8849ca89071f634de36a622a4d8e402356fabc37cdb1d3b34c4(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$02aa90e300197108c70b857cf23394224a2a932ca7d0f027cb5fcc300ae91508(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$7e9d5d2a28129ab0e348dd7cd7d12e768552333a7effc2c8ec5c3209ec716457(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$c6a3ade9c932cf527ab23d315afa7237b6b159fa62ea4b3bee9ed9fc005f3583(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum7
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record
@@ -836,7 +836,7 @@ Module
     t14 = enum_tag e7 local0 : machine<enum-tag>
     t15 = MachineEq(EnumTag) t14, machine<enum-tag>(EnumTag(0)) : i1
     cbr t15 then @completed else @suspended
-  fun @scoop$1$cb$0622784e3eba12b8032e900a7af234ca3ac96a712700297cc8af806d0507cae0(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$3a7ac1141ec412428b84a69177c297976227d4232ed27cd8aa0856d55926bece(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
   block entry
@@ -846,7 +846,7 @@ Module
     store local0 -> local1
     t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  fun @scoop$1$cb$5e409994283c2a44823cfa72cf67ab1f89014f905ba26673668e7f3d3381b45f(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$31a1d582bc698374797f831f1a9efde83b1e1078c72b8039991b2510827411d6(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
   block entry

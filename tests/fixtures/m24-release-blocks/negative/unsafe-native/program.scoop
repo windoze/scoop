@@ -1,0 +1,3 @@
+@Extern(name = "drop") fun drop(value: Int)
+class Owner { release { drop(1) } }
+fun main() {}

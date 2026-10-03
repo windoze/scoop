@@ -41,12 +41,13 @@ pub use callable_interfaces::{
     CallableInterfaceRecordResolver, CallableInterfaceRecordV1, CallableInterfaceSemanticAuthority,
     CallableInterfaceSemanticValidationError, CallableInterfaceSetBuildError,
     CallableInterfaceSetSemanticValidationError, CallableInterfaceSetValidationError,
-    CallableModalityV1, CallableOperatorRoleV1, CallableOperatorV1, CallableSafetyV1,
-    CallableSourceEffectsBuildError, CallableSourceEffectsV1, CanonicalCallableInterfacesV1,
-    CanonicalSourceParameterShapesV1, DecodedCallableDeclarationRecordV1,
-    DecodedCallableInterfaceRecordV1, DecodedCallableSourceEffectsV1,
-    DecodedCanonicalCallableInterfacesV1, DecodedCanonicalSourceParameterShapesV1,
-    DecodedSourceParameterShapeV1, PropertyDelegateOperatorV1, PublicLookupAccessV1,
+    CallableModalityV1, CallableOperatorRoleV1, CallableOperatorV1, CallableReleaseCallabilityV1,
+    CallableSafetyV1, CallableSourceEffectsBuildError, CallableSourceEffectsV1,
+    CanonicalCallableInterfacesV1, CanonicalSourceParameterShapesV1,
+    DecodedCallableDeclarationRecordV1, DecodedCallableInterfaceRecordV1,
+    DecodedCallableSourceEffectsV1, DecodedCanonicalCallableInterfacesV1,
+    DecodedCanonicalSourceParameterShapesV1, DecodedSourceParameterShapeV1,
+    PropertyDelegateOperatorV1, PublicLookupAccessV1, ReleaseValueBinderV1,
     SourceParameterListBuildError, SourceParameterListValidationError,
     SourceParameterShapeResolutionError, SourceParameterShapeV1,
 };
@@ -274,7 +275,7 @@ pub use nominal_interfaces::{
     NominalInterfaceRecordV1, NominalInterfaceSemanticAuthority,
     NominalInterfaceSemanticValidationError, NominalInterfaceSetBuildError,
     NominalInterfaceSetSemanticValidationError, NominalInterfaceSetValidationError,
-    NominalSourceFieldInventoryError,
+    NominalReleasePolicyV1, NominalSourceFieldInventoryError,
 };
 pub use nominal_shapes::{
     DecodedEnumSourceFieldV1, DecodedEnumSourceVariantV1, DecodedNominalSourceFieldV1,

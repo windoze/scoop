@@ -1,0 +1,22 @@
+package releasegeneric
+
+@Extern(lib = "m24_release", name = "m24_release_add")
+private fun record(value: Int)
+
+@NoGC private fun <T> keep(value: T): T = value
+@NoGC private fun adjusted(value: Int): Int = value + 1
+
+public fun <T> ordinaryRecord(value: T, handle: Int): T {
+    @Unsafe { record(handle) }
+    return value
+}
+
+public class Owner<T> public constructor(private val value: T, private val handle: Int) {
+    public fun first(): Int = 1
+    public fun second(): Int = 2
+
+    release {
+        val copied = keep(value)
+        @Unsafe { record(adjusted(handle)) }
+    }
+}

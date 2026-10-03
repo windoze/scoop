@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$710c327721e17958c75cf3489af5f0f250382f7732ff0a19553d7c418a89ba25() -> i32
+  fun @scoop$1$cb$89c798b8f3e0975d4c85b5cf833ba89a0797d82dc304188ed2812b0aa8609078() -> i32
     local %0 $dependency.argument.0: {i32, i1}
     local %1 $dependency.parameter.value: {i32, i1}
     local %2 $call.1: i32
@@ -13,7 +13,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (indirect<{i32, i1} size=8 align=4 scan=none>) -> i32 local-fn1(indirect local3)
     store t1 -> local2
     ret local2
-  fun @scoop$1$cb$64e78a9ba3a40e7c69c3978d1200b53ef3d3fdce93467473bd697e0ddf31f8ac(indirect<{i32, i1} size=8 align=4 scan=none>) -> i32
+  fun @scoop$1$cb$5e38e9921ef588761055fa3d418b7e966b2dbd3fbdbef0bed675af4c4be3511d(indirect<{i32, i1} size=8 align=4 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000002)

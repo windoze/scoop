@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$1305f8c0cb136ccd43ad693fdacd09ac0777a4dbe86f0fdba9a5ada378149093 = "illegal state"
-  global @scoop$1$ss$1da16a53ce60300c9b321c71c2179030bfce7b434a7bcf10b5d211e7db173990 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$713b57d1af988ef451d06cfe544bc4f2754a2243a904bbd5566102368de92b0d : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$00648e9fa8610181494150737a589ac735e3dfcc0f9d9c5567a64d4fe39c3013(i1) -> void
+  fun @scoop$1$cb$d84d985a72c7bff10af8b5ef302bf950f8df3f840237c6d745d858ea3178e7cf(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -26,7 +26,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$93a9b3153184648deb3634409848165ce953cc5b9118930865b2d1d17f519f86() -> void
+  fun @scoop$1$cb$a53e12cac985bf7dc99e6b8546de56d3e4a65448252b808ea8d7b0aaf42a1f0c() -> void
     local %0 $dependency.receiver: ptr<managed>
     local %1 $argument.0: i1
     local %2 $parameter.value: i1
@@ -51,7 +51,7 @@ Module
     call managed-void-target0 sp<managed-call:3> live=[] sig=void0 (i1) local-fn0(local2)
     t5 = aggregate () : {}
     ret
-  fun @scoop$1$cb$e782f5e6a3482d066bf9675d80b995aeca631402a43bd0683f77247dee42e441(indirect<{i32, i64} size=16 align=8 scan=none>, indirect<{i32, i64} size=16 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$0457d90b271971e58d6d0c020adea4a3473f5bf136abb72ae96ec6563c070477(indirect<{i32, i64} size=16 align=8 scan=none>, indirect<{i32, i64} size=16 align=8 scan=none>) -> i1
     local %0 $logic.1: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -70,7 +70,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local0
-  fun @scoop$1$cb$d6b6c69fa941a970e5327af0424cce790f5112df787d279638fea40a458a0320(indirect<{{i32, i64}, {i32, i64}} size=32 align=8 scan=none>, indirect<{{i32, i64}, {i32, i64}} size=32 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$c11c6390972bae7f6e063187ae50baf03cc8bdba6727a18fab0da20035aeca3f(indirect<{{i32, i64}, {i32, i64}} size=32 align=8 scan=none>, indirect<{{i32, i64}, {i32, i64}} size=32 align=8 scan=none>) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
     local %2 $call.3: i1
@@ -101,7 +101,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop$1$cb$9c9ae75378c41f7a20cd4200a8c47f69b34e44718b4ad92f5a19fe34a28cd824() -> i32
+  fun @scoop$1$cb$3bb2b9470020021eb5ad5813847c9f3e30c3f44e9ec60e29f4fedf161eea1b0a() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -117,4 +117,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$93a9b3153184648deb3634409848165ce953cc5b9118930865b2d1d17f519f86
+  output executable @scoop$1$cb$a53e12cac985bf7dc99e6b8546de56d3e4a65448252b808ea8d7b0aaf42a1f0c

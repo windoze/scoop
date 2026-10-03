@@ -1,0 +1,152 @@
+Module
+  global0 nativeCount: Int extern m24_native_count
+  callback cb0 @fn0 -> @fn5 function_type0 id=51596b8462389b43a90a44842b364b36791c67beea2cd927ceb72c55120250ad
+  class Owner vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_callable gc0 function=@fn5 id=51596b8462389b43a90a44842b364b36791c67beea2cd927ceb72c55120250ad
+  fun addCount @fn0(amount: Int) -> Unit <no-gc>
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        GlobalRead nativeCount
+      val $dependency.argument.0: Int
+        Type Int
+        Local amount
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      global_assign nativeCount
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      return
+  fun allocate @fn1() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=41 bits=0x00000029
+      val $parameter.handle: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn4 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        Local $parameter.handle
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val owner: Owner
+        Type Owner
+        Local $new.1
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      call @fn1 direct
+      call @scoop_rt_gc_collect direct
+      call @scoop_rt_gc_collect direct
+      val $dependency.argument.0: Int
+        Type Int
+        GlobalRead nativeCount
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun init.Owner.$c0 @fn4(this: Owner, handle: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner
+        Local this
+        Type Int
+        Local handle
+      return
+  fun callback bridge for addCount @fn5($arg0: Ptr<Int>) -> Unit <no-gc>
+    bb0 entry
+      call @fn0 direct
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $arg0
+      return
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val address: Ptr<Int>
+        Type Ptr<Int>
+        GlobalAddress nativeCount Int
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local address
+      val $dependency.receiver: Ptr<Int>
+        Type Ptr<Int>
+        Local address
+      val $dependency.receiver: Int
+        Type Int
+        PtrLoad Int
+          Type Ptr<Int>
+          Local $dependency.receiver
+      val $dependency.argument.0: Int
+        Type Int
+        ReleaseFieldLoad Owner.field0
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      Type Unit
+      PtrStore Int
+        Type Ptr<Int>
+        Local $dependency.receiver
+        Type Int
+        Local $dependency.parameter.value
+      val $parameter.amount: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      call @fn0 direct
+        Type Int
+        Local $parameter.amount
+      return
+  instance mi0 function=@fn3 <- println
+  str @str0 "\n"
+  output executable @fn2

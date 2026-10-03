@@ -475,7 +475,7 @@ impl WireEncode for InvalidEffectsRecord<'_> {
 fn encode_invalid_no_gc_suspend_effects(
     encoder: &mut Encoder,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
-    encoder.map(6)?;
+    encoder.map(7)?;
     encoder.field(1)?;
     Effect::Suspend.encode(encoder)?;
     encoder.field(2)?;
@@ -487,5 +487,7 @@ fn encode_invalid_no_gc_suspend_effects(
     encoder.field(5)?;
     CallableOperatorRoleV1::None.encode(encoder)?;
     encoder.field(6)?;
-    CallableInfixV1::Ordinary.encode(encoder)
+    CallableInfixV1::Ordinary.encode(encoder)?;
+    encoder.field(7)?;
+    crate::CallableReleaseCallabilityV1::Unavailable.encode(encoder)
 }

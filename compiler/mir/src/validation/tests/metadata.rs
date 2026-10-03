@@ -27,6 +27,7 @@ fn source_callable_materialization() -> scoop_identity::CallableMaterialization 
 fn module_validation_rejects_a_descriptor_class_without_an_exact_identity() {
     let (mut module, _) = module_with_variants(Vec::new());
     let class = module.classes.alloc(ClassDef {
+        release_policy: Default::default(),
         modifier: ClassModifier::Final,
         name: "MissingIdentity".to_string(),
         type_arguments: Vec::new(),
@@ -263,7 +264,7 @@ fn module_validation_rejects_value_locations_outside_the_function_graph() {
         module.validate(),
         Err(MirValidationError {
             location: MirValidationLocation::LocalValue {
-                function: missing_function,
+                owner: LocalValueOwner::Function(missing_function),
                 local,
             },
             kind: MirValidationErrorKind::InvalidLocalValue {
@@ -285,7 +286,10 @@ fn module_validation_rejects_value_locations_outside_the_function_graph() {
     assert_eq!(
         module.validate(),
         Err(MirValidationError {
-            location: MirValidationLocation::LocalValue { function, local },
+            location: MirValidationLocation::LocalValue {
+                owner: LocalValueOwner::Function(function),
+                local
+            },
             kind: MirValidationErrorKind::InvalidLocalValue {
                 reason: "the local does not exist in the owning function body",
             },
@@ -445,6 +449,7 @@ fn coroutine_support_callables_are_bound_to_the_exact_step_result() {
     });
     module.interfaces = interfaces;
     let throwable = module.classes.alloc(ClassDef {
+        release_policy: Default::default(),
         modifier: ClassModifier::Final,
         name: "Throwable".to_string(),
         type_arguments: Vec::new(),

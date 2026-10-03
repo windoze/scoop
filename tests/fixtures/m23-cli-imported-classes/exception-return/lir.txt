@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$0a7d62249cddabe6ff785dd4d49ff0bbe6067db014a84d97930c6ab17f7de0f9() -> ptr<managed>
+  fun @scoop$1$cb$af332ad908fa91f006d5936c8c03c99e483178c37007e7868f17ab2238b45185() -> ptr<managed>
     local %0 error: ptr<managed>
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.code: i64
@@ -78,7 +78,7 @@ Module
     br @try.end.7
   block rethrow.normal.4
     unreachable
-  fun @scoop$1$cb$02a531dbcb77fcadd224e767c85b141dda86634cd6b2847386e48ac7ffd86505() -> ptr<managed>
+  fun @scoop$1$cb$85c1645680acfcce6101de53f0717fa08c12823dfe39ad35ca922f08f9bb1e1b() -> ptr<managed>
     local %0 error: ptr<managed>
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.value: i64

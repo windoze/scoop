@@ -3,6 +3,7 @@ use super::*;
 mod constructors;
 mod members;
 mod prefix;
+mod release;
 
 type ParsedInterfaceBody = (
     Vec<FunctionDecl>,
@@ -424,6 +425,9 @@ impl Parser {
                     self.peek().span,
                     "`init` blocks are not allowed in interfaces",
                 )),
+                TokenKind::Ident(text) if text == "release" => {
+                    self.invalid_release_owner("interfaces")
+                }
                 TokenKind::Ident(text) if text == "constructor" => Err(Diagnostic::at(
                     self.peek().span,
                     "constructors are not allowed in interfaces",

@@ -80,7 +80,7 @@ fn callable_effects_and_closed_leaf_enums_have_fixed_wire() {
     .unwrap();
     assert_eq!(
         encode(&effects).unwrap(),
-        hex("a601010202030204a1000405a2000201a200181801030602")
+        hex("a701010202030204a1000405a2000201a20018180103060207a10001")
     );
     assert_eq!(
         decode_canonical::<DecodedCallableSourceEffectsV1>(&encode(&effects).unwrap())
@@ -158,7 +158,7 @@ fn callable_effects_reject_impossible_semantic_combinations() {
     );
 
     let decoded = decode_canonical::<DecodedCallableSourceEffectsV1>(&hex(
-        "a601020201030204a1000105a100010601",
+        "a701020201030204a1000105a10001060107a10001",
     ))
     .unwrap();
     assert_eq!(

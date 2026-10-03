@@ -3,6 +3,7 @@ use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorK
 
 mod decoded;
 mod indexed;
+mod release;
 pub use decoded::*;
 pub use indexed::*;
 

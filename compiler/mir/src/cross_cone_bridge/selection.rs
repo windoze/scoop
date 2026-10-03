@@ -124,6 +124,12 @@ impl SelectedExternalMirSet {
         &self.callables
     }
 
+    /// Keeps the selected Scoop entries still used after lowering protocols
+    /// such as direct release-time C calls. Retention preserves canonical order.
+    pub fn retain_callables(&mut self, keep: impl FnMut(&SelectedExternalMirCallable) -> bool) {
+        self.callables.retain(keep);
+    }
+
     pub fn objects(&self) -> &[crate::ParamFreeMirObjectValueV1] {
         &self.objects
     }

@@ -1,5 +1,6 @@
 mod declarations;
 mod expressions;
+mod functions;
 mod statements;
 mod types;
 

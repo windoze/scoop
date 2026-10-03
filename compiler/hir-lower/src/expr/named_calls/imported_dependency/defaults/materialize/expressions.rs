@@ -38,6 +38,17 @@ impl Lowerer {
                 })?;
         }
         let kind = match expression.kind() {
+            Kind::ReleaseFieldLoad {
+                owner_type,
+                declaration,
+            } => hir::ExprKind::ReleaseFieldLoad(hir::ReleaseFieldRef {
+                owner: self
+                    .imported_default_type_with_bindings(owner_type, context.bindings)
+                    .map_err(|error| {
+                        ImportedDefaultMaterializationError::Plan(error.to_string())
+                    })?,
+                field: *declaration,
+            }),
             Kind::FunctionAddress(declaration) => {
                 let target = hir::DefaultCallableRefV1::try_new(
                     *declaration,

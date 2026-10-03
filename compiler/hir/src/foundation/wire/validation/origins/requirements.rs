@@ -17,6 +17,7 @@ pub(super) struct OriginRequirements<'a> {
     pub(super) required: HashMap<DefinitionOriginSubject, OriginExpectation<'a>>,
     pub(super) optional: HashMap<DefinitionOriginSubject, OriginExpectation<'a>>,
     generated: HashMap<PersistentGeneratedCallableId, &'a GeneratedCallableKey>,
+    exact_types: &'a [crate::foundation::ExactTypeRecord],
     dependencies: &'a [&'a crate::CanonicalHirFoundation],
     visiting: HashSet<PersistentGeneratedCallableId>,
 }
@@ -24,6 +25,7 @@ pub(super) struct OriginRequirements<'a> {
 impl<'a> OriginRequirements<'a> {
     pub(super) fn new(
         generated_records: &'a [GeneratedCallableRecord],
+        exact_types: &'a [crate::foundation::ExactTypeRecord],
         dependencies: &'a [&'a crate::CanonicalHirFoundation],
         required_count: usize,
 
@@ -50,6 +52,7 @@ impl<'a> OriginRequirements<'a> {
             required,
             optional,
             generated,
+            exact_types,
             dependencies,
             visiting,
         })
@@ -181,6 +184,19 @@ impl<'a> OriginRequirements<'a> {
                 }
                 CallableTemplateOwner::VariantConstructor(id) => {
                     return Ok(Some(DefinitionOriginSubject::EnumVariant(id)));
+                }
+                CallableTemplateOwner::ReleaseHook(exact) => {
+                    let owner = self
+                        .exact_types
+                        .iter()
+                        .find(|record| record.id() == exact)
+                        .and_then(|record| crate::foundation::release::nominal_owner(record.key()))
+                        .or_else(|| {
+                            self.dependencies
+                                .iter()
+                                .find_map(|foundation| foundation.release_hook_owner(exact))
+                        });
+                    return Ok(owner.map(super::nominal_subject));
                 }
                 CallableTemplateOwner::Generated(id) => {
                     if !self.visiting.insert(id) {

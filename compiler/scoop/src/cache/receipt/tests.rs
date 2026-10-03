@@ -77,7 +77,7 @@ fn receipt_round_trips_with_a_fixed_fingerprint() {
 
     assert_eq!(
         receipt.fingerprint().to_string(),
-        "af96dc85337cfc443b4cde63831227c633fbbfd8941196e163d7a9eeb44df393"
+        "b14929657a02094b8f5c60f438d6b06bb456bbf80265b209a90d26d40c2f1da8"
     );
 }
 

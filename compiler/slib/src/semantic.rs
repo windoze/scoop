@@ -634,9 +634,9 @@ mod tests {
                 fingerprints.lir().to_string()
             ],
             [
-                "5dc2739ba8ca8ebf80894d36657bda4edd4746f8b5693e71abac311f3666609f",
-                "d601d02b8a7d491865aa20541f68f0031ac8faea6234087db04473b19b554338",
-                "72dfb6ffec4ad2a7045413b1972d89ae4f1b1bb43d8341f96e5c78701299e95a",
+                "9fdc838ef4a06a4cc353bbe5edbdb2a816abc01bf80d7c760847bd5410e74635",
+                "04dd96fe143054e9810695fa1d46361b8823e2ebd42d4a523a1601070e334b41",
+                "bbf7bbee0d98f2f4106a8d83594b3ae1a2bc45277a382a4ed170f81566dd7177",
             ]
         );
     }

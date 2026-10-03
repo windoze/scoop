@@ -24,6 +24,7 @@ pub(super) fn materialize(
         let vtable = lir::VtableRecord::new(&identity, Vec::new())
             .expect("an exact function shape derives its empty vtable identity");
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
+            release_policy: Default::default(),
             relations: lir::TypeDescriptorRelations::Signature {
                 is_suspend: module.function_types[function].is_suspend,
                 parameters: module.function_types[function]
@@ -73,6 +74,7 @@ pub(super) fn materialize(
         )
         .expect("a closure exact type derives its dynamic invoke table");
         let descriptor = descriptors.alloc(lir::TypeDescriptor {
+            release_policy: Default::default(),
             relations: Default::default(),
             diagnostic_name: def.name.clone(),
             identity,

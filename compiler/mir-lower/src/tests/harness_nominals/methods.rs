@@ -108,6 +108,7 @@ impl Harness {
         };
         let function = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                release_callability: Default::default(),
                 name: name.to_string(),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers::default(),

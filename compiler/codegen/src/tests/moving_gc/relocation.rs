@@ -40,6 +40,7 @@ fn managed_live_plan_produces_as1_relocation() {
         },
     });
     let module = Module {
+        release_hooks: Default::default(),
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),
@@ -188,6 +189,7 @@ fn managed_invoke_uses_explicit_compiler_roots_without_exceptional_relocation() 
         entry,
     };
     let module = Module {
+        release_hooks: Default::default(),
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),

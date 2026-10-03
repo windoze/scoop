@@ -67,7 +67,7 @@ pub struct StrongSafepointSemanticPlanSetV1 {
 
 impl StrongSafepointSemanticPlanSetV1 {
     pub fn from_module(module: &Module) -> Result<Self, StrongSafepointSemanticPlanError> {
-        Self::from_functions(module.cone, &module.functions)
+        Self::from_functions(module.cone, module.callable_bodies())
     }
 
     pub(crate) const fn from_artifact(
@@ -77,14 +77,14 @@ impl StrongSafepointSemanticPlanSetV1 {
         Self { producer, sites }
     }
 
-    fn from_functions(
+    fn from_functions<'a>(
         producer: ConeIdentity,
-        functions: &[Function],
+        functions: impl IntoIterator<Item = &'a Function>,
     ) -> Result<Self, StrongSafepointSemanticPlanError> {
         let mut function_owners = BTreeSet::new();
         let mut sites = BTreeMap::new();
         let mut runtime_ids = BTreeMap::new();
-        for (function_index, function) in functions.iter().enumerate() {
+        for (function_index, function) in functions.into_iter().enumerate() {
             let owner = function.callable_body.id();
             if !function_owners.insert(owner) {
                 return Err(StrongSafepointSemanticPlanError::DuplicateCallableBody {

@@ -1,5 +1,7 @@
 use super::*;
 
+mod native;
+
 impl BodyLowerer<'_> {
     pub(super) fn lower_imported_equality(
         &mut self,
@@ -32,10 +34,18 @@ impl BodyLowerer<'_> {
         let source = self.module.imported_dependency_callables[callee];
         self.contains_suspend_call |= source.effect() == scoop_identity::Effect::Suspend;
         let dispatch = source.dispatch();
-        let target = &self.imported_dependency_callable_map[&callee];
+        let target = self.imported_dependency_callable_map[&callee].clone();
         let role = target.lowering_role;
-        let callee = mir::Callee::External(target.callable);
         let return_ty = self.lower_type(result_type);
+        let callee = if matches!(self.current_owner, mir::LocalValueOwner::ReleaseHook(_)) {
+            target
+                .native_contract()
+                .and_then(|contract| self.release_native_target(contract, args, return_ty.clone()))
+                .map(mir::Callee::Extern)
+                .unwrap_or_else(|| mir::Callee::External(target.scoop_entry()))
+        } else {
+            mir::Callee::External(target.scoop_entry())
+        };
         if let mir::MirCallableLoweringRoleV1::ClassInitializer { .. } = role {
             // The source expression returns the allocated class, while the
             // physical initializer call returns Unit.
@@ -47,6 +57,16 @@ impl BodyLowerer<'_> {
                 return_ty,
                 smir::ExprKind::ClassNew {
                     class_id,
+                    publish_release: {
+                        let hir::TypeKind::Class(class) = &self.module.types[result_type].kind
+                        else {
+                            unreachable!("an imported initializer constructs its exact class")
+                        };
+                        !matches!(
+                            self.module.classes[*class].release_policy,
+                            hir::ReleasePolicy::None
+                        )
+                    },
                     initializer: callee,
                     args: args.iter().map(|arg| self.lower_expr(arg)).collect(),
                 },

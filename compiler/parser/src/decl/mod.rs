@@ -8,7 +8,7 @@ use scoop_ast::{
     FieldDecl, FunctionBody, FunctionDecl, GetterDecl, InfixModifier, InitBlockDecl, InterfaceDecl,
     MethodModifier, NestedNominalDecl, ObjectDecl, OperatorModifier, Param, ParameterSyntax,
     PrimaryClassParameter, PrimaryConstructorDecl, PrimaryParameterProperty, PropertyBodySyntax,
-    PropertyDecl, SecondaryConstructorDecl, SetterDecl, SetterParameterSyntax,
+    PropertyDecl, ReleaseBlock, SecondaryConstructorDecl, SetterDecl, SetterParameterSyntax,
     SetterVisibilitySyntax, Span, StructDecl, StructMember, StructRepresentationDecl,
     SupertypeSpec, TypeAliasDecl, TypeBound, TypeConstraint, TypeParamDecl, TypeParamKindBound,
     VarargDefaultSyntax, VariantDecl, VariantDeclKind, VariantFieldDecl, VisibilitySyntax,

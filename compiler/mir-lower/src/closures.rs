@@ -31,7 +31,7 @@ impl Lowerer {
             hir::CallableTarget::Local(callable) => callable,
             hir::CallableTarget::Imported(callee) => {
                 return mir::Callee::External(
-                    self.imported_dependency_callable_map[&callee].callable,
+                    self.imported_dependency_callable_map[&callee].scoop_entry(),
                 );
             }
         };

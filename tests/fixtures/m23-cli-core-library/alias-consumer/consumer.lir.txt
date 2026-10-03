@@ -1,13 +1,13 @@
 Module
-  fun @scoop$1$cb$02cfad8458a7d2c42a664571f9c08c8c888bf835acdc642f91250005b05e41ee(i32) -> i32
+  fun @scoop$1$cb$a61c312a9a3af72016ec29e6410e016d7d14c38c628033b8109d8966354d2a51(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$d1b76aa272505c020a9b1b8e0bf671d50addce6df27a94ad9b4d046d4b990afb(indirect<{i32, i1} size=8 align=4 scan=none>) -> sret<{i32, i1} size=8 align=4 scan=none>
+  fun @scoop$1$cb$98d129858aa538f3712340894bf9e62ae3bd247aeb186600a74844e545007653(indirect<{i32, i1} size=8 align=4 scan=none>) -> sret<{i32, i1} size=8 align=4 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$87894ef40fb439c75d81a97ed549738003872ba092c54821b3b4e3a2acf25142() -> i32
+  fun @scoop$1$cb$4bbfb43e4bee46b8d5fe412664a411d93bda6fcce9a4ebfd6cfd5beeec7d900d() -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]

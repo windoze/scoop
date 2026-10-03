@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$7878a3caf077d5c7ad8b986642037fb4931b714bfc10d7262ff9d21c31309ec5() -> i64 <no-gc>
+  fun @scoop$1$cb$4c7799702c435d4e399f079c5a700e857e081d0a35724236eafde1ca3cd0f100() -> i64 <no-gc>
     local %0 marker: struct0 <logical-zst d1762300a72b228735996c846be36e8571cf31f2a0c5513ca8abdbfc13d6fdf7>
     local %1 $dependency.receiver: struct1
     local %2 $dependency.receiver: struct1
@@ -58,7 +58,7 @@ Module
     store local13 -> local14
     t9 = integer_Add<Long> local12, local14 : i64
     ret t9
-  fun @scoop$1$cb$412902972662107f38f89f199ea12d969d6f68821fe10e9345b0a2d4cc971b03(ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$c58bb480de212def6b24eeb85dd76aff5be268a2f2d48a5d622219369fbd0586(ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn0()

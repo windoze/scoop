@@ -6,8 +6,8 @@ runtime objects=54
 images=3 root=_scoop$1$re$28f103e67bc228d1b1a95fc2af9f989a8852391ede66ad5e12fabd53bab17bd5
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library m23_lifecycle requirement=ea0039b97cac2ecda97ba81650d5642a56a9fb35a974ebcdbe56c10878b63a9d input=a1802c9d288bc59384580b1151445ce5e432b31927a14ee38c5b47f52cc7023e origins=dev.example:reentry:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([73, 88, 57, 84, 244, 172, 196, 89, 3, 203, 41, 192, 237, 150, 94, 90, 24, 149, 56, 203, 188, 232, 67, 80, 251, 29, 185, 132, 57, 189, 170, 222])])
-native archive a1802c9d288bc59384580b1151445ce5e432b31927a14ee38c5b47f52cc7023e members=1
+native library m23_lifecycle requirement=ea0039b97cac2ecda97ba81650d5642a56a9fb35a974ebcdbe56c10878b63a9d input=67cb4285ee433a3eda118a25ec12fa744f06985fec52e9edb617aed2ed474c9d origins=dev.example:reentry:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([73, 88, 57, 84, 244, 172, 196, 89, 3, 203, 41, 192, 237, 150, 94, 90, 24, 149, 56, 203, 188, 232, 67, 80, 251, 29, 185, 132, 57, 189, 170, 222])])
+native archive 67cb4285ee433a3eda118a25ec12fa744f06985fec52e9edb617aed2ed474c9d members=1
   member 0 header=8 payload=68..940 name="trace.o" digest=d7e8e1bae64a50af1b3c7cbe13938332088019cb5f2160b4e5fa87ba10399a28 selected=true
 startup object references:
   _scoop$1$im$28f103e67bc228d1b1a95fc2af9f989a8852391ede66ad5e12fabd53bab17bd5

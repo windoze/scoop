@@ -6,7 +6,7 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<LocalValue> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<LocalValue> niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$78611cc13fbb82d052446c1c795048567f0d30fa2bb2dc49f1454281960df7d4(ptr<managed>) -> i64
+  fun @scoop$1$cb$1ea798dba19ab6be277673f762b2455a4b1ab2a4e631fe0c37869554c603dd2c(ptr<managed>) -> i64
     local %0 $dependency.receiver: i64
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.other: i64
@@ -18,7 +18,7 @@ Module
     store local1 -> local2
     t1 = integer_Add<Long> local0, local2 : i64
     ret t1
-  fun @scoop$1$cb$f29f6d55692aee30da2a874eee9b6e7af9c9e1e57f756e47493fb64056121c01(ptr<managed>, i64) -> void
+  fun @scoop$1$cb$8cf49fcf2a1f6ca04c25f2f4e09e7a4f31cc4639cfd5ae93677c1552c66f89b7(ptr<managed>, i64) -> void
     local %0 $dependency.receiver: i64
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.other: i64
@@ -30,7 +30,7 @@ Module
     t0 = integer_Subtract<Long> local0, local2 : i64
     heap_store param0 +16 t0
     ret
-  fun @scoop$1$cb$47df96c33d3e281652e4cd2c41d1c002c8f425779397a86e9186ab4b410b099a() -> ptr<managed>
+  fun @scoop$1$cb$0cda07054f3a99cb984e6091464309b23dc9e96a0580a7843a8582ca9cea84b3() -> ptr<managed>
     local %0 $argument.0: i64
     local %1 $parameter.initial: i64
     local %2 concrete: ptr<managed>
@@ -75,40 +75,40 @@ Module
     call managed-void-target2 sp<managed-call:6> live=[local12:ptr<managed>@0] sig=void2 (ptr<managed>, i64) external-fn2(local12, local10)
     t11 = aggregate () : {}
     ret local12
-  fun @scoop$1$cb$948e3f662fb4fbfa537fce2b3b336725bb61678f0acbf8e0a1ddb4361da125d2(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$6f6c4f77e9c1fdd5b33cd10cd7b2ad0ae504b7b5cb2f9afea1204985de057f74(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$46c98449ecf3f193af329f597474da1aa8a43b8e53d70015d4622446f71b1e06(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$33edea132c4bbe38e62d3656b1da2c31eb7185fbe1c8c234ce1d8ef4e1c607b8(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$a2ce8c3bd76704be819fb5eb4d7aba15d3d467b32013d03b6c5192f81f82507e(ptr<managed>, ptr<managed>) -> enum1
+  fun @scoop$1$cb$cae43fc172460eab07e3396db92424cb1f563f63b1ab50cb7a5f5d2c25835c21(ptr<managed>, ptr<managed>) -> enum1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
     unreachable
-  fun @scoop$1$cb$65d29c634602066cb8bde31627e637575d6052e50c903977962935f6a6e79d73(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$175dea01e4c01ea1552941814fc2ff3755f65a74b9696e305bdf2bd4469741d3(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$ce92095d087632a54d955ec442995609d6c0cccbe7782b19a0e1b4c1c870ee90(ptr<managed>, i64) -> void
+  fun @scoop$1$cb$187df8c4ec1f783dab3ffcfe896fd35e7eced5cefbe64314f107985ab5bbb9bd(ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$a6ccd6c67a1e7379e8e6be42092064c09932d92aae209dacdfb01175d4fe8784(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$08136911682ff5df04653b14190bc3ba63417058dbd0709f5c8441ea6d6a32d4(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record

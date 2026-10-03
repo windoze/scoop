@@ -1,7 +1,7 @@
 Module
   imported_global @scoop$1$ss$f6c8e15bc3b0a14145dbb0fe49526026c79efbaba9782d00920a55c9e3d5a09f : ptr<managed> provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a scan=refs[0]
   imported_global @scoop$1$ss$6d94e2887c5cfc6f802586bddd13d0eb3ff0e5bbbd36f5bdc96d4b229dee3ffd : ptr<managed> provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a scan=refs[0]
-  fun @scoop$1$cb$92acded7d1ca22418411090da6342b4610c7acaa1d0ec14edaa9c3cb3273e61b() -> ptr<managed>
+  fun @scoop$1$cb$ca5bce90af7a1d7f92586a7e259068cf45286633ede0aa83ffe7863f57d0035c() -> ptr<managed>
     local %0 $property_receiver.0: ptr<managed>
     local %1 $dependency.receiver: i64
     local %2 $dependency.argument.0: i64

@@ -1,0 +1,81 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m24_release", name = "m24_release_add")
+  private fun record(value: Int)
+    @Extern(lib = "m24_release", name = "m24_release_count")
+  private fun count(): Int
+    @NoGC
+  private fun keep<T>(value: T): T
+    =
+      Var value
+  struct Pair<T>
+    field first: T
+    field second: T
+  struct Phantom<T>
+    field code: Int
+  class Owner<T>(val value: T, val code: Int)
+    release
+      val copied
+        Call keep
+          Var value
+      var remaining
+        Var code
+      while
+        Binary Gt
+          Var remaining
+          IntLiteral 0
+        compound-assign Sub
+          IntLiteral 1
+        if
+          Binary Gt
+            Var remaining
+            IntLiteral 0
+          continue
+        @Unsafe block
+          Call record
+            Var code
+        break
+  class PhantomOwner<T>(val phantom: Phantom<T>, val retained: T)
+    release
+      @Unsafe block
+        Call record
+          FieldAccess code
+            Var phantom
+  class Container()
+    nested class Nested
+  private fun allocate()
+    val scalar
+      Call Owner
+        IntLiteral 1
+        IntLiteral 3
+    val aggregate
+      Call Owner
+        Call Pair
+          IntLiteral 4
+          IntLiteral 5
+        IntLiteral 7
+    val optional: Owner<Option<Int>>
+      Call Owner
+        Call Some
+          IntLiteral 8
+        IntLiteral 11
+    val empty
+      Call Owner
+        UnitLiteral
+        IntLiteral 13
+    val phantom: PhantomOwner<String>
+      Call PhantomOwner
+        Call Phantom
+          IntLiteral 8
+        StringLiteral "retained"
+    val nested
+      MethodCall Nested
+        Var Container
+        IntLiteral 9
+  fun main()
+    Call allocate
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Call count

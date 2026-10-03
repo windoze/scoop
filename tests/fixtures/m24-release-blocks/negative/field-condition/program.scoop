@@ -1,0 +1,3 @@
+class Owner<T>(private val value: T) { release { val copy = value } }
+class Holder(private val owner: Owner<String>)
+fun main() {}

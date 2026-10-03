@@ -10,9 +10,9 @@ Module
   global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "nested-out"
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$1a59d66726bc6c91d53a97f04e1a26c54b5978ad226559c4ab7b4c42991e3509() -> i32
+  fun @scoop$1$cb$372c6cda9824ca1d0b452d625a688bf1fa43d0858b8c641dacef5475c3090537() -> i32
     local %0 e: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.value: ptr<managed>
@@ -80,7 +80,7 @@ Module
     br @rethrow.normal.4
   block rethrow.normal.4
     unreachable
-  fun @scoop$1$cb$8c525135ba46d18fbe944d2ff90660e0a304964e334a83ddc70f647f1f348530() -> void
+  fun @scoop$1$cb$f717d93f18365775167ea08814530bfd5afed8ba3b686e24a78619ed1534c0aa() -> void
     local %0 e: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.value: ptr<managed>
@@ -218,7 +218,7 @@ Module
     t24 = aggregate () : {}
     end_catch
     br @scope.23
-  fun @scoop$1$cb$2eec62e33027a8e6dacbca352bf6ae65c0da1729b9416e6efea254a745bdef86() -> void
+  fun @scoop$1$cb$c063d9c9102ce74fcd043e3df41d84c723c304612b24f993affef8a469375eeb() -> void
     local %0 e: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.value: ptr<managed>
@@ -365,7 +365,7 @@ Module
     t24 = aggregate () : {}
     end_catch
     br @scope.24
-  fun @scoop$1$cb$95bf4fd57281ee50eb9faf4de02ff7edd25e1cbef488c926219ece704de5849f() -> void
+  fun @scoop$1$cb$bf50e3e1157edbf2f9e28781bc9c807bcfc305dd5cee8fc7423cac5dac873c4d() -> void
     local %0 e: ptr<managed>
     local %1 e: ptr<managed>
     local %2 $dependency.argument.0: ptr<managed>
@@ -512,7 +512,7 @@ Module
     br @throw.normal.11
   block throw.normal.11
     unreachable
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 e: ptr<managed>
@@ -589,7 +589,7 @@ Module
     t14 = aggregate () : {}
     end_catch
     br @scope.12
-  fun @scoop$1$cb$0e2592cda2d841ffaeeb4ca9ee19ab89cff7a7c2584f848c9feaa95e67b36371(ptr<managed>) -> void
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -608,7 +608,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn5(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -627,7 +627,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn5(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @success unwind @failure
@@ -643,4 +643,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

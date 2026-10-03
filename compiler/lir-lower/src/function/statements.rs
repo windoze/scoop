@@ -21,6 +21,10 @@ impl<'a> FunctionLowerer<'a> {
             mir::StatementKind::Expr(expr) => {
                 self.lower_expr(expr)?;
             }
+            mir::StatementKind::PublishReleaseReady { receiver, .. } => {
+                let object = self.lower_expr(receiver)?;
+                self.push(lir::Instruction::PublishReleaseReady { object });
+            }
             mir::StatementKind::Call(effect) => match effect {
                 mir::CallEffect::Unit(call) => {
                     let _ = self.lower_call(call, &mir::Type::Unit)?;
@@ -51,28 +55,7 @@ impl<'a> FunctionLowerer<'a> {
                 });
             }
             mir::StatementKind::GlobalAssign { global, value } => {
-                let ty = &value.ty;
-                let value = self.lower_expr(value)?;
-                match *self
-                    .storage_globals
-                    .get(global)
-                    .expect("every MIR global has storage")
-                {
-                    StorageGlobal::Local(global) => {
-                        self.push(lir::Instruction::GlobalStore { global, value })
-                    }
-                    StorageGlobal::Native(global) => {
-                        let value = self.project_c_value(ty, value);
-                        let safepoint =
-                            self.new_safepoint(lir::SafepointSiteRole::NativeSafeTransition);
-                        self.push(lir::Instruction::NativeGlobalStore {
-                            global,
-                            value,
-                            safepoint,
-                            roots: lir::NativeSafeRootSet::default(),
-                        })
-                    }
-                }
+                self.lower_global_assign(*global, value)?;
             }
             // `m[i] = v`: bounds check and the element store are
             // codegen's job; the element layout comes from the array

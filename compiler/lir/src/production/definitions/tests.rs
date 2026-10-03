@@ -17,7 +17,7 @@ fn definition_plan_surface_has_a_fixed_wire_vector_and_validates() {
     let (surface, mut identities, foundation) = fixture();
     assert_eq!(
         hex(&encode(&surface).unwrap()),
-        "81a30158203d751943715733e162e06681a6b144db51ce356b498c1964e7f6d0cceb68509602582098437a2d4cdd7cf6dce5fab22a24b7d7c1a913ef1ad362401ac3f40358b7a21603815820c59ceee916c019d90d7490fa770a23888f081460709b4b19f4f0a3601beed02b"
+        "81a3015820f4e2eb5a9996b91c604af52e977e53c337cf67ef6cd3e5d1bae2949a2eae2ecb025820468d6c3d2f032ae18dfc22bf1ac59d2903f18bb0d7dfbea3281aff39935f5ccd03815820e017e1fec15a99d136c5b43da7cd68e2063ce2975f240b0b8fff876a75a29594"
     );
 
     let decoded: DecodedObjectDefinitionPlanSurfaceV1 =

@@ -1,6 +1,6 @@
 Module
   global @scoop$1$bs$07e55da25eff17bcdf6f3a15c4da3e3018c2c5849f6e4df2588ec7dcd2220fbe = c"call to abstract method `RequiredChooser.choose`"
-  fun @scoop$1$cb$51d3a6900412ebd738b2938e87161124344f12e76d54b73aa1e311d4b8ae0713() -> i32
+  fun @scoop$1$cb$61fda156dfa5fb798e5aca0a2cf87287778fc3302f9c40143f246d0f825b4dce() -> i32
     local %0 chooser: ptr<managed>
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.argument.0: i32
@@ -22,28 +22,28 @@ Module
     call managed-direct-target1 sp<managed-call:2> live=[local1:ptr<managed>@0] t4 = sig=direct2 (ptr<managed>, i32) -> i32 dispatch[Interface:0] t3(local1, local3)
     store t4 -> local5
     ret local5
-  fun @scoop$1$cb$0a0af464c624e22212697cd2b876a7546bb0f8471f2f4242f7e6564480060f02(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$aecaa3f118863e181541e449435d57156e96e4c29a50b961e70e40c9e6642687(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$59ad8bebd328d3372e4bbde915d40aac4a0070039a4791f4707485c8df51bdce(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$4a6f43b025ddb0752fe198c04b24b2e25c7675957dde4db41834140e31cc2476(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
-  fun @scoop$1$cb$93510d76cfde08e7bfe80ba0a3d14fb58c65b27046a97e54b4625a9b8cc2c89e(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$376b47ae755a4a20054d60f8e00d6de35f3cd87f2edc5744453fab69c9dca689(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
-  fun @scoop$1$cb$8101665ce3015313683dc1fed61fedab946dfe28daa2650f51d1cbef80b28255(ptr<managed>) -> void
+  fun @scoop$1$cb$42b4aa8951ba4f516a3d58f967cfc301a9c6c6a104eaac3a64671c770b817ca5(ptr<managed>) -> void
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     call managed-void-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn5(param0)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$be61ae362293c0b43f6de42c8d8ad67c3fec5d8c38d171e4395280a4c1b9907c(ptr<managed>) -> void
+  fun @scoop$1$cb$11f7f7ebbe6defd820a7a4394e2861cabfd518001da02dfc56d82ceb09af6ec3(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret

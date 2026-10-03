@@ -1,9 +1,9 @@
 Module
-  fun @scoop$1$cb$8b24b03e764c3f9d9b4e5bc0afde5227677fd44907b8c18617dc62a204e920a4(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$6d47e426f87e3e55e8d567e6c331f49568388f0560fca950f6eb9f03424e7154(ptr<managed>, i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
-  fun @scoop$1$cb$adf5eeb53624f4921565d45e2c473bca071fc90ca71c1126e744510bd36866d5(ptr<managed>) -> i32
+  fun @scoop$1$cb$a8b8e29aa5b7b3d3e6d2429fb5b404230d871482d8826c0774b09c1701ad1818(ptr<managed>) -> i32
     local %0 $argument.0: ptr<managed>
     local %1 $argument.1: i32
     local %2 $parameter.value: ptr<managed>
@@ -18,7 +18,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32) -> i32 local-fn0(local2, local3)
     store t0 -> local4
     ret local4
-  fun @scoop$1$cb$cf41e86ce16a039c03cb641dded82bf87800965fae3badc54b208254c6405d5c(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$90b7e41eabbdd83f4ba99cdecb9223787e984aa651ac6354d2cb1c1dfb8010eb(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0

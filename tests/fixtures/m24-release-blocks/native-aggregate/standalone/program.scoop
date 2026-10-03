@@ -1,0 +1,32 @@
+@CLayout
+struct Wide(val first: Long, val second: Long, val third: Long)
+
+@Extern(lib = "m24_release", name = "m24_release_rotate")
+private fun rotate(value: Wide): Wide
+
+@Extern(lib = "m24_release", name = "m24_release_wide")
+private fun record(value: Wide)
+
+@Extern(lib = "m24_release", name = "m24_release_wide_count")
+private fun count(): Long
+
+class Owner(private val value: Wide) {
+    release {
+        val copied = value
+        @Unsafe { record(rotate(copied)) }
+    }
+}
+
+private fun allocate() {
+    @Unsafe {
+        val value = rotate(Wide(11, 21, 10))
+        val owner = Owner(value)
+    }
+}
+
+fun main() {
+    allocate()
+    gcCollect()
+    gcCollect()
+    @Unsafe { println(count()) }
+}

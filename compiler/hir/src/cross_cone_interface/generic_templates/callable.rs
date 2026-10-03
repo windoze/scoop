@@ -107,8 +107,8 @@ impl ExportGenericCallableBodyV1 {
         &self.result
     }
 
-    pub const fn effects(&self) -> CallableSourceEffectsV1 {
-        self.effects
+    pub fn effects(&self) -> CallableSourceEffectsV1 {
+        self.effects.clone()
     }
 
     pub const fn type_parameters(&self) -> &CanonicalBinderUseListV1 {

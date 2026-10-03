@@ -34,7 +34,7 @@ pub(crate) use mir_semantic::{
 };
 
 /// Canonically decoded payloads from one exact
-/// `cross-cone-generic/2` Compile or Link view.
+/// `cross-cone-generic/3` Compile or Link view.
 ///
 /// These wire values have passed profile inventory and semantic-fingerprint
 /// checks. Subsequent validation joins their typed identities, sources,

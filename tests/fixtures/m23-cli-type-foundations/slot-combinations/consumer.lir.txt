@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$56f7072cb242d025fcb9a2a8daf0421307fa592ed3f6ca5192d68fd468f2fafd(ptr<managed>) -> i32
+  fun @scoop$1$cb$6641ddeea18d421f618fac8dbccadcf3b817ae1d4514392a21c598cc6f77cab6(ptr<managed>) -> i32
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.receiver: i32
     local %2 $dependency.argument.0: i32

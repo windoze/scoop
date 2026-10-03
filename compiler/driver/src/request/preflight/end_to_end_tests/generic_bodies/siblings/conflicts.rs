@@ -10,6 +10,11 @@ fn actual_duplicate_generic_strings_reject_changed_content_with_equal_abis() {
     check_conflicting_members("strings-conflict");
 }
 
+#[test]
+fn actual_duplicate_release_hooks_reject_changed_content_with_equal_abis() {
+    check_conflicting_members("release");
+}
+
 fn check_conflicting_members(case: &str) {
     let target = resolved_target().expect("ODR conflict validation requires a target");
     let sysroot = tempfile::tempdir().unwrap();
@@ -22,9 +27,19 @@ fn check_conflicting_members(case: &str) {
     let mut identities = Vec::new();
     for side in ["left", "right"] {
         let provider_root = sysroot.path().join(format!("provider-{side}"));
-        let source =
-            std::fs::read_to_string(fixtures.join(format!("{case}-provider-{side}.scoop")))
-                .unwrap();
+        let source = if case == "release" {
+            let original = std::fs::read_to_string(crate::workspace_root().join(
+                "tests/fixtures/m24-release-blocks/generic/cross-cone/provider/src/main.scoop",
+            ))
+            .unwrap();
+            if side == "right" {
+                original.replace("record(adjusted(handle))", "record(adjusted(handle) + 1)")
+            } else {
+                original
+            }
+        } else {
+            std::fs::read_to_string(fixtures.join(format!("{case}-provider-{side}.scoop"))).unwrap()
+        };
         write_manifest_cone(
             &provider_root,
             "dev.example",
@@ -45,8 +60,11 @@ fn check_conflicting_members(case: &str) {
         .unwrap();
         let name = format!("generic-odr-conflict-{side}");
         let root = sysroot.path().join(&name);
-        let source =
-            std::fs::read_to_string(fixtures.join(format!("{case}-consumer.scoop"))).unwrap();
+        let source = if case == "release" {
+            "import releasegeneric.Owner\npublic fun make(): Owner<Int> = Owner(7, 11)\n".to_owned()
+        } else {
+            std::fs::read_to_string(fixtures.join(format!("{case}-consumer.scoop"))).unwrap()
+        };
         write_manifest_cone(&root, "dev.example", &name, "library", &source);
         write_dependency_manifest(&root, &name, &[&provider_coordinate]);
         let consumer = build_manifest_request(
@@ -110,6 +128,10 @@ fn check_conflicting_members(case: &str) {
     );
     if case == "strings-conflict" {
         assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::ImmortalObject));
+        assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::RegistrationRecord));
+    }
+    if case == "release" {
+        assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::ReleaseHook));
         assert!(changed_roles.contains(&scoop_identity::OdrMemberRole::RegistrationRecord));
     }
     let first = closures[0].artifact(identities[0]).unwrap();

@@ -65,6 +65,7 @@ fn class(name: &str, fields: Vec<ClassFieldId>, properties: Vec<PropertyId>) -> 
         owner: None,
         access: NominalAccess::public(),
         definition: crate::ClassDefinition {
+            release_policy: Default::default(),
             modifier: ClassModifier::Final,
             self_application: ClassApplicationId::from_raw(0_u32.into()),
             type_params: Vec::new(),

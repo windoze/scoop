@@ -58,7 +58,7 @@ impl BodyLowerer<'_> {
                                 )
                             }
                             hir::CallableTarget::Imported(callable) => mir::Callee::External(
-                                self.imported_dependency_callable_map[&callable].callable,
+                                self.imported_dependency_callable_map[&callable].scoop_entry(),
                             ),
                         };
                         smir::Expr::new(

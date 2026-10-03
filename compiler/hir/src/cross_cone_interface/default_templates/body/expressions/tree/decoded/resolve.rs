@@ -235,6 +235,13 @@ impl DecodedDefaultExpressionKindV1 {
                 operation,
                 callback: resolve_child(callback, resolver, locals, 30, 2)?,
             },
+            Self::ReleaseFieldLoad {
+                owner_type,
+                declaration,
+            } => DefaultExpressionKindV1::ReleaseFieldLoad {
+                owner_type: resolve_type(owner_type, resolver, 61, 1)?,
+                declaration: resolve_persistent(declaration, resolver, 61, 2)?,
+            },
             Self::FieldAccess { receiver, field } => DefaultExpressionKindV1::FieldAccess {
                 receiver: resolve_child(receiver, resolver, locals, 31, 1)?,
                 field: field

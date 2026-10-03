@@ -68,6 +68,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         terminator: Terminator::Return { value: None },
     });
     meta.type_descriptors.alloc(TypeDescriptor {
+        release_policy: Default::default(),
         relations: Default::default(),
         diagnostic_name: "Holder".to_string(),
         identity: type_descriptor_identity("Holder"),
@@ -88,6 +89,7 @@ fn type_descriptors_carry_the_gc_scan_descriptors() {
         itables: vec![],
     });
     let mut module = Module {
+        release_hooks: Default::default(),
         cone: scoop_identity::ConeIdentity::SINGLE_FILE,
         globals: Arena::default(),
         initialization_units: Arena::default(),

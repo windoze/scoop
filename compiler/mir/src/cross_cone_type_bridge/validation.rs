@@ -7,6 +7,9 @@ mod members;
 
 #[derive(Debug)]
 pub enum MirTypeBridgeError {
+    ReleaseOwner {
+        exact: PersistentExactTypeId,
+    },
     Reference(IdentityReferenceError),
     GeneratedRoleReference(
         Box<scoop_identity::GeneratedNominalResolutionError<IdentityReferenceError>>,
@@ -195,6 +198,23 @@ impl MirTypeBridgeAuthority<'_> {
             }
         }
         self.validate_members(record)?;
+        if let MirClassReleasePolicyV1::SynchronousGcFree { owner } =
+            record.representation().release_policy()
+        {
+            if owner != record.exact()
+                || !matches!(
+                    record.representation(),
+                    MirTypeRepresentationV1::Class {
+                        kind: MirClassKindV1::Final,
+                        ..
+                    }
+                )
+            {
+                return Err(MirTypeBridgeError::ReleaseOwner {
+                    exact: record.exact(),
+                });
+            }
+        }
         self.validate_facts(record)?;
         self.validate_bases(record)
     }

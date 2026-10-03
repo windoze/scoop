@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$0224bb908e37faa8b513eead8bb2b66017f32727b55bd8bbc99387c59b7c7e69() -> ptr<managed>
+  fun @scoop$1$cb$8f76e2eb2b2d034fa5738f29f3958c387e47d912f18f60d474e08e8244685de6() -> ptr<managed>
     local %0 error: ptr<managed>
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.code: i64

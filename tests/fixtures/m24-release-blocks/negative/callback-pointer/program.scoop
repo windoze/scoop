@@ -1,0 +1,2 @@
+class Owner(private val value: Ptr<ForeignCallback<(Int) -> Int>>) { release { val copy = value } }
+fun main() {}

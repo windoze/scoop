@@ -19,14 +19,14 @@ fn callable_signature_requires_receiver_execution_and_dispatch_effects() {
     assert_eq!(
         InheritanceCallableSignatureV1::try_new(
             ExactCallableSignature::new(Effect::Ordinary, None, vec![], exact),
-            ordinary
+            ordinary.clone()
         ),
         Err(InheritanceCallableSignatureBuildError::MissingReceiver)
     );
     assert_eq!(
         InheritanceCallableSignatureV1::try_new(
             ExactCallableSignature::new(Effect::Suspend, Some(exact), vec![], exact),
-            ordinary
+            ordinary.clone()
         ),
         Err(InheritanceCallableSignatureBuildError::Execution)
     );

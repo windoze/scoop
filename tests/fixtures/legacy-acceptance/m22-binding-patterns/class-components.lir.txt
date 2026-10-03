@@ -11,9 +11,9 @@ Module
   global @scoop$1$io$71a26c79ac22ff482f6ba3fbb052e16c2be7f861bab4f3f320864d8df82b48cc = "caught"
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$86c9da16044076fe9028e7f45404c13b59761a693315b3c5bd8792110ef15d08(ptr<managed>) -> i32
+  fun @scoop$1$cb$5364905fa5dff20322a3dc797d0bb97a2f5544276d59f9119aee831ccd61506c(ptr<managed>) -> i32
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
   block entry
@@ -23,7 +23,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn10(local1)
     t0 = aggregate () : {}
     ret integer<Int>(0x0000000b)
-  fun @scoop$1$cb$b1be8e60fbeb9d34145d8cf9b3a9ad9e87e660e59e7671e097651fb483851180(ptr<managed>) -> i32
+  fun @scoop$1$cb$edc3a42bf6cc96c4d517fcd6e9154e0393e359389f4e35d1ea29b66f5f5e2ab4(ptr<managed>) -> i32
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
   block entry
@@ -33,7 +33,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn10(local1)
     t0 = aggregate () : {}
     ret integer<Int>(0x0000000c)
-  fun @scoop$1$cb$c225c2d7878229dd1befc6d55c861ca31059a44617442997f0d51eb69552aa30(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$b484488487bcd9bdee8eaf5e66ffb6eff6e6947bc62f06f73d234b4ee5b754e1(ptr<managed>) -> ptr<managed>
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
     local %2 $new.1: ptr<managed>
@@ -48,7 +48,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn12(local2)
     t2 = aggregate () : {}
     ret local2
-  fun @scoop$1$cb$966f7a43cc2f94ccbc7aef97dff741150728ee252dd18ba81cf96ecd640cd3f2(ptr<managed>) -> i32
+  fun @scoop$1$cb$60e51cc153a80c5786ceb86418079c8059a56e406b436f7624ae2f447e436c47(ptr<managed>) -> i32
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
   block entry
@@ -58,7 +58,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn10(local1)
     t0 = aggregate () : {}
     ret integer<Int>(0x00000016)
-  fun @scoop$1$cb$3b70d10c2fec323f780c0917ffdfa3f9a8d241d5d8138e013260a0bbcca3603e(ptr<managed>) -> i32
+  fun @scoop$1$cb$07da0551bf6ff10d43cc4fdd483692be3845441a87ae74386375b1327e0661b9(ptr<managed>) -> i32
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
   block entry
@@ -68,7 +68,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn10(local1)
     t0 = aggregate () : {}
     ret integer<Int>(0x00000063)
-  fun @scoop$1$cb$d551a1e6e9b09a737fd7b720eb12183d8d37f9730e20b09341aa705bf104220a(ptr<managed>) -> i32
+  fun @scoop$1$cb$34999f9bf65f2b4e6ab22fbc0aa0cdba4337f29771f3db4319c680617078d6d9(ptr<managed>) -> i32
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
   block entry
@@ -78,7 +78,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn10(local1)
     t0 = aggregate () : {}
     ret integer<Int>(0x00000001)
-  fun @scoop$1$cb$0028429325dd3f9f17ac453d546ed9abdfc1cb761b07694a4fb2f526ede0e075(ptr<managed>) -> i32
+  fun @scoop$1$cb$6dffb175654a72377b1bfe7efc65c801fd0886b9b58cd4eb11dcc082d3318b6d(ptr<managed>) -> i32
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
     local %2 $new.1: ptr<managed>
@@ -94,7 +94,7 @@ Module
     t2 = aggregate () : {}
     throw local2
     unreachable
-  fun @scoop$1$cb$e14219d8491384d1870abd9b7be3791d75fcfcacbbfc0cbb210ba2b8602c1d28(ptr<managed>) -> i32
+  fun @scoop$1$cb$feb135fc7198adb7b6afe21c8a40aa4183d720cf26b7fc35068d6fc4ae782b9f(ptr<managed>) -> i32
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
   block entry
@@ -104,7 +104,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn10(local1)
     t0 = aggregate () : {}
     ret integer<Int>(0x00000003)
-  fun @scoop$1$cb$2dbc7ce12208f3d4d46bf6bbf533bbe2cb180b6de6a01dd10f50072df9b12b85() -> ptr<managed>
+  fun @scoop$1$cb$d65d14860f08b72944300be4b915df1d8367a55d56b4b2b8b9fa88452685f1d6() -> ptr<managed>
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
     local %2 $new.1: ptr<managed>
@@ -119,7 +119,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn13(local2)
     t2 = aggregate () : {}
     ret local2
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $binding.subject.0: ptr<managed>
     local %1 $receiver: ptr<managed>
     local %2 $binding.component.1: ptr<managed>
@@ -248,7 +248,7 @@ Module
     t20 = aggregate () : {}
     end_catch
     br @scope.12
-  fun @scoop$1$cb$0e2592cda2d841ffaeeb4ca9ee19ab89cff7a7c2584f848c9feaa95e67b36371(ptr<managed>) -> void
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -267,7 +267,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn3(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -286,19 +286,19 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn3(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$f42885a4a3b4d161d27082400fb8a97cdf2646c2fd7a7af4b7fbde594f2bc0a9(ptr<managed>) -> void
+  fun @scoop$1$cb$595286db934853889936b3d32facfdb0da9ccefb029e88bffe13f6b9f809a532(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$52ac1c74bad07961c0da6dcf55ee838dce2e8b410707dfacec48bb5d8cefc493(ptr<managed>) -> void
+  fun @scoop$1$cb$fa8e77f04e3df9af93dc58de5ffcaec69bf5ef1ac10db8cc78e1ab673185953c(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$a5a08ca9d42675ff7d691acb7c7831e90e43dac90b7aedc1a675792f36b40e7c(ptr<managed>) -> void
+  fun @scoop$1$cb$3642b31b7f3de74badc17b504458086e4e7b88d46e03b0ddde87191eec1d2de9(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn9() normal @success unwind @failure
@@ -323,4 +323,4 @@ Module
   layout Outer size=16 align=8 refs=[]
   layout Explosive value size=8 align=8 refs=[0]
   layout Explosive size=16 align=8 refs=[]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

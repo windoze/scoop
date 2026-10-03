@@ -39,6 +39,10 @@ impl BodyProjection<'_, '_> {
         origin: crate::DefinitionOrigin,
     ) -> Result<DefaultExpressionKindV1, super::super::DefaultBodyProjectionError> {
         Ok(match kind {
+            ExprKind::ReleaseFieldLoad(field) => DefaultExpressionKindV1::ReleaseFieldLoad {
+                owner_type: self.type_key(field.owner)?,
+                declaration: field.field,
+            },
             ExprKind::GenericDelegateStorageRead(reference) => {
                 DefaultExpressionKindV1::GenericDelegateStorageRead(
                     self.generic_delegate_reference(reference)?,

@@ -42,6 +42,9 @@ pub(super) fn validate(
         CallableTemplateOwner::VariantConstructor(id) => {
             return variant(foundation, id, identity, origin, context);
         }
+        CallableTemplateOwner::ReleaseHook(_) => {
+            return Err(failure(identity, Failure::LexicalParent));
+        }
     };
 
     if !matches!(context, SourceContextKey::Callable { owner, .. } if *owner == expected) {

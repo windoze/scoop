@@ -8,6 +8,7 @@ pub(super) fn generated_class(
     itables: Vec<mir::ItableRecord>,
 ) -> mir::ClassId {
     let class = lowerer.classes.alloc(mir::ClassDef {
+        release_policy: Default::default(),
         modifier: mir::ClassModifier::Final,
         name: name.clone(),
         type_arguments: Vec::new(),
@@ -20,6 +21,7 @@ pub(super) fn generated_class(
         itables,
     });
     let shell = lowerer.shell.classes.alloc(mir::ClassDef {
+        release_policy: Default::default(),
         modifier: mir::ClassModifier::Final,
         name,
         type_arguments: Vec::new(),
@@ -386,7 +388,7 @@ pub(super) fn callee_return_type(lowerer: &Lowerer, callee: mir::Callee) -> mir:
             let target = lowerer
                 .imported_dependency_callable_map
                 .values()
-                .find(|target| target.callable == external)
+                .find(|target| target.external() == Some(external))
                 .expect("a suspend external call retains its physical signature");
             return lowerer
                 .coroutines

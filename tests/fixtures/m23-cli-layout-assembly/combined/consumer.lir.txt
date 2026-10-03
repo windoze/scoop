@@ -1,6 +1,6 @@
 Module
   enum Choice tagged size=8 align=8 variants=()@8+0 (struct0)@8+0
-  fun @scoop$1$cb$3173750cdb0c21f275b35890960aecb05e93e19f1562ef5ebdff0797fd7a449c() -> i1
+  fun @scoop$1$cb$2d36298810f0e05e46d5965c42f8b7d6eef3cc87c1ddd5feb603821e882a19b3() -> i1
     local %0 $dependency.argument.0: struct0 <logical-zst 5e789fedce48b0497c6fc8bd7db5d5957e5852d35beac4d00cf7bb414d3c8c5a>
     local %1 $dependency.parameter._1: struct0 <logical-zst 5e789fedce48b0497c6fc8bd7db5d5957e5852d35beac4d00cf7bb414d3c8c5a>
     local %2 $dependency.argument.0: struct0 <logical-zst 5e789fedce48b0497c6fc8bd7db5d5957e5852d35beac4d00cf7bb414d3c8c5a>

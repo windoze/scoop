@@ -140,6 +140,7 @@ fn project(
                     }
                     bases.interfaces.sort_unstable();
                     Repr::Class {
+                        release_policy: representation::release_policy(class.release_policy, exact),
                         kind: match class.modifier {
                             mir::ClassModifier::Final => mir::MirClassKindV1::Final,
                             mir::ClassModifier::Open => mir::MirClassKindV1::Open,

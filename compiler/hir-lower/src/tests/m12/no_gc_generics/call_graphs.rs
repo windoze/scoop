@@ -71,7 +71,7 @@ fn generic_no_gc_records_and_propagates_gc_free_preconditions() {
     }
     let dump = hir::dump(&module);
     assert!(
-        dump.contains("fun identity<T>(value: T0): T0 <no-gc cdecl> <requires-gc-free T>"),
+        dump.contains("fun identity<T>(value: T0): T0 <no-gc cdecl> <no-transition> <requires-release-value T> <requires-gc-free T>"),
         "{dump}"
     );
     assert!(

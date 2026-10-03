@@ -10,6 +10,11 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     let ty = type_name(module, expr.ty);
     match &expr.kind {
+        ExprKind::ReleaseFieldLoad(field) => out.push_str(&format!(
+            "{pad}ReleaseFieldLoad {}.{} : {ty}\n",
+            type_name(module, field.owner),
+            field.field,
+        )),
         ExprKind::GenericDelegateStorageRead(reference) => out.push_str(&format!(
             "{pad}DelegateStorageRead {} : {ty}\n",
             generic_delegate_name(module, reference)

@@ -1,10 +1,10 @@
 Module
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
-  global @scoop$1$ss$4807eed572c38a9562fedb28b8892ae08139d70ff69b10553586f32e51689e5c : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$151eb3913d3324d4dd657317833edfb38451f92c4ff2264d0ae15d08c943699b : ptr<managed> scan=refs[0]
   extern ef0 first @m23_foo() -> i32 <c exact=()->Int bridge=@scoop$1$br$84a87c9651a77fa74009422b9ce037e30b92faffe5b4a1bf8b9257b7df95fcf9 gc-leaf nounwind lib=m23_a>
   extern ef1 second @m23_bar() -> i32 <c exact=()->Int bridge=@scoop$1$br$6cce03a8478aa7e91c4f9fc8842579c45686c501d28f30e2b1ceaf16619fb22f gc-leaf nounwind lib=m23_b>
   extern ef2 shared @m23_shared() -> i32 <c exact=()->Int bridge=@scoop$1$br$89f55669035001cc094781daaa31bdb0dad2d49c57d20aa21547f30e97c1a331 gc-leaf nounwind>
-  fun @scoop$1$cb$787097a5586fa53414472ebebd2c18d74812d93208216365debe473a783027e8() -> i32
+  fun @scoop$1$cb$051d819ec26c7afcb335e094a8ac226c6d376ea354d9ef26e14fead88dad7966() -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
   block entry
@@ -12,7 +12,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern0()
     store local1 -> local0
     ret local0
-  fun @scoop$1$cb$abe94dded97dec0941cc73bcac9df14b2af04bd54675bc6c21e5e704b171e169() -> i32
+  fun @scoop$1$cb$e62752b98c92304fe5f452c7a02e46888502c2cabedd6d1db85c810abb60a1ad() -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
   block entry
@@ -20,7 +20,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern1()
     store local1 -> local0
     ret local0
-  fun @scoop$1$cb$0ce380f9b87789d932dcad86140ac8f9a9ab91c40155c2d3c49a164e7159bb75() -> i32
+  fun @scoop$1$cb$3c4c3d04e5ecd2cbdf10f8e12ac01bee68ca377dea0a641562c572967f5521b7() -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
   block entry
@@ -28,7 +28,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local1 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none) extern2()
     store local1 -> local0
     ret local0
-  fun @scoop$1$cb$89002ef127ebce001334a43092eecb4150dfcd3915206c99e73b58fee9a6edb3() -> void
+  fun @scoop$1$cb$a0e340c1fc203f9c991c65cc34ecc82ba1d1a12f04d0325f13a4697e340a8b3d() -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 $dependency.argument.0: i32
@@ -48,7 +48,7 @@ Module
     call managed-void-target1 sp<managed-call:1> live=[] sig=void1 (i32) local-fn4(local3)
     t1 = aggregate () : {}
     ret
-  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -67,7 +67,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$819a3f83e4865292737dcd67364540cf8b40e6babd47bd3f9c022e6797e5c333() -> i32
+  fun @scoop$1$cb$a40ff03b75b8660b0477c15bec0711c871ed9e7ba34a69c859c7194dcfb1191b() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn3() normal @success unwind @failure
@@ -81,4 +81,4 @@ Module
     global_store global1, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$89002ef127ebce001334a43092eecb4150dfcd3915206c99e73b58fee9a6edb3
+  output executable @scoop$1$cb$a0e340c1fc203f9c991c65cc34ecc82ba1d1a12f04d0325f13a4697e340a8b3d

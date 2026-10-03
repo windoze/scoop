@@ -199,6 +199,9 @@ impl<'world, 'input> CrossConeHirProductionAuthority<'world, 'input> {
             CallableTemplateOwner::Accessor(id) => self.accessor_resolution(id, target),
             CallableTemplateOwner::VariantConstructor(id) => self.variant_resolution(id, target),
             CallableTemplateOwner::Generated(id) => self.generated_callable_resolution(id, target),
+            CallableTemplateOwner::ReleaseHook(_) => {
+                Err(CrossConeHirProductionAuthorityError::NoPublicBindingRoot { target })
+            }
         }
     }
 

@@ -1,0 +1,19 @@
+struct Phantom<T>(val code: Int) {}
+
+@NoGC fun <T> identity(value: T): T = value
+
+struct Native<T>(val value: T) {
+    @NoGC constructor(value: T, ignored: Boolean): this(identity(value)) {}
+}
+
+@NoGC fun <T, U> construct(value: T, ignored: Phantom<U>): Native<T> = Native(value, true)
+@NoGC fun <T> code(value: Phantom<T>): Int = value.code
+
+@Global var counter: Int = 5
+@NoGC @Unsafe fun readCounter(): Int = counter
+
+fun main() {
+    val phantom: Phantom<String> = Phantom(7)
+    val value = construct(30, phantom)
+    @Unsafe { println(value.value + code(phantom) + readCounter()) }
+}

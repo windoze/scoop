@@ -442,6 +442,9 @@ pub(in super::super) fn collect_expr_type_occurrences(
         ExprKind::InitializingClassFieldAccess { field, .. } => {
             push_type_at_expression(field.owner, expression, out);
         }
+        ExprKind::ReleaseFieldLoad(field) => {
+            push_type_at_expression(field.owner, expression, out);
+        }
         ExprKind::InitializingStructFieldAccess { owner, .. } => {
             push_type_at_expression(*owner, expression, out);
         }

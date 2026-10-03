@@ -10,6 +10,10 @@ use super::{
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum NominalInterfaceRecordBuildError {
+    ReleaseOwner,
+    ReleaseConditionBinder {
+        position: usize,
+    },
     NoGcKind(PublicNominalKindV1),
     PointeeConditionBinder {
         position: usize,
@@ -36,6 +40,13 @@ pub enum NominalInterfaceRecordBuildError {
 impl fmt::Display for NominalInterfaceRecordBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ReleaseOwner => {
+                formatter.write_str("release policy requires a final declared class")
+            }
+            Self::ReleaseConditionBinder { position } => write!(
+                formatter,
+                "release condition {position} must name an original nominal parameter in strictly increasing order"
+            ),
             Self::NoGcKind(kind) => write!(
                 formatter,
                 "{kind:?} cannot carry a NoGC value-type contract"

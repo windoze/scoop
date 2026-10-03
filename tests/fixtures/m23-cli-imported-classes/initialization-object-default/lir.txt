@@ -1,6 +1,6 @@
 Module
   imported_global @scoop$1$ss$8ebb43656dc726f72be087fa44815bb3ba6bb1c160c87965543c442fa9a0101b : ptr<managed> provider=c23abc776c4a14a818e646e381968285132367b1c1b82ec69ae67b8ef5c2718a scan=refs[0]
-  fun @scoop$1$cb$ebcb958793c4f811428ee77d129af48469bf26fbebc9ded9670e0769ee425c07() -> ptr<managed>
+  fun @scoop$1$cb$7065055bc1a71f6f86f29052aa15fcd167c0e7a0317577cab927f6e57f239bbd() -> ptr<managed>
     local %0 $dependency.parameter.value: ptr<managed>
     local %1 $call.1: ptr<managed>
     local %2 $call.2: ptr<managed>

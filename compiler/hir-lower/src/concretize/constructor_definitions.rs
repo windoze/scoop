@@ -82,7 +82,7 @@ impl<'a> Concretizer<'a> {
                 ConstructorBodyView {
                     parameters: &source.parameters,
                     kind,
-                    safety: constructor_safety(source.effects),
+                    safety: constructor_safety(&source.effects),
                     origin: source.origin,
                     span: source.origin.span,
                     evaluation_context: source.evaluation_context,
@@ -117,7 +117,7 @@ impl<'a> Concretizer<'a> {
                 ConstructorBodyView {
                     parameters: &source.parameters,
                     kind,
-                    safety: constructor_safety(source.effects),
+                    safety: constructor_safety(&source.effects),
                     origin: source.origin,
                     span: source.origin.span,
                     evaluation_context: source.evaluation_context,
@@ -145,7 +145,7 @@ impl<'a> Concretizer<'a> {
     }
 }
 
-fn constructor_safety(effects: export::CallableSourceEffectsV1) -> concrete::Safety {
+fn constructor_safety(effects: &export::CallableSourceEffectsV1) -> concrete::Safety {
     match effects.safety() {
         export::CallableSafetyV1::Safe => concrete::Safety::Safe,
         export::CallableSafetyV1::Unsafe => concrete::Safety::Unsafe,

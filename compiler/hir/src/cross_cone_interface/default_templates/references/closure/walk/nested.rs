@@ -352,7 +352,8 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
         let owner_type = match target {
             FieldTargetView::Field(DefaultFieldRefV1::Struct { owner_type, .. })
             | FieldTargetView::Field(DefaultFieldRefV1::Class { owner_type, .. })
-            | FieldTargetView::Struct { owner_type, .. } => Some(owner_type),
+            | FieldTargetView::Struct { owner_type, .. }
+            | FieldTargetView::Class { owner_type, .. } => Some(owner_type),
             FieldTargetView::Field(DefaultFieldRefV1::Tuple { .. }) => None,
         };
         if let Some(owner_type) = owner_type {

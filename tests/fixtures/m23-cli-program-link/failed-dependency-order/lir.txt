@@ -1,7 +1,7 @@
 Module
   global @scoop$1$io$c3559d122df9d4496f5ad898e0dfdef297034b68f0defd79b7ffaeaf05946fcc = "\n"
-  global @scoop$1$ss$7c5fe0a75929613e0d0a3b5c4526425ea06dbc7f1fde94c568b3d314fa611329 : ptr<managed> scan=refs[0]
-  fun @scoop$1$cb$260e866f43e1e22976000d96f1b6e6851c841d885d9988741fcad0ff9ac99e52(i64) -> void
+  global @scoop$1$ss$c1c4a586b610f614e650b4896ef3efd0e3369cc67e8cd86004d72051da33782a : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$cca3316d561945d1bc6f6689bf4002525aa962cadeaf1478e6d8426172e78467(i64) -> void
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.value: i64
   block entry
@@ -11,7 +11,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i64) local-fn2(local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$bf5ce4fc3895eb2b327f47bf70f70a593b452673e083953a681768fb10463b63() -> void
+  fun @scoop$1$cb$cab30ef211016794a16a36102e845feaf8102b1954b79841d9db089b91214d66() -> void
     local %0 $argument.0: i64
     local %1 $parameter.value: i64
   block entry
@@ -21,7 +21,7 @@ Module
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 (i64) local-fn0(local1)
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$e3dee8692dba99840c387a9f0b05d270224e011fb3f459ec95efc104332ad383(i64) -> void
+  fun @scoop$1$cb$8648ec25e6c21462d01c0f426d8f28e404131ecf913864474bfc5c19d1c94a73(i64) -> void
     local %0 $dependency.local.1: i64
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -40,7 +40,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$09f46dabea2ea68beda7b36dfbb7b44bc59df469c387928f7aa0fbb6f4e5b95c() -> i32
+  fun @scoop$1$cb$675cde27ea06ee2dc41974dfab3021e180a146d7b29b442d4727eabe15997a1a() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -54,4 +54,4 @@ Module
     global_store global1, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$bf5ce4fc3895eb2b327f47bf70f70a593b452673e083953a681768fb10463b63
+  output executable @scoop$1$cb$cab30ef211016794a16a36102e845feaf8102b1954b79841d9db089b91214d66

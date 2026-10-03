@@ -6,58 +6,58 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<Token> tagged size=8 align=8 variants=(struct0)@8+0 ()@8+0
   enum CoroutineSlot<Token> tagged size=8 align=8 variants=()@8+0 (struct0)@8+0
-  fun @scoop$1$cb$b6e9ad08d3fbca7cd32a9a99de8e27d62dbbacc333efc1913ed742a740d5f9c0(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
+  fun @scoop$1$cb$af2162e292d45d89d163e135a6228ab0e972284911e6a8312250fbfa8938f560(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true
-  fun @scoop$1$cb$fb632e2489b1c7cc73cfa3671eddb0d6350602cfc65c26103c264d9cd8f42c23(elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1>
+  fun @scoop$1$cb$87b3ac522cc450cb08778ff911b83043765685086648ec4a3b0282c5af9443de(elided-zst<struct0 size=0 align=1>) -> elided-zst<struct0 size=0 align=1>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$f61d883e58b27e9039f4d90cb72c914d79498b6f7fab59933efd7b732175e417(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
+  fun @scoop$1$cb$f31d6e64cf2308b9b25a4626ecfe2245efc0e19b356f272503dfceefcde57506(elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1
     local %0 $call.1: i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (elided-zst<struct0 size=0 align=1>, elided-zst<struct0 size=0 align=1>) -> i1 local-fn0(elided-zst param0, elided-zst param1)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$d91c83aacca2fb3a4cf8906a639fde7e1024075d9286a331742b942f4bde535f() -> i1
+  fun @scoop$1$cb$d8dbe766b01cbe972c3c919279b441ae005ceb5655d7582e171c1179d6d06865() -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret true
-  fun @scoop$1$cb$b8da0e09f0896027b657863fa19b3012cb73cb978b9deb6c84aa3400a1289f9b(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void
+  fun @scoop$1$cb$83437119e27997589ab534b25dd2ba759f2d53a7aa0996c94c2911e452719d20(ptr<managed>, elided-zst<struct0 size=0 align=1>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$818e4f4addeebf5178ad4d4d8c6bada85670e6ce99d38e5534a0c34606b0be32(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$9aafe9953cfacd3a3d98cdd1f5ee0910778cc998a03bfd2e68d7f478ebf4e0af(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global1)
     unreachable
-  fun @scoop$1$cb$1eb47e21d0441a1e5c410195864385d2246a286618aa406b68ff3f7bda73ae4b(ptr<managed>, ptr<managed>) -> sret<enum1 size=8 align=8 scan=none>
+  fun @scoop$1$cb$9193d773fbb9ac725f95e3132f3f97d0d30393d69035c371fac4b4cb6a4e71ce(ptr<managed>, ptr<managed>) -> sret<enum1 size=8 align=8 scan=none>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global2)
     unreachable
-  fun @scoop$1$cb$8339ca0b566d14ccf4aa50be40a23be24c63b0878401a5268a71aa349f1149b3(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$9992499afdc3207f6a0808310531acb1e42ed65112213611e673e73015dc8e4d(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global3)
     unreachable
-  fun @scoop$1$cb$fc81ee1d4bb6fbd3214cf15e237cedb0c75aab25366a11d00daa5ee765c6ddc5() -> elided-zst<struct0 size=0 align=1> <no-gc>
+  fun @scoop$1$cb$5c307e0990669dda0e29155aa8de11361ff8c967a6ba8d88be11f89bdfc5b95a() -> elided-zst<struct0 size=0 align=1> <no-gc>
   block entry
     t0 = aggregate () : struct0
     ret t0
-  fun @scoop$1$cb$1b751fb6d7ccaee7e89f03b609aa07ecae452881619e43493e06678fef7714bc(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$6f80bf1ada5bb0aa97f374a616db7cad029d5e3cc3da2d2444dc97770bb688ff(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record

@@ -1,10 +1,10 @@
 Module
   enum DeferredEnum niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$7605f68646bdf5c3f60362a44f16469263da3748995956cda9276b19f89ff845(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$002fd47fb6bc72d3292e67fb0d23defcceb45a1b87cd560ccbf2222520766027(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$cb$1ed391bed70b9c52633017fe0c3d05e1c4b89d433a576f415d4b1625d4e75bcd(enum0) -> enum0
+  fun @scoop$1$cb$debb2fb2924e7d84b8520dbbd760a7174ffe134c405f3daba8004d93a6df3a98(enum0) -> enum0
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:enum0@0]
     ret param0

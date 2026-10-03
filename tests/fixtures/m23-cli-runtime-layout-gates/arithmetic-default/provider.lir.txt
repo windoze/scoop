@@ -1,10 +1,10 @@
 Module
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$eae915ae1da84873eaca007db72f549e41bd715c4de0be9db6373dc0e0f673a7(i64) -> i64
+  fun @scoop$1$cb$03fcc41b8a47f03990f628e54cb82f547c15518c1b0d64489acad731d0bd72f6(i64) -> i64
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$5e5ca90ac70e307dd327b8fde75d4852cfd4e18613eb6259a2d0ab2f94028ad3() -> i64
+  fun @scoop$1$cb$cd5f0de4a4fb7e664673283bc7f8f5646238841c4025a80523dc840ca5c371c8() -> i64
     local %0 $dependency.receiver: i64
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.other: i64

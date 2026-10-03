@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$14a6798867f9da9e948a4e1d8f65b0dfead58f1fd0a7800e7d47a6204e68b57d = "illegal state"
-  global @scoop$1$ss$d0c720cca07a2c94abe418897c7da541ccd27713549deae1566b94da9c4c13f2 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$e290b68b433592d2b13879dc7913fcfa34fb039211b6fe1cc2c99cfadde29b8c : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$3acd13217b901eb29055cc4a7df1d788280ed366b1dadab6ef754932406f515f() -> void
+  fun @scoop$1$cb$86f58405a5085095043f8c0898ef75659ce3b78534510640fba5e77d57fd4d90() -> void
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -35,7 +35,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$800a9d068086a9d114fa191e6e6dc9e61631d70d76fb94dbd74444ad4d7cf447() -> i32
+  fun @scoop$1$cb$188235217ae19258678ffb8502c45f3b3bbd3df0e937aa4433a696afddac878f() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
@@ -51,4 +51,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$3acd13217b901eb29055cc4a7df1d788280ed366b1dadab6ef754932406f515f
+  output executable @scoop$1$cb$86f58405a5085095043f8c0898ef75659ce3b78534510640fba5e77d57fd4d90

@@ -19,6 +19,7 @@ pub enum DecodedMirTypeRepresentationV1 {
     Class {
         kind: MirClassKindV1,
         declared_fields: Vec<DecodedMirRepresentationFieldV1>,
+        release_policy: MirClassReleasePolicyV1<DecodedPersistentId<PersistentExactTypeId>>,
     },
     Interface,
     InlineArray {
@@ -62,9 +63,18 @@ impl DecodedMirTypeRepresentationV1 {
             Self::Class {
                 kind,
                 declared_fields,
+                release_policy,
             } => MirTypeRepresentationV1::Class {
                 kind,
                 declared_fields: resolve_fields(declared_fields, graph)?,
+                release_policy: match release_policy {
+                    MirClassReleasePolicyV1::None => MirClassReleasePolicyV1::None,
+                    MirClassReleasePolicyV1::SynchronousGcFree { owner } => {
+                        MirClassReleasePolicyV1::SynchronousGcFree {
+                            owner: graph.resolve(owner)?,
+                        }
+                    }
+                },
             },
             Self::Interface => MirTypeRepresentationV1::Interface,
             Self::InlineArray { element } => MirTypeRepresentationV1::InlineArray {
@@ -134,12 +144,15 @@ macro_rules! encode_representation {
                     Self::Class {
                         kind,
                         declared_fields,
+                        release_policy,
                     } => {
-                        tag(encoder, 3, 4)?;
+                        tag(encoder, 4, 4)?;
                         encoder.field(1)?;
                         kind.encode(encoder)?;
                         encoder.field(2)?;
-                        sequence(encoder, declared_fields)
+                        sequence(encoder, declared_fields)?;
+                        encoder.field(3)?;
+                        release_policy.encode(encoder)
                     }
                     Self::Interface => tag(encoder, 1, 5),
                     Self::InlineArray { element } => {
@@ -188,8 +201,7 @@ impl WireDecode for DecodedMirTypeRepresentationV1 {
             decoder,
             count,
             match kind {
-                2 => 4,
-                4 => 3,
+                2 | 4 => 4,
                 5 => 1,
                 _ => 2,
             },
@@ -209,6 +221,7 @@ impl WireDecode for DecodedMirTypeRepresentationV1 {
             4 => Ok(Self::Class {
                 kind: decoder.field(1, MirClassKindV1::decode)?,
                 declared_fields: decoder.field(2, decode_fields)?,
+                release_policy: decoder.field(3, MirClassReleasePolicyV1::decode)?,
             }),
             5 => Ok(Self::Interface),
             6 => Ok(Self::ObjectBacking {

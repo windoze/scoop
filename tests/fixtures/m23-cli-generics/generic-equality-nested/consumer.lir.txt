@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$3a59a7ad73f075021fd3ca4a0b778d61366cf0175e18c22708b3a0fad72d6598() -> i32
+  fun @scoop$1$cb$2d8f11657602b330b44b6ac461bc487d05612c815e6987dd89d7744ef5f4cd31() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -10,7 +10,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$9c9bc065358b3313139f169ac15d3872edd0bf1483ed0fce07875648eba08b3f(i32) -> i32
+  fun @scoop$1$cb$4a3cc674bbd07af6fc02a5f82ff456e5f376339283e9cd7599aafdd4d18520f2(i32) -> i32
     local %0 $argument.0: i32
     local %1 $argument.1: i32
     local %2 $parameter.payload: i32
@@ -256,7 +256,7 @@ Module
     ret integer<Int>(0x00000004)
   block if.merge.11
     ret integer<Int>(0x0000002a)
-  fun @scoop$1$cb$54712da30a395e3a61f16a21f6c39b6f9589760ed43a11b8358142fc8631f3bf(indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> i1
+  fun @scoop$1$cb$7b675117194e18e2293143b672bec3837ada43d08c84e98667c3fc39b6d9c492(indirect<struct0 size=8 align=4 scan=none>, indirect<struct0 size=8 align=4 scan=none>) -> i1
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -269,7 +269,7 @@ Module
     store local1 -> local2
     t2 = integer_compare_Equal<Int> local0, local2 : i1
     ret t2
-  fun @scoop$1$cb$12521fbdbd3e45e73691cf9c926f82d33fd623a2f0448a5461791302e2e1f4de(indirect<struct2 size=16 align=4 scan=none>, indirect<struct2 size=16 align=4 scan=none>) -> i1
+  fun @scoop$1$cb$a8aff29328c61b47317026e72116d5b39aeb522e1949e944924872022791fb61(indirect<struct2 size=16 align=4 scan=none>, indirect<struct2 size=16 align=4 scan=none>) -> i1
     local %0 $call.1: i1
     local %1 $sc.1: struct2
     local %2 $sc.2: struct2
@@ -280,7 +280,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (indirect<struct2 size=16 align=4 scan=none>, indirect<struct2 size=16 align=4 scan=none>) -> i1 local-fn5(indirect local1, indirect local2)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$3efef62d6b5473bbdc3a1a4b32b45afd8d61e3106886694eea5e164fc7e9f0c8(indirect<struct1 size=12 align=4 scan=none>, indirect<struct1 size=12 align=4 scan=none>) -> i1
+  fun @scoop$1$cb$01f8d4f03e034856ebbc8c6ce8490e2f94e0693a6b52b095577d8ac89ccd4f87(indirect<struct1 size=12 align=4 scan=none>, indirect<struct1 size=12 align=4 scan=none>) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
     local %2 $sc.1: struct0
@@ -305,7 +305,7 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop$1$cb$580f90074993f892ce4c24650d470f3eb8c018eea86f5ef607d8ec31b2d84a56(indirect<struct2 size=16 align=4 scan=none>, indirect<struct2 size=16 align=4 scan=none>) -> i1
+  fun @scoop$1$cb$594f295ae7755568878639b28f7b6d8e657cf23d37a18a7966c869374b884164(indirect<struct2 size=16 align=4 scan=none>, indirect<struct2 size=16 align=4 scan=none>) -> i1
     local %0 $call.1: i1
     local %1 $logic.2: i1
     local %2 $sc.1: struct1
@@ -330,15 +330,15 @@ Module
     br @logic.merge.3
   block logic.merge.3
     ret local1
-  fun @scoop$1$cb$ad93a0d680bf68a5b1cba87c9d40522b085b37c3741355533c9d514bfe19d2b3(i32, i32) -> sret<struct0 size=8 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$6e6c41d3a5dbdabd7314c4b2cf49db8c3c46921079b5426c6bbeaba78c6d15fb(i32, i32) -> sret<struct0 size=8 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct0
     ret t0
-  fun @scoop$1$cb$33c6cc24261fae280260c38f9332ab3fc36a046170b9f9f9d375e343e4d0beb8(indirect<struct0 size=8 align=4 scan=none>, i32) -> sret<struct1 size=12 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$6f61a19f27ed15822a819e9dd76eb6415d84c7d5d9d8c94454baf2fd2b01313d(indirect<struct0 size=8 align=4 scan=none>, i32) -> sret<struct1 size=12 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct1
     ret t0
-  fun @scoop$1$cb$9d385f4c61d7403150636a4617418d5fcb9b18c63334ee293159e9cfbe40bbf0(indirect<struct1 size=12 align=4 scan=none>, i32) -> sret<struct2 size=16 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$00b42ccceaba3e53619fd3f94dd0562ca885fa468b86471cb575a4008ea805dc(indirect<struct1 size=12 align=4 scan=none>, i32) -> sret<struct2 size=16 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0, param1) : struct2
     ret t0

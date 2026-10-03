@@ -211,6 +211,12 @@ where
             DefaultExpressionKindV1::ForeignCallbackOperation { callback, .. } => {
                 self.push_child(pending, BodyNode::Expression(callback))
             }
+            DefaultExpressionKindV1::ReleaseFieldLoad { owner_type, .. } => self.push_type(
+                pending,
+                owner_type,
+                DefaultBodyProviderTypeSiteV1::FieldOwner,
+                definition_origin,
+            ),
             DefaultExpressionKindV1::FieldAccess { receiver, field } => {
                 self.push_child(
                     pending,

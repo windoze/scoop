@@ -1,0 +1,665 @@
+Module
+  global0 saved: Option<Owner> managed initial=encoded(Option<Owner>::v1)
+  extern ef0 record @m24_release_owner(Int) -> Unit <abi=c no-gc lib=m24_release>
+  extern ef1 count @m24_release_owner_count(Int) -> Int <abi=c no-gc lib=m24_release>
+  struct GcHandle<Owner> (raw: ULong) <c-abi uint64-field>
+  struct PinnedPtr<Owner> (raw: ULong) <c-abi uint64-field>
+  enum Option<Owner>
+    Some(_0: Owner)
+    None()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Owner>
+    Completed(value: Owner)
+    Suspended()
+  enum CoroutineSlot<Owner>
+    Empty()
+    Value(value: Owner)
+  class Owner vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Continuation<Owner>
+  interface SuspendTask<Owner>
+  interface SuspendRegistration<Owner>
+  generated_exact_type get0 location=enum3 nominal_id=636fb7b02ab0275c4f11bd2dd6cf18c53505fe3d83094f3bdb3e8d2455d8f669 exact_id=0f7db6bbfa06da84263b91d751f0015753a48f7fbf4b229e62a7e372d514968f
+  generated_exact_type get1 location=enum2 nominal_id=e3fcc6339f446990622ab420241a08888c5ebcbaeca827671a60fe5cb9c59678 exact_id=24c1fec57c132b1a8a4f97021173fa4c8f83be79e73a1f80f31751cd1b3e00a8
+  generated_callable gc0 function=@fn25 id=0ac891f884b78581df36b3d6345879a16e60dff9fe812077024eddd4b09a1886
+  fun record @fn0(arg0: Int) -> Unit
+    bb0 entry
+      call extern0 @m24_release_owner direct
+        Type Int
+        Local arg0
+      return
+  fun count @fn1(arg0: Int) -> Int
+    bb0 entry
+      call $call.1: Int = extern1 @m24_release_owner_count direct
+        Type Int
+        Local arg0
+      return
+        Type Int
+        Local $call.1
+  fun retained @fn2(id: Int) -> Unit
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      call @scoop_rt_gc_collect direct
+      val $argument.0: Int
+        Type Int
+        Local id
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Int = extern1 @m24_release_owner_count direct
+        Type Int
+        Local $parameter.id
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn13 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun reclaimed @fn3(id: Int) -> Unit
+    bb0 entry
+      call @scoop_rt_gc_collect direct
+      call @scoop_rt_gc_collect direct
+      val $argument.0: Int
+        Type Int
+        Local id
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call $dependency.receiver: Int = extern1 @m24_release_owner_count direct
+        Type Int
+        Local $parameter.id
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn13 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun stackRoot @fn4() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.code: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn22 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        Local $parameter.code
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val owner: Owner
+        Type Owner
+        Local $new.1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call @fn2 direct
+        Type Int
+        Local $parameter.id
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Owner
+          Local owner
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn13 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun globalRoot @fn5() -> Unit
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.code: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn22 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        Local $parameter.code
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val $dependency.argument.0: Owner
+        Type Owner
+        Local $new.1
+      val $dependency.parameter._1: Owner
+        Type Owner
+        Local $dependency.argument.0
+      call @fn12 direct
+        Type Option<Owner>
+        VariantConstruct Option<Owner> v0
+          Type Owner
+          Local $dependency.parameter._1
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call @fn2 direct
+        Type Int
+        Local $parameter.id
+      call $opt.1: Option<Owner> = @fn11 direct
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Owner> v0
+          Type Option<Owner>
+          Local $opt.1
+    bb1 if.then.1
+      val $uw.2: Owner
+        Type Owner
+        VariantPayloadProject Option<Owner> v0 f0
+          Type Option<Owner>
+          Local $opt.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.2
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external2 direct
+        Type UnwrapException
+        Local $new.2
+      throw
+        Type UnwrapException
+        Local $new.2
+    bb3 if.merge.3
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Owner
+          Local $uw.2
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn13 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      call @fn12 direct
+        Type Option<Owner>
+        VariantConstruct Option<Owner> v1
+      return
+  fun makeHandle @fn6() -> GcHandle<Owner>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.code: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn22 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        Local $parameter.code
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val $dependency.argument.0: Owner
+        Type Owner
+        Local $new.1
+      val $dependency.parameter.v: Owner
+        Type Owner
+        Local $dependency.argument.0
+      call $call.2: GcHandle<Owner> = @fn14 direct
+        Type Owner
+        Local $dependency.parameter.v
+      return
+        Type GcHandle<Owner>
+        Local $call.2
+  fun makePin @fn7() -> PinnedPtr<Owner>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.code: Int
+        Type Int
+        Local $argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call @fn22 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        Local $parameter.code
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      val $dependency.argument.0: Owner
+        Type Owner
+        Local $new.1
+      val $dependency.parameter.v: Owner
+        Type Owner
+        Local $dependency.argument.0
+      call $call.2: PinnedPtr<Owner> = @fn15 direct
+        Type Owner
+        Local $dependency.parameter.v
+      return
+        Type PinnedPtr<Owner>
+        Local $call.2
+  fun handleRoot @fn8() -> Unit
+    bb0 entry
+      call handle: GcHandle<Owner> = @fn6 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call @fn2 direct
+        Type Int
+        Local $parameter.id
+      val $dependency.argument.0: GcHandle<Owner>
+        Type GcHandle<Owner>
+        Local handle
+      val $dependency.parameter.h: GcHandle<Owner>
+        Type GcHandle<Owner>
+        Local $dependency.argument.0
+      call owner: Owner = @fn16 direct
+        Type GcHandle<Owner>
+        Local $dependency.parameter.h
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Owner
+          Local owner
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn13 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun pinRoot @fn9() -> Unit
+    bb0 entry
+      call handle: PinnedPtr<Owner> = @fn7 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call @fn2 direct
+        Type Int
+        Local $parameter.id
+      val $dependency.argument.0: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local handle
+      val $dependency.parameter.p: PinnedPtr<Owner>
+        Type PinnedPtr<Owner>
+        Local $dependency.argument.0
+      call owner: Owner = @fn17 direct
+        Type PinnedPtr<Owner>
+        Local $dependency.parameter.p
+      val $dependency.receiver: Int
+        Type Int
+        FieldAccess 0
+          Type Owner
+          Local owner
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn13 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun main @fn10() -> Unit
+    bb0 entry
+      call @fn4 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call @fn3 direct
+        Type Int
+        Local $parameter.id
+      call @fn5 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=2 bits=0x00000002
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call @fn3 direct
+        Type Int
+        Local $parameter.id
+      call @fn8 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=3 bits=0x00000003
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call @fn3 direct
+        Type Int
+        Local $parameter.id
+      call @fn9 direct
+      val $argument.0: Int
+        Type Int
+        IntegerLiteral Int value=4 bits=0x00000004
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call @fn3 direct
+        Type Int
+        Local $parameter.id
+      return
+  fun $get$saved @fn11() -> Option<Owner>
+    bb0 entry
+      return
+        Type Option<Owner>
+        GlobalRead saved
+  fun $set$saved @fn12(value: Option<Owner>) -> Unit
+    bb0 entry
+      global_assign saved
+        Type Option<Owner>
+        Local value
+      return
+  fun println @fn13(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external1 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external1 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun getGcHandle @fn14(v: Owner) -> GcHandle<Owner>
+    bb0 entry
+      val $dependency.local.1: Owner
+        Type Owner
+        Local v
+      val $dependency.local.2: Owner
+        Type Owner
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_get_handle direct
+        Type Owner
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      call $call.1: GcHandle<Owner> = @fn23 direct
+        Type ULong
+        Local $dependency.local.4
+      return
+        Type GcHandle<Owner>
+        Local $call.1
+  fun pin @fn15(v: Owner) -> PinnedPtr<Owner>
+    bb0 entry
+      val $dependency.local.1: Owner
+        Type Owner
+        Local v
+      val $dependency.local.2: Owner
+        Type Owner
+        Local $dependency.local.1
+      call $dependency.local.3: ULong = @scoop_rt_pin direct
+        Type Owner
+        Local $dependency.local.2
+      val $dependency.local.4: ULong
+        Type ULong
+        Local $dependency.local.3
+      call $call.1: PinnedPtr<Owner> = @fn24 direct
+        Type ULong
+        Local $dependency.local.4
+      return
+        Type PinnedPtr<Owner>
+        Local $call.1
+  fun releaseGcHandle @fn16(h: GcHandle<Owner>) -> Owner
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type GcHandle<Owner>
+          Local h
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: Owner = @scoop_rt_release_handle direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type Owner
+        Local $call.1
+  fun unpin @fn17(p: PinnedPtr<Owner>) -> Owner
+    bb0 entry
+      val $dependency.local.1: ULong
+        Type ULong
+        FieldAccess 0
+          Type PinnedPtr<Owner>
+          Local p
+      val $dependency.local.2: ULong
+        Type ULong
+        Local $dependency.local.1
+      call $call.1: Owner = @scoop_rt_unpin direct
+        Type ULong
+        Local $dependency.local.2
+      return
+        Type Owner
+        Local $call.1
+  fun Continuation.resume @fn18(this: Continuation<Owner>, value: Owner) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn19(this: Continuation<Owner>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn20(this: SuspendTask<Owner>, $completion: Continuation<Owner>) -> CoroutineStep<Owner>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn21(this: SuspendRegistration<Owner>, continuation: Continuation<Owner>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Owner.$c0 @fn22(this: Owner, code: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner
+        Local this
+        Type Int
+        Local code
+      return
+  fun ctor.GcHandle.$c0 @fn23(raw: ULong) -> GcHandle<Owner> <no-gc>
+    bb0 entry
+      return
+        Type GcHandle<Owner>
+        StructInit GcHandle<Owner>
+          Type ULong
+          Local raw
+  fun ctor.PinnedPtr.$c1 @fn24(raw: ULong) -> PinnedPtr<Owner> <no-gc>
+    bb0 entry
+      return
+        Type PinnedPtr<Owner>
+        StructInit PinnedPtr<Owner>
+          Type ULong
+          Local raw
+  fun startCoroutine<Owner> @fn25(task: SuspendTask<Owner>, completion: Continuation<Owner>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn18 interface Continuation<Owner>[0]
+        Type Continuation<Owner>
+        Local completion
+        Type Owner
+        EnumField v0 f0
+          Type CoroutineStep<Owner>
+          Local $step
+      return
+    bb2 failed
+      call @fn19 interface Continuation<Owner>[1]
+        Type Continuation<Owner>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Owner> = @fn20 interface SuspendTask<Owner>[0]
+        Type SuspendTask<Owner>
+        Local task
+        Type Continuation<Owner>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Owner>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val $argument.0: Int
+        Type Int
+        ReleaseFieldLoad Owner.field0
+      val $parameter.id: Int
+        Type Int
+        Local $argument.0
+      call extern0 @m24_release_owner direct
+        Type Int
+        Local $parameter.id
+      return
+  coroutine_step cs0 CoroutineStep<Owner> result=Owner
+  coroutine_slot cl0 CoroutineSlot<Owner> value=Owner
+  coroutine_start ct0 result=Owner function=fn25
+  coroutine_fn cf0 @fn20 source_return=Owner step=cs0 immediate
+  instance mi0 function=@fn13 <- println
+  instance mi1 function=@fn14 <- getGcHandle
+  instance mi2 function=@fn15 <- pin
+  instance mi3 function=@fn16 <- releaseGcHandle
+  instance mi4 function=@fn17 <- unpin
+  instance mi5 function=@fn18 <- Continuation.resume
+  instance mi6 function=@fn19 <- Continuation.resumeWithException
+  instance mi7 function=@fn20 <- SuspendTask.run
+  instance mi8 function=@fn21 <- SuspendRegistration.register
+  str @str0 "\n"
+  output executable @fn10

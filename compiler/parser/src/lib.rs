@@ -49,6 +49,8 @@ mod tests_m23_header_contract;
 #[cfg(test)]
 mod tests_m23_headers;
 #[cfg(test)]
+mod tests_m24;
+#[cfg(test)]
 mod tests_m3;
 #[cfg(test)]
 mod tests_m4;

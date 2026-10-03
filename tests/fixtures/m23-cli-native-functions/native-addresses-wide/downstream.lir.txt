@@ -1,7 +1,7 @@
 Module
   c-struct struct0 Wide fields=[Long@0/8,Long@8/8,Long@16/8]
-  callback cb0 Function(PersistentFunctionId([127, 117, 232, 80, 17, 55, 228, 212, 123, 217, 74, 84, 149, 32, 91, 182, 3, 93, 90, 202, 57, 97, 129, 42, 29, 161, 113, 37, 180, 80, 238, 181])) @scoop$1$cb$6568eaab6ead0c7a8c18291950ad237aa1ec0aa888331e2a82fec1c2999d6a26 -> @scoop$1$br$979ec4f5de880d6acbbbf0eab9b942dfa701210ccf737ec305a5c98636378692 c=(c-struct0)->c-struct0
-  fun @scoop$1$cb$c46990854319791d375578af239fec7d5de1fad2223599868f760140b6770df0() -> i64
+  callback cb0 Function(PersistentFunctionId([127, 117, 232, 80, 17, 55, 228, 212, 123, 217, 74, 84, 149, 32, 91, 182, 3, 93, 90, 202, 57, 97, 129, 42, 29, 161, 113, 37, 180, 80, 238, 181])) @scoop$1$cb$9fbbf7e6bd0f68223133c7f0eac1fbab710c064e9466d0a44610fdfb733fee55 -> @scoop$1$br$979ec4f5de880d6acbbbf0eab9b942dfa701210ccf737ec305a5c98636378692 c=(c-struct0)->c-struct0
+  fun @scoop$1$cb$e2d14daa30d2ec7a41c5fa2d96fd2f7b081696113f1818d57ddfe969eb4ff08a() -> i64
     local %0 $argument.0: i64
     local %1 $parameter.number: i64
     local %2 value: ptr<managed>
@@ -41,7 +41,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local8
-  fun @scoop$1$cb$dcbb9343a88b8acf968bc6bebd31d30a8bd3ea9a8f65b1d9402c8eb266600d43(ptr<managed>) -> i64
+  fun @scoop$1$cb$c72bed1269f7eb77e28e1499bf34751dc0e1a8439bfcef9598fa0cffb1d19d52(ptr<managed>) -> i64
     local %0 $dependency.local.1: ptr<code>
     local %1 $dependency.local.2: ptr<code>
     local %2 $dependency.local.3: ptr<code>
@@ -55,7 +55,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<code>) -> i64 external-fn2(local2)
     store t1 -> local3
     ret local3
-  fun @scoop$1$cb$eccd7c737fbe818e967a5bd4eafc27c3c5ceb3a198f57a4ae59bdec4dbff5cf7(ptr<managed>, i64) -> void
+  fun @scoop$1$cb$89c64bd219086c994c0a2b7e2617299f735fc1eb4a55cad9bb0e57e37da3174c(ptr<managed>, i64) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

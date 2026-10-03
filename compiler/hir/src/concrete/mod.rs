@@ -68,6 +68,9 @@ pub use functions::*;
 
 mod body;
 pub use body::*;
+mod release;
+pub use super::ReleasePolicy;
+pub use release::*;
 
 mod executable_expressions;
 pub use executable_expressions::*;

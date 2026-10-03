@@ -1,0 +1,102 @@
+SourceFile
+  RootPackage
+    @Extern(lib = "m24_release", name = "m24_release_add")
+  private fun record(value: Int)
+    @Extern(lib = "m24_release", name = "m24_release_count")
+  private fun count(): Int
+  struct Parts
+    field first: Int
+    field second: Int
+    operator fun plus
+    operator fun get
+    @NoGC
+  private fun even(value: Int): Int
+    if
+      Binary Eq
+        Var value
+        IntLiteral 0
+      return
+        IntLiteral 0
+    return
+      Call odd
+        Binary Sub
+          Var value
+          IntLiteral 1
+    @NoGC
+  private fun odd(value: Int): Int
+    =
+      Call even
+        Var value
+    @NoGC
+  private fun Parts.extra(): Int
+    =
+      Index
+        This
+        IntLiteral 0
+  struct Node
+    field next: Option<Ptr<Node>>
+    field value: Int
+  class RecursiveOwner(val node: Node)
+    release
+      val copied
+        Var node
+  class Owner(val parts: Parts)
+    release
+      val combined
+        Binary Add
+          Var parts
+          Call Parts
+            IntLiteral 1
+            IntLiteral 2
+      val (first, second)
+        Var combined
+      var total
+        Binary Add
+          Binary Add
+            Binary Add
+              Var first
+              Var second
+            MethodCall extra
+              Var combined
+          Call even
+            IntLiteral 3
+      var remaining
+        IntLiteral 3
+      @Unsafe block
+        val pointer
+          Call addressOf
+            Var remaining
+        while
+          Binary Gt
+            MethodCall load
+              Var pointer
+            IntLiteral 0
+          compound-assign Add
+            MethodCall load
+              Var pointer
+          MethodCall store
+            Var pointer
+            Binary Sub
+              MethodCall load
+                Var pointer
+              IntLiteral 1
+        Call record
+          Var total
+  private fun allocate()
+    val owner
+      Call Owner
+        Call Parts
+          IntLiteral 10
+          IntLiteral 20
+    val recursive
+      Call RecursiveOwner
+        Call Node
+          Var None
+          IntLiteral 1
+  fun main()
+    Call allocate
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Call count

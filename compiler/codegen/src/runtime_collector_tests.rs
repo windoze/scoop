@@ -128,6 +128,22 @@ fn fake_platform_drives_the_real_moving_collector() {
 }
 
 #[test]
+fn release_hooks_run_once_before_dead_storage_is_retired() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "release_collector_test",
+        "runtime/tests/release_collector_test.c",
+        false,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"release collector lifecycle tests passed\n");
+}
+
+#[test]
 fn moving_collector_updates_all_thread_protocol_roots() {
     let workspace = workspace_root();
     let output = compile_and_run(

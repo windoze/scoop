@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$86bc954a00a417e032c5f133cc99fcc171ea946362635c5d7ad35d61620ea590() -> i32
+  fun @scoop$1$cb$4a6d260170ccf8cb0611affc78572d826c19d53e22b0324b984de2046c2460e1() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.argument.1: i32
     local %2 $dependency.parameter.value: i32
@@ -14,7 +14,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32, i32) -> i32 local-fn1(local2, local3)
     store t0 -> local4
     ret local4
-  fun @scoop$1$cb$861d9a949d1ef95f532f6c6b53e9335fc8c328c9b4dd3c7bc742f519716cc277(i32, i32) -> i32
+  fun @scoop$1$cb$e61e955c7a7a9f3587d29d14622691d1d6e902828eb0fc77d7c1c9eb952cb304(i32, i32) -> i32
     local %0 $dependency.local.2: i32
     local %1 $dependency.local.3: i32
     local %2 $dependency.local.4: i32

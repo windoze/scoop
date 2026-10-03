@@ -250,6 +250,8 @@ impl ImportedDependencyCallableRef {
 /// Complete HIR input for one selected dependency callable.
 #[derive(Clone, Debug)]
 pub struct SelectedImportedDependencyCallable {
+    pub(super) native_contract:
+        Option<std::sync::Arc<scoop_identity::SourceNativeExternalContractRecord>>,
     pub(super) provider: ConeIdentity,
     pub(super) interface: CallableDeclarationRecordV1,
     pub(super) source: Option<CallableSourceInterfaceV1>,
@@ -258,6 +260,10 @@ pub struct SelectedImportedDependencyCallable {
 }
 
 impl SelectedImportedDependencyCallable {
+    pub fn native_contract(&self) -> Option<&scoop_identity::SourceNativeExternalContractRecord> {
+        self.native_contract.as_deref()
+    }
+
     /// The directly ensured source unit, when this callable is a property accessor.
     pub const fn initialization_unit(
         &self,

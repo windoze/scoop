@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$dbcb0dbba4964f50295c2f94f4203d880d980dd47880a64cafe753531628296c() -> i32
+  fun @scoop$1$cb$67982109dca9ec71cd9f3eb240730be2efff75b260d24389491bd76dc2da0847() -> i32
     local %0 $default.local.0: i32
     local %1 $default.local.1: i32
     local %2 $dependency.parameter.value: i32
@@ -35,11 +35,11 @@ Module
     store local11 -> local12
     t5 = integer_Add<Int> local10, local12 : i32
     ret t5
-  fun @scoop$1$cb$c86d9400a7f111a45c44abc93c2408f2cdce42db1b495496de06b0587b6db03f(i32) -> i32
+  fun @scoop$1$cb$39f55f8cff924c9f680ab39e5c0dd05625e8aa33a522403fe3a92cfc33f5ca96(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$87f594cd9c91fea5e9263a7fb4825d9f9aa25c129101a3b0acaeb8bc0ac997ae(i32) -> i32
+  fun @scoop$1$cb$06b2c12940fa327b811c4532a2c6e129ce423e47829c5902b7b2666d9f354b5e(i32) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
     local %2 $call.1: i32

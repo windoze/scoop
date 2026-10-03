@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$44041003f6495a9e1afe6ef6b814ec8d05ba070c6071765d278be10b4a19df7f = "illegal state"
-  global @scoop$1$ss$29564168acde1b4d1e8aad38b16a318b57f058d344ceab7783f84f001907d1b4 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$3640daec5772fc812c193b026eaf577ddc34da3cdb705cb3bd93d9f074e3ab44 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$07c38926ef51138b6b4dccf97d57f2325efcecac6bb868789bcb8a241bbd0abd(i1) -> void
+  fun @scoop$1$cb$505e83fa8d7102df079f9ebed06de9ec39b665bbda2f50fd2cae718065f08b67(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -26,7 +26,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$4129f648887d6787200c579c21a98f5f6a28218683ba37bf207b5d3cacd9946b() -> void
+  fun @scoop$1$cb$1d9cd9e88f3e8cdd8a89bc88c2fad3fc7d60a33cdc2da6fafa06db1cf6e1b8de() -> void
     local %0 $dependency.argument.0: i1
     local %1 $dependency.parameter.value: i1
     local %2 $argument.0: i1
@@ -84,7 +84,7 @@ Module
     call managed-void-target5 sp<managed-call:9> live=[] sig=void5 (i1) local-fn0(local17)
     t11 = aggregate () : {}
     ret
-  fun @scoop$1$cb$1d0233f68f2174338790f64ceefd519c543fb40d1ee1933f2bbf7f0d03328ad5() -> i32
+  fun @scoop$1$cb$b0457e3440ee4982a301c2b708e4966e3e81b05f3217c6af30e2de7613891b96() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -100,4 +100,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$4129f648887d6787200c579c21a98f5f6a28218683ba37bf207b5d3cacd9946b
+  output executable @scoop$1$cb$1d9cd9e88f3e8cdd8a89bc88c2fad3fc7d60a33cdc2da6fafa06db1cf6e1b8de

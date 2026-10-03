@@ -44,7 +44,7 @@ struct FlowEdge {
 }
 
 pub(super) fn validate_variant_primitives(module: &Module) -> Result<(), CodegenError> {
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         let tests = validate_function_shapes(module, function)?;
         validate_projection_dominance(function, &tests)?;
     }

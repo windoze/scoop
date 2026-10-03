@@ -1,9 +1,9 @@
 Module
   global @scoop$1$ss$0eb04c832f9c26433230e60fcb804ecad301ff880de882ea116182f225dd0003 : i32 scan=none
   global @scoop$1$ss$f5371933706d7ef1fdfd588fd9e80057aeafe0587c325d0a1f76f27b2f892579 : ptr<managed> scan=refs[0]
-  init0 top-level:localValue storage=@scoop$1$ss$0eb04c832f9c26433230e60fcb804ecad301ff880de882ea116182f225dd0003 failure=@scoop$1$ss$f5371933706d7ef1fdfd588fd9e80057aeafe0587c325d0a1f76f27b2f892579 initializer=@scoop$1$cb$084628f9bcc596790cc538a4a2bea7434458ff80b9e4e57f6c5a8cdb416e8fbc ensure=@scoop$1$cb$d3ecc81bdc3aac724e6047344b54ef8a16e4ef5d99e6e857978b5db5bd687f6f deps=[]
+  init0 top-level:localValue storage=@scoop$1$ss$0eb04c832f9c26433230e60fcb804ecad301ff880de882ea116182f225dd0003 failure=@scoop$1$ss$f5371933706d7ef1fdfd588fd9e80057aeafe0587c325d0a1f76f27b2f892579 initializer=@scoop$1$cb$ddacf44a794888d78389bc252c73f4f5c943461bc588ddbaa3307028669a7cce ensure=@scoop$1$cb$4844ac66bf5930290cf530d2f67f4d4a0db539c771d642b84a02a2e8a2c753e0 deps=[]
   extern ef0 nativeIdentity @scoop_test_identity(i32) -> i32 <c exact=(Int)->Int bridge=@scoop$1$br$b716b009cef6064b0e09a10a96ce423dd092851722436757354ffe4efca98ca1 gc-leaf nounwind>
-  fun @scoop$1$cb$d86f215e79f5c6aa5caf49cb99f9444e361dfc42a2b9b003ccbbfcb104dfc793(i32) -> i32
+  fun @scoop$1$cb$e7ddec721004c06d9f400369a22556e8f4e03077569c25df1fbc675f24bfd799(i32) -> i32
     local %0 $call.1: i32
     local %1 $sc.1: i32
     local %2 $sc.2: i32
@@ -13,14 +13,14 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local2 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local1))
     store local2 -> local0
     ret local0
-  fun @scoop$1$cb$3b204774a60a1e16951c21b8cf6ab2aa9a3c5c4627b249891ee9eed3de5c3f7c() -> i32
+  fun @scoop$1$cb$26e0f8016852dded634b71cef1e51b677681acd9c04717f069b0065a918c87c4() -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i32 external-fn0()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$a5e78d215d728e8e0cf84af146732f8ba2fe6b042880f1cfdde005f1a3394427(i32) -> i32
+  fun @scoop$1$cb$a751caf97813452062393f2c33d995eb5998bb60f3b4d6b1280355a7af92505e(i32) -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -34,7 +34,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local4 = sig=indirect0 (c-storage-pointer i32 size=4 align=4 scan=none, ptr<raw>) extern0(c-arg-address(local3))
     store local4 -> local2
     ret local2
-  fun @scoop$1$cb$084628f9bcc596790cc538a4a2bea7434458ff80b9e4e57f6c5a8cdb416e8fbc() -> void
+  fun @scoop$1$cb$ddacf44a794888d78389bc252c73f4f5c943461bc588ddbaa3307028669a7cce() -> void
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
@@ -42,7 +42,7 @@ Module
     store t0 -> local0
     global_store global0, local0
     ret
-  fun @scoop$1$cb$d3ecc81bdc3aac724e6047344b54ef8a16e4ef5d99e6e857978b5db5bd687f6f() -> void
+  fun @scoop$1$cb$4844ac66bf5930290cf530d2f67f4d4a0db539c771d642b84a02a2e8a2c753e0() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -121,14 +121,14 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$1a970f95d3234aff3933eb3763ab18aa5c62a6a44ec4e35e30145c848daae6e1() -> i32
+  fun @scoop$1$cb$d37d4938c71ef8b91aa1af979c1352597dd9ec75c5dcc5a53d1db9faa5dfa5cf() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     call managed-void-target0 sp<managed-call:0> live=[] sig=void0 () local-fn4()
     t0 = aggregate () : {}
     t1 = global_load global0 : i32
     ret t1
-  fun @scoop$1$cb$0820ed908c9c75a36c81878b515c71581305de00610771392c3ae8486f0f8744() -> i32
+  fun @scoop$1$cb$b070cd7b9b1871842582698f994fc7a0831e887fd243e432eb4b8a099b473b80() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @success unwind @failure

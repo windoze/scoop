@@ -1,8 +1,8 @@
 Module
   global @scoop$1$io$685c28da62bfa18874c97575e4dd6d1145f732a46348286a1b43d0622031fb98 = "illegal state"
-  global @scoop$1$ss$e4c2e58b814ec1b6469f0f3bcaafe0650103a0992f6aaca85733beafe6b63f7e : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$b206f5e638fed88ee6181acfd6fb92fed9cd3f5b670a4b929d977791625ceaa7 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
-  fun @scoop$1$cb$0519598f1547a45f90c590e73104875d33b238a0d7c5970f7bcbc1a092757d98(i1) -> void
+  fun @scoop$1$cb$3469fa4a46b6c3e58d644d3a7bb14717cf6b8f0a1cf54c91dd567bf54a79cf6d(i1) -> void
     local %0 $dependency.receiver: i1
     local %1 $default.local.0: ptr<managed>
     local %2 $default.local.1: ptr<managed>
@@ -26,7 +26,7 @@ Module
     unreachable
   block if.merge.2
     ret
-  fun @scoop$1$cb$a415f8df7c54f1af6b00a2583a5d6dca594c9cb9e092748b733e60f218e24519() -> void
+  fun @scoop$1$cb$0d4be67e258bbbe69d9d6c293053641a33c2c18076e9e0053d3e6c9969d7b668() -> void
     local %0 $dependency.receiver: i32
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.other: i32
@@ -58,7 +58,7 @@ Module
     call managed-void-target1 sp<managed-call:3> live=[] sig=void1 (i1) local-fn0(local9)
     t5 = aggregate () : {}
     ret
-  fun @scoop$1$cb$db64bf7bc2e7d7b0627b43a96d7f2bc16c03010aaf8122121c51e0f8295a902c() -> i32
+  fun @scoop$1$cb$31c23e3fc7c75a0015745e8ea0592c883fef21432a54757e2dd22c13330e2725() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -74,4 +74,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
-  output executable @scoop$1$cb$a415f8df7c54f1af6b00a2583a5d6dca594c9cb9e092748b733e60f218e24519
+  output executable @scoop$1$cb$0d4be67e258bbbe69d9d6c293053641a33c2c18076e9e0053d3e6c9969d7b668

@@ -20,7 +20,7 @@ const TEXT_SIZE: u64 = 16;
 const STACK_SIZE: u64 = 64;
 const SAFEPOINT_REGISTRATION_SIZE: u64 = 232;
 const CALLABLE_REGISTRATION_SIZE: u64 = 192;
-const TYPE_DESCRIPTOR_SIZE: u64 = 144;
+const TYPE_DESCRIPTOR_SIZE: u64 = 152;
 const LAYOUT_SIZE: u64 = 8;
 const TYPE_REGISTRATION_SIZE: u64 = 240;
 const IMMORTAL_REGISTRATION_SIZE: u64 = 184;
@@ -2695,6 +2695,7 @@ fn push_type_descriptor(bytes: &mut Vec<u8>, registration: &StrongTypeRegistrati
     assert_eq!(registration.semantic().relations().runtime_kind(), 0);
     push_u32(bytes, 0);
     push_u32(bytes, 0);
+    push_u64(bytes, 0);
     push_u64(bytes, 0);
 }
 

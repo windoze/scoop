@@ -206,6 +206,11 @@ pub struct Statement {
 pub enum StatementKind {
     Expr(Expr),
     Call(CallEffect),
+    /// Runs on the normal edge after the complete outer initializer call.
+    PublishReleaseReady {
+        class: ClassId,
+        receiver: Expr,
+    },
     ValDecl {
         local: LocalId,
         init: Expr,
@@ -740,6 +745,10 @@ pub enum ExprKind {
     /// and tuples.
     FieldAccess {
         receiver: Box<Expr>,
+        index: u32,
+    },
+    ReleaseFieldLoad {
+        class: ClassId,
         index: u32,
     },
     /// Acquire-load an aligned 64-bit synthetic state field.

@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$a5ce490ec621430776bff369d5c807673d64bed71d37a9f831d5a950c26f6264() -> i32
+  fun @scoop$1$cb$422c912b93a4cd3e93ef807408e9946f73c5b3b6d5c747152fa7b3b4031c3738() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.seed: i32
     local %2 $dependency.parameter.value: ptr<managed>
@@ -10,7 +10,7 @@ Module
     store integer<Int>(0x0000002a) -> local0
     store local0 -> local1
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td1, machine<byte-size>(ByteSize(32)))
-    t1 = function_address @scoop$1$cb$e254fac733951b57cc6eeb532ed873b5b8a2a81c21057869ec60682f95073aba : ptr
+    t1 = function_address @scoop$1$cb$b005f10a351b4610fce23e420d63ac7941c3543a359cfd435ffd14937430c315 : ptr
     heap_store t0 +16 t1
     heap_store t0 +24 local1
     store t0 -> local2
@@ -19,16 +19,16 @@ Module
     call managed-direct-target2 sp<managed-call:2> live=[local3:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>) -> i32 dispatch[Closure:2] local3(local3)
     store t3 -> local4
     ret local4
-  fun @scoop$1$cb$e254fac733951b57cc6eeb532ed873b5b8a2a81c21057869ec60682f95073aba(ptr<managed>) -> i32
+  fun @scoop$1$cb$b005f10a351b4610fce23e420d63ac7941c3543a359cfd435ffd14937430c315(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : i32
     ret t0
-  fun @scoop$1$cb$b447331dc2de706bf4ed33fe0b4cf73a9f0fe05553ae83c2a9c33e71110dc828(i32, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$fd291db72b92277a0e0388d57e8bf4817034f4c5cf835c63051cab9687dd24b1(i32, ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param1:ptr<managed>@0]
     ret param1
-  fun @scoop$1$cb$0c2e4f67c5165fa9b613eda43e8675e989f926cf6b56242b4cbe2af291f14a00(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$8193e5895d63d2e3cd8e6ab36cdac975be3f4c09fd0434b3c26755dc3ee865a2(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
   block entry

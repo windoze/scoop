@@ -1,18 +1,18 @@
 Module
   raw_global @scoop$1$ss$a592ef90e15921338e6fa55cadbe52341dd8c66007d705a7afe88f8c4a03d422 : i1
   raw_global @scoop$1$ss$0dd0cdf672029faea07d1f426d79906a7548466ab1de965de26c5ef908723b68 : i32
-  fun @scoop$1$cb$1f12fb223a6cdfaa3c6b2874a6ab54ea6321fa0c00d82f6d3bd3af7b97b21aca(i1) -> void
+  fun @scoop$1$cb$2f8773bb7a37fcfca3cd168bc38743ffea22dc553d5bf88343d1ecb88e0fdac8(i1) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     global_store global0, param0
     global_store global1, integer<Int>(0x00000000)
     ret
-  fun @scoop$1$cb$930e201dc0043b5a1ad65d8e59090decdcb8db038ab0fd0396e79f8cc3180aaa() -> i32
+  fun @scoop$1$cb$305eeb157b20cd91a29e1d74de165b950df58bfd3b5915f283ccff873e2b7fbf() -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = global_load global1 : i32
     ret t0
-  fun @scoop$1$cb$13f386e4975a29d0f9f597535c7e9a4fc7fe65ea3fe39661c81575a91343573b() -> i1
+  fun @scoop$1$cb$a8982e945a260fe4a698035df1dd291db6c6a37bafeda252b5120cc27539ce6a() -> i1
     local %0 $old.0: i32
     local %1 $dependency.receiver: i32
     local %2 $dependency.argument.0: i32
@@ -28,19 +28,19 @@ Module
     global_store global1, t1
     t2 = global_load global0 : i1
     ret t2
-  fun @scoop$1$cb$6b673d9e2846cff78869607322c16b4cc739bba4cc9a88844723d9d264c2c170() -> i1 <no-gc>
+  fun @scoop$1$cb$e7a7354afe7cfbbe99f437cd6fe476d5ad2990e7577fe88746dc83a8c6b0644f() -> i1 <no-gc>
   block entry
     t0 = global_load global0 : i1
     ret t0
-  fun @scoop$1$cb$979554f152feab3d98ea3363b18c223413396760b7a2e45fa70f242baab34b97(i1) -> void <no-gc>
+  fun @scoop$1$cb$a4b4e0237e39b11211ea7e3b0da5c2fcbf64f39df8ac5b37240fb73235d63683(i1) -> void <no-gc>
   block entry
     global_store global0, param0
     ret
-  fun @scoop$1$cb$06089a1da34026183a87a47e434b760ab9175e9b3a6d5e773229a2b7adefe578() -> i32 <no-gc>
+  fun @scoop$1$cb$c7e452731d9517f0cba91d2601e26b405c1775854d236a3c91ce5575735a79ca() -> i32 <no-gc>
   block entry
     t0 = global_load global1 : i32
     ret t0
-  fun @scoop$1$cb$f4cd8cff004f1d63916c42b96a36862025d8cf8742d497f01cb662a203332561(i32) -> void <no-gc>
+  fun @scoop$1$cb$d2e660cdcdc39ce35aef859bfdf0ba082c194d021e7446a65a875fa21afc8890(i32) -> void <no-gc>
   block entry
     global_store global1, param0
     ret

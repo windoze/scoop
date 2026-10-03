@@ -2,7 +2,7 @@ Module
   global @scoop$1$io$88e05d1460e5390ceffb6c60318cc847437cd416806b1d5916208bd480703013 = "moving-"
   global @scoop$1$io$9c9e321139662d75345ea86755626031cedf6b6b13ef8bbd82108eece3392963 = "payload"
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   global @scoop$1$bs$256edcb84da8a42c572f3041d74dcc782acb09d2e49ee49869d69523d3355b34 = c"call to abstract method `Continuation.resume`"
   global @scoop$1$bs$321653d341e8d5c894d31b3003444567795fa3ff89afe585c366cca629554689 = c"call to abstract method `Continuation.resumeWithException`"
   global @scoop$1$bs$dc1243292a202e3960cc3f8048fab65280437f7357981636c3ce61bf8f95dfaf = c"call to abstract method `SuspendTask.run`"
@@ -10,7 +10,7 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   enum CoroutineStep<MovingError> niche(kind=managed,payload_variant=0)
   enum CoroutineSlot<MovingError> niche(kind=managed,payload_variant=1)
-  fun @scoop$1$cb$fb923c6a0c5aa96a0fefed8f9850aa1d28e37c3376d79aba8ddb0280ff337484() -> void
+  fun @scoop$1$cb$333f1a4b8e132d0cfff72f65999dcd0f8141d1123bf86a26b24bbccaf5c380d2() -> void
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.other: ptr<managed>
@@ -33,7 +33,7 @@ Module
     t2 = aggregate () : {}
     throw local6
     unreachable
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 error: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.value: ptr<managed>
@@ -133,7 +133,7 @@ Module
     t17 = aggregate () : {}
     end_catch
     br @scope.15
-  fun @scoop$1$cb$0e2592cda2d841ffaeeb4ca9ee19ab89cff7a7c2584f848c9feaa95e67b36371(ptr<managed>) -> void
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -152,35 +152,35 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn3(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$6f2a2b352f959da6ba2575345547874f6822201871edc18bad16257f70f143f6(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$e17e74b5ccd71dbc0d0609626ee7c759824f1d8d928ba968dd92967d696705a5(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global4)
     unreachable
-  fun @scoop$1$cb$5563748a9cd2799e7ea88fc02eddf1485e438f0719cc90a302b28ffb45b7b6da(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$208a7758da699ad274d534de80e4b09d30a3e35ab8864c4f641fea22576a4acd(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global5)
     unreachable
-  fun @scoop$1$cb$5ea3a5feae09c1ef9b9b8cc12ec674f67ac6fc67d6508173eeb32690c1376204(ptr<managed>, ptr<managed>) -> enum1
+  fun @scoop$1$cb$9490db3320ce3945e2da625f24b601b9834280df65373a206647ea8e892264d4(ptr<managed>, ptr<managed>) -> enum1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global6)
     unreachable
-  fun @scoop$1$cb$899fc6955e505f86ee0a703c73da6312dea34c974858553d46c2b02dc6748995(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$63de578b1aacff94cb8f1c5c67a30e2a219cc34bab33e2fac69538609f9e6cc0(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global7)
     unreachable
-  fun @scoop$1$cb$41c9e8bde7609eb3f081ca4e235fb7dc1acf549400524b783a2790b2002f90a6(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$861c5d9dda820e8709e74011afdd007466d2626db83b5d547feb0e06495aaed5(ptr<managed>, ptr<managed>) -> void
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter._1: ptr<managed>
     local %2 $dependency.argument.0: enum0
@@ -196,7 +196,7 @@ Module
     t1 = aggregate () : {}
     heap_store param0 +24 param1
     ret
-  fun @scoop$1$cb$f2dfa2656095b0fd279ad18de4a59703db0766965caa72dbf2e7ecd35f9331fc(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$a2dbf4631baefb6b35c4471efc1a00bf998fdf438ab300e56230e0cdc8e22b59(ptr<managed>, ptr<managed>) -> void
     local %0 $step: enum1
     local %1 $exception: ptr<managed>
     local %2 $sc.1: exception_record
@@ -238,7 +238,7 @@ Module
     t14 = enum_tag e1 local0 : machine<enum-tag>
     t15 = MachineEq(EnumTag) t14, machine<enum-tag>(EnumTag(0)) : i1
     cbr t15 then @completed else @suspended
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -267,4 +267,4 @@ Module
   layout SuspendRegistration value size=8 align=8 refs=[0]
   layout MovingError value size=8 align=8 refs=[0]
   layout MovingError size=32 align=8 refs=[16, 24]
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

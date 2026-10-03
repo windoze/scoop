@@ -101,6 +101,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             }
             CallProtocol::ManagedInvoke { .. }
             | CallProtocol::NoGc
+            | CallProtocol::ReleaseNativeLeaf
             | CallProtocol::NativeSafe { .. }
             | CallProtocol::NativeBorrowed { .. } => None,
         };
@@ -206,7 +207,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 let _ = roots;
                 None
             }
-            CallProtocol::NoGc => None,
+            CallProtocol::NoGc | CallProtocol::ReleaseNativeLeaf => None,
         };
         let native_result_storage = native.and_then(|(_, _, result)| result);
         let transition = if let Some((kind, roots, _)) = native {

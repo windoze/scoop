@@ -137,6 +137,11 @@ pub struct NoGcCallSite {
 }
 
 #[derive(Debug)]
+pub struct ReleaseNativeLeafCallSite {
+    pub call: NativeSafeTypedCall,
+}
+
+#[derive(Debug)]
 pub struct NativeSafeCallSite {
     pub call: NativeSafeTypedCall,
     pub safepoint: SafepointSiteRef,
@@ -154,6 +159,8 @@ pub struct NativeBorrowedCallSite {
 pub enum CallSite {
     Managed(ManagedCallSite),
     NoGc(NoGcCallSite),
+    ReleaseScoop(NoGcCallSite),
+    ReleaseNativeLeaf(ReleaseNativeLeafCallSite),
     NativeSafe(NativeSafeCallSite),
     NativeBorrowed(NativeBorrowedCallSite),
 }
@@ -162,8 +169,9 @@ impl CallSite {
     pub fn args(&self) -> &[AbiCallArgument] {
         match self {
             Self::Managed(site) => site.call.args(),
-            Self::NoGc(site) => site.call.args(),
+            Self::NoGc(site) | Self::ReleaseScoop(site) => site.call.args(),
             Self::NativeSafe(site) => site.call.args(),
+            Self::ReleaseNativeLeaf(site) => site.call.args(),
             Self::NativeBorrowed(site) => site.call.args(),
         }
     }
@@ -171,8 +179,9 @@ impl CallSite {
     pub fn direct_out(&self) -> Option<TempId> {
         match self {
             Self::Managed(site) => site.call.direct_out(),
-            Self::NoGc(site) => site.call.direct_out(),
+            Self::NoGc(site) | Self::ReleaseScoop(site) => site.call.direct_out(),
             Self::NativeSafe(site) => site.call.direct_out(),
+            Self::ReleaseNativeLeaf(site) => site.call.direct_out(),
             Self::NativeBorrowed(site) => site.call.direct_out(),
         }
     }
@@ -180,8 +189,9 @@ impl CallSite {
     pub fn result_temp(&self) -> Option<TempId> {
         match self {
             Self::Managed(site) => site.call.result_temp(),
-            Self::NoGc(site) => site.call.result_temp(),
+            Self::NoGc(site) | Self::ReleaseScoop(site) => site.call.result_temp(),
             Self::NativeSafe(site) => site.call.result_temp(),
+            Self::ReleaseNativeLeaf(site) => site.call.result_temp(),
             Self::NativeBorrowed(site) => site.call.result_temp(),
         }
     }
@@ -189,8 +199,9 @@ impl CallSite {
     pub fn result(&self) -> TypedCallResult {
         match self {
             Self::Managed(site) => site.call.result(),
-            Self::NoGc(site) => site.call.result(),
+            Self::NoGc(site) | Self::ReleaseScoop(site) => site.call.result(),
             Self::NativeSafe(site) => site.call.result(),
+            Self::ReleaseNativeLeaf(site) => site.call.result(),
             Self::NativeBorrowed(site) => site.call.result(),
         }
     }
@@ -204,7 +215,7 @@ impl CallSite {
                     ManagedCallDestination::view,
                 )
                 .destination(),
-            Self::NoGc(site) => targets
+            Self::NoGc(site) | Self::ReleaseScoop(site) => targets
                 .typed_call_view(
                     &site.call,
                     &targets.no_gc_targets,
@@ -212,6 +223,13 @@ impl CallSite {
                 )
                 .destination(),
             Self::NativeSafe(site) => targets
+                .typed_call_view(
+                    &site.call,
+                    &targets.native_safe_targets,
+                    NativeSafeCallDestination::view,
+                )
+                .destination(),
+            Self::ReleaseNativeLeaf(site) => targets
                 .typed_call_view(
                     &site.call,
                     &targets.native_safe_targets,

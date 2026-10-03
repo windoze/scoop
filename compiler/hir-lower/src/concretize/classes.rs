@@ -41,6 +41,7 @@ impl Concretizer<'_> {
             concrete::MethodOwner::Class(id)
         };
         self.complete_class_definition(id, definition, &arguments, method_owner);
+        self.materialize_release_hook(id, origin, &arguments);
         self.type_use_site = previous_site;
         id
     }
@@ -87,6 +88,7 @@ impl Concretizer<'_> {
         };
         let ty = self.intern_type(kind, false);
         let allocated = self.classes.alloc(concrete::ClassDef {
+            release_policy: concrete::ReleasePolicy::None,
             origin: definition.origin.clone(),
             canonical_type: ty,
             modifier: definition.modifier,

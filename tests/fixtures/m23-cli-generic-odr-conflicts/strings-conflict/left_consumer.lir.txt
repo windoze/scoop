@@ -1,13 +1,13 @@
 Module
   global @scoop$1$io$cca6b1b5defa7fd40718c63d7e9261343558987a413bd848a7a16c3e4208cb9c = "left value"
-  fun @scoop$1$cb$d558f531d2b7f8cabaa6fb181538cf3f9a5dec1414adfc188887650a2d7ae9e1() -> ptr<managed>
+  fun @scoop$1$cb$cacb54d0c41e5d81c1e21b996e1d2ff1c6502485a427cd5431b5fa702e7d0c08() -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn1()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$8ae58b2470b37b1e1c65f658859234dc0288acc9e493a034a7da61d48ffbe2b5() -> ptr<managed>
+  fun @scoop$1$cb$782891b534364934c4a626e6501d5bc1b7aa83d3ff7c5d85f586aadffed5fe14() -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret global0

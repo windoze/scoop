@@ -136,6 +136,10 @@ pub(super) fn constructor_target(
 #[derive(Clone, Copy, Debug)]
 pub enum FieldTargetView<'a> {
     Field(&'a DefaultFieldRefV1),
+    Class {
+        declaration: PersistentFieldId,
+        owner_type: &'a SignatureTypeKey,
+    },
     Struct {
         declaration: PersistentFieldId,
         owner_type: &'a SignatureTypeKey,
@@ -150,6 +154,27 @@ pub(super) fn field_target(
 ) -> Result<Ordering, WireError> {
     match actual {
         FieldTargetView::Field(actual) => field_ref(declared, actual, path),
+        FieldTargetView::Class {
+            declaration: actual_declaration,
+            owner_type: actual_owner,
+        } => {
+            let ordering = field_tag(declared).cmp(&3);
+            if ordering != Ordering::Equal {
+                return Ok(ordering);
+            }
+            let DefaultFieldRefV1::Class {
+                declaration,
+                owner_type,
+            } = declared
+            else {
+                unreachable!("field tag 3 is a class field")
+            };
+            let ordering = declaration.cmp(&actual_declaration);
+            if ordering != Ordering::Equal {
+                return Ok(ordering);
+            }
+            signature_type(owner_type, actual_owner, path)
+        }
         FieldTargetView::Struct {
             declaration: actual_declaration,
             owner_type: actual_owner,

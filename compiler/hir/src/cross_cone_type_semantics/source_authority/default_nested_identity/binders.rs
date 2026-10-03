@@ -85,6 +85,9 @@ impl<'f> Arity<'_, 'f> {
                     .ok_or_else(|| failure(self.identity, Failure::LexicalParent))?;
                 return self.nominal(owner);
             }
+            CallableTemplateOwner::ReleaseHook(_) => {
+                return Err(failure(self.identity, Failure::LexicalParent));
+            }
         };
         self.declaration(source)
     }

@@ -198,8 +198,10 @@ mod tests {
             instructions: vec![lir::Instruction::NativeGlobalAddress {
                 out: then_address,
                 global: native_global,
-                safepoint: then_site,
-                roots: lir::NativeSafeRootSet::default(),
+                protocol: lir::NativeStorageProtocol::NativeSafe {
+                    safepoint: then_site,
+                    roots: lir::NativeSafeRootSet::default(),
+                },
             }],
             terminator: lir::Terminator::Return { value: None },
         };
@@ -208,8 +210,10 @@ mod tests {
             instructions: vec![lir::Instruction::NativeGlobalAddress {
                 out: else_address,
                 global: native_global,
-                safepoint: else_site,
-                roots: lir::NativeSafeRootSet::default(),
+                protocol: lir::NativeStorageProtocol::NativeSafe {
+                    safepoint: else_site,
+                    roots: lir::NativeSafeRootSet::default(),
+                },
             }],
             terminator: lir::Terminator::Return { value: None },
         };

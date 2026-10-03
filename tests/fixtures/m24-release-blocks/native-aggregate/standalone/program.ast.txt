@@ -1,0 +1,39 @@
+SourceFile
+  RootPackage
+    @CLayout
+  struct Wide
+    field first: Long
+    field second: Long
+    field third: Long
+    @Extern(lib = "m24_release", name = "m24_release_rotate")
+  private fun rotate(value: Wide): Wide
+    @Extern(lib = "m24_release", name = "m24_release_wide")
+  private fun record(value: Wide)
+    @Extern(lib = "m24_release", name = "m24_release_wide_count")
+  private fun count(): Long
+  class Owner(val value: Wide)
+    release
+      val copied
+        Var value
+      @Unsafe block
+        Call record
+          Call rotate
+            Var copied
+  private fun allocate()
+    @Unsafe block
+      val value
+        Call rotate
+          Call Wide
+            IntLiteral 11
+            IntLiteral 21
+            IntLiteral 10
+      val owner
+        Call Owner
+          Var value
+  fun main()
+    Call allocate
+    Call gcCollect
+    Call gcCollect
+    @Unsafe block
+      Call println
+        Call count

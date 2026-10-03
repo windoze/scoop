@@ -161,7 +161,7 @@ impl Lowerer {
             external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
             local_values: &mut self.local_values,
-            current_function: self.ctors[&constructor_id],
+            current_owner: self.ctors[&constructor_id].into(),
             current_materialization: constructor.materialization,
             current_string_owner: mir::ImmortalObjectOwner::Callable(constructor.materialization),
             next_string_ordinal: 0,
@@ -172,6 +172,7 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
+            extern_functions: &mut self.extern_functions,
             imported_dependency_callable_map: &self.imported_dependency_callable_map,
             imported_singleton_map: &self.imported_singleton_map,
             global_map: &self.global_map,
@@ -228,7 +229,7 @@ impl Lowerer {
             mutable: false,
         });
         lowerer.local_values.record(
-            lowerer.current_function,
+            lowerer.current_owner,
             receiver,
             module.local_value_identities.class_receiver(constructor_id),
         );
@@ -246,7 +247,7 @@ impl Lowerer {
                 mutable: false,
             });
             lowerer.local_values.record(
-                lowerer.current_function,
+                lowerer.current_owner,
                 local,
                 module
                     .local_value_identities
@@ -289,7 +290,7 @@ impl Lowerer {
             external_callables: &self.external_callables,
             source_exact_types: &mut self.source_exact_types,
             local_values: &mut self.local_values,
-            current_function: self.struct_ctors[&constructor_id],
+            current_owner: self.struct_ctors[&constructor_id].into(),
             current_materialization: constructor.materialization,
             current_string_owner: mir::ImmortalObjectOwner::Callable(constructor.materialization),
             next_string_ordinal: 0,
@@ -300,6 +301,7 @@ impl Lowerer {
             method_slots: &self.method_slots,
             function_map: &self.function_map,
             extern_map: &self.extern_map,
+            extern_functions: &mut self.extern_functions,
             imported_dependency_callable_map: &self.imported_dependency_callable_map,
             imported_singleton_map: &self.imported_singleton_map,
             global_map: &self.global_map,
@@ -360,7 +362,7 @@ impl Lowerer {
                 mutable: false,
             });
             lowerer.local_values.record(
-                lowerer.current_function,
+                lowerer.current_owner,
                 local,
                 module
                     .local_value_identities
@@ -409,7 +411,7 @@ impl Lowerer {
                     mutable: false,
                 });
                 lowerer.local_values.record(
-                    lowerer.current_function,
+                    lowerer.current_owner,
                     receiver,
                     module
                         .local_value_identities

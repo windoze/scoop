@@ -28,7 +28,7 @@ typedef struct StorageMetadata {
     ScoopRootEntryDescriptorV1 root;
     uint64_t empty[1];
     char text[8];
-    _Alignas(8) uint8_t td_bytes[144];
+    _Alignas(8) uint8_t td_bytes[sizeof(ScoopTypeDescriptor)];
     ScoopTypeRegistrationDescriptorV1 type;
     const ScoopTypeRegistrationDescriptorV1 *types[1];
     struct {

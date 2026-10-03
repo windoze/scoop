@@ -174,6 +174,15 @@ pub enum CompatibilitySchemaKind {
     Lir,
 }
 
+impl CompatibilitySchemaKind {
+    const fn current_schema(self) -> u32 {
+        match self {
+            Self::Identity => INITIAL_SCHEMA,
+            Self::Hir | Self::Mir | Self::Lir => crate::metadata::METADATA_SCHEMA,
+        }
+    }
+}
+
 impl fmt::Display for CompatibilitySchemaKind {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
@@ -234,7 +243,11 @@ impl fmt::Display for CompatibilityValidationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::UnsupportedSchema { kind, actual } => {
-                write!(formatter, "{kind} schema must be 1, found {actual}")
+                write!(
+                    formatter,
+                    "{kind} schema must be {}, found {actual}",
+                    kind.current_schema()
+                )
             }
             Self::ManglingSchema { actual } => {
                 write!(
@@ -268,7 +281,7 @@ fn require_schema(
     kind: CompatibilitySchemaKind,
     actual: u32,
 ) -> Result<(), CompatibilityValidationError> {
-    if actual == INITIAL_SCHEMA {
+    if actual == kind.current_schema() {
         Ok(())
     } else {
         Err(CompatibilityValidationError::UnsupportedSchema { kind, actual })
@@ -318,7 +331,8 @@ mod tests {
         let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
         for profile in [
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
-            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
         ] {
             let expected = CompatibilityRecord::new(selection, profile).unwrap();
             let decoded =
@@ -327,6 +341,27 @@ mod tests {
             let actual = decoded.validate(selection).unwrap();
             assert_eq!(actual, expected);
             assert_eq!(actual.artifact_profile(), &profile.id());
+        }
+    }
+
+    #[test]
+    fn compatibility_reader_rejects_each_old_outer_schema_and_mixed_generations() {
+        let selection = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+        let current =
+            CompatibilityRecord::new(selection, ArtifactCapabilityProfile::CROSS_CONE_GENERIC)
+                .unwrap();
+        for (kind, schemas) in [
+            (CompatibilitySchemaKind::Hir, (1, 2, 2)),
+            (CompatibilitySchemaKind::Mir, (2, 1, 2)),
+            (CompatibilitySchemaKind::Lir, (2, 2, 1)),
+            (CompatibilitySchemaKind::Hir, (1, 1, 1)),
+        ] {
+            let mut decoded =
+                decode_canonical::<DecodedCompatibilityRecord>(&encode(&current).unwrap()).unwrap();
+            (decoded.hir_schema, decoded.mir_schema, decoded.lir_schema) = schemas;
+            assert!(
+                matches!(decoded.validate(selection), Err(CompatibilityValidationError::UnsupportedSchema { kind: actual, actual: 1 }) if actual == kind)
+            );
         }
     }
 }

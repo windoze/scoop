@@ -6,19 +6,19 @@ targets = ["aarch64-apple-darwin"]
 tags = ["imported-values", "member", "stage-golden"]
 
 [vars]
-symbol_f7 = "scoop$1$cb$a2d473aee514737b14e8a04764ed099dad6e53c9547c2077a681827f3c010481"
-symbol_f8 = "scoop$1$cb$17d17f39018aa4223240ce4e15da372ec230d606c52b028d5378830406e4624e"
-symbol_f9 = "scoop$1$cb$a7ac46fd0b26ad993510f71ae448729242a355361051dc3c533ed17af81a6340"
-symbol_f10 = "scoop$1$cb$8e175f3f0c511a58f6493efef96a4b8796c46c57d6d2b1f374a7d670df410a42"
-symbol_f11 = "scoop$1$cb$36f4a106b8160ac2cef18aea95ae69d6cdc70f54871afac6e4cbd255db471e77"
-symbol_f12 = "scoop$1$cb$7f5922a0f3565b922920e06e0becf9fae03fe470a81e2291d27f3e9862205bf6"
-symbol_f13 = "scoop$1$cb$e35f3d74a09d205fffbc2c953ad00fe3457e5b5ebc0c2825004ff7fb2890343d"
-symbol_f14 = "scoop$1$cb$ef2518b3213a2cc27f10d917f5b9f5ddb9bb42f589a7d02d8e983aaa94520517"
-symbol_f15 = "scoop$1$cb$d56eb664d32533c3675ac42116ad48775b4c3edc18298b615f62e05b2b2eb4f5"
-symbol_f16 = "scoop$1$cb$33af286b41cecfdcb485a54d114fbbdaa6869045689c91b5dddc82d5fda48e95"
-symbol_f17 = "scoop$1$cb$4f55e92f328b7722e1bb3793ff9ce844b324ca0fa1fa82462fd23f1bbe7d74cd"
-symbol_f18 = "scoop$1$cb$560db3acabbf0b40b1e397f6de0705b8afd14dd9ca5169ac377d966795376f44"
-symbol_f19 = "scoop$1$cb$8b71a1ac9c4cd2b98c816621900817f42f1ebd4e29df1040999f1e9873c13ebe"
+symbol_f7 = "scoop$1$cb$054d02b3b4ff5a008397b90f602bc864088af41f52434584f993da7f0cfdc1a9"
+symbol_f8 = "scoop$1$cb$051f343361e154341759146a82db42ff60f200c90724799f3e5e7e2810b30dfb"
+symbol_f9 = "scoop$1$cb$68d06ae91ac3836d77a28e36f1bcb0068f64b9c6e50902f1aa5bbf719c967de3"
+symbol_f10 = "scoop$1$cb$6302511ce052cc9ce42f8145c7d2b1845084fe89c114f7cd073a99311b82afe5"
+symbol_f11 = "scoop$1$cb$f254d30f2db22f48fea337ac33468e4d8f719b754b250712613e53d4411437e6"
+symbol_f12 = "scoop$1$cb$edaba4cfd38f86f1fa3c00bd03d47e2a76478ae262ee6854cd01c3affc7c8b1b"
+symbol_f13 = "scoop$1$cb$feea69fc2f8b0120e9e27e082026aad1949b36c0f6800e97936ecd8f801a2f16"
+symbol_f14 = "scoop$1$cb$62da153fcfdd8d8c6da8d840a4f1ea95dd12a45fb798a0b485f90f4808aac4ea"
+symbol_f15 = "scoop$1$cb$8d4d8823a0e174de29545b5d64ac69cb700de754e67354c0fa5cf72339adde07"
+symbol_f16 = "scoop$1$cb$667cda8ab21f54fb01ed827e9d6fce4bdac18988957ae2db3af9c125b0f4a3b4"
+symbol_f17 = "scoop$1$cb$dae4b65239b3cb8fe982274a9ed8f7fb081e44fb93608f985bf248284ebb169a"
+symbol_f18 = "scoop$1$cb$9c14fb0fc3be8b1f8d19c111b1a88f17c8cc36c34774eb8467beedfe421dc24b"
+symbol_f19 = "scoop$1$cb$eae5a2156c956f269171bc0fdbf9bbdf84df4caf93a4baea8aa93a4bbadf5f6f"
 
 [[steps]]
 name = "prepare_core"

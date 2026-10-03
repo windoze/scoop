@@ -1,9 +1,9 @@
 Module
   enum Choice tagged size=24 align=8 variants=()@8+0 (i64, struct0, i64)@8+16
-  fun @scoop$1$cb$7c9c88540439da2266ce32cd59a73bae09f9537be819f7bbfee7598622a44d53(indirect<enum0 size=24 align=8 scan=none>) -> sret<enum0 size=24 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$e7d2b0bc6060214157ff34f0d1e000c99d841b82f55145a5157b59ff7c29aa88(indirect<enum0 size=24 align=8 scan=none>) -> sret<enum0 size=24 align=8 scan=none> <no-gc>
   block entry
     ret param0
-  fun @scoop$1$cb$b9cfa55f8007eb87231497da8ca49ef1c85bbd899fa2a577bbbc22daf8bcae3f() -> i64 <no-gc>
+  fun @scoop$1$cb$d9e745755657239797326eabe42ae3dde72be30cdbc2e57615f12850946e4ea1() -> i64 <no-gc>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.argument.1: i64
     local %2 $dependency.parameter.left: i64
@@ -87,7 +87,7 @@ Module
     store local24 -> local25
     t4 = integer_Add<Long> local23, local25 : i64
     ret t4
-  fun @scoop$1$cb$fd3c4f8f28d73d59c63a7dfedf8c71dafce6245da06803ae5e14ffc68eab057f(ptr<raw>) -> void <no-gc>
+  fun @scoop$1$cb$c2ea1b36f5407f69074f866decb159063a9ba076ad021d4208b808a7d07ffc17(ptr<raw>) -> void <no-gc>
     local %0 $value: i64
   block entry
     call no-gc-direct-target0 t0 = sig=direct0 () -> i64 local-fn1()

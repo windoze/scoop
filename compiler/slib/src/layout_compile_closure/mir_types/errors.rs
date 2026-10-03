@@ -16,6 +16,7 @@ pub enum SharedMirTypeComponent {
     CLayout,
     InteriorMutable,
     ClassKind,
+    ReleasePolicy,
     Base,
     Interfaces,
     ObjectBacking,

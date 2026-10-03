@@ -26,6 +26,7 @@ fn with_conditions(
             details.dispatch_selections().clone(),
             details.primary_value_constructor(),
             conditions,
+            Default::default(),
         ),
     )
 }
@@ -74,14 +75,15 @@ fn declaration_reader_rejects_missing_nominal_conditions() {
     let record = Fixture::new().record();
     let details = record.declaration_details();
     let conditions = encode(details.instantiation_conditions()).unwrap();
+    let release = encode(details.release_policy()).unwrap();
     let mut legacy = encode(details).unwrap();
     legacy[0] = 0xa8;
-    legacy.truncate(legacy.len() - conditions.len() - 1);
+    legacy.truncate(legacy.len() - conditions.len() - release.len() - 2);
     let error = decode_canonical::<DecodedNominalDeclarationDetailsV1>(&legacy).unwrap_err();
     assert!(matches!(
         error.kind(),
         WireErrorKind::InvalidLength {
-            expected: 9,
+            expected: 10,
             actual: 8
         }
     ));

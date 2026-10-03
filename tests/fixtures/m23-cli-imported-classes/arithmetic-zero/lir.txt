@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$020bc9d75a03fbe5478d2c6c9ad432a56fbb64271208e0ae86596a0a56c5f34e(i64, i64) -> i64
+  fun @scoop$1$cb$40c647a4a9bd4d65275dd798220500df627e0bf9713928de66c6e018ef8c24ab(i64, i64) -> i64
     local %0 $dependency.receiver: i64
     local %1 $dependency.argument.0: i64
     local %2 $dependency.parameter.other: i64
@@ -45,7 +45,7 @@ Module
     br @if.merge.8
   block if.merge.8
     ret local5
-  fun @scoop$1$cb$dada1dc6c57b7f373ce6b453d9e24f3489ef6d8df07bc482129ffd800bef87a5() -> ptr<managed>
+  fun @scoop$1$cb$99c75352a493c4057821110f913a2562985ad2c886c029d93dc14bfec82745cd() -> ptr<managed>
     local %0 caught: i64
     local %1 $argument.0: i64
     local %2 $argument.1: i64

@@ -3,13 +3,13 @@ Module
   enum Option niche(kind=managed,payload_variant=0)
   extern ef0 verifyFinished @verify_finished() -> void <c exact=()->void bridge=@scoop$1$br$97c8584d5dfff7daef249045132f594ceb70ad8bf5c66aa4310b679a2f9a0d64 gc-leaf nounwind lib=m23_native_boundary>
   extern ef1 handleRoundTrip @handle_round_trip(i64) -> i64 <c exact=(ULong)->ULong bridge=@scoop$1$br$2f4c43a5d3244b785fdebfc971eec571b3db9a2fccef72199ef6b8f030e6ae06 gc-leaf nounwind lib=m23_native_boundary>
-  fun @scoop$1$cb$20b957ca688e2f9da824e89c8d4fbe0f8f8c9e04d3fc3d92a1b04aa1d4aa714c() -> void
+  fun @scoop$1$cb$331f1699dd256700b333c5b7770b5b66c9862008fab79667f910c551243e5ac1() -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call native-safe-void-target0 sp<native-safe:0> roots=[] sig=void0 () extern0()
     t0 = aggregate () : {}
     ret
-  fun @scoop$1$cb$beda129bf81c5fc2366b9f97cef75248b05d6d4e45eca3bcb01d5bc6c9db19c2() -> void
+  fun @scoop$1$cb$e2429bd1529061feff4c7ad3aff13d413e269cdd4ce952c761ae593dd8c8798c() -> void
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.raw: i64
     local %2 $argument.0: struct0
@@ -68,7 +68,7 @@ Module
     call native-safe-void-target0 sp<native-safe:1> roots=[] sig=void2 () extern0()
     t8 = aggregate () : {}
     ret
-  fun @scoop$1$cb$79e1fb8504e451bd867dd0b5b4014d8e70052086e692454a6cde063d5940f59e(indirect<struct0 size=8 align=8 scan=none>) -> sret<struct0 size=8 align=8 scan=none>
+  fun @scoop$1$cb$76928f3d698834740317bd6f3661fd3140b223e8e8ed4f569c090172724ce3ab(indirect<struct0 size=8 align=8 scan=none>) -> sret<struct0 size=8 align=8 scan=none>
     local %0 $call.1: struct0
     local %1 $sc.1: i64
     local %2 $sc.2: i64
@@ -80,7 +80,7 @@ Module
     t1 = aggregate (local2) : struct0
     store t1 -> local0
     ret local0
-  fun @scoop$1$cb$7c2c7e6fed4aece1680a349cab5a271ab20824701d80c3a308ec0883e5a08ea5() -> void
+  fun @scoop$1$cb$d00e5d4a2b7e154fdcfbb35a7bd66f9c7d9327aaf2ad55132b419c0e2bf69572() -> void
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.raw: i64
     local %2 $argument.0: struct0
@@ -102,14 +102,14 @@ Module
     t1 = aggregate (local7) : struct0
     store t1 -> local4
     ret
-  fun @scoop$1$cb$919b866d249318162da5751d8087faba77b9e9386ebd23c40a01ba66aa3d365f(indirect<struct0 size=8 align=8 scan=none>, indirect<struct0 size=8 align=8 scan=none>) -> i1
+  fun @scoop$1$cb$f3c0c2be547b3674d67c2f4e78fefc5f364bff6eaf118a77b557bb1bb79172b1(indirect<struct0 size=8 align=8 scan=none>, indirect<struct0 size=8 align=8 scan=none>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = extract param0, 0 : i64
     t1 = extract param1, 0 : i64
     t2 = integer_compare_Equal<ULong> t0, t1 : i1
     ret t2
-  fun @scoop$1$cb$e175893d88dd93c124f63cd6e0e41224153aa8dba79cfb0a172c7129748b73a3(i64) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
+  fun @scoop$1$cb$5de9fd09d6fd1391d730b0fb135fd200662f47e2a13fa4abae2c32adecb95e97(i64) -> sret<struct0 size=8 align=8 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0

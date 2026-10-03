@@ -32,7 +32,12 @@ impl ExternalCallableUse {
 
 pub(crate) fn referenced_external_callables(module: &Module) -> HashSet<ExternalCallableUseId> {
     let mut referenced = HashSet::new();
-    for (_, function) in module.functions.iter() {
+    for function in module
+        .functions
+        .iter()
+        .map(|(_, function)| function)
+        .chain(module.release_hooks.iter().map(|(_, hook)| &hook.code))
+    {
         for (_, block) in function.body.blocks.iter() {
             for statement in &block.statements {
                 let StatementKind::Call(effect) = &statement.kind else {

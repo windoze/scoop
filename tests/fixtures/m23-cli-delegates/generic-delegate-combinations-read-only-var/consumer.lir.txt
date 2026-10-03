@@ -2,8 +2,8 @@ Module
   global @scoop$1$ss$487f908ccd5578042a0453c955509096094f7ef1cc148d0c0dffeaa7ef00c0cd : ptr<managed> scan=refs[0]
   imported_global @scoop$1$ss$f8cec4510d4459538b46f0979dfd5ce1c39b1d23a5ad58fccced24eb224457b7 : ptr<managed> provider=db7ae4f18a6559b5f50bdbe4793388614cc4615b56078554e93d0f9e9b5fa72f scan=refs[0]
   global @scoop$1$ss$872fdba18eaea88fe00efbb7f3d552130ed30542f45101b9094490bc84e991f4 : ptr<managed> scan=refs[0]
-  init0 extension:Receiver<T0>:ordered lazy storage=@scoop$1$ss$487f908ccd5578042a0453c955509096094f7ef1cc148d0c0dffeaa7ef00c0cd failure=@scoop$1$ss$872fdba18eaea88fe00efbb7f3d552130ed30542f45101b9094490bc84e991f4 initializer=@scoop$1$cb$018a434a82bacab2fc804298f774b2f3f76ec739907bf96d38962383fccae232 ensure=@scoop$1$cb$016073832a20ed7dafd9ea71e8ecda989dbeaa72dd2b4b90ce9bbf35824435b2 deps=[]
-  fun @scoop$1$cb$a01a092863a28f9309d9121bd24f2017d977310eb3c1c310a7a214465a4ec76a() -> i32
+  init0 extension:Receiver<T0>:ordered lazy storage=@scoop$1$ss$487f908ccd5578042a0453c955509096094f7ef1cc148d0c0dffeaa7ef00c0cd failure=@scoop$1$ss$872fdba18eaea88fe00efbb7f3d552130ed30542f45101b9094490bc84e991f4 initializer=@scoop$1$cb$866977b0eafbb33d48fd0a3a331aeb25acb7495363ea20820745a8fb074c580c ensure=@scoop$1$cb$8c3eb5144c2673eb3603443f83204aca56e2509cff31a2f54107abfd980a8432 deps=[]
+  fun @scoop$1$cb$ed0d0ab3106e01a2224459133b11bab3de01c9e44a6358a6ef2db5e54337ab8c() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -14,7 +14,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$871d517660d70e86edeef975abd2cf8aee12d58a55663cb4a48bb32fe1e990a7(i32) -> i32
+  fun @scoop$1$cb$28b63f004abb9ed0a021913229017d8b3d56f4501efa5e2dc3f048820c131798(i32) -> i32
     local %0 $property_receiver.0: ptr<managed>
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter.value: i32
@@ -110,7 +110,7 @@ Module
     br @if.merge.9
   block if.merge.9
     ret local20
-  fun @scoop$1$cb$60a8f8ec15bbb985956d26b18efd1e0c685179915eb23d812a7c391528e6fdf3(ptr<managed>) -> i32
+  fun @scoop$1$cb$2e9ec53125f1abb14d09daf05aebc3afdc48599c54994e3b5de9f3764d75da9a(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -120,7 +120,7 @@ Module
     call managed-direct-target0 sp<managed-call:1> live=[param0:ptr<managed>@0, t1:ptr<managed>@0] t2 = sig=direct0 (ptr<managed>, ptr<managed>) -> i32 local-fn3(t1, param0)
     store t2 -> local0
     ret local0
-  fun @scoop$1$cb$625d19a884f5157940928efd04a51c96374f25e9b638a5b1d13d65763e456e16(ptr<managed>, ptr<managed>) -> i32
+  fun @scoop$1$cb$f628fb5bbc3c9b2f1a2114c2d83fbfe69f4b14d03d7a385ad31eb748355e708f(ptr<managed>, ptr<managed>) -> i32
     local %0 $dependency.local.2: i32
     local %1 $dependency.local.3: i32
     local %2 $dependency.local.4: i32
@@ -151,7 +151,7 @@ Module
     call managed-direct-target1 sp<managed-call:4> live=[t8:ptr<managed>@0] t9 = sig=direct1 (ptr<managed>) -> i32 external-fn3(t8)
     store t9 -> local6
     ret local6
-  fun @scoop$1$cb$018a434a82bacab2fc804298f774b2f3f76ec739907bf96d38962383fccae232() -> void
+  fun @scoop$1$cb$866977b0eafbb33d48fd0a3a331aeb25acb7495363ea20820745a8fb074c580c() -> void
     local %0 $call.1: ptr<managed>
     local %1 $call.2: ptr<managed>
   block entry
@@ -162,7 +162,7 @@ Module
     store t1 -> local1
     global_store global0, local1
     ret
-  fun @scoop$1$cb$016073832a20ed7dafd9ea71e8ecda989dbeaa72dd2b4b90ce9bbf35824435b2() -> void
+  fun @scoop$1$cb$8c3eb5144c2673eb3603443f83204aca56e2509cff31a2f54107abfd980a8432() -> void
     local %0 $init.state: machine<initialization-outcome>
     local %1 $init.caught: ptr<managed>
     local %2 $init.failure: ptr<managed>
@@ -241,7 +241,7 @@ Module
     br @try.end.10
   block throw.normal.2
     unreachable
-  fun @scoop$1$cb$abd61df9f0ccf95ee6eb0c36a955e8868c48252c56caeec6c31f9437f124c92b() -> ptr<managed>
+  fun @scoop$1$cb$a930685cfcf2f44d9af3bd5c157261fc0fb3608f36ebf8908f3d3a14ff36500e() -> ptr<managed>
     local %0 $dependency.local.0: i32
     local %1 $dependency.local.1: i32
     local %2 $dependency.local.2: i32
@@ -273,7 +273,7 @@ Module
     call managed-void-target3 sp<managed-call:5> live=[local6:ptr<managed>@0] sig=void3 (ptr<managed>) local-fn9(local6)
     t9 = aggregate () : {}
     ret local6
-  fun @scoop$1$cb$e14b55ede4be486c9f586a56fc0a50f66b32d2010c9457bfa86bcd6cbdce462e(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$c143c4bfa500e2a456f28533dbd39ec72e921c9102b494b2ee6d96200ee0af45(ptr<managed>) -> ptr<managed>
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: i32
     local %2 $dependency.local.3: i32
@@ -318,16 +318,16 @@ Module
     call managed-void-target4 sp<managed-call:7> live=[local9:ptr<managed>@0, local11:ptr<managed>@0] sig=void4 (ptr<managed>, ptr<managed>) local-fn10(local11, local9)
     t11 = aggregate () : {}
     ret local11
-  fun @scoop$1$cb$b84aa149e05d215914c6c326fd57984996b445b7d4377f5f3f897343e5069131(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$440e9677d97520fdeaa3ebc6474d57b9435a829ea62b601201f8f8fe8dca1c9a(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1
     ret
-  fun @scoop$1$cb$5e97b05adb4503ad9308bc27fcbf3f7d1f8e45aef6401f232faca998f7cdb12a(ptr<managed>) -> void
+  fun @scoop$1$cb$478f83f6ec38bccc3e54eb2f781bac25496f55233d7f9d6a2e14d92665c827b5(ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret
-  fun @scoop$1$cb$e72f15bf35e8c1ba305c4b104ca3f42980f1f57992e3e08e6e7070cf0498483f(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$087e15e861798fc6a0ae3e95de9218cedce493cc175626f731787599cf647363(ptr<managed>, ptr<managed>) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0]
     heap_store param0 +16 param1

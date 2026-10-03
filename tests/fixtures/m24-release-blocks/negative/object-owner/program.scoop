@@ -1,0 +1,2 @@
+object Owner { release {} }
+fun main() {}

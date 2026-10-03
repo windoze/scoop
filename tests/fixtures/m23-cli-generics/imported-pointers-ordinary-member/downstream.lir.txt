@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$7dd2f54f45e2773af641d26176178aa051314e78ea92e14185539a2290b0ffe8() -> i32
+  fun @scoop$1$cb$26423f15a1123190396734313abc9bbbd6d74afc6a61ac0a14f35dbb8494c2c7() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.number: i32
     local %2 value: ptr<managed>
@@ -60,7 +60,7 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local15
-  fun @scoop$1$cb$43d48bab9da3deff7474bced42e06a00be5c37812d0782601e871ca8d1d00adc(ptr<managed>) -> i32
+  fun @scoop$1$cb$0ce4d3aa1a98483c475ba4bc0c9f07382761ddf9033c0cd3327ef9931541e5db(ptr<managed>) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<raw>
     local %2 $dependency.local.3: ptr<raw>
@@ -99,7 +99,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local10
-  fun @scoop$1$cb$8fea7ef667677bb8653bbd129d159f367eac60095587801604ea641b545c1e5a(i32) -> i32
+  fun @scoop$1$cb$1dc93b76c5b8576315c341bd1b1ce2b94e9a571cca145f05c7116626878408c5(i32) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<raw>
     local %2 $dependency.local.3: ptr<raw>
@@ -138,7 +138,7 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local10
-  fun @scoop$1$cb$a36638afe8ddcd2f286f51e8a5874ddc12ce1c2201110b28231e9b92c67a1788(ptr<raw>, ptr<raw>) -> i1
+  fun @scoop$1$cb$5a6abb171a03e58adf7c3cb6a63cff00accc8026986c499a85167bbc80089dff(ptr<raw>, ptr<raw>) -> i1
     local %0 $dependency.local.2: ptr<raw>
     local %1 $dependency.local.3: ptr<raw>
     local %2 $dependency.local.4: i64
@@ -151,7 +151,7 @@ Module
     t1 = ptr_to_ulong local1 : i64
     t2 = integer_compare_Equal<ULong> local2, t1 : i1
     ret t2
-  fun @scoop$1$cb$0bdb7323fabccce2adf563b7d11dc7a765bfd3f72e1f82e6793a1560c4ae0dd0(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$19924c245228cf64fecd5221ee68148d13822db376b7200ed3cd7c48ce7f0f6e(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

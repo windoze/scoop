@@ -3,9 +3,9 @@ Module
   global @scoop$1$io$31c08a71c2e2e194f62fee7737f7f266daafd7efb4c56b5a934e248db847473b = "zero"
   global @scoop$1$io$4b05b3b4fb9e46794cbe2291e957dee2f6bd0a9e569c4d1428fcb924e2454ae8 = "empty"
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
-  global @scoop$1$ss$229a4d048049cf9bf3e032011c7d4e6761bc12c77fae79ba745ea06c32b07585 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Choice tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
-  fun @scoop$1$cb$d3ce2e8c9ccc96bbe77a360043be5daea7a3fd04f81fe40fb317533bc14315bc(indirect<enum0 size=16 align=8 scan=none>) -> ptr<managed>
+  fun @scoop$1$cb$d196de96a090371c70f54bf34f789857d594cebb7be520d3243a63bc587fa207(indirect<enum0 size=16 align=8 scan=none>) -> ptr<managed>
     local %0 value: i32
     local %1 $dependency.receiver: i32
     local %2 $dependency.argument.0: i32
@@ -52,7 +52,7 @@ Module
     unreachable
   block pattern.merge.9
     br @pattern.merge.3
-  fun @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde() -> void
+  fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $argument.0: i32
     local %1 $parameter._1: i32
     local %2 $argument.0: enum0
@@ -88,7 +88,7 @@ Module
     call managed-void-target1 sp<managed-call:3> live=[local9:ptr<managed>@0] sig=void1 (ptr<managed>) local-fn2(local9)
     t5 = aggregate () : {}
     ret
-  fun @scoop$1$cb$0e2592cda2d841ffaeeb4ca9ee19ab89cff7a7c2584f848c9feaa95e67b36371(ptr<managed>) -> void
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -107,7 +107,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn1(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$35c3dc5c3c3d7d1d3b6d2a47d7e6d6c88d61bca0e08966efecf4802178cdefa3() -> i32
+  fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
@@ -123,4 +123,4 @@ Module
     ret integer<UInt>(0x00000001)
   td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Choice) @scoop$1$td$bbde5eac145868e147c04c3d6a2160cf3aa457eaf33cfbe1833dc57a30c0f95a type-id=2848374245781007858 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Choice size=16 align=8 enum-scan=none
-  output executable @scoop$1$cb$231a9ff4d6fc765297e8eb2c6cee080892fcc69d9b541b4356dd49d5e5726fde
+  output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

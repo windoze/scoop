@@ -362,6 +362,7 @@ pub enum ClassModifier {
 /// (impl spec 2.9).
 #[derive(Debug)]
 pub struct ClassDef {
+    pub release_policy: ReleasePolicy,
     pub modifier: ClassModifier,
     pub name: String,
     /// Canonical arguments of this fully specialized application.

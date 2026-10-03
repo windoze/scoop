@@ -55,6 +55,7 @@ pub(super) fn provider_module(
     .unwrap();
     let mut descriptors = Arena::new();
     let descriptor = descriptors.alloc(TypeDescriptor {
+        release_policy: Default::default(),
         relations: Default::default(),
         diagnostic_name,
         vtable: VtableRecord::new(&identity, Vec::new()).unwrap(),
@@ -98,6 +99,7 @@ pub(super) fn consumer_module(coordinate: &ConeCoordinate) -> Module {
     .unwrap();
     let mut descriptors = Arena::new();
     let descriptor = descriptors.alloc(TypeDescriptor {
+        release_policy: Default::default(),
         relations: Default::default(),
         diagnostic_name,
         vtable: VtableRecord::new(&identity, Vec::new()).unwrap(),
@@ -127,6 +129,7 @@ pub(super) fn module(
     functions: Vec<Function>,
 ) -> Module {
     Module {
+        release_hooks: Arena::new(),
         cone,
         globals: Arena::new(),
         initialization_units: Arena::new(),

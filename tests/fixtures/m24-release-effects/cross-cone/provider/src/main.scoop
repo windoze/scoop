@@ -1,0 +1,5 @@
+package releaseeffects
+
+@NoGC private fun <T> internalIdentity(value: T): T = value
+@NoGC public fun <T> identity(value: T): T = internalIdentity(value)
+@NoGC public fun plain(value: Int): Int = value + 1

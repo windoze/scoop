@@ -120,6 +120,13 @@ impl ReferenceCollector<'_> {
             | hir::ExprKind::NoneLiteral => {}
             hir::ExprKind::InitializingClassFieldAccess { .. }
             | hir::ExprKind::InitializingStructFieldAccess { .. } => {}
+            hir::ExprKind::ReleaseFieldLoad(field) => self.field_use(
+                hir::FieldRef::ClassField {
+                    owner: field.owner,
+                    field: field.field,
+                },
+                origin,
+            ),
             hir::ExprKind::TupleLiteral(values) | hir::ExprKind::ArrayLiteral(values) => {
                 self.expressions(values);
             }

@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$8a49b2dd6c35c20fcb505ad6bc5a7e5d5980369fe2bf868c3b31e359d62cf1fe() -> ptr<managed>
+  fun @scoop$1$cb$f3daa2f3c17ce03d79101d4a21d05470f1597e270f6bc1d926e0e317b73d8158() -> ptr<managed>
     local %0 value: ptr<managed>
     local %1 marker: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>
     local %2 $dependency.argument.0: struct0 <logical-zst 64f84b8d0f462b6a40d0c0af5623e06f6bf95fc68dc3049238af8dbaf3ffdf69>

@@ -1,7 +1,7 @@
 Module
   global @scoop$1$io$197e39826ebfa9f64c860c2f9a02eedae6e6d3205ef8e3d79a4e233d847fedde = "program-link"
-  global @scoop$1$ss$4e526375f298e982051718eb702fa0a0a89d2a3487a6e7b2dd32f59b4f44c7e2 : ptr<managed> scan=refs[0]
-  fun @scoop$1$cb$8587226b7de7f92725dca3aac381711c261687db24863c1374df866225ac4687() -> void
+  global @scoop$1$ss$122ca9a9b6230702972b014e25e01afd56027faab4eead1bedd8b623e70ee17d : ptr<managed> scan=refs[0]
+  fun @scoop$1$cb$a97e03bb17dfef378f22d6195f13057971dfaf313a4b900b83eafea53faba9f1() -> void
     local %0 message: ptr<managed>
     local %1 answer: i64
   block entry
@@ -10,7 +10,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> i64 external-fn0()
     store t0 -> local1
     ret
-  fun @scoop$1$cb$2c8944775914eaef74d8d66ced46680ac6dbe00c1d73df40305291ab175f604c() -> i32
+  fun @scoop$1$cb$1bb71c0168422202c93097a610035eebac7ee0668a0650089585396b1885bc01() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
@@ -24,4 +24,4 @@ Module
     global_store global1, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  output executable @scoop$1$cb$8587226b7de7f92725dca3aac381711c261687db24863c1374df866225ac4687
+  output executable @scoop$1$cb$a97e03bb17dfef378f22d6195f13057971dfaf313a4b900b83eafea53faba9f1

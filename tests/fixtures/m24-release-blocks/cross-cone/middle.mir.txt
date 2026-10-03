@@ -1,0 +1,25 @@
+Module
+  class Owner vtable=0 itables=0
+  fun makeOwner @fn0(value: Int) -> Owner
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.handle: Int
+        Type Int
+        Local $dependency.argument.0
+      assign $new.1
+        Type Owner
+        ClassAlloc Owner
+      call external0 direct
+        Type Owner
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.handle
+      publish_release_ready Owner
+        Type Owner
+        Local $new.1
+      return
+        Type Owner
+        Local $new.1
+  output library

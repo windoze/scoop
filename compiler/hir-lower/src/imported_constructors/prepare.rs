@@ -23,6 +23,7 @@ impl Lowerer {
             .ok_or("constructor owner is missing")?;
         let initialization = dependencies
             .nominal_initialization(owner)
+            .map(|source| Arc::clone(source.initialization()))
             .ok_or("constructor owner has no initialization template")?;
         let constructor = initialization
             .constructors()

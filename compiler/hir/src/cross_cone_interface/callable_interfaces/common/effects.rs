@@ -3,7 +3,7 @@ use std::fmt;
 use scoop_identity::{Effect, GcEffect};
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError, WireErrorKind};
 
-use super::{CallableImplementationV1, CallableOperatorRoleV1};
+use super::{CallableImplementationV1, CallableOperatorRoleV1, CallableReleaseCallabilityV1};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CallableSafetyV1 {
@@ -111,7 +111,7 @@ impl WireDecode for PublicLookupAccessV1 {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CallableSourceEffectsV1 {
     execution: Effect,
     safety: CallableSafetyV1,
@@ -119,6 +119,7 @@ pub struct CallableSourceEffectsV1 {
     implementation: CallableImplementationV1,
     operator_role: CallableOperatorRoleV1,
     infix: CallableInfixV1,
+    release_callability: CallableReleaseCallabilityV1,
 }
 
 impl CallableSourceEffectsV1 {
@@ -178,24 +179,51 @@ impl CallableSourceEffectsV1 {
             implementation,
             operator_role,
             infix,
+            release_callability: CallableReleaseCallabilityV1::Unavailable,
         })
     }
 
-    pub const fn execution(self) -> Effect {
+    pub fn with_release_callability(
+        mut self,
+        mut release: CallableReleaseCallabilityV1,
+    ) -> Result<Self, CallableSourceEffectsBuildError> {
+        if let CallableReleaseCallabilityV1::NoTransition { requirements } = &mut release {
+            if self.gc_effect != GcEffect::NoGc
+                || self.execution != Effect::Ordinary
+                || matches!(
+                    self.implementation,
+                    CallableImplementationV1::SourceExternC
+                        | CallableImplementationV1::SourceExternScoop
+                )
+            {
+                return Err(CallableSourceEffectsBuildError::InvalidReleaseEffect);
+            }
+            requirements.sort_unstable();
+            requirements.dedup();
+        }
+        self.release_callability = release;
+        Ok(self)
+    }
+
+    pub const fn release_callability(&self) -> &CallableReleaseCallabilityV1 {
+        &self.release_callability
+    }
+
+    pub const fn execution(&self) -> Effect {
         self.execution
     }
 
-    pub const fn safety(self) -> CallableSafetyV1 {
+    pub const fn safety(&self) -> CallableSafetyV1 {
         self.safety
     }
 
-    pub const fn gc_effect(self) -> GcEffect {
+    pub const fn gc_effect(&self) -> GcEffect {
         self.gc_effect
     }
 
     /// The Scoop entry for a source extern performs a native transition, even
     /// when the native callee itself promises not to interact with the GC.
-    pub const fn provider_entry_gc_effect(self) -> GcEffect {
+    pub const fn provider_entry_gc_effect(&self) -> GcEffect {
         match self.implementation {
             CallableImplementationV1::SourceExternC
             | CallableImplementationV1::SourceExternScoop => GcEffect::Managed,
@@ -203,22 +231,22 @@ impl CallableSourceEffectsV1 {
         }
     }
 
-    pub const fn implementation(self) -> CallableImplementationV1 {
+    pub const fn implementation(&self) -> CallableImplementationV1 {
         self.implementation
     }
 
-    pub const fn operator_role(self) -> CallableOperatorRoleV1 {
+    pub const fn operator_role(&self) -> CallableOperatorRoleV1 {
         self.operator_role
     }
 
-    pub const fn infix(self) -> CallableInfixV1 {
+    pub const fn infix(&self) -> CallableInfixV1 {
         self.infix
     }
 }
 
 impl WireEncode for CallableSourceEffectsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(7)?;
         encoder.field(1)?;
         self.execution.encode(encoder)?;
         encoder.field(2)?;
@@ -230,11 +258,13 @@ impl WireEncode for CallableSourceEffectsV1 {
         encoder.field(5)?;
         self.operator_role.encode(encoder)?;
         encoder.field(6)?;
-        self.infix.encode(encoder)
+        self.infix.encode(encoder)?;
+        encoder.field(7)?;
+        self.release_callability.encode(encoder)
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DecodedCallableSourceEffectsV1 {
     execution: Effect,
     safety: CallableSafetyV1,
@@ -242,6 +272,7 @@ pub struct DecodedCallableSourceEffectsV1 {
     implementation: CallableImplementationV1,
     operator_role: CallableOperatorRoleV1,
     infix: CallableInfixV1,
+    release_callability: CallableReleaseCallabilityV1,
 }
 
 impl DecodedCallableSourceEffectsV1 {
@@ -253,13 +284,14 @@ impl DecodedCallableSourceEffectsV1 {
             self.implementation,
             self.operator_role,
             self.infix,
-        )
+        )?
+        .with_release_callability(self.release_callability)
     }
 }
 
 impl WireEncode for DecodedCallableSourceEffectsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(6)?;
+        encoder.map(7)?;
         encoder.field(1)?;
         self.execution.encode(encoder)?;
         encoder.field(2)?;
@@ -271,13 +303,15 @@ impl WireEncode for DecodedCallableSourceEffectsV1 {
         encoder.field(5)?;
         self.operator_role.encode(encoder)?;
         encoder.field(6)?;
-        self.infix.encode(encoder)
+        self.infix.encode(encoder)?;
+        encoder.field(7)?;
+        self.release_callability.encode(encoder)
     }
 }
 
 impl WireDecode for DecodedCallableSourceEffectsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(6)?;
+        decoder.expect_map(7)?;
         Ok(Self {
             execution: decoder.field(1, decode_effect)?,
             safety: decoder.field(2, CallableSafetyV1::decode)?,
@@ -285,6 +319,7 @@ impl WireDecode for DecodedCallableSourceEffectsV1 {
             implementation: decoder.field(4, CallableImplementationV1::decode)?,
             operator_role: decoder.field(5, CallableOperatorRoleV1::decode)?,
             infix: decoder.field(6, CallableInfixV1::decode)?,
+            release_callability: decoder.field(7, CallableReleaseCallabilityV1::decode)?,
         })
     }
 }
@@ -292,6 +327,7 @@ impl WireDecode for DecodedCallableSourceEffectsV1 {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CallableSourceEffectsBuildError {
     NoGcSuspend,
+    InvalidReleaseEffect,
     IntegerIntrinsicEffect {
         kind: crate::IntrinsicFunctionKind,
         execution: Effect,
@@ -305,6 +341,9 @@ pub enum CallableSourceEffectsBuildError {
 impl fmt::Display for CallableSourceEffectsBuildError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::InvalidReleaseEffect => {
+                formatter.write_str("NoTransition requires an ordinary NoGc Scoop implementation")
+            }
             Self::NoGcSuspend => formatter.write_str("suspend callable cannot be NoGc"),
             Self::IntegerIntrinsicEffect {
                 kind,

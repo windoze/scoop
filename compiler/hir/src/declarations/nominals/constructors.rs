@@ -113,6 +113,7 @@ pub struct StructConstructor {
     pub safety: Safety,
     /// Owner parameters required to be GC-free by this callable and its callees.
     pub no_gc_type_params: Vec<TypeParamId>,
+    pub release_callability: ReleaseCallability,
     pub parameters: Vec<ConstructorParameter>,
     pub kind: StructConstructorKind,
     pub span: Span,

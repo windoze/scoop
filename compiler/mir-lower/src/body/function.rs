@@ -77,7 +77,7 @@ impl BodyLowerer<'_> {
         self.allocate_source_locals(&body.locals, identities);
     }
 
-    fn allocate_source_locals(
+    pub(super) fn allocate_source_locals(
         &mut self,
         locals: &Arena<hir::Local>,
         identities: Vec<hir::LocalValueIdentityRecord>,
@@ -96,7 +96,7 @@ impl BodyLowerer<'_> {
             });
             self.local_map.insert(hir_id, mir_id);
             self.local_values
-                .record(self.current_function, mir_id, &identity);
+                .record(self.current_owner, mir_id, &identity);
         }
     }
 
@@ -215,7 +215,7 @@ impl BodyLowerer<'_> {
             mutable,
         });
         self.local_values.record_generated_local(
-            self.current_function,
+            self.current_owner,
             local,
             self.current_materialization,
             hir::StructuralDefinitionSiteRole::SyntheticValue,

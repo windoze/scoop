@@ -313,6 +313,9 @@ impl CallableIdentityBuilder<'_> {
             CallableTemplateOwner::VariantConstructor(id) => {
                 scoop_identity::LexicalCallableParent::variant_constructor(id)
             }
+            CallableTemplateOwner::ReleaseHook(_) => {
+                unreachable!("release blocks cannot contain lexical callables")
+            }
         }
     }
 

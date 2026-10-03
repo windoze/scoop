@@ -410,6 +410,7 @@ impl BoxedRegistry {
         );
         let name = format!("box<{}>", mir::type_name(shell, payload));
         let id = classes.alloc(mir::ClassDef {
+            release_policy: Default::default(),
             modifier: mir::ClassModifier::Final,
             name: name.clone(),
             type_arguments: Vec::new(),
@@ -425,6 +426,7 @@ impl BoxedRegistry {
             itables: Vec::new(),
         });
         shell.classes.alloc(mir::ClassDef {
+            release_policy: Default::default(),
             modifier: mir::ClassModifier::Final,
             name,
             type_arguments: Vec::new(),

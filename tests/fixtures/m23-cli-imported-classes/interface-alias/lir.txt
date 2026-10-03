@@ -1,9 +1,9 @@
 Module
-  fun @scoop$1$cb$ef87721121e3c4c0c8e81f68719ada89fe71fb51ddb10a19a4f278997f949784(ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$02779881798ec2341ae1a085fa073a2d141d64aa7c4647a0011af28c1bf4d69b(ptr<managed>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     ret param0
-  fun @scoop$1$cb$8f51bd3c8e3ff5bdf85a43eb0a5c33ff0e30ba68ad23e5edd6471634c159bde4() -> ptr<managed>
+  fun @scoop$1$cb$a42dc94657d1e75e7fb81502f69ac60da60fd40b1c577a7ccb5672503df4ab91() -> ptr<managed>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.value: i64
     local %2 $argument.0: ptr<managed>

@@ -1,0 +1,6 @@
+struct Cursor(val code: Int): Iterator<Int> {
+    public override fun next(): Option<Int> = None
+}
+struct Values() { @NoGC operator fun iterator(): Cursor = Cursor(0) }
+class Owner { release { for (value in Values()) { val copied = value } } }
+fun main() {}

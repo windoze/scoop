@@ -23,6 +23,9 @@ impl Lowerer {
                 .map(|(read, _)| read);
         }
         let Some(local) = self.scopes.lookup(&name.text) else {
+            if self.release_has_field_name(&name.text) {
+                return self.release_field_read(name);
+            }
             if !self.capture_contexts.is_empty()
                 && let Some(capture) = self.available_capture(&name.text)
             {

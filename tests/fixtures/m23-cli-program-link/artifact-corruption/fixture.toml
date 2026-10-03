@@ -58,7 +58,7 @@ checks = []
 
 [[steps]]
 name = "original_bytes"
-checks = [{"file" = "${work}/original.slib", "sha256" = "abc9706a2970e0c12deafb3f64bcd06a84b906fa104360066e4059fcddbf7702"}]
+checks = [{"file" = "${work}/original.slib", "sha256" = "88071380bdaa5329cf3a780e4827d125be6fabc859e8ce9740492f2c8f96d7d4"}]
 
 [[steps]]
 name = "damage_member"
@@ -81,7 +81,7 @@ name = "human_member"
 argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--dependency-slib", "${work}/artifacts/0.slib", "--runtime-objects", "${build.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--target", "${target}", "--message-format", "human", "-o", "${work}/program"]
 exit = 1
 stdout = ""
-stderr = "${work}/artifacts/root.slib:member/22a719111daa11487d537a6348d7c872f449fb8abb0a93470b6f3b1f4c0380ab:$.8[slib-member:22a719111daa11487d537a6348d7c872f449fb8abb0a93470b6f3b1f4c0380ab]: error[SCOOP_LINK_FAILED]: archive member 22a719111daa11487d537a6348d7c872f449fb8abb0a93470b6f3b1f4c0380ab payload digest does not match its directory record\n"
+stderr = "${work}/artifacts/root.slib:member/3133c1ac08c89ca52aafacfd5c4b2f2b648da9a90cc33db4dd22868ec5db29fd:$.8[slib-member:3133c1ac08c89ca52aafacfd5c4b2f2b648da9a90cc33db4dd22868ec5db29fd]: error[SCOOP_LINK_FAILED]: archive member 3133c1ac08c89ca52aafacfd5c4b2f2b648da9a90cc33db4dd22868ec5db29fd payload digest does not match its directory record\n"
 checks = [{"file" = "${work}/program", "same_as" = "${work}/previous-program"}]
 
 [[steps]]

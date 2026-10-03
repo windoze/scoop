@@ -21,12 +21,13 @@ pub(super) struct Signatures<'a> {
     pub(super) applications: BTreeMap<PersistentCallableApplicationId, ApplicationSignature<'a>>,
     generated: BTreeSet<(OdrGroupId, PersistentGeneratedCallableId)>,
     exact_generated: BTreeSet<PersistentGeneratedCallableId>,
+    release_owners: BTreeSet<scoop_identity::PersistentExactTypeId>,
 }
 
 pub(super) fn signatures<'a>(
     foundation: &'a CanonicalMirFoundation,
     identities: &ValidatedIdentityGraph,
-    callables: Option<&'a scoop_mir::CanonicalMirCallableBindingsV1>,
+    exports: Option<&'a scoop_mir::MirTypeBridgeExportConstituentsV1>,
 ) -> Result<Signatures<'a>, Error> {
     let mut applications = BTreeMap::new();
     let mut generated = BTreeSet::new();
@@ -63,7 +64,8 @@ pub(super) fn signatures<'a>(
             origin,
             // Shared bindings retain the source signature; the foundation
             // records the physical continuation/step ABI of suspend bodies.
-            signature: callables
+            signature: exports
+                .map(|exports| exports.callables())
                 .and_then(|callables| {
                     callables.get(scoop_identity::CallableDefinitionOwner::Odr(member))
                 })
@@ -80,6 +82,14 @@ pub(super) fn signatures<'a>(
         applications,
         generated,
         exact_generated,
+        release_owners: exports
+            .into_iter()
+            .flat_map(|exports| exports.types().records())
+            .filter_map(|record| match record.representation().release_policy() {
+                scoop_mir::MirClassReleasePolicyV1::SynchronousGcFree { owner } => Some(owner),
+                scoop_mir::MirClassReleasePolicyV1::None => None,
+            })
+            .collect(),
     })
 }
 
@@ -93,6 +103,13 @@ pub(super) fn validate_root(
     let valid = match root.context() {
         CallableMaterializationContext::NoSubstitution => {
             let owner = match root.template() {
+                CallableTemplateOwner::ReleaseHook(owner) => {
+                    return signatures
+                        .release_owners
+                        .contains(&owner)
+                        .then_some(())
+                        .ok_or(Error::CallRoot { position });
+                }
                 CallableTemplateOwner::Function(id) => CallableOwner::Function(id),
                 CallableTemplateOwner::Constructor(id) => CallableOwner::Constructor(id),
                 CallableTemplateOwner::Accessor(id) => CallableOwner::Accessor(id),
@@ -129,7 +146,9 @@ pub(super) fn validate_root(
                 CallableTemplateOwner::VariantConstructor(id) => {
                     CallableTemplateOrigin::VariantConstructor(id)
                 }
-                CallableTemplateOwner::Generated(_) => return Err(Error::CallRoot { position }),
+                CallableTemplateOwner::Generated(_) | CallableTemplateOwner::ReleaseHook(_) => {
+                    return Err(Error::CallRoot { position });
+                }
             };
             signatures
                 .applications

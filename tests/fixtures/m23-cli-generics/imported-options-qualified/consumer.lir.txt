@@ -2,7 +2,7 @@ Module
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Packet tagged size=16 align=8 variants=()@8+0 (i32)@8+4 (i32, i32)@8+8
   enum ValuePacket tagged size=16 align=8 variants=(i32)@8+4
-  fun @scoop$1$cb$7fdcce8dbc20b0146102a8478cb66179f02b8bc1047e6021259222f42aa5f197() -> i32
+  fun @scoop$1$cb$44907165ddc59fed14cf43a5f8ab31788ee61cb039fc518605b778ea1974c27c() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i32
@@ -13,7 +13,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i32 local-fn1(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$daaea8ac9ea53a7b21800776af5e37498fa40ef3fcd9da2280d4e438e5318ed5(i32) -> i32
+  fun @scoop$1$cb$940cd6a257fbe2ccd7b54cae12bca1878546d185f7560d4eb0f4a2cd533a9f41(i32) -> i32
     local %0 empty: enum0
     local %1 $dependency.argument.0: i32
     local %2 $dependency.parameter._1: i32
@@ -150,7 +150,7 @@ Module
   block pattern.merge.11
     store local36 -> local37
     br @pattern.merge.8
-  fun @scoop$1$cb$efc66227ed58c3129740b8215ce6c92d5ffc22f5572077ca8332d51413d7106e(indirect<enum0 size=16 align=8 scan=none>, i32) -> i32
+  fun @scoop$1$cb$be03303c26a4c9de01940899f4776eaaf7d8c1d433420b1d7f4d1972c98c74d1(indirect<enum0 size=16 align=8 scan=none>, i32) -> i32
     local %0 $dependency.local.2: i32
     local %1 $dependency.local.3: i32
     local %2 $when.1: enum0

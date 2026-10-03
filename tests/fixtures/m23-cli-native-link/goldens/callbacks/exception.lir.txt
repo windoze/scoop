@@ -7,14 +7,14 @@ Module
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
   global @scoop$1$io$9bf5b69b14734a2c5b24769df51a4a3ffd956fee793eb4f669316e8b7f27a70b = "\n"
   global @scoop$1$io$da239425f37af931cffdeb052be163dfd879e4c914b1c02050c365a4f6bce364 = "callback failed"
-  global @scoop$1$ss$39b8b0578e80548e32e7783bdcafeb7bc987bd732bbf559d782f96c079954e03 : ptr<managed> scan=refs[0]
+  global @scoop$1$ss$1c583e1424bd496e4692a5e4d8eebb68cc867673bf267a32422a544bae8137d0 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum ForeignCallbackMode tagged size=8 align=8 variants=()@8+0 ()@8+0
   enum ForeignCallbackState tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0 ()@8+0
   enum Option niche(kind=managed,payload_variant=0)
   foreign_callback_family fcf0 callback=struct0 state=enum2 failure=enum3
-  foreign_callback_bridge fcb0 family=fcf0 @scoop$1$cb$fc6190e3fb2a49879a550bdce3f444ec8a1dff55d05a701279573193e99575ea -> @scoop$1$br$c6af2c85af70ffdc7c70ffba251d74b02fe509050f3e2438626c5b6c17e0f531 signature=@scoop$1$br$9eff7434e879e3ab653a95b92f1024325706731be70290a43854a9faa2503b5e context=1 mode=ForeignCallbackMode.OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
-  fun @scoop$1$cb$904c2dd7fc51aa4eace06d3839cfddeb4ee37e4cf8fc25ea4d04acd93c2185c1() -> void
+  foreign_callback_bridge fcb0 family=fcf0 @scoop$1$cb$dda29fe79ee760be86a786b14268eb962fce520dc42d9295a685318dcbbd5b6a -> @scoop$1$br$c6af2c85af70ffdc7c70ffba251d74b02fe509050f3e2438626c5b6c17e0f531 signature=@scoop$1$br$9eff7434e879e3ab653a95b92f1024325706731be70290a43854a9faa2503b5e context=1 mode=ForeignCallbackMode.OneShot c=(Int,data-ptr<opaque-void,direct>)->Int
+  fun @scoop$1$cb$c594194be4042231a0d77c41c4101be15a650bc3ddf5837c6cadd8a349a5fead() -> void
     local %0 $dependency.receiver: ptr<managed>
     local %1 $dependency.argument.0: ptr<managed>
     local %2 $dependency.parameter.other: ptr<managed>
@@ -71,7 +71,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0, local2:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, ptr<managed>) -> ptr<managed> runtime @scoop_rt_string_concat(local0, local2)
     store t0 -> local3
     call managed-direct-target1 sp<managed-call:1> live=[local3:ptr<managed>@0] t1 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(24)))
-    t2 = function_address @scoop$1$cb$5f00a5e1fe1dc08076ae86a14aa3aaac99445cfee054cd39a10504f2ba396f64 : ptr
+    t2 = function_address @scoop$1$cb$46f247d1bba45e033bd1bf4ede67db6585c37d1bfad4730208e93d53714cc648 : ptr
     heap_store t1 +16 t2
     store t1 -> local4
     store integer<Long>(0x0000000000000001) -> local5
@@ -215,7 +215,7 @@ Module
     t34 = aggregate () : {}
     end_catch
     br @scope.18
-  fun @scoop$1$cb$5f00a5e1fe1dc08076ae86a14aa3aaac99445cfee054cd39a10504f2ba396f64(ptr<managed>, i32) -> i32
+  fun @scoop$1$cb$46f247d1bba45e033bd1bf4ede67db6585c37d1bfad4730208e93d53714cc648(ptr<managed>, i32) -> i32
     local %0 $dependency.receiver: i32
     local %1 $dependency.receiver: ptr<managed>
     local %2 $dependency.argument.0: ptr<managed>
@@ -243,7 +243,7 @@ Module
     t4 = aggregate () : {}
     throw local7
     unreachable
-  fun @scoop$1$cb$05ffc32f631b2fcd15ae6cb61f370b61c17fa98cb6f1492449586fa0abce58a1(i32) -> void
+  fun @scoop$1$cb$117da55e12101d6f2e7c4cf6864ce23f553ef957b2d64a433a803835d1d10286(i32) -> void
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -262,7 +262,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn7(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$71a8bdb7e9069d4ec0fedc224c7d96f852fc7cc568868eb03032ab468e4c5207(i1) -> void
+  fun @scoop$1$cb$b0c2bbaec5d3e971bdbf6b7be42ee32b5cd27aa28cd91cd80288f41a25f3b6cf(i1) -> void
     local %0 $dependency.local.1: i1
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -281,7 +281,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn7(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$0e2592cda2d841ffaeeb4ca9ee19ab89cff7a7c2584f848c9feaa95e67b36371(ptr<managed>) -> void
+  fun @scoop$1$cb$43be1945af2e9ba3587bf2ead706ac7563f8181567977803f1aaa99bf055da0f(ptr<managed>) -> void
     local %0 $dependency.local.1: ptr<managed>
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -300,7 +300,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn7(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$ba8041378f7283fa6512236a8f8f9ee677a4770b6728619f2b8f7280ee036070(i64) -> void
+  fun @scoop$1$cb$bffe4aa837cfefda47964f63aa649f24e7f7f10157a411cde00750cc96ade346(i64) -> void
     local %0 $dependency.local.1: i64
     local %1 $dependency.local.2: ptr<managed>
     local %2 $dependency.local.3: ptr<managed>
@@ -319,7 +319,7 @@ Module
     call managed-void-target1 sp<managed-call:2> live=[local4:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn7(local4)
     t2 = aggregate () : {}
     ret
-  fun @scoop$1$cb$ae9ee4059be2cd2df6f33355ef7c3652187011182cfef611fc14bc50ad9987e2(ptr<managed>, ptr<managed>) -> void
+  fun @scoop$1$cb$296fe163e0df018bddc49a6b3c834cacabcb78b856952fb57b4c37b913acb02e(ptr<managed>, ptr<managed>) -> void
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter._1: ptr<managed>
     local %2 $dependency.argument.0: enum0
@@ -335,7 +335,7 @@ Module
     t1 = aggregate () : {}
     heap_store param0 +24 param1
     ret
-  fun @scoop$1$cb$fc6190e3fb2a49879a550bdce3f444ec8a1dff55d05a701279573193e99575ea(ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> machine<foreign-callback-status>
+  fun @scoop$1$cb$dda29fe79ee760be86a786b14268eb962fce520dc42d9295a685318dcbbd5b6a(ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> machine<foreign-callback-status>
     local %0 $caught: ptr<managed>
     local %1 $value: i32
     local %2 $sc.1: exception_record
@@ -365,7 +365,7 @@ Module
     raw_store param1 local1 align 4
     t9 = aggregate () : {}
     ret machine<foreign-callback-status>(ForeignCallbackStatus(Returned))
-  fun @scoop$1$cb$55bc0d5ff52a97143858bfa55af11e8250616915b0cf6c9b9954f5c8f80e9b10(ptr<managed>, ptr<managed>) -> ptr<managed>
+  fun @scoop$1$cb$8d16fa2d4a0855c8ddba2486a7ebe08f76a68943c5d2f2d1bb83d40c7a6e7aa7(ptr<managed>, ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
     local %1 $box.1: i32
     local %2 $box.2: i32
@@ -377,7 +377,7 @@ Module
     store local0 -> local2
     t1 = box_value external-td0, local2 scan=none sp<managed-call:1> live=[]
     ret t1
-  fun @scoop$1$cb$86a0069516465d9c3eb05c59824a15606c5bdcf0ed61db98d8cee089a16614ea() -> i32
+  fun @scoop$1$cb$47a21963f5780a80314ba1b8a1a2d9682c90e7f3e77256fa2a9ff616770afdea() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
@@ -404,4 +404,4 @@ Module
   layout CallbackError size=32 align=8 refs=[16, 24]
   layout $Closure$lambda0 value size=8 align=8 refs=[0]
   layout $Closure$lambda0 size=24 align=8 refs=[]
-  output executable @scoop$1$cb$904c2dd7fc51aa4eace06d3839cfddeb4ee37e4cf8fc25ea4d04acd93c2185c1
+  output executable @scoop$1$cb$c594194be4042231a0d77c41c4101be15a650bc3ddf5837c6cadd8a349a5fead

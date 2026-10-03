@@ -28,6 +28,22 @@ impl Writer<'_, '_> {
                 );
                 record!(self, 3; self.typed_call(call), self.safepoint(site.safepoint), self.caller_roots(site.roots.as_slice()))
             }
+            CallSite::ReleaseScoop(site) => {
+                let call = targets.typed_call_view(
+                    &site.call,
+                    &targets.no_gc_targets,
+                    NoGcCallDestination::view,
+                );
+                record!(self, 5; self.typed_call(call))
+            }
+            CallSite::ReleaseNativeLeaf(site) => {
+                let call = targets.typed_call_view(
+                    &site.call,
+                    &targets.native_safe_targets,
+                    NativeSafeCallDestination::view,
+                );
+                record!(self, 6; self.typed_call(call))
+            }
             CallSite::NativeBorrowed(site) => {
                 let view = site.call.view(targets);
                 record!(self, 4; self.typed_call(view.call), self.borrowed_result(view.result), self.safepoint(site.safepoint), self.caller_roots(site.roots.as_slice()))

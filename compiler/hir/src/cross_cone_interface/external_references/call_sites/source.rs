@@ -40,6 +40,17 @@ impl HirDependencyCallSiteV1 {
         let source = callables
             .declaration(declaration)
             .ok_or(Error::Declaration(declaration))?;
+        if self.instantiation() == crate::HirDependencyCallInstantiationV1::NativeLeaf
+            && (source.effects().implementation() != crate::CallableImplementationV1::SourceExternC
+                || !matches!(
+                    self.position().root.template(),
+                    scoop_identity::CallableTemplateOwner::ReleaseHook(_)
+                )
+                || self.position().root.context()
+                    != scoop_identity::CallableMaterializationContext::NoSubstitution)
+        {
+            return Err(Error::NativeLeaf(declaration));
+        }
         let bindings = applications::bindings(self.instantiation(), source, metadata, identities)?;
         let exact = |ty: &SignatureTypeKey| {
             metadata.signature_exact_type_with_bindings(ty, &bindings, identities)

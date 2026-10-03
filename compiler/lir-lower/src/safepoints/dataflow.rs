@@ -11,6 +11,7 @@ pub(super) fn instruction_uses(
             .into_iter()
             .collect(),
         lir::Instruction::UnboxValue { object, .. } => vec![*object],
+        lir::Instruction::PublishReleaseReady { object } => vec![*object],
         lir::Instruction::BinOp { lhs, rhs, .. }
         | lir::Instruction::IntegerBinary { lhs, rhs, .. }
         | lir::Instruction::SafeIntegerDivRem { lhs, rhs, .. }
@@ -95,7 +96,8 @@ pub(super) fn instruction_uses(
             ..
         } => vec![*array, *index, *value],
         lir::Instruction::EnumWrap { fields, .. } => fields.clone(),
-        lir::Instruction::MakeZstValue { .. }
+        lir::Instruction::ReleaseFieldLoad { .. }
+        | lir::Instruction::MakeZstValue { .. }
         | lir::Instruction::GlobalLoad { .. }
         | lir::Instruction::GlobalAddress { .. }
         | lir::Instruction::NativeGlobalLoad { .. }
@@ -143,6 +145,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::MakeAggregate { out, .. }
         | lir::Instruction::MakeZstValue { out, .. }
         | lir::Instruction::ExtractValue { out, .. }
+        | lir::Instruction::ReleaseFieldLoad { out, .. }
         | lir::Instruction::HeapLoad { out, .. }
         | lir::Instruction::MachineHeapLoad { out, .. }
         | lir::Instruction::AtomicLoad { out, .. }
@@ -178,6 +181,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
             return vec![LiveValue::Temp(*record), LiveValue::Temp(*raw)];
         }
         lir::Instruction::GlobalStore { .. }
+        | lir::Instruction::PublishReleaseReady { .. }
         | lir::Instruction::NativeGlobalStore { .. }
         | lir::Instruction::HeapStore { .. }
         | lir::Instruction::MachineHeapStore { .. }

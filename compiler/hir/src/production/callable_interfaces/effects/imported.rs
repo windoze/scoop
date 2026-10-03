@@ -5,7 +5,7 @@ use crate::{
 };
 
 impl CallableSourceEffectsV1 {
-    pub fn function_attributes(self) -> FunctionAttributes {
+    pub fn function_attributes(&self) -> FunctionAttributes {
         FunctionAttributes {
             safety: match self.safety() {
                 CallableSafetyV1::Safe => Safety::Safe,
@@ -19,7 +19,7 @@ impl CallableSourceEffectsV1 {
         }
     }
 
-    pub fn callable_modifiers(self) -> CallableModifiers {
+    pub fn callable_modifiers(&self) -> CallableModifiers {
         let (operator, property_delegate_operator) = match self.operator_role() {
             CallableOperatorRoleV1::None => (None, None),
             CallableOperatorRoleV1::Language(operator) => (Some(import_operator(operator)), None),

@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$7a2c3c3ed1fb03af63ae1469b5945bf73de79494a279cfd34ce704d24cb2e96e() -> ptr<managed>
+  fun @scoop$1$cb$5bce84f35964cef8f4fa6b886cd2177d448ccb7f13207dc9a57592d06e217463() -> ptr<managed>
     local %0 boxed: ptr<managed>
     local %1 yes: ptr<managed>
     local %2 no: ptr<managed>

@@ -1,6 +1,6 @@
 Module
   global @scoop$1$bs$f079ca9138b8780e3d990a6e58a416aeebd1e5140ad73c8864fc63e5fc062b2d = c"call to abstract method `ReadOnlyProperty.$get$value`"
-  fun @scoop$1$cb$c20c1e9711cb38bbb03fa5a5ab50853b7e47e89b21f59540ab1df17a75621967() -> i32
+  fun @scoop$1$cb$a3a467c9fccedf0caea4ab536834ba0802df0580081edcc7e083cf5c2b0c984b() -> i32
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.stored: i32
     local %2 cell: ptr<managed>
@@ -22,12 +22,12 @@ Module
     call managed-direct-target0 sp<managed-call:1> live=[local2:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:1] t2(local2)
     store t3 -> local4
     ret local4
-  fun @scoop$1$cb$f0bee77b780e66724109c8e0d979a3e668ed0fb8b6ede8545056ee6c9c4fa968(indirect<struct0 size=4 align=4 scan=none>) -> i32
+  fun @scoop$1$cb$c32c5aa99929fbc2dd7ef632267fe532dcb3a31d531c51fe57cab1ddd0745836(indirect<struct0 size=4 align=4 scan=none>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = extract param0, 0 : i32
     ret t0
-  fun @scoop$1$cb$ade66ffcc489b76372d30a3d1f18f31833d1a03132223bf2828e4c914733a3a8(ptr<managed>) -> i32
+  fun @scoop$1$cb$a4f6e56a3add8cadb499f68ec715ccd6a675cd08e8e4a27f4ff125a755d6385a(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
@@ -36,18 +36,18 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(param0)
     store t2 -> local0
     ret local0
-  fun @scoop$1$cb$c044e099e87591b97ff08d7e0613dbf6f8c7c709260fa3f8f6a22b504a70f792(ptr<managed>) -> i32
+  fun @scoop$1$cb$a26e572d16f1d894a2e8e216acb94c68a615427c9811c778ab7a5be3c164a1b4(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     br @unwrap.trap.1
   block unwrap.trap.1
     call no-gc-void-target0 sig=void0 (ptr<raw>) runtime @scoop_rt_trap(global0)
     unreachable
-  fun @scoop$1$cb$0e0fbafdcd7eef1738d8f30aea31a3e798bc519ea3a05100a19cb852cef55f58(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
+  fun @scoop$1$cb$338fd516baf081a162d7cd409c96fdb8cffac3dffe134668699d8c72b83c1ed3(i32) -> sret<struct0 size=4 align=4 scan=none> <no-gc>
   block entry
     t0 = aggregate (param0) : struct0
     ret t0
-  fun @scoop$1$cb$b67c6d0022e102f7ee579010d47abf7b5a6c66b0071826b8cf954517833e45e9(ptr<managed>) -> i32
+  fun @scoop$1$cb$3a605c6e978ee46dc074c21bf24f0d7cd3e4cf064d69e47a6abfec0295617a7e(ptr<managed>) -> i32
     local %0 $call.1: i32
     local %1 $box.1: struct0
     local %2 $sc.2: struct0
@@ -58,7 +58,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (indirect<struct0 size=4 align=4 scan=none>) -> i32 local-fn1(indirect local2)
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$84d52aad1769b0dea4e72038813b438282eb6004bc6a3b041547858a0e75b4ca(ptr<managed>) -> i32
+  fun @scoop$1$cb$9fe8d0554ac99498abad44f918a73d3b7026d577fddfbd09cc27e848d9a8fc3f(ptr<managed>) -> i32
     local %0 $call.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]

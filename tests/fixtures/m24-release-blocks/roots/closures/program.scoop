@@ -1,0 +1,41 @@
+@Extern(lib = "m24_release", name = "m24_release_invoke")
+private fun invokeNative(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Int
+
+private fun makeClosure(): () -> Int {
+    val owner = Owner(5)
+    return { owner.code }
+}
+
+private fun closureRoot() {
+    val read = makeClosure()
+    retained(5)
+    println(read() == 5)
+}
+
+@Unsafe
+private fun registered(): ForeignCallback<(Int, Ptr<Unit>) -> Int> {
+    val owner = Owner(7)
+    return foreignCallback<(Int, Ptr<Unit>) -> Int>(
+        { value: Int -> gcCollect(); owner.code + value }, 1L, ForeignCallbackMode.Reusable
+    )
+}
+
+private fun foreignRoots() {
+    @Unsafe {
+        val callback = registered()
+        val callerOwner = Owner(8)
+        retained(7)
+        retained(8)
+        println(invokeNative(callback.function, callback.context, 0) == 7)
+        println(callerOwner.code == 8)
+        releaseForeignCallback(callback)
+    }
+}
+
+fun main() {
+    closureRoot()
+    reclaimed(5)
+    foreignRoots()
+    reclaimed(7)
+    reclaimed(8)
+}

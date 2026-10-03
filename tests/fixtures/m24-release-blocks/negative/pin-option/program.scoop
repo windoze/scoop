@@ -1,0 +1,2 @@
+class Owner(private val value: Option<PinnedPtr<String>>) { release { val copy = value } }
+fun main() {}

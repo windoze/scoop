@@ -59,6 +59,7 @@ pub(crate) fn public_record(
             None
         },
         hir::NominalInstantiationConditionsV1::empty(),
+        Default::default(),
     );
     hir::NominalInterfaceRecordV1::try_new(
         declaration,

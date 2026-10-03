@@ -109,13 +109,6 @@ impl super::ImportedDependencySelectionPlan {
         self.catalog.delegates.get(&property).cloned()
     }
 
-    pub fn nominal_initialization(
-        &self,
-        owner: scoop_identity::PersistentGenericTypeId,
-    ) -> Option<Arc<crate::ExportGenericNominalInitializationV1>> {
-        self.catalog.initializations.get(&owner).cloned()
-    }
-
     pub fn callable_body(
         &self,
         owner: crate::DefaultCallableDeclarationV1,

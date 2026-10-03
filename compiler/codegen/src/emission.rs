@@ -407,7 +407,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     // create shadow extern declarations (a forward call would
     // otherwise declare the symbol as extern, and the later definition
     // would be renamed with a `.N` suffix by LLVM, breaking the link).
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         declare_function(
             context,
             &llvm,
@@ -502,7 +502,7 @@ fn emit_llvm_module_with_surface<'ctx, R>(
     };
     let runtime_scan_plans = scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_module(module)
         .map_err(|error| CodegenError(format!("callable runtime scan planning failed: {error}")))?;
-    for function in &module.functions {
+    for function in module.callable_bodies() {
         if selection.defines_callable(function.callable_body.id()) {
             let runtime_scan_plan = runtime_scan_plans
                 .callable(function.callable_body.id())

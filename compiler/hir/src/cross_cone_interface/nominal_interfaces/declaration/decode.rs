@@ -14,6 +14,7 @@ pub struct DecodedNominalDeclarationDetailsV1 {
     dispatch_selections: DecodedCanonicalNominalDispatchSelectionsV1,
     primary_value_constructor: Option<DecodedPersistentId<PersistentConstructorId>>,
     instantiation_conditions: DecodedNominalInstantiationConditionsV1,
+    release_policy: NominalReleasePolicyV1,
 }
 
 impl DecodedNominalDeclarationDetailsV1 {
@@ -60,13 +61,14 @@ impl DecodedNominalDeclarationDetailsV1 {
             self.instantiation_conditions
                 .resolve(resolver)
                 .map_err(Error::InstantiationConditions)?,
+            self.release_policy,
         ))
     }
 }
 
 impl WireDecode for DecodedNominalDeclarationDetailsV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(9)?;
+        decoder.expect_map(10)?;
         let value = Self {
             modality: decoder.field(1, NominalInheritanceModalityV1::decode)?,
             visibility: decoder.field(2, DeclaredVisibilityV1::decode)?,
@@ -94,6 +96,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
             })?,
             instantiation_conditions: decoder
                 .field(9, DecodedNominalInstantiationConditionsV1::decode)?,
+            release_policy: decoder.field(10, NominalReleasePolicyV1::decode)?,
         };
 
         Ok(value)
@@ -102,7 +105,7 @@ impl WireDecode for DecodedNominalDeclarationDetailsV1 {
 
 impl WireEncode for DecodedNominalDeclarationDetailsV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(9)?;
+        encoder.map(10)?;
         encoder.field(1)?;
         self.modality.encode(encoder)?;
         encoder.field(2)?;
@@ -129,7 +132,9 @@ impl WireEncode for DecodedNominalDeclarationDetailsV1 {
             primary.encode(encoder)?;
         }
         encoder.field(9)?;
-        self.instantiation_conditions.encode(encoder)
+        self.instantiation_conditions.encode(encoder)?;
+        encoder.field(10)?;
+        self.release_policy.encode(encoder)
     }
 }
 

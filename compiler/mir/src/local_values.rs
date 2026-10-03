@@ -2,6 +2,24 @@ use scoop_identity::{CborIdentityRecord, LocalValueKey, PersistentLocalValueId};
 
 use crate::{FunctionId, LocalId};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+pub enum LocalValueOwner {
+    Function(FunctionId),
+    ReleaseHook(crate::ReleaseHookId),
+}
+
+impl From<FunctionId> for LocalValueOwner {
+    fn from(function: FunctionId) -> Self {
+        Self::Function(function)
+    }
+}
+
+impl From<crate::ReleaseHookId> for LocalValueOwner {
+    fn from(hook: crate::ReleaseHookId) -> Self {
+        Self::ReleaseHook(hook)
+    }
+}
+
 pub type LocalValueIdentityRecord = CborIdentityRecord<PersistentLocalValueId, LocalValueKey>;
 
 /// The IR stage that first created a persistent local-value identity.
@@ -18,7 +36,7 @@ pub enum LocalValueIdentityAuthority {
 /// of recovering semantic values from display names or arena ordinals.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LocalValueIdentity {
-    function: FunctionId,
+    owner: LocalValueOwner,
     local: LocalId,
     authority: LocalValueIdentityAuthority,
     identity: LocalValueIdentityRecord,
@@ -31,7 +49,7 @@ impl LocalValueIdentity {
         identity: LocalValueIdentityRecord,
     ) -> Self {
         Self {
-            function,
+            owner: LocalValueOwner::Function(function),
             local,
             authority: LocalValueIdentityAuthority::Hir,
             identity,
@@ -44,15 +62,29 @@ impl LocalValueIdentity {
         identity: LocalValueIdentityRecord,
     ) -> Self {
         Self {
-            function,
+            owner: LocalValueOwner::Function(function),
             local,
             authority: LocalValueIdentityAuthority::Mir,
             identity,
         }
     }
 
-    pub const fn function(&self) -> FunctionId {
-        self.function
+    pub const fn owner(&self) -> LocalValueOwner {
+        self.owner
+    }
+
+    pub const fn for_owner(
+        owner: LocalValueOwner,
+        local: LocalId,
+        authority: LocalValueIdentityAuthority,
+        identity: LocalValueIdentityRecord,
+    ) -> Self {
+        Self {
+            owner,
+            local,
+            authority,
+            identity,
+        }
     }
 
     pub const fn local(&self) -> LocalId {
@@ -69,7 +101,7 @@ impl LocalValueIdentity {
 
     pub fn relocated(&self, function: FunctionId, local: LocalId) -> Self {
         Self {
-            function,
+            owner: LocalValueOwner::Function(function),
             local,
             authority: self.authority,
             identity: self.identity.clone(),
@@ -106,7 +138,11 @@ impl LocalValueIdentities {
     }
 
     pub fn get(&self, function: FunctionId, local: LocalId) -> Option<&LocalValueIdentity> {
-        let key = location_sort_key(function, local);
+        self.get_owned(LocalValueOwner::Function(function), local)
+    }
+
+    pub fn get_owned(&self, owner: LocalValueOwner, local: LocalId) -> Option<&LocalValueIdentity> {
+        let key = location_sort_key(owner, local);
         self.entries
             .binary_search_by_key(&key, LocalValueIdentity::location_sort_key)
             .ok()
@@ -127,13 +163,17 @@ impl LocalValueIdentities {
 }
 
 impl LocalValueIdentity {
-    fn location_sort_key(&self) -> (u32, u32) {
-        location_sort_key(self.function, self.local)
+    fn location_sort_key(&self) -> (u8, u32, u32) {
+        location_sort_key(self.owner, self.local)
     }
 }
 
-fn location_sort_key(function: FunctionId, local: LocalId) -> (u32, u32) {
-    (function.into_raw().into_u32(), local.into_raw().into_u32())
+fn location_sort_key(owner: LocalValueOwner, local: LocalId) -> (u8, u32, u32) {
+    let (kind, index) = match owner {
+        LocalValueOwner::Function(function) => (0, function.into_raw().into_u32()),
+        LocalValueOwner::ReleaseHook(hook) => (1, hook.into_raw().into_u32()),
+    };
+    (kind, index, local.into_raw().into_u32())
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

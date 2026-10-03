@@ -19,15 +19,16 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                 },
                 None,
             ),
-            scoop_lir::CallSite::NoGc(site) => self.emit_typed_call(
-                targets.typed_call_view(
-                    &site.call,
-                    &targets.no_gc_targets,
-                    scoop_lir::NoGcCallDestination::view,
+            scoop_lir::CallSite::NoGc(site) | scoop_lir::CallSite::ReleaseScoop(site) => self
+                .emit_typed_call(
+                    targets.typed_call_view(
+                        &site.call,
+                        &targets.no_gc_targets,
+                        scoop_lir::NoGcCallDestination::view,
+                    ),
+                    CallProtocol::NoGc,
+                    None,
                 ),
-                CallProtocol::NoGc,
-                None,
-            ),
             scoop_lir::CallSite::NativeSafe(site) => self.emit_typed_call(
                 targets.typed_call_view(
                     &site.call,
@@ -38,6 +39,15 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     safepoint: self.safepoint_id(site.safepoint),
                     roots: &site.roots,
                 },
+                None,
+            ),
+            scoop_lir::CallSite::ReleaseNativeLeaf(site) => self.emit_typed_call(
+                targets.typed_call_view(
+                    &site.call,
+                    &targets.native_safe_targets,
+                    scoop_lir::NativeSafeCallDestination::view,
+                ),
+                CallProtocol::ReleaseNativeLeaf,
                 None,
             ),
             scoop_lir::CallSite::NativeBorrowed(site) => {

@@ -1,6 +1,6 @@
 Module
   enum Signal tagged size=8 align=8 variants=()@8+0 ()@8+0
-  fun @scoop$1$cb$e97960064c042575068c65e6170b4194ad7aaf042f68bd67d9e850e28070272e() -> i32
+  fun @scoop$1$cb$f25f9c0728bb15211287e902f6c1fa30c739ff9c7affe93cddb75859144e2b3b() -> i32
     local %0 $argument.0: enum0
     local %1 $parameter.value: enum0
     local %2 $argument.0: enum0
@@ -27,7 +27,7 @@ Module
     store local5 -> local6
     t4 = integer_Add<Int> local4, local6 : i32
     ret t4
-  fun @scoop$1$cb$fd8d840c49935f481f4fd129a73fb9b982b1253cab1a18736bffa0c5857dde73(indirect<enum0 size=8 align=8 scan=none>) -> i32
+  fun @scoop$1$cb$4a13af2f6cace4ade35e94aaebb31833ac629d6d3261fd3b49d1e8f2f00e8f5c(indirect<enum0 size=8 align=8 scan=none>) -> i32
     local %0 Raedy: enum0
     local %1 $result.0: i32
     local %2 $when.1: enum0

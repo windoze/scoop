@@ -1,0 +1,558 @@
+Module
+  extern ef0 count @m24_release_wide_count() -> Long <abi=c no-gc lib=m24_release>
+  extern ef1 m24_release_rotate @m24_release_rotate(Wide) -> Wide <abi=c no-gc lib=m24_release>
+  extern ef2 m24_release_wide @m24_release_wide(Wide) -> Unit <abi=c no-gc lib=m24_release>
+  struct Wide (first: Long, second: Long, third: Long) <c-layout aligned=natural packed=natural>
+  struct Native<Int> (value: Int)
+  struct Native<Unit> (value: Unit)
+  class Owner<Int> vtable=0 itables=0
+  class Owner<Unit> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  fun count @fn0() -> Long
+    bb0 entry
+      call $call.1: Long = extern0 @m24_release_wide_count direct
+      return
+        Type Long
+        Local $call.1
+  fun allocate @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      call first: Wide = external0 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=4 bits=0x0000000000000004
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      call second: Wide = external0 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=8 bits=0x0000000000000008
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      call third: Wide = external0 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.argument.1: Wide
+        Type Wide
+        Local first
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.wide: Wide
+        Type Wide
+        Local $dependency.argument.1
+      call value: Int = @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type Wide
+        Local $dependency.parameter.wide
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.argument.1: Wide
+        Type Wide
+        Local first
+      val $dependency.argument.2: Wide
+        Type Wide
+        Local second
+      val $dependency.argument.3: Wide
+        Type Wide
+        Local third
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.first: Wide
+        Type Wide
+        Local $dependency.argument.1
+      val $dependency.parameter.second: Wide
+        Type Wide
+        Local $dependency.argument.2
+      val $dependency.parameter.third: Wide
+        Type Wide
+        Local $dependency.argument.3
+      assign $new.1
+        Type Owner<Int>
+        ClassAlloc Owner<Int>
+      call @fn9 direct
+        Type Owner<Int>
+        Local $new.1
+        Type Int
+        Local $dependency.parameter.value
+        Type Wide
+        Local $dependency.parameter.first
+        Type Wide
+        Local $dependency.parameter.second
+        Type Wide
+        Local $dependency.parameter.third
+      publish_release_ready Owner
+        Type Owner<Int>
+        Local $new.1
+      val owner: Owner<Int>
+        Type Owner<Int>
+        Local $new.1
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.first: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.second: Long
+        Type Long
+        Local $dependency.argument.1
+      val $dependency.parameter.third: Long
+        Type Long
+        Local $dependency.argument.2
+      call zero: Wide = external0 direct
+        Type Long
+        Local $dependency.parameter.first
+        Type Long
+        Local $dependency.parameter.second
+        Type Long
+        Local $dependency.parameter.third
+      val $dependency.argument.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.argument.1: Wide
+        Type Wide
+        Local zero
+      val $dependency.argument.2: Wide
+        Type Wide
+        Local zero
+      val $dependency.argument.3: Wide
+        Type Wide
+        Local zero
+      val $dependency.parameter.value: Unit
+        Type Unit
+        Local $dependency.argument.0
+      val $dependency.parameter.first: Wide
+        Type Wide
+        Local $dependency.argument.1
+      val $dependency.parameter.second: Wide
+        Type Wide
+        Local $dependency.argument.2
+      val $dependency.parameter.third: Wide
+        Type Wide
+        Local $dependency.argument.3
+      assign $new.2
+        Type Owner<Unit>
+        ClassAlloc Owner<Unit>
+      call @fn10 direct
+        Type Owner<Unit>
+        Local $new.2
+        Type Unit
+        Local $dependency.parameter.value
+        Type Wide
+        Local $dependency.parameter.first
+        Type Wide
+        Local $dependency.parameter.second
+        Type Wide
+        Local $dependency.parameter.third
+      publish_release_ready Owner
+        Type Owner<Unit>
+        Local $new.2
+      val empty: Owner<Unit>
+        Type Owner<Unit>
+        Local $new.2
+      return
+  fun main @fn2() -> Unit
+    bb0 entry
+      call @fn1 direct
+      call @scoop_rt_gc_collect direct
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Long = extern0 @m24_release_wide_count direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn6 direct
+        Type Long
+        Local $dependency.parameter.value
+      return
+  fun copied @fn3(this: Native<Int>) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Native<Int>
+          Local this
+  fun copied @fn4(this: Native<Unit>) -> Unit <no-gc>
+    bb0 entry
+      Type Unit
+      FieldAccess 0
+        Type Native<Unit>
+        Local this
+      return
+  fun ordinary @fn5(value: Int, wide: Wide) -> Int
+    bb0 entry
+      val $dependency.local.3: Wide
+        Type Wide
+        Local wide
+      val $dependency.local.4: Wide
+        Type Wide
+        Local $dependency.local.3
+      call $dependency.local.2: Wide = external2 direct
+        Type Wide
+        Local $dependency.local.4
+      return
+        Type Int
+        Local value
+  fun println @fn6(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external3 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external4 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external4 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun keep @fn7(value: Int) -> Int <no-gc>
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun keep @fn8(value: Unit) -> Unit <no-gc>
+    bb0 entry
+      Type Unit
+      Local value
+      return
+  fun init.Owner.$c1 @fn9(this: Owner<Int>, value: Int, first: Wide, second: Wide, third: Wide) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner<Int>
+        Local this
+        Type Int
+        Local value
+      field_set 1
+        Type Owner<Int>
+        Local this
+        Type Wide
+        Local first
+      field_set 2
+        Type Owner<Int>
+        Local this
+        Type Wide
+        Local second
+      field_set 3
+        Type Owner<Int>
+        Local this
+        Type Wide
+        Local third
+      return
+  fun init.Owner.$c1 @fn10(this: Owner<Unit>, value: Unit, first: Wide, second: Wide, third: Wide) -> Unit
+    bb0 entry
+      field_set 0
+        Type Owner<Unit>
+        Local this
+        Type Unit
+        Local value
+      field_set 1
+        Type Owner<Unit>
+        Local this
+        Type Wide
+        Local first
+      field_set 2
+        Type Owner<Unit>
+        Local this
+        Type Wide
+        Local second
+      field_set 3
+        Type Owner<Unit>
+        Local this
+        Type Wide
+        Local third
+      return
+  fun ctor.Native.$c0 @fn11(value: Int, ignored: Boolean) -> Native<Int> <no-gc>
+    bb0 entry
+      val $dependency.constructor.local.0: Int
+        Type Int
+        Local value
+      val $dependency.constructor.local.1: Int
+        Type Int
+        Local $dependency.constructor.local.0
+      call $dependency.constructor.local.2: Int = @fn7 direct
+        Type Int
+        Local $dependency.constructor.local.1
+      val $dependency.constructor.local.3: Int
+        Type Int
+        Local $dependency.constructor.local.2
+      call $this: Native<Int> = @fn13 direct
+        Type Int
+        Local $dependency.constructor.local.3
+      return
+        Type Native<Int>
+        Local $this
+  fun ctor.Native.$c0 @fn12(value: Unit, ignored: Boolean) -> Native<Unit> <no-gc>
+    bb0 entry
+      val $dependency.constructor.local.0: Unit
+        Type Unit
+        Local value
+      val $dependency.constructor.local.1: Unit
+        Type Unit
+        Local $dependency.constructor.local.0
+      call @fn8 direct
+        Type Unit
+        Local $dependency.constructor.local.1
+      val $dependency.constructor.local.2: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.constructor.local.3: Unit
+        Type Unit
+        Local $dependency.constructor.local.2
+      call $this: Native<Unit> = @fn14 direct
+        Type Unit
+        Local $dependency.constructor.local.3
+      return
+        Type Native<Unit>
+        Local $this
+  fun ctor.Native.$c2 @fn13(value: Int) -> Native<Int> <no-gc>
+    bb0 entry
+      return
+        Type Native<Int>
+        StructInit Native<Int>
+          Type Int
+          Local value
+  fun ctor.Native.$c2 @fn14(value: Unit) -> Native<Unit> <no-gc>
+    bb0 entry
+      return
+        Type Native<Unit>
+        StructInit Native<Unit>
+          Type Unit
+          Local value
+  release_hook rh0 Owner <no-gc>
+    bb0 entry
+      val $dependency.release.local.2: Int
+        Type Int
+        ReleaseFieldLoad Owner.field0
+      val $dependency.release.local.3: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.release.local.4: Int
+        Type Int
+        Local $dependency.release.local.2
+      val $dependency.release.local.5: Boolean
+        Type Boolean
+        Local $dependency.release.local.3
+      call $dependency.release.local.6: Native<Int> = @fn11 direct
+        Type Int
+        Local $dependency.release.local.4
+        Type Boolean
+        Local $dependency.release.local.5
+      call $dependency.release.local.0: Int = @fn3 direct
+        Type Native<Int>
+        Local $dependency.release.local.6
+      val $dependency.release.local.7: Wide
+        Type Wide
+        ReleaseFieldLoad Owner.field1
+      call $dependency.release.local.10: Long = external1 direct
+        Type Wide
+        Local $dependency.release.local.7
+      val $dependency.release.local.8: Wide
+        Type Wide
+        ReleaseFieldLoad Owner.field2
+      call $dependency.release.local.11: Long = external1 direct
+        Type Wide
+        Local $dependency.release.local.8
+      val $dependency.release.local.9: Wide
+        Type Wide
+        ReleaseFieldLoad Owner.field3
+      call $dependency.release.local.12: Long = external1 direct
+        Type Wide
+        Local $dependency.release.local.9
+      val $dependency.release.local.13: Long
+        Type Long
+        Local $dependency.release.local.10
+      val $dependency.release.local.14: Long
+        Type Long
+        Local $dependency.release.local.11
+      val $dependency.release.local.15: Long
+        Type Long
+        Local $dependency.release.local.12
+      call $dependency.release.local.1: Wide = external0 direct
+        Type Long
+        Local $dependency.release.local.13
+        Type Long
+        Local $dependency.release.local.14
+        Type Long
+        Local $dependency.release.local.15
+      val $dependency.release.local.16: Wide
+        Type Wide
+        Local $dependency.release.local.1
+      val $dependency.release.local.17: Wide
+        Type Wide
+        Local $dependency.release.local.16
+      call $dependency.release.local.18: Wide = extern1 @m24_release_rotate direct
+        Type Wide
+        Local $dependency.release.local.17
+      val $dependency.release.local.19: Wide
+        Type Wide
+        Local $dependency.release.local.18
+      call extern2 @m24_release_wide direct
+        Type Wide
+        Local $dependency.release.local.19
+      return
+  release_hook rh1 Owner <no-gc>
+    bb0 entry
+      val $dependency.release.local.2: Unit
+        Type Unit
+        ReleaseFieldLoad Owner.field0
+      val $dependency.release.local.3: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.release.local.4: Unit
+        Type Unit
+        Local $dependency.release.local.2
+      val $dependency.release.local.5: Boolean
+        Type Boolean
+        Local $dependency.release.local.3
+      call $dependency.release.local.6: Native<Unit> = @fn12 direct
+        Type Unit
+        Local $dependency.release.local.4
+        Type Boolean
+        Local $dependency.release.local.5
+      call @fn4 direct
+        Type Native<Unit>
+        Local $dependency.release.local.6
+      val $dependency.release.local.0: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.release.local.7: Wide
+        Type Wide
+        ReleaseFieldLoad Owner.field1
+      call $dependency.release.local.10: Long = external1 direct
+        Type Wide
+        Local $dependency.release.local.7
+      val $dependency.release.local.8: Wide
+        Type Wide
+        ReleaseFieldLoad Owner.field2
+      call $dependency.release.local.11: Long = external1 direct
+        Type Wide
+        Local $dependency.release.local.8
+      val $dependency.release.local.9: Wide
+        Type Wide
+        ReleaseFieldLoad Owner.field3
+      call $dependency.release.local.12: Long = external1 direct
+        Type Wide
+        Local $dependency.release.local.9
+      val $dependency.release.local.13: Long
+        Type Long
+        Local $dependency.release.local.10
+      val $dependency.release.local.14: Long
+        Type Long
+        Local $dependency.release.local.11
+      val $dependency.release.local.15: Long
+        Type Long
+        Local $dependency.release.local.12
+      call $dependency.release.local.1: Wide = external0 direct
+        Type Long
+        Local $dependency.release.local.13
+        Type Long
+        Local $dependency.release.local.14
+        Type Long
+        Local $dependency.release.local.15
+      val $dependency.release.local.16: Wide
+        Type Wide
+        Local $dependency.release.local.1
+      val $dependency.release.local.17: Wide
+        Type Wide
+        Local $dependency.release.local.16
+      call $dependency.release.local.18: Wide = extern1 @m24_release_rotate direct
+        Type Wide
+        Local $dependency.release.local.17
+      val $dependency.release.local.19: Wide
+        Type Wide
+        Local $dependency.release.local.18
+      call extern2 @m24_release_wide direct
+        Type Wide
+        Local $dependency.release.local.19
+      return
+  instance mi0 function=@fn3 <- copied
+  instance mi1 function=@fn4 <- copied
+  instance mi2 function=@fn5 <- ordinary
+  instance mi3 function=@fn6 <- println
+  instance mi4 function=@fn7 <- keep
+  instance mi5 function=@fn8 <- keep
+  str @str0 "\n"
+  output executable @fn2

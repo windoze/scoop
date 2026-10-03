@@ -1,5 +1,5 @@
 use super::super::*;
-use super::{block_number, dump_statements, dump_terminator, function_ref, string_ref, type_name};
+use super::{block_number, function_ref, string_ref, type_name};
 
 pub fn dump(module: &Module) -> String {
     let mut out = String::from("Module\n");
@@ -322,63 +322,7 @@ pub fn dump(module: &Module) -> String {
             adapter.target().into_raw().into_u32()
         ));
     }
-    for &id in &module.top_level {
-        let function = &module.functions[id];
-        let params: Vec<String> = function
-            .params
-            .iter()
-            .map(|p| format!("{}: {}", p.name, type_name(module, &p.ty)))
-            .collect();
-        out.push_str(&format!(
-            "  fun {} {}({}) -> {}{}\n",
-            function.name,
-            function_ref(id),
-            params.join(", "),
-            type_name(module, &function.return_ty),
-            if function.gc_effect == GcEffect::NoGc {
-                " <no-gc>"
-            } else {
-                ""
-            }
-        ));
-        for (block_id, block) in function.body.blocks.iter() {
-            let loop_header_poll = if function
-                .body
-                .loop_header_polls
-                .iter()
-                .any(|target| target.header() == block_id)
-            {
-                " <loop-header-poll>"
-            } else {
-                ""
-            };
-            let unwind = block
-                .unwind
-                .map(|target| format!(" unwind bb{}", block_number(target)))
-                .unwrap_or_default();
-            out.push_str(&format!(
-                "    bb{} {}{}{}\n",
-                block_number(block_id),
-                block.name,
-                loop_header_poll,
-                unwind
-            ));
-            dump_statements(
-                module,
-                &function.body.locals,
-                &block.statements,
-                3,
-                &mut out,
-            );
-            dump_terminator(
-                module,
-                &function.body.locals,
-                &block.terminator,
-                3,
-                &mut out,
-            );
-        }
-    }
+    super::functions::dump_functions(module, &mut out);
     for (id, step) in module.meta.coroutine_steps.iter() {
         out.push_str(&format!(
             "  coroutine_step cs{} {} result={}\n",

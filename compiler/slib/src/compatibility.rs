@@ -60,7 +60,7 @@ impl WireEncode for LanguageAbiContract {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         encoder.map(1)?;
         encoder.field(1)?;
-        encoder.unsigned(INITIAL_SCHEMA)
+        encoder.unsigned(2)
     }
 }
 
@@ -105,13 +105,19 @@ impl WireEncode for IdentityAbiDescriptor {
         self.language_abi.encode(encoder)?;
         encoder.field(2)?;
         self.runtime_abi.encode(encoder)?;
-        for field in 3..=6 {
+        for field in 3..=5 {
             encode_initial_schema(encoder, field)?;
         }
+        encoder.field(6)?;
+        encoder.unsigned(2)?;
         encoder.field(7)?;
         self.mangling_schema.encode(encoder)?;
-        for field in 8..=13 {
+        for field in 8..=10 {
             encode_initial_schema(encoder, field)?;
+        }
+        for field in 11..=13 {
+            encoder.field(field)?;
+            encoder.unsigned(2)?;
         }
         Ok(())
     }
@@ -213,7 +219,8 @@ impl WireEncode for CompatibilityRecord {
         encoder.field(8)?;
         self.backend_fingerprint.encode(encoder)?;
         for field in 9..=11 {
-            encode_initial_schema(encoder, field)?;
+            encoder.field(field)?;
+            encoder.unsigned(u64::from(crate::metadata::METADATA_SCHEMA))?;
         }
         encoder.field(12)?;
         self.composite_identity_abi.encode(encoder)?;
@@ -241,25 +248,25 @@ mod tests {
 
     #[test]
     fn language_runtime_and_composite_abi_have_fixed_vectors() {
-        assert_eq!(hex(&encode(&LanguageAbiContract).unwrap()), "a10101");
+        assert_eq!(hex(&encode(&LanguageAbiContract).unwrap()), "a10102");
         assert_eq!(
             LanguageAbiContract.fingerprint().unwrap().to_string(),
-            "2d2188ce81a619a325eeb6b4475bd4ac1dc0a220e463f3858e58f26ef21c9c96"
+            "634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391"
         );
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010302010301");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010402010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "022ce30da2fd6487fa71da45fbd88c41d32867520cb8830e9ce593681e465e04"
+            "b1738954278c8af3c6285bc5513d2a25aef20dfb55efa2481f9632df8c086186"
         );
 
         let descriptor = IdentityAbiDescriptor::current().unwrap();
         assert_eq!(
             hex(&encode(&descriptor).unwrap()),
-            "ad0158202d2188ce81a619a325eeb6b4475bd4ac1dc0a220e463f3858e58f26ef21c9c96025820022ce30da2fd6487fa71da45fbd88c41d32867520cb8830e9ce593681e465e040301040105010601076d70657273697374656e742d7631080109010a010b010c010d01"
+            "ad015820634ec02192ba1541f603b8b56f8c9e63dfc31d86ca5d4443a626f6afc9005391025820b1738954278c8af3c6285bc5513d2a25aef20dfb55efa2481f9632df8c0861860301040105010602076d70657273697374656e742d7631080109010a010b020c020d02"
         );
         assert_eq!(
             descriptor.fingerprint().unwrap().to_string(),
-            "a961562d4043ca8e64db86173a0a5f8d163207c158cfe8128c7c4fcf72afec3d"
+            "2bf4f9847db31167b0b80de027da7ca3d7b5ab8bc593d820f2f5f102e6c9a509"
         );
     }
 
@@ -283,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             record.artifact_profile_fingerprint().to_string(),
-            "879425875277e9fbf76430177afcb3115fce8feb174679fa62217cfe6909c260"
+            "806ee1717c5b378d7416ae2d518850063125b941dfab57fca44f597c046a0995"
         );
     }
 

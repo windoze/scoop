@@ -2,7 +2,7 @@ Module
   global @scoop$1$io$894842c8a0d1fd91c6733be0d3faac4a427f1cc10df0f9f3eae2aa776c2a6576 = "generic constant"
   global @scoop$1$io$2bb019137cc9b088dbf039de0dd7604e3d4431d84116376839824e63bf8e26e2 = "generic constant"
   global @scoop$1$io$826a2d3a729f76c8aa93517f6bd7d385e57abe7dcaf9d96520e5b1a25a1cd54a = "generic constant"
-  fun @scoop$1$cb$aff36b2f93de6a1f1b4f42c6f9c1a23a2996e688a2bdd8ace8dbefc76b586118() -> i32
+  fun @scoop$1$cb$10fda01ae82c0b7e5c8a3bbdef6276dd797300bc4fd5e810278c2221c04efd50() -> i32
     local %0 value: ptr<managed>
     local %1 $dependency.argument.0: i1
     local %2 $dependency.parameter.first: i1
@@ -181,29 +181,29 @@ Module
     store local23 -> local24
     t36 = integer_Add<Int> local22, local24 : i32
     ret t36
-  fun @scoop$1$cb$874775c12e177a44ad8d91b69c43023b8142d9124e59486ba2befba1ba63cf9a() -> ptr<managed>
+  fun @scoop$1$cb$9a97e7c124808471119cde408c42cb06c6cfbe796d1e99b26fa77a405a5ccf54() -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret global1
-  fun @scoop$1$cb$1e90997d21eda27e72c6de59fdbd2ca7ebc07e0a5a31d630fc735b1ca4fdd721() -> ptr<managed>
+  fun @scoop$1$cb$50582f49bd642a946bfd768d17b1c2d094586d07c4617bf36caf6c194830d04a() -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn1()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$3d7ce564c1c240ce449e5adad3ccd1e593098d46a6381247ad4709a7a7e167d5() -> ptr<managed>
+  fun @scoop$1$cb$5c6bc155d1e1dae3610591db8a74fb81acccd6fafcbb632f9e5e993a783fa9bb() -> ptr<managed>
     local %0 $call.1: ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 () -> ptr<managed> local-fn4()
     store t0 -> local0
     ret local0
-  fun @scoop$1$cb$d9ba912863731697fe037fd7b1648a892d0150cfd816762173beca6817d564d4() -> ptr<managed>
+  fun @scoop$1$cb$b49e43cef3b75c7cefd8124ca51932fc395887be41ad64c211a58f43cd545f28() -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret global2
-  fun @scoop$1$cb$37cef04f641b1cffb5df2ac62fcd9a80ea037c6490fc5e91b1053adf70896441(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$2e489f484fca6e452c60bc0813d4ecc866ae6f82f6c56cb7f06d9987e3fd52f6(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

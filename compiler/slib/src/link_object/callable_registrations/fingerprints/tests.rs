@@ -37,7 +37,7 @@ fn computes_the_relocation_aware_registration_object_leaf() {
     assert_eq!(actual.node(), plan.registration_object_node());
     assert_eq!(
         actual.fingerprint().to_string(),
-        "43ca26b5e58bb7e12110c9809093938050d51583d0a87ff77ac637f3e9be02ef"
+        "4b5ec044e4aaa0db2d3955a2d166053377d31659bb7094da6e8ce27ffa6530a6"
     );
 }
 

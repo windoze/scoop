@@ -1,5 +1,5 @@
 Module
-  fun @scoop$1$cb$3429cc49ae3fd6d954a8c65c2c8512ad2865d82b158054aaa9af90e353cc136a() -> i32
+  fun @scoop$1$cb$24e4c34246b654763cb1b20e5c9f7e26e47e904d5f310ec395ebc4a973402adb() -> i32
     local %0 $argument.0: i32
     local %1 $parameter.number: i32
     local %2 value: ptr<managed>
@@ -60,7 +60,7 @@ Module
     br @if.merge.6
   block if.merge.6
     ret local15
-  fun @scoop$1$cb$2dafedaa5bc9916d054b2faea7f0a86a70cdea678e6cce3fff2b7e1a9f759c03(ptr<managed>) -> i32
+  fun @scoop$1$cb$9e437decd0e16289ee3598b6102f878552549445117278e92d7062d77da32cd5(ptr<managed>) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<raw>
     local %2 $dependency.local.3: ptr<raw>
@@ -174,7 +174,7 @@ Module
     store local40 -> local41
     t16 = integer_Subtract<Int> local39, local41 : i32
     ret t16
-  fun @scoop$1$cb$b1e8cf6baa87c82a17004224a118fcfd33125ff9f1e315f6ce916d008e792035(i32) -> i32
+  fun @scoop$1$cb$19f3f72bd6db5c2174217a84b59d46371f72e68f96d3618fc637a90074d9ee23(i32) -> i32
     local %0 $dependency.local.1: i32
     local %1 $dependency.local.2: ptr<raw>
     local %2 $dependency.local.3: ptr<raw>
@@ -288,7 +288,7 @@ Module
     store local40 -> local41
     t16 = integer_Subtract<Int> local39, local41 : i32
     ret t16
-  fun @scoop$1$cb$97927ecf9019ccd73ffaf39e9a614b989ac014a1e3aa08c7f1c254d064c64a02(ptr<raw>) -> i64
+  fun @scoop$1$cb$0ba2cf76f7362061ae03cb5e0da552b8ea61f39a473effbd9bd231f3a2e14c5d(ptr<raw>) -> i64
     local %0 $dependency.local.1: ptr<raw>
     local %1 $dependency.local.2: ptr<raw>
   block entry
@@ -297,7 +297,7 @@ Module
     store local0 -> local1
     t0 = ptr_to_ulong local1 : i64
     ret t0
-  fun @scoop$1$cb$1c002288e7ce2650896258553532c6b932b1bb39cd21ecdf86af182d7e31ed44(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$742e28c2d40b2f7f6f5fcc8bc0744ca4c474cad94d7eb46f2a1a32c86f70a3bd(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     heap_store param0 +16 param1

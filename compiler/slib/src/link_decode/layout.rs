@@ -32,7 +32,7 @@ pub use shared::DecodedCrossConeLayoutLinkOnlySections;
 pub(crate) use shared::DecodedLayoutView;
 
 /// Canonically decoded payloads from one exact
-/// `cross-cone-generic/2` Link view.
+/// `cross-cone-generic/3` Link view.
 ///
 /// Compile sections needed for Link relations are retained alongside physical
 /// data. Subsequent validation joins their typed identities, signatures, and

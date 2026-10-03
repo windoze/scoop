@@ -68,6 +68,10 @@ impl DefaultExpressionV1 {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefaultExpressionKindV1 {
+    ReleaseFieldLoad {
+        owner_type: SignatureTypeKey,
+        declaration: scoop_identity::PersistentFieldId,
+    },
     StringLiteral {
         value: String,
         owner: DefaultStringOwnerV1,
@@ -470,6 +474,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::ForeignCallbackRegister { .. }
         | DefaultExpressionKindV1::ForeignCallbackOperation { .. }
         | DefaultExpressionKindV1::FieldAccess { .. }
+        | DefaultExpressionKindV1::ReleaseFieldLoad { .. }
         | DefaultExpressionKindV1::Box(_)
         | DefaultExpressionKindV1::Unbox(_)
         | DefaultExpressionKindV1::ReferenceUpcast(_)

@@ -1,8 +1,8 @@
 Module
   extern ef0 nativeScalar @m23_call_scalar(ptr<code>, i64) -> i64 <c exact=(code-ptr<(Long)->Long,direct>,Long)->Long bridge=@scoop$1$br$1322b23be063e6300daef2c36d041fa01459fec1c6415390a115b7752a03debb gc-leaf nounwind lib=m23_native_calls>
-  callback cb0 Function(PersistentFunctionId([4, 97, 222, 167, 246, 66, 223, 178, 103, 73, 237, 38, 173, 201, 60, 109, 56, 244, 233, 160, 46, 182, 148, 142, 7, 110, 176, 20, 17, 248, 159, 37])) @scoop$1$cb$df4ac534c85ff134e77fde1118fe448dc8d72957d17eb42bbaf7bdfb06b77bef -> @scoop$1$br$4c85c0e7356e5d1d491cb87488f19c67b420ef096a136c9ed99ca7db0cb77b25 c=(Long)->Long
-  callback cb1 Function(PersistentFunctionId([57, 91, 20, 194, 191, 167, 246, 114, 155, 132, 251, 24, 111, 205, 199, 180, 145, 153, 17, 68, 4, 185, 244, 42, 56, 128, 93, 60, 210, 114, 232, 248])) @scoop$1$cb$2240cff6d65c030160f2d5d6b2259cc12da56e208bc8ebace25e5ce49cf1b7f9 -> @scoop$1$br$0a663174e7fb57392ec42baa792fa1a06cff10615d6ff28bdc15dff0ea0c82aa c=(Long)->Long
-  fun @scoop$1$cb$b8e890337fca90a6bfa7af793a1e252c4065861e56454b8f6859ebc04c25d343(ptr<code>, i64) -> i64
+  callback cb0 Function(PersistentFunctionId([4, 97, 222, 167, 246, 66, 223, 178, 103, 73, 237, 38, 173, 201, 60, 109, 56, 244, 233, 160, 46, 182, 148, 142, 7, 110, 176, 20, 17, 248, 159, 37])) @scoop$1$cb$b9b7331145141cfb29b28c666f6b86194972649fd91ca3c1ddaf9da94b6fbf75 -> @scoop$1$br$4c85c0e7356e5d1d491cb87488f19c67b420ef096a136c9ed99ca7db0cb77b25 c=(Long)->Long
+  callback cb1 Function(PersistentFunctionId([57, 91, 20, 194, 191, 167, 246, 114, 155, 132, 251, 24, 111, 205, 199, 180, 145, 153, 17, 68, 4, 185, 244, 42, 56, 128, 93, 60, 210, 114, 232, 248])) @scoop$1$cb$271c93f03df5a4d33f930140c8373295e2fa374c42023b42a5f9c7ea7cb7c554 -> @scoop$1$br$0a663174e7fb57392ec42baa792fa1a06cff10615d6ff28bdc15dff0ea0c82aa c=(Long)->Long
+  fun @scoop$1$cb$2f943dbbeb1dd73ec3b8bda1d82b1500be01ede33d8536c5b12c610517317e00(ptr<code>, i64) -> i64
     local %0 $call.1: i64
     local %1 $sc.1: ptr<code>
     local %2 $sc.2: i64
@@ -14,7 +14,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local3 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local1), c-arg-address(local2))
     store local3 -> local0
     ret local0
-  fun @scoop$1$cb$124964dd0ab69aa98d68a1d9dcf77a1f4e2cefe69c76029ee3e7fa9d68df7713(ptr<code>, i64) -> i64
+  fun @scoop$1$cb$7a428c5f3d3f670f363d49a0b1f7d017d5b726adb32c182636f1570f4e7ee5cf(ptr<code>, i64) -> i64
     local %0 $argument.0: ptr<code>
     local %1 $argument.1: i64
     local %2 $parameter.callback: ptr<code>
@@ -34,7 +34,7 @@ Module
     call native-safe-indirect-target0 sp<native-safe:0> roots=[] local7 = sig=indirect0 (c-storage-pointer i64 size=8 align=8 scan=none, ptr<raw>, ptr<raw>) extern0(c-arg-address(local5), c-arg-address(local6))
     store local7 -> local4
     ret local4
-  fun @scoop$1$cb$f2d956d712428913955739836478130d1275fc219ddd6d7939a3b81f01cb8c5c() -> i64
+  fun @scoop$1$cb$6f4f557f979b0ebc6011bbf373d68471cb7989ef0d41c22a0f10e5270684f63b() -> i64
     local %0 $argument.0: i32
     local %1 $parameter.value: i32
     local %2 $call.1: i64
@@ -45,7 +45,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (i32) -> i64 local-fn3(local1)
     store t0 -> local2
     ret local2
-  fun @scoop$1$cb$2e68dd64d8710702534f486fedeb810a90181fc1094f7a5227e54ff5cb0aa107(i32) -> i64
+  fun @scoop$1$cb$9e125e2a45953682631d5c86e8b81f54c5a431b32d6c450debfd6e91a8153e31(i32) -> i64
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter.value: i32
     local %2 $dependency.parameter.callback: ptr<code>
@@ -87,11 +87,11 @@ Module
     store local14 -> local15
     t5 = integer_Add<Long> local13, local15 : i64
     ret t5
-  fun @scoop$1$cb$a2bcceb072238266a9b33256bd3d2e6263d083ddbe3ecc9469a8c90e0c7a82f7(i32, ptr<code>) -> ptr<code>
+  fun @scoop$1$cb$934b1643269c7663a2ccafd5f649c7bfae5afd21b13deea7d67f4a81fe1f1519(i32, ptr<code>) -> ptr<code>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param1
-  fun @scoop$1$cb$611c90734e64571bac38fd4eaf0b4caad736a6f8df8c4a3c7d349358eac546bf(i32) -> ptr<code>
+  fun @scoop$1$cb$22156a85130b6154b2a3546ebbd441536115ad0fdc9568876105e01b6b64465b(i32) -> ptr<code>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     t0 = function_address @scoop$1$br$0a663174e7fb57392ec42baa792fa1a06cff10615d6ff28bdc15dff0ea0c82aa : ptr

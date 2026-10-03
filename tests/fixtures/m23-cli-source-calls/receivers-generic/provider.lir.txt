@@ -1,17 +1,17 @@
 Module
-  fun @scoop$1$cb$1454bf7a0e16ef7d1f65bd1516ee4171aa810927842b1298d67ff67da891c14c(ptr<managed>) -> i32
+  fun @scoop$1$cb$28756b2c2dfaf984d644d1cd11bb2cd48b3c891b47897661de4b30f313fe5653(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000007)
-  fun @scoop$1$cb$4703d09f7d10587d6577faf9f91054132e9c7217a3f3833cf7ff18650d6e40a1(i32) -> i32
+  fun @scoop$1$cb$512f73ad84cfb19bba159a773b7448f25f7c8c4c5d34a318abb3a8f4e1f97a56(i32) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret param0
-  fun @scoop$1$cb$7e439e562a978d5d9618ceed260550f55a29b2952c8e4d1ba67e1cbabe1bf1d3(ptr<managed>) -> i32
+  fun @scoop$1$cb$ccbf210c1b184fda7b7b62900cc8413b41999915bce2103c9ceadfe1a6671c57(ptr<managed>) -> i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret integer<Int>(0x00000007)
-  fun @scoop$1$cb$43df035085fd1fe4ccfc0c6b282b0d8a253729adcd1db9e88b5da7dccbbd703a(ptr<managed>, i32) -> void
+  fun @scoop$1$cb$8c68e8cab143a38fe95baa32108139527c2f09cb0a3afeb0aae89c29ef5c38f7(ptr<managed>, i32) -> void
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     ret

@@ -36,7 +36,7 @@ pub(crate) fn validate_executable_hir_calls(
     let signatures = applications::signatures(
         foundation,
         identities,
-        lowered.map(|(section, _)| section.exports().callables()),
+        lowered.map(|(section, _)| section.exports()),
     )?;
     for record in bridge.selected() {
         let Some(reference) = interface
@@ -105,6 +105,9 @@ pub(crate) fn validate_executable_hir_calls(
             let position = site.position();
             applications::validate_root(position, strong, &signatures, identities)?;
             let signature = match site.instantiation() {
+                // The HIR source boundary checked the C declaration and exact
+                // signature. Native ABI validation owns the resulting leaf.
+                HirDependencyCallInstantiationV1::NativeLeaf => continue,
                 HirDependencyCallInstantiationV1::Direct => {
                     direct_signature.ok_or(Error::UnmaterializedHirSelection {
                         target: reference.target(),
@@ -147,9 +150,9 @@ pub(crate) fn direct_callable(
     let sites = reference.call_sites().records();
     if !sites.is_empty()
         && sites.iter().all(|site| {
-            matches!(
+            !matches!(
                 site.instantiation(),
-                HirDependencyCallInstantiationV1::Application(_)
+                HirDependencyCallInstantiationV1::Direct
             )
         })
     {

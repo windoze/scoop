@@ -1,6 +1,6 @@
 Module
   enum RebuiltFlag tagged size=8 align=8 variants=()@8+0 ()@8+0
-  fun @scoop$1$cb$07d2d26ade0364ef7ad3a51c32162d8935b6d1b3c5e899a26310151b47c360aa() -> ptr<managed>
+  fun @scoop$1$cb$98ee48040bf4e64d7e0ccf1e88d021a71d23bfdb6fd1a6c66a5e7220675d3690() -> ptr<managed>
     local %0 $dependency.argument.0: i64
     local %1 $dependency.parameter.value: i64
     local %2 $dependency.receiver: ptr<managed>

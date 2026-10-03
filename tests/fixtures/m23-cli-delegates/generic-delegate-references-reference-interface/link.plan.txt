@@ -8,11 +8,11 @@ runtime objects=54
 images=5 root=_scoop$1$re$697a194f371e65fbbfe0f2ae0a577df915ae0fdee6758d312df7b2c864602bc7
 alias _scoop_td_String -> _scoop$1$td$ad3ae7a719e82101f547257b8a8ac185f05531c14504be81962250566a3ee868
 link inputs: startup, cone/member order, runtime/object order, libSystem
-native library m23_delegate_metadata requirement=6c4d4045da6987dc2485b25b5f1390c918d2d7fc496776da0c9d619654ad3861 input=c8abd90bd1e1b1d65565d381d0b69c6258a01eb78f45f5a923782157dd9d9658 origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([40, 255, 238, 35, 203, 172, 194, 98, 51, 160, 6, 253, 135, 245, 25, 178, 157, 37, 119, 188, 125, 187, 225, 106, 159, 33, 132, 201, 222, 140, 136, 64])])
-native library m23_class_gc requirement=9ede61f3579eac4299a31d76fa89c5b213db378df8eade8779290638fe092d16 input=3baee1a3f79788fb8bcda1801e3ddc213f56be488b345383cbf607cc98fbe1df origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
-native archive c8abd90bd1e1b1d65565d381d0b69c6258a01eb78f45f5a923782157dd9d9658 members=1
+native library m23_delegate_metadata requirement=6c4d4045da6987dc2485b25b5f1390c918d2d7fc496776da0c9d619654ad3861 input=f8c7e347c90698a9f1d6044d5482fdf6960ed765d2b9f652be8e76d45c1acafd origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([40, 255, 238, 35, 203, 172, 194, 98, 51, 160, 6, 253, 135, 245, 25, 178, 157, 37, 119, 188, 125, 187, 225, 106, 159, 33, 132, 201, 222, 140, 136, 64])])
+native library m23_class_gc requirement=9ede61f3579eac4299a31d76fa89c5b213db378df8eade8779290638fe092d16 input=04a3ec682e326f2a07709ec311fa970767ecfdad9146501000e6c3e10e57eebe origins=dev.example:runtime-fixture:0.1.0 (native declarations [PersistentSourceNativeExternalContractId([74, 55, 136, 3, 74, 84, 175, 107, 103, 122, 254, 162, 36, 99, 247, 226, 38, 56, 106, 64, 127, 109, 190, 109, 63, 18, 129, 69, 30, 153, 198, 15])])
+native archive f8c7e347c90698a9f1d6044d5482fdf6960ed765d2b9f652be8e76d45c1acafd members=1
   member 0 header=8 payload=68..1284 name="metadata.o" digest=b5e048ab75a7e3f3914f7662d25c51aa27e84f17f2f09a2120cc1faacf67a1c3 selected=true
-native archive 3baee1a3f79788fb8bcda1801e3ddc213f56be488b345383cbf607cc98fbe1df members=1
+native archive 04a3ec682e326f2a07709ec311fa970767ecfdad9146501000e6c3e10e57eebe members=1
   member 0 header=8 payload=68..924 name="gc.o" digest=2e92b02784e14922ad56b19b68874d04550dd831b08648a904d151eb84c2af68 selected=true
 startup object references:
   _scoop$1$im$440988749230e0287a84897cc481b9d7e463b773ee1d9badd3147ea98f7d0472

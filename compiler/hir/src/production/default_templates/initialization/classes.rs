@@ -132,6 +132,8 @@ pub(super) fn project(
             let effects = crate::production::callable_interfaces::source_constructor_effects(
                 constructor.safety,
                 crate::GcEffect::Managed,
+                &crate::ReleaseCallability::Unavailable,
+                &projection.binders,
             )
             .map_err(Error::Effects)?;
             ExportConstructorInitializationV1::try_new(
@@ -151,8 +153,13 @@ pub(super) fn project(
             .map_err(Error::Initialization)
         })
         .collect::<Result<_, Error>>()?;
-    ExportGenericNominalInitializationV1::try_new(owner, common, constructors)
-        .map_err(Error::Initialization)
+    ExportGenericNominalInitializationV1::try_new(
+        owner,
+        common,
+        constructors,
+        super::release::project(entities, declaration)?,
+    )
+    .map_err(Error::Initialization)
 }
 
 fn base_delegation(

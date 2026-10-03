@@ -51,6 +51,7 @@ impl Family {
                 )
                 .unwrap(),
                 MirTypeRepresentationV1::Class {
+                    release_policy: Default::default(),
                     kind: MirClassKindV1::Final,
                     declared_fields: vec![],
                 },
