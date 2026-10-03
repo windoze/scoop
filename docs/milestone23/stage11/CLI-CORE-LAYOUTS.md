@@ -51,3 +51,11 @@
 对应 43 个 core／普通库用例及 3 个布局装配组合，已删除 191 份旧文本快照，以及只负责格式化和比较这些快照的代码。25 个原布局内部测试继续验证真实 producer／reader、完整导出表、public/private 字节不变、ABI、GC、dispatch、初始化、codegen 与损坏 metadata：关闭所有更新开关后，24 个在完整一轮通过，遗漏的 recursive layout 快照调用清理后，其独立测试也通过。最终全仓验收仍会再次运行完整集合。
 
 公开类型的派生相等检查保留为 `mir_equality/applications.rs` 中的直接 typed 断言；`Unit`／`Any` 的种类和 GC 事实原先只在摘要中比较，现保留为直接断言。没有增加新的产物检查接口或 fixture 执行器。
+
+全量 HIR 复验补清 `shared_callable_selection`、`shared_constructor_selection`
+和 `shared_accessor_forms` 三处仍读取已删除摘要的调用及其更新环境开关。
+保留原选择数量、外来来源为空、wire roundtrip 和实际 accessor 形式对照，
+并直接核对 private/generic/abstract callable 的选择差异、槽与 GC effect、
+泛型构造器排除、私有/受保护构造器保留，以及属性 public lookup。
+1294 项 HIR 测试无筛选通过；对应六个 CLI 用例只读通过 12 进程、48 份
+阶段 golden，已有指纹全部保持。

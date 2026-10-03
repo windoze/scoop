@@ -29,7 +29,6 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
                 hir::select_ordinary_source_callables(provider, &public, &classifier, &identities)
                     .unwrap();
             assert_eq!(ordinary.len(), if case == "standalone" { 3 } else { 12 });
-            let mut rows = Vec::new();
             for source in public.callable_interfaces().all_declarations() {
                 let (key, included, old) = match source.declaration() {
                     Origin::Function(id) => (
@@ -48,33 +47,34 @@ fn shared_callable_selection_uses_source_owners_signatures_visibility_and_abstra
                     ),
                     _ => continue,
                 };
-                let owner = match source.owner().nominal_owner() {
-                    Some(owner) => declaration_dump::nominal(owner, &identities),
-                    None => format!("{:?}", source.owner()),
-                };
-                rows.push(format!(
-                    "{owner}.{}: {:?} {:?} {:?} slots={} layout-eligible={included} ordinary={old} ({}) -> {}\n",
-                    declaration_dump::named(&key),
-                    source.declared_visibility(),
-                    source.modality(),
-                    source.effects().gc_effect(),
+                let generic = matches!(source.declaration(), Origin::GenericFunction(_));
+                assert_eq!(
+                    included,
+                    !generic && source.declared_visibility() != hir::DeclaredVisibilityV1::Private,
+                    "{case}: {key:?}",
+                );
+                assert_eq!(
+                    old,
+                    !generic && source.modality() != hir::CallableModalityV1::Abstract,
+                    "{case}: {key:?}",
+                );
+                assert_eq!(
                     source.slot_relations().values().len(),
-                    source
-                        .parameters()
-                        .parameters()
-                        .iter()
-                        .map(|parameter| declaration_dump::ty(parameter.value_type(), &identities))
-                        .collect::<Vec<_>>()
-                        .join(","),
-                    declaration_dump::ty(source.result(), &identities),
-                ));
+                    usize::from(source.modality() != hir::CallableModalityV1::Final),
+                );
+                let [parameter] = source.parameters().parameters() else {
+                    panic!("the fixture functions have one source parameter");
+                };
+                assert_eq!(parameter.value_type(), source.result());
+                assert_eq!(
+                    source.effects().gc_effect(),
+                    if declaration_dump::named(&key) == "keep" {
+                        scoop_identity::GcEffect::NoGc
+                    } else {
+                        scoop_identity::GcEffect::Managed
+                    },
+                );
             }
-            rows.sort();
-            let snapshot = directory.join(format!("shared-callables-{case}.hir.snap"));
-            if std::env::var_os("SCOOP_UPDATE_SHARED_CALLABLE_SELECTION").is_some() {
-                std::fs::write(&snapshot, rows.concat()).unwrap();
-            }
-            assert_eq!(rows.concat(), std::fs::read_to_string(snapshot).unwrap());
             let foreign = hir::select_param_free_source_callables(
                 ConeIdentity::CORE,
                 &public,
