@@ -1,0 +1,18 @@
+SourceFile
+  RootPackage
+  public struct Pair<T, U>
+    field second: U
+    field first: T
+    field both: (T, U)
+  public enum Choice<T, U>
+    Missing
+    Pair <ctor>
+      first: T
+      second: U
+    Reverse(U, T)
+  public class Outer<T>()
+    public nested struct Static
+  public class Samples()
+    public fun pair
+    public fun choice
+    public fun nested

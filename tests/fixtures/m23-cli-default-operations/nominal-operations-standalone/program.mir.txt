@@ -1,0 +1,379 @@
+Module
+  global0 $singleton$347e632305c2f9d9868dcc66762bfe34e92aeee94c2efbeae6f4e8061c773650: Cache imported provider=911bf5d4a57e1d435ae437b404196810e79aff938d88a37fd3f9a609f1d8a006 storage=b08350df3763cf3a7d3ab085e716c3aeef45f25610a15d79a8c9ffb8e966fa1e
+  struct Packet (number: Int, flag: Boolean, unit: Unit)
+  struct Empty ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Choice
+    Missing()
+    Pair(number: Int, flag: Boolean)
+  enum Other
+    Missing()
+    Pair(number: Int, flag: Boolean)
+  class MarkerValue vtable=0 itables=1
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class Samples vtable=0 itables=0
+  class Cache vtable=0 itables=0
+  class Box vtable=0 itables=0
+  interface Marker
+  fun verifyDefault @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      call samples: Samples = external1 direct
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $default.local.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $default.local.3: Unit
+        Type Unit
+        UnitLiteral
+      val $default.local.4: Int
+        Type Int
+        Local $default.local.1
+      val $default.local.5: Boolean
+        Type Boolean
+        Local $default.local.2
+      val $default.local.6: Unit
+        Type Unit
+        Local $default.local.3
+      call $dependency.parameter.value: Packet = external2 direct
+        Type Int
+        Local $default.local.4
+        Type Boolean
+        Local $default.local.5
+        Type Unit
+        Local $default.local.6
+      call $equality.lhs: Packet = external3 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Packet
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.argument.2: Unit
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      val $dependency.parameter.unit: Unit
+        Type Unit
+        Local $dependency.argument.2
+      call $call.1: Packet = external2 direct
+        Type Int
+        Local $dependency.parameter.number
+        Type Boolean
+        Local $dependency.parameter.flag
+        Type Unit
+        Local $dependency.parameter.unit
+      call $argument.0: Boolean = external12 direct
+        Type Packet
+        Local $equality.lhs
+        Type Packet
+        Local $call.1
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      call $dependency.parameter.value: Empty = external4 direct
+      call $call.2: Empty = external5 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Empty
+        Local $dependency.parameter.value
+      call $call.3: Empty = external4 direct
+      call $argument.0: Boolean = external14 direct
+        Type Empty
+        Local $call.2
+        Type Empty
+        Local $call.3
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $default.local.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.1
+      val $default.local.4: Boolean
+        Type Boolean
+        Local $default.local.2
+      val $dependency.parameter.value: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Int
+          Local $default.local.3
+          Type Boolean
+          Local $default.local.4
+      call $equality.lhs: Choice = external6 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Choice
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      call $argument.0: Boolean = external13 direct
+        Type Choice
+        Local $equality.lhs
+        Type Choice
+        VariantConstruct Choice v1
+          Type Int
+          Local $dependency.parameter.number
+          Type Boolean
+          Local $dependency.parameter.flag
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $default.local.1: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $default.local.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $default.local.3: Int
+        Type Int
+        Local $default.local.1
+      val $default.local.4: Boolean
+        Type Boolean
+        Local $default.local.2
+      val $dependency.parameter.value: Other
+        Type Other
+        VariantConstruct Other v1
+          Type Int
+          Local $default.local.3
+          Type Boolean
+          Local $default.local.4
+      call $equality.lhs: Other = external7 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Other
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      val $dependency.parameter.number: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.flag: Boolean
+        Type Boolean
+        Local $dependency.argument.1
+      call $argument.0: Boolean = external15 direct
+        Type Other
+        Local $equality.lhs
+        Type Other
+        VariantConstruct Other v1
+          Type Int
+          Local $dependency.parameter.number
+          Type Boolean
+          Local $dependency.parameter.flag
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      call external16 direct
+      val $dependency.parameter.value: Cache
+        Type Cache
+        GlobalRead $singleton$347e632305c2f9d9868dcc66762bfe34e92aeee94c2efbeae6f4e8061c773650
+      call external16 direct
+      call $call.4: Cache = external8 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Cache
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Cache
+          Local $call.4
+          Type Cache
+          GlobalRead $singleton$347e632305c2f9d9868dcc66762bfe34e92aeee94c2efbeae6f4e8061c773650
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      assign $new.5
+        Type Box
+        ClassAlloc Box
+      call external9 direct
+        Type Box
+        Local $new.5
+      val $dependency.parameter.value: Box
+        Type Box
+        Local $new.5
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      assign $new.6
+        Type Box
+        ClassAlloc Box
+      call external9 direct
+        Type Box
+        Local $new.6
+      val $dependency.parameter.value: Box
+        Type Box
+        Local $new.6
+      call $call.7: Box = external10 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Box
+        Local $dependency.parameter.value
+      call $call.8: Box = external10 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Box
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefNe
+          Type Box
+          Local $call.7
+          Type Box
+          Local $call.8
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      assign $new.9
+        Type MarkerValue
+        ClassAlloc MarkerValue
+      call @fn2 direct
+        Type MarkerValue
+        Local $new.9
+      val marker: MarkerValue
+        Type MarkerValue
+        Local $new.9
+      val $dependency.receiver: Samples
+        Type Samples
+        Local samples
+      val $dependency.argument.0: Marker
+        Type Marker
+        Retype Marker
+          Type MarkerValue
+          Local marker
+      val $dependency.parameter.seed: Marker
+        Type Marker
+        Local $dependency.argument.0
+      val $dependency.parameter.value: Marker
+        Type Marker
+        Local $dependency.parameter.seed
+      call $call.10: Marker = external11 direct
+        Type Samples
+        Local $dependency.receiver
+        Type Marker
+        Local $dependency.parameter.seed
+        Type Marker
+        Local $dependency.parameter.value
+      val $argument.0: Boolean
+        Type Boolean
+        Binary RefEq
+          Type Marker
+          Local $call.10
+          Type MarkerValue
+          Local marker
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun init.MarkerValue.$c0 @fn2(this: MarkerValue) -> Unit
+    bb0 entry
+      return
+  str @str0 "illegal state"
+  output executable @fn1

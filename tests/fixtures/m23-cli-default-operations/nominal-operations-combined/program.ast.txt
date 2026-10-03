@@ -1,0 +1,42 @@
+SourceFile
+  RootPackage
+  fun verifyDefault(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val samples
+      Call defaultSamples
+    val pair
+      Call Pair<String, Int>
+        IntLiteral 7
+        StringLiteral "first"
+        TupleLiteral
+          StringLiteral "second"
+          IntLiteral 11
+    Call verifyDefault
+      Binary Eq
+        MethodCall pair<Int, String>
+          Var samples
+          Var pair
+        Var pair
+    val choice
+      MethodCall Pair<String, Int>
+        Var Choice
+        StringLiteral "choice"
+        IntLiteral 13
+    Call verifyDefault
+      Binary Eq
+        MethodCall choice<Int, String>
+          Var samples
+          Var choice
+        Var choice
+    Call verifyDefault
+      Binary Eq
+        MethodCall nested
+          Var samples
+        MethodCall Static
+          Var Outer
+          UnitLiteral
