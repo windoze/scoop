@@ -1,6 +1,0 @@
-span=88..100
-expression=T : Readable
-type parameter `T` of function cannot combine nominal upper bounds with a kind bound
-span=165..174
-expression=T : value
-type parameter `T` of function cannot combine a kind bound with nominal upper bounds

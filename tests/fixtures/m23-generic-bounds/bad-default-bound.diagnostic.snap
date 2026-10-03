@@ -1,3 +1,0 @@
-span=64..79
-expression=defaultRead(42)
-dependency function `defaultRead`: type argument `Int` for `T` must satisfy upper bound `Readable`

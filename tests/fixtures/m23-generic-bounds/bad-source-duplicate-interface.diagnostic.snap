@@ -1,3 +1,0 @@
-span=91..103
-expression=T : Readable
-duplicate interface upper bound `Readable` for type parameter `T` of function

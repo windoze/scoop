@@ -1,6 +1,0 @@
-span=60..82
-expression=defaultRead(Value(42))
-managed dependency calls are not allowed in `@NoGC` code
-span=60..82
-expression=defaultRead(Value(42))
-calling a managed dependency function is not allowed in `@NoGC` code

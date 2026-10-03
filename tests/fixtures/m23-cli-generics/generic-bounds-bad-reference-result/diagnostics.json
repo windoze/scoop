@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "body of `result` must be of type () -> String, found () -> Int",
+    "notes": [],
+    "origin": {
+      "cone": "6210a4db95776119ea57c5e94234d3883ad3d5f4e6558ab4f18a7c4671a7228e",
+      "end": 87,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 63
+    },
+    "severity": "error"
+  }
+]

@@ -1,3 +1,0 @@
-span=63..87
-expression=readReference(Value(42))
-body of `result` must be of type () -> String, found () -> Int
