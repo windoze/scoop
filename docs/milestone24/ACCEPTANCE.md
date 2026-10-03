@@ -27,7 +27,7 @@
 
 ## 尚未完成
 
-隐式操作的独立用例、最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至八批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
+最终格式基线和全量正式 CLI 回归仍须完成。已经完成的源码和依赖闭环见第三至九批；最终以 DESIGN 第 6 节的源码、产物消费、独立链接和运行闭环验收为准。
 
 ## 第二批：ReleaseValue 与 NoTransition
 
@@ -86,3 +86,10 @@
 - 普通与 moving stress 的结果依次为 42、43、43、44，确认下游消费的是新正文。最后去掉 helper 的 NoGc 合同，构建在 release 调用处给出精确 canonical 诊断，上一次成功的可执行文件保持完整且仍输出 44。
 - 格式化和全 workspace/all-targets clippy 通过。原 runner 无更新模式 `--filter 'release-blocks-cache-invalidation'` 为 1/1，通过 20 次进程执行、12 份 stage golden；报告为 `tmp/m24/cache-acceptance/report.json`。
 - 清理早期 effects 验收的私有 cases/cache，保留报告和工具副本，`tmp/m24` 从约 16 GiB 降至约 2 GiB。
+
+## 第九批：隐式操作与 M24 全组复核
+
+- 新增合法值操作组合：NoGc operator、值解构、默认实参、扩展方法、递归 helper SCC、局部 raw pointer/while，以及合法递归 pointer 表示；普通和 moving stress 均输出 42。
+- 八项独立 negative 覆盖不合格 operator/getter、managed 解构、普通 Iterator.next、vararg 分配、Scoop ABI extern、suspend 和匿名函数，精确锁定 canonical 诊断。普通 Iterator override 必须保留既有 MayGc 合同；本批没有放宽 override 规则或新增 effect 系统。
+- 格式化与全 workspace/all-targets clippy 通过。原 runner 无更新模式 `--filter 'release-*' --jobs 12` 对全部 M24 用例退出码为 0：91/91，通过 191 次进程执行、88 份 stage/plan golden，报告为 `tmp/m24/complete-m24-acceptance/report.json`。
+- 已从当前源码重新构建三个正式命令并保存于 `tmp/m24/final-tools/`，用于最终全仓库回归。此前各批固定工具和验收报告继续保留。

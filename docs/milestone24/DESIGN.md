@@ -111,6 +111,8 @@ release 的所有运行时值都满足 ReleaseValue；callee 的既有 NoGc 合�
 
 默认参数在 caller 求值，不能只检查显式实参或目标签名；默认值不反过来污染 helper 本身的正文 effect。operator、accessor、componentN、for 和 vararg 展开后的每个调用、temporary 和分配也要检查。当前整数 `/`、`%` 可能抛 ArithmeticException，release 中拒绝运行期使用，即使处于非零 guard 或除数是 literal；已有 const 求值的结果可用。不新增路径证明、循环次数限制或时间预算。
 
+既有 override effect 一致性规则仍适用：普通 `Iterator.next` 实现保留接口的 MayGc 合同，不能仅将其中一个 override 改标 NoGc 来供 release 使用。采用该合同的 `for` 展开会在实际 next 调用处被拒绝；手写允许的值操作和 `while` 遵守同一 effect 检查。
+
 release block 不是 NoGc annotation target，也不新增 `@ReleaseSafe`。Unsafe/Safe 嵌套规则保持。对直接 C leaf，调用者负责保证实现不展开异常、不回调任何 Scoop entry、不进入 GC/root/handle/pin/thread runtime、不保留临时地址、不等待已停顿的 mutator 或依赖其进展。C 函数指针签名、Extern 拼写、LLVM nounwind 和 undefined-symbol 检查都不能证明这些运行时行为；这是普通 unsafe native 契约。
 
 ## 2. 生命周期与 GC

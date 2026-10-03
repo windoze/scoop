@@ -1,0 +1,5 @@
+struct Value(val amount: Int) {
+    operator fun plus(other: Value): Value = Value(amount + other.amount)
+}
+class Owner(private val value: Value) { release { val copied = value + Value(1) } }
+fun main() {}
