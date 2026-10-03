@@ -1,0 +1,18 @@
+Module
+  struct Pair (left: Int, right: Long)
+  fun create @fn0() -> Pair
+    bb0 entry
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.text: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Pair = external0 direct
+        Type String
+        Local $dependency.parameter.text
+      return
+        Type Pair
+        Local $call.1
+  str @str0 "factory"
+  output library

@@ -9,3 +9,4 @@
 | 功能 | 原源码／CLI 用例 | 进程／阶段 golden |
 | --- | --- | --- |
 | source facts | `provider` | 3／8 |
+| constructors and inherited members | `constructors`、`inheritance-members` | 6／16 |

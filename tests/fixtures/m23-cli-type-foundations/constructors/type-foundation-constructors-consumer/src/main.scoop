@@ -1,0 +1,3 @@
+import dependency.constructors.*
+
+public fun create(): Pair = Pair("factory")
