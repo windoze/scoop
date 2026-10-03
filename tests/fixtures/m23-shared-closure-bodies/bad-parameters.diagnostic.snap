@@ -1,6 +1,0 @@
-span=125..151
-expression={ first, second -> first }
-lambda has 2 parameter(s), but the expected function type has 1
-span=164..168
-expression=read
-unknown function `read`; bare enum variants without an exact enum expected type must be qualified as `E.V` or given a type annotation
