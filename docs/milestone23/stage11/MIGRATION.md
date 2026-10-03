@@ -368,3 +368,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `class_bound_properties_republish_with_original_storage_and_accessors` | `m23-shared-bound-properties` | 2／3 | 33／26 | 6 份阶段、3 份诊断逐项相同 |
 | `generic_bound_calls_and_references_republish_and_execute` | `m23-generic-bounds` | 11／0 | 132／143 | 33 份阶段、0 份诊断逐项相同 |
 | `generic_bound_constraints_reject_invalid_calls_and_declarations` | `m23-generic-bounds` | 0／11 | 33／0 | 0 份阶段、11 份诊断逐项相同 |
+| `generic_bound_primitives_republish_and_execute_from_artifacts` | `m23-generic-bounds` | 1／0 | 12／13 | 3 份阶段、0 份诊断逐项相同 |
