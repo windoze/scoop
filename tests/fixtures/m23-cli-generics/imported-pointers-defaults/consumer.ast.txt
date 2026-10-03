@@ -1,0 +1,12 @@
+SourceFile
+  QualifiedPackage consumer.pointers
+  ImportExact Local dependency.pointers.loadDefault
+  public fun exercise<T>(value: T): Int
+    @Unsafe block
+      return
+        Call loadDefault<Int>
+          IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`addressOf` argument must be an addressable local, parameter, global, or value-type `this`",
+    "notes": [],
+    "origin": {
+      "cone": "53c377f8a86dc48f5c39e88f716dd866f09ed0bbee0daf6a0204bdc999c7a053",
+      "end": 52,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 47
+    },
+    "severity": "error"
+  }
+]

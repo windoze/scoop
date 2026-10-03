@@ -1,3 +1,0 @@
-span=112..123
-expression=cell.number
-`addressOf` argument must be an addressable local, parameter, global, or value-type `this`

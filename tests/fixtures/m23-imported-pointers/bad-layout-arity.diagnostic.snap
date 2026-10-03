@@ -1,3 +1,0 @@
-span=26..33
-expression=alignOf
-dependency function `alignOf` expects 1 type argument(s), found 2

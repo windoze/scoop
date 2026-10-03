@@ -1,0 +1,57 @@
+SourceFile
+  QualifiedPackage consumer.pointers
+  ImportExact Local dependency.pointers.typeAddress
+  public fun exercise<T>(value: T): Int
+    var number
+      IntLiteral 0
+    @Unsafe block
+      val pointer
+        Call addressOf
+          Var number
+      val changed
+        MethodCall cast<Int>
+          MethodCall cast<Boolean>
+            Var pointer
+      val inferred: Ptr<Int>
+        MethodCall cast
+          Var pointer
+      if
+        Binary Ne
+          Call typeAddress<Int>
+            Var pointer
+          MethodCall toULong
+            Var inferred
+        return
+          IntLiteral 2
+      MethodCall store
+        Var changed
+        IntLiteral 0L
+        IntLiteral 42
+      val forward
+        Binary Add
+          Var changed
+          IntLiteral 0L
+      val backward
+        Binary Sub
+          Var forward
+          IntLiteral 0L
+      if
+        Binary Ne
+          MethodCall toULong
+            Var backward
+          MethodCall toULong
+            Var pointer
+        return
+          IntLiteral 1
+      return
+        Binary Sub
+          Binary Add
+            MethodCall load
+              Var backward
+              IntLiteral 0L
+            Var number
+          IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

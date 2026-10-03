@@ -1,6 +1,0 @@
-span=53..69
-expression=addressOf(value)
-dependency function `addressOf`: type argument `String` for `T` must satisfy `value`
-span=39..42
-expression=Ptr
-`Ptr` pointee must be GC-free, found String

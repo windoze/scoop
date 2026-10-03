@@ -1,0 +1,51 @@
+SourceFile
+  QualifiedPackage consumer.pointers
+  ImportExact Local dependency.pointers.bytes
+  ImportExact Local dependency.pointers.alignment
+  ImportExact Local dependency.pointers.layoutDefault
+  private struct Managed
+    field text: String
+    field number: Int
+  public fun exercise<T>(value: T): Int
+    if
+      Binary Or
+        Binary Ne
+          Call sizeOf<Unit>
+          IntLiteral 0uL
+        Binary Ne
+          Call alignOf<Unit>
+          IntLiteral 1uL
+      return
+        IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Call bytes<UInt8>
+          IntLiteral 1uL
+        Binary Ne
+          Call bytes<Long>
+          IntLiteral 8uL
+      return
+        IntLiteral 2
+    if
+      Binary Or
+        Binary Ne
+          Call bytes<Managed>
+          IntLiteral 16uL
+        Binary Ne
+          Call alignment<Managed>
+          IntLiteral 8uL
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call layoutDefault<Managed>
+        IntLiteral 24uL
+      return
+        IntLiteral 4
+    return
+      IntLiteral 42
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

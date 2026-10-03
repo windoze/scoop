@@ -1,3 +1,0 @@
-span=26..42
-expression=sizeOf<String>()
-dependency function `sizeOf`: type argument `String` for `T` must satisfy `value`

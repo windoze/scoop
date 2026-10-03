@@ -1,3 +1,0 @@
-span=39..55
-expression=addressOf(value)
-calling an unsafe dependency function requires an unsafe context

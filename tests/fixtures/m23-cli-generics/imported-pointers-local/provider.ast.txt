@@ -1,0 +1,44 @@
+SourceFile
+  QualifiedPackage dependency.pointers
+  public fun bytes<T : value>(): ULong
+    =
+      Call sizeOf<T>
+  public fun alignment<T : value>(): ULong
+    =
+      Call alignOf<T>
+    @Unsafe
+  public fun copy<T : value>(value: T): T
+    val pointer
+      Call addressOf
+        Var value
+    return
+      MethodCall load
+        Var pointer
+    @Unsafe
+  public fun replace<T : value>(value: T, replacement: T): T
+    val pointer
+      Call addressOf
+        Var value
+    MethodCall store
+      Var pointer
+      Var replacement
+    return
+      Var value
+  public fun layoutDefault<T : value>(size: ULong = <expr>, alignment: ULong = <expr>): ULong
+    =
+      Binary Add
+        Var size
+        Var alignment
+    @Unsafe
+  public fun loadDefault<T : value>(value: T, next: T = <expr>): T
+    =
+      Var next
+    @Unsafe
+  public fun typeAddress<T : value>(pointer: Ptr<Int>): ULong
+    =
+      MethodCall toULong
+        MethodCall cast<T>
+          Var pointer
+  public struct Slot<T : value>
+    field value: T
+    public fun rewrite

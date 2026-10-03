@@ -1,0 +1,54 @@
+SourceFile
+  QualifiedPackage consumer.pointers
+  ImportExact Local dependency.pointers.Slot
+  ImportExact Local dependency.pointers.copy
+  ImportExact Local dependency.pointers.replace
+  private struct Pair
+    field left: Int
+    field right: Int
+  public fun exercise<T>(value: T): Int
+    val original
+      Call Slot<Pair>
+        Call Pair
+          IntLiteral 1
+          IntLiteral 2
+    @Unsafe block
+      val changed
+        MethodCall rewrite
+          Var original
+          Call Pair
+            IntLiteral 20
+            IntLiteral 22
+      val result
+        Call copy<Pair>
+          Var changed
+      if
+        Binary Or
+          Binary Ne
+            FieldAccess left
+              FieldAccess value
+                Var original
+            IntLiteral 1
+          Binary Ne
+            FieldAccess right
+              FieldAccess value
+                Var original
+            IntLiteral 2
+        return
+          IntLiteral 1
+      val replaced
+        Call replace<Pair>
+          Call Pair
+            IntLiteral 0
+            IntLiteral 0
+          Var result
+      return
+        Binary Add
+          FieldAccess left
+            Var replaced
+          FieldAccess right
+            Var replaced
+  public fun result(): Int
+    =
+      Call exercise<Int>
+        IntLiteral 0

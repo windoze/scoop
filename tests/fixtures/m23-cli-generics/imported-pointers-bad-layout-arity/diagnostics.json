@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "dependency function `alignOf` expects 1 type argument(s), found 2",
+    "notes": [],
+    "origin": {
+      "cone": "a12cca8f0047a35b496228a608c866f03fd95255108b35e51c1c3f7c7a6dd48a",
+      "end": 33,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 26
+    },
+    "severity": "error"
+  }
+]
