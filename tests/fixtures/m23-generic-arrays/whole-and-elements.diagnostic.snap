@@ -1,3 +1,0 @@
-span=62..90
-expression=pack<Int>(42, values = [42])
-dependency function `pack` parameter `values` is supplied more than once

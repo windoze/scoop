@@ -1,0 +1,194 @@
+SourceFile
+  QualifiedPackage upstream.arrays
+  public fun pack<T>(vararg values: T): Array<T>
+    =
+      Var values
+  public fun defaultPack<T>(seed: T, vararg values: T = <expr>): Array<T>
+    =
+      Var values
+  public fun first<T>(values: Array<T>, index: Long = <expr>): T
+    =
+      Index
+        Var values
+        Var index
+  public fun relay<T>(seed: T): Array<T>
+    =
+      Call pack<T>
+        Var seed
+        Argument *
+          ArrayLiteral
+            Var seed
+        Var seed
+  public fun mutate<T>(values: MutableArray<T>, index: Long, value: T): T
+    assign []
+      Var values
+      Var index
+      Var value
+    return
+      Index
+        Var values
+        Var index
+  public fun copy<T>(values: Array<T>): MutableArray<T>
+    =
+      MethodCall toMutableArray
+        Var values
+  public fun freeze<T>(values: MutableArray<T>): Array<T>
+    =
+      MethodCall toArray
+        Var values
+  public fun defaultFirst<T>(vararg values: T, value: T = <expr>): T
+    =
+      Var value
+  public fun mutateComputed<T>(values: MutableArray<T>, index: () -> Long, value: () -> T): T
+    assign []
+      Var values
+      Call index
+      Call value
+    return
+      Index
+        Var values
+        IntLiteral 0L
+  public fun total<T>(values: Iterable<T>, read: (T) -> Int): Int
+    var result
+      IntLiteral 0
+    val iterator
+      MethodCall iterator
+        Var values
+    var done
+      BoolLiteral false
+    while
+      Unary Not
+        Var done
+      when
+        MethodCall next
+          Var iterator
+        arm Some(value)
+          assign result
+            Binary Add
+              Var result
+              Call read
+                Var value
+        arm None
+          assign done
+            BoolLiteral true
+    return
+      Var result
+  public var trace: Int = <expr>
+  public fun mark(digit: Int): Int
+    assign trace
+      Binary Add
+        Binary Mul
+          Var trace
+          IntLiteral 10
+        Var digit
+    return
+      IntLiteral 42
+  public fun markedArray(digit: Int): Array<Int>
+    =
+      ArrayLiteral
+        Call mark
+          Var digit
+  public fun Int.frame(seed: Int = <expr>, vararg values: Int = <expr>, after: Int = <expr>, copied: Array<Int> = <expr>): Array<Int>
+    Call mark
+      IntLiteral 6
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary And
+              Binary Eq
+                This
+                IntLiteral 42
+              Binary Eq
+                Var seed
+                IntLiteral 42
+            Binary Eq
+              Var after
+              IntLiteral 42
+          Binary RefEq
+            Var copied
+            Var values
+        Var values
+        else
+        ArrayLiteral
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val values
+      Call relay<T>
+        Var seed
+    val mutable
+      Call copy<T>
+        Var values
+    val copied
+      Call freeze<T>
+        Var mutable
+    val whole
+      Call pack<T>
+        Argument values=
+          Var values
+    val spread
+      Call pack<T>
+        Argument *
+          Var values
+    val defaulted
+      Call defaultPack<T>
+        Var seed
+    val empty
+      Call pack<T>
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary And
+              Binary And
+                Binary And
+                  Binary And
+                    Binary And
+                      Binary And
+                        Binary And
+                          Binary Eq
+                            FieldAccess size
+                              Var values
+                            IntLiteral 3L
+                          Binary Eq
+                            FieldAccess size
+                              Var mutable
+                            IntLiteral 3L
+                        Binary Eq
+                          FieldAccess size
+                            Var copied
+                          IntLiteral 3L
+                      Binary RefEq
+                        Var whole
+                        Var values
+                    Binary RefNe
+                      Var spread
+                      Var values
+                  Binary Eq
+                    FieldAccess size
+                      Var empty
+                    IntLiteral 0L
+                Binary Eq
+                  FieldAccess size
+                    Var defaulted
+                  IntLiteral 1L
+              Binary Eq
+                Call read
+                  Call first<T>
+                    Var values
+                IntLiteral 42
+            Binary Eq
+              Call read
+                Call mutate<T>
+                  Var mutable
+                  IntLiteral 1L
+                  Var seed
+              IntLiteral 42
+          Binary Eq
+            Call read
+              Call first<T>
+                Var copied
+                IntLiteral 2L
+            IntLiteral 42
+        IntLiteral 42
+        else
+        IntLiteral 0

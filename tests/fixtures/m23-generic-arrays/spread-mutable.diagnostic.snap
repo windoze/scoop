@@ -1,3 +1,0 @@
-span=97..104
-expression=*values
-dependency function `pack`: MutableArray<Int> is not equal to Array<T>

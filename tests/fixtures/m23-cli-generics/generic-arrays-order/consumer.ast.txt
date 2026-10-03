@@ -1,0 +1,144 @@
+SourceFile
+  QualifiedPackage consumer.arrays
+  ImportStar Local upstream.arrays.*
+  ImportExact Local upstream.arrays.exercise as providerExercise
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    =
+      Call providerExercise<T>
+        Var seed
+        Var read
+  public fun result(): Int
+    assign trace
+      IntLiteral 0
+    val named
+      MethodCall frame
+        Call mark
+          IntLiteral 1
+        Argument values=
+          Call markedArray
+            IntLiteral 2
+        Argument after=
+          Call mark
+            IntLiteral 3
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var trace
+            IntLiteral 12346
+          Binary Ne
+            FieldAccess size
+              Var named
+            IntLiteral 1L
+        Binary Ne
+          Call first
+            Var named
+          IntLiteral 42
+      return
+        IntLiteral 1
+    assign trace
+      IntLiteral 0
+    val mixed
+      MethodCall frame
+        Call mark
+          IntLiteral 1
+        Call mark
+          IntLiteral 2
+        Call mark
+          IntLiteral 3
+        Argument *
+          Call markedArray
+            IntLiteral 4
+        Call mark
+          IntLiteral 5
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var trace
+            IntLiteral 1234556
+          Binary Ne
+            FieldAccess size
+              Var mixed
+            IntLiteral 3L
+        Binary Ne
+          Call first
+            Var mixed
+            IntLiteral 2L
+          IntLiteral 42
+      return
+        IntLiteral 2
+    assign trace
+      IntLiteral 0
+    val defaults
+      MethodCall frame
+        Call mark
+          IntLiteral 1
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var trace
+            IntLiteral 1456
+          Binary Ne
+            FieldAccess size
+              Var defaults
+            IntLiteral 1L
+        Binary Ne
+          Call first
+            Var defaults
+          IntLiteral 42
+      return
+        IntLiteral 3
+    assign trace
+      IntLiteral 0
+    if
+      Binary Or
+        Binary Ne
+          Call defaultFirst
+            Call mark
+              IntLiteral 1
+            Argument *
+              Call markedArray
+                IntLiteral 2
+          IntLiteral 42
+        Binary Ne
+          Var trace
+          IntLiteral 12
+      return
+        IntLiteral 4
+    val source
+      Call pack
+        IntLiteral 42
+    val namedSpread
+      Call pack
+        Argument values=*
+          Var source
+    val asFunction: (Array<Int>) -> Array<Int>
+      CallableReference 0 pack
+    val empty: Array<Int>
+      Call pack
+    val other
+      Call pack<Int>
+    return
+      IfExpression
+        Binary And
+          Binary And
+            Binary And
+              Binary RefEq
+                Var namedSpread
+                Var source
+              Binary RefEq
+                Call asFunction
+                  Var source
+                Var source
+            Binary RefNe
+              Var empty
+              Var other
+          Binary Eq
+            FieldAccess size
+              Var empty
+            IntLiteral 0L
+        IntLiteral 42
+        else
+        IntLiteral 5

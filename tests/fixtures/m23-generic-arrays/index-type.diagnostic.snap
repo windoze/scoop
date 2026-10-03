@@ -1,3 +1,0 @@
-span=78..83
-expression=index
-dependency function `first`: Int is not a subtype of Long

@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "function value takes exactly 1 argument(s), but 2 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "4f2571a2f492d3aab8dd723f764f0c826ea1e6ec64d8406fb2accb1837e2be58",
+      "end": 147,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 129
+    },
+    "severity": "error"
+  }
+]
