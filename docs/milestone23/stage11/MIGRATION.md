@@ -389,3 +389,4 @@ parser／HIR／MIR／LIR 的文件加载与 golden 编排、driver end-to-end，
 | `imported_iteration_rejections_have_source_diagnostics` | `m23-iteration` | 0／11 | 33／0 | 0 份阶段、11 份诊断逐项相同 |
 | `local_calls_share_complete_arguments_and_recursive_captures_through_artifacts` | `m23-shared-local-calls` | 2／3 | 33／26 | 6 份阶段、3 份诊断逐项相同 |
 | `method_calls_share_bound_targets_defaults_and_dispatch` | `m23-shared-method-calls` | 2／4 | 36／26 | 6 份阶段、4 份诊断逐项相同 |
+| `ordinary_calls_share_argument_checks_after_republication` | `m23-shared-native-calls` | 2／7 | 45／26 | 6 份阶段、7 份诊断逐项相同 |

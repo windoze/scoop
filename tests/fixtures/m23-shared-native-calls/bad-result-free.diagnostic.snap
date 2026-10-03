@@ -1,3 +1,0 @@
-span=68..78
-expression=choose(42)
-body of `result` must be of type String, found Int

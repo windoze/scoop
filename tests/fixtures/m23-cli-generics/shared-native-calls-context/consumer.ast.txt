@@ -1,0 +1,235 @@
+SourceFile
+  QualifiedPackage consumer.nativecalls
+  ImportStar Local dependency.nativecalls.*
+  private fun localApply(action: (Int) -> Int, value: Int = <expr>): Int
+    =
+      Call action
+        Var value
+  private fun localNarrow(value: Int8): Int
+    =
+      MethodCall toInt32
+        Var value
+  private fun localNarrowAction(action: (Int) -> Int8): Int
+    =
+      MethodCall toInt32
+        Call action
+          IntLiteral 0
+  private fun localArrayFirst(values: Array<Int>): Int
+    =
+      IfExpression
+        Binary Eq
+          FieldAccess size
+            Var values
+          IntLiteral 0L
+        IntLiteral 42
+        else
+        Index
+          Var values
+          IntLiteral 0L
+  private fun localPack(vararg values: Int): Array<Int>
+    =
+      Var values
+  private fun identity(value: Int): Int
+    =
+      Var value
+  public fun exercise<T>(seed: T, read: (T) -> Int): Int
+    val external
+      Call apply
+        Lambda 0 suspend=false
+          param value: Int
+          Call read
+            Var seed
+        IntLiteral 0
+    val local
+      Call localApply
+        Lambda 1 suspend=false
+          param value: Int
+          Call read
+            Var seed
+        IntLiteral 0
+    return
+      IfExpression
+        Binary Eq
+          Var external
+          Var local
+        Var external
+        else
+        IntLiteral 1
+  public fun result(): Int
+    val flag
+      BoolLiteral true
+    if
+      Binary Ne
+        Call localNarrow
+          IfExpression
+            Var flag
+            IntLiteral 42
+            else
+            IntLiteral 0
+        IntLiteral 42
+      return
+        IntLiteral 2
+    if
+      Binary Ne
+        Call narrow
+          IfExpression
+            Var flag
+            IntLiteral 42
+            else
+            IntLiteral 0
+        IntLiteral 42
+      return
+        IntLiteral 3
+    if
+      Binary Ne
+        Call localNarrowAction
+          Lambda 2 suspend=false
+            param value: Int
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 4
+    if
+      Binary Ne
+        Call narrowAction
+          Lambda 3 suspend=false
+            param value: Int
+            IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 5
+    if
+      Binary Ne
+        Call localNarrowAction
+          AnonymousFunction 0 suspend=false return=_
+            param value: Int
+            return
+              IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 6
+    if
+      Binary Ne
+        Call narrowAction
+          AnonymousFunction 1 suspend=false return=_
+            param value: Int
+            return
+              IntLiteral 42
+        IntLiteral 42
+      return
+        IntLiteral 7
+    if
+      Binary Or
+        Binary Ne
+          Call localArrayFirst
+            ArrayLiteral
+          IntLiteral 42
+        Binary Ne
+          Call arrayFirst
+            ArrayLiteral
+          IntLiteral 42
+      return
+        IntLiteral 8
+    if
+      Binary Or
+        Binary Ne
+          Call localApply
+            CallableReference 0 identity
+          IntLiteral 42
+        Binary Ne
+          Call apply
+            CallableReference 1 identity
+          IntLiteral 42
+      return
+        IntLiteral 9
+    if
+      Binary Ne
+        Call localApply
+          Argument value=
+            IntLiteral 41
+          Argument action=
+            Lambda 4 suspend=false
+              parameters omitted
+              Binary Add
+                Var it
+                IntLiteral 1
+        IntLiteral 42
+      return
+        IntLiteral 10
+    if
+      Binary Ne
+        Call apply
+          Argument value=
+            IntLiteral 41
+          Argument action=
+            Lambda 5 suspend=false
+              parameters omitted
+              Binary Add
+                Var it
+                IntLiteral 1
+        IntLiteral 42
+      return
+        IntLiteral 11
+    val values
+      ArrayLiteral
+        IntLiteral 42
+    if
+      Binary Or
+        Binary RefNe
+          Call localPack
+            Argument values=
+              Var values
+          Var values
+        Binary RefNe
+          Call pack
+            Argument values=
+              Var values
+          Var values
+      return
+        IntLiteral 12
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            Call localPack
+              Argument *
+                Var values
+              IntLiteral 0
+          IntLiteral 2L
+        Binary Ne
+          FieldAccess size
+            Call pack
+              Argument *
+                Var values
+              IntLiteral 0
+          IntLiteral 2L
+      return
+        IntLiteral 13
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess size
+            Call localPack
+          IntLiteral 0L
+        Binary Ne
+          FieldAccess size
+            Call pack
+          IntLiteral 0L
+      return
+        IntLiteral 14
+    val host
+      Call FixedHost
+    return
+      IfExpression
+        Binary Eq
+          MethodCall choose
+            Var host
+            IntLiteral 42
+          IntLiteral 42
+        MethodCall apply
+          Var host
+          Lambda 6 suspend=false
+            parameters omitted
+            Var it
+        else
+        IntLiteral 15
