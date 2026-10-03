@@ -1,0 +1,8 @@
+Module
+  fun useCore @fn0() -> Long
+    bb0 entry
+      call $call.1: Long = external0 direct
+      return
+        Type Long
+        Local $call.1
+  output library
