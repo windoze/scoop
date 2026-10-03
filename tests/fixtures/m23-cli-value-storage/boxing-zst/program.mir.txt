@@ -1,0 +1,233 @@
+Module
+  struct Empty ()
+  struct OtherEmpty ()
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class ClassCastException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Empty> vtable=0 itables=0
+  class box<OtherEmpty> vtable=0 itables=0
+  class box<Unit> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  generated_exact_type get0 location=class5 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get1 location=class3 nominal_id=4006ed6df548ce8d4ebd2f6e7add8a2ebf3e684d55c3daee89e0cea99b3cb576 exact_id=6d301bd022cc98ddc948772d4547c7332de51a0ff07418e121287202c0334461
+  generated_exact_type get2 location=class4 nominal_id=adbd94568be41d19f0050c168d95ace51f23ee3c672c62100768f367e9c35e98 exact_id=7ec847aa3315c0304f43a1c33232a89b38c41e6e3f59748524d02395e3d4cb48
+  fun Empty.equals @fn0(this: Empty, other: Empty) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun observedEmpty @fn1() -> Empty
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+      call $call.1: Empty = @fn6 direct
+      return
+        Type Empty
+        Local $call.1
+  fun main @fn2() -> Unit
+    bb0 entry
+      call $call.1: Empty = @fn1 direct
+      val boxed: Any
+        Type Any
+        Box
+          Type Empty
+          Local $call.1
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Empty
+          Type Any
+          Local boxed
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance OtherEmpty
+          Type Any
+          Local boxed
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $cast.1: Any
+        Type Any
+        Local boxed
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Empty
+            Type Any
+            Local $cast.1
+    bb1 if.then.1
+      assign $new.2
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.2
+      throw
+        Type ClassCastException
+        Local $new.2
+    bb2 if.merge.2
+      val $ub.2: Empty
+        Type Empty
+        Unbox
+          Type Any
+          Local $cast.1
+      val restored: Empty
+        Type Empty
+        Local $ub.2
+      call $call.3: Empty = @fn6 direct
+      call $dependency.argument.0: Boolean = @fn0 direct
+        Type Empty
+        Local restored
+        Type Empty
+        Local $call.3
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val unitBox: Any
+        Type Any
+        Box
+          Type Unit
+          UnitLiteral
+      val $dependency.argument.0: Boolean
+        Type Boolean
+        IsInstance Unit
+          Type Any
+          Local unitBox
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      val $cast.3: Any
+        Type Any
+        Local unitBox
+      branch bb3 bb4
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IsInstance Unit
+            Type Any
+            Local $cast.3
+    bb3 if.then.3
+      assign $new.4
+        Type ClassCastException
+        ClassAlloc ClassCastException
+      call external3 direct
+        Type ClassCastException
+        Local $new.4
+      throw
+        Type ClassCastException
+        Local $new.4
+    bb4 if.merge.4
+      val $ub.4: Unit
+        Type Unit
+        Unbox
+          Type Any
+          Local $cast.3
+      val unitValue: Unit
+        Type Unit
+        Local $ub.4
+      call $dependency.argument.0: Boolean = @fn5 direct
+        Type Unit
+        Local unitValue
+        Type Unit
+        UnitLiteral
+      val $dependency.parameter.value: Boolean
+        Type Boolean
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type Boolean
+        Local $dependency.parameter.value
+      return
+  fun println @fn3(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str0
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn4(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.local.1: Boolean
+        Type Boolean
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Boolean
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $derived.equals.1 @fn5(this: Unit, other: Unit) -> Boolean
+    bb0 entry
+      return
+        Type Boolean
+        BoolLiteral true
+  fun ctor.Empty.$c0 @fn6() -> Empty <no-gc>
+    bb0 entry
+      return
+        Type Empty
+        StructInit Empty
+  fun ctor.OtherEmpty.$c1 @fn7() -> OtherEmpty <no-gc>
+    bb0 entry
+      return
+        Type OtherEmpty
+        StructInit OtherEmpty
+  instance mi0 function=@fn3 <- println
+  instance mi1 function=@fn4 <- println
+  str @str0 "\n"
+  str @str1 "\n"
+  output executable @fn2

@@ -10,3 +10,4 @@
 | stored property address rejection | 1／2／0／1 | 普通存储属性不能因生成 accessor 变成 addressable global；保留 addressOf 原错误文字与 answer 的精确位置。 |
 | native source boundary rejections | 2／4／0／2 | 普通同形 struct 不能冒充 handle，GcHandle? 不具备 C nullable-pointer ABI；删除重复的两行 Rust 诊断快照。 |
 | constructor materialization | 2／10／10／4 | 主次构造、泛型闭包、继承与 type-only 选择；保留 source ID 到实际 MIR root 的一对一映射、参数/receiver 数量、GC effect 及未选择 NoGC overload 不物化。 |
+| boxed source values | 2／10／10／4 | ZST、Unit、类型测试和拆箱，以及含 String/tuple 的结构值在显式 gcCollect 后存活；逐字断言原有六行和四行输出。 |

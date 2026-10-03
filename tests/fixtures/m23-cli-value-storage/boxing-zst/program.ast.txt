@@ -1,0 +1,37 @@
+SourceFile
+  RootPackage
+  struct Empty
+  struct OtherEmpty
+  fun observedEmpty(): Empty
+    Call println
+      IntLiteral 1
+    return
+      Call Empty
+  fun main()
+    val boxed: Any
+      Call observedEmpty
+    Call println
+      Is Empty false
+        Var boxed
+    Call println
+      Is OtherEmpty false
+        Var boxed
+    val restored
+      Cast Empty optional=false
+        Var boxed
+    Call println
+      Binary Eq
+        Var restored
+        Call Empty
+    val unitBox: Any
+      UnitLiteral
+    Call println
+      Is Unit false
+        Var unitBox
+    val unitValue
+      Cast Unit optional=false
+        Var unitBox
+    Call println
+      Binary Eq
+        Var unitValue
+        UnitLiteral
