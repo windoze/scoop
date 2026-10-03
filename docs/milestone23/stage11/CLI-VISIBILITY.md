@@ -12,3 +12,7 @@
 | 私有 accessor、接口正文和 setter 参数类型 | `private-property-accessors`、`error-private-abstract-property`、`error-interface-property-write-type` | 9／5 |
 | 嵌套词法域和私有 setter | `protected-lexical-scopes`、`error-protected-lexical-scopes` | 7／5 |
 | protected 嵌套类型、成员接收者和外部类型可见性 | `protected-nested-receivers`、`error-protected-nested-receivers`、`error-protected-nested-type` | 9／5 |
+
+三份旧摘要与仅用于文件诊断／成功编排的九个 Rust 测试已退役。六个 setter 的声明访问级别、完整 Cone／SubclassesOf 约束、继承槽和 FinalOverride 关系，五个私有 accessor 的 Final／Direct 状态，以及两个 singleton／companion 的真实基类和 owner 集合均保留为直接 typed 断言，不再格式化为文本快照。相关 Rust 代码净减少 243 行，没有内联搬运原 Scoop 文件。
+
+清理前 22 个原可见性测试通过，并临时采集了上述 18 条诊断用于对照；采集代码已移除。清理后剩余 13 个内部测试、格式化、完整 lint 及全部 13 项 CLI 用例再次通过。此记录属于迁移分项，M23-11 的完整验收仍须运行全仓集合。

@@ -1,6 +1,0 @@
-Base.internalWriter: Internal, slot=Cone
-Base.protectedWriter: Protected, slot=SubclassesOf(Base)
-Base.visible: Public, slot=Public
-Child.internalWriter: Internal, slot=Cone
-Child.protectedWriter: Protected, slot=SubclassesOf(Base)
-Child.visible: Public, slot=Public

@@ -5,16 +5,19 @@ const POSITIVE: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../tests/fixtures/m21-visibility/property-setter-slots.scoop"
 ));
-const NEGATIVE: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../tests/fixtures/m21-visibility/errors/property-setter-slot-narrowing.scoop"
-));
 
 #[test]
 fn explicit_setters_preserve_independent_slot_contracts_and_override_relations() {
     let output = parse_and_lower(POSITIVE).unwrap();
     let module = output.export.module();
-    let mut rows = Vec::new();
+    let base = module
+        .classes
+        .iter()
+        .find(|(_, class)| class.name == "Base")
+        .unwrap()
+        .0;
+    let base = module.nominal_identities[base].declaration_id();
+    let mut seen = std::collections::BTreeSet::new();
     for (_, property) in module.properties.iter() {
         let hir::PropertyOwner::Class(owner) = property.owner else {
             continue;
@@ -32,34 +35,21 @@ fn explicit_setters_preserve_independent_slot_contracts_and_override_relations()
         };
         let function = &module.functions[function_id];
         let slot = function.access.slot.as_ref().unwrap();
-        let domain = slot
-            .0
-            .constraints()
-            .iter()
-            .map(|constraint| match constraint {
-                hir::AccessConstraint::Cone(_) => "Cone".to_owned(),
-                hir::AccessConstraint::SubclassesOf(owner) => {
-                    let (_, class) = module
-                        .classes
-                        .iter()
-                        .find(|(id, _)| module.nominal_identities[*id].declaration_id() == *owner)
-                        .expect("fixture slot retains its original class declaration");
-                    format!("SubclassesOf({})", class.name)
-                }
-                other => panic!("unexpected fixture slot constraint {other:?}"),
-            })
-            .collect::<Vec<_>>()
-            .join(" & ");
-        rows.push(format!(
-            "{owner_name}.{}: {:?}, slot={}\n",
-            property.name,
-            function.access.declared,
-            if slot.0.is_universal() {
-                "Public"
-            } else {
-                &domain
-            }
-        ));
+        let (declared, constraints) = match property.name.as_str() {
+            "internalWriter" => (
+                hir::DeclaredVisibility::Internal,
+                vec![hir::AccessConstraint::Cone(module.cone)],
+            ),
+            "protectedWriter" => (
+                hir::DeclaredVisibility::Protected,
+                vec![hir::AccessConstraint::SubclassesOf(base)],
+            ),
+            "visible" => (hir::DeclaredVisibility::Public, Vec::new()),
+            other => panic!("unexpected fixture property {other}"),
+        };
+        assert_eq!(function.access.declared, declared);
+        assert_eq!(slot.0.constraints(), constraints);
+        assert!(seen.insert((owner_name.as_str(), property.name.as_str())));
         if owner_name == "Child" {
             assert!(!function.access.lookup.0.is_universal());
             let [hir::PropertyReference::Local(inherited_property)] = property.overrides.as_slice()
@@ -86,28 +76,15 @@ fn explicit_setters_preserve_independent_slot_contracts_and_override_relations()
             );
         }
     }
-    rows.sort();
     assert_eq!(
-        rows.concat(),
-        include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../../tests/fixtures/m21-visibility/property-setter-slots.contracts.snap"
-        ))
-    );
-}
-
-#[test]
-fn explicit_setter_cannot_narrow_the_inherited_public_contract() {
-    let errors = parse_and_lower(NEGATIVE).unwrap_err();
-    let error = errors
-        .iter()
-        .find(|error| {
-            error.message
-                == "visibility of `$set$value` does not cover inherited slot `Base.$set$value`"
-        })
-        .unwrap_or_else(|| panic!("missing setter coverage diagnostic: {errors:?}"));
-    assert_eq!(
-        error.span.unwrap().start as usize,
-        NEGATIVE.find("override var value").unwrap() + "override var ".len()
+        seen,
+        std::collections::BTreeSet::from([
+            ("Base", "internalWriter"),
+            ("Base", "protectedWriter"),
+            ("Base", "visible"),
+            ("Child", "internalWriter"),
+            ("Child", "protectedWriter"),
+            ("Child", "visible"),
+        ])
     );
 }

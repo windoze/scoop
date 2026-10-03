@@ -2,8 +2,6 @@ use super::*;
 mod objects;
 mod private_accessors;
 mod property_slots;
-mod protected_nested;
-mod protected_overrides;
 mod protected_scopes;
 mod support;
 
