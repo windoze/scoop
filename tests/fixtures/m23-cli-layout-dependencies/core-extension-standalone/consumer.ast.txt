@@ -1,0 +1,11 @@
+SourceFile
+  RootPackage
+  ImportExact Local dependency.api.runtimeValue
+  ImportExact Local dependency.api.receiverAnswer
+  public val localValue: Int = <expr>
+  public fun outside(): Int
+    val initial
+      Var runtimeValue
+    return
+      MethodCall receiverAnswer
+        StringLiteral "standalone"

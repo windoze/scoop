@@ -15,3 +15,4 @@
 | 功能 | 正式 CLI 用例 | 进程／阶段 golden |
 | --- | --- | --- |
 | 属性初始化、展开默认值与不活跃正文 | `core-initialization-combined`、`core-initialization-standalone`、`ordinary-initialization-combined`、`ordinary-initialization-inactive`、`ordinary-initialization-standalone` | 18／52 |
+| 外部 extension receiver | `core-extension-combined`、`core-extension-standalone` | 6／16 |
