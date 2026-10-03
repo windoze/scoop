@@ -1,0 +1,330 @@
+Module
+  struct AccessBox<Int> (value: Int)
+  struct Nested (value: Int)
+  struct AccessBox<String> (value: String)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class box<Int> vtable=0 itables=0
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn2 captures=1
+    bridge function_type1 -> @fn8 id=dd4dcd1ce3543934f27a95a4dfa86d4cf318f3bb29665cb11cf88697400fe4f0
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn4 captures=1
+    bridge function_type1 -> @fn9 id=00757476bb0448a6669abe9de87745d468a65904816f7b74517801241accb1d1
+  generated_exact_type get0 location=closure0 nominal_id=4e2277a2666021e8c8e0e8b44603934ae5a5d9ee4ab722ed84001ce037115572 exact_id=d0b9be0a573340cc2681c0f17b67c1b44ef1919297b36d496179709b90eabb06
+  generated_exact_type get1 location=class3 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get2 location=closure1 nominal_id=39e067558e27eed77300c988f1e427eda80ef5a8e70a22acceb638188f9d5c78 exact_id=fb22808601d4dbc18d617170f263a172c53e9df0e90e7cc57a41a96a174e36d9
+  generated_callable gc0 function=@fn9 id=00757476bb0448a6669abe9de87745d468a65904816f7b74517801241accb1d1
+  generated_callable gc1 function=@fn8 id=dd4dcd1ce3543934f27a95a4dfa86d4cf318f3bb29665cb11cf88697400fe4f0
+  fun verifyDefault @fn0(value: Boolean) -> Unit
+    bb0 entry
+      val $dependency.receiver: Boolean
+        Type Boolean
+        Local value
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $dependency.receiver
+    bb1 if.then.1
+      val $default.local.0: String
+        Type String
+        StringConst @str0
+      val $default.local.1: String
+        Type String
+        Local $default.local.0
+      val $dependency.parameter.message: Option<String>
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          Local $default.local.1
+      assign $new.1
+        Type IllegalStateException
+        ClassAlloc IllegalStateException
+      call external0 direct
+        Type IllegalStateException
+        Local $new.1
+        Type Option<String>
+        Local $dependency.parameter.message
+      throw
+        Type IllegalStateException
+        Local $new.1
+    bb2 if.merge.2
+      return
+  fun main @fn1() -> Unit
+    bb0 entry
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $default.local.1: Int
+        Type Int
+        Local $dependency.parameter.value
+      val $default.local.2: Int
+        Type Int
+        Local $default.local.1
+      call $dependency.parameter.box: AccessBox<Int> = @fn6 direct
+        Type Int
+        Local $default.local.2
+      val $dependency.parameter.pair: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $dependency.parameter.value
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.factory: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.value
+      val $default.local.4: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $default.local.5: Int
+        Type Int
+        Local $default.local.4
+      call $dependency.parameter.nested: Nested = external1 direct
+        Type Int
+        Local $default.local.5
+      call $dependency.receiver: Int = @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type AccessBox<Int>
+        Local $dependency.parameter.box
+        Type (Int, Int)
+        Local $dependency.parameter.pair
+        Type () -> Int
+        Local $dependency.parameter.factory
+        Type Nested
+        Local $dependency.parameter.nested
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      val $default.local.1: String
+        Type String
+        Local $dependency.parameter.value
+      val $default.local.2: String
+        Type String
+        Local $default.local.1
+      call $dependency.parameter.box: AccessBox<String> = @fn7 direct
+        Type String
+        Local $default.local.2
+      val $dependency.parameter.pair: (String, Int)
+        Type (String, Int)
+        TupleLiteral
+          Type String
+          Local $dependency.parameter.value
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.factory: () -> String
+        Type () -> String
+        ClosureAlloc cc1 $Closure$lambda1
+          CaptureInit field=0
+            Type String
+            Local $dependency.parameter.value
+      val $default.local.4: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $default.local.5: Int
+        Type Int
+        Local $default.local.4
+      call $dependency.parameter.nested: Nested = external1 direct
+        Type Int
+        Local $default.local.5
+      call $dependency.receiver: String = @fn5 direct
+        Type String
+        Local $dependency.parameter.value
+        Type AccessBox<String>
+        Local $dependency.parameter.box
+        Type (String, Int)
+        Local $dependency.parameter.pair
+        Type () -> String
+        Local $dependency.parameter.factory
+        Type Nested
+        Local $dependency.parameter.nested
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $argument.0: Boolean = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call $dependency.argument.1: AccessBox<Int> = @fn6 direct
+        Type Int
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      val $dependency.parameter.box: AccessBox<Int>
+        Type AccessBox<Int>
+        Local $dependency.argument.1
+      val $dependency.parameter.pair: (Int, Int)
+        Type (Int, Int)
+        TupleLiteral
+          Type Int
+          Local $dependency.parameter.value
+          Type Int
+          IntegerLiteral Int value=7 bits=0x00000007
+      val $dependency.parameter.factory: () -> Int
+        Type () -> Int
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Int
+            Local $dependency.parameter.value
+      val $default.local.4: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $default.local.5: Int
+        Type Int
+        Local $default.local.4
+      call $dependency.parameter.nested: Nested = external1 direct
+        Type Int
+        Local $default.local.5
+      call $dependency.receiver: Int = @fn3 direct
+        Type Int
+        Local $dependency.parameter.value
+        Type AccessBox<Int>
+        Local $dependency.parameter.box
+        Type (Int, Int)
+        Local $dependency.parameter.pair
+        Type () -> Int
+        Local $dependency.parameter.factory
+        Type Nested
+        Local $dependency.parameter.nested
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=11 bits=0x0000000b
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      val $argument.0: Boolean
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      val $parameter.value: Boolean
+        Type Boolean
+        Local $argument.0
+      call @fn0 direct
+        Type Boolean
+        Local $parameter.value
+      return
+  fun $lambda @fn2($argument.0: () -> Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        ClosureCapture cc0 0
+          Type () -> Int
+          Local $argument.0
+  fun accessCombined @fn3(value: Int, box: AccessBox<Int>, pair: (Int, Int), factory: () -> Int, nested: Nested) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type AccessBox<Int>
+          Local box
+  fun $lambda @fn4($argument.0: () -> String) -> String
+    bb0 entry
+      return
+        Type String
+        ClosureCapture cc1 0
+          Type () -> String
+          Local $argument.0
+  fun accessCombined @fn5(value: String, box: AccessBox<String>, pair: (String, Int), factory: () -> String, nested: Nested) -> String
+    bb0 entry
+      return
+        Type String
+        FieldAccess 0
+          Type AccessBox<String>
+          Local box
+  fun ctor.AccessBox.$c0 @fn6(value: Int) -> AccessBox<Int> <no-gc>
+    bb0 entry
+      return
+        Type AccessBox<Int>
+        StructInit AccessBox<Int>
+          Type Int
+          Local value
+  fun ctor.AccessBox.$c0 @fn7(value: String) -> AccessBox<String> <no-gc>
+    bb0 entry
+      return
+        Type AccessBox<String>
+        StructInit AccessBox<String>
+          Type String
+          Local value
+  fun function_bridge.$Closure$lambda0.() -> Any @fn8($source: () -> Int) -> Any
+    bb0 entry
+      call $call.1: Int = <closure:function_type0> closure[function_type0]
+        Type () -> Int
+        Local $source
+      return
+        Type Any
+        Box
+          Type Int
+          Local $call.1
+  fun function_bridge.$Closure$lambda1.() -> Any @fn9($source: () -> String) -> Any
+    bb0 entry
+      call $call.1: String = <closure:function_type2> closure[function_type2]
+        Type () -> String
+        Local $source
+      return
+        Type Any
+        Retype Any
+          Type String
+          Local $call.1
+  instance mi0 function=@fn2 <- $lambda
+  instance mi1 function=@fn3 <- accessCombined
+  instance mi2 function=@fn4 <- $lambda
+  instance mi3 function=@fn5 <- accessCombined
+  str @str0 "illegal state"
+  str @str1 "value"
+  str @str2 "value"
+  output executable @fn1
