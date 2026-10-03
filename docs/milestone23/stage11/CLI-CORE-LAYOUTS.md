@@ -39,3 +39,9 @@
 | `property_initialization_uses_close_source_mir_lir_and_both_artifact_views` | `property-initialization-provider` | 2／8 | 逐字相同 |
 | `ordinary_library_exports_members_with_available_machine_signatures` | `ordinary` | 2／8 | 原内部断言通过；完整阶段输出保留到 CLI |
 | `ordinary_bridge_replays_real_dependency_function_and_getter_calls` | `ordinary-consumer` | 2／8 | 原内部断言通过；完整阶段输出保留到 CLI |
+
+## 普通库布局装配
+
+`m23-cli-layout-assembly` 的 `standalone`、`combined`、`private-support` 三例分别构建原声明、加入原 `private-local.scoop` 和无关私有函数后的声明，再移走源码让真实下游消费产物。三例只读验证通过，共 12 次进程执行、36 份阶段 golden。原 `actual_source_mir_and_lir_assemble_complete_layout_exports` 的公开 section 字节不变、私有支持类型、ABI 与拒绝错误输入断言继续保留，已单独运行通过。
+
+原三份布局摘要只分别增加 `Payload.equals`、`Value.equals`、`Token.equals` 及对应 callable 计数；其余布局、descriptor、dispatch、ABI 和形状内容逐字一致。`ordinary_bridge_replays_real_dependency_function_and_getter_calls` 的原 MIR/LIR selected 数量与完整旧摘要也保持一致。新增下游通过 `Exposed` 参数使用公开方法，遵守其原本未公开的构造函数可见性。

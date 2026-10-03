@@ -1,0 +1,29 @@
+Module
+  struct Hidden (part: Deep)
+  struct Deep (flag: Boolean)
+  struct Token ()
+  class Exposed vtable=0 itables=0
+  fun consume @fn0(value: Exposed) -> Token
+    bb0 entry
+      val $dependency.receiver: Exposed
+        Type Exposed
+        Local value
+      call $dependency.argument.0: Token = external0 direct
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $dependency.argument.0: Token = external1 direct
+        Type Token
+        Local $dependency.parameter.value
+      val $dependency.parameter.value: Token
+        Type Token
+        Local $dependency.argument.0
+      call $call.1: Token = external2 direct
+        Type Exposed
+        Local $dependency.receiver
+        Type Token
+        Local $dependency.parameter.value
+      return
+        Type Token
+        Local $call.1
+  output library

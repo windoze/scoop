@@ -1,0 +1,56 @@
+SourceFile
+  RootPackage
+  public struct Token
+  public struct Pair
+    field left: Token
+    field right: Token
+    constructor() : this(<2 args>)
+  public interface Contract
+    fun run
+    fun echo
+    public open val token: Token <computed>
+  public struct Value : Contract
+    public fun run
+    public final override val token: Token <computed>
+      get()
+        Call Token
+  public open class Base(val stored: Token), Contract
+    constructor() : this(<1 args>)
+    public fun run
+    public open override val token: Token <computed>
+      get()
+        Var stored
+    protected fun protectedRun
+  public class Derived(value: Token = <expr>) : Base(<1 args>)
+  public abstract class Pending(), Contract
+  public object Registry
+    public fun run
+  public enum Choice
+    Empty
+    Full(Pair)
+  public fun same(left: Choice, right: Choice): Boolean
+    =
+      Binary Eq
+        Var left
+        Var right
+  public fun throughBase(value: Base): Token
+    =
+      MethodCall run
+        Var value
+        Call Token
+  public fun ready(): Boolean
+    =
+      BoolLiteral true
+SourceFile
+  RootPackage
+  private struct LocalOnly
+    field flag: Boolean
+  private fun makeLocal(): LocalOnly
+    =
+      Call LocalOnly
+        BoolLiteral true
+SourceFile
+  RootPackage
+  private fun unrelated(): Boolean
+    =
+      BoolLiteral true

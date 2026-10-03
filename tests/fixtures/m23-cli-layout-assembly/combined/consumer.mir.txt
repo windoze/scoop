@@ -1,0 +1,41 @@
+Module
+  struct Pair (left: Token, right: Token)
+  struct Token ()
+  enum Choice
+    Empty()
+    Full(_0: Pair)
+  fun consume @fn0() -> Boolean
+    bb0 entry
+      call $dependency.argument.0: Pair = external0 direct
+      val $dependency.parameter._1: Pair
+        Type Pair
+        Local $dependency.argument.0
+      val $dependency.argument.0: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Pair
+          Local $dependency.parameter._1
+      call $dependency.argument.0: Pair = external0 direct
+      val $dependency.parameter._1: Pair
+        Type Pair
+        Local $dependency.argument.0
+      val $dependency.argument.1: Choice
+        Type Choice
+        VariantConstruct Choice v1
+          Type Pair
+          Local $dependency.parameter._1
+      val $dependency.parameter.left: Choice
+        Type Choice
+        Local $dependency.argument.0
+      val $dependency.parameter.right: Choice
+        Type Choice
+        Local $dependency.argument.1
+      call $call.1: Boolean = external1 direct
+        Type Choice
+        Local $dependency.parameter.left
+        Type Choice
+        Local $dependency.parameter.right
+      return
+        Type Boolean
+        Local $call.1
+  output library
