@@ -7,3 +7,4 @@
 | 原功能 | CLI 用例 | 只读进程 | 原断言 |
 | --- | --- | --- | --- |
 | `imported_generic_constructors_enforce_source_call_rules` | `constructors-bad-kind`、`constructors-bad-arity`、`constructors-private-constructor`、`constructors-immutable-property` | 12 | value kind、类型实参数量、private constructor、不可变属性写入 |
+| `imported_generic_nominal_arguments_obey_invariance_and_bounds` | `nominals-bad-ref`、`nominals-bad-value`、`nominals-bad-arity`、`nominals-bad-invariance` | 12 | ref／value kind、类型实参数量、泛型不变性；精确表达式 Int／Number／Parcel／actual |
