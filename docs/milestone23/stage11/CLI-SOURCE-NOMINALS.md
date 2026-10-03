@@ -16,6 +16,7 @@
 | `c-layout-single` | 独立 CLayout 属性、字段读取与结构相等 | 7／13／4 |
 | `c-layout` | packed/aligned 嵌套布局、泛型 CLayout、保护域中的布局与结构相等 | 7／13／4 |
 | `roots` | 嵌套支持声明闭包、父接口视图、值类型与不同 object identity | 7／13／4 |
+| `constructors` | 主／次构造器、各可见域、默认参数、私有委托、泛型 owner 与 singleton | 7／13／4 |
 
 表中各项只读通过。声明组合发现的实际覆盖检查顺序问题由
 [多文件继承修复](CLI-INHERITANCE-ORDER.md) 单独处理。

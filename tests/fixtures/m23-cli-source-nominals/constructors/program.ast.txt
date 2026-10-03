@@ -1,0 +1,53 @@
+SourceFile
+  RootPackage
+  fun verifyNominal(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val value
+      Call defaultEnvelope
+    Call verifyNominal
+      Binary Eq
+        FieldAccess observed
+          Var value
+        IntLiteral 1
+    Call verifyNominal
+      Binary Eq
+        FieldAccess observed
+          Call internalEnvelope
+        IntLiteral 3
+    Call verifyNominal
+      Binary Eq
+        FieldAccess observed
+          MethodCall privateEnvelope
+            FieldAccess Companion
+              Var Envelope
+        IntLiteral 2
+    @Unsafe block
+      Call verifyNominal
+        Binary Eq
+          FieldAccess observed
+            Call Envelope
+              StringLiteral "text"
+          IntLiteral 4
+    Call verifyNominal
+      Binary Eq
+        MethodCall boxes
+          Var value
+        IntLiteral 6
+    Call verifyNominal
+      Binary Eq
+        MethodCall pairs
+          Var value
+        IntLiteral 6
+    Call verifyNominal
+      MethodCall singleton
+        Var value
+    Call verifyNominal
+      Binary Eq
+        Call Empty
+        Call Empty
+          BoolLiteral true

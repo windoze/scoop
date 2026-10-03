@@ -1,0 +1,29 @@
+SourceFile
+  RootPackage
+  private class Derived() : Envelope(<0 args>)
+  public fun defaultEnvelope(): Envelope
+    =
+      Call Derived
+  public fun internalEnvelope(): Envelope
+    =
+      Call Envelope
+        IntLiteral 1L
+SourceFile
+  RootPackage
+  public open class Envelope(count: Int = <expr>)
+    public val observed: Int = <expr>
+      Var count
+    public companion object
+      public fun privateEnvelope
+    public fun boxes
+    public fun pairs
+    public fun singleton
+    constructor(flag: Boolean) : this(<1 args>)
+    constructor(value: Long) : this(<1 args>)
+    constructor(text: String) : this(<1 args>)
+    protected nested class Box
+    protected nested struct Pair
+    protected nested class Outer
+    protected nested object Singleton
+  public struct Empty
+    constructor(flag: Boolean) : this(<0 args>)
