@@ -1,0 +1,8 @@
+fun verifyType(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val pair = Pair(17, 25)
+    verifyType(pair.first + pair.second == 42)
+    verifyType(keep(13) == 13)
+    finish()
+}

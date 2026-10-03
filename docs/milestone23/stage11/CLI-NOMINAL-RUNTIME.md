@@ -8,3 +8,4 @@
 | --- | --- | --- |
 | `fact-providers` | 2／13／22／7 | 本 Cone 值类型、结构型支持、GC/ZST facts 与 core 基元 provider 分离；独立及组合 payload、宽度整数和引用字段。 |
 | `heap-zst` | 2／12／18／6 | 零大小 heap 字段、getter/setter、closure capture、派生值与单例初始化；原 3 次阶段编译改为一次正式生产。 |
+| `hir-materialized-selections` | 2／13／22／7 | signature、representation、type test、shape support、成员调用及未求值泛型默认值；保留缺失、额外与错误 provider 的拒绝测试。 |
