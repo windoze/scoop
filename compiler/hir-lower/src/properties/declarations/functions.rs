@@ -42,6 +42,7 @@ impl Lowerer {
         );
         let function = self.functions.alloc(Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name,
                 is_suspend: false,
@@ -219,6 +220,7 @@ impl Lowerer {
         getter: &ast::GetterDecl,
     ) -> ast::FunctionDecl {
         ast::FunctionDecl {
+            context_parameters: property.context_parameters.clone(),
             annotations: getter.annotations.clone(),
             visibility: property.visibility,
             is_suspend: false,
@@ -268,6 +270,7 @@ impl Lowerer {
             ast::SetterParameterSyntax::Named(name) => name.clone(),
         };
         ast::FunctionDecl {
+            context_parameters: property.context_parameters.clone(),
             annotations: setter.annotations.clone(),
             visibility: match setter.visibility {
                 ast::SetterVisibilitySyntax::Explicit { visibility, span } => {

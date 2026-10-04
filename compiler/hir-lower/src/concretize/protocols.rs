@@ -27,6 +27,11 @@ impl Concretizer<'_> {
             protocols.exceptions.initialization_cycle_thrower,
             Vec::new(),
         );
+        let missing_source = protocols.exceptions.missing_context_constructor;
+        let missing_owner = self.source.class_constructors[missing_source].owner;
+        let missing_class =
+            self.lower_class_application(self.source.classes[missing_owner].self_application, &[]);
+        let missing_constructor = self.request_class_constructor(missing_source, missing_class);
         self.drain_pending_callables();
 
         let source_callback_core = protocols.foreign_callbacks;
@@ -153,6 +158,7 @@ impl Concretizer<'_> {
         concrete::ConcreteCoreProtocols::Defined(Box::new(concrete::DefinedConcreteCoreProtocols {
             option,
             exceptions: concrete::CompilerExceptionCore {
+                missing_context_constructor: missing_constructor,
                 throwable: lower_exception(source_exception_core.throwable),
                 unwrap_exception: lower_exception(source_exception_core.unwrap_exception),
                 class_cast_exception: lower_exception(source_exception_core.class_cast_exception),

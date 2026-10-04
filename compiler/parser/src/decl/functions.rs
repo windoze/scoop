@@ -242,6 +242,7 @@ impl Parser {
             }
         });
         Ok(FunctionDecl {
+            context_parameters: modifiers.context_parameters,
             annotations,
             visibility,
             is_suspend: modifiers.is_suspend,

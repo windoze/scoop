@@ -24,6 +24,10 @@ pub(in super::super) fn collect_statement_types(
 ) {
     for statement in statements {
         match &statement.kind {
+            hir::StatementKind::ContextScope { value, body } => {
+                collect_expr_types(lowerer, value, out);
+                collect_statement_types(lowerer, body, out);
+            }
             hir::StatementKind::GenericDelegateEnsure(reference) => {
                 out.extend(reference.arguments.iter().copied());
             }
@@ -408,7 +412,8 @@ pub(in super::super) fn collect_expr_types(
         ExprKind::InitializingStructFieldAccess { owner, .. } => {
             out.push(*owner);
         }
-        ExprKind::StringLiteral { .. }
+        ExprKind::ContextLookup(_)
+        | ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::CharLiteral(_)
         | ExprKind::BoolLiteral(_)

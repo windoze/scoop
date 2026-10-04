@@ -402,13 +402,32 @@ impl Lowerer {
         boxed_types: &[mir::BoxedType],
     ) -> mir::GeneratedExactTypeIdentities {
         let mut entries = Vec::new();
-        let mut register = |location, nominal, odr_member| {
-            entries.push(
-                mir::GeneratedExactTypeIdentity::new(location, nominal, odr_member)
-                    .expect("MIR-generated nominal identity matches its physical arena"),
-            );
-        };
+        let mut register =
+            |location,
+             nominal: &mir::GeneratedNominalRecord,
+             odr_member: Option<&mir::GeneratedExactTypeOdrMemberRecord>| {
+                entries.push(
+                    mir::GeneratedExactTypeIdentity::new(location, nominal, odr_member)
+                        .expect("MIR-generated nominal identity matches its physical arena"),
+                );
+            };
 
+        for role in mir::ContextStorageRole::ALL {
+            let storage = mir::ContextStorageType::new(
+                match &self.core_protocols {
+                    hir::ConcreteCoreProtocols::Defined(_) => self.shell.cone,
+                    hir::ConcreteCoreProtocols::Imported(protocols) => {
+                        protocols.fundamental_types().string().provider()
+                    }
+                },
+                role,
+            );
+            register(
+                mir::GeneratedExactTypeLocation::Context(storage),
+                &storage.nominal_record(),
+                None,
+            );
+        }
         for environment in &self.closure_environments {
             register(
                 mir::GeneratedExactTypeLocation::Closure(environment.class()),

@@ -65,6 +65,7 @@ impl WireDecode for DecodedSourceFieldKey {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedGeneratedFieldKey {
+    ContextSlot(u32),
     BoxPayload,
     ClosureCapture(DecodedPersistentId<PersistentLocalValueId>),
     CallableReferenceReceiver(DecodedPersistentId<PersistentLocalValueId>),
@@ -83,6 +84,12 @@ pub enum DecodedGeneratedFieldKey {
 impl WireEncode for DecodedGeneratedFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::ContextSlot(index) => {
+                encoder.map(2)?;
+                encode_tag(encoder, 14)?;
+                encoder.field(1)?;
+                encoder.unsigned(u64::from(*index))
+            }
             Self::BoxPayload => encode_empty_sum(encoder, 1),
             Self::ClosureCapture(value) => encode_value_sum(encoder, 2, value),
             Self::CallableReferenceReceiver(value) => encode_value_sum(encoder, 3, value),
@@ -117,6 +124,10 @@ impl WireDecode for DecodedGeneratedFieldKey {
             11 => decode_empty_variant(decoder, fields, Self::CoroutineAdapterFailure),
             12 => decode_empty_variant(decoder, fields, Self::FunctionAdapterSource),
             13 => decode_id_variant(decoder, fields, Self::ObjectBackingProperty),
+            14 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder.field(1, Decoder::u32).map(Self::ContextSlot)
+            }
             tag => Err(unknown_tag(decoder, tag)),
         }
     }
@@ -284,6 +295,9 @@ where
                 FieldIdentityKey::callable_reference_receiver(owner, value)
                     .map_err(FieldIdentityResolutionError::Key)
             }),
+        DecodedGeneratedFieldKey::ContextSlot(index) => {
+            FieldIdentityKey::context_slot(owner, index).map_err(FieldIdentityResolutionError::Key)
+        }
         DecodedGeneratedFieldKey::CoroutineFrameState => {
             FieldIdentityKey::coroutine_frame_state(owner)
                 .map_err(FieldIdentityResolutionError::Key)

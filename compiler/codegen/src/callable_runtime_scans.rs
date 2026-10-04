@@ -90,6 +90,34 @@ impl<'a, 'ctx> CallableRuntimeScanEmitter<'a, 'ctx> {
             .map(Some)
     }
 
+    pub(crate) fn context_cell(
+        &self,
+        key: scoop_lir::ContextKey,
+    ) -> Result<PointerValue<'ctx>, CodegenError> {
+        let cell = self
+            .plan
+            .context_keys()
+            .iter()
+            .find(|cell| cell.key == key)
+            .ok_or_else(|| {
+                CodegenError(format!(
+                    "callable {} has no Context key {key:?}",
+                    self.plan.body()
+                ))
+            })?;
+        let boundary = self
+            .surface
+            .plans()
+            .iter()
+            .flat_map(|plan| plan.atom_boundaries())
+            .find(|boundary| boundary.atom() == cell.atom)
+            .ok_or_else(|| CodegenError(format!("Context cell {} has no boundary", cell.atom)))?;
+        self.llvm
+            .get_global(boundary.start().symbol().as_str())
+            .map(|global| global.as_pointer_value())
+            .ok_or_else(|| CodegenError(format!("Context cell {} was not emitted", cell.atom)))
+    }
+
     fn emit_planned_atom(
         &mut self,
         scan: &RefScan,

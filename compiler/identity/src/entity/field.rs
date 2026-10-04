@@ -62,6 +62,7 @@ pub struct GeneratedFieldKey(GeneratedFieldKeyKind);
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 enum GeneratedFieldKeyKind {
+    ContextSlot(u32),
     BoxPayload,
     ClosureCapture(PersistentLocalValueId),
     CallableReferenceReceiver(PersistentLocalValueId),
@@ -80,6 +81,12 @@ enum GeneratedFieldKeyKind {
 impl WireEncode for GeneratedFieldKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self.0 {
+            GeneratedFieldKeyKind::ContextSlot(index) => {
+                encoder.map(2)?;
+                encode_tag(encoder, 14)?;
+                encoder.field(1)?;
+                encoder.unsigned(u64::from(index))
+            }
             GeneratedFieldKeyKind::BoxPayload => encode_empty_sum(encoder, 1),
             GeneratedFieldKeyKind::ClosureCapture(value) => encode_value_sum(encoder, 2, &value),
             GeneratedFieldKeyKind::CallableReferenceReceiver(value) => {
@@ -116,6 +123,29 @@ enum FieldIdentityKeyKind {
 }
 
 impl FieldIdentityKey {
+    pub fn context_slot(
+        owner: &GeneratedNominalKey,
+        index: u32,
+    ) -> Result<Self, FieldIdentityError> {
+        let GeneratedNominalKey::TaskContext(storage) = owner else {
+            return Err(FieldIdentityError::GeneratedOwnerMismatch);
+        };
+        let count = match storage.role {
+            crate::ContextStorageRole::Task | crate::ContextStorageRole::SwitchGuard => 1,
+            crate::ContextStorageRole::Node => 4,
+            crate::ContextStorageRole::Binding => 0,
+            crate::ContextStorageRole::Mark => 2,
+        };
+        if index >= count {
+            return Err(FieldIdentityError::GeneratedOwnerMismatch);
+        }
+        Ok(Self(FieldIdentityKeyKind::Generated {
+            owner: PersistentTypeId::from_generated_key(owner)
+                .map_err(FieldIdentityError::GeneratedNominal)?,
+            key: GeneratedFieldKey(GeneratedFieldKeyKind::ContextSlot(index)),
+        }))
+    }
+
     pub const fn source_owner(&self) -> Option<NominalDeclarationOwner> {
         match &self.0 {
             FieldIdentityKeyKind::Source(SourceFieldKey(

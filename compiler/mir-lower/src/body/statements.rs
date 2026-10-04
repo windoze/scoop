@@ -19,6 +19,10 @@ impl BodyLowerer<'_> {
     ) {
         let span = statement.span;
         let kind = match &statement.kind {
+            hir::StatementKind::ContextScope { value, body } => {
+                self.lower_context_scope(value, body, span, out);
+                return;
+            }
             hir::StatementKind::LocalFunction(_) => return,
             hir::StatementKind::InitializationEnsure(unit) => {
                 let function = self.module.initialization_units[*unit].ensure;

@@ -104,6 +104,13 @@ pub(super) fn generated(
 ) -> Result<(), Error> {
     let identities = comparison.source.metadata().identities;
     match role {
+        GeneratedNominalKey::TaskContext(storage) => {
+            Error::require(
+                record.exact(),
+                Component::Origin,
+                storage.core == comparison.source.metadata().provider,
+            )?;
+        }
         GeneratedNominalKey::BoxedValue { payload } => {
             let key = identities
                 .canonical_key::<_, ExactTypeKey>(*payload)

@@ -287,6 +287,8 @@ fn layouts_mark_reference_fields_for_the_gc() {
     assert_eq!(
         names,
         [
+            "task-context value",
+            "task-context",
             "S",
             "Outer",
             "Int8",

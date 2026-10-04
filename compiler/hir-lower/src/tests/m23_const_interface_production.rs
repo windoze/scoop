@@ -4,6 +4,7 @@ use super::*;
 
 fn const_property(name: &str, ty: TypeRef, expression: Expr, public: bool) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: if public {
             ast::VisibilitySyntax::Explicit {

@@ -70,6 +70,31 @@ impl CanonicalParamFreeMirTypeExportsV1 {
         }
 
         for root in plan.generated_nominal_shapes() {
+            if let GeneratedExactTypeLocation::Context(storage) = root.location() {
+                let facts = MirTypeFactsV1::try_new(
+                    if storage.role.is_reference() {
+                        MirValueKindV1::Reference
+                    } else {
+                        MirValueKindV1::NonZeroValue
+                    },
+                    MirGcKindV1::ContainsManagedReferences,
+                )?;
+                records.push(ParamFreeMirTypeExportV1::try_new(
+                    authority,
+                    root.exact(),
+                    MirTypeOriginV1::GeneratedNominal {
+                        nominal: root.nominal(),
+                        role: GeneratedNominalKey::TaskContext(storage),
+                    },
+                    facts,
+                    crate::context_type_representation(storage),
+                    MirBaseAndInterfacesV1 {
+                        base: MirBaseClassV1::None,
+                        interfaces: Vec::new(),
+                    },
+                )?);
+                continue;
+            }
             if !matches!(root, GeneratedNominalShapeRoot::Odr { .. }) {
                 continue;
             }

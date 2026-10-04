@@ -59,6 +59,16 @@ impl Concretizer<'_> {
         out: &mut Vec<concrete::Statement>,
     ) {
         let kind = match &source.kind {
+            export::StatementKind::ContextScope { value, body } => {
+                let mut statements = Vec::new();
+                for statement in body {
+                    self.lower_statement(statement, substitution, locals, loops, &mut statements);
+                }
+                concrete::StatementKind::ContextScope {
+                    value: self.lower_expr(value, substitution, locals),
+                    body: statements,
+                }
+            }
             export::StatementKind::Expr(expr) => {
                 concrete::StatementKind::Expr(self.lower_expr(expr, substitution, locals))
             }

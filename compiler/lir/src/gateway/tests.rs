@@ -8,7 +8,7 @@ fn gateway(module: &mut Module) -> &mut Function {
     &mut module.functions[2]
 }
 fn failure(function: &mut Function) -> &mut BasicBlock {
-    let Instruction::Invoke { site } = &function.blocks[function.entry].instructions[1] else {
+    let Instruction::Invoke { site } = &function.blocks[function.entry].instructions[2] else {
         panic!("fixture invoke");
     };
     let block = site.unwind();
@@ -51,7 +51,7 @@ fn rejects_entry_poll_and_cfg_bypasses() {
     let function = gateway(&mut module);
     let Instruction::Invoke {
         site: InvokeSite::Managed(site),
-    } = &mut function.blocks[function.entry].instructions[1]
+    } = &mut function.blocks[function.entry].instructions[2]
     else {
         panic!("fixture invoke");
     };
@@ -85,7 +85,7 @@ fn rejects_wrong_signature_and_unclosed_statuses() {
     }
     let mut module = root(true);
     let function = gateway(&mut module);
-    let Instruction::Invoke { site } = &function.blocks[function.entry].instructions[1] else {
+    let Instruction::Invoke { site } = &function.blocks[function.entry].instructions[2] else {
         panic!("fixture invoke");
     };
     let normal = site.normal();

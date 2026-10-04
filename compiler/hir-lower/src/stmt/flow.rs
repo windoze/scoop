@@ -112,6 +112,7 @@ pub(crate) fn statements_control_outcomes(statements: &[hir::Statement]) -> HirC
 
 fn statement_control_outcomes(statement: &hir::Statement) -> HirControlOutcomes {
     match &statement.kind {
+        hir::StatementKind::ContextScope { body, .. } => statements_control_outcomes(body),
         hir::StatementKind::Return { .. } => HirControlOutcomes::singleton(ControlOutcome::Return),
         hir::StatementKind::Throw(_) => HirControlOutcomes::singleton(ControlOutcome::Throw),
         hir::StatementKind::Break { target } => {

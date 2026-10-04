@@ -6,6 +6,10 @@ impl ReferenceCollector<'_> {
     pub(super) fn statement(&mut self, statement: &hir::Statement) {
         let origin = self.at(statement.span);
         match &statement.kind {
+            hir::StatementKind::ContextScope { value, body } => {
+                self.expression(value);
+                self.statements(body);
+            }
             hir::StatementKind::GenericDelegateEnsure(_) => self.direct_delegate_storage(origin),
             hir::StatementKind::InitializationEnsure(_)
             | hir::StatementKind::Break { .. }

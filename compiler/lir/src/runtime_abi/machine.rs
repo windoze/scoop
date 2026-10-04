@@ -33,6 +33,9 @@ impl RuntimeAbiSymbolV1 {
         match self {
             Self::LirCall(RuntimeFunction::Managed(function)) => {
                 let (parameters, result): (&'static [_], _) = match function {
+                    M::ContextPush => (&[P, P, P], P),
+                    M::ContextFork => (&[P, P], P),
+                    M::ContextEnsureRoot => (&[P], P),
                     M::Safepoint | M::GcCollect => (&[], V),
                     M::Alloc => (&[P, I(64)], P),
                     M::BoxZst
@@ -52,6 +55,10 @@ impl RuntimeAbiSymbolV1 {
             }
             Self::LirCall(RuntimeFunction::NoGc(function)) => {
                 let (parameters, result): (&'static [_], _) = match function {
+                    N::ContextTryGet | N::ContextEnter => (&[P], P),
+                    N::ContextRestore => (&[P, P], V),
+                    N::ContextSnapshot | N::ContextCurrent => (&[], P),
+                    N::ContextLeave => (&[P], V),
                     N::IsInstance => (&[P, P], Boolean),
                     N::ITableLookup => (&[P, P], P),
                     N::Pin | N::Unpin => (&[P], P),

@@ -28,6 +28,10 @@ impl LocalFunctionCallPatcher<'_> {
     fn statements(&mut self, statements: &mut [hir::Statement]) {
         for statement in statements {
             match &mut statement.kind {
+                hir::StatementKind::ContextScope { value, body } => {
+                    self.expression(value);
+                    self.statements(body);
+                }
                 hir::StatementKind::InitializationEnsure(_)
                 | hir::StatementKind::GenericDelegateEnsure(_) => {}
                 hir::StatementKind::Expr(expr) | hir::StatementKind::Throw(expr) => {
@@ -350,7 +354,8 @@ impl LocalFunctionCallPatcher<'_> {
                 }
                 self.expression(value);
             }
-            hir::ExprKind::StringLiteral { .. }
+            hir::ExprKind::ContextLookup(_)
+            | hir::ExprKind::StringLiteral { .. }
             | hir::ExprKind::IntegerLiteral(_)
             | hir::ExprKind::CharLiteral(_)
             | hir::ExprKind::BoolLiteral(_)

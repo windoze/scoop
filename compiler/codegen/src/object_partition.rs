@@ -1,6 +1,6 @@
 //! Deterministic physical partition for strong Scoop LIR object emission.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use scoop_lir::{
@@ -52,6 +52,13 @@ impl ScoopLirObjectPartitionV1 {
             .map_err(ScoopLirObjectPartitionError::ProducerUnits)?;
         let mut non_callable = Vec::new();
         let mut callables = BTreeMap::<PersistentCallableBodyId, ObjectDefinitionPlanId>::new();
+        let context_bodies = input
+            .module()
+            .callable_bodies()
+            .filter(|function| !scoop_lir::function_context_keys(function).is_empty())
+            .map(|function| function.callable_body.id())
+            .collect::<BTreeSet<_>>();
+        let mut context_registrations = BTreeMap::new();
         for definition in producer_units.scoop_lir_definition_plans() {
             let plan = surface
                 .plan(*definition)
@@ -71,6 +78,18 @@ impl ScoopLirObjectPartitionV1 {
                         });
                     }
                 }
+                StrongDefinitionRole::CallableRegistration => {
+                    let StrongDefinitionEntityKind::CallableBody(body) = plan.owner().kind() else {
+                        return Err(ScoopLirObjectPartitionError::InvalidCallableDefinition(
+                            *definition,
+                        ));
+                    };
+                    if context_bodies.contains(&body) {
+                        context_registrations.insert(body, *definition);
+                    } else {
+                        non_callable.push(*definition);
+                    }
+                }
                 _ => non_callable.push(*definition),
             }
         }
@@ -83,14 +102,15 @@ impl ScoopLirObjectPartitionV1 {
             kind: ScoopLirObjectKindV1::NonCallable,
             definition_plans: non_callable,
         });
-        objects.extend(
-            callables
-                .into_iter()
-                .map(|(body, definition)| ScoopLirObjectUnitSetV1 {
-                    kind: ScoopLirObjectKindV1::CallableBody(body),
-                    definition_plans: vec![definition],
-                }),
-        );
+        objects.extend(callables.into_iter().map(|(body, definition)| {
+            let mut definition_plans = vec![definition];
+            definition_plans.extend(context_registrations.remove(&body));
+            definition_plans.sort_unstable();
+            ScoopLirObjectUnitSetV1 {
+                kind: ScoopLirObjectKindV1::CallableBody(body),
+                definition_plans,
+            }
+        }));
         Ok(Self {
             producer_units,
             objects,

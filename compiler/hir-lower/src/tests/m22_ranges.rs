@@ -588,6 +588,7 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
         illegal_state_exception,
         illegal_argument_exception,
         initialization_cycle_thrower: _,
+        missing_context_constructor: _,
     } = defined_export_core(&module).exceptions;
     assert_eq!(illegal_argument, illegal_argument_exception.class());
     for compiler_owned in [

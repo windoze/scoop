@@ -351,6 +351,7 @@ impl CompilerException {
 /// exclusively to the export-side family and are concretized before MIR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CompilerExceptionCore {
+    pub missing_context_constructor: ClassConstructorId,
     pub throwable: CompilerException,
     pub unwrap_exception: CompilerException,
     pub class_cast_exception: CompilerException,

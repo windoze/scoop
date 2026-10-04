@@ -481,6 +481,10 @@ pub enum DispatchKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum ManagedRuntimeFunction {
+    ContextPush,
+    ContextFork,
+    ContextEnsureRoot,
+
     Safepoint,
     Alloc,
     BoxZst,
@@ -497,6 +501,13 @@ pub enum ManagedRuntimeFunction {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum NoGcRuntimeFunction {
+    ContextTryGet,
+    ContextRestore,
+    ContextSnapshot,
+    ContextCurrent,
+    ContextEnter,
+    ContextLeave,
+
     IsInstance,
     ITableLookup,
     Pin,
@@ -563,6 +574,9 @@ impl RuntimeFunction {
                 ManagedRuntimeFunction::InitializationCycleMessage => 11,
                 ManagedRuntimeFunction::BoxZst => 12,
                 ManagedRuntimeFunction::BoxValue => 13,
+                ManagedRuntimeFunction::ContextPush => 14,
+                ManagedRuntimeFunction::ContextFork => 15,
+                ManagedRuntimeFunction::ContextEnsureRoot => 16,
             },
             Self::NoGc(function) => match function {
                 NoGcRuntimeFunction::IsInstance => 1,
@@ -580,6 +594,12 @@ impl RuntimeFunction {
                 NoGcRuntimeFunction::UnboxValue => 13,
                 NoGcRuntimeFunction::PushRecursiveRegion => 14,
                 NoGcRuntimeFunction::PopRecursiveRegion => 15,
+                NoGcRuntimeFunction::ContextTryGet => 16,
+                NoGcRuntimeFunction::ContextRestore => 17,
+                NoGcRuntimeFunction::ContextSnapshot => 18,
+                NoGcRuntimeFunction::ContextCurrent => 19,
+                NoGcRuntimeFunction::ContextEnter => 20,
+                NoGcRuntimeFunction::ContextLeave => 21,
             },
         }
     }
@@ -600,6 +620,10 @@ impl RuntimeFunction {
             )),
             (1, 12) => Some(Self::Managed(ManagedRuntimeFunction::BoxZst)),
             (1, 13) => Some(Self::Managed(ManagedRuntimeFunction::BoxValue)),
+            (1, 14) => Some(Self::Managed(ManagedRuntimeFunction::ContextPush)),
+            (1, 15) => Some(Self::Managed(ManagedRuntimeFunction::ContextFork)),
+            (1, 16) => Some(Self::Managed(ManagedRuntimeFunction::ContextEnsureRoot)),
+
             (2, 1) => Some(Self::NoGc(NoGcRuntimeFunction::IsInstance)),
             (2, 2) => Some(Self::NoGc(NoGcRuntimeFunction::ITableLookup)),
             (2, 3) => Some(Self::NoGc(NoGcRuntimeFunction::Pin)),
@@ -615,6 +639,13 @@ impl RuntimeFunction {
             (2, 13) => Some(Self::NoGc(NoGcRuntimeFunction::UnboxValue)),
             (2, 14) => Some(Self::NoGc(NoGcRuntimeFunction::PushRecursiveRegion)),
             (2, 15) => Some(Self::NoGc(NoGcRuntimeFunction::PopRecursiveRegion)),
+            (2, 16) => Some(Self::NoGc(NoGcRuntimeFunction::ContextTryGet)),
+            (2, 17) => Some(Self::NoGc(NoGcRuntimeFunction::ContextRestore)),
+            (2, 18) => Some(Self::NoGc(NoGcRuntimeFunction::ContextSnapshot)),
+            (2, 19) => Some(Self::NoGc(NoGcRuntimeFunction::ContextCurrent)),
+            (2, 20) => Some(Self::NoGc(NoGcRuntimeFunction::ContextEnter)),
+            (2, 21) => Some(Self::NoGc(NoGcRuntimeFunction::ContextLeave)),
+
             _ => None,
         }
     }

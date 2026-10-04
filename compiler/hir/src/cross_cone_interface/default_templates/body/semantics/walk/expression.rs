@@ -43,7 +43,8 @@ where
             DefaultExpressionKindV1::GenericDelegateStorageRead(reference) => {
                 self.push_generic_delegate(pending, reference, definition_origin)
             }
-            DefaultExpressionKindV1::StringLiteral { .. }
+            DefaultExpressionKindV1::ContextLookup { .. }
+            | DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::CharLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)

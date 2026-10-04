@@ -32,6 +32,7 @@ fn set_method_visibility(method: &mut ast::FunctionDecl, value: ast::DeclaredVis
 
 fn global(name: &str, value: i64, visibility_value: ast::DeclaredVisibility) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
             name: ident("Global"),
             args: Vec::new(),

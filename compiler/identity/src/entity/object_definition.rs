@@ -361,6 +361,8 @@ impl ObjectDefinitionPlanId {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefinitionAtomRole {
+    ContextKeyCell,
+    ContextKeyTable,
     Primary,
     Lsda,
     EhFrame,
@@ -380,6 +382,8 @@ impl WireEncode for DefinitionAtomRole {
             Self::Stackmap => 5,
             Self::RuntimeRecord => 6,
             Self::AddressTakenConstant => 7,
+            Self::ContextKeyCell => 8,
+            Self::ContextKeyTable => 9,
         })
     }
 }

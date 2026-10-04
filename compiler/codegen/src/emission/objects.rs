@@ -16,6 +16,8 @@ enum EmittedConeObjectMemberKind {
     },
     CallableBody {
         body: scoop_lir::PersistentCallableBodyId,
+        runtime_metadata: EmittedStrongRuntimeMetadataV1,
+        digest_patches: Vec<EmittedStrongDigestPatchMaterializationV1>,
     },
 }
 
@@ -28,6 +30,8 @@ pub enum EmittedConeObjectMemberKindV1<'a> {
     },
     CallableBody {
         body: scoop_lir::PersistentCallableBodyId,
+        runtime_metadata: &'a EmittedStrongRuntimeMetadataV1,
+        digest_patches: &'a [EmittedStrongDigestPatchMaterializationV1],
     },
 }
 
@@ -49,9 +53,22 @@ impl EmittedConeObjectMemberV1 {
                 runtime_metadata,
                 digest_patches,
             },
-            EmittedConeObjectMemberKind::CallableBody { body } => {
-                EmittedConeObjectMemberKindV1::CallableBody { body: *body }
-            }
+            EmittedConeObjectMemberKind::CallableBody {
+                body,
+                runtime_metadata,
+                digest_patches,
+            } => EmittedConeObjectMemberKindV1::CallableBody {
+                body: *body,
+                runtime_metadata,
+                digest_patches,
+            },
+        }
+    }
+
+    pub fn digest_patches(&self) -> &[EmittedStrongDigestPatchMaterializationV1] {
+        match &self.kind {
+            EmittedConeObjectMemberKind::NonCallable { digest_patches, .. }
+            | EmittedConeObjectMemberKind::CallableBody { digest_patches, .. } => digest_patches,
         }
     }
 }
@@ -241,7 +258,7 @@ fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: C
                     })?;
                 let selected_safepoints = expected_safepoints.for_function(function.symbol())?;
                 let selected_eh = expected_eh.for_function(function.symbol());
-                let llvm = prepare_callable_strong_llvm_module(
+                let (llvm, runtime_metadata) = prepare_callable_strong_llvm_module(
                     &context,
                     module,
                     &production,
@@ -251,9 +268,13 @@ fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: C
                     body,
                 )?;
                 write_object(&machine, &llvm, &path)?;
-                let definition = production
-                    .canonical_definitions()
-                    .plan(units.definition_plans()[0])
+                let definition = units
+                    .definition_plans()
+                    .iter()
+                    .filter_map(|id| production.canonical_definitions().plan(*id))
+                    .find(|plan| {
+                        plan.definition_role() == scoop_lir::StrongDefinitionRole::CallableBody
+                    })
                     .ok_or_else(|| {
                         CodegenError(format!(
                             "callable object unit {} has no canonical symbol plan",
@@ -268,16 +289,46 @@ fn emit_object_set_with_production<D: scoop_lir::StrongDescriptorReference, C: C
                 ) {
                     return Err(discard_invalid_object(&path, error));
                 }
+                let registrations = units
+                    .definition_plans()
+                    .iter()
+                    .copied()
+                    .filter(|id| *id != definition.definition_plan())
+                    .collect::<Vec<_>>();
+                atom_boundaries::materialize_global_linkages_v1(
+                    &path,
+                    module.meta.target_profile,
+                    production.canonical_definitions(),
+                    &registrations,
+                )?;
                 verify_and_seal_object(&path, profile, &selected_safepoints, &selected_eh)?;
+                let digest_patches =
+                    object_materialization::resolve_digest_patch_materializations_v1(
+                        &path,
+                        module.meta.target_profile,
+                        production.canonical_definitions(),
+                        &runtime_metadata,
+                    )?;
                 EmittedConeObjectMemberV1 {
                     units: units.clone(),
                     path,
-                    kind: EmittedConeObjectMemberKind::CallableBody { body },
+                    kind: EmittedConeObjectMemberKind::CallableBody {
+                        body,
+                        runtime_metadata,
+                        digest_patches,
+                    },
                 }
             }
         };
         members.push(member);
     }
+    let mut patches = members
+        .iter()
+        .flat_map(|member| member.digest_patches())
+        .map(|patch| patch.location())
+        .collect::<Vec<_>>();
+    patches.sort_unstable_by_key(|patch| patch.intent());
+    runtime_metadata_v1::validate_patch_coverage(&production, &patches)?;
     Ok(EmittedConeObjectSet {
         target_selection: profile.lir_target_selection(),
         foundation: input.foundation().clone(),
@@ -357,6 +408,7 @@ pub fn render_llvm_ir_members(
                         &selected,
                         body,
                     )?
+                    .0
                 }
             };
             Ok(RenderedConeObjectModuleV1 {

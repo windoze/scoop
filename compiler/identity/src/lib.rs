@@ -14,6 +14,7 @@
 
 mod capability;
 mod cone;
+mod context;
 mod entity;
 mod ids;
 mod mangling;
@@ -21,6 +22,8 @@ mod record;
 mod source;
 mod syntax;
 mod validation;
+
+pub use context::{ContextKey, ContextStorageRole, ContextStorageType, DecodedContextStorageType};
 
 pub use capability::{
     ArtifactCapabilityProfileId, ArtifactCapabilityProfileRefinementError, BackendProfileWireId,

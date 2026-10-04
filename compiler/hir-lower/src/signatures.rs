@@ -431,6 +431,7 @@ impl Lowerer {
         }
 
         let params = self.resolve_callable_parameters(decl);
+        self.functions[id].context_parameters = self.resolve_context_parameters(decl);
         let return_ty = match &decl.return_ty {
             Some(ty_ref) => self.resolve_type_ref(ty_ref).unwrap_or(self.unit),
             None => self.unit,

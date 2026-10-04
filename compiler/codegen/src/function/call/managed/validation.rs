@@ -291,6 +291,21 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         scoop_lir::ManagedRuntimeFunction::MaterializeException => {
                             (vec![scoop_lir::MANAGED_PTR], scoop_lir::MANAGED_PTR)
                         }
+                        scoop_lir::ManagedRuntimeFunction::ContextPush => (
+                            vec![
+                                scoop_lir::RAW_PTR,
+                                scoop_lir::MANAGED_PTR,
+                                scoop_lir::METADATA_PTR,
+                            ],
+                            scoop_lir::MANAGED_PTR,
+                        ),
+                        scoop_lir::ManagedRuntimeFunction::ContextFork => (
+                            vec![scoop_lir::MANAGED_PTR, scoop_lir::METADATA_PTR],
+                            scoop_lir::MANAGED_PTR,
+                        ),
+                        scoop_lir::ManagedRuntimeFunction::ContextEnsureRoot => {
+                            (vec![scoop_lir::METADATA_PTR], scoop_lir::MANAGED_PTR)
+                        }
                         scoop_lir::ManagedRuntimeFunction::StringConcat => (
                             vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR],
                             scoop_lir::MANAGED_PTR,
@@ -346,6 +361,23 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                         scoop_lir::NoGcRuntimeFunction::Unpin
                         | scoop_lir::NoGcRuntimeFunction::ReleaseHandle => {
                             (vec![LirType::I64], scoop_lir::MANAGED_PTR)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::ContextTryGet => {
+                            (vec![scoop_lir::RAW_PTR], scoop_lir::MANAGED_PTR)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::ContextRestore => (
+                            vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR],
+                            LirType::Void,
+                        ),
+                        scoop_lir::NoGcRuntimeFunction::ContextSnapshot
+                        | scoop_lir::NoGcRuntimeFunction::ContextCurrent => {
+                            (Vec::new(), scoop_lir::MANAGED_PTR)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::ContextEnter => {
+                            (vec![scoop_lir::MANAGED_PTR], scoop_lir::MANAGED_PTR)
+                        }
+                        scoop_lir::NoGcRuntimeFunction::ContextLeave => {
+                            (vec![scoop_lir::MANAGED_PTR], LirType::Void)
                         }
                         scoop_lir::NoGcRuntimeFunction::GcStats => (Vec::new(), LirType::I64),
                         scoop_lir::NoGcRuntimeFunction::StringCompare => (

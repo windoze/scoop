@@ -66,7 +66,7 @@ fn encode_callable_runtime_scans(
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     encoder.array(plans.callables().len() as u64)?;
     for callable in plans.callables() {
-        encoder.map(2)?;
+        encoder.map(3)?;
         encode_field(encoder, 1, &callable.body())?;
         encoder.field(2)?;
         encoder.array(callable.atoms().len() as u64)?;
@@ -75,6 +75,11 @@ fn encode_callable_runtime_scans(
             encode_field(encoder, 1, &atom.atom())?;
             encoder.field(2)?;
             encode_ref_scan(encoder, atom.scan())?;
+        }
+        encoder.field(3)?;
+        encoder.array(callable.context_keys().len() as u64)?;
+        for cell in callable.context_keys() {
+            cell.key.encode(encoder)?;
         }
     }
     Ok(())

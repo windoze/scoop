@@ -30,6 +30,7 @@ pub(crate) fn fun_sig(
     statements: Vec<Statement>,
 ) -> Decl {
     Decl::Function(FunctionDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         is_suspend: false,
@@ -81,6 +82,7 @@ pub(crate) fn fun_expr(
     expr: Expr,
 ) -> Decl {
     Decl::Function(FunctionDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         is_suspend: false,
@@ -142,6 +144,7 @@ pub(crate) fn intrinsic_generic_fun(
     return_ty: Option<TypeRef>,
 ) -> Decl {
     Decl::Function(FunctionDecl {
+        context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
             name: ident("Intrinsic"),
             args: vec![ast::AnnotationArg {

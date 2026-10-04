@@ -43,6 +43,7 @@ impl Harness {
         let type_params = type_params.into_iter().map(type_param).collect();
         let id = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: name.to_string(),
                 is_suspend: false,
@@ -104,6 +105,7 @@ impl Harness {
         let resume_value = resume_locals.alloc(local("value", t));
         let continuation_resume = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "Continuation.resume".to_string(),
                 is_suspend: false,
@@ -132,6 +134,7 @@ impl Harness {
         let failure = failure_locals.alloc(local("exception", throwable_ty));
         let continuation_resume_with_exception = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "Continuation.resumeWithException".to_string(),
                 is_suspend: false,
@@ -209,6 +212,7 @@ impl Harness {
         let run_receiver = run_locals.alloc(local("this", suspend_task_ty));
         let suspend_task_run = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "SuspendTask.run".to_string(),
                 is_suspend: true,
@@ -249,6 +253,7 @@ impl Harness {
         let register_receiver = register_locals.alloc(local("this", suspend_registration_ty));
         let suspend_registration_register = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "SuspendRegistration.register".to_string(),
                 is_suspend: false,
@@ -287,6 +292,7 @@ impl Harness {
         }
         let start_coroutine = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "startCoroutine".to_string(),
                 is_suspend: false,
@@ -306,6 +312,7 @@ impl Harness {
         });
         let suspend_coroutine = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "suspendCoroutine".to_string(),
                 is_suspend: true,

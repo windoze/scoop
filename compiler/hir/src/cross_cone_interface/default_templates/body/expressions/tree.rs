@@ -68,6 +68,11 @@ impl DefaultExpressionV1 {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefaultExpressionKindV1 {
+    ContextLookup {
+        declaration: DefaultCallableDeclarationV1,
+        parameter: crate::ContextParameterIndex,
+        diagnostic: crate::ContextDiagnostic,
+    },
     ReleaseFieldLoad {
         owner_type: SignatureTypeKey,
         declaration: scoop_identity::PersistentFieldId,
@@ -453,7 +458,8 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
             require_u32_len(captures.len(), DefaultExpressionBuildError::TooManyCaptures)?;
             require_arguments(arguments)?;
         }
-        DefaultExpressionKindV1::StringLiteral { .. }
+        DefaultExpressionKindV1::ContextLookup { .. }
+        | DefaultExpressionKindV1::StringLiteral { .. }
         | DefaultExpressionKindV1::IntegerLiteral(_)
         | DefaultExpressionKindV1::CharLiteral(_)
         | DefaultExpressionKindV1::BooleanLiteral(_)

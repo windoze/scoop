@@ -246,6 +246,7 @@ fn imported_default_constant_expression(module: &scoop_hir::Module) -> &scoop_hi
 
 fn const_property(name: &str, expression: scoop_ast::Expr) -> scoop_ast::Decl {
     scoop_ast::Decl::Global(scoop_ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: scoop_ast::VisibilitySyntax::Omitted,
         modifier: scoop_ast::MethodModifier::Final,

@@ -55,7 +55,7 @@ fn computes_the_canonical_immortal_object_strong_registration_fingerprint() {
     );
     assert_eq!(
         actual.registration().to_string(),
-        "8108495e4e8104908aa90c57e0bf0803184180c0ac3e64db86e7cd8ef754dc16"
+        "f4b9af40211b0224efbd8635e4159bdef672cd9f8c43fd2e0c00875f12c8360c"
     );
 }
 

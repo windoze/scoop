@@ -81,6 +81,7 @@ fn destructuring_declarations() {
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
+  class MissingContextException(message: Option<String>)
   class IndexOutOfBoundsException()
   class IllegalArgumentException(message: Option<String>)
   class IllegalStateException(message: Option<String>)

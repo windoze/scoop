@@ -94,6 +94,7 @@ fn if_else_becomes_basic_blocks() {
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
+        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
@@ -101,7 +102,7 @@ fn if_else_becomes_basic_blocks() {
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
         t2 = begin_catch t1 : ptr<managed>
-        call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
         global_store global2, t3
         end_catch
         ret integer<UInt>(0x00000001)
@@ -114,6 +115,7 @@ fn if_else_becomes_basic_blocks() {
       td td7 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
       td td8 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
       td td9 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td10 task-context @scoop$1$td$db9fdace23f2040d3622172122120f4e46c6786180d6495caf23e609df021eac type-id=11462109518987149384 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
       layout String size=24 align=8 refs=[]
       layout Int8 size=1 align=1 refs=[]
       layout Int16 size=2 align=2 refs=[]
@@ -124,6 +126,8 @@ fn if_else_becomes_basic_blocks() {
       layout UInt size=4 align=4 refs=[]
       layout ULong size=8 align=8 refs=[]
       layout Boolean size=1 align=1 refs=[]
+      layout task-context value size=8 align=8 refs=[0]
+      layout task-context size=24 align=8 refs=[16]
       layout String value size=8 align=8 refs=[0]
       output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca
     "#);
@@ -198,7 +202,7 @@ fn while_becomes_basic_blocks() {
     );
     let module = lower(b.finish(main));
 
-    insta::assert_snapshot!(lir::dump(&module), @"
+    insta::assert_snapshot!(lir::dump(&module), @r#"
     Module
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
       fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
@@ -220,6 +224,7 @@ fn while_becomes_basic_blocks() {
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
+        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
@@ -227,7 +232,7 @@ fn while_becomes_basic_blocks() {
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
         t2 = begin_catch t1 : ptr<managed>
-        call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
         global_store global0, t3
         end_catch
         ret integer<UInt>(0x00000001)
@@ -240,6 +245,7 @@ fn while_becomes_basic_blocks() {
       td td7 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
       td td8 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
       td td9 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td10 task-context @scoop$1$td$db9fdace23f2040d3622172122120f4e46c6786180d6495caf23e609df021eac type-id=11462109518987149384 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
       layout String size=24 align=8 refs=[]
       layout Int8 size=1 align=1 refs=[]
       layout Int16 size=2 align=2 refs=[]
@@ -250,9 +256,11 @@ fn while_becomes_basic_blocks() {
       layout UInt size=4 align=4 refs=[]
       layout ULong size=8 align=8 refs=[]
       layout Boolean size=1 align=1 refs=[]
+      layout task-context value size=8 align=8 refs=[0]
+      layout task-context size=24 align=8 refs=[16]
       layout String value size=8 align=8 refs=[0]
       output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca
-    ");
+    "#);
 }
 
 #[test]
@@ -358,6 +366,7 @@ fn and_short_circuits_through_blocks() {
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
+        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
@@ -365,7 +374,7 @@ fn and_short_circuits_through_blocks() {
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
         t2 = begin_catch t1 : ptr<managed>
-        call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
         global_store global4, t3
         end_catch
         ret integer<UInt>(0x00000001)
@@ -378,6 +387,7 @@ fn and_short_circuits_through_blocks() {
       td td7 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
       td td8 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
       td td9 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td10 task-context @scoop$1$td$db9fdace23f2040d3622172122120f4e46c6786180d6495caf23e609df021eac type-id=11462109518987149384 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
       layout String size=24 align=8 refs=[]
       layout Int8 size=1 align=1 refs=[]
       layout Int16 size=2 align=2 refs=[]
@@ -388,6 +398,8 @@ fn and_short_circuits_through_blocks() {
       layout UInt size=4 align=4 refs=[]
       layout ULong size=8 align=8 refs=[]
       layout Boolean size=1 align=1 refs=[]
+      layout task-context value size=8 align=8 refs=[0]
+      layout task-context size=24 align=8 refs=[16]
       layout String value size=8 align=8 refs=[0]
       output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca
     "#);
@@ -454,7 +466,7 @@ fn or_short_circuits_through_blocks() {
     );
     let module = lower(b.finish(main));
 
-    insta::assert_snapshot!(lir::dump(&module), @"
+    insta::assert_snapshot!(lir::dump(&module), @r#"
     Module
       global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
       fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
@@ -474,6 +486,7 @@ fn or_short_circuits_through_blocks() {
       fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
       block entry
         poll managed-void-target1 sp<managed-poll:0> live=[]
+        call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(td10)
         invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
         br @success
       block success
@@ -481,7 +494,7 @@ fn or_short_circuits_through_blocks() {
       block failure
         (t0, t1) = landingpad : (exception_record, ptr<raw>)
         t2 = begin_catch t1 : ptr<managed>
-        call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+        call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
         global_store global0, t3
         end_catch
         ret integer<UInt>(0x00000001)
@@ -494,6 +507,7 @@ fn or_short_circuits_through_blocks() {
       td td7 UInt @scoop$1$td$cd33e50d4bee20d1122a80e678258fafccbdcf60a258a56f92d698b61932d841 type-id=18175881444594673019 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
       td td8 UInt8 @scoop$1$td$e9b2707b5c4d75570191bbd4adbfff0c67aeef329cffb1987b73a4d7e813681e type-id=16653769684987306371 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
       td td9 Long @scoop$1$td$ecd8b585ebc7fc3d76d9765f2fe1d8dec433276d11f6de158399c5b02e14f55c type-id=3262026339401001817 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+      td td10 task-context @scoop$1$td$db9fdace23f2040d3622172122120f4e46c6786180d6495caf23e609df021eac type-id=11462109518987149384 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
       layout String size=24 align=8 refs=[]
       layout Int8 size=1 align=1 refs=[]
       layout Int16 size=2 align=2 refs=[]
@@ -504,9 +518,11 @@ fn or_short_circuits_through_blocks() {
       layout UInt size=4 align=4 refs=[]
       layout ULong size=8 align=8 refs=[]
       layout Boolean size=1 align=1 refs=[]
+      layout task-context value size=8 align=8 refs=[0]
+      layout task-context size=24 align=8 refs=[16]
       layout String value size=8 align=8 refs=[0]
       output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca
-    ");
+    "#);
 }
 
 #[test]

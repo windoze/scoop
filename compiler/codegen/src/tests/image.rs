@@ -17,6 +17,7 @@ fn run_image_test(fixture: &str, expected: &str) {
         "runtime/src/image/active.c",
         "runtime/src/image/scan_ranges.c",
         "runtime/src/image/types.c",
+        "runtime/src/image/context_keys.c",
         "runtime/src/image/type_relations.c",
         "runtime/src/image/storage.c",
         "runtime/src/image/immortals.c",

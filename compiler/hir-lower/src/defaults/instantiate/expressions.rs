@@ -34,6 +34,9 @@ impl Lowerer {
         }
         let origin = instantiate_origin(source.origin, context.evaluation);
         let kind = match &source.kind {
+            hir::ExprKind::ContextLookup(requirement) => {
+                hir::ExprKind::ContextLookup(requirement.clone())
+            }
             hir::ExprKind::ReleaseFieldLoad(field) => {
                 hir::ExprKind::ReleaseFieldLoad(hir::ReleaseFieldRef {
                     owner: self.instantiate_method_ty(field.owner, &context.bindings),

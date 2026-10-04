@@ -282,6 +282,7 @@ pub fn dump(module: &Module) -> String {
     }
     for (index, identity) in module.meta.generated_exact_types.iter().enumerate() {
         let location = match identity.location() {
+            GeneratedExactTypeLocation::Context(storage) => storage.role.name().to_string(),
             GeneratedExactTypeLocation::Closure(class) => {
                 format!("closure{}", class.into_raw().into_u32())
             }

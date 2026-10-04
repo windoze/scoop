@@ -34,6 +34,10 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         match kind {
+            DefaultStatementKindV1::ContextScope { value, body } => {
+                self.push_statements(pending, body)?;
+                self.push_child(pending, BodyNode::Expression(value))
+            }
             DefaultStatementKindV1::GenericDelegateEnsure(reference) => {
                 self.push_generic_delegate(pending, reference, definition_origin)
             }

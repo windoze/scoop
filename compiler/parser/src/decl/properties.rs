@@ -188,6 +188,7 @@ impl Parser {
             .min()
             .unwrap_or(keyword.span.start);
         Ok(PropertyDecl {
+            context_parameters: prefix.modifiers.context_parameters,
             annotations,
             visibility,
             modifier,

@@ -66,6 +66,19 @@ pub(super) fn partition(module: &Module) -> Result<Partition, ConeMirInputError>
             exact: identity.exact_record().id(),
         };
         let source_exact = match identity.nominal_record().key() {
+            GeneratedNominalKey::TaskContext(storage) => {
+                if storage.core == module.cone {
+                    local.push(GeneratedNominalShapeRoot::Cone(shape));
+                } else {
+                    dependencies.push(StrongDependencyGeneratedNominalShapeRoot {
+                        shape,
+                        provider: storage.core,
+                        source: identity.nominal_record().id(),
+                        source_exact: identity.exact_record().id(),
+                    });
+                }
+                continue;
+            }
             GeneratedNominalKey::BoxedValue { payload } => *payload,
             GeneratedNominalKey::CoroutineStep { result } => *result,
             GeneratedNominalKey::CoroutineSlot { value } => *value,

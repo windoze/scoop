@@ -38,7 +38,7 @@ fn computes_the_relocation_aware_registration_object_leaf() {
     );
     assert_eq!(
         actual.registration_object().to_string(),
-        "b356cbacf7d952d42b4381b36b4383250c28cbfafbc0c7044323e69bf713c776"
+        "8cac20cfb5492aa7a4396e040056716bdf8dd909dbdfa632209e39f5ba240098"
     );
 }
 

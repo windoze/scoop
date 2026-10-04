@@ -63,7 +63,8 @@ fn is_odr_origin(
                 GeneratedNominalKey::BoxedValue { payload } => *payload,
                 GeneratedNominalKey::CoroutineStep { result } => *result,
                 GeneratedNominalKey::CoroutineSlot { value } => *value,
-                GeneratedNominalKey::ObjectBackingClass { .. }
+                GeneratedNominalKey::TaskContext(_)
+                | GeneratedNominalKey::ObjectBackingClass { .. }
                 | GeneratedNominalKey::ClosureEnvironment { .. }
                 | GeneratedNominalKey::CallableAdapterEnvironment { .. }
                 | GeneratedNominalKey::CoroutineFrame { .. }

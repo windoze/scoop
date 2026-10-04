@@ -14,6 +14,10 @@ void scoop_image_publish(const ScoopImageRegistry *registry) {
     if (registry == NULL || active_registry != NULL) {
         active_fatal("invalid registry publication");
     }
+    for (size_t index = 0; index < registry->context_cell_count; index++) {
+        const ScoopContextCell *cell = &registry->context_cells[index];
+        *cell->use->slot_cell = cell->encoded_slot;
+    }
     active_registry = registry;
 }
 

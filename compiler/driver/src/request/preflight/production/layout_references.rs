@@ -20,7 +20,12 @@ pub(in crate::request::preflight) fn collect_mir_references(
     {
         roots.push(lir::LayoutAbiDependencyV1::new(
             shape.provider(),
-            lir::LayoutAbiSemanticTargetV1::ShapeSupport(shape.source()),
+            match shape.location() {
+                mir::GeneratedExactTypeLocation::Context(_) => {
+                    lir::LayoutAbiSemanticTargetV1::Descriptor(shape.exact())
+                }
+                _ => lir::LayoutAbiSemanticTargetV1::ShapeSupport(shape.source()),
+            },
         ));
         physical.push((
             shape.provider(),

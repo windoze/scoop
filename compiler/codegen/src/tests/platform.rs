@@ -355,6 +355,9 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
         "_scoop_rt_init_failure_impl",
         "_scoop_rt_init_cycle_message_impl",
         "_scoop_rt_array_clone_impl",
+        "_scoop_rt_context_push_impl",
+        "_scoop_rt_context_fork_impl",
+        "_scoop_rt_context_ensure_root_impl",
         "_scoop_rt_enter_native_safe_impl",
         "_scoop_rt_enter_native_borrowed_impl",
     ] {
@@ -365,5 +368,5 @@ fn darwin_aarch64_managed_entries_preserve_the_direct_caller_anchor() {
             "missing tail-branch relocation for {implementation}:\n{relocations}"
         );
     }
-    assert_eq!(relocations.matches("BR26").count(), 15);
+    assert_eq!(relocations.matches("BR26").count(), 18);
 }

@@ -39,6 +39,16 @@ impl BodyProjection<'_, '_> {
         origin: crate::DefinitionOrigin,
     ) -> Result<DefaultExpressionKindV1, super::super::DefaultBodyProjectionError> {
         Ok(match kind {
+            ExprKind::ContextLookup(requirement) => DefaultExpressionKindV1::ContextLookup {
+                declaration: match requirement.declaration {
+                    crate::ContextRequirementOwner::Source(function) => {
+                        self.entities.callable_declaration(function)?
+                    }
+                    crate::ContextRequirementOwner::Imported(declaration) => declaration,
+                },
+                parameter: requirement.parameter,
+                diagnostic: requirement.diagnostic.clone(),
+            },
             ExprKind::ReleaseFieldLoad(field) => DefaultExpressionKindV1::ReleaseFieldLoad {
                 owner_type: self.type_key(field.owner)?,
                 declaration: field.field,

@@ -10,12 +10,12 @@ pub fn hir_identity_foundation_capability() -> CapabilityId {
 }
 
 pub fn mir_identity_foundation_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.mir", "identity-foundation", 2)
+    CapabilityId::new("org.scoop-lang.mir", "identity-foundation", 3)
         .expect("built-in capability id is valid")
 }
 
 pub fn lir_identity_foundation_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "identity-foundation", 3)
+    CapabilityId::new("org.scoop-lang.lir", "identity-foundation", 4)
         .expect("built-in capability id is valid")
 }
 
@@ -25,12 +25,12 @@ pub fn manifest_single_cone_production_capability() -> CapabilityId {
 }
 
 pub fn hir_core_bootstrap_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "core-bootstrap-interface", 7)
+    CapabilityId::new("org.scoop-lang.hir", "core-bootstrap-interface", 8)
         .expect("built-in capability id is valid")
 }
 
 pub fn hir_cross_cone_interface_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 48)
+    CapabilityId::new("org.scoop-lang.hir", "cross-cone-interface", 49)
         .expect("built-in capability id is valid")
 }
 
@@ -52,7 +52,7 @@ pub fn lir_cross_cone_link_closure_capability() -> CapabilityId {
 }
 
 pub fn lir_strong_production_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "strong-production", 17)
+    CapabilityId::new("org.scoop-lang.lir", "strong-production", 18)
         .expect("a fixed capability identity is valid")
 }
 
@@ -62,7 +62,7 @@ pub fn hir_cross_cone_type_semantics_capability() -> CapabilityId {
 }
 
 pub fn mir_cross_cone_type_bridge_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.mir", "cross-cone-type-bridge", 8)
+    CapabilityId::new("org.scoop-lang.mir", "cross-cone-type-bridge", 9)
         .expect("built-in capability id is valid")
 }
 
@@ -77,12 +77,12 @@ pub fn lir_cross_cone_layout_link_closure_capability() -> CapabilityId {
 }
 
 pub fn lir_cone_production_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "cone-production", 5)
+    CapabilityId::new("org.scoop-lang.lir", "cone-production", 6)
         .expect("built-in capability id is valid")
 }
 
 pub fn lir_link_identity_closure_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.lir", "link-identity-closure", 10)
+    CapabilityId::new("org.scoop-lang.lir", "link-identity-closure", 11)
         .expect("built-in capability id is valid")
 }
 

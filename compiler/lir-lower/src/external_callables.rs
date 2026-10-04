@@ -131,6 +131,7 @@ fn physical_type(
     }
     let generated = module.meta.generated_exact_types.get_by_identity(exact)?;
     match generated.location() {
+        mir::GeneratedExactTypeLocation::Context(storage) => Some(mir::Type::Context(storage)),
         mir::GeneratedExactTypeLocation::Class(class) => Some(mir::Type::Class(class)),
         mir::GeneratedExactTypeLocation::Enum(enum_) => Some(mir::Type::Enum(enum_, Vec::new())),
         mir::GeneratedExactTypeLocation::Closure(_) => None,

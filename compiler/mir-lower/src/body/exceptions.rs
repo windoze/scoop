@@ -45,6 +45,15 @@ impl BodyLowerer<'_> {
         constructor: &scoop_hir::ImportedCoreProtocolCallable,
         span: Span,
     ) -> smir::Statement {
+        let (class, initializer) = self.imported_exception_constructor(declaration, constructor);
+        self.throw_class(class, initializer, span)
+    }
+
+    pub(super) fn imported_exception_constructor(
+        &self,
+        declaration: scoop_identity::PersistentTypeId,
+        constructor: &scoop_hir::ImportedCoreProtocolCallable,
+    ) -> (mir::ClassId, mir::Callee) {
         let (provider, target) = crate::current::runtime_constructor_target(constructor)
             .expect("the frontend retained a typed exception constructor");
         let callable = self
@@ -64,10 +73,6 @@ impl BodyLowerer<'_> {
                 (class.origin.concrete_type_id() == Some(declaration)).then_some(id)
             })
             .expect("the HIR stage completed the required exception representation");
-        self.throw_class(
-            self.class_map[&class],
-            mir::Callee::External(callable),
-            span,
-        )
+        (self.class_map[&class], mir::Callee::External(callable))
     }
 }

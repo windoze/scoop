@@ -12,6 +12,8 @@ public class ClassCastException public constructor() : Exception(Some("invalid c
 
 public class ArithmeticException public constructor() : Exception(Some("arithmetic error"))
 
+public class MissingContextException public constructor(message: String?) : Exception(message)
+
 public class IndexOutOfBoundsException public constructor() : Exception(Some("array index out of bounds"))
 
 public class IllegalArgumentException public constructor(message: String? = Some("illegal argument")) : Exception(message)

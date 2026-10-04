@@ -52,4 +52,15 @@ const void *scoop_rt_array_clone_impl(const void *object,
                                       uintptr_t return_pc, uintptr_t stack_pointer,
                                       uintptr_t frame_pointer);
 
+void *scoop_rt_context_push_impl(const uint64_t *cell, void *value,
+                                const ScoopTypeDescriptor *node_td,
+                                uintptr_t return_pc, uintptr_t stack_pointer,
+                                uintptr_t frame_pointer);
+void *scoop_rt_context_fork_impl(void *root, const ScoopTypeDescriptor *task_td,
+                                uintptr_t return_pc, uintptr_t stack_pointer,
+                                uintptr_t frame_pointer);
+void *scoop_rt_context_ensure_root_impl(const ScoopTypeDescriptor *task_td,
+                                       uintptr_t return_pc, uintptr_t stack_pointer,
+                                       uintptr_t frame_pointer);
+
 #endif /* SCOOP_RT_MANAGED_ENTRIES_H */

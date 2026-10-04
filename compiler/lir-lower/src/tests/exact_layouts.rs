@@ -117,6 +117,12 @@ fn exact_layout_producer_replays_all_physical_roots_and_zst_descriptor() {
         .meta
         .layouts
         .iter()
+        .filter(|(_, layout)| {
+            fixture
+                .types
+                .get(layout.identity.layout_record().key().exact_type())
+                .is_some()
+        })
         .map(|(_, layout)| layout.identity.layout_record().id())
         .chain(
             fixture
@@ -125,6 +131,18 @@ fn exact_layout_producer_replays_all_physical_roots_and_zst_descriptor() {
                 .meta
                 .type_descriptors
                 .iter()
+                .filter(|(_, descriptor)| {
+                    fixture
+                        .types
+                        .get(
+                            descriptor
+                                .instance_layout
+                                .layout_record()
+                                .key()
+                                .exact_type(),
+                        )
+                        .is_some()
+                })
                 .map(|(_, descriptor)| descriptor.instance_layout.layout_record().id()),
         )
         .collect();

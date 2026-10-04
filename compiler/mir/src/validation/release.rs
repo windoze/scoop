@@ -160,7 +160,8 @@ fn gc_free(module: &Module, ty: &Type) -> bool {
         Type::Struct(id) => arena_get(&module.structs, *id).is_some_and(|ty| ty.gc_free),
         Type::Enum(id, _) => arena_get(&module.enums, *id).is_some_and(|ty| ty.gc_free),
         Type::Tuple(elements) => elements.iter().all(|ty| gc_free(module, ty)),
-        Type::String
+        Type::Context(_)
+        | Type::String
         | Type::Class(_)
         | Type::Interface(_)
         | Type::Any

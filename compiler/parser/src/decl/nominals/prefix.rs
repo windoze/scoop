@@ -15,8 +15,19 @@ impl Parser {
         let mut modifiers = Modifiers::default();
         let mut is_const = false;
         let mut const_span = None;
+        if matches!(&self.peek().kind, TokenKind::Ident(name) if name == "context") {
+            let (parameters, span) = self.parse_context_parameters()?;
+            modifiers.context_parameters = parameters;
+            modifiers.start = Some(span.start);
+        }
         loop {
             let token = self.peek().clone();
+            if matches!(&token.kind, TokenKind::Ident(name) if name == "context") {
+                return Err(Diagnostic::at(
+                    token.span,
+                    "a declaration permits one `context` prefix, before annotations and modifiers",
+                ));
+            }
             if matches!(token.kind, TokenKind::At) {
                 annotations.extend(self.parse_annotations()?);
                 continue;
@@ -147,6 +158,17 @@ impl Parser {
             }
             let keyword = self.bump();
             modifiers.start = modifiers.start.or(Some(keyword.span.start));
+        }
+        if !modifiers.context_parameters.is_empty()
+            && !matches!(
+                self.peek().kind,
+                TokenKind::Fun | TokenKind::Val | TokenKind::Var
+            )
+        {
+            return Err(Diagnostic::at(
+                self.peek().span,
+                "`context` may only prefix a named function or computed/abstract property",
+            ));
         }
         Ok(MemberPrefix {
             annotations,

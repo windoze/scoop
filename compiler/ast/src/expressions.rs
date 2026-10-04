@@ -5,6 +5,12 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    /// A binding scope is a lexical block in the enclosing callable.
+    ContextScope {
+        value: Box<Expr>,
+        body: Block,
+        span: Span,
+    },
     CharLiteral {
         value: char,
         span: Span,
@@ -207,6 +213,7 @@ impl Expr {
         match self {
             Expr::IntLiteral(literal) => literal.span,
             Expr::CharLiteral { span, .. }
+            | Expr::ContextScope { span, .. }
             | Expr::StringLiteral { span, .. }
             | Expr::InterpolatedString { span, .. }
             | Expr::BoolLiteral { span, .. }

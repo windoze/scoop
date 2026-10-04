@@ -109,7 +109,8 @@ impl ReferenceCollector<'_> {
         let origin = expression.origin.definition();
         self.type_reference(expression.ty, origin);
         match &expression.kind {
-            hir::ExprKind::StringLiteral { .. }
+            hir::ExprKind::ContextLookup(_)
+            | hir::ExprKind::StringLiteral { .. }
             | hir::ExprKind::IntegerLiteral(_)
             | hir::ExprKind::CharLiteral(_)
             | hir::ExprKind::BoolLiteral(_)

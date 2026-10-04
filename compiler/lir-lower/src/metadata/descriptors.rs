@@ -29,6 +29,7 @@ pub(crate) fn class_order(module: &mir::Module) -> StorageResult<Vec<mir::ClassI
 
 #[derive(Default)]
 pub(crate) struct TypeDescriptorRefs {
+    context: HashMap<mir::ContextStorageType, lir::TypeDescriptorRef>,
     classes: HashMap<mir::ClassId, lir::TypeDescriptorRef>,
     interfaces: HashMap<mir::InterfaceId, lir::TypeDescriptorRef>,
     closures: HashMap<mir::ClosureClassId, lir::TypeDescriptorRef>,
@@ -51,6 +52,7 @@ impl TypeDescriptorRefs {
 
     pub(crate) fn for_type(&self, ty: &mir::Type) -> lir::TypeDescriptorRef {
         match ty {
+            mir::Type::Context(storage) => self.context[storage],
             mir::Type::Class(id) => self.classes[id],
             mir::Type::Interface(id) => self.interfaces[id],
             mir::Type::Function(id) => self.functions[id],
@@ -142,6 +144,9 @@ pub(crate) fn type_descriptors(
         }
     }
     for (location, reference) in dependencies.generated {
+        if let mir::GeneratedExactTypeLocation::Context(storage) = location {
+            refs.context.insert(storage, reference);
+        }
         if let mir::GeneratedExactTypeLocation::Class(id) = location {
             refs.classes.insert(id, reference);
         }
@@ -294,6 +299,19 @@ pub(crate) fn type_descriptors(
             continue;
         }
         let ty = match root.location() {
+            mir::GeneratedExactTypeLocation::Context(storage) => {
+                let descriptor = shapes::context_type_descriptor(
+                    context,
+                    module,
+                    storage,
+                    identity_roots.for_generated(root.location()),
+                )?;
+                refs.context.insert(
+                    storage,
+                    lir::TypeDescriptorRef::Local(descriptors.alloc(descriptor)),
+                );
+                continue;
+            }
             mir::GeneratedExactTypeLocation::Class(id) => mir::Type::Class(id),
             mir::GeneratedExactTypeLocation::Enum(id) => {
                 mir::Type::Enum(id, module.enums[id].type_arguments.clone())

@@ -439,7 +439,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - ByteBuffer、off-heap storage、borrow/view、close 及外部内存压力反馈整体延期；本里程碑不依赖 M24 release hook，也不扩展为通用集合/ownership 框架。旧 M16 字符串设计不作为实现依据。
 - 正式总验收通过：全 workspace 5,252 项测试、公共 fixture runner 32 项测试、全部 2,242 个文件 fixture；M26 新增 84 个 fixture，覆盖源码与产物编译、跨 Cone/ODR、异常、协程和 moving GC，详见设计第 11 节。
 
-### M27 Task-local Context（2026-10-04 设计与规范同步完成，待实现，[设计](milestone27/DESIGN.md)）
+### M27 Task-local Context（实现进行中，[设计](milestone27/DESIGN.md)，[分批验收](milestone27/ACCEPTANCE.md)）
 
 - `context(name: T)` 声明命名函数或计算/abstract property 的 requirement；`context(value) { ... }` 是词法 block 表达式，每次绑定一个非空 managed ref。key 为 canonical exact static type，alias 展开后相同；derived binding 不隐式满足 base/interface requirement。
 - 实现入口按源码顺序取得一次参数 local，未使用/匿名项同样要求存在，缺失抛可捕获的 `MissingContextException`。requirement 进入导出与 override contract，不参与重载、MSC、推断、函数类型、mangle 或普通 ABI。

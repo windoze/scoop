@@ -53,6 +53,7 @@ impl Harness {
         }
         let function = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: format!("{}.{}", declaration.name, method.name),
                 is_suspend: method.is_suspend,

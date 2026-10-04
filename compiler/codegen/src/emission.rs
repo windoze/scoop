@@ -53,23 +53,30 @@ fn prepare_callable_strong_llvm_module<'ctx, D, C, I>(
     profile: ValidatedBackendProfile,
     expected_safepoints: &statepoint::ExpectedSafepoints,
     body: scoop_lir::PersistentCallableBodyId,
-) -> Result<LlvmModule<'ctx>, CodegenError> {
-    let (llvm, ()) = emit_llvm_module_with_surface(
+) -> Result<(LlvmModule<'ctx>, EmittedStrongRuntimeMetadataV1), CodegenError> {
+    let (llvm, runtime_metadata) = emit_llvm_module_with_surface(
         context,
         module,
         production.canonical_definitions(),
         machine,
         profile,
         StrongObjectEmissionSelection::CallableBody(body),
-        |context, llvm, _, _, _| {
+        |context, llvm, target_data, _, _| {
             Ok((
-                (),
+                runtime_metadata_v1::emit_context_callable_metadata_v1(
+                    context,
+                    llvm,
+                    target_data,
+                    profile,
+                    production,
+                    body,
+                )?,
                 declare_initialization_unit_globals(context, llvm, module, production)?,
             ))
         },
     )?;
     verify_and_rewrite_module(&llvm, machine, profile, expected_safepoints)?;
-    Ok(llvm)
+    Ok((llvm, runtime_metadata))
 }
 
 fn write_object(

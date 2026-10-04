@@ -12,6 +12,10 @@ pub(super) fn validate_generated_exact_type_metadata(
             entry: index as u32,
         };
         let exists = match entry.location() {
+            GeneratedExactTypeLocation::Context(storage) => {
+                entry.nominal_record().key()
+                    == &scoop_identity::GeneratedNominalKey::TaskContext(storage)
+            }
             GeneratedExactTypeLocation::Closure(class) => {
                 arena_get(&module.closure_classes, class).is_some()
             }
@@ -43,6 +47,11 @@ pub(super) fn validate_generated_exact_type_metadata(
     }
 
     let mut expected = HashSet::new();
+    for entry in module.meta.generated_exact_types.iter() {
+        if let GeneratedExactTypeLocation::Context(_) = entry.location() {
+            expected.insert(entry.location());
+        }
+    }
     for environment in &module.meta.closure_environments {
         expect(
             module,

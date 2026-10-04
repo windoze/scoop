@@ -66,6 +66,13 @@ impl CanonicalMirFoundation {
 
 fn field_records(module: &Module) -> Result<Vec<FieldRecord>, MirFoundationBuildError> {
     let mut records = BTreeMap::new();
+    for identity in module.meta.generated_exact_types.iter() {
+        if let crate::GeneratedExactTypeLocation::Context(storage) = identity.location() {
+            for (field, _) in crate::context_fields(storage) {
+                insert_identity(&mut records, &field, MirFoundationTable::Field)?;
+            }
+        }
+    }
     for environment in &module.meta.closure_environments {
         for field in environment.identity().fields() {
             insert_identity(

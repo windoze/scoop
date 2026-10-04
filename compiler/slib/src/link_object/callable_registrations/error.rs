@@ -62,6 +62,10 @@ pub enum CallableRegistrationRelocationFailureV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StrongCallableRegistrationValidationError {
+    ContextKeys {
+        body: PersistentCallableBodyId,
+        field: &'static str,
+    },
     DigestPatchProducerMismatch,
     DuplicateObjectMember(SlibMemberId),
     NonCanonicalObjectOrder {

@@ -26,7 +26,7 @@ fun execute(request: Request): Long =
 
 `context(request: Request)` 声明入口 requirement 并引入正文 local；`context(request) { ... }` 安装一个结构化 binding。两者使用同一 canonical exact static type 作为 key。中间普通调用不需要传隐式参数；缺失时由被调用实现抛可捕获的 MissingContextException。
 
-当前实现中尚无 Context 专用 AST、TaskContext 或该异常。可直接复用的基础是：
+设计基线尚无 Context 专用 AST、TaskContext 或该异常；M27-1 已接通同步路径。其余批次沿下列已有基础推进：
 
 | 已有实现 | M27 使用方式 |
 | --- | --- |
@@ -341,7 +341,7 @@ declaration requirement 使用原 callable/property typed identity 加独立 par
 
 入口按声明顺序生成普通的 immutable local initializer 或 presence-check expression；每项使用专用 ContextLookup，完整类型给出 key，不另设平行的入口指令列表。MIR scope 的 push 先于结构化 try，restore 放入该 try 的 generated finally，复用已有 CleanupCursor/EndCatch/PendingTransfer 的次序；不新增与 finally 重复的 cleanup 状态机。
 
-mark/guard 以不同的逻辑 variant 保持类型区分，物理存储使用已有 exact aggregate/nullable-ref 和 scan。Task、Node、erased binding ref、mark、switch guard 使用 compiler-owned Context storage role；只有 Task 和 Node 有堆 instance/TD，其余只描述值存储，不引入堆对象。各 role 的持久名义身份由实际 core Cone 与 role 导出，源码不能命名这些类型；Task/Node 的内部 ref 可以为空，binding ref 不解释为源码 Any。跨挂起 mark 的 CoroutineSlot 携带这份完整 storage type，不用 opaque bytes，也不为它增加 Context 堆对象。
+mark/guard 以不同的逻辑 variant 保持类型区分，物理存储使用已有 exact aggregate/nullable-ref 和 scan。Task、Node、erased binding ref、mark、switch guard 使用 compiler-owned Context storage role；只有 Task 和 Node 是新增的可分配堆对象；其余 role 复用普通值布局、abstract-reference 或 boxed-value descriptor 表示存储与扫描，不生成额外 Context 堆对象。各 role 的持久名义身份由实际 core Cone 与 role 导出，源码不能命名这些类型；Task/Node 的内部 ref 可以为空，binding ref 不解释为源码 Any。跨挂起 mark 的 CoroutineSlot 携带这份完整 storage type，不用 opaque bytes，也不为它增加 Context 堆对象。
 
 | 层 | 负责的变化 |
 | --- | --- |
@@ -377,7 +377,7 @@ mark/guard 以不同的逻辑 variant 保持类型区分，物理存储使用已
 
 每 body/key 只发射一份 cell 与使用项，多个 lookup/push site 复用。抽象 contract 没有实际操作时不发射 cell，入口 local 的后续读取也不产生新 use。
 
-使用项加入**现有 callable registration**的有序 cell 列表，保存 exact key 与 cell relocation。表、cell、body 位于同一个 LinkObject，继承 body 的 Strong/ODR associated-atom linkage。同一 ODR body 的这些 atom 一起 coalesce；不同 body 的同 key cell 可以并存。不给 cell 新建 ODR member、key declaration 或独立 registration family。
+使用项加入**现有 callable registration**的有序 cell 列表，保存 exact key 与 cell relocation。含 key 的 body 将其现有 callable registration、表和 cell 一起输出到该 body 的 LinkObject；无 key 的 registration 继续放在普通 metadata 对象。这是 codegen 的对象分片选择，不产生新的 record family。表、cell 继承 body 的 Strong/ODR associated-atom linkage。同一 ODR body 的这些 atom 一起 coalesce；不同 body 的同 key cell 可以并存。不给 cell 新建 ODR member、key declaration 或独立 registration family。
 
 编译期 key 的 ref 类型、alias 和 identity 已完成检查，runtime 不用对象 TD 重新检查绑定资格。跨 Cone 只比较同一个 PersistentExactTypeId，不用 FQN、symbol、参数名、arena index 或诊断文本回退。
 
@@ -396,9 +396,9 @@ runtime 检查新增 span/cell 的范围、可写性、零初态、实际 owner 
 | 项目 | 当前基线 | M27 迁移 |
 | --- | --- | --- |
 | runtime metadata | ABI 3；image 六类 table，callable record exact-sized | ABI 4，更新 callable cell-list 字段与 size；image table 集合和启动参数保持 |
-| HIR | core-bootstrap-interface /7、cross-cone-interface /48、type-semantics /15 | 实际新增 core/requirement/正文/继承字段的 section 升 major |
-| MIR | identity-foundation /2、type-bridge /8 | 内部类型、操作、frame/context 与实际 adapter 表示进入原 section |
-| LIR | foundation /3、layout-abi /7、layout-link-closure /5、cone-production /5、strong-production /17、link-identity-closure /10 | 更新实际 cell atom、registration、TD/root/adapter 表示及 object verifier |
+| HIR | core-bootstrap-interface /7、cross-cone-interface /48、type-semantics /15 | core-bootstrap-interface /8、cross-cone-interface /49；type-semantics 的 contract 字段同批升级 |
+| MIR | identity-foundation /2、type-bridge /8 | identity-foundation /3、type-bridge /9，保留现有表示表 |
+| LIR | foundation /3、layout-abi /7、layout-link-closure /5、cone-production /5、strong-production /17、link-identity-closure /10 | foundation /4、cone-production /6、strong-production /18、link-identity-closure /11；布局字段未改变的 section 保留版本，更新内容 fingerprint |
 | profile | 两个 Strong /4、cross-cone-generic /3 | Strong /5、generic /4，required inventory 同批切换 |
 | outer/container/identity | HIR/MIR/LIR outer schema 2，callable-body-v2，persistent-v1 mangler | 保留既有域与规则，新增封闭 generated nominal/atom variant |
 | runtime 构建缓存 | 当前源集与 ABI/toolchain fingerprint | 包含 Context 源文件、共享 layout、adapter 与 registration ABI 的变化 |

@@ -131,12 +131,12 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.mir", "identity-foundation", 2) => (
+            ("org.scoop-lang.mir", "identity-foundation", 3) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::MIR,
             ),
-            ("org.scoop-lang.lir", "identity-foundation", 3) => (
+            ("org.scoop-lang.lir", "identity-foundation", 4) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR,
@@ -148,12 +148,12 @@ impl CapabilityContractRegistry {
                     .union(FingerprintSinkSet::RUNTIME_IMAGE)
                     .union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.hir", "core-bootstrap-interface", 7) => (
+            ("org.scoop-lang.hir", "core-bootstrap-interface", 8) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.hir", "cross-cone-interface", 48) => (
+            ("org.scoop-lang.hir", "cross-cone-interface", 49) => (
                 SectionLocation::Hir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
@@ -163,7 +163,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.mir", "cross-cone-type-bridge", 8) => (
+            ("org.scoop-lang.mir", "cross-cone-type-bridge", 9) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE,
                 FingerprintSinkSet::MIR,
@@ -198,15 +198,15 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::CODE.union(FingerprintSinkSet::LINK_VALIDATION_ONLY),
             ),
-            ("org.scoop-lang.lir", "strong-production", 17)
-            | ("org.scoop-lang.lir", "cone-production", 5) => (
+            ("org.scoop-lang.lir", "strong-production", 18)
+            | ("org.scoop-lang.lir", "cone-production", 6) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::LIR
                     .union(FingerprintSinkSet::CODE)
                     .union(FingerprintSinkSet::RUNTIME_IMAGE),
             ),
-            ("org.scoop-lang.lir", "link-identity-closure", 10) => (
+            ("org.scoop-lang.lir", "link-identity-closure", 11) => (
                 SectionLocation::Lir,
                 MemberPurposeSet::LINK,
                 FingerprintSinkSet::LINK_VALIDATION_ONLY,

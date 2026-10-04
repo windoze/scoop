@@ -22,6 +22,7 @@ fn package(mut source: ast::SourceFile, name: &str) -> ast::SourceFile {
 
 fn property(name: &str, private: bool) -> ast::Decl {
     ast::Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: if private {
             ast::VisibilitySyntax::Explicit {
@@ -53,6 +54,7 @@ fn computed_property(
     type_parameters: &[&str],
 ) -> ast::PropertyDecl {
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

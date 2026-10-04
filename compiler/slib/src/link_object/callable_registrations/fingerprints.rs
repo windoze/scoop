@@ -7,7 +7,7 @@ use scoop_wire::{HashError, domain_separated_runtime_hash};
 
 use super::object_definition::{
     CanonicalDigestInputV1, ObjectDefinitionFingerprintInputV1,
-    ObjectDefinitionRelocationFailureV1, canonicalize_relocations,
+    ObjectDefinitionRelocationFailureV1, canonicalize_relocations_with_associated_atoms,
 };
 use super::physical::verified_member;
 use super::record::DESCRIPTOR_SIZE;
@@ -89,12 +89,18 @@ pub(super) fn compute_registration_object_fingerprints(
             registration_record_bytes(object, verified.checked_offset(), plan.body())?.to_vec();
         let member = verified_member(builtins, verified.member())
             .map_err(StrongCallableRegistrationObjectFingerprintError::ObjectValidation)?;
-        let relocations = canonicalize_relocations(
+        let associated = member
+            .definitions()
+            .definition(plan.body_definition_plan())
+            .map(|definition| definition.atoms())
+            .unwrap_or(&[]);
+        let relocations = canonicalize_relocations_with_associated_atoms(
             &bytes,
             member,
             plan.primary_atom(),
             builtins.strong_relocations(),
             requirements,
+            associated,
         )
         .map_err(|source| {
             StrongCallableRegistrationObjectFingerprintError::Relocation {

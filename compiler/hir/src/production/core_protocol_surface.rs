@@ -37,7 +37,7 @@ mod tests;
 pub(crate) const FUNDAMENTAL_TYPE_COUNT: usize = 16;
 pub(crate) const OPTION_PROTOCOL_COUNT: usize = 4;
 pub(crate) const ITERATION_PROTOCOL_COUNT: usize = 3;
-pub(crate) const EXCEPTION_PROTOCOL_COUNT: usize = 15;
+pub(crate) const EXCEPTION_PROTOCOL_COUNT: usize = 17;
 pub(crate) const COROUTINE_PROTOCOL_COUNT: usize = 13;
 pub(crate) const FFI_PROTOCOL_COUNT: usize = 19;
 pub(crate) const FOREIGN_CALLBACK_PROTOCOL_COUNT: usize = 15;
@@ -219,6 +219,11 @@ impl CoreCompilerProtocolSurfaceV1 {
                 protocols,
                 exceptions.illegal_argument_exception.callable(),
             )?,
+            concrete(class_nominal(
+                export,
+                export.class_constructors[exceptions.missing_context_constructor].owner,
+            )?)?,
+            constructor(export, protocols, exceptions.missing_context_constructor)?,
         ]));
 
         let coroutine = protocols.coroutines;

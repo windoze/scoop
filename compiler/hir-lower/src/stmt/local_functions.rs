@@ -54,6 +54,7 @@ impl Lowerer {
             Some(ty) => self.resolve_type_ref(ty)?,
             None => self.unit,
         };
+        let context_parameters = self.resolve_context_parameters(decl);
         let function_ty = self.intern_function_type(
             decl.is_suspend,
             sig_params.iter().map(|param| param.ty).collect(),
@@ -72,6 +73,7 @@ impl Lowerer {
         let access = self.local_declaration_access();
         let function = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters,
                 release_callability: Default::default(),
                 name: format!("$local.{local_number}.{}", decl.name.text),
                 is_suspend: decl.is_suspend,

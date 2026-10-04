@@ -3,6 +3,7 @@ use super::super::*;
 /// Render a type for dumps.
 pub fn type_name(module: &Module, ty: &Type) -> String {
     match ty {
+        Type::Context(storage) => format!("internal<{}>", storage.role.name()),
         Type::Unit => "Unit".to_string(),
         Type::Integer(kind) => kind.canonical_name().to_string(),
         Type::MachineScalar(kind) => format!("machine<{}>", kind.name()),

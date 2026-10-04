@@ -97,7 +97,8 @@ pub(crate) fn nested_enums(module: &mir::Module, ty: &mir::Type, out: &mut Vec<m
             mir::StructRepresentation::Intrinsic(_) => {}
         },
         // References hide whatever they point at behind a pointer.
-        mir::Type::Unit
+        mir::Type::Context(_)
+        | mir::Type::Unit
         | mir::Type::Integer(_)
         | mir::Type::MachineScalar(_)
         | mir::Type::Boolean

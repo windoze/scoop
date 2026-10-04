@@ -74,6 +74,11 @@ pub(super) fn dump_statements(
     for statement in statements {
         let pad = "  ".repeat(indent);
         match &statement.kind {
+            StatementKind::ContextScope { value, body } => {
+                out.push_str(&format!("{pad}ContextScope\n"));
+                dump_expr(module, locals, value, indent + 1, out);
+                dump_statements(module, locals, body, indent + 1, out);
+            }
             StatementKind::GenericDelegateEnsure(reference) => out.push_str(&format!(
                 "{pad}ensure delegate {}\n",
                 generic_delegate_name(module, reference)

@@ -19,10 +19,15 @@ pub(super) fn validate(function: &Function, gateway: Gateway) -> Result<()> {
         .ok_or_else(|| fail("gateway entry block is absent"))?;
     let [
         Instruction::ManagedPoll { site: poll },
+        Instruction::Call {
+            site: CallSite::Managed(context),
+        },
         Instruction::Invoke { site: invoke },
     ] = entry.instructions.as_slice()
     else {
-        return Err(fail("gateway must poll first and then invoke its target"));
+        return Err(fail(
+            "gateway must poll first, initialize its task, and then invoke its target",
+        ));
     };
     let poll = get(&function.call_targets.managed_targets.void, poll.target)
         .ok_or_else(|| fail("gateway poll target is absent"))?;
@@ -33,6 +38,7 @@ pub(super) fn validate(function: &Function, gateway: Gateway) -> Result<()> {
             "gateway entry poll must call the actual safepoint runtime",
         ));
     }
+    validate_context_entry(function, context)?;
     validate_invoke(function, invoke, gateway.entry())?;
     if function.blocks.len() != 3
         || invoke.normal() == invoke.unwind()
@@ -78,6 +84,31 @@ pub(super) fn validate(function: &Function, gateway: Gateway) -> Result<()> {
             validate_root_failure(function, *payload, failure_root, tail)
         }
     }
+}
+
+fn validate_context_entry(function: &Function, call: &ManagedCallSite) -> Result<()> {
+    let ManagedTypedCall::Direct { target, out, args } = &call.call else {
+        return Err(error(
+            function,
+            "gateway task initialization must return its managed task",
+        ));
+    };
+    let target = get(&function.call_targets.managed_targets.direct, *target)
+        .ok_or_else(|| error(function, "gateway task initialization target is absent"))?;
+    if target.destination
+        != ManagedCallDestination::Runtime(ManagedRuntimeFunction::ContextEnsureRoot)
+        || !temp_is(function, *out, &MANAGED_PTR)
+        || !matches!(
+            args.as_slice(),
+            [AbiCallArgument::Direct(Value::TypeDescriptor(_))]
+        )
+    {
+        return Err(error(
+            function,
+            "gateway must initialize its task through ContextEnsureRoot with a descriptor",
+        ));
+    }
+    Ok(())
 }
 
 fn validate_root_failure(

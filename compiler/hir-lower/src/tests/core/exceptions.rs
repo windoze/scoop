@@ -11,7 +11,7 @@ pub(super) fn exception_core_declarations() -> Vec<Decl> {
             vec![],
         )
     };
-    let defaulted_exception = |name: &str, message: &str| {
+    let message_exception = |name: &str, message: Option<&str>| {
         let mut declaration = class_decl(
             ast::ClassModifier::Final,
             name,
@@ -29,9 +29,12 @@ pub(super) fn exception_core_declarations() -> Vec<Decl> {
         let parameter = &mut constructor.parameters[0];
         parameter.property = ast::PrimaryParameterProperty::Plain;
         parameter.member_visibility = None;
-        parameter.syntax = ast::ParameterSyntax::Default {
-            expression: some(str_lit(message)),
-            equals_span: sp(),
+        parameter.syntax = match message {
+            Some(message) => ast::ParameterSyntax::Default {
+                expression: some(str_lit(message)),
+                equals_span: sp(),
+            },
+            None => ast::ParameterSyntax::Required,
         };
         declaration
     };
@@ -55,9 +58,10 @@ pub(super) fn exception_core_declarations() -> Vec<Decl> {
         subclass("UnwrapException", "unwrap on None"),
         subclass("ClassCastException", "invalid cast"),
         subclass("ArithmeticException", "arithmetic error"),
+        message_exception("MissingContextException", None),
         subclass("IndexOutOfBoundsException", "array index out of bounds"),
-        defaulted_exception("IllegalArgumentException", "illegal argument"),
-        defaulted_exception("IllegalStateException", "illegal state"),
+        message_exception("IllegalArgumentException", Some("illegal argument")),
+        message_exception("IllegalStateException", Some("illegal state")),
         fun_sig(
             "__scoopThrowInitializationCycle",
             Vec::new(),

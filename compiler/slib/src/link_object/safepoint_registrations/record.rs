@@ -3,7 +3,7 @@ use scoop_lir::StrongSafepointRegistrationPlanV1;
 use super::StrongSafepointRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5053_5054;
-pub(in crate::link_object) const ABI_VERSION: u32 = 3;
+pub(in crate::link_object) const ABI_VERSION: u32 = 4;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 pub(super) const NORMALIZED_STACKMAP_FINGERPRINT_OFFSET: usize = 200;
 const DIGEST_WIDTH: usize = 32;

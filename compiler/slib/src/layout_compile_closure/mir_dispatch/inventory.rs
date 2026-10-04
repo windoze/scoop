@@ -58,6 +58,26 @@ pub(super) fn validate(
             let key = metadata
                 .identities
                 .canonical_key::<_, scoop_identity::ExactTypeKey>(record.owner())?;
+            if let scoop_identity::ExactTypeKey::Nominal(nominal) = key.as_ref()
+                && matches!(
+                    metadata
+                        .identities
+                        .canonical_key::<_, scoop_identity::GeneratedNominalKey>(*nominal)?
+                        .as_ref(),
+                    scoop_identity::GeneratedNominalKey::TaskContext(_)
+                )
+            {
+                Error::schema(
+                    record.owner(),
+                    Component::Tables,
+                    record.vtable().is_empty()
+                        && record.itables().is_empty()
+                        && record
+                            .interface_slots()
+                            .is_none_or(|slots| slots.is_empty()),
+                )?;
+                continue;
+            }
             if !matches!(
                 key.as_ref(),
                 scoop_identity::ExactTypeKey::NominalApplication { .. }

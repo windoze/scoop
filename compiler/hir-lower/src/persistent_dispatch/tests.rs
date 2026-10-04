@@ -11,6 +11,7 @@ use crate::tests::{
 
 fn interface_property(name: &str) -> ast::PropertyDecl {
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

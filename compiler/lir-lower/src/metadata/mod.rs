@@ -20,6 +20,7 @@ pub(super) fn exact_type_record<'module>(
         return identity.identity_record();
     }
     let location = match ty {
+        mir::Type::Context(storage) => mir::GeneratedExactTypeLocation::Context(*storage),
         mir::Type::Class(id) => mir::GeneratedExactTypeLocation::Class(*id),
         mir::Type::Enum(id, _) => mir::GeneratedExactTypeLocation::Enum(*id),
         _ => panic!("validated MIR is missing the source exact identity for {ty:?}"),

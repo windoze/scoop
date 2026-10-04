@@ -28,6 +28,10 @@ impl BodyProjection<'_, '_> {
         kind: &StatementKind,
     ) -> Result<DefaultStatementKindV1, super::super::DefaultBodyProjectionError> {
         Ok(match kind {
+            StatementKind::ContextScope { value, body } => DefaultStatementKindV1::ContextScope {
+                value: Box::new(self.expression(value)?),
+                body: self.statements(body)?,
+            },
             StatementKind::GenericDelegateEnsure(reference) => {
                 DefaultStatementKindV1::GenericDelegateEnsure(
                     self.generic_delegate_reference(reference)?,

@@ -38,6 +38,15 @@ impl Lowerer {
                 })?;
         }
         let kind = match expression.kind() {
+            Kind::ContextLookup {
+                declaration,
+                parameter,
+                diagnostic,
+            } => hir::ExprKind::ContextLookup(hir::ContextRequirementRef {
+                declaration: hir::ContextRequirementOwner::Imported(*declaration),
+                parameter: *parameter,
+                diagnostic: diagnostic.clone(),
+            }),
             Kind::ReleaseFieldLoad {
                 owner_type,
                 declaration,

@@ -242,6 +242,7 @@ fn lower_sources_with_core(
 
 fn constant(name: &str) -> ast::PropertyDecl {
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

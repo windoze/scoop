@@ -71,6 +71,7 @@ impl Builder {
 
     pub(in crate::tests) fn type_gc_free(&self, ty: &mir::Type) -> bool {
         match ty {
+            mir::Type::Context(_) => false,
             mir::Type::Unit
             | mir::Type::Integer(_)
             | mir::Type::MachineScalar(_)

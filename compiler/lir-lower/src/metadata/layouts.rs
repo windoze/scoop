@@ -1,6 +1,7 @@
 use super::*;
 mod objects;
 mod shapes;
+mod task_context;
 mod values;
 
 pub(crate) use objects::*;
@@ -17,6 +18,7 @@ pub(crate) fn layouts(
     emit_runtime_string: bool,
 ) -> StorageResult<Arena<lir::Layout>> {
     let mut layouts = Arena::new();
+    task_context::append(context, identity_roots, module, enums, &mut layouts)?;
     for (id, def) in module.structs.iter() {
         let ty = def.physical_type(id);
         if !identity_roots.materializes_type(&ty) {

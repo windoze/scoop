@@ -599,6 +599,7 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     let value = locals.alloc(local("value", result));
     let caller = source.functions.alloc(hir::Function {
         signature: hir::CallableSignature {
+            context_parameters: Vec::new(),
             release_callability: Default::default(),
             name: "suspendIntrinsicCaller".to_string(),
             is_suspend: true,
@@ -737,6 +738,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         });
     let launcher = hir_module.functions.alloc(hir::Function {
         signature: hir::CallableSignature {
+            context_parameters: Vec::new(),
             release_callability: Default::default(),
             name: "launcher".to_string(),
             is_suspend: false,

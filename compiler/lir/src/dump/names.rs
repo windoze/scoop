@@ -6,6 +6,7 @@ pub(super) fn block_name(function: &Function, id: BlockId) -> String {
 
 pub(super) fn value_name(value: Value) -> String {
     match value {
+        Value::ContextKeyCell(key) => format!("context-cell<{}>", key.0),
         Value::Local(id) => format!("local{}", id.into_raw()),
         Value::Param(index) => format!("param{index}"),
         Value::Temp(id) => format!("t{}", id.into_raw()),

@@ -229,7 +229,7 @@ fn emitted_callable_members_materialize_every_planned_atom_boundary() {
     let mut callable_count = 0;
 
     for member in emitted.members() {
-        let EmittedConeObjectMemberKindV1::CallableBody { body } = member.kind() else {
+        let EmittedConeObjectMemberKindV1::CallableBody { body, .. } = member.kind() else {
             continue;
         };
         callable_count += 1;

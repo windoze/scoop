@@ -10,6 +10,7 @@ fn public_declarations(declarations: Vec<Decl>) -> Vec<Decl> {
 
 fn mutable_property(name: &str) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

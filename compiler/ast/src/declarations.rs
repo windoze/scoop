@@ -66,6 +66,7 @@ impl VisibilitySyntax {
 /// migrated feature-by-feature without maintaining a second field model.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PropertyDecl {
+    pub context_parameters: Vec<crate::ContextParameter>,
     pub annotations: Vec<Annotation>,
     pub visibility: VisibilitySyntax,
     pub modifier: MethodModifier,
@@ -678,6 +679,7 @@ pub struct FieldDecl {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct FunctionDecl {
+    pub context_parameters: Vec<crate::ContextParameter>,
     /// Compiler-recognized annotations in source order (spec 9.4 / M12).
     pub annotations: Vec<Annotation>,
     pub visibility: VisibilitySyntax,

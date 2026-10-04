@@ -7,6 +7,7 @@ fn top_level_property(
     body: ast::PropertyBodySyntax,
 ) -> ast::PropertyDecl {
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v48_retains_character_literals_and_operations() {
+fn source_interface_v49_retains_context_operations() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        48,
+        49,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -24,10 +24,10 @@ fn type_semantics_v15_retains_character_representation() {
 }
 
 #[test]
-fn mir_type_bridge_v8_retains_character_scalars() {
+fn mir_type_bridge_v9_retains_context_storage() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        8,
+        9,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -44,10 +44,10 @@ fn lir_layout_abi_v7_retains_character_scalars() {
 }
 
 #[test]
-fn compiler_protocol_v7_retains_character_roles() {
+fn compiler_protocol_v8_retains_missing_context_exception() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        7,
+        8,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

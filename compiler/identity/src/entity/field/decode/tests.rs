@@ -212,8 +212,8 @@ fn field_decoder_rejects_unknown_outer_and_generated_tags() {
     let outer = decode_canonical::<DecodedFieldIdentityKey>(b"\xa1\x00\x03").unwrap_err();
     assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let generated = decode_canonical::<DecodedGeneratedFieldKey>(b"\xa1\x00\x0e").unwrap_err();
-    assert_eq!(generated.kind(), &WireErrorKind::UnknownTag { tag: 14 });
+    let generated = decode_canonical::<DecodedGeneratedFieldKey>(b"\xa1\x00\x0f").unwrap_err();
+    assert_eq!(generated.kind(), &WireErrorKind::UnknownTag { tag: 15 });
 }
 
 fn source_nominal(

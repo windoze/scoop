@@ -41,6 +41,7 @@ fn struct_construction_and_field_access() {
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
+  class MissingContextException(message: Option<String>)
   class IndexOutOfBoundsException()
   class IllegalArgumentException(message: Option<String>)
   class IllegalStateException(message: Option<String>)

@@ -213,6 +213,7 @@ impl Lowerer {
             let access = self.local_declaration_access();
             let function = self.functions.alloc(hir::Function {
                 signature: hir::CallableSignature {
+                    context_parameters: Vec::new(),
                     release_callability: Default::default(),
                     name: self.current_fn_name.clone(),
                     is_suspend,

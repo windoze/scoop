@@ -4,6 +4,11 @@ use super::{dump_block, dump_pattern, dump_type_ref};
 pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match expr {
+        Expr::ContextScope { value, body, .. } => {
+            out.push_str(&format!("{pad}ContextScope\n"));
+            dump_expr(value, indent + 1, out);
+            dump_block(body, indent + 1, out);
+        }
         Expr::CharLiteral { value, .. } => out.push_str(&format!("{pad}CharLiteral {value:?}\n")),
         Expr::StringLiteral { value, .. } => {
             out.push_str(&format!("{pad}StringLiteral {value:?}\n"));

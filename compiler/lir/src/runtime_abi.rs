@@ -60,7 +60,7 @@ impl WireEncode for RuntimeAbiContract {
         for field in 1..=3 {
             encoder.field(field)?;
             encoder.unsigned(match field {
-                1 => 4,
+                1 => 5,
                 3 => 2,
                 _ => INITIAL_SCHEMA,
             })?;
@@ -103,7 +103,22 @@ pub enum RuntimeAbiSymbolV1 {
 }
 
 impl RuntimeAbiSymbolV1 {
-    pub const ALL: [Self; 50] = [
+    pub const ALL: [Self; 59] = [
+        Self::LirCall(RuntimeFunction::Managed(
+            ManagedRuntimeFunction::ContextPush,
+        )),
+        Self::LirCall(RuntimeFunction::Managed(
+            ManagedRuntimeFunction::ContextFork,
+        )),
+        Self::LirCall(RuntimeFunction::Managed(
+            ManagedRuntimeFunction::ContextEnsureRoot,
+        )),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextTryGet)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextRestore)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextSnapshot)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextCurrent)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextEnter)),
+        Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextLeave)),
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Safepoint)),
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Alloc)),
         Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::BoxZst)),
@@ -176,6 +191,33 @@ impl RuntimeAbiSymbolV1 {
 
     pub const fn logical_symbol(self) -> &'static str {
         match self {
+            Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::ContextPush)) => {
+                "scoop_rt_context_push"
+            }
+            Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::ContextFork)) => {
+                "scoop_rt_context_fork"
+            }
+            Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::ContextEnsureRoot)) => {
+                "scoop_rt_context_ensure_root"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextTryGet)) => {
+                "scoop_rt_context_try_get"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextRestore)) => {
+                "scoop_rt_context_restore"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextSnapshot)) => {
+                "scoop_rt_context_snapshot"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextCurrent)) => {
+                "scoop_rt_context_current"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextEnter)) => {
+                "scoop_rt_context_enter"
+            }
+            Self::LirCall(RuntimeFunction::NoGc(NoGcRuntimeFunction::ContextLeave)) => {
+                "scoop_rt_context_leave"
+            }
             Self::LirCall(RuntimeFunction::Managed(ManagedRuntimeFunction::Safepoint)) => {
                 "scoop_rt_safepoint"
             }
@@ -706,10 +748,10 @@ mod tests {
 
     #[test]
     fn runtime_abi_contract_versions_the_unified_initialization_record() {
-        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010402010302");
+        assert_eq!(hex(&encode(&RuntimeAbiContract).unwrap()), "a3010502010302");
         assert_eq!(
             RuntimeAbiContract.fingerprint().unwrap().to_string(),
-            "b1738954278c8af3c6285bc5513d2a25aef20dfb55efa2481f9632df8c086186"
+            "39ddaf02bbb3d4bd52dfc692dc9ed40b4df3ade695eb312e824abfa633e78c1c"
         );
     }
 
@@ -783,7 +825,7 @@ mod tests {
         assert_eq!(allocation.symbol(), RuntimeAbiSymbolV1::AllocationContext);
         assert_eq!(
             allocation.id().to_string(),
-            "3279288a5abe80adfc133b11797600f808f562135cac145c707850b5346b2c6c"
+            "027238022f6588d492e3f69ff834ae268cc163aa82f8af12668408123e909875"
         );
         assert!(
             registry
@@ -839,7 +881,7 @@ mod tests {
                 .unwrap()
                 .id()
                 .to_string(),
-            "03f667982cb2fbb7f8b3b58877d08638730c629e294a7c2ee97c9e0ea45fed07"
+            "d1f9bc6c64c2698baeaef602dea58168c2a1b55a3ff327f857a41238526484f3"
         );
     }
 

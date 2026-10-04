@@ -3,11 +3,11 @@ use scoop_lir::StrongCallableRegistrationPlanV1;
 use super::StrongCallableRegistrationValidationError;
 
 const DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5043_414c;
-pub(in crate::link_object) const ABI_VERSION: u32 = 3;
+pub(in crate::link_object) const ABI_VERSION: u32 = 4;
 const DEFINITION_FINGERPRINT_OFFSET: usize = 120;
 const BODY_DEFINITION_FINGERPRINT_OFFSET: usize = 152;
 const DIGEST_WIDTH: usize = 32;
-pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 192;
+pub(in crate::link_object) const DESCRIPTOR_SIZE: usize = 208;
 
 pub(super) fn validate_record_bytes(
     object: &[u8],
@@ -47,6 +47,7 @@ pub(in crate::link_object) fn expected_record(
     write_u64(&mut bytes, 0, DESCRIPTOR_MAGIC);
     write_u32(&mut bytes, 8, ABI_VERSION);
     write_u32(&mut bytes, 12, DESCRIPTOR_SIZE as u32);
+    write_u64(&mut bytes, 200, plan.context_key_count());
     bytes[16..152].copy_from_slice(
         &crate::link_object::registration_identity::provisional_registration_identity(
             plan.body().as_array(),
