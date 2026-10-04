@@ -38,9 +38,31 @@ fixture 名称或历史迁移表判断覆盖。正式验收继续运行完整 CL
 - 其他专用测试中存在按源码分支选择的损坏 metadata 检查，未仅因已有同名
   fixture 而删除。
 
+## 产物指纹与重复修改矩阵
+
+`DecodedSlibEnvelope::open` 在解码内部语义前检查成员内容摘要及产物指纹。
+`envelope_rejects_manifest_and_member_corruption` 已覆盖未重新计算摘要的损坏
+产物被拒绝。指纹匹配不等于内部引用或 ABI 正确；必要的格式、类型、引用与
+ABI 检查仍保留，不能将指纹用作额外的来源授权。
+
+原 `link_symbol_uses` 集成测试会修改内容后重新计算成员摘要和产物指纹，
+随后对每个候选重放完整 core 依赖闭包。移除其中三组重复矩阵：最终对象
+清单／覆盖摘要、runtime 投影／摘要补丁，以及 Code 投影／摘要副本。
+仅最终覆盖这一组就在两份输入上执行了 50 次完整重放；这些字段最终使用
+整体比较，逐项枚举缺失、重复、顺序和摘要变化没有独立语言语义价值。
+
+保留真实产物的完整 reader 成功检查、符号分类／引用及 ABI 拒绝检查。
+容器损坏、最终对象重建、覆盖清单、注册摘要和 Code 指纹各自已有 `scoop-slib`
+局部单元测试；正式 CLI fixture 继续锁定生成产物、阶段输出、独立消费、
+链接和执行结果。这里删除的是重复全链路枚举，不改生产侧 reader 的行为。
+
 ## 验证
 
 删除后先执行 `cargo fmt --all` 和 `cargo clippy --workspace --all-targets`。
 两项均通过，lint 没有警告。对应八个核心 CLI fixture 在全新工作目录、关闭
 更新模式后通过：8 个变体、27 个进程、65 份 stage／link-plan golden。
 额外的堆空值字段运行组合及最终全仓验收见 [ACCEPTANCE.md](ACCEPTANCE.md)。
+
+三组重复修改矩阵移除后，格式化与全 workspace lint 通过；`scoop-slib` 的
+591 项单元测试全部通过。完整 workspace 初轮的慢测试本身通过，但耗时
+2634.42 秒，不能作为合理速度基线。后续耗时复验见验收记录。
