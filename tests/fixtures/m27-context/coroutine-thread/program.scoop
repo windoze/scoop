@@ -1,0 +1,100 @@
+@Extern(lib = "fixture_native", name = "m13_start_one")
+fun startOne(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, value: Int): Ptr<Unit>
+
+@Extern(lib = "fixture_native", name = "m13_join_one")
+fun joinOne(job: Ptr<Unit>): Int
+
+class Request(val id: Int)
+
+context(request: Request)
+fun current(): Int = request.id
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class Gate(val fail: Boolean) : SuspendRegistration<Int> {
+    var job: Ptr<Unit>? = None
+    var observer: ForeignCallback<(Int, Ptr<Unit>) -> Int>? = None
+    public override fun register(continuation: Continuation<Int>) {
+        expect(current() == 2)
+        val fail = this.fail
+        @Unsafe {
+            val worker = foreignCallback<(Int, Ptr<Unit>) -> Int>(
+                { value: Int ->
+                    gcCollect()
+                    if (fail) { continuation.resumeWithException(IllegalStateException()) }
+                    else { continuation.resume(value) }
+                    gcCollect()
+                    value
+                },
+                1,
+                ForeignCallbackMode.OneShot
+            )
+            observer = Some(retainForeignCallback(worker))
+            job = Some(startOne(worker.function, worker.context, 40))
+        }
+    }
+}
+
+class Completion : Continuation<Int> {
+    var value: Int = 0
+    var calls: Int = 0
+    public override fun resume(value: Int) {
+        gcCollect()
+        expect(current() == 1)
+        this.value = value
+        calls = calls + 1
+    }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+context(entry: Request)
+suspend fun direct(gate: Gate): Int {
+    expect(entry.id == 2)
+    try {
+        return suspendCoroutine(gate) + current()
+    } catch (failure: IllegalStateException) {
+        gcCollect()
+        expect(entry.id == 2 && current() == 2)
+        return 42
+    } finally {
+        expect(current() == 2)
+    }
+}
+
+context(entry: Request)
+suspend fun task(gate: Gate): Int {
+    expect(entry.id == 1)
+    return context(Request(2)) {
+        val value = direct(gate)
+        gcCollect()
+        expect(entry.id == 1 && current() == 2)
+        value
+    }
+}
+
+fun main() {
+    context(Request(1)) {
+        var index = 0
+        while (index < 2) {
+            val gate = Gate(index == 1)
+            val done = Completion()
+            startCoroutine(suspend { task(gate) }, done)
+            expect(current() == 1 && done.calls == 0)
+            gcCollect()
+            context(Request(9)) {
+                @Unsafe {
+                    expect(joinOne(gate.job!!) == 40)
+                    val observer = gate.observer!!
+                    expect(foreignCallbackState(observer) == ForeignCallbackState.Completed)
+                    expect(when (foreignCallbackFailure(observer)) { Some(_) -> false
+                        None -> true })
+                    releaseForeignCallback(observer)
+                }
+                expect(current() == 9)
+            }
+            expect(current() == 1 && done.calls == 1 && done.value == 42)
+            index = index + 1
+        }
+    }
+    println("coroutine-thread-ok")
+}

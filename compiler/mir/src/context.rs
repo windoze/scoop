@@ -64,6 +64,7 @@ pub enum ContextOperation<E> {
     TryGet { key: ContextKey },
     Push { key: ContextKey, value: Box<E> },
     Restore { mark: Box<E> },
+    Current,
     Snapshot,
     Fork { root: Box<E> },
     Enter { task: Box<E> },
@@ -76,7 +77,7 @@ pub enum ContextOperation<E> {
 impl<E> ContextOperation<E> {
     pub fn operand(&self) -> Option<&E> {
         match self {
-            Self::TryGet { .. } | Self::Snapshot | Self::EnsureRoot => None,
+            Self::TryGet { .. } | Self::Current | Self::Snapshot | Self::EnsureRoot => None,
             Self::Push { value, .. } => Some(value),
             Self::Restore { mark } => Some(mark),
             Self::Fork { root } => Some(root),
@@ -88,7 +89,7 @@ impl<E> ContextOperation<E> {
 
     pub fn operand_mut(&mut self) -> Option<&mut E> {
         match self {
-            Self::TryGet { .. } | Self::Snapshot | Self::EnsureRoot => None,
+            Self::TryGet { .. } | Self::Current | Self::Snapshot | Self::EnsureRoot => None,
             Self::Push { value, .. } => Some(value),
             Self::Restore { mark } => Some(mark),
             Self::Fork { root } => Some(root),
@@ -103,6 +104,7 @@ impl<E> ContextOperation<E> {
             Self::TryGet { .. } => "ContextTryGet",
             Self::Push { .. } => "ContextPush",
             Self::Restore { .. } => "ContextRestore",
+            Self::Current => "ContextCurrent",
             Self::Snapshot => "ContextSnapshot",
             Self::Fork { .. } => "ContextFork",
             Self::Enter { .. } => "ContextEnter",
@@ -123,6 +125,7 @@ impl<E> ContextOperation<E> {
             Self::Restore { mark } => ContextOperation::Restore {
                 mark: Box::new(map(mark)),
             },
+            Self::Current => ContextOperation::Current,
             Self::Snapshot => ContextOperation::Snapshot,
             Self::Fork { root } => ContextOperation::Fork {
                 root: Box::new(map(root)),

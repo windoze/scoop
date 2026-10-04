@@ -15,3 +15,6 @@ public class ReaderImpl public constructor() : Reader<Request> {
     context(renamed: Request)
     public override val current: Request get() = renamed
 }
+
+context(request: Request)
+public suspend fun throughBWait(registration: SuspendRegistration<Int>): Request = delayed<Request>(registration)

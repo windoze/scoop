@@ -46,6 +46,9 @@ impl FunctionLowerer<'_> {
                     vec![task, root],
                 )
             }
+            Op::Current => {
+                self.emit_plain_call(leaf(Leaf::ContextCurrent), vec![], pointer, vec![])
+            }
             Op::Snapshot => {
                 self.emit_plain_call(leaf(Leaf::ContextSnapshot), vec![], pointer, vec![])
             }

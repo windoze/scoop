@@ -112,7 +112,18 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                 _ => continue,
             };
             let source_key = identities.canonical_key::<_, ExactTypeKey>(source_exact)?;
+            let context_mark = input
+                .module()
+                .meta
+                .generated_exact_types
+                .get_by_identity(source_exact)
+                .is_some_and(|entry| {
+                    matches!(entry.location(),
+                    GeneratedExactTypeLocation::Context(storage)
+                        if storage.role == crate::ContextStorageRole::Mark)
+                });
             let interfaces = match source_key.as_ref() {
+                _ if context_mark => &[],
                 ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
                     &sources
                         .get(source_exact)

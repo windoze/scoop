@@ -67,6 +67,7 @@ impl GeneratedFieldKey {
             | GeneratedFieldKeyKind::CallableReferenceReceiver(_)
             | GeneratedFieldKeyKind::CoroutineFrameState
             | GeneratedFieldKeyKind::CoroutineFrameCompletion
+            | GeneratedFieldKeyKind::CoroutineFrameTask
             | GeneratedFieldKeyKind::CoroutineFrameSaved(_)
             | GeneratedFieldKeyKind::CoroutineFrameFailure
             | GeneratedFieldKeyKind::CoroutineAdapterFrame

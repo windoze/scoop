@@ -47,3 +47,10 @@ public class UnusedPair<A: ref, B: ref> {
     context(a: A, b: B)
     public fun read(): Int = 1
 }
+
+context(value: T)
+public suspend fun <T: ref> delayed(registration: SuspendRegistration<Int>): T = context(value) {
+    suspendCoroutine(registration)
+    gcCollect()
+    current<T>()
+}

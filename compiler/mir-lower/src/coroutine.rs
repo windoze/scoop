@@ -11,6 +11,7 @@ use super::Lowerer;
 mod adapters;
 mod construction;
 mod errors;
+mod frame;
 mod intrinsics;
 mod liveness;
 mod sites;
@@ -113,12 +114,6 @@ fn transform_function(
     let completion_old = completion.local;
     let completion_ty = completion.ty.clone();
     let source_params = &old_params[..old_params.len() - 1];
-    let throwable_ty = crate::coroutine_registry::throwable_type(module, &lowerer.class_map);
-    lowerer
-        .source_exact_types
-        .get(&throwable_ty)
-        .expect("local-concrete HIR contains the Throwable exact type");
-
     let mut saved = HashSet::new();
     saved.extend(source_params.iter().map(|param| param.local));
     for site in &sites {
@@ -133,141 +128,22 @@ fn transform_function(
         }
     }
     let mut saved: Vec<_> = saved.into_iter().collect();
-    let saved_identity_by_local = saved
-        .iter()
-        .map(|local| {
-            (
-                *local,
-                lowerer
-                    .local_values
-                    .get(function_id, *local)
-                    .unwrap_or_else(|| {
-                        panic!(
-                            "coroutine-saved local `{}` has no persistent value identity",
-                            body.locals[*local].name
-                        )
-                    })
-                    .clone(),
-            )
-        })
-        .collect::<HashMap<_, _>>();
-    let frame_identity = mir::CoroutineFrameIdentity::new(
-        source_materialization,
-        saved_identity_by_local.values().cloned().collect(),
-        source_odr_group,
-    )
-    .expect("a coroutine frame has one persistent generated identity");
-    saved.sort_by_key(|local| saved_identity_by_local[local].id());
-
-    let mut frame_fields = vec![
-        mir::Field {
-            name: "state".to_string(),
-            ty: mir::Type::MachineScalar(mir::MachineScalarKind::CoroutineFrameState),
-        },
-        mir::Field {
-            name: "completion".to_string(),
-            ty: completion_ty.clone(),
-        },
-    ];
-    let mut frame_slots = HashMap::new();
-    for local in &saved {
-        let value_ty = body.locals[*local].ty.clone();
-        let (slot_id, slot_ty) = lowerer.coroutines.slot_for(
-            &lowerer.source_exact_types,
-            &value_ty,
-            &lowerer.structs,
-            &mut lowerer.enums,
-            &mut lowerer.shell,
-        );
-        let field = frame_fields.len() as u32;
-        frame_fields.push(mir::Field {
-            name: format!("local${}", body.locals[*local].name),
-            ty: slot_ty.clone(),
-        });
-        frame_slots.insert(
-            *local,
-            FrameSlot::new(
-                field,
-                slot_id,
-                slot_ty.clone(),
-                &lowerer.coroutines.slots[slot_id],
-            ),
-        );
-    }
-    let (failure_slot_id, failure_slot_ty) = lowerer.coroutines.slot_for(
-        &lowerer.source_exact_types,
-        &throwable_ty,
-        &lowerer.structs,
-        &mut lowerer.enums,
-        &mut lowerer.shell,
-    );
-    let failure_slot = FrameSlot::new(
-        frame_fields.len() as u32,
-        failure_slot_id,
-        failure_slot_ty.clone(),
-        &lowerer.coroutines.slots[failure_slot_id],
-    );
-    frame_fields.push(mir::Field {
-        name: "failure".to_string(),
-        ty: failure_slot_ty,
-    });
-    let frame_name = format!("CoroutineFrame<{source_name}>");
-    let frame_class = generated_class(lowerer, frame_name, frame_fields, Vec::new(), Vec::new());
-    let state_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 0)
-        .expect("the generated coroutine frame has a state field");
-    let completion_field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, 1)
-        .expect("the generated coroutine frame has a completion field");
-    let frame_layout = FrameLayout {
-        state: state_field,
-        completion: completion_field,
-    };
-    let mut saved_value_by_local = HashMap::new();
-    let mut saved_values = Vec::with_capacity(saved.len());
-    for local in &saved {
-        let slot = &frame_slots[local];
-        let field = mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, slot.field)
-            .expect("each generated coroutine saved slot has a typed frame field");
-        let metadata = mir::CoroutineSavedValue::checked(
-            &lowerer.classes,
-            &lowerer.coroutines.slots,
-            field,
-            slot.slot,
-        )
-        .expect("each generated coroutine saved slot has its exact value type");
-        let value = lowerer.coroutines.saved_values.alloc(metadata);
-        saved_value_by_local.insert(*local, value);
-        saved_values.push(value);
-    }
-    let failure_field =
-        mir::CoroutineFrameFieldRef::checked(&lowerer.classes, frame_class, failure_slot.field)
-            .expect("the generated coroutine frame has a typed failure field");
-    let mir::Type::Class(throwable_class) = &throwable_ty else {
-        unreachable!("the coroutine failure slot carries the canonical Throwable class")
-    };
-    let throwable_class = *throwable_class;
-    let failure_metadata = mir::CoroutineFailureValue::checked(
-        &lowerer.classes,
-        &lowerer.coroutines.slots,
-        failure_field,
-        failure_slot.slot,
-        throwable_class,
-    )
-    .expect("the generated coroutine failure slot carries exact Throwable");
-    let failure_value = lowerer.coroutines.failure_values.alloc(failure_metadata);
-    let frame_metadata = mir::CoroutineFrame::checked(
-        &lowerer.classes,
-        &lowerer.coroutines.saved_values,
-        &lowerer.coroutines.failure_values,
-        frame_class,
-        coroutine,
-        state_field,
-        completion_field,
-        saved_values,
+    let frame::ConstructedFrame {
+        class: frame_class,
+        frame,
+        layout: frame_layout,
+        slots: frame_slots,
+        saved_values: saved_value_by_local,
+        failure_slot,
         failure_value,
-        frame_identity,
-    )
-    .expect("the generated coroutine frame has disjoint typed field roles");
-    let frame = lowerer.coroutines.frames.alloc(frame_metadata);
+    } = frame::construct(
+        lowerer,
+        module,
+        coroutine,
+        &body.locals,
+        &completion_ty,
+        &mut saved,
+    );
 
     let driver = lowerer.functions.alloc(mir::Function {
         gc_effect: mir::GcEffect::Managed,
@@ -419,6 +295,7 @@ fn transform_function(
     lowerer.functions[function_id].params = wrapper_params;
     lowerer.functions[function_id].body = wrapper_body(
         frame_class,
+        frame_layout.task_storage,
         wrapper_locals,
         &saved,
         &frame_slots,
@@ -473,6 +350,8 @@ struct FrameSlot {
 struct FrameLayout {
     state: mir::CoroutineFrameFieldRef,
     completion: mir::CoroutineFrameFieldRef,
+    task: mir::CoroutineFrameFieldRef,
+    task_storage: mir::ContextStorageType,
 }
 
 impl FrameSlot {

@@ -68,6 +68,7 @@ enum GeneratedFieldKeyKind {
     CallableReferenceReceiver(PersistentLocalValueId),
     CoroutineFrameState,
     CoroutineFrameCompletion,
+    CoroutineFrameTask,
     CoroutineFrameSaved(PersistentLocalValueId),
     CoroutineFrameFailure,
     CoroutineAdapterFrame,
@@ -94,6 +95,7 @@ impl WireEncode for GeneratedFieldKey {
             }
             GeneratedFieldKeyKind::CoroutineFrameState => encode_empty_sum(encoder, 4),
             GeneratedFieldKeyKind::CoroutineFrameCompletion => encode_empty_sum(encoder, 5),
+            GeneratedFieldKeyKind::CoroutineFrameTask => encode_empty_sum(encoder, 15),
             GeneratedFieldKeyKind::CoroutineFrameSaved(value) => {
                 encode_value_sum(encoder, 6, &value)
             }
@@ -222,6 +224,10 @@ impl FieldIdentityKey {
         owner: &GeneratedNominalKey,
     ) -> Result<Self, FieldIdentityError> {
         coroutine_frame_field(owner, GeneratedFieldKeyKind::CoroutineFrameCompletion)
+    }
+
+    pub fn coroutine_frame_task(owner: &GeneratedNominalKey) -> Result<Self, FieldIdentityError> {
+        coroutine_frame_field(owner, GeneratedFieldKeyKind::CoroutineFrameTask)
     }
 
     pub fn coroutine_frame_saved(

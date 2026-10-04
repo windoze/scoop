@@ -5,6 +5,25 @@ import taskcontexts.middle.*
 
 fun verify(value: Boolean) { if (!value) { throw IllegalStateException() } }
 
+class Gate : SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) { waiter = Some(continuation) }
+    fun complete() {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(0)
+    }
+}
+
+class Completion : Continuation<Request> {
+    var value: Int = 0
+    public override fun resume(value: Request) {
+        verify(current<Request>().value == 41)
+        this.value = value.value
+    }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
 fun main() {
     val request = Request(40)
     val reader: Reader<Request> = ReaderImpl()
@@ -22,6 +41,21 @@ fun main() {
         verify(active == 41)
         verify(withDefault() == 82)
     }
+    val gate = Gate()
+    val done = Completion()
+    val secondGate = Gate()
+    val secondDone = Completion()
+    context(request) {
+        startCoroutine(suspend { delayed<Request>(gate) }, done)
+        startCoroutine(suspend { throughBWait(secondGate) }, secondDone)
+    }
+    gcCollect()
+    context(Request(99)) {
+        gate.complete()
+        secondGate.complete()
+        verify(current<Request>().value == 99)
+    }
+    verify(done.value == 41 && secondDone.value == 41)
     var missing = false
     try { direct() } catch (error: MissingContextException) { missing = true }
     verify(missing)

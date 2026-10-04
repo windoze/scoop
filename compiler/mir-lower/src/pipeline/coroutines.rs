@@ -50,6 +50,7 @@ impl Lowerer {
             let protocol = self.coroutine_protocol(module, &value);
             self.coroutines.start_helper(
                 &self.source_exact_types,
+                crate::context::core_provider(module),
                 &value,
                 self.interfaces.mir_id(protocol.suspend_task),
                 self.interfaces.mir_id(protocol.continuation),

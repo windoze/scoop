@@ -71,6 +71,7 @@ pub enum DecodedGeneratedFieldKey {
     CallableReferenceReceiver(DecodedPersistentId<PersistentLocalValueId>),
     CoroutineFrameState,
     CoroutineFrameCompletion,
+    CoroutineFrameTask,
     CoroutineFrameSaved(DecodedPersistentId<PersistentLocalValueId>),
     CoroutineFrameFailure,
     CoroutineAdapterFrame,
@@ -95,6 +96,7 @@ impl WireEncode for DecodedGeneratedFieldKey {
             Self::CallableReferenceReceiver(value) => encode_value_sum(encoder, 3, value),
             Self::CoroutineFrameState => encode_empty_sum(encoder, 4),
             Self::CoroutineFrameCompletion => encode_empty_sum(encoder, 5),
+            Self::CoroutineFrameTask => encode_empty_sum(encoder, 15),
             Self::CoroutineFrameSaved(value) => encode_value_sum(encoder, 6, value),
             Self::CoroutineFrameFailure => encode_empty_sum(encoder, 7),
             Self::CoroutineAdapterFrame => encode_empty_sum(encoder, 8),
@@ -116,6 +118,7 @@ impl WireDecode for DecodedGeneratedFieldKey {
             3 => decode_id_variant(decoder, fields, Self::CallableReferenceReceiver),
             4 => decode_empty_variant(decoder, fields, Self::CoroutineFrameState),
             5 => decode_empty_variant(decoder, fields, Self::CoroutineFrameCompletion),
+            15 => decode_empty_variant(decoder, fields, Self::CoroutineFrameTask),
             6 => decode_id_variant(decoder, fields, Self::CoroutineFrameSaved),
             7 => decode_empty_variant(decoder, fields, Self::CoroutineFrameFailure),
             8 => decode_empty_variant(decoder, fields, Self::CoroutineAdapterFrame),
@@ -305,6 +308,9 @@ where
         DecodedGeneratedFieldKey::CoroutineFrameCompletion => {
             FieldIdentityKey::coroutine_frame_completion(owner)
                 .map_err(FieldIdentityResolutionError::Key)
+        }
+        DecodedGeneratedFieldKey::CoroutineFrameTask => {
+            FieldIdentityKey::coroutine_frame_task(owner).map_err(FieldIdentityResolutionError::Key)
         }
         DecodedGeneratedFieldKey::CoroutineFrameSaved(value) => resolver
             .resolve(value)

@@ -1590,6 +1590,10 @@ ContextScope 在 coroutine transform 前纳入已有结构化 cleanup：先求�
 
 每个 resumable frame 增加非可选 TaskContext field，source callable 的 initial entry 从 current task 初始化它。start helper fork/enter child，resume adapter 在现有 atomic claim 成功并将实际驱动时 enter frame task，所有 driver 出口 leave。REGISTERING/latched payload 路径不驱动 frame，也不切换 Context。execution guard 不跨一个已退出的 driver 保留；source scope mark 则可以跨挂起。普通 closure conversion 只捕获实际词法 local；callback registration 的固定 snapshot 语义属于该操作，不给所有 closure 增加 Context field。
 
+frame 的固定字段顺序为 state、completion、task，然后是按持久 local identity 排序的 saved slots，最后是 failure slot。task 字段使用 generated field tag 15，拥有独立 typed field identity；读取当前 task 使用无分配 ContextCurrent leaf。跨挂起的 ContextMark 是 MIR 生成的精确值类型，不写入 source-exact 类型表；其 CoroutineSlot 按已有 StructuralType exact specialization group 生成和 ODR 合并。frame 字段和这项生成值支持纳入 MIR identity-foundation /4、type-bridge /10，取代 M27 同步批次的 /3、/9。
+
+启动 helper 与实际 resume 驱动分别保存完整 ContextSwitchGuard。body 失败先沿原 Throwable materialization 路径通知 completion；completion 自身抛出只执行 leave 后继续 unwind，不再次通知失败。MaterializeException 的 unwind 同时结束已有 catch 并恢复 guard。fork 发生在 enter 之前，尚未进入 child 时的分配失败不读取未初始化的 guard。
+
 **LIR/codegen 与入口。** try-get、restore、enter/leave 是独立 runtime target 的 managed-ref leaf，不冒充源码 NoGC callable。push/fork/空 task allocation 携带真实 SafepointId、完整 caller/statepoint/native root plan；所有 internal null 保留 nullable managed provenance。codegen 机械发射这些操作、实际 TD 引用和已生成的 cleanup，不读取 TLS 私有 offset 来补语义。
 
 无分配 leaf 仍访问 ThreadState/tree。codegen 保留保守 memory effect，只声明实际保证的 nounwind/GC-leaf 属性；不得按“没有 safepoint”推成 readnone/argmemonly，或让 LLVM 把查找跨 binding/task 切换错误 hoist/CSE。不为此增加新的 effect 推断框架。

@@ -34,6 +34,16 @@ context 参数在 callable 声明与 portable callable body 中分别以独立�
 
 本批通过格式化与全 workspace lint、parser 451、HIR lowering 1327 项库测试及四项 callable registration 测试。正式 M27 CLI 集合以普通验收模式通过 65/65 个用例、84 个进程和 27 份 stage golden。新增生产模块为 19、47、79 行；codegen 使用既有 body 发射计划识别尚未生成基本块的 ODR 定义，保持 metadata 与 body 同对象发射。
 
+## M27-4 协程任务传播
+
+resumable frame 在发布 continuation 前保存完整 TaskContext，direct suspend 调用沿用当前 task。start helper 从当前 binding root fork；resume/failure adapter 仅在成功取得实际驱动权后进入 frame task，同步 latch 不切换任务。正常完成、再次挂起、body 失败、completion 抛出和 catch materialization 的 unwind 均恢复调用前的 task，completion 自身失败不会触发第二次通知。
+
+跨挂起的 context 入口 local 和 scope mark 使用精确 CoroutineSlot；mark 保持 MIR 生成值类型身份，并沿既有 StructuralType group 合并 ODR helper。读取跨 Cone slot 的 GC 属性时借用可达依赖中已验证的类型记录。frame 的 task 字段使用 generated field tag 15，MIR identity-foundation /4、type-bridge /10 同步更新。
+
+新增 `coroutines`、`coroutine-completion`、`coroutine-exits`、`coroutine-thread` 四套正式 fixture，覆盖立即完成、真实挂起、direct 链、同步 resume latch、绑定表达式挂起、泛型入口 local、return/break/continue、catch/rethrow、挂起的 finally、completion 抛出与外部线程恢复。四套均保存 HIR/MIR/LIR golden 并运行普通和 moving GC 路径。A→B→C 独立产物用例增加泛型 suspend context、跨 Cone direct 调用与重复 mark slot 的 ODR 消费。
+
+本批通过格式化与无警告的全 workspace lint；identity 337、MIR 345、MIR lowering 114、LIR lowering 146 项库测试和 18 项 profile 测试通过。11 份既有 MIR stage snapshot 更新后关闭更新模式复验。完整 M27 CLI 集合以普通验收模式通过 69/69 个用例、98 个进程和 39 份 stage golden。新增生产模块为 125、131、191 行，协程主文件拆分后为 460 行。
+
 ## 后续批次
 
-M27-4 协程任务传播、M27-5 callback snapshot 和 M27-6 总验收仍在实施计划内。全部完成前不标记路线图 M27 完成。
+M27-5 callback snapshot 和 M27-6 总验收仍在实施计划内。全部完成前不标记路线图 M27 完成。

@@ -397,7 +397,7 @@ runtime 检查新增 span/cell 的范围、可写性、零初态、实际 owner 
 | --- | --- | --- |
 | runtime metadata | ABI 3；image 六类 table，callable record exact-sized | ABI 4，更新 callable cell-list 字段与 size；image table 集合和启动参数保持 |
 | HIR | core-bootstrap-interface /7、cross-cone-interface /48、type-semantics /15 | core-bootstrap-interface /8、cross-cone-interface /50、type-semantics /16（/49 是 M27-1 共享 body 节点的中间版本） |
-| MIR | identity-foundation /2、type-bridge /8 | identity-foundation /3、type-bridge /9，保留现有表示表 |
+| MIR | identity-foundation /2、type-bridge /8 | identity-foundation /4、type-bridge /10（/3、/9 是同步批次版本），保留现有表示表 |
 | LIR | foundation /3、layout-abi /7、layout-link-closure /5、cone-production /5、strong-production /17、link-identity-closure /10 | foundation /4、cone-production /6、strong-production /18、link-identity-closure /11；布局字段未改变的 section 保留版本，更新内容 fingerprint |
 | profile | 两个 Strong /4、cross-cone-generic /3 | Strong /5、generic /4，required inventory 同批切换 |
 | outer/container/identity | HIR/MIR/LIR outer schema 2，callable-body-v2，persistent-v1 mangler | 保留既有域与规则，新增封闭 generated nominal/atom variant |

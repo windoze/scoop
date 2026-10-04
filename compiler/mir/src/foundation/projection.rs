@@ -101,6 +101,7 @@ fn field_records(module: &Module) -> Result<Vec<FieldRecord>, MirFoundationBuild
         for field in [
             identity.state_field_record(),
             identity.completion_field_record(),
+            identity.task_field_record(),
             identity.failure_field_record(),
         ] {
             insert_identity(&mut records, field, MirFoundationTable::Field)?;

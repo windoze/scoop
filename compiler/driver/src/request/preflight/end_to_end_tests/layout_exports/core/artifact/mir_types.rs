@@ -30,6 +30,7 @@ pub(super) fn check(
                 graph,
                 core,
                 section.types(),
+                section.types(),
                 section.shape_support(),
             )
             .unwrap();
@@ -64,6 +65,7 @@ impl Replay<'_, '_> {
             &[],
             self.graph,
             self.core,
+            &types,
             &types,
             shapes,
         )

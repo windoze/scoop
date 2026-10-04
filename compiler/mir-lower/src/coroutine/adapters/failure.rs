@@ -55,6 +55,11 @@ pub(super) fn generate_failure_method(
     let valid = blocks.alloc(mir::BasicBlock {
         name: "valid".to_string(),
         statements: vec![
+            exits.switch.enter(frame_field(
+                adapter_frame(this, adapter, frame_class),
+                frame_layout.task.field_index(),
+                mir::Type::Context(frame_layout.task_storage),
+            )),
             field_set(
                 adapter_frame(this, adapter, frame_class),
                 failure_slot.field,

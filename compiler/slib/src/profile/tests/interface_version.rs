@@ -24,10 +24,10 @@ fn type_semantics_v16_retains_context_slot_contracts() {
 }
 
 #[test]
-fn mir_type_bridge_v9_retains_context_storage() {
+fn mir_type_bridge_v10_retains_task_frames() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        9,
+        10,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

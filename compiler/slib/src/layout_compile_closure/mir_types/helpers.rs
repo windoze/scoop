@@ -1,7 +1,6 @@
 use scoop_hir as hir;
 use scoop_identity::{ExactTypeKey, GeneratedNominalKey};
 use scoop_mir as mir;
-use scoop_mir::MirTypeBridgeTypeLookupV1;
 use scoop_wire::WirePath;
 
 use super::{Error, SharedMirTypeComponent as Component, validation::Comparison};
@@ -137,7 +136,9 @@ pub(super) fn generated(
         }
         GeneratedNominalKey::CoroutineStep { result: payload }
         | GeneratedNominalKey::CoroutineSlot { value: payload } => {
-            let gc = comparison.types.exact_gc_kind(identities, *payload)?;
+            let gc = comparison
+                .payload_types
+                .exact_gc_kind(identities, *payload)?;
             Error::require(record.exact(), Component::Facts, record.facts().gc() == gc)?;
             Error::require(
                 record.exact(),
