@@ -1,0 +1,47 @@
+interface Named {}
+open class Base(val value: Int) : Named
+class Derived(value: Int) : Base(value)
+typealias Text = String
+
+context(value: Base)
+fun base(): Int = value.value
+
+context(_: Named)
+fun named(): String = "named"
+
+context(value: Text)
+fun text(): String = value
+
+context(value: Array<Int>)
+fun integerArray(): Int = value[0]
+
+context(value: Array<Long>)
+fun longArray(): Long = value[0]
+
+context(value: () -> Int)
+fun functionKey(): Int = value()
+
+fun main() {
+    val derived = Derived(17)
+    context(derived) {
+        try { base() } catch (error: MissingContextException) { println("exact-class") }
+        try { named() } catch (error: MissingContextException) { println("exact-interface") }
+    }
+    val upcast: Base = derived
+    val interfaceValue: Named = derived
+    context(upcast) { println(base()) }
+    context(interfaceValue) { println(named()) }
+    val optional: Any = "smartcast"
+    if (optional is String) { context(optional) { println(text()) } }
+    context("alias") { println(text()) }
+    context(Array<Int>(1L) { _ -> 21 }) {
+        try { longArray() } catch (error: MissingContextException) { println("exact-array") }
+        context(Array<Long>(1L) { _ -> 22L }) {
+            gcCollect()
+            println(integerArray())
+            println(longArray())
+        }
+    }
+    val function: () -> Int = { 23 }
+    context(function) { gcCollect(); println(functionKey()) }
+}

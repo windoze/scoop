@@ -95,6 +95,10 @@ fn collect_statement_integer_literal_kinds(
 ) {
     for statement in statements {
         match &statement.kind {
+            hir::StatementKind::ContextScope { value, body } => {
+                collect_integer_literal_kinds(lowerer, value, kinds);
+                collect_statement_integer_literal_kinds(lowerer, body, kinds);
+            }
             hir::StatementKind::Expr(expression)
             | hir::StatementKind::ValDecl {
                 init: expression, ..

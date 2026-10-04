@@ -102,7 +102,6 @@ pub(super) fn check(
         "shared-callables-combined" => Some("SharedCallableImpl"),
         "shared-equality-standalone" => Some("SharedEqualityHidden"),
         "shared-units-combined" => Some("SharedUnitHidden"),
-        "shared-production-combined" => Some("SharedProductionPrivate"),
         _ => None,
     });
     expected_local.sort();

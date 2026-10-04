@@ -42,6 +42,9 @@ impl Concretizer<'_> {
         };
         self.complete_class_definition(id, definition, &arguments, method_owner);
         self.materialize_release_hook(id, origin, &arguments);
+        if let Some(imported) = self.source.loaded_class_definitions.get(&origin) {
+            self.check_loaded_contexts(&imported.context_contracts, &arguments);
+        }
         self.type_use_site = previous_site;
         id
     }
@@ -186,6 +189,10 @@ impl Concretizer<'_> {
         source_methods: &[export::FunctionId],
         owner: concrete::MethodOwner,
     ) -> Vec<concrete::FunctionId> {
+        let substitution = self.concrete_method_owner_arguments(owner).to_vec();
+        for &method in source_methods {
+            self.check_source_method_context(method, &substitution);
+        }
         source_methods
             .iter()
             .copied()

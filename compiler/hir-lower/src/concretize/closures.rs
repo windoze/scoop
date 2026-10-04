@@ -174,7 +174,15 @@ impl Concretizer<'_> {
         substitution: &[concrete::TypeId],
         callback: concrete::StructId,
     ) -> concrete::ForeignCallbackRegistrationId {
-        let key = (source_id, substitution.to_vec());
+        let source = self.source.foreign_callback_registrations[source_id].clone();
+        let arguments = match &source.definition {
+            export::ForeignCallbackDefinition::Source { .. } => substitution.to_vec(),
+            export::ForeignCallbackDefinition::Imported { arguments, .. } => arguments
+                .iter()
+                .map(|argument| self.lower_type(*argument, substitution))
+                .collect(),
+        };
+        let key = (source_id, arguments.clone());
         if let Some(&id) = self.foreign_callback_by_key.get(&key) {
             assert_eq!(
                 self.foreign_callback_slots[id.into_raw().into_u32() as usize].callback,
@@ -182,7 +190,6 @@ impl Concretizer<'_> {
             );
             return id;
         }
-        let source = self.source.foreign_callback_registrations[source_id].clone();
         let native_function_type =
             self.lower_function_type(source.native_function_type, substitution);
         let managed_function_type =
@@ -195,7 +202,7 @@ impl Concretizer<'_> {
         self.foreign_callback_slots
             .push(PendingForeignCallbackRegistration {
                 source: source_id,
-                arguments: substitution.to_vec(),
+                arguments,
                 callback,
                 native_function_type,
                 managed_function_type,

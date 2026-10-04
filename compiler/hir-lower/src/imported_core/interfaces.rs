@@ -106,6 +106,9 @@ impl Lowerer {
                     for (_, ty) in &mut method.parameters {
                         *ty = self.instantiate_ty(*ty, &application.arguments);
                     }
+                    for ty in &mut method.context_parameters {
+                        *ty = self.instantiate_ty(*ty, &application.arguments);
+                    }
                     method.return_type =
                         self.instantiate_ty(method.return_type, &application.arguments);
                     methods.push(method);
@@ -162,6 +165,16 @@ impl Lowerer {
                 declaration: callable.clone(),
                 name: candidate.name().to_owned(),
                 parameters,
+                context_parameters: callable
+                    .context_parameters()
+                    .iter()
+                    .map(|parameter| {
+                        self.imported_signature_type_with_bindings(
+                            parameter.value_type(),
+                            &bindings,
+                        )
+                    })
+                    .collect::<Result<_, _>>()?,
                 return_type,
                 span: Span {
                     start: u32::try_from(origin.start_byte())

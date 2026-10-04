@@ -11,9 +11,28 @@ use scoop_lir::{
 use super::{RuntimeMetadataV1Types, registration_identity_value};
 use crate::CodegenError;
 
-const METADATA_ABI_VERSION: u64 = 3;
+mod context_keys;
+
+#[derive(Clone, Copy)]
+pub(crate) enum CallableRegistrationSelection {
+    NonContext,
+    ContextBody(PersistentCallableBodyId),
+}
+
+impl CallableRegistrationSelection {
+    fn includes(self, registration: &StrongCallableRegistrationPlanV1) -> bool {
+        match self {
+            Self::NonContext => registration.context_key_count() == 0,
+            Self::ContextBody(body) => {
+                registration.body() == body && registration.context_key_count() != 0
+            }
+        }
+    }
+}
+
+const METADATA_ABI_VERSION: u64 = 4;
 const CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC: u64 = 0x5343_4f4f_5043_414c;
-const CALLABLE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 192;
+const CALLABLE_REGISTRATION_DESCRIPTOR_SIZE: u64 = 208;
 const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
 const BODY_DEFINITION_FINGERPRINT_OFFSET: u64 = 152;
 const DIGEST_SIZE: u64 = 32;
@@ -86,6 +105,7 @@ impl<'ctx> EmittedStrongCallableRegistrationV1<'ctx> {
 pub struct EmittedStrongCallableRegistrationSetV1<'ctx> {
     producer: ConeIdentity,
     registrations: Vec<EmittedStrongCallableRegistrationV1<'ctx>>,
+    pub(super) context_atoms: Vec<crate::atom_boundaries::GlobalAtomMaterializationV1<'ctx>>,
 }
 
 impl<'ctx> EmittedStrongCallableRegistrationSetV1<'ctx> {
@@ -104,16 +124,50 @@ pub(crate) fn emit_strong_callable_registrations_v1<'ctx>(
     context: &'ctx Context,
     llvm: &LlvmModule<'ctx>,
     plan: &StrongCallableRegistrationPlanSetV1,
+    surface: &scoop_lir::ObjectSymbolSurfaceV1,
+    profile: crate::target::ValidatedBackendProfile,
+    selection: CallableRegistrationSelection,
 ) -> Result<EmittedStrongCallableRegistrationSetV1<'ctx>, CodegenError> {
     let types = RuntimeMetadataV1Types::new(context);
+    let mut context_atoms = Vec::new();
     let registrations = plan
         .registrations()
         .iter()
-        .map(|registration| emit_registration(context, llvm, &types, *registration))
+        .filter(|registration| selection.includes(registration))
+        .map(|registration| {
+            let runtime = plan
+                .runtime_scans()
+                .callable(registration.body())
+                .ok_or_else(|| {
+                    CodegenError(format!(
+                        "missing callable support plan {}",
+                        registration.body()
+                    ))
+                })?;
+            let keys = context_keys::emit(
+                context,
+                llvm,
+                surface,
+                profile,
+                *registration,
+                runtime,
+                &mut context_atoms,
+            )?;
+            emit_registration(
+                context,
+                llvm,
+                &types,
+                *registration,
+                keys,
+                runtime.context_keys().len() as u64,
+                selection,
+            )
+        })
         .collect::<Result<Vec<_>, _>>()?;
     Ok(EmittedStrongCallableRegistrationSetV1 {
         producer: plan.producer(),
         registrations,
+        context_atoms,
     })
 }
 
@@ -122,6 +176,9 @@ fn emit_registration<'ctx>(
     llvm: &LlvmModule<'ctx>,
     types: &RuntimeMetadataV1Types<'ctx>,
     plan: StrongCallableRegistrationPlanV1,
+    keys: inkwell::values::PointerValue<'ctx>,
+    key_count: u64,
+    selection: CallableRegistrationSelection,
 ) -> Result<EmittedStrongCallableRegistrationV1<'ctx>, CodegenError> {
     let descriptor_request = plan.symbol();
     let descriptor_symbol = descriptor_request.symbol();
@@ -137,8 +194,11 @@ fn emit_registration<'ctx>(
             "callable entry `{entry_symbol}` is not declared in the LLVM module"
         ))
     })?;
-    let entry_linkage = if entry.get_first_basic_block().is_some()
-        && entry_request.linkage() == LinkageClass::OdrWeak
+    // Context metadata is colocated with the selected body and emitted before
+    // that body's basic blocks. Its definition linkage already comes from the plan.
+    let entry_linkage = if entry_request.linkage() == LinkageClass::OdrWeak
+        && (matches!(selection, CallableRegistrationSelection::ContextBody(_))
+            || entry.get_first_basic_block().is_some())
     {
         Linkage::WeakODR
     } else {
@@ -206,6 +266,8 @@ fn emit_registration<'ctx>(
         identity.into(),
         zero_digest.into(),
         entry.as_global_value().as_pointer_value().into(),
+        keys.into(),
+        i64.const_int(key_count, false).into(),
     ]);
     descriptor.set_constant(true);
     descriptor.set_initializer(&value);

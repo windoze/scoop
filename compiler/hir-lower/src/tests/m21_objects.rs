@@ -9,6 +9,7 @@ fn public_visibility() -> ast::VisibilitySyntax {
 
 fn const_property(name: &str, value: Expr) -> ast::PropertyDecl {
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

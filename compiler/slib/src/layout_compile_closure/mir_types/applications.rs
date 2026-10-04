@@ -54,10 +54,10 @@ pub(super) fn validate(
         .ok_or(hir::SharedTypeMetadataError::MissingGenericNominal(*origin))?;
     let bindings = [arguments.as_slice().to_vec()];
     let resolve = |signature: &SignatureTypeKey| -> Result<_, Error> {
-        Ok(metadata.signature_exact_type_with_bindings(
+        Ok(comparison.source.signature_exact_type_with_bindings(
             signature,
             &bindings,
-            metadata.identities,
+            dependencies,
         )?)
     };
     use hir::NominalSourceShapeV1 as Source;

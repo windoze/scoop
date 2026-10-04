@@ -42,6 +42,7 @@ fn computed_property(
         }),
     };
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: public_visibility(),
         modifier: ast::MethodModifier::Final,
@@ -75,6 +76,7 @@ fn abstract_property(name: &str, ty: TypeRef) -> ast::PropertyDecl {
 
 fn object_const(name: &str) -> Decl {
     let property = ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: public_visibility(),
         modifier: ast::MethodModifier::Final,

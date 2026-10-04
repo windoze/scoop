@@ -44,6 +44,7 @@ void scoop_image_registry_dispose(ScoopImageRegistry *registry) {
     free(registry->immortal_addresses);
     free(registry->static_roots);
     free(registry->eager_units);
+    free(registry->context_cells);
     scoop_metadata_scan_dispose(registry);
     scoop_stackmap_dispose_index(&registry->stackmaps);
     free(registry);

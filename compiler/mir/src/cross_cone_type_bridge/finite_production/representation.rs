@@ -92,6 +92,15 @@ fn variants(
 }
 
 fn exact(module: &Module, ty: &Type) -> PersistentExactTypeId {
+    if let Type::Context(storage) = ty {
+        return module
+            .meta
+            .generated_exact_types
+            .get(GeneratedExactTypeLocation::Context(*storage))
+            .expect("a context slot payload retains its MIR-generated exact identity")
+            .exact_record()
+            .id();
+    }
     module
         .meta
         .source_exact_types

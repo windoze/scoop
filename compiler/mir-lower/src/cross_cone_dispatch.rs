@@ -42,6 +42,31 @@ pub fn lower_dispatch_schemas(
 
     applications::append(local, &context, local_types, &mut records)?;
 
+    for ty in local_types.records() {
+        let mir::MirTypeOriginV1::GeneratedNominal {
+            role: scoop_identity::GeneratedNominalKey::TaskContext(storage),
+            ..
+        } = ty.origin()
+        else {
+            continue;
+        };
+        let slots = match storage.role {
+            mir::ContextStorageRole::Task | mir::ContextStorageRole::Node => {
+                mir::MirDispatchSlotsV1::ClassVtable(Vec::new())
+            }
+            mir::ContextStorageRole::Binding => mir::MirDispatchSlotsV1::InterfaceSlots(Vec::new()),
+            mir::ContextStorageRole::Mark | mir::ContextStorageRole::SwitchGuard => {
+                mir::MirDispatchSlotsV1::NoClassVtable
+            }
+        };
+        records.push(mir::ParamFreeMirDispatchSchemaV1::try_new(
+            authority,
+            ty.exact(),
+            slots,
+            Vec::new(),
+        )?);
+    }
+
     if let Some(builtin) = input.module().meta.source_exact_types.get(&mir::Type::Any) {
         let exact = builtin.identity_record().id();
 

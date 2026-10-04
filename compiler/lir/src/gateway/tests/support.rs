@@ -101,9 +101,10 @@ pub(super) fn root(managed: bool) -> Module {
         .unwrap(),
     ));
     let body = CallableBodyIdentity::for_root_gateway(module.cone, source.main()).unwrap();
+    let task = task_descriptor(&mut module);
     module
         .functions
-        .push(super::body::gateway(body, entry, Some(failure)));
+        .push(super::body::gateway(body, entry, Some(failure), task));
     module
 }
 pub(super) fn eager() -> Module {
@@ -156,10 +157,24 @@ pub(super) fn eager() -> Module {
         ensure,
         dependencies: vec![],
     });
+    let task = task_descriptor(&mut module);
     module.functions.push(super::body::gateway(
         CallableBodyIdentity::for_initialization_startup_gateway(id).unwrap(),
         LocalFunctionRef::Managed(ensure),
         None,
+        task,
     ));
     module
+}
+
+fn task_descriptor(module: &mut Module) -> TypeDescriptorRef {
+    let task = scoop_identity::ContextStorageType::new(
+        ConeIdentity::CORE,
+        scoop_identity::ContextStorageRole::Task,
+    );
+    TypeDescriptorRef::External(
+        module.meta.external_type_descriptors.alloc(
+            ExternalTypeDescriptor::new(ConeIdentity::CORE, task.exact_record().id()).unwrap(),
+        ),
+    )
 }

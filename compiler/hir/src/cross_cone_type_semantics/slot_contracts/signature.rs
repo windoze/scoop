@@ -1,8 +1,8 @@
 use std::fmt;
 
 use scoop_identity::{
-    DecodedExactCallableSignature, ExactCallableSignature, ExactCallableSignatureResolutionError,
-    PersistentExactTypeId, PersistentIdResolver,
+    ContextKey, DecodedExactCallableSignature, DecodedPersistentId, ExactCallableSignature,
+    ExactCallableSignatureResolutionError, PersistentExactTypeId, PersistentIdResolver,
 };
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
@@ -17,11 +17,13 @@ use crate::{
 pub struct InheritanceCallableSignatureV1 {
     exact_signature: ExactCallableSignature,
     effects: CallableSourceEffectsV1,
+    context_keys: Vec<ContextKey>,
 }
 impl InheritanceCallableSignatureV1 {
     pub fn try_new(
         exact_signature: ExactCallableSignature,
         effects: CallableSourceEffectsV1,
+        context_keys: Vec<ContextKey>,
     ) -> Result<Self, InheritanceCallableSignatureBuildError> {
         if exact_signature.effect() != effects.execution() {
             return Err(InheritanceCallableSignatureBuildError::Execution);
@@ -38,11 +40,16 @@ impl InheritanceCallableSignatureV1 {
         Ok(Self {
             exact_signature,
             effects,
+            context_keys,
         })
     }
     pub const fn exact_signature(&self) -> &ExactCallableSignature {
         &self.exact_signature
     }
+    pub fn context_keys(&self) -> &[ContextKey] {
+        &self.context_keys
+    }
+
     pub fn effects(&self) -> CallableSourceEffectsV1 {
         self.effects.clone()
     }
@@ -62,15 +69,22 @@ impl InheritanceCallableSignatureV1 {
             && self.effects.gc_effect() == slot.effects.gc_effect()
             && self.effects.operator_role() == slot.effects.operator_role()
             && self.effects.infix() == slot.effects.infix()
+            && self.context_keys == slot.context_keys
     }
 }
 impl WireEncode for InheritanceCallableSignatureV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(3)?;
         encoder.field(1)?;
         self.exact_signature.encode(encoder)?;
         encoder.field(2)?;
-        self.effects.encode(encoder)
+        self.effects.encode(encoder)?;
+        encoder.field(3)?;
+        encoder.array(self.context_keys.len() as u64)?;
+        for key in &self.context_keys {
+            key.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
@@ -78,6 +92,7 @@ impl WireEncode for InheritanceCallableSignatureV1 {
 pub struct DecodedInheritanceCallableSignatureV1 {
     exact_signature: DecodedExactCallableSignature,
     effects: DecodedCallableSourceEffectsV1,
+    context_keys: Vec<DecodedPersistentId<PersistentExactTypeId>>,
 }
 impl DecodedInheritanceCallableSignatureV1 {
     pub fn resolve<R: PersistentIdResolver<PersistentExactTypeId, Error = E>, E>(
@@ -93,25 +108,46 @@ impl DecodedInheritanceCallableSignatureV1 {
             .effects
             .validate()
             .map_err(InheritanceCallableSignatureResolutionError::Effects)?;
-        InheritanceCallableSignatureV1::try_new(exact, effects)
-            .map_err(InheritanceCallableSignatureResolutionError::Signature)
+        InheritanceCallableSignatureV1::try_new(
+            exact,
+            effects,
+            self.context_keys
+                .into_iter()
+                .map(|key| {
+                    resolver
+                        .resolve(key)
+                        .map(ContextKey)
+                        .map_err(InheritanceCallableSignatureResolutionError::ContextKey)
+                })
+                .collect::<Result<_, _>>()?,
+        )
+        .map_err(InheritanceCallableSignatureResolutionError::Signature)
     }
 }
 impl WireEncode for DecodedInheritanceCallableSignatureV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(3)?;
         encoder.field(1)?;
         self.exact_signature.encode(encoder)?;
         encoder.field(2)?;
-        self.effects.encode(encoder)
+        self.effects.encode(encoder)?;
+        encoder.field(3)?;
+        encoder.array(self.context_keys.len() as u64)?;
+        for key in &self.context_keys {
+            key.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 impl WireDecode for DecodedInheritanceCallableSignatureV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
+        decoder.expect_map(3)?;
         Ok(Self {
             exact_signature: decoder.field(1, DecodedExactCallableSignature::decode)?,
             effects: decoder.field(2, DecodedCallableSourceEffectsV1::decode)?,
+            context_keys: decoder.field(3, |decoder| {
+                decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
+            })?,
         })
     }
 }
@@ -136,6 +172,7 @@ impl std::error::Error for InheritanceCallableSignatureBuildError {}
 #[derive(Debug)]
 pub enum InheritanceCallableSignatureResolutionError<E> {
     Exact(ExactCallableSignatureResolutionError<E>),
+    ContextKey(E),
     Effects(CallableSourceEffectsBuildError),
     Signature(InheritanceCallableSignatureBuildError),
 }
@@ -143,6 +180,7 @@ impl<E: fmt::Display> fmt::Display for InheritanceCallableSignatureResolutionErr
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Exact(error) => error.fmt(f),
+            Self::ContextKey(error) => error.fmt(f),
             Self::Effects(error) => error.fmt(f),
             Self::Signature(error) => error.fmt(f),
         }

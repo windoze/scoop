@@ -167,6 +167,8 @@ impl MachineScalarValue {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Type {
+    /// Compiler-owned GC values; they cannot be named by Scoop source.
+    Context(ContextStorageType),
     Unit,
     /// One exact Scoop source integer. Its nominal owner is already canonical
     /// (transparent aliases have disappeared before MIR).

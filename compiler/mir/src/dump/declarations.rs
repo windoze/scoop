@@ -282,6 +282,7 @@ pub fn dump(module: &Module) -> String {
     }
     for (index, identity) in module.meta.generated_exact_types.iter().enumerate() {
         let location = match identity.location() {
+            GeneratedExactTypeLocation::Context(storage) => storage.role.name().to_string(),
             GeneratedExactTypeLocation::Closure(class) => {
                 format!("closure{}", class.into_raw().into_u32())
             }
@@ -380,13 +381,14 @@ pub fn dump(module: &Module) -> String {
     }
     for (id, frame) in module.meta.coroutine_frames.iter() {
         out.push_str(&format!(
-            "  coroutine_frame cr{} {} id={} owner=cf{} state=field{} completion=field{} saved=[{}] failure=cx{}\n",
+            "  coroutine_frame cr{} {} id={} owner=cf{} state=field{} completion=field{} task=field{} saved=[{}] failure=cx{}\n",
             id.into_raw().into_u32(),
             type_name(module, &Type::Class(frame.class())),
             frame.identity().generated_type_record().id(),
             frame.owner().into_raw().into_u32(),
             frame.state().field_index(),
             frame.completion().field_index(),
+            frame.task().field_index(),
             frame
                 .saved_values()
                 .iter()

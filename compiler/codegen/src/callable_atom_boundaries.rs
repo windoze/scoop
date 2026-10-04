@@ -98,7 +98,10 @@ pub(crate) fn materialize_v1(
                     boundary.end().linkage(),
                 ));
             }
-            DefinitionAtomRole::AddressTakenConstant | DefinitionAtomRole::RuntimeRecord => {
+            DefinitionAtomRole::AddressTakenConstant
+            | DefinitionAtomRole::RuntimeRecord
+            | DefinitionAtomRole::ContextKeyCell
+            | DefinitionAtomRole::ContextKeyTable => {
                 if plan.primary_symbol().linkage() == scoop_lir::LinkageClass::OdrWeak {
                     layout.materialize_odr_definition(&mut bytes, &start_name)?;
                     layout.materialize_odr_definition(&mut bytes, &end_name)?;
@@ -152,7 +155,9 @@ fn backend_section(
         DefinitionAtomRole::CompactUnwind => BACKEND_SECTIONS[3],
         DefinitionAtomRole::Primary
         | DefinitionAtomRole::RuntimeRecord
-        | DefinitionAtomRole::AddressTakenConstant => {
+        | DefinitionAtomRole::AddressTakenConstant
+        | DefinitionAtomRole::ContextKeyCell
+        | DefinitionAtomRole::ContextKeyTable => {
             return Err(CodegenError(format!(
                 "atom role {role:?} has no callable backend section"
             )));

@@ -3,6 +3,10 @@ use super::*;
 impl<'a> Traversal<'a> {
     pub(super) fn statement(&mut self, statement: &'a Statement) -> Result<(), StructureError> {
         match &statement.kind {
+            StatementKind::ContextScope { value, body } => {
+                self.statements(body)?;
+                self.push(Item::Expression(value))
+            }
             StatementKind::Expr(value) | StatementKind::Throw(value) => {
                 self.push(Item::Expression(value))
             }

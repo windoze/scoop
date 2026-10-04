@@ -1,0 +1,84 @@
+package taskcontexts.program
+
+import taskcontexts.*
+import taskcontexts.middle.*
+
+@Extern(lib = "fixture_native", name = "m13_call_context_first")
+fun callNative(callback: FunPtr<(Ptr<Unit>, Int) -> Unit>, context: Ptr<Unit>, value: Int)
+
+fun verify(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+class Gate : SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) { waiter = Some(continuation) }
+    fun complete() {
+        val continuation = waiter!!
+        waiter = None
+        continuation.resume(0)
+    }
+}
+
+class Completion : Continuation<Request> {
+    var value: Int = 0
+    public override fun resume(value: Request) {
+        verify(current<Request>().value == 41)
+        this.value = value.value
+    }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+fun callbacks() {
+    @Unsafe {
+        val first = registerCallback<Request>(Request(71), { value: Request -> value.value })
+        val second = throughBCallback(Request(72), { value: Request -> value.value })
+        gcCollect()
+        context(Request(99)) {
+            callNative(first.function, first.context, 71)
+            callNative(second.function, second.context, 72)
+            verify(current<Request>().value == 99)
+        }
+        verify(foreignCallbackState(first) == ForeignCallbackState.Registered)
+        verify(foreignCallbackState(second) == ForeignCallbackState.Registered)
+        releaseForeignCallback(first)
+        releaseForeignCallback(second)
+    }
+}
+
+fun main() {
+    val request = Request(40)
+    val reader: Reader<Request> = ReaderImpl()
+    context(request) {
+        gcCollect()
+        verify(direct() == 40)
+        verify(current<Request>().value == 40)
+        verify(fromA() == 40)
+        verify(fromB(request) == 80)
+        verify(nested<Request>(request).value == 40)
+        verify(throughB<Request>(request).value == 40)
+        verify(reader.read().value == 40)
+        verify(reader.current.value == 40)
+        active = 41
+        verify(active == 41)
+        verify(withDefault() == 82)
+    }
+    val gate = Gate()
+    val done = Completion()
+    val secondGate = Gate()
+    val secondDone = Completion()
+    context(request) {
+        startCoroutine(suspend { delayed<Request>(gate) }, done)
+        startCoroutine(suspend { throughBWait(secondGate) }, secondDone)
+    }
+    gcCollect()
+    context(Request(99)) {
+        gate.complete()
+        secondGate.complete()
+        verify(current<Request>().value == 99)
+    }
+    verify(done.value == 41 && secondDone.value == 41)
+    callbacks()
+    var missing = false
+    try { direct() } catch (error: MissingContextException) { missing = true }
+    verify(missing)
+    println("artifacts-ok")
+}

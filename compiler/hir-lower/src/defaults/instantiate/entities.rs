@@ -318,10 +318,26 @@ impl Lowerer {
             self.instantiate_default_function_type(source.native_function_type, context);
         let managed_function_type =
             self.instantiate_default_function_type(source.managed_function_type, context);
+        let definition = match source.definition {
+            hir::ForeignCallbackDefinition::Imported {
+                identity,
+                definition_origin,
+                origin,
+                arguments,
+            } => hir::ForeignCallbackDefinition::Imported {
+                identity,
+                definition_origin,
+                origin,
+                arguments: arguments
+                    .into_iter()
+                    .map(|argument| self.instantiate_method_ty(argument, &context.bindings))
+                    .collect(),
+            },
+            definition => definition,
+        };
         self.foreign_callback_registrations
             .alloc(hir::ForeignCallbackRegistration {
-                definition_root: source.definition_root,
-                definition_path: source.definition_path,
+                definition,
                 native_function_type,
                 managed_function_type,
                 context_index: source.context_index,

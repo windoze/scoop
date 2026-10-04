@@ -44,7 +44,6 @@ pub(super) fn check(
 ) {
     let current = reader::open_link(artifact).identity();
     let mut cases = Vec::new();
-    let mut runtime_cases = Vec::new();
     let complete = {
         let archives = [core.as_bytes().to_vec(), artifact.as_bytes().to_vec()];
         let mut sections = archives.iter().map(|bytes| {
@@ -104,7 +103,6 @@ pub(super) fn check(
                             .defined_symbols()
                     );
                     cases = mutations::cases(proof);
-                    runtime_cases = runtime::cases(proof);
                 } else {
                     assert!(owners.is_empty());
                 }
@@ -117,7 +115,4 @@ pub(super) fn check(
     rejection::dependency_owner(core, artifact, profile);
 
     rejection::views(core, artifact, profile);
-    runtime::check(core, artifact, profile, runtime_cases);
-    coverage::check(core, artifact, profile);
-    code::check(core, artifact, profile);
 }

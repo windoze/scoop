@@ -5,6 +5,7 @@ impl CoroutineRegistry {
     pub(crate) fn start_helper(
         &mut self,
         exact_types: &SourceExactTypeRegistry,
+        core: mir::ConeIdentity,
         result: &mir::Type,
         task_interface: mir::InterfaceId,
         continuation_interface: mir::InterfaceId,
@@ -71,9 +72,10 @@ impl CoroutineRegistry {
         let span = mir::SourceSpan::new(0, 0).expect("synthetic span is ordered");
         let statement = |kind| mir::Statement { kind, span };
         let mut blocks = Arena::new();
+        let switch = crate::task_context::TaskSwitch::new(core, &mut locals, &mut blocks);
         let suspended = blocks.alloc(mir::BasicBlock {
             name: "suspended".to_string(),
-            statements: Vec::new(),
+            statements: vec![switch.leave()],
             terminator: mir::Terminator::Return { value: None },
             unwind: None,
         });
@@ -97,7 +99,7 @@ impl CoroutineRegistry {
                 },
             )))],
             terminator: mir::Terminator::Return { value: None },
-            unwind: None,
+            unwind: Some(switch.unwind),
         });
         let failed = blocks.alloc(mir::BasicBlock {
             name: "failed".to_string(),
@@ -112,7 +114,7 @@ impl CoroutineRegistry {
                 },
             )))],
             terminator: mir::Terminator::Return { value: None },
-            unwind: None,
+            unwind: Some(switch.unwind),
         });
         let catch_pad = blocks.alloc(mir::BasicBlock {
             name: "body_failure".to_string(),
@@ -135,10 +137,10 @@ impl CoroutineRegistry {
                 statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
             ],
             terminator: mir::Terminator::Goto(failed),
-            unwind: None,
+            unwind: Some(switch.catch_unwind),
         });
-        let entry = blocks.alloc(mir::BasicBlock {
-            name: "entry".to_string(),
+        let run_body = blocks.alloc(mir::BasicBlock {
+            name: "run".to_string(),
             statements: vec![statement(mir::StatementKind::Call(
                 mir::CallEffect::Value {
                     destination: step,
@@ -164,6 +166,15 @@ impl CoroutineRegistry {
                 else_block: suspended,
             },
             unwind: Some(catch_pad),
+        });
+        blocks[completed].statements.push(switch.leave());
+        blocks[failed].statements.push(switch.leave());
+        let (fork, child) = crate::task_context::fork_current(core, &mut locals);
+        let entry = blocks.alloc(mir::BasicBlock {
+            name: "entry".to_string(),
+            statements: vec![fork, switch.enter(child)],
+            terminator: mir::Terminator::Goto(run_body),
+            unwind: None,
         });
         let result_name = mir::type_name(shell, result);
         let function = functions.alloc(mir::Function {

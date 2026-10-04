@@ -166,6 +166,7 @@ impl Loaded {
             CallableModalityV1::Final,
             DeclaredVisibilityV1::Public,
             CanonicalPersistentIdsV1::empty(),
+            Vec::new(),
         )
         .unwrap();
         let mut declarations = self

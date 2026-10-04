@@ -3,6 +3,7 @@
 use super::*;
 
 pub(super) struct DriveExitBlocks {
+    pub(super) switch: crate::task_context::TaskSwitch,
     pub(super) completed: mir::BlockId,
     pub(super) suspended: mir::BlockId,
     pub(super) catch_pad: mir::BlockId,
@@ -24,6 +25,8 @@ pub(super) fn drive_exit_blocks(
     outer_resume: &mir::CallTarget,
     outer_failure: &mir::CallTarget,
 ) -> DriveExitBlocks {
+    let switch =
+        crate::task_context::TaskSwitch::new(frame_layout.task_storage.core, locals, blocks);
     let completed_payload = lowerer
         .coroutines
         .step_metadata_for_type(step_ty)
@@ -65,11 +68,11 @@ pub(super) fn drive_exit_blocks(
             }))),
         ],
         terminator: mir::Terminator::Return { value: None },
-        unwind: None,
+        unwind: Some(switch.unwind),
     });
     let suspended = blocks.alloc(mir::BasicBlock {
         name: "suspended".to_string(),
-        statements: Vec::new(),
+        statements: vec![switch.leave()],
         terminator: mir::Terminator::Return { value: None },
         unwind: None,
     });
@@ -95,7 +98,7 @@ pub(super) fn drive_exit_blocks(
             }))),
         ],
         terminator: mir::Terminator::Return { value: None },
-        unwind: None,
+        unwind: Some(switch.unwind),
     });
     let catch_pad = blocks.alloc(mir::BasicBlock {
         name: "body_failure".to_string(),
@@ -118,9 +121,12 @@ pub(super) fn drive_exit_blocks(
             statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
         ],
         terminator: mir::Terminator::Goto(failed),
-        unwind: None,
+        unwind: Some(switch.catch_unwind),
     });
+    blocks[completed].statements.push(switch.leave());
+    blocks[failed].statements.push(switch.leave());
     DriveExitBlocks {
+        switch,
         completed,
         suspended,
         catch_pad,

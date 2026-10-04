@@ -60,6 +60,7 @@ impl Lowerer {
         self.loaded_enum_definitions.insert(
             owner,
             hir::LoadedEnumDefinition {
+                context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::EnumDefinition {
                     gc_free_pointee_requirements: Self::decoded_nominal_pointee_requirements(
@@ -79,6 +80,11 @@ impl Lowerer {
                 },
             },
         );
+        let context_contracts = self.imported_nominal_contexts(owner, &bindings)?;
+        self.loaded_enum_definitions
+            .get_mut(&owner)
+            .expect("the nominal builder registered its identity")
+            .context_contracts = context_contracts;
         for (parameter, binder) in type_params.iter_mut().zip(binders) {
             *parameter = self
                 .resolve_imported_type_parameter(binder, parameter.id, &bindings, span)

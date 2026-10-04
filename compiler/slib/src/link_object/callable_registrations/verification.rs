@@ -22,6 +22,8 @@ use scoop_lir::{
     StrongCallableRegistrationPlanV1,
 };
 
+mod context_keys;
+
 const REGISTRATION_DEFINITION_FINGERPRINT_OFFSET: u64 = 120;
 const BODY_DEFINITION_FINGERPRINT_OFFSET: u64 = 152;
 const ENTRY_POINTER_OFFSET: u64 = 184;
@@ -108,7 +110,16 @@ pub fn verify_strong_callable_registrations_v1(
     let mut registrations = Vec::with_capacity(plan.registrations().len());
     for registration in plan.registrations() {
         validate_digest_graph(patch_sites.digest_plan(), *registration)?;
-        registrations.push(verify_registration(&patch_sites, &objects, *registration)?);
+        let support = plan
+            .runtime_scans()
+            .callable(registration.body())
+            .expect("the production plan contains support for every callable");
+        registrations.push(verify_registration(
+            &patch_sites,
+            &objects,
+            *registration,
+            support.context_keys(),
+        )?);
     }
 
     Ok(VerifiedStrongCallableRegistrationSetV1 {
@@ -261,6 +272,7 @@ fn verify_registration(
     patch_sites: &VerifiedScoopLirDigestPatchSiteSetV1,
     objects: &BTreeMap<SlibMemberId, &[u8]>,
     plan: StrongCallableRegistrationPlanV1,
+    keys: &[scoop_lir::CallableContextKeyCellV1],
 ) -> Result<VerifiedStrongCallableRegistrationV1, StrongCallableRegistrationValidationError> {
     let builtins = patch_sites.builtins();
     let member = required_scoop_member(builtins, plan, plan.definition_plan())?;
@@ -322,6 +334,7 @@ fn verify_registration(
     }
 
     let entry_relocation = verify_entry_relocation(patch_sites, verified_member, plan)?;
+    context_keys::verify(objects[&member], verified_member, plan, keys)?;
     let registration_definition_patch = require_patch(
         patch_sites,
         plan,
@@ -396,7 +409,10 @@ fn verify_entry_relocation(
     let physical = registration_member
         .relocations()
         .iter()
-        .filter(|relocation| relocation.containing_atom() == plan.primary_atom())
+        .filter(|relocation| {
+            relocation.containing_atom() == plan.primary_atom()
+                && relocation.offset_within_atom() == ENTRY_POINTER_OFFSET
+        })
         .collect::<Vec<_>>();
     if physical.len() != 1 {
         return relocation_error(plan.body(), Failure::Count);
@@ -409,6 +425,7 @@ fn verify_entry_relocation(
         .filter(|binding| {
             binding.source_member() == registration_member.member()
                 && binding.containing_atom() == plan.primary_atom()
+                && binding.offset_within_atom() == ENTRY_POINTER_OFFSET
         })
         .collect::<Vec<_>>();
     if bindings.len() != 1 {

@@ -33,6 +33,7 @@ pub struct ClassDefinition {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoadedClassDefinition {
+    pub context_contracts: Vec<crate::LoadedContextContract>,
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
     pub definition: ClassDefinition,
     pub virtual_methods: Vec<ImportedVirtualMethod>,

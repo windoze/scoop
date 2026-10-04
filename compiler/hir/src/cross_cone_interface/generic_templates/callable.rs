@@ -31,6 +31,7 @@ pub struct ExportGenericCallableBodyV1 {
     predicates: GenericTemplatePredicatesV1,
     definition_origin: ExportDefinitionSourceV1,
     capture_types: Vec<SignatureTypeKey>,
+    context_parameters: Vec<crate::SourceParameterShapeV1>,
 }
 
 impl ExportGenericCallableBodyV1 {
@@ -46,6 +47,7 @@ impl ExportGenericCallableBodyV1 {
         predicates: GenericTemplatePredicatesV1,
         definition_origin: ExportDefinitionSourceV1,
         capture_types: Vec<SignatureTypeKey>,
+        context_parameters: Vec<crate::SourceParameterShapeV1>,
     ) -> Result<Self, GenericCallableBodyBuildError> {
         if effects.implementation() != CallableImplementationV1::Scoop {
             return Err(GenericCallableBodyBuildError::BodylessImplementation(
@@ -82,6 +84,7 @@ impl ExportGenericCallableBodyV1 {
             predicates,
             definition_origin,
             capture_types,
+            context_parameters,
         };
         captures::validate(&body)?;
         Ok(body)
@@ -121,6 +124,10 @@ impl ExportGenericCallableBodyV1 {
 
     pub const fn definition_origin(&self) -> &ExportDefinitionSourceV1 {
         &self.definition_origin
+    }
+
+    pub fn context_parameters(&self) -> &[crate::SourceParameterShapeV1] {
+        &self.context_parameters
     }
 
     pub fn capture_types(&self) -> &[SignatureTypeKey] {
@@ -170,7 +177,7 @@ pub struct IndexedExportGenericCallableBodyV1<'a> {
 
 impl WireEncode for IndexedExportGenericCallableBodyV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.body.owner.encode(encoder)?;
         encoder.field(2)?;
@@ -195,6 +202,11 @@ impl WireEncode for IndexedExportGenericCallableBodyV1<'_> {
         encoder.array(self.body.capture_types.len() as u64)?;
         for value_type in &self.body.capture_types {
             value_type.encode(encoder)?;
+        }
+        encoder.field(11)?;
+        encoder.array(self.body.context_parameters.len() as u64)?;
+        for parameter in &self.body.context_parameters {
+            parameter.encode(encoder)?;
         }
         Ok(())
     }

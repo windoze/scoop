@@ -40,6 +40,10 @@ pub(in super::super) fn collect_statement_type_occurrences(
 ) {
     for statement in statements {
         match &statement.kind {
+            hir::StatementKind::ContextScope { value, body } => {
+                collect_expr_type_occurrences(lowerer, value, out);
+                collect_statement_type_occurrences(lowerer, body, file, out);
+            }
             hir::StatementKind::GenericDelegateEnsure(reference) => push_types_at(
                 file,
                 statement.span,
@@ -220,7 +224,8 @@ pub(in super::super) fn collect_expr_type_occurrences(
                 push_type_at_expression(*argument, expression, out);
             }
         }
-        ExprKind::StringLiteral { .. }
+        ExprKind::ContextLookup(_)
+        | ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
         | ExprKind::CharLiteral(_)
         | ExprKind::BoolLiteral(_)

@@ -45,6 +45,7 @@ impl std::ops::DerefMut for EnumDecl {
 /// symbolic payload types as a definition produced from current source.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoadedEnumDefinition {
+    pub context_contracts: Vec<crate::LoadedContextContract>,
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
     pub definition: EnumDefinition,
 }

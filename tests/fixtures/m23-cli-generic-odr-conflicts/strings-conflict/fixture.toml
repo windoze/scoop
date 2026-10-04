@@ -22,7 +22,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "401910de52c6aad44469693a2b84bc85bedfb0eebd877fe072ee414423ad2ee1"},
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "4bff3b0b50e7d0abfc335cc388fbc967b415c748a7e036c456deec18d3a7397a"},
 ]
 
 [[steps]]
@@ -56,7 +56,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${left_provider.result.root.artifact_fingerprint}", "equals" = "91e6d7384cea5cf0dbecbea6f5edbe2bc712eb3622c815a2723672bb53800391"},
+  {"actual" = "${left_provider.result.root.artifact_fingerprint}", "equals" = "276f5fafd40bcdfb806d26149889a9344dd291f9a23113b181ca8eb9723bcddb"},
   {"file" = "${work}/dump/left_provider/${left_provider.result.root.identity}/ast.txt", "snapshot" = "left_provider.ast.txt"},
   {"file" = "${work}/dump/left_provider/${left_provider.result.root.identity}/hir.txt", "snapshot" = "left_provider.hir.txt"},
   {"file" = "${work}/dump/left_provider/${left_provider.result.root.identity}/mir.txt", "snapshot" = "left_provider.mir.txt"},
@@ -87,7 +87,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${left_consumer.result.root.artifact_fingerprint}", "equals" = "fbd5eb38736f4206b92b0b74dd619ad7ccab36ac2cb8faae0822e341dcd26671"},
+  {"actual" = "${left_consumer.result.root.artifact_fingerprint}", "equals" = "9745a18738aa4e18af4a9edaea7c519a7255120e37121ce7a9bbd5730cb563ef"},
   {"file" = "${work}/dump/left_consumer/${left_consumer.result.root.identity}/ast.txt", "snapshot" = "left_consumer.ast.txt"},
   {"file" = "${work}/dump/left_consumer/${left_consumer.result.root.identity}/hir.txt", "snapshot" = "left_consumer.hir.txt"},
   {"file" = "${work}/dump/left_consumer/${left_consumer.result.root.identity}/mir.txt", "snapshot" = "left_consumer.mir.txt"},
@@ -117,7 +117,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${left_program.result.root.artifact_fingerprint}", "equals" = "1734cd422b57dce34e8abd75b9eeeebeb1f9507c14d0b1aea2aa29a4da905836"},
+  {"actual" = "${left_program.result.root.artifact_fingerprint}", "equals" = "32b47685a76098dfc45ecfc4e2f5805b4ebb162e53abf8d97f31fb198c0647ec"},
   {"file" = "${work}/dump/left_program/${left_program.result.root.identity}/ast.txt", "snapshot" = "left_program.ast.txt"},
   {"file" = "${work}/dump/left_program/${left_program.result.root.identity}/hir.txt", "snapshot" = "left_program.hir.txt"},
   {"file" = "${work}/dump/left_program/${left_program.result.root.identity}/mir.txt", "snapshot" = "left_program.mir.txt"},
@@ -189,7 +189,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${right_provider.result.root.artifact_fingerprint}", "equals" = "4dae171f499c8f2183bea942278b6f1e25ee5d01c5f4a17967bc9c294aea0db3"},
+  {"actual" = "${right_provider.result.root.artifact_fingerprint}", "equals" = "e03c9ee3cce7cc7efd40c595d608a41ddbe7268cc684ad78d9b72c30571e392d"},
   {"file" = "${work}/dump/right_provider/${right_provider.result.root.identity}/ast.txt", "snapshot" = "right_provider.ast.txt"},
   {"file" = "${work}/dump/right_provider/${right_provider.result.root.identity}/hir.txt", "snapshot" = "right_provider.hir.txt"},
   {"file" = "${work}/dump/right_provider/${right_provider.result.root.identity}/mir.txt", "snapshot" = "right_provider.mir.txt"},
@@ -221,7 +221,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${right_consumer.result.root.artifact_fingerprint}", "equals" = "bd6ab9cecda07de402c839abd8e8538c6d829ce703329a12ef2b32ab73993c49"},
+  {"actual" = "${right_consumer.result.root.artifact_fingerprint}", "equals" = "8a85ccf524419dc130b5ec0db153cea9543b0f9f54445c01752da465bacbb742"},
   {"file" = "${work}/dump/right_consumer/${right_consumer.result.root.identity}/ast.txt", "snapshot" = "right_consumer.ast.txt"},
   {"file" = "${work}/dump/right_consumer/${right_consumer.result.root.identity}/hir.txt", "snapshot" = "right_consumer.hir.txt"},
   {"file" = "${work}/dump/right_consumer/${right_consumer.result.root.identity}/mir.txt", "snapshot" = "right_consumer.mir.txt"},
@@ -251,7 +251,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${right_program.result.root.artifact_fingerprint}", "equals" = "c5463832e99dbd24de8da5a6732c1d3f8683c9a1ee620c27b24a8d13d37d5c54"},
+  {"actual" = "${right_program.result.root.artifact_fingerprint}", "equals" = "0d6a95a29acb2073ce6777cb649e15b4d9f99d1a49413c5f6e4811a73c9aa9ff"},
   {"file" = "${work}/dump/right_program/${right_program.result.root.identity}/ast.txt", "snapshot" = "right_program.ast.txt"},
   {"file" = "${work}/dump/right_program/${right_program.result.root.identity}/hir.txt", "snapshot" = "right_program.hir.txt"},
   {"file" = "${work}/dump/right_program/${right_program.result.root.identity}/mir.txt", "snapshot" = "right_program.mir.txt"},

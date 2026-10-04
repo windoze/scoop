@@ -1,0 +1,3 @@
+interface Reader<A: ref, B: ref> { context(a: A, b: B) fun read(): Int }
+fun use(value: Reader<String, String>) {}
+fun main() {}

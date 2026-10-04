@@ -16,6 +16,9 @@ impl DependencyTypeDescriptors {
             return true;
         }
         match ty {
+            mir::Type::Context(storage) => self
+                .generated
+                .contains_key(&mir::GeneratedExactTypeLocation::Context(*storage)),
             mir::Type::Class(id) => self
                 .generated
                 .contains_key(&mir::GeneratedExactTypeLocation::Class(*id)),
@@ -71,8 +74,16 @@ pub(super) fn lower(
             provider: root.provider(),
             exact: root.exact(),
         })?;
-        let descriptor = selected
-            .materialize_shape_type_descriptor(root.provider(), root.source(), root.exact())
+        let descriptor =
+            if matches!(root.location(), mir::GeneratedExactTypeLocation::Context(_)) {
+                selected.materialize_type_descriptor(root.provider(), root.exact())
+            } else {
+                selected.materialize_shape_type_descriptor(
+                    root.provider(),
+                    root.source(),
+                    root.exact(),
+                )
+            }
             .map_err(Error::DependencyLayout)?;
         let id = intern(external, descriptor)?;
         result

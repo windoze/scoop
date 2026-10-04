@@ -1,5 +1,14 @@
 use super::*;
 
+pub(super) fn core_provider(module: &hir::Module) -> mir::ConeIdentity {
+    match &module.core_protocols {
+        hir::ConcreteCoreProtocols::Defined(_) => module.cone,
+        hir::ConcreteCoreProtocols::Imported(protocols) => {
+            protocols.fundamental_types().string().provider()
+        }
+    }
+}
+
 /// A function's source-facing MIR display name.
 pub(super) fn fn_name(function: &hir::Function) -> String {
     // Keep extension display names in a private namespace:

@@ -339,6 +339,15 @@ pub(crate) fn lower_intrinsic_type_representation(
 /// lives only in typed `ArrayType` metadata.
 pub(crate) fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
     match ty {
+        mir::Type::Context(storage) => match storage.role {
+            mir::ContextStorageRole::Task
+            | mir::ContextStorageRole::Node
+            | mir::ContextStorageRole::Binding => lir::MANAGED_PTR,
+            mir::ContextStorageRole::Mark => {
+                lir::LirType::Aggregate(vec![lir::MANAGED_PTR, lir::MANAGED_PTR])
+            }
+            mir::ContextStorageRole::SwitchGuard => lir::LirType::Aggregate(vec![lir::MANAGED_PTR]),
+        },
         mir::Type::Unit => lir::LirType::Aggregate(Vec::new()),
         mir::Type::Integer(kind) => integer_kind(*kind).scalar_type(),
         mir::Type::MachineScalar(kind) => lir::LirType::MachineScalar(machine_scalar_kind(*kind)),

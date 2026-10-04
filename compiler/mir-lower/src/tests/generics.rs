@@ -449,7 +449,10 @@ fn generic_interface_signature_types_follow_typed_interface_order() {
     let options = module
         .enums
         .iter()
-        .filter_map(|(_, enumeration)| (enumeration.name == "Option").then_some(enumeration))
+        .filter_map(|(_, enumeration)| {
+            (enumeration.name == "Option" && enumeration.type_arguments != [mir::Type::String])
+                .then_some(enumeration)
+        })
         .collect::<Vec<_>>();
     assert_eq!(options.len(), 2);
     assert_eq!(

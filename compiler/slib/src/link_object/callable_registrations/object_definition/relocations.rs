@@ -24,15 +24,7 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
         .iter()
         .filter(|relocation| relocation.containing_atom() == atom)
     {
-        let bindings = closure
-            .bindings()
-            .iter()
-            .filter(|binding| {
-                binding.source_member() == member.member()
-                    && binding.containing_atom() == atom
-                    && binding.offset_within_atom() == relocation.offset_within_atom()
-            })
-            .collect::<Vec<_>>();
+        let bindings = closure.bindings_at(member.member(), atom, relocation.offset_within_atom());
         let mut binding_count = 0;
         let mut targets = Vec::new();
         let mut canonical_value = relocation.encoded_value();

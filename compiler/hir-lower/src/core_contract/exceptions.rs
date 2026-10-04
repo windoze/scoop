@@ -254,6 +254,8 @@ impl Lowerer {
             self.compiler_exception("IllegalStateException", files, throwable.class())?;
         let initialization_cycle_thrower = self.initialization_cycle_thrower(files)?;
         Some(hir::CompilerExceptionCore {
+            missing_context_constructor: self
+                .missing_context_constructor(files, throwable.class())?,
             throwable,
             unwrap_exception: self.compiler_exception(
                 "UnwrapException",

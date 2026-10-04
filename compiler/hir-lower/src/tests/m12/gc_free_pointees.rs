@@ -139,6 +139,7 @@ fn type_alias(name: &str, target: TypeRef) -> Decl {
 
 fn omitted_optional_global(name: &str, inner: TypeRef) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,
@@ -489,6 +490,7 @@ fn runtime_global_initializer_validates_callable_pointee_requirements() {
     )];
     declarations.extend(pointer_requirement_functions());
     declarations.push(Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,
@@ -833,6 +835,7 @@ fn closed_pointee_applications_are_replayed_in_class_initialization_regions() {
     };
     derived_decl.members = vec![
         ast::ClassMember::StoredProperty(ast::PropertyDecl {
+            context_parameters: Vec::new(),
             annotations: Vec::new(),
             visibility: ast::VisibilitySyntax::Omitted,
             modifier: ast::MethodModifier::Final,

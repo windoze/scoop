@@ -146,7 +146,7 @@ fn callback_application_record_roundtrips_all_fields() {
             vec![fixture.exact],
             fixture.exact,
         ),
-        ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+        ForeignCallbackStorageAbi::ClosureContextResultRootsThrowableToStatus,
         CallbackMode::OneShot,
     );
     let bytes = encode(&record).unwrap();
@@ -185,7 +185,8 @@ fn unknown_subject_and_storage_tags_are_rejected() {
         + 2;
     bytes[subject_tag] = 3;
     assert!(decode_canonical::<DecodedCallableSignatureRecord>(&bytes).is_err());
-    assert!(decode_canonical::<ForeignCallbackStorageAbi>(&[2]).is_err());
+    assert!(decode_canonical::<ForeignCallbackStorageAbi>(&[1]).is_err());
+    assert!(decode_canonical::<ForeignCallbackStorageAbi>(&[3]).is_err());
 }
 
 #[test]

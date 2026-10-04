@@ -289,6 +289,19 @@ pub(super) fn callable_body_associated_atoms(
     let body = function.callable_body.id();
     let subkey = || DefinitionAtomSubkey::CallableBody(body);
     let mut associated = Vec::new();
+    let context_keys = crate::function_context_keys(function);
+    if !context_keys.is_empty() {
+        associated.push((
+            DefinitionAtomRole::ContextKeyTable,
+            DefinitionAtomSubkey::Singleton,
+        ));
+        associated.extend(context_keys.into_iter().map(|key| {
+            (
+                DefinitionAtomRole::ContextKeyCell,
+                DefinitionAtomSubkey::ExactType(key.0),
+            )
+        }));
+    }
     if function.callable_body.release_owner().is_none() {
         associated.push((DefinitionAtomRole::CompactUnwind, subkey()));
     }

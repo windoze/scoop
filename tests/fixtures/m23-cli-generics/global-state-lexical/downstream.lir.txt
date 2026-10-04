@@ -346,7 +346,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 dispatch[Closure:2] param0(param0)
     store t0 -> local0
     store local0 -> local1
-    t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
+    t1 = box_value external-td4, local1 scan=none sp<managed-call:1> live=[]
     ret t1
   fun @scoop$1$cb$6e390bba138278850ffd5ab2700569decb946d4ac20de31ef95620f4f7304ad9(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
@@ -356,10 +356,10 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 dispatch[Closure:2] param0(param0)
     store t0 -> local0
     store local0 -> local1
-    t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
+    t1 = box_value external-td4, local1 scan=none sp<managed-call:1> live=[]
     ret t1
   td td0 n(c=dev.example%3Ageneric-member-downstream-lexical%3A0.1.0;p=;o=-;k=C;x=Later) @scoop$1$td$69eeeb756f583a9ba7cda96cfc95d9840543bb74aa30cd2d78b552736ff15f5d type-id=5737784188090991388 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td0
+  td td1 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td4
   td td2 g(r=00000001;i=b3ffc2009a5b678dbe14eb2f8d9c87575a483d65ae990483269671995f922a7b) @scoop$1$td$cbe9f31c4e146a5e5d439b286c50ee7c3acff2e9febcbebcd67b6b6054d6c4f0 type-id=17792229889480864959 shape=FixedObject minimum-size=32 align=8 parent=td1 vtable=[local-fn10] itables=[]
   td td3 g(r=00000001;i=ebc5559d7880d53e575c4a9343a88e9fb31b4bb0a9a4d0d94f8a7c13e50dc66e) @scoop$1$td$d5a3c66bbb0423ed8b4ba9bfc6521f1ea49290d1f3a14cf432092a7d51253be0 type-id=13318213590964745241 shape=FixedObject minimum-size=32 align=8 parent=td1 vtable=[local-fn11] itables=[]
   layout Later value size=8 align=8 refs=[0]

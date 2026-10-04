@@ -59,6 +59,7 @@ fn object(name: &str) -> ast::Decl {
 
 fn property(name: &str, receiver: Option<ast::TypeRef>) -> ast::Decl {
     ast::Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

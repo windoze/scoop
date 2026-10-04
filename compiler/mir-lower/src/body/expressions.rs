@@ -23,6 +23,13 @@ impl BodyLowerer<'_> {
             );
         }
         let kind = match &expr.kind {
+            hir::ExprKind::ContextLookup {
+                declaration,
+                label,
+                parameter,
+            } => {
+                return self.lower_context_lookup(expr, declaration, label, *parameter);
+            }
             hir::ExprKind::ReleaseFieldLoad { class, index } => smir::ExprKind::ReleaseFieldLoad {
                 class: self.class_map[class],
                 index: *index,

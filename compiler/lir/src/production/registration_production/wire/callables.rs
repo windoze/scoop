@@ -139,6 +139,8 @@ impl WireDecode for DecodedStrongCallableRuntimeScanAtomV1 {
 
 #[derive(Debug)]
 pub(in crate::production::registration_production) struct DecodedStrongCallableRuntimeScanPlanV1 {
+    pub(in crate::production::registration_production) context_keys:
+        Vec<DecodedPersistentId<PersistentExactTypeId>>,
     pub(in crate::production::registration_production) body:
         DecodedPersistentId<PersistentCallableBodyId>,
     pub(in crate::production::registration_production) atoms:
@@ -147,18 +149,20 @@ pub(in crate::production::registration_production) struct DecodedStrongCallableR
 
 impl WireEncode for DecodedStrongCallableRuntimeScanPlanV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(2)?;
+        encoder.map(3)?;
         encode_field(encoder, 1, &self.body)?;
-        encode_array_field(encoder, 2, &self.atoms)
+        encode_array_field(encoder, 2, &self.atoms)?;
+        encode_array_field(encoder, 3, &self.context_keys)
     }
 }
 
 impl WireDecode for DecodedStrongCallableRuntimeScanPlanV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(2)?;
+        decoder.expect_map(3)?;
         Ok(Self {
             body: decoder.field(1, DecodedPersistentId::decode)?,
             atoms: decode_array_field(decoder, 2, DecodedStrongCallableRuntimeScanAtomV1::decode)?,
+            context_keys: decode_array_field(decoder, 3, DecodedPersistentId::decode)?,
         })
     }
 }

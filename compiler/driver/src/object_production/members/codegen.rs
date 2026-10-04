@@ -16,18 +16,16 @@ pub(in crate::object_production) fn plan_codegen_objects(
                 source,
             }
         })?;
-        let digest_patches = match member.kind() {
-            EmittedConeObjectMemberKindV1::NonCallable { digest_patches, .. } => digest_patches
-                .iter()
-                .map(|materialization| {
-                    UnboundDigestPatch::from_codegen(
-                        materialization.location(),
-                        materialization.checked_object_offset(),
-                    )
-                })
-                .collect(),
-            EmittedConeObjectMemberKindV1::CallableBody { .. } => Vec::new(),
-        };
+        let digest_patches = member
+            .digest_patches()
+            .iter()
+            .map(|materialization| {
+                UnboundDigestPatch::from_codegen(
+                    materialization.location(),
+                    materialization.checked_object_offset(),
+                )
+            })
+            .collect();
         scoop_lir_sources.push(UnboundScoopLirObject {
             units: member.units().definition_plans().to_vec(),
             bytes,

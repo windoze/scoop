@@ -38,6 +38,11 @@ pub struct DecodedDefaultExpressionV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DecodedDefaultExpressionKindV1 {
+    ContextLookup {
+        declaration: DecodedDefaultCallableDeclarationV1,
+        parameter: crate::ContextParameterIndex,
+        diagnostic: crate::ContextDiagnostic,
+    },
     StringLiteral {
         value: String,
         owner: DecodedDefaultStringOwnerV1,

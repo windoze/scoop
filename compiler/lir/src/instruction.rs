@@ -29,6 +29,8 @@ impl CArgumentStorage {
 /// A value usable as an instruction operand.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Value {
+    /// The slot cell associated with this callable body and exact context key.
+    ContextKeyCell(scoop_identity::ContextKey),
     /// Contents of a local's stack slot (loaded implicitly).
     Local(LocalId),
     /// A function parameter (0-based).

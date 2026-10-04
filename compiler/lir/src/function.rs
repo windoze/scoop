@@ -44,6 +44,7 @@ impl Function {
     /// The type of a value in this function.
     pub fn value_ty(&self, globals: &Arena<Global>, value: Value) -> LirType {
         match value {
+            Value::ContextKeyCell(_) => RAW_PTR,
             Value::Local(id) => self.locals[id].ty().clone(),
             Value::Temp(id) => self.temps[id].ty.clone(),
             Value::Param(index) => self.signature.arguments()[index as usize]

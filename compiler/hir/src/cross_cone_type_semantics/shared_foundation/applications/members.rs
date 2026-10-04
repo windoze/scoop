@@ -69,6 +69,11 @@ impl<'a> SharedTypeMetadataV1<'a> {
                 exact(source.result())?,
             ),
             source.effects(),
+            source
+                .context_parameters()
+                .iter()
+                .map(|parameter| exact(parameter.value_type()).map(scoop_identity::ContextKey))
+                .collect::<Result<_, _>>()?,
         )
         .map_err(|_| Error::CallableContract(source.declaration()))
     }

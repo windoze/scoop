@@ -17,6 +17,7 @@ use crate::link_object::{PlannedMemberStrongObjectSymbolsV1, PlannedStrongObject
 use super::Corruption;
 
 const COMMAND_BYTES: u32 = 72 + 4 * 80 + 24 + 80;
+const CALLABLE_REGISTRATION_SIZE: u64 = 208;
 const TEXT_FILE_OFFSET: u32 = 32 + COMMAND_BYTES;
 
 pub(super) struct ObjectFixture {
@@ -45,7 +46,8 @@ pub(super) fn object_bytes(
     let callable_registration_base = 16;
     let registration_relative = align_to(
         callable_registration_base
-            + u64::try_from(callable_plans.registrations().len()).unwrap() * 192,
+            + u64::try_from(callable_plans.registrations().len()).unwrap()
+                * CALLABLE_REGISTRATION_SIZE,
         8,
     );
     let readonly_size = registration_relative + 352;
@@ -76,7 +78,7 @@ pub(super) fn object_bytes(
             callable.registration_primary_atom(),
             2,
             readonly_base + callable_registration_relative(callable_plans, callable.body()),
-            192,
+            CALLABLE_REGISTRATION_SIZE,
         );
     }
     for (index, storage) in [plan.storage(), plan.failure_root()].iter().enumerate() {
@@ -127,7 +129,8 @@ pub(super) fn object_bytes(
     let mut readonly = vec![0; usize::try_from(readonly_size).unwrap()];
     for callable in callable_plans.registrations() {
         let start = callable_registration_relative(callable_plans, callable.body());
-        readonly[usize::try_from(start).unwrap()..usize::try_from(start + 192).unwrap()]
+        readonly[usize::try_from(start).unwrap()
+            ..usize::try_from(start + CALLABLE_REGISTRATION_SIZE).unwrap()]
             .copy_from_slice(
                 &crate::link_object::callable_registrations::record::expected_record(*callable),
             );
@@ -360,7 +363,7 @@ fn callable_registration_relative(
         .iter()
         .position(|plan| plan.body() == body)
         .expect("initialization callable has a callable registration");
-    16 + u64::try_from(index).unwrap() * 192
+    16 + u64::try_from(index).unwrap() * CALLABLE_REGISTRATION_SIZE
 }
 
 fn callable_refs(

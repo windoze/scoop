@@ -7,7 +7,7 @@ pub(in super::super) fn change_associated_atom(
 ) -> PersistentCallableBodyId {
     let normalization = emitted.target().contract().native_symbol_normalization();
     for member in emitted.members() {
-        let scoop_codegen::EmittedConeObjectMemberKindV1::CallableBody { body } = member.kind()
+        let scoop_codegen::EmittedConeObjectMemberKindV1::CallableBody { body, .. } = member.kind()
         else {
             continue;
         };

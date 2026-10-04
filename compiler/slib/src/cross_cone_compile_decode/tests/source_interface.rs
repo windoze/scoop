@@ -390,6 +390,7 @@ impl CallableSourceSurface {
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
             scoop_hir::CanonicalPersistentIdsV1::empty(),
+            Vec::new(),
         )
         .unwrap();
         let calling = if matches!(

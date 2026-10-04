@@ -33,6 +33,7 @@ impl std::ops::DerefMut for Function {
 /// The complete callable signature shared by source and decoded definitions.
 #[derive(Debug, Clone)]
 pub struct CallableSignature {
+    pub context_parameters: Vec<crate::ContextParameter>,
     pub name: String,
     /// Whether calls use the coroutine ABI rather than the ordinary ABI.
     pub is_suspend: bool,
@@ -55,8 +56,10 @@ impl CallableSignature {
         effects: CallableSourceEffectsV1,
         release_callability: ReleaseCallability,
         span: Span,
+        context_parameters: Vec<crate::ContextParameter>,
     ) -> Self {
         Self {
+            context_parameters,
             name,
             is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
             modifiers: effects.callable_modifiers(),
@@ -362,6 +365,7 @@ mod tests {
     fn integer_intrinsic(ty: TypeId, effect: GcEffect) -> Function {
         Function {
             signature: CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "Int.plus".to_string(),
                 is_suspend: false,

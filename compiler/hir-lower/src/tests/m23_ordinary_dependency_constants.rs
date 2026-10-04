@@ -228,6 +228,7 @@ fn imported_constant_folds_into_local_const_and_static_image_once() {
 
 fn const_property(name: &str, ty: TypeRef, expression: Expr) -> Decl {
     Decl::Global(scoop_ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: scoop_ast::VisibilitySyntax::Omitted,
         modifier: scoop_ast::MethodModifier::Final,

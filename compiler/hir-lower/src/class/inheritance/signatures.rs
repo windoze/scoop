@@ -51,6 +51,14 @@ impl Lowerer {
                 .map(|(source, (_, target))| (source.id, *target)),
         );
         FnSig {
+            context_parameters: sig
+                .context_parameters
+                .into_iter()
+                .map(|parameter| hir::ContextParameter {
+                    ty: self.instantiate_method_ty(parameter.ty, &bindings),
+                    ..parameter
+                })
+                .collect(),
             is_suspend: sig.is_suspend,
             modifiers: sig.modifiers,
             attributes: sig.attributes,

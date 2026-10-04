@@ -79,6 +79,7 @@ impl Lowerer {
                 body.effects(),
                 self.imported_release_callability(&body.effects(), &bindings)?,
                 origin.span,
+                Vec::new(),
             ),
             type_parameters: hir::ImportedCallableTypeParameters::Substitution(parameters),
             no_gc_type_params,

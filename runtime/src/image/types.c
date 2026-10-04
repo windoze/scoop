@@ -143,6 +143,7 @@ void scoop_image_validate_code_and_types(ScoopImageRegistry *registry) {
     }
     collect_types(registry);
     collect_callables(registry);
+    scoop_image_context_keys(registry);
     collect_sites(registry);
     scoop_image_type_relations(registry);
     const ScoopRecordTable *types = &registry->tables[SCOOP_RECORD_TYPE];

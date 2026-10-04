@@ -20,6 +20,7 @@ mod closures;
 mod constructor_definitions;
 mod constructor_slots;
 mod constructor_work;
+mod context;
 mod coroutines;
 mod enums;
 mod equality;
@@ -175,6 +176,8 @@ struct Concretizer<'a> {
     evaluation_context: Option<export::SourceContextId>,
     instantiation_site: Option<SourceSite>,
     type_condition_errors: Vec<scoop_ast::Diagnostic>,
+    checked_context_requirements:
+        std::collections::HashSet<(export::ContextRequirementOwner, Vec<concrete::TypeId>)>,
     pending_functions: VecDeque<(FunctionKey, concrete::FunctionId, Option<SourceSite>)>,
     pending_constructors: VecDeque<(constructor_work::ConstructorWork, Option<SourceSite>)>,
     emitted_functions: Vec<concrete::FunctionId>,
@@ -349,6 +352,7 @@ impl<'a> Concretizer<'a> {
             evaluation_context: None,
             instantiation_site: None,
             type_condition_errors: Vec::new(),
+            checked_context_requirements: Default::default(),
             pending_functions: VecDeque::new(),
             pending_constructors: VecDeque::new(),
             emitted_functions: Vec::new(),

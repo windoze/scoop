@@ -1,0 +1,154 @@
+@Extern(lib = "context_gc", name = "m24_create")
+private fun create(value: Int): Ptr<Unit>
+
+@Extern(lib = "context_gc", name = "m24_drop")
+private fun drop(pointer: Ptr<Unit>)
+
+@Extern(lib = "context_gc", name = "m24_count")
+private fun released(): Int
+
+@Extern(lib = "context_gc", name = "m13_call_context_first")
+private fun callNative(callback: FunPtr<(Ptr<Unit>, Int) -> Unit>, context: Ptr<Unit>, value: Int)
+
+class Payload(val id: Int, private val handle: Ptr<Unit>) {
+    release { @Unsafe { drop(handle) } }
+}
+
+private fun payload(id: Int): Payload {
+    @Unsafe { return Payload(id, create(id)) }
+}
+
+context(value: Payload)
+private fun current(): Int = value.id
+
+private fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+private fun collect(expected: Int) {
+    gcCollect()
+    gcCollect()
+    @Unsafe {
+        val actual = released()
+        if (actual != expected) {
+            println(actual)
+            println(expected)
+        }
+        expect(actual == expected)
+    }
+}
+
+private fun scopes() {
+    context(payload(1)) {
+        collect(0)
+        expect(current() == 1)
+        context(payload(2)) {
+            collect(0)
+            expect(current() == 2)
+        }
+        collect(2)
+        expect(current() == 1)
+    }
+}
+
+@Unsafe
+private fun registered(): ForeignCallback<(Ptr<Unit>, Int) -> Unit> = context(payload(4)) {
+    foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+        { expected: Int ->
+            collect(3)
+            expect(current() == expected)
+        }, 0, ForeignCallbackMode.Reusable
+    )
+}
+
+private fun invoke(callback: ForeignCallback<(Ptr<Unit>, Int) -> Unit>) {
+    context(payload(8)) {
+        collect(3)
+        @Unsafe { callNative(callback.function, callback.context, 4) }
+        collect(3)
+        expect(current() == 8)
+    }
+}
+
+private fun callbacks() {
+    @Unsafe {
+        val callback = registered()
+        collect(3)
+        invoke(callback)
+        collect(11)
+        expect(foreignCallbackState(callback) == ForeignCallbackState.Registered)
+        releaseForeignCallback(callback)
+    }
+}
+
+class Gate(val id: Int) : SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) { waiter = Some(continuation) }
+    fun complete() { waiter!!.resume(42) }
+    fun fail() { waiter!!.resumeWithException(IllegalStateException()) }
+}
+
+class Completion : Continuation<Int> {
+    var value: Int = 0
+    public override fun resume(value: Int) { this.value = value }
+    public override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+private suspend fun immediate(value: Int): Int = value
+
+private suspend fun work(gate: Gate): Int = context(payload(gate.id)) {
+    context(payload(gate.id * 2)) {
+        val result = suspendCoroutine(gate)
+        val returned = immediate(result)
+        gcCollect()
+        expect(current() == gate.id * 2)
+        returned
+    }
+}
+
+private fun tasks() {
+    val first = Gate(16)
+    val second = Gate(64)
+    val firstDone = Completion()
+    val secondDone = Completion()
+    startCoroutine(suspend { work(first) }, firstDone)
+    startCoroutine(suspend { work(second) }, secondDone)
+    collect(15)
+    first.complete()
+    collect(63)
+    expect(firstDone.value == 42 && secondDone.value == 0)
+    second.complete()
+    collect(255)
+    expect(secondDone.value == 42)
+    expect(when (first.waiter) {
+        Some(_) -> true
+        None -> false
+    })
+    expect(when (second.waiter) {
+        Some(_) -> true
+        None -> false
+    })
+    val failed = Gate(256)
+    val failedDone = Completion()
+    startCoroutine(suspend { work(failed) }, failedDone)
+    collect(255)
+    try {
+        failed.fail()
+        expect(false)
+    } catch (exception: IllegalStateException) {
+        collect(1023)
+    }
+    expect(failedDone.value == 0)
+    expect(when (failed.waiter) {
+        Some(_) -> true
+        None -> false
+    })
+}
+
+fun main() {
+    scopes()
+    collect(3)
+    callbacks()
+    collect(15)
+    tasks()
+    collect(1023)
+    println("gc-lifetimes-ok")
+}

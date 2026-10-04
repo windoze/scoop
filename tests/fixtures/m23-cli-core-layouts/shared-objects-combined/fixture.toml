@@ -28,7 +28,7 @@ checks = [
   {"file" = "${work}/dump/core/${core.result.root.identity}/hir.txt", "snapshot" = "core.hir.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/mir.txt", "snapshot" = "core.mir.txt"},
   {"file" = "${work}/dump/core/${core.result.root.identity}/lir.txt", "snapshot" = "core.lir.txt"},
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "40527db284527f73d8113260cedee53e65ed1f5da7a7b1ad8ccb3b70e5919fd5"},
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "67a330757ea9b851b50041f7dc34364fa59ddf43b81deacf42ffa35f09456472"},
 ]
 
 [[steps]]

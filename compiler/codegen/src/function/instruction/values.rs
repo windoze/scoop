@@ -164,6 +164,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             .as_pointer_value()
             .into(),
             Value::RootScan(id) => self.root_scans[arena_index(id)].into(),
+            Value::ContextKeyCell(key) => self.runtime_scans.context_cell(key)?.into(),
             Value::Global(id) => self.globals[arena_index(id)]
                 .expect("ordinary globals are emitted")
                 .as_pointer_value()
@@ -211,6 +212,7 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
             | Value::NullPointer(_)
             | Value::TypeDescriptor(_)
             | Value::RootScan(_)
+            | Value::ContextKeyCell(_)
             | Value::Global(_)
             | Value::InitializationUnit(_)
             | Value::CArgumentStorage(_) => None,

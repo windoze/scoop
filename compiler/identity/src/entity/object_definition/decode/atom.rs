@@ -38,6 +38,8 @@ impl WireDecode for DefinitionAtomRole {
             5 => Ok(Self::Stackmap),
             6 => Ok(Self::RuntimeRecord),
             7 => Ok(Self::AddressTakenConstant),
+            8 => Ok(Self::ContextKeyCell),
+            9 => Ok(Self::ContextKeyTable),
             tag => Err(unknown_tag(decoder, tag)),
         }
     }

@@ -2,9 +2,9 @@
 
 use super::{ConeLirFoundation, DefinitionPlanRecord};
 use scoop_identity::{
-    CallableBodyKeyKind, DigestNodeKey, ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole,
-    OdrMemberDiscriminator as D, OdrMemberKey, OdrMemberRole as R, StrongDefinitionEntity,
-    StrongDefinitionRole as S,
+    CallableBodyKeyKind, DigestNodeKey, ObjectDefinitionPlanId, ObjectDefinitionPlanKey,
+    ObjectDefinitionPlanOwner, ObjectDefinitionPlanRole, OdrMemberDiscriminator as D, OdrMemberKey,
+    OdrMemberRole as R, StrongDefinitionEntity, StrongDefinitionRole as S,
 };
 
 impl ConeLirFoundation {
@@ -31,10 +31,9 @@ impl ConeLirFoundation {
         entity: StrongDefinitionEntity,
         role: S,
     ) -> Option<&DefinitionPlanRecord> {
-        if let Some(record) = self.definition_plans().iter().find(|record| {
-            matches!(record.key().owner(), ObjectDefinitionPlanOwner::Strong { entity: candidate, .. } if candidate == entity)
-                && record.key().definition_role() == ObjectDefinitionPlanRole::Strong(role)
-        }) {
+        let key = ObjectDefinitionPlanKey::strong(self.producer(), entity, role).ok()?;
+        let id = ObjectDefinitionPlanId::from_key(&key).ok()?;
+        if let Some(record) = self.definition_plan(id) {
             return Some(record);
         }
         let member = if role == S::CallableBody {
@@ -42,6 +41,7 @@ impl ConeLirFoundation {
             else {
                 return None;
             };
+            // Callable bodies follow dependency order.
             let body = self
                 .callable_bodies()
                 .iter()
@@ -63,9 +63,8 @@ impl ConeLirFoundation {
                 .find(|record| member_subject(record.key()) == Some((entity, role)))?
                 .id()
         };
-        self.definition_plans()
-            .iter()
-            .find(|record| record.key().owner() == ObjectDefinitionPlanOwner::Odr { member })
+        let id = ObjectDefinitionPlanId::from_key(&ObjectDefinitionPlanKey::odr(member)).ok()?;
+        self.definition_plan(id)
     }
 
     pub(crate) fn registration_digest_key(&self, record: &DefinitionPlanRecord) -> DigestNodeKey {

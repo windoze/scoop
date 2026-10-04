@@ -147,6 +147,7 @@ impl Lowerer {
             });
         }
         self.functions[id].params = params;
+        let mut entry = self.lower_context_entry(id);
 
         let returns_unit = self.types_equal(sig.return_ty, self.unit);
         let statements = match &decl.body {
@@ -217,7 +218,10 @@ impl Lowerer {
 
         hir::Body {
             locals: std::mem::take(&mut self.locals),
-            statements,
+            statements: {
+                entry.extend(statements);
+                entry
+            },
         }
     }
 

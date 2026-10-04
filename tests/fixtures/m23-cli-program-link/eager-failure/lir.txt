@@ -33,7 +33,7 @@ Module
     store local2 -> local3
     t1 = enum_wrap e0 v0 (local3) : enum0
     store t1 -> local4
-    call managed-direct-target0 sp<managed-call:1> live=[local4:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:1> live=[local4:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t2 -> local5
     call managed-void-target1 sp<managed-call:2> live=[local4:enum0@0, local5:ptr<managed>@0] sig=void1 (ptr<managed>, enum0) external-fn0(local5, local4)
     t3 = aggregate () : {}
@@ -165,6 +165,7 @@ Module
   fun @scoop$1$cb$cfbc2afa4c4564d1515c56ca65fd5541c9356343f3751e769365926a40508716() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn2() normal @success unwind @failure
     br @success
   block success
@@ -172,13 +173,14 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
     global_store global4, t3
     end_catch
     ret integer<UInt>(0x00000001)
   fun @scoop$1$cb$1d3aa3b32ba9a44049d18b30dc34f7097c7c05780627940af286eae015f0476a() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @success unwind @failure
     br @success
   block success

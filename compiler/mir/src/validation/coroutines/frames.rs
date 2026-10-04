@@ -119,6 +119,7 @@ pub(super) fn validate_frame(
         frame.owner(),
         frame.state(),
         frame.completion(),
+        frame.task(),
         frame.saved_values().to_vec(),
         frame.failure(),
         frame.identity().clone(),
@@ -130,10 +131,13 @@ pub(super) fn validate_frame(
             "frame roles no longer name distinct fields of the exact frame class",
         ));
     }
-    if frame.state().field_index() != 0 || frame.completion().field_index() != 1 {
+    if frame.state().field_index() != 0
+        || frame.completion().field_index() != 1
+        || frame.task().field_index() != 2
+    {
         return Err(error(
             location,
-            "frame state and completion must be the canonical first two fields",
+            "frame state, completion, and task must be the canonical first three fields",
         ));
     }
     let Some(class) = arena_get(&module.classes, frame.class()) else {
@@ -145,10 +149,10 @@ pub(super) fn validate_frame(
             "frame class must have a declared representation",
         ));
     };
-    if fields.len() != frame.saved_values().len() + 3 {
+    if fields.len() != frame.saved_values().len() + 4 {
         return Err(error(
             location,
-            "every frame field must have exactly one state, completion, saved, or failure role",
+            "every frame field must have exactly one state, completion, task, saved, or failure role",
         ));
     }
     Ok(())

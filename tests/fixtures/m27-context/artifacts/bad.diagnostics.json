@@ -1,0 +1,41 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "duplicate context key after specialization of `read`: parameters 1 and 2 have the same exact type",
+    "notes": [],
+    "origin": {
+      "cone": "bb0a4eb650520cb7d17730be86cc025ff8562beb9fa832000d8cc60fffd9da0d",
+      "end": 83,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 78
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "duplicate context key after specialization of `read`: parameters 1 and 2 have the same exact type",
+    "notes": [],
+    "origin": {
+      "cone": "bb0a4eb650520cb7d17730be86cc025ff8562beb9fa832000d8cc60fffd9da0d",
+      "end": 147,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 142
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "duplicate context key after specialization of `read`: parameters 1 and 2 have the same exact type",
+    "notes": [],
+    "origin": {
+      "cone": "bb0a4eb650520cb7d17730be86cc025ff8562beb9fa832000d8cc60fffd9da0d",
+      "end": 211,
+      "kind": "source",
+      "path": "src/main.scoop",
+      "start": 206
+    },
+    "severity": "error"
+  }
+]

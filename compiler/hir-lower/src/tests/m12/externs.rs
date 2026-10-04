@@ -16,6 +16,7 @@ fn extern_property(
         }));
     }
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations,
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

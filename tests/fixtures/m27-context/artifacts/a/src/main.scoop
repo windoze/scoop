@@ -1,0 +1,77 @@
+package taskcontexts
+
+public class Request public constructor(public var value: Int)
+
+context(request: Request)
+public fun direct(): Int = request.value
+
+context(value: T)
+public fun <T: ref> current(): T = value
+
+public fun <T: ref> nested(value: T): T {
+    context(local: T)
+    fun read(): T = local
+    return context(value) { read() }
+}
+
+context(request: Request)
+public fun fromA(): Int = current<Request>().value
+
+context(request: Request)
+public fun withDefault(value: Int = direct()): Int = value + request.value
+
+context(request: Request)
+public var active: Int
+    get() = request.value
+    set(next) { request.value = next }
+
+public interface Reader<T: ref> {
+    context(value: T)
+    public fun read(): T
+
+    context(value: T)
+    public val current: T
+}
+
+public interface PairContract<A: ref, B: ref> {
+    context(a: A, b: B)
+    public fun read(): Int
+}
+
+public abstract class AbstractPair<A: ref, B: ref> {
+    context(a: A, b: B)
+    public abstract fun read(): Int
+}
+
+public class UnusedPair<A: ref, B: ref> {
+    context(a: A, b: B)
+    public fun read(): Int = 1
+}
+
+context(value: T)
+public suspend fun <T: ref> delayed(registration: SuspendRegistration<Int>): T = context(value) {
+    suspendCoroutine(registration)
+    gcCollect()
+    current<T>()
+}
+
+@Unsafe
+public fun <T: ref> registerCallback(value: T, read: (T) -> Int): ForeignCallback<(Ptr<Unit>, Int) -> Unit> = context(value) {
+    val callback = foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+        { expected: Int ->
+            gcCollect()
+            if (read(current<T>()) != expected) { throw IllegalStateException() }
+            gcCollect()
+        }, 0, ForeignCallbackMode.Reusable
+    )
+    val retained = retainForeignCallback(callback)
+    releaseForeignCallback(callback)
+    if (foreignCallbackState(retained) != ForeignCallbackState.Registered) {
+        throw IllegalStateException()
+    }
+    if (when (foreignCallbackFailure(retained)) {
+        Some(_) -> true
+        None -> false
+    }) { throw IllegalStateException() }
+    retained
+}

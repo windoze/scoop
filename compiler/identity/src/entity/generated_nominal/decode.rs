@@ -87,6 +87,7 @@ impl WireDecode for DecodedCallableAdapterEnvironmentKey {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedGeneratedNominalKey {
+    TaskContext(crate::DecodedContextStorageType),
     ClosureEnvironment {
         callable: DecodedCallableMaterialization,
         role: ClosureEnvironmentRole,
@@ -121,7 +122,8 @@ impl DecodedGeneratedNominalKey {
         resolver: &mut R,
     ) -> Result<GeneratedNominalKey, GeneratedNominalResolutionError<E>>
     where
-        R: PersistentIdResolver<PersistentFunctionId, Error = E>
+        R: PersistentIdResolver<crate::ConeIdentity, Error = E>
+            + PersistentIdResolver<PersistentFunctionId, Error = E>
             + PersistentIdResolver<PersistentGenericFunctionId, Error = E>
             + PersistentIdResolver<PersistentConstructorId, Error = E>
             + PersistentIdResolver<PersistentPropertyAccessorId, Error = E>
@@ -133,6 +135,11 @@ impl DecodedGeneratedNominalKey {
             + PersistentIdResolver<PersistentTypeId, Error = E>,
     {
         let key = match self {
+            Self::TaskContext(storage) => GeneratedNominalKey::TaskContext(
+                storage
+                    .resolve(resolver)
+                    .map_err(GeneratedNominalResolutionError::Reference)?,
+            ),
             Self::ClosureEnvironment { callable, role } => {
                 GeneratedNominalKey::ClosureEnvironment {
                     callable: callable
@@ -191,6 +198,7 @@ impl DecodedGeneratedNominalKey {
 impl WireEncode for DecodedGeneratedNominalKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::TaskContext(storage) => encode_value_sum(encoder, 9, storage),
             Self::ClosureEnvironment { callable, role } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 1)?;
@@ -259,6 +267,12 @@ impl WireDecode for DecodedGeneratedNominalKey {
             8 => decode_id_variant(decoder, fields, |object| Self::ObjectBackingClass {
                 object,
             }),
+            9 => {
+                expect_sum_length(decoder, fields, 2)?;
+                decoder
+                    .field(1, crate::DecodedContextStorageType::decode)
+                    .map(Self::TaskContext)
+            }
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }

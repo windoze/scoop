@@ -46,6 +46,9 @@ impl<'a> Projection<'a> {
             .get_by_identity(exact)
             .map(|record| record.location())
         {
+            Some(mir::GeneratedExactTypeLocation::Context(storage)) => {
+                Ok(mir::Type::Context(storage))
+            }
             Some(mir::GeneratedExactTypeLocation::Class(id)) => Ok(mir::Type::Class(id)),
             Some(mir::GeneratedExactTypeLocation::Enum(id)) => Ok(mir::Type::Enum(id, Vec::new())),
             _ => Err(ExactLayoutLoweringError::MissingPhysicalType(exact)),
@@ -81,6 +84,7 @@ impl<'a> Projection<'a> {
             ))?);
         }
         let location = match ty {
+            mir::Type::Context(storage) => mir::GeneratedExactTypeLocation::Context(*storage),
             mir::Type::Class(id) => mir::GeneratedExactTypeLocation::Class(*id),
             mir::Type::Enum(id, _) => mir::GeneratedExactTypeLocation::Enum(*id),
             _ => return Err(ExactLayoutLoweringError::MissingSourceExact),
@@ -106,6 +110,13 @@ impl<'a> Projection<'a> {
         let exact = source.exact();
 
         match (source.representation(), ty) {
+            (representation, mir::Type::Context(storage)) => {
+                if representation == &mir::context_type_representation(*storage) {
+                    Ok(())
+                } else {
+                    Err(ExactLayoutLoweringError::SourceRepresentation(exact))
+                }
+            }
             (Kind::InlineArray { element }, mir::Type::Class(id)) => {
                 let mir::ClassRepresentation::Intrinsic(
                     mir::IntrinsicTypeRepresentation::Array { element: actual }

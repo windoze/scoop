@@ -88,7 +88,16 @@ fn enum_instances_are_created_once_with_substituted_fields() {
 
     // The variant field types are substituted with the instance's
     // type arguments.
-    let option_int_def = &module.enums[la_arena::Idx::from_raw(3.into())];
+    let option = |ty| {
+        module
+            .enums
+            .iter()
+            .find(|(_, def)| {
+                def.name == "Option" && def.type_arguments == std::slice::from_ref(&ty)
+            })
+            .unwrap()
+    };
+    let (option_int_id, option_int_def) = option(mir::Type::Integer(mir::IntegerKind::SIGNED_32));
     assert_eq!(option_int_def.variants[0].name, "Some");
     assert_eq!(
         option_int_def.variants[0].fields[0].ty,
@@ -101,12 +110,12 @@ fn enum_instances_are_created_once_with_substituted_fields() {
             .iter()
             .all(|variant| variant.gc_free)
     );
-    let option_string_def = &module.enums[la_arena::Idx::from_raw(4.into())];
+    let (option_string_id, option_string_def) = option(mir::Type::String);
     assert_eq!(
         option_string_def.variants[0].fields[0].ty,
         mir::Type::String
     );
-    let option_s_def = &module.enums[la_arena::Idx::from_raw(5.into())];
+    let (option_s_id, option_s_def) = option(mir::Type::Struct(la_arena::Idx::from_raw(0.into())));
     assert_eq!(
         option_s_def.variants[0].fields[0].ty,
         mir::Type::Struct(la_arena::Idx::from_raw(0.into()))
@@ -119,11 +128,7 @@ fn enum_instances_are_created_once_with_substituted_fields() {
     assert!(!option_string_def.variants[0].gc_free);
     assert!(option_string_def.variants[1].gc_free);
     assert_eq!(module.option_core.len(), 3);
-    for enum_id in [
-        la_arena::Idx::from_raw(3.into()),
-        la_arena::Idx::from_raw(4.into()),
-        la_arena::Idx::from_raw(5.into()),
-    ] {
+    for enum_id in [option_int_id, option_string_id, option_s_id] {
         let option = module
             .option_core(enum_id)
             .expect("each concrete core Option has exact MIR provenance");

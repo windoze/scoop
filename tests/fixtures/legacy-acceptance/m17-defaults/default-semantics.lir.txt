@@ -92,7 +92,7 @@ Module
     store local0 -> local1
     call managed-void-target0 sp<managed-call:0> live=[local1:ptr<managed>@0] sig=void0 (ptr<managed>) local-fn11(local1)
     t0 = aggregate () : {}
-    call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:1> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
     store t1 -> local2
     call managed-void-target1 sp<managed-call:2> live=[local2:ptr<managed>@0] sig=void1 (ptr<managed>) external-fn0(local2)
     t2 = aggregate () : {}
@@ -416,7 +416,7 @@ Module
   block try.dispatch.8
     t57 = begin_catch local106 : ptr<managed>
     store t57 -> local107
-    call no-gc-direct-target1 t58 = sig=direct21 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local107, external-td3)
+    call no-gc-direct-target1 t58 = sig=direct21 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local107, external-td8)
     cbr t58 then @try.catch.15 else @try.next.16
   block try.handler_pad.9
     (t59, t60) = cleanup_pad : (exception_record, ptr<raw>)
@@ -548,7 +548,7 @@ Module
   block logic.merge.3
     cbr local5 then @if.then.4 else @if.merge.5
   block if.then.4
-    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td11, machine<byte-size>(ByteSize(24)))
     store t3 -> local6
     call managed-void-target0 sp<managed-call:1> live=[local6:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn5(local6)
     t4 = aggregate () : {}
@@ -722,16 +722,17 @@ Module
     local %3 $box.3: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0, param1:ptr<managed>@0, param2:ptr<managed>@0]
-    unbox_value external-td0, param1 -> local1
-    unbox_value external-td0, param2 -> local2
+    unbox_value external-td4, param1 -> local1
+    unbox_value external-td4, param2 -> local2
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>, i32, i32) -> i32 dispatch[Closure:2] param0(param0, local1, local2)
     store t0 -> local0
     store local0 -> local3
-    t1 = box_value external-td0, local3 scan=none sp<managed-call:1> live=[]
+    t1 = box_value external-td4, local3 scan=none sp<managed-call:1> live=[]
     ret t1
   fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn10() normal @success unwind @failure
     br @success
   block success
@@ -739,7 +740,7 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
     global_store global14, t3
     end_catch
     ret integer<UInt>(0x00000001)
@@ -753,7 +754,7 @@ Module
   td td7 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Shape) @scoop$1$td$dc474625ff918e46b4a851afa845b7d9200f432fcefdc989042c3247a3bcf601 type-id=12800312400628926063 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[td0:[local-fn0]]
   td td8 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Scale) @scoop$1$td$45a31961dcf5c29182066d83b0b5f712ea14b3165c267b9687c51978cd5441a8 type-id=2629805269964165515 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td10 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=ListIterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$e09f427cf69f099b5d83331e76dc01086e2ce5cff32f24e7c23dcc3e40b2962f type-id=5865842032547932590 shape=FixedObject minimum-size=40 align=8 parent=none vtable=[] itables=[td3:[local-fn19]]
-  td td11 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$400c0c0f90fe2932ce521677bd75420a55ce9459b2055bc39d07dd5b16c9ac3f type-id=2343812593798831005 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td0, external-td0)->external-td0
+  td td11 f(o;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int),n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$400c0c0f90fe2932ce521677bd75420a55ce9459b2055bc39d07dd5b16c9ac3f type-id=2343812593798831005 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary(external-td4, external-td4)->external-td4
   td td12 g(r=00000001;i=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93) @scoop$1$td$cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba type-id=15632537944678064654 shape=FixedObject minimum-size=24 align=8 parent=td11 vtable=[local-fn29] itables=[]
   td td13 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=Settings) @scoop$1$td$7dd6028b752fd7fce90f2b19e9e57ce3dd077c5c9244409b23d9c1f9a041522b type-id=17268460791188031408 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td14 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$99105b2fcc5c078d010bbcc6eb646fc28da5b9a4b54d1154614fd6786521a572 type-id=2541775214623186241 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]

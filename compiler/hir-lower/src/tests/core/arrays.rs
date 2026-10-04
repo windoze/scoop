@@ -22,6 +22,7 @@ pub(super) fn add_length_getter(class: &mut ast::ClassDecl, intrinsic: &str) {
     class
         .members
         .push(ast::ClassMember::StoredProperty(ast::PropertyDecl {
+            context_parameters: Vec::new(),
             annotations: Vec::new(),
             visibility: ast::VisibilitySyntax::Omitted,
             modifier: ast::MethodModifier::Final,

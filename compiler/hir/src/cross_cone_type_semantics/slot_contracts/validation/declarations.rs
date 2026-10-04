@@ -103,6 +103,7 @@ pub(super) fn validate<'s, A: InheritanceSlotContractSemanticAuthority<E>, E>(
         .parameters()
         .iter()
         .chain(std::iter::once(&signature.exact_signature().result()))
+        .chain(signature.context_keys().iter().map(|key| &key.0))
     {
         types::validate_exact_identity(*exact, authority)?;
     }

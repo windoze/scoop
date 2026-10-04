@@ -1,0 +1,3 @@
+interface Reader { context(a: String) val size: Int }
+class Impl(override val size: Int) : Reader
+fun main() {}

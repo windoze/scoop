@@ -128,6 +128,7 @@ static void detach_current(ScoopThreadAttachmentKind expected_kind) {
     scoop_thread_registry_lock();
     scoop_thread_wait_for_running_world();
     require_detachable(state, expected_kind);
+    state->current_task_context = NULL;
     atomic_store_explicit(&state->mode, SCOOP_THREAD_DETACHING, memory_order_release);
     registry_remove(state);
     scoop_thread_tls = NULL;

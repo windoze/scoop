@@ -82,7 +82,8 @@ impl Validator<'_> {
             DefaultExpressionKindV1::Capture(index) => Err(
                 ExportDefaultLocalDataFlowValidationError::UnboundCapture(*index),
             ),
-            DefaultExpressionKindV1::StringLiteral { .. }
+            DefaultExpressionKindV1::ContextLookup { .. }
+            | DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::CharLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)

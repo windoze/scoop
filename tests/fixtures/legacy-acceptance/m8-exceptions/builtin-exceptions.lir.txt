@@ -71,7 +71,7 @@ Module
   block try.dispatch.2
     t2 = begin_catch local45 : ptr<managed>
     store t2 -> local46
-    call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local46, external-td3)
+    call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local46, external-td8)
     cbr t3 then @try.catch.9 else @try.next.10
   block try.handler_pad.3
     (t4, t5) = cleanup_pad : (exception_record, ptr<raw>)
@@ -122,7 +122,7 @@ Module
   block try.dispatch.14
     t15 = begin_catch local45 : ptr<managed>
     store t15 -> local46
-    call no-gc-direct-target1 t16 = sig=direct3 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local46, external-td6)
+    call no-gc-direct-target1 t16 = sig=direct3 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local46, external-td11)
     cbr t16 then @try.catch.24 else @try.next.25
   block try.handler_pad.15
     (t17, t18) = cleanup_pad : (exception_record, ptr<raw>)
@@ -153,7 +153,7 @@ Module
     store t23 -> local31
     br @if.merge.23
   block if.else.22
-    call managed-direct-target2 sp<managed-call:2> live=[] t24 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp<managed-call:2> live=[] t24 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td11, machine<byte-size>(ByteSize(24)))
     store t24 -> local37
     invoke managed-void-target2 sp<managed-invoke:3> roots=[local37:normal] sig=void3 (ptr<managed>) external-fn5(local37) normal @invoke.normal.5 unwind @try.unwind.13
     br @invoke.normal.5
@@ -185,7 +185,7 @@ Module
   block try.dispatch.29
     t31 = begin_catch local45 : ptr<managed>
     store t31 -> local46
-    call no-gc-direct-target2 t32 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local46, external-td7)
+    call no-gc-direct-target2 t32 = sig=direct6 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local46, external-td12)
     cbr t32 then @try.catch.38 else @try.next.39
   block try.handler_pad.30
     (t33, t34) = cleanup_pad : (exception_record, ptr<raw>)
@@ -207,14 +207,14 @@ Module
     br @try.body.49
   block try.body.35
     store integer<Int>(0x00000001) -> local47
-    t37 = box_value external-td0, local47 scan=none sp<managed-call:4> live=[]
+    t37 = box_value external-td4, local47 scan=none sp<managed-call:4> live=[]
     store t37 -> local15
     store local15 -> local32
-    call no-gc-direct-target3 t38 = sig=direct7 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local32, external-td9)
+    call no-gc-direct-target3 t38 = sig=direct7 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local32, external-td14)
     t39 = Not t38 : i1
     cbr t39 then @if.then.36 else @if.merge.37
   block if.then.36
-    call managed-direct-target4 sp<managed-call:5> live=[] t40 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target4 sp<managed-call:5> live=[] t40 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td12, machine<byte-size>(ByteSize(24)))
     store t40 -> local39
     invoke managed-void-target5 sp<managed-invoke:7> roots=[local39:normal] sig=void8 (ptr<managed>) external-fn3(local39) normal @invoke.normal.10 unwind @try.unwind.28
     br @invoke.normal.10
@@ -247,7 +247,7 @@ Module
   block try.dispatch.43
     t47 = begin_catch local45 : ptr<managed>
     store t47 -> local46
-    call no-gc-direct-target4 t48 = sig=direct10 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local46, external-td8)
+    call no-gc-direct-target4 t48 = sig=direct10 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local46, external-td13)
     cbr t48 then @try.catch.58 else @try.next.59
   block try.handler_pad.44
     (t49, t50) = cleanup_pad : (exception_record, ptr<raw>)
@@ -276,7 +276,7 @@ Module
     t53 = integer_compare_Equal<Int> local34, integer<Int>(0x00000000) : i1
     cbr t53 then @if.then.50 else @if.merge.51
   block if.then.50
-    call managed-direct-target6 sp<managed-call:7> live=[] t54 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target6 sp<managed-call:7> live=[] t54 = sig=direct11 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td13, machine<byte-size>(ByteSize(24)))
     store t54 -> local41
     invoke managed-void-target8 sp<managed-invoke:10> roots=[local41:normal] sig=void13 (ptr<managed>) external-fn4(local41) normal @invoke.normal.15 unwind @try.unwind.42
     br @invoke.normal.15
@@ -427,7 +427,7 @@ Module
   block logic.merge.3
     cbr local5 then @if.then.4 else @if.merge.5
   block if.then.4
-    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
     store t3 -> local6
     call managed-void-target0 sp<managed-call:1> live=[local6:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn6(local6)
     t4 = aggregate () : {}
@@ -561,6 +561,7 @@ Module
   fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
     br @success
   block success
@@ -568,7 +569,7 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
     global_store global6, t3
     end_catch
     ret integer<UInt>(0x00000001)

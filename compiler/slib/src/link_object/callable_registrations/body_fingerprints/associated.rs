@@ -15,7 +15,9 @@ pub(super) fn ranges(
             | DefinitionAtomRole::EhFrame
             | DefinitionAtomRole::CompactUnwind
             | DefinitionAtomRole::Stackmap
-            | DefinitionAtomRole::AddressTakenConstant => true,
+            | DefinitionAtomRole::AddressTakenConstant
+            | DefinitionAtomRole::ContextKeyCell
+            | DefinitionAtomRole::ContextKeyTable => true,
             DefinitionAtomRole::Primary | DefinitionAtomRole::RuntimeRecord => false,
         })
         .copied()
@@ -51,6 +53,12 @@ pub(super) fn fingerprint_atoms(
                 section,
                 BuiltinObjectSectionRoleV1::ReadOnlyData | BuiltinObjectSectionRoleV1::CString
             ),
+            DefinitionAtomRole::ContextKeyCell => {
+                section == BuiltinObjectSectionRoleV1::WritableData
+            }
+            DefinitionAtomRole::ContextKeyTable => {
+                section == BuiltinObjectSectionRoleV1::ReadOnlyData
+            }
             DefinitionAtomRole::Primary | DefinitionAtomRole::RuntimeRecord => false,
         };
         if !correct_section {

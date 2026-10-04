@@ -5,6 +5,9 @@ impl<'a> CfgLowerer<'a> {
     /// calls in source evaluation order as explicit effect statements.
     pub(super) fn lower_expr(&mut self, expr: &smir::Expr, span: Span) -> mir::Expr {
         let kind = match &expr.kind {
+            smir::ExprKind::Context(operation) => {
+                mir::ExprKind::Context(operation.map(|operand| self.lower_expr(operand, span)))
+            }
             smir::ExprKind::StringConst(id) => mir::ExprKind::StringConst(*id),
             smir::ExprKind::IntegerLiteral(value) => mir::ExprKind::IntegerLiteral(*value),
             smir::ExprKind::MachineScalarLiteral(value) => {

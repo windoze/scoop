@@ -46,6 +46,16 @@ pub(crate) fn ref_scan(
     base: u64,
 ) -> StorageResult<lir::RefScan> {
     Ok(match ty {
+        mir::Type::Context(storage) => {
+            if storage.role == mir::ContextStorageRole::Mark {
+                lir::RefScan::References(vec![
+                    base,
+                    base + context.pointer_layout(lir::PointerKind::Managed).size,
+                ])
+            } else {
+                lir::RefScan::References(vec![base])
+            }
+        }
         mir::Type::String
         | mir::Type::Class(_)
         | mir::Type::Interface(_)

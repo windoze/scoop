@@ -149,6 +149,7 @@ pub struct CoroutineFrameIdentity {
     generated_type: GeneratedTypeRecord,
     state: FieldRecord,
     completion: FieldRecord,
+    task: FieldRecord,
     saved: Vec<CoroutineFrameSavedFieldIdentity>,
     failure: FieldRecord,
     odr_member: Option<OdrMemberRecord>,
@@ -181,6 +182,7 @@ impl CoroutineFrameIdentity {
         let completion = field(FieldIdentityKey::coroutine_frame_completion(
             generated_type.key(),
         ))?;
+        let task = field(FieldIdentityKey::coroutine_frame_task(generated_type.key()))?;
         let failure = field(FieldIdentityKey::coroutine_frame_failure(
             generated_type.key(),
         ))?;
@@ -218,6 +220,7 @@ impl CoroutineFrameIdentity {
             generated_type,
             state,
             completion,
+            task,
             saved,
             failure,
             odr_member,
@@ -238,6 +241,10 @@ impl CoroutineFrameIdentity {
 
     pub const fn completion_field_record(&self) -> &FieldRecord {
         &self.completion
+    }
+
+    pub const fn task_field_record(&self) -> &FieldRecord {
+        &self.task
     }
 
     pub fn saved_fields(&self) -> &[CoroutineFrameSavedFieldIdentity] {

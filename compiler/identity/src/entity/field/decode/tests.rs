@@ -157,6 +157,7 @@ fn every_field_shape_resolves_through_its_canonical_owner_key() {
         FieldIdentityKey::callable_reference_receiver(&generated[1], local).unwrap(),
         FieldIdentityKey::coroutine_frame_state(&generated[2]).unwrap(),
         FieldIdentityKey::coroutine_frame_completion(&generated[2]).unwrap(),
+        FieldIdentityKey::coroutine_frame_task(&generated[2]).unwrap(),
         FieldIdentityKey::coroutine_frame_saved(&generated[2], local).unwrap(),
         FieldIdentityKey::coroutine_frame_failure(&generated[2]).unwrap(),
         FieldIdentityKey::coroutine_adapter_frame(&generated[3]).unwrap(),
@@ -212,8 +213,8 @@ fn field_decoder_rejects_unknown_outer_and_generated_tags() {
     let outer = decode_canonical::<DecodedFieldIdentityKey>(b"\xa1\x00\x03").unwrap_err();
     assert_eq!(outer.kind(), &WireErrorKind::UnknownTag { tag: 3 });
 
-    let generated = decode_canonical::<DecodedGeneratedFieldKey>(b"\xa1\x00\x0e").unwrap_err();
-    assert_eq!(generated.kind(), &WireErrorKind::UnknownTag { tag: 14 });
+    let generated = decode_canonical::<DecodedGeneratedFieldKey>(b"\xa1\x00\x10").unwrap_err();
+    assert_eq!(generated.kind(), &WireErrorKind::UnknownTag { tag: 16 });
 }
 
 fn source_nominal(

@@ -51,6 +51,17 @@ void *scoop_rt_init_failure(const ScoopInitializationUnitDescriptorV1 *unit);
 const ScoopString *
 scoop_rt_init_cycle_message(const ScoopInitializationUnitDescriptorV1 *unit);
 
+void *scoop_rt_context_try_get(const uint64_t *cell);
+void *scoop_rt_context_push(const uint64_t *cell, void *value,
+                           const ScoopTypeDescriptor *node_td);
+void scoop_rt_context_restore(void *owner, void *previous_root);
+void *scoop_rt_context_snapshot(void);
+void *scoop_rt_context_current(void);
+void *scoop_rt_context_fork(void *root, const ScoopTypeDescriptor *task_td);
+void *scoop_rt_context_ensure_root(const ScoopTypeDescriptor *task_td);
+void *scoop_rt_context_enter(void *task);
+void scoop_rt_context_leave(void *previous_task);
+
 /* Compiler-published roots that remain live across one outbound native call.
  * Each entry scans one addressable value using a generated recursive scan. */
 typedef struct ScoopCallerRootEntry {

@@ -72,7 +72,7 @@ Module
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local1
     store local1 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
     store t0 -> local5
     call managed-void-target0 sp<managed-call:1> live=[local5:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn2(local5, local2)
     t1 = aggregate () : {}
@@ -94,7 +94,7 @@ Module
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store integer<Int>(0x0000002a) -> local1
     store local1 -> local2
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
     store t0 -> local5
     call managed-void-target0 sp<managed-call:1> live=[local5:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn2(local5, local2)
     t1 = aggregate () : {}
@@ -111,7 +111,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
     t0 = heap_load local0 +0 : ptr<metadata>
-    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, external-td0)
+    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, external-td5)
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(local0)
     store t2 -> local1
     ret local1

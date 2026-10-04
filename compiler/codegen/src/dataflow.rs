@@ -22,6 +22,7 @@ impl LiveValue {
             | Value::NullPointer(_)
             | Value::TypeDescriptor(_)
             | Value::RootScan(_)
+            | Value::ContextKeyCell(_)
             | Value::Global(_)
             | Value::InitializationUnit(_) => None,
         }

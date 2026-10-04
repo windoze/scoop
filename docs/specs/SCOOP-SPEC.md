@@ -97,7 +97,7 @@ Scoop 是一门静态类型、编译到原生代码（LLVM 后端）的编程语
 - 空安全运算符：`?.` / `?:` / `!!`（语义见第 7 章）；
 - 类型运算符：`is` / `!is` / `as` / `as?`、智能转换（smart cast，见 2.3）；
 - 协程：`suspend` 函数与挂起调用（见 8.2）；
-- 上下文参数：context parameters（见 8.3）；
+- 上下文参数：保留 `context(name: T)` 表面，采用 task-local 的运行期精确类型解析（见 8.3）；
 - 注解与反射以外的元编程语法（反射仅保留语法级支持，见 2.2）。
 
 ### 2.2 排除的内容
@@ -754,10 +754,91 @@ fun references() {
 - 现阶段不支持 suspend FFI：挂起函数不得带 `@Extern`，其声明引用也不得在 `FunPtr` 上下文中解析为原生地址；M10 的 hidden continuation ABI 只用于编译器生成的 Scoop 托管调用，不是任何 FFI ABI。具体约束见 13.4、13.10 与 14.2。
 - 具体的协程构建器（`launch`、`async` 等）、调度器与取消策略属于标准库，不在最小核心库范围内。最小核心库只提供 11.9 的启动、挂起与恢复原语。
 
-### 8.3 上下文参数（context parameters）
+### 8.3 Task-local Context（M27）
 
-- 支持 Kotlin 的 context parameters 语法：`context(ctx: Ctx)` 声明函数所需的隐式上下文，调用处由编译器从作用域解析。
-- 上下文参数参与重载决议与类型推断，规则与 Kotlin 一致。
+Context 是属于逻辑任务的动态绑定。源码保留 Kotlin-like 的参数声明，但在被调用声明的入口按**精确静态类型**查找；调用点不做隐式实参解析。完整实施设计见 [M27 设计](../milestone27/DESIGN.md)，运行时与编译器职责见 runtime spec 第 9 章、impl spec 2.16。
+
+```scoop
+interface Logger {
+    fun write(message: String)
+}
+
+context(logger: Logger)
+fun report(message: String) {
+    logger.write(message)
+}
+
+fun run(logger: Logger) {
+    context(logger) {
+        report("ready")
+    }
+}
+```
+
+#### 8.3.1 声明与名称
+
+`context(name: T, _: U)` 是至多一个、非空的声明前缀，位于该声明的 annotation/modifier 之前；允许换行，不跨显式分号。每项必须有名称或 `_` 及类型，不接受默认值、`vararg` 或参数修饰符。它可以修饰现有合法的顶层、成员、扩展及局部命名函数，包括 ordinary、suspend、generic、abstract/interface 方法；也可以修饰没有存储、initializer 或 delegate 的计算/abstract property。property-level list 同时适用于其 getter 和已有 setter，不能分别给 accessor 添加另一份 list。
+
+不能用此前缀修饰名义类型、constructor、`init`、release block、lambda、匿名函数、函数类型、stored/delegated property，或 `@Extern`、`@Intrinsic`、`@NoGC` 声明。既有的 generic virtual、interface method-level generic、属性挂起性等限制不因 Context 放宽。
+
+- 具名项在该 list、普通值参数与实际 setter 参数的名称空间内必须唯一；`_` 可重复，但不建立名称。名称只在函数或 accessor 正文内可见，作为普通不可重新绑定的 local；不在 annotation、类型子句或普通参数默认表达式中引入名称。默认表达式仍按 8.5.3 在 caller 求值。
+- 每个 list 的 key 必须不同。透明 alias 展开后相同也算重复；泛型定义处检查已经相同的类型表达式，完整替换后检查新合并的 key。后一检查适用于每个具体 callable/owner application，包括无正文的 abstract/interface contract；错误报告在触发该 application 的位置。
+- requirement 的类型与 binding 表达式的静态类型都必须是非空 managed ref：包括 class/interface/object、String、数组、`Any` 及 ordinary/suspend 函数值。值类型、`Option<T>`、`Ptr`、`FunPtr` 不能直接作为 key。先按普通规则装箱或转成某个引用类型后，可按该引用类型绑定，Context 本身不插入装箱或上转型。
+- 泛型类型表达式须在定义处即可确定为 ref；例如 `Array<T>`、函数类型、`T : ref` 或具有 class 上界的 T。无约束 T 或只有 interface 上界的 T 不能保证这一点，因为 value type 也能实现 interface。13.9 的 bound 组合限制保持。
+- public/protected contract 中的 context type 遵守 9.1.5 的签名可见性；名称不是 key，不影响类型身份。
+
+#### 8.3.2 精确 key 与入口取得
+
+key 就是 alias 展开后的 canonical exact static type；包含完整 nominal/function type 实参及函数挂起性，不读取对象的运行期 TypeDescriptor，也不做 subtype、variance 或 interface 搜索。不同函数类型即使可按 8.1.1 转换，仍是不同 key。同型多角色需要不同 nominal wrapper，透明 alias 不创建新 key。
+
+```scoop
+interface Service
+class ServiceImpl : Service
+
+context(service: Service)
+fun useService() {}
+
+fun needsServiceBinding(impl: ServiceImpl) {
+    context(impl) { useService() }       // ServiceImpl does not supply Service.
+}
+
+fun withServiceBinding(impl: ServiceImpl) {
+    val service: Service = impl
+    context(service) { useService() }    // Binds the exact Service key.
+}
+```
+
+不同 key 的 binding 可以同时存在；安装 ServiceImpl 不遮蔽已有的 Service。上例 needsServiceBinding 只在外层也没有 Service 时抛缺失异常。
+
+每次进入一个 source implementation body 时，按 list 顺序查找一次，先全部取得再执行用户正文。具名结果保存为普通 immutable local，匿名项只检查存在；未使用项也必须取得。第一个缺失项抛 11.7 的 `MissingContextException`，消息标识声明、参数名或从 1 开始的匿名序号、canonical type。函数内的 catch 不包围这个入口过程，caller 可以捕获该异常。
+
+该次 activation 取得的 local 不随内部同型重绑定而变化，新调用进入时才取得新绑定。suspend body 只在 initial entry 取得，跨挂起保留 local；resume 不重取。无正文声明只有 contract；this-adjust thunk、函数引用 adapter 等进入同一实现，不另执行一次 lookup。body 内的普通 closure 若引用该参数，只按 8.1 捕获这个 local。
+
+#### 8.3.3 结构化绑定表达式
+
+`context(value) { body }` 是 compiler-known 表达式，body 是词法 block，不是 lambda，不产生 callable 或 suspension boundary。无 receiver 的这一完整形态优先于普通调用加 trailing lambda；`obj.context(...) { ... }` 仍是普通调用。括号与 block 之间按既有 control-flow header 规则处理换行和分号。一次只接收一个 value，多项用嵌套 scope。
+
+1. value 在外层 Context 中按普通规则完整求值一次，以包含 smart cast 结果的静态类型确定 key。body 的 requirement 或整个表达式的 expected result type 不反向决定 value 的类型；expected result type 只传给 body。
+2. value 正常完成后安装 binding；安装失败不得提交部分状态。body 在新 binding 下执行一次，其正常结果是整个表达式的结果。
+3. 同 key 的内层 binding 覆盖外层，退出后恢复原值或 unbound。fallthrough、return、break、continue、throw 只有真正离开该 scope 才恢复，按词法嵌套恰好一次，与 8.7 的 finally/catch cleanup 使用同一顺序。
+4. 挂起不是退出，不恢复 binding；body 继承所在 callable 的挂起性。恢复后的真正退出仍按上一项处理。scope 内的 finally 在该 binding 下执行；位于 scope 外的 finally 在恢复后的 Context 下执行。
+
+Context 安装可能分配/GC，入口缺失可能构造并抛异常；它们不能用于 const、release-safe 或 NoGC 正文。lookup 成功本身不调用用户代码。
+
+#### 8.3.4 声明契约与调用
+
+ordered context list 进入导出声明及 override/accessor contract。完成宿主与 callable 类型替换后，override/interface implementation 的数量、顺序与 exact type 必须全部相同，名称可以不同。继承同一普通签名的多个冲突 context contract 是该 owner application 的编译错误，不能任选一个。contextual property obligation 只能由具有相同 contract 的计算/abstract property 承接，stored/delegated/constructor property 的隐式 accessor 不能满足它。
+
+context list 不参与 overload applicability、MSC、泛型推断、普通或 suspend 函数类型、mangle、dispatch slot identity 或机器实参。只差 context list 的声明仍是重复声明。未声明 requirement 的中间函数可以调用 contextual function，不推导或传播静态 effect row；binding 缺失只在实际进入有 requirement 的 body 时抛出。函数引用创建时不查找、不捕获 Context，其类型不增加 requirement，实际调用才进入目标 prologue。普通实参、receiver 和 caller-side default 的求值仍先于这个 prologue。
+
+#### 8.3.5 任务、协程与回调传播
+
+- 普通调用、virtual/interface/closure 调用与同一协程的 direct suspend 调用共享当前 TaskContext。普通 closure 不因创建于 binding scope 而隐式捕获整个 Context。
+- `startCoroutine` 在普通实参求值后、执行 task body 前，从当前有效 binding 建立独立 child TaskContext；task 与最终 completion 通知均在 child 下执行。parent、child 以后的重绑定互不影响，已绑定对象的 identity 仍共享。两种 overload 的行为相同（11.9）。
+- 真正驱动 resume 时进入 frame 所属 TaskContext，在再次挂起、完成或失败后恢复 resumer 原 Context。只投递同步完成 payload 而未驱动 frame 的 resume 路径不切换 Context；完成权竞争仍遵守 8.2。
+- 同步 outbound FFI 保持逻辑任务。`foreignCallback` 注册时捕获有效 binding 的快照，每次 invocation 从快照建立独立 TaskContext；包括同步重入及 Reusable 并发调用（14.3）。callback 的缺失异常遵守原有 catch/status 边界。
+- 所有 eager initializer 与 main 共享根任务，但 binding 仍只能由实际执行的词法 scope 提供。无 binding 的 initializer 调用 contextual function 同样抛 `MissingContextException`。
+- Context 不提供取消、调度、线程同步或资源释放。永不恢复的 continuation 不隐式执行 scope cleanup；相关对象不可达后按普通 GC 回收。
 
 ### 8.4 `inline` / `crossinline` / `noinline` / `reified`
 
@@ -1334,6 +1415,7 @@ parts 与 backing 均为普通 GC 对象。add 只追加 String 引用；build �
   - `UnwrapException`：`!!` 失败时抛出（见 7.3）；
   - `ClassCastException`：`as` 失败时抛出；
   - `ArithmeticException`：整数除零等算术错误；
+  - `MissingContextException(message: String?)`：final 异常，contextual declaration 入口缺少精确类型 binding 时抛出（8.3）；
   - `IndexOutOfBoundsException`：数组下标越界（见 10.5）；
   - `IllegalArgumentException(message: String? = Some("illegal argument"))`：实参值违反普通core API的运行期前置条件；11.8的非正range step使用该异常；
   - `IllegalStateException(message: String? = Some("illegal state"))`：运行期状态协议被破坏；默认参数保持既有零实参调用，M21 initialization cycle使用显式message报告稳定unit path。
@@ -1461,6 +1543,7 @@ suspend fun <T> suspendCoroutine(
 
 - core 协程接口必须具有上述成员名称与签名；接口内的方法声明顺序不属于协议要求。编译器保留所选实际声明与派发槽，重新构建 core 后的消费者使用该产物保存的关系。
 - `startCoroutine` 是最小协程构建器：启动 `task.run()` 后立即返回 `Unit`。若 task 在启动调用内完成，则返回前调用 `completion.resume(value)` 或 `completion.resumeWithException(exception)`；若 task 挂起，则在最终完成时调用。completion 恰好收到一次完成通知。
+- M27 起，`startCoroutine` 的两种入口均按 8.3.5 fork 当前有效 Context，task 与 completion 在 child 中执行，离开本次驱动后恢复 caller/resumer 的 Context。direct suspend 调用及 `suspendCoroutine` 的 registration 本身不 fork；只是投递同步完成 payload 的 resume 不取得另一份驱动权。
 - `suspendCoroutine` 调用 `registration.register(continuation)`。registration 可以同步恢复 continuation，也可以保存它并在 `register` 返回后恢复；前者使 `suspendCoroutine` 在当前调用栈内继续，后者使其真正挂起。`register` 在尚未完成 continuation 时抛出的异常等价于 `suspendCoroutine` 在调用点抛出该异常。
 - `register` 已同步完成 continuation 后又抛出属于状态协议错误，`suspendCoroutine` 以 `IllegalStateException` 失败；该 continuation 随即失效，之后不能再次成功完成。
 - `SuspendTask` / `SuspendRegistration` 是不依赖 lambda 与函数引用的最小协议。函数类型 overload 由 core 中的普通 Scoop 适配器包装为这两个 interface 后调用同一底层原语，不另建 continuation 状态机；两种入口具有完全相同的同步完成、真实挂起、异常与单次完成语义。
@@ -1772,7 +1855,7 @@ PersistentCallableBodyId =
     SHA-256(ByteSpan("scoop-callable-body-v1") || RuntimeEncode(CallableBodyKey))
 ```
 
-variant tag是little-endian `u32`，product按声明顺序编码。后两个gateway不能冒充其调用的main/ensure。M24把**全部**machine body统一切到`CallableBodyKeyV2`与domain`scoop-callable-body-v2`，保留前四个tag并增加`ReleaseHook { owner: PersistentExactTypeId }=5`，公式仍是`SHA-256(ByteSpan(domain) || RuntimeEncode(key))`；M24 的 HIR/MIR/LIR outer schema 均升为 2，identity-foundation capability major 分别为 HIR 4、MIR 2、LIR 3（承接 M23-7 的 LIR `/2`），完整 `cross-cone-generic` artifact profile 由 M23-8 的 /2 升为 /3；container、persistent identity schema 和 `persistent-v1` mangler 保持 1，prefixed runtime metadata record 继承 M23-8 的 ABI 3。旧M23 artifact整体重建，M24 artifact不得混留body-v1。`PersistentCallableApplicationId`、`OdrGroupId`及以CallableApplication/GeneratedCallable作discriminator的primary member不因body版本改变；body id、其safepoint及以CallableBody/SafepointSite作discriminator的派生member、registration与ODR fingerprint全部重生。
+variant tag是little-endian `u32`，product按声明顺序编码。后两个gateway不能冒充其调用的main/ensure。M24把**全部**machine body统一切到`CallableBodyKeyV2`与domain`scoop-callable-body-v2`，保留前四个tag并增加`ReleaseHook { owner: PersistentExactTypeId }=5`，公式仍是`SHA-256(ByteSpan(domain) || RuntimeEncode(key))`；M24 的 HIR/MIR/LIR outer schema 均升为 2，identity-foundation capability major 分别为 HIR 4、MIR 2、LIR 3（承接 M23-7 的 LIR `/2`），完整 `cross-cone-generic` artifact profile 由 M23-8 的 /2 升为 /3；container、persistent identity schema 和 `persistent-v1` mangler 保持 1，prefixed runtime metadata record 在 M24 继承 M23-8 的 ABI 3，M27 按实现规范 2.16 升为 ABI 4 并同步其实际 section/profile。旧M23 artifact整体重建，M24 artifact不得混留body-v1。`PersistentCallableApplicationId`、`OdrGroupId`及以CallableApplication/GeneratedCallable作discriminator的primary member不因body版本改变；body id、其safepoint及以CallableBody/SafepointSite作discriminator的派生member、registration与ODR fingerprint全部重生。
 
 只有声明的native extern、validated runtime artifact函数及由非Scoop LIR producer生成的native body/bridge不属于callable-body集合，它们使用各自typed identity与目录或final-input verifier capability。layout id由exact type、target profile与representation role派生；storage/object id由typed owner declaration或specialization、stable definition path与封闭生成role派生，内容变化进入definition fingerprint而不另造content identity；safepoint site id由callable body id与CFG site role/ordinal派生。TypeDescriptor直接以`PersistentExactTypeId`登记，不另设与exact type竞争的type identity。凡concrete exact type进入LIR layout/type closure或param-free exported LIR bridge就必须runtime-materialize一份TD registration；只存在于未替换Export HIR template/binder中的type尚不materialize。非nominal exact type以exact id建立12.5的`StructuralType` ODR group；nominal exact type及以它为shape owner的box、coroutine step/slot/start一律沿`ExactOwnerRoot`回到source Cone或Nominal specialization，不能为nominal exact type另造`StructuralType`组。最终程序中每个materialized exact type恰有一个TD地址，是否materialize不改变语言type identity。
 
@@ -1953,6 +2036,7 @@ annotation class NoGC
 - `T : value` 只保证实参是 value type，不保证其递归表示中不含 managed ref，因此不能代替上述 GC-free 条件；`T : ref` 则不可能满足该条件。当前没有单独的源码 bound 语法来声明 GC-free，条件由 `@NoGC` body及其调用图推导。
 - 这样的函数可以安全地跨越 FFI boundary（例如作为 FFI 回调）。
 - 该约束也意味着 `@NoGC` 的成员函数只能属于 value type：class method 有隐含的 `this` 参数，而 `this` 是 ref value。
+- 8.3 的 contextual declaration 不得标注 `@NoGC`；`context(value) { ... }` 也不是 NoGC 操作。runtime 的无分配 lookup/restore leaf 不等于源码 `@NoGC`，它们仍读取或写入 managed ref。
 - 9.1.6 的 release block 不是普通 callable 或 `@NoGC` target。定义方在已有 NoGc 检查上推导更窄的 release-call effect 与 `ReleaseValue` 条件，并通过普通 callable 接口供依赖使用；`@NoGC` 本身不保证没有 native transition、TLS 或 GC capability 操作。普通 NoGc 代码的既有调用语义不因 M24 改变。
 
 ```
@@ -2253,7 +2337,9 @@ Scoop ABI extern 的参数与返回值使用普通 Scoop typed ABI，不经过 C
 - token具有显式 retain/release与 use-after-release错误边界；callback抛出的 Scoop异常必须在反向边界内捕获并转换为 status/受管异常handle，不得展开穿越 C frame。运行时终止后调用 token是 ABI错误。首版只支持原生API提供显式 context/user-data槽的形态；无此槽的任意 closure导出需要后续动态 trampoline或 slot registry。
 - 该协议不改变 `FunPtr`（13.10）：M12 的 `FunPtr` callback仍是静态、同步、同线程、`@NoGC`路径。M13 落地 registration、foreign-thread attach/detach和多 mutator STW协调；suspend closure与 suspend FFI仍不支持。
 
-M13 的 core 源码形态为：
+M27 为上述协议增加 8.3.5 的 Context 传播：注册成功前捕获当前有效 binding 的不可变快照，token 通过现有 handle 表保活非空快照；retain 共享同一快照。每次 invocation 在调用 closure 前从快照建立独立 TaskContext，正常返回和异常转换均恢复原 Context；Reusable 并发调用不共享可变绑定。token 的 owner/active lease 都结束后同时释放 closure、快照和 failure handle。同步 native 往返保持外层 Context，但经 callback 反向重入时使用 registration 快照。此变化不改变 `ForeignCallback<F>`、C trampoline 签名或源码的 context/user-data 参数；私有 managed adapter 的实现边界见 runtime spec 9.4。
+
+M13 的 core 源码形态保持为：
 
 ```
 enum ForeignCallbackMode { Reusable, OneShot }

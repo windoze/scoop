@@ -133,7 +133,15 @@ pub(super) fn validate_enum_metadata(module: &Module) -> Result<(), MirValidatio
             });
         }
         let exact = slot.identity().value_record().id();
-        if !slot_values.insert(exact) || source_exact_type(module, slot.value()) != Some(exact) {
+        let value_exact = match slot.value() {
+            Type::Context(storage) if storage.role == ContextStorageRole::Mark => module
+                .meta
+                .generated_exact_types
+                .get(GeneratedExactTypeLocation::Context(*storage))
+                .map(|identity| identity.exact_record().id()),
+            value => source_exact_type(module, value),
+        };
+        if !slot_values.insert(exact) || value_exact != Some(exact) {
             return Err(MirValidationError {
                 location: MirValidationLocation::CoroutineSlot { slot: slot_id },
                 kind: MirValidationErrorKind::InvalidCoroutineSlot,

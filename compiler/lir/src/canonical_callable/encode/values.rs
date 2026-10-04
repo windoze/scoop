@@ -3,6 +3,7 @@ use super::*;
 impl Writer<'_, '_> {
     pub(super) fn value(&mut self, value: Value) -> Result {
         match value {
+            Value::ContextKeyCell(key) => record!(self, 13; self.id(&key.0)),
             Value::Local(id) => record!(self, 1; self.local(id)),
             Value::Param(index) => record!(self, 2; self.u(u64::from(index))),
             Value::Temp(id) => record!(self, 3; self.temp(id)),

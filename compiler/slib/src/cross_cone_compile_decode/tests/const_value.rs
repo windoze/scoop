@@ -335,6 +335,7 @@ impl ConstSurface {
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
             scoop_hir::CanonicalPersistentIdsV1::empty(),
+            Vec::new(),
         )
         .unwrap();
         let constant = ExportConstValueV1::new(

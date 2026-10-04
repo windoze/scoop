@@ -239,6 +239,7 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
         scoop_hir::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .unwrap();
     let extension_callable = CallableInterfaceRecordV1::try_new(
@@ -260,6 +261,7 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
         scoop_hir::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .unwrap();
     let constructor_callable = CallableInterfaceRecordV1::try_new(
@@ -273,6 +275,7 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
         scoop_hir::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .unwrap();
     let property_owner = if matching_property_owner {
@@ -291,6 +294,7 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
         scoop_hir::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .unwrap();
     let extension_getter_callable = CallableInterfaceRecordV1::try_new(
@@ -304,6 +308,7 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
         scoop_hir::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .unwrap();
     let property_record = PropertyInterfaceRecordV1::try_new(
@@ -353,6 +358,7 @@ pub(in crate::cross_cone_compile_decode::tests) fn nominal_surface(
         CallableModalityV1::Final,
         scoop_hir::DeclaredVisibilityV1::Private,
         CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .unwrap();
     let mut callables = vec![callable, constructor_callable, extension_callable];

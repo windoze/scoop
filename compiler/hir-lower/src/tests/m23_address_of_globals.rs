@@ -88,6 +88,7 @@ fn core_with_global(marker: i64) -> ast::SourceFile {
 
 fn raw_global(name: &str, value: i64) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
             name: ident("Global"),
             args: Vec::new(),
@@ -112,6 +113,7 @@ fn raw_global(name: &str, value: i64) -> Decl {
 
 fn ordinary_property(name: &str, value: i64) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

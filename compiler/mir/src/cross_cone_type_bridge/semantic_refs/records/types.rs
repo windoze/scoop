@@ -29,6 +29,7 @@ impl MirTypeBridgeSemanticReferencesV1 {
         }
         if let MirTypeOriginV1::GeneratedNominal { role, .. } = record.origin() {
             match role {
+                GeneratedNominalKey::TaskContext(_) => {}
                 GeneratedNominalKey::ObjectBackingClass { object } => collector.nominal(*object)?,
                 GeneratedNominalKey::BoxedValue { payload } => collector.exact(*payload)?,
                 GeneratedNominalKey::CoroutineStep { result } => collector.exact(*result)?,

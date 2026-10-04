@@ -121,19 +121,19 @@ impl WireEncode for CallableSignatureRecord {
 /// The fixed managed adapter storage boundary used by callback materializations.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum ForeignCallbackStorageAbi {
-    ClosureResultRootsThrowableToU32,
+    ClosureContextResultRootsThrowableToStatus,
 }
 
 impl WireEncode for ForeignCallbackStorageAbi {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(1)
+        encoder.unsigned(2)
     }
 }
 
 impl WireDecode for ForeignCallbackStorageAbi {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
         match decoder.unsigned()? {
-            1 => Ok(Self::ClosureResultRootsThrowableToU32),
+            2 => Ok(Self::ClosureContextResultRootsThrowableToStatus),
             tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
         }
     }

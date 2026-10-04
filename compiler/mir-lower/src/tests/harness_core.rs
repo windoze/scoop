@@ -151,6 +151,7 @@ impl Harness {
         });
         let id = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "write".to_string(),
                 is_suspend: false,
@@ -190,6 +191,7 @@ impl Harness {
         });
         let id = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "coreLongToString".to_string(),
                 is_suspend: false,
@@ -228,6 +230,7 @@ impl Harness {
         });
         let id = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: "coreBooleanToString".to_string(),
                 is_suspend: false,

@@ -469,7 +469,18 @@ fn register_boxed_source_nominal(
 }
 
 fn install_generated_exact_types(module: &mut mir::Module) {
-    let mut entries = Vec::new();
+    let mut entries = module
+        .meta
+        .generated_exact_types
+        .iter()
+        .filter(|entry| {
+            matches!(
+                entry.location(),
+                mir::GeneratedExactTypeLocation::Context(_)
+            )
+        })
+        .cloned()
+        .collect::<Vec<_>>();
     let mut register = |location, nominal, odr_member| {
         entries.push(mir::GeneratedExactTypeIdentity::new(location, nominal, odr_member).unwrap());
     };
@@ -1556,7 +1567,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
                 application,
                 module.foreign_callback_adapters[adapter].signature_subject(),
                 exact_signature,
-                mir::ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+                mir::ForeignCallbackStorageAbi::ClosureContextResultRootsThrowableToStatus,
                 CallbackMode::Reusable,
             ),
             adapter,

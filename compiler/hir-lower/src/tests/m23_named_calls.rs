@@ -266,6 +266,7 @@ fn property(name: &str, ty: TypeRef) -> Decl {
 
 fn property_value(name: &str, ty: TypeRef, expression: Expr) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,
@@ -573,6 +574,7 @@ fn implicit_this_real_member_precedes_exact_import() {
 #[test]
 fn initializing_receiver_callable_property_remains_a_real_member() {
     let thunk = ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

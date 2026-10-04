@@ -61,11 +61,13 @@ impl GeneratedFieldKey {
     pub const fn object_backing_property(&self) -> Option<PersistentPropertyId> {
         match self.0 {
             GeneratedFieldKeyKind::ObjectBackingProperty(property) => Some(property),
-            GeneratedFieldKeyKind::BoxPayload
+            GeneratedFieldKeyKind::ContextSlot(_)
+            | GeneratedFieldKeyKind::BoxPayload
             | GeneratedFieldKeyKind::ClosureCapture(_)
             | GeneratedFieldKeyKind::CallableReferenceReceiver(_)
             | GeneratedFieldKeyKind::CoroutineFrameState
             | GeneratedFieldKeyKind::CoroutineFrameCompletion
+            | GeneratedFieldKeyKind::CoroutineFrameTask
             | GeneratedFieldKeyKind::CoroutineFrameSaved(_)
             | GeneratedFieldKeyKind::CoroutineFrameFailure
             | GeneratedFieldKeyKind::CoroutineAdapterFrame

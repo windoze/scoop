@@ -1,0 +1,2 @@
+fun use() { val action = context(a: String) fun(): String = a }
+fun main() {}

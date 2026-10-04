@@ -55,7 +55,7 @@ fn reader_rejects_noncanonical_support_and_duplicates_across_lookup_groups() {
 }
 
 #[test]
-fn reader_rejects_legacy_table_and_missing_visibility_or_slot_fields() {
+fn reader_rejects_legacy_table_and_missing_visibility_slot_or_context_fields() {
     use scoop_wire::{WireErrorKind, WirePath, WireType};
     let fixture = fixture("Legacy");
     let mut eight_fields = encode(fixture.record.declaration_data()).unwrap();
@@ -64,7 +64,7 @@ fn reader_rejects_legacy_table_and_missing_visibility_or_slot_fields() {
         encode(&fixture.record.declared_visibility())
             .unwrap()
             .as_slice(),
-        b"\x0a\x80".as_slice(),
+        b"\x0a\x80\x0b\x80".as_slice(),
     ]
     .concat();
     assert!(eight_fields.ends_with(&suffix));
@@ -84,13 +84,16 @@ fn reader_rejects_legacy_table_and_missing_visibility_or_slot_fields() {
         }
     );
     assert_eq!(error.path(), &WirePath::root());
-    for (actual, bytes) in [(9, legacy_record), (8, eight_fields)] {
+    let mut ten_fields = encode(fixture.record.declaration_data()).unwrap();
+    ten_fields.truncate(ten_fields.len() - 2);
+    ten_fields[0] = 0xaa;
+    for (actual, bytes) in [(10, ten_fields), (9, legacy_record), (8, eight_fields)] {
         let error =
             decode_canonical::<crate::DecodedCallableDeclarationRecordV1>(&bytes).unwrap_err();
         assert_eq!(
             error.kind(),
             &WireErrorKind::InvalidLength {
-                expected: 10,
+                expected: 11,
                 actual
             }
         );
@@ -113,6 +116,7 @@ fn source(
         record.modality(),
         visibility,
         record.slot_relations().clone(),
+        Vec::new(),
     )
     .unwrap()
 }

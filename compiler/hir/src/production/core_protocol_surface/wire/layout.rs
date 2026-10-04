@@ -56,6 +56,8 @@ pub(super) const EXCEPTION_LAYOUT: [ProtocolEntryKind; EXCEPTION_PROTOCOL_COUNT]
     ProtocolEntryKind::Callable,
     ProtocolEntryKind::Type,
     ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Type,
+    ProtocolEntryKind::Callable,
 ];
 pub(super) const COROUTINE_LAYOUT: [ProtocolEntryKind; COROUTINE_PROTOCOL_COUNT] = [
     ProtocolEntryKind::GenericType,

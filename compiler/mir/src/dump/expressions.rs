@@ -11,6 +11,17 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     out.push_str(&format!("{pad}Type {}\n", type_name(module, &expr.ty)));
     match &expr.kind {
+        ExprKind::Context(operation) => {
+            out.push_str(&format!("{pad}{}", operation.name()));
+            if let ContextOperation::TryGet { key } | ContextOperation::Push { key, .. } = operation
+            {
+                out.push_str(&format!(" {}", key.0));
+            }
+            out.push('\n');
+            if let Some(operand) = operation.operand() {
+                dump_expr(module, locals, operand, indent + 1, out);
+            }
+        }
         ExprKind::ReleaseFieldLoad { class, index } => out.push_str(&format!(
             "{pad}ReleaseFieldLoad {}.field{index}\n",
             module.classes[*class].name,

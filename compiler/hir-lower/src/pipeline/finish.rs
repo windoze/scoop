@@ -150,7 +150,13 @@ impl Lowerer {
                         .registration()
                         .map_or((0, Span { start: 0, end: 0 }), |registration| {
                             let registration = &self.foreign_callback_registrations[registration];
-                            let file = match registration.definition_root {
+                            let root = match &registration.definition {
+                                hir::ForeignCallbackDefinition::Source { root, .. } => *root,
+                                hir::ForeignCallbackDefinition::Imported { origin, .. } => {
+                                    return (origin.file as usize, origin.span);
+                                }
+                            };
+                            let file = match root {
                                 hir::LexicalDefinitionRoot::Function(function) => {
                                     self.function_files[&function]
                                 }

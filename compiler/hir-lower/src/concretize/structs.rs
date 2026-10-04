@@ -32,6 +32,9 @@ impl Concretizer<'_> {
             self.struct_source.insert(id, source);
         }
         self.complete_struct_definition(id, definition, &arguments);
+        if let Some(imported) = self.source.loaded_struct_definitions.get(&origin) {
+            self.check_loaded_contexts(&imported.context_contracts, &arguments);
+        }
         self.type_use_site = previous_site;
         id
     }

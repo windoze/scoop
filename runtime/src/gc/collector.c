@@ -219,6 +219,7 @@ static void scan_frozen_managed_segments(const ScoopThreadState *thread,
 }
 
 static void scan_thread(const ScoopThreadState *thread, ScoopGcVisitContext *context) {
+    visit_managed_slot((void **)&thread->current_task_context, context);
     ScoopThreadMode mode = atomic_load_explicit(&thread->mode, memory_order_acquire);
     bool pending = thread->managed_segment == SCOOP_MANAGED_SEGMENT_PENDING;
     if (mode == SCOOP_THREAD_PARKED || mode == SCOOP_THREAD_COLLECTOR) {

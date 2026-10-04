@@ -70,6 +70,7 @@ impl DependencyFunctionFixture {
             scoop_hir::CallableModalityV1::Final,
             scoop_hir::PublicLookupAccessV1::DirectOnly,
             scoop_hir::CanonicalPersistentIdsV1::empty(),
+            Vec::new(),
         )
         .unwrap();
         let source = scoop_hir::CallableSourceInterfaceV1::try_new(

@@ -42,6 +42,7 @@ fn type_alias_at(name: &str, target: TypeRef, span: Span) -> Decl {
 
 fn const_property(name: &str, ty: TypeRef, expression: Expr) -> ast::PropertyDecl {
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

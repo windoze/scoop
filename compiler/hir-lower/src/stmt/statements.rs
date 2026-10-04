@@ -23,6 +23,12 @@ impl Lowerer {
                 let Some(lowered) = self.lower_expr(expr, &mut sink, None) else {
                     return; // diagnostic already recorded
                 };
+                if matches!(expr, ast::Expr::ContextScope { .. }) {
+                    // The structured scope evaluates its tail before restoring
+                    // the binding; statement position discards that value.
+                    out.extend(sink);
+                    return;
+                }
                 // M1 rule, unchanged: expression statements are calls
                 // (declarations, assignments and control flow are their
                 // own statement kinds since M2; M6 adds method calls).

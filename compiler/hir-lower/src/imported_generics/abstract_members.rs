@@ -123,6 +123,11 @@ impl Lowerer {
                         &bindings,
                     )?,
                     span,
+                    self.imported_context_parameters(
+                        declaration.interface().context_parameters(),
+                        &bindings,
+                        span,
+                    )?,
                 ),
                 type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
                 no_gc_type_params: Vec::new(),

@@ -208,6 +208,7 @@ fn project_source(
         CallableModalityV1::Final,
         declaration_access.declared.into(),
         crate::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .map_err(CallableProjectionError::Record)
 }

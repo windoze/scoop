@@ -98,7 +98,7 @@ Module
     store local60 -> local9
     store integer<Long>(0x0000000000000000) -> local6
     store local6 -> local7
-    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
     store t1 -> local52
     call managed-void-target0 sp<managed-call:1> live=[local52:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn5(local52, local7)
     t2 = aggregate () : {}
@@ -106,7 +106,7 @@ Module
     store local8 -> local11
     store local9 -> local12
     store local10 -> local13
-    call managed-direct-target1 sp<managed-call:2> live=[local13:ptr<managed>@0] t3 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(48)))
+    call managed-direct-target1 sp<managed-call:2> live=[local13:ptr<managed>@0] t3 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(48)))
     store t3 -> local53
     store local12 -> local61
     call managed-void-target1 sp<managed-call:3> live=[local13:ptr<managed>@0, local53:ptr<managed>@0] sig=void1 (ptr<managed>, elided-zst<struct0 size=0 align=1>, indirect<struct1 size=24 align=8 scan=none>, ptr<managed>) external-fn6(local53, elided-zst local11, indirect local61, local13)
@@ -125,7 +125,7 @@ Module
     store local62 -> local25
     store integer<Long>(0x0000000000000015) -> local21
     store local21 -> local22
-    call managed-direct-target2 sp<managed-call:4> live=[local14:ptr<managed>@0, local23:ptr<managed>@0] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp<managed-call:4> live=[local14:ptr<managed>@0, local23:ptr<managed>@0] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
     store t6 -> local54
     call managed-void-target2 sp<managed-call:5> live=[local14:ptr<managed>@0, local23:ptr<managed>@0, local54:ptr<managed>@0] sig=void2 (ptr<managed>, i64) external-fn5(local54, local22)
     t7 = aggregate () : {}
@@ -143,7 +143,7 @@ Module
     store t10 -> local32
     store local31 -> local33
     store local32 -> local34
-    call managed-direct-target4 sp<managed-call:9> live=[local14:ptr<managed>@0, local33:ptr<managed>@0] t11 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target4 sp<managed-call:9> live=[local14:ptr<managed>@0, local33:ptr<managed>@0] t11 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t11 -> local55
     call managed-void-target4 sp<managed-call:10> live=[local14:ptr<managed>@0, local33:ptr<managed>@0, local55:ptr<managed>@0] sig=void4 (ptr<managed>, ptr<managed>, elided-zst<struct0 size=0 align=1>) external-fn9(local55, local33, elided-zst local34)
     t12 = aggregate () : {}
@@ -181,7 +181,7 @@ Module
   block if.else.2
     store integer<Long>(0x0000000000000000) -> local49
     store local49 -> local50
-    call managed-direct-target8 sp<managed-call:15> live=[] t21 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target8 sp<managed-call:15> live=[] t21 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
     store t21 -> local59
     call managed-void-target5 sp<managed-call:16> live=[local59:ptr<managed>@0] sig=void5 (ptr<managed>, i64) external-fn5(local59, local50)
     t22 = aggregate () : {}

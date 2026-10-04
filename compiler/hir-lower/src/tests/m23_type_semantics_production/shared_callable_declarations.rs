@@ -112,6 +112,7 @@ fn shared_callables_reject_wrong_owner_and_unrelated_support() {
             record.modality(),
             record.declared_visibility(),
             record.slot_relations().clone(),
+            Vec::new(),
         )
         .unwrap();
         let invalid = Table::with_support(table.records().to_vec(), support).unwrap();

@@ -34,7 +34,53 @@ pub(super) fn validate_callable_runtime_scans(
             let scan = validate_callable_ref_scan(decoded_atom.scan, index)?;
             atoms.push(StrongCallableRuntimeScanAtomV1::from_artifact(atom, scan));
         }
-        callables.push(StrongCallableRuntimeScanPlanV1::from_artifact(body, atoms));
+        let plan = foundation
+            .definition_for(
+                scoop_identity::StrongDefinitionEntity::callable_body(body),
+                scoop_identity::StrongDefinitionRole::CallableBody,
+            )
+            .ok_or_else(|| {
+                semantic_error(
+                    RegistrationProductionTableV1::Callable,
+                    index,
+                    "context_key_body",
+                )
+            })?
+            .id();
+        let mut context_keys = Vec::with_capacity(decoded.context_keys.len());
+        for decoded_key in decoded.context_keys {
+            let exact = resolve_known(
+                decoded_key,
+                foundation.definition_atoms().iter().filter_map(|atom| {
+                    if atom.key().plan() == plan
+                        && atom.key().role() == DefinitionAtomRole::ContextKeyCell
+                        && let scoop_identity::DefinitionAtomSubkey::ExactType(exact) =
+                            atom.key().subkey()
+                    {
+                        Some(*exact)
+                    } else {
+                        None
+                    }
+                }),
+                RegistrationProductionTableV1::Callable,
+                index,
+                "context_key",
+            )?;
+            let key = scoop_identity::ContextKey(exact);
+            let atom = crate::context_key_cell_atom(plan, key).map_err(|_| {
+                semantic_error(
+                    RegistrationProductionTableV1::Callable,
+                    index,
+                    "context_key_atom",
+                )
+            })?;
+            context_keys.push(crate::CallableContextKeyCellV1 { key, atom });
+        }
+        callables.push(StrongCallableRuntimeScanPlanV1::from_artifact(
+            body,
+            atoms,
+            context_keys,
+        ));
     }
     StrongCallableRuntimeScanPlanSetV1::from_artifact(foundation, callables).map_err(|error| {
         StrongRegistrationProductionValidationError::Expected(Box::new(

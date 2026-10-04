@@ -14,6 +14,8 @@ pub(super) struct ResolvedInterfaceMethod<'a> {
     pub slot: scoop_identity::PersistentDispatchSlotId,
     pub overrides: Vec<scoop_identity::PersistentDispatchSlotId>,
     pub name: &'a str,
+    pub context_owner: export::ContextRequirementOwner,
+    pub context_parameters: Vec<export::TypeId>,
     pub is_suspend: bool,
     pub attributes: export::FunctionAttributes,
     pub implementation: concrete::InterfaceMemberImplementation,
@@ -29,6 +31,24 @@ impl<'a> ResolvedInterfaceMethod<'a> {
             slot: method.slot.id(),
             overrides: method.overrides.clone(),
             name: &method.name,
+            context_owner: export::ContextRequirementOwner::Imported(
+                match method.declaration.declaration() {
+                    scoop_identity::CallableTemplateOrigin::Function(id) => {
+                        export::DefaultCallableDeclarationV1::Function(id)
+                    }
+                    scoop_identity::CallableTemplateOrigin::GenericFunction(id) => {
+                        export::DefaultCallableDeclarationV1::GenericFunction(id)
+                    }
+                    scoop_identity::CallableTemplateOrigin::Accessor(id) => {
+                        export::DefaultCallableDeclarationV1::PropertyAccessor(id)
+                    }
+                    scoop_identity::CallableTemplateOrigin::Constructor(_)
+                    | scoop_identity::CallableTemplateOrigin::VariantConstructor(_) => {
+                        unreachable!("interface members cannot be constructors")
+                    }
+                },
+            ),
+            context_parameters: method.context_parameters.clone(),
             is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
             attributes: effects.function_attributes(),
             implementation: match method.declaration.modality() {
@@ -78,6 +98,8 @@ impl<'input> Concretizer<'input> {
                 .rsplit('.')
                 .next()
                 .expect("interface methods have a name"),
+            context_owner: export::ContextRequirementOwner::Source(member_data.function),
+            context_parameters: function.context_parameters.iter().map(|p| p.ty).collect(),
             is_suspend: function.is_suspend,
             attributes: function.attributes,
             implementation: match member_data.implementation {

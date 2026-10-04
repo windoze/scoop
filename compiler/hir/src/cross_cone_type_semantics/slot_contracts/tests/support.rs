@@ -65,6 +65,7 @@ impl Fixture {
                 self.unit.exact,
             ),
             effects(GcEffect::Managed, CallableImplementationV1::Scoop),
+            Vec::new(),
         )
         .unwrap()
     }

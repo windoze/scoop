@@ -63,7 +63,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0
     t0 = heap_load local0 +0 : ptr<metadata>
-    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, external-td1)
+    call no-gc-direct-target0 t1 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t0, external-td6)
     call managed-direct-target0 sp<managed-call:0> live=[local0:ptr<managed>@0] t2 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t1(local0)
     store t2 -> local1
     ret local1
@@ -81,7 +81,7 @@ Module
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     t0 = heap_load param0 +24 : ptr<managed>
     t1 = heap_load t0 +0 : ptr<metadata>
-    call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, external-td1)
+    call no-gc-direct-target0 t2 = sig=direct0 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, external-td6)
     call managed-direct-target0 sp<managed-call:0> live=[t0:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> i32 dispatch[Interface:0] t2(t0)
     store t3 -> local0
     ret local0
@@ -104,11 +104,11 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 dispatch[Closure:2] param0(param0)
     store t0 -> local0
     store local0 -> local1
-    t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
+    t1 = box_value external-td4, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.bounds;o=-;k=C;x=AbstractReader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$3a0e67cac61669a78b6b03a25500f341f39c8dc4349252bdb4679a1d51d7df30 type-id=16770691565648878465 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[external-td1:[external-fn0]]
-  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.bounds;o=-;k=C;x=ActualReader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$82e1ce2c8f1b2f034929cd4f2a89335eec8faab6495519e441ac4223479f6082 type-id=17540868536988767584 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[] itables=[external-td1:[local-fn2]]
-  td td2 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td0
+  td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.bounds;o=-;k=C;x=AbstractReader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$3a0e67cac61669a78b6b03a25500f341f39c8dc4349252bdb4679a1d51d7df30 type-id=16770691565648878465 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[external-td6:[external-fn0]]
+  td td1 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.bounds;o=-;k=C;x=ActualReader);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$82e1ce2c8f1b2f034929cd4f2a89335eec8faab6495519e441ac4223479f6082 type-id=17540868536988767584 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[] itables=[external-td6:[local-fn2]]
+  td td2 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td4
   td td3 g(r=00000001;i=65f49e27775b6cf7e89a4c28fc545288889276431b8e2a84ce708af20603f147) @scoop$1$td$4ef697ac8f755095b26a2c121b127e10ce9ea0b586853312b4e426eb87798a49 type-id=8587263388824397126 shape=FixedObject minimum-size=32 align=8 parent=td2 vtable=[local-fn8] itables=[]
   layout AbstractReader value size=8 align=8 refs=[0]
   layout AbstractReader size=16 align=8 refs=[]

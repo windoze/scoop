@@ -70,9 +70,18 @@ pub(super) fn install_with_intrinsics_at(
     let iteration_protocol =
         CoreIterationProtocolV1(product([iterator, next, builder.dispatch(next_id)]));
 
-    let exception_classes: [PersistentTypeId; 7] = std::array::from_fn(|_| builder.concrete_type());
-    let exception_constructors =
-        exception_classes.map(|class| builder.constructor(class, Vec::new()));
+    let exception_classes: [PersistentTypeId; 8] = std::array::from_fn(|_| builder.concrete_type());
+    let exception_constructors = std::array::from_fn::<_, 8, _>(|index| {
+        let parameters = if index == 7 {
+            vec![signature_application(
+                option_type,
+                SignatureTypeKey::Nominal(string_type),
+            )]
+        } else {
+            Vec::new()
+        };
+        builder.constructor(exception_classes[index], parameters)
+    });
     let initialization_cycle_thrower = builder
         .function_with_owner_signature(
             None,
@@ -100,6 +109,8 @@ pub(super) fn install_with_intrinsics_at(
         initialization_cycle_thrower,
         concrete_entry(exception_classes[6]),
         exception_constructors[6].clone(),
+        concrete_entry(exception_classes[7]),
+        exception_constructors[7].clone(),
     ]));
 
     let continuation = builder.generic_nominal(SourceNominalKind::Interface);

@@ -29,7 +29,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "a910c30004df73199853a8fd85cd7f32515d8b3442c8c4462f75a1b2e28f0e0e"},
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "99545c2f82a8a6967464cbc75cf1f79b758b00d517bff50506d91caa224f921a"},
 ]
 
 [[steps]]

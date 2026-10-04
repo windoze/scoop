@@ -119,6 +119,8 @@ pub(super) fn project(
         predicates,
         ExportDefinitionSourceV1::new(definition.clone()),
         capture_types,
+        crate::production::callable_interfaces::context_parameters(&signatures, function, &binders)
+            .map_err(Error::ContextParameters)?,
     )
     .map(Some)
     .map_err(Error::Record)

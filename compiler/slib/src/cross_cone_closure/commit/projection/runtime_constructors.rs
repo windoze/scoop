@@ -21,9 +21,14 @@ impl ValidatedCrossConeSemanticClosure {
         let mut bounds_required = false;
         let mut array_size_required = false;
         let mut coroutine_required = false;
+        let mut context_required = false;
         module
             .visit_executable_expressions(|occurrence| {
                 coroutine_required |= requires_coroutine_state(module, occurrence.expression);
+                context_required |= matches!(
+                    occurrence.expression.kind,
+                    concrete::ExprKind::ContextLookup { .. }
+                );
                 unwrap_required |= matches!(
                     occurrence.expression.kind,
                     concrete::ExprKind::Unwrap {
@@ -69,6 +74,12 @@ impl ValidatedCrossConeSemanticClosure {
                 concrete::ExecutableExpressionVisitError::Visitor(never) => match never {},
             })?;
         for (required, constructor) in [
+            (
+                context_required,
+                protocols
+                    .exceptions()
+                    .missing_context_exception_constructor(),
+            ),
             (
                 array_size_required,
                 protocols
@@ -140,11 +151,8 @@ impl ValidatedCrossConeSemanticClosure {
         if !matches!(
             definition.lowering_role(),
             MirCallableLoweringRoleV1::ClassInitializer { .. }
-        ) || !definition
-            .semantic_signature()
-            .exact()
-            .parameters()
-            .is_empty()
+        ) || definition.semantic_signature().exact().parameters().len()
+            != constructor.signature().parameters().len()
         {
             return Err(Error::SignatureMismatch { provider, target });
         }

@@ -16,6 +16,10 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
     ) -> Result<(), V::Error> {
         let origin = statement.definition_origin();
         match statement.kind() {
+            DefaultStatementKindV1::ContextScope { value, body } => {
+                self.push_statements(pending, body)?;
+                self.push_child(pending, BodyNode::Expression(value))
+            }
             DefaultStatementKindV1::GenericDelegateEnsure(reference) => self.push_generic_delegate(
                 pending,
                 reference,

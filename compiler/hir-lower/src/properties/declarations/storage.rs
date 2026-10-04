@@ -46,6 +46,7 @@ impl Lowerer {
         self.signatures.insert(
             source.function,
             FnSig {
+                context_parameters: Vec::new(),
                 is_suspend: false,
                 modifiers: function.modifiers,
                 attributes,

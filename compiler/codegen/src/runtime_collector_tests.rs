@@ -41,6 +41,7 @@ fn compile_and_run(
         "runtime/src/startup/gateway.c",
         "runtime/src/boxing.c",
         "runtime/src/arrays.c",
+        "runtime/src/task_context.c",
         "runtime/src/value_shape.c",
         "runtime/src/value_scan.c",
         "runtime/src/gc/allocation.c",
@@ -85,6 +86,25 @@ fn compile_and_run(
         .expect("run fake-platform moving collector test");
     std::fs::remove_file(&binary).ok();
     output
+}
+
+#[test]
+fn task_context_radix_and_snapshots_survive_moving_gc() {
+    let output = compile_and_run(
+        &workspace_root(),
+        "task_context_test",
+        "runtime/tests/task_context_test.c",
+        true,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        output.stdout,
+        b"task context radix, fork, restore and moving roots passed\n"
+    );
 }
 
 #[test]

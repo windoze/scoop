@@ -70,6 +70,31 @@ impl CanonicalParamFreeMirTypeExportsV1 {
         }
 
         for root in plan.generated_nominal_shapes() {
+            if let GeneratedExactTypeLocation::Context(storage) = root.location() {
+                let facts = MirTypeFactsV1::try_new(
+                    if storage.role.is_reference() {
+                        MirValueKindV1::Reference
+                    } else {
+                        MirValueKindV1::NonZeroValue
+                    },
+                    MirGcKindV1::ContainsManagedReferences,
+                )?;
+                records.push(ParamFreeMirTypeExportV1::try_new(
+                    authority,
+                    root.exact(),
+                    MirTypeOriginV1::GeneratedNominal {
+                        nominal: root.nominal(),
+                        role: GeneratedNominalKey::TaskContext(storage),
+                    },
+                    facts,
+                    crate::context_type_representation(storage),
+                    MirBaseAndInterfacesV1 {
+                        base: MirBaseClassV1::None,
+                        interfaces: Vec::new(),
+                    },
+                )?);
+                continue;
+            }
             if !matches!(root, GeneratedNominalShapeRoot::Odr { .. }) {
                 continue;
             }
@@ -87,7 +112,18 @@ impl CanonicalParamFreeMirTypeExportsV1 {
                 _ => continue,
             };
             let source_key = identities.canonical_key::<_, ExactTypeKey>(source_exact)?;
+            let context_mark = input
+                .module()
+                .meta
+                .generated_exact_types
+                .get_by_identity(source_exact)
+                .is_some_and(|entry| {
+                    matches!(entry.location(),
+                    GeneratedExactTypeLocation::Context(storage)
+                        if storage.role == crate::ContextStorageRole::Mark)
+                });
             let interfaces = match source_key.as_ref() {
+                _ if context_mark => &[],
                 ExactTypeKey::Nominal(_) | ExactTypeKey::NominalApplication { .. } => {
                     &sources
                         .get(source_exact)

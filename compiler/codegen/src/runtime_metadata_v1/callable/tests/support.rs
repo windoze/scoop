@@ -12,7 +12,10 @@ use scoop_lir::{
     DigestNodeV1, RegistrationIdentitySurfaceV1, StrongCallableRegistrationPlanSetV1,
 };
 
-pub(super) fn callable_plan() -> StrongCallableRegistrationPlanSetV1 {
+pub(super) fn callable_plan() -> (
+    StrongCallableRegistrationPlanSetV1,
+    scoop_lir::ObjectSymbolSurfaceV1,
+) {
     let declaration =
         PersistentFunctionId::from_source_declaration(&SourceDeclarationKey::function(
             SourceDeclarationSite::new(
@@ -106,14 +109,18 @@ pub(super) fn callable_plan() -> StrongCallableRegistrationPlanSetV1 {
     )
     .unwrap();
     let identities = RegistrationIdentitySurfaceV1::from_foundation(&foundation, &digests).unwrap();
-    StrongCallableRegistrationPlanSetV1::new(
+    let plan = StrongCallableRegistrationPlanSetV1::new(
         &foundation,
         &identities,
         scoop_lir::StrongCallableRuntimeScanPlanSetV1::from_foundation_without_scans(&foundation)
             .unwrap(),
         &digests,
     )
-    .unwrap()
+    .unwrap();
+    (
+        plan,
+        scoop_lir::ObjectSymbolSurfaceV1::from_foundation(&foundation).unwrap(),
+    )
 }
 
 fn definition(

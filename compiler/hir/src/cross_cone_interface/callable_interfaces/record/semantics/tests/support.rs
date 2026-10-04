@@ -96,6 +96,7 @@ impl Fixture {
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
             crate::CanonicalPersistentIdsV1::empty(),
+            Vec::new(),
         )
         .unwrap()
     }

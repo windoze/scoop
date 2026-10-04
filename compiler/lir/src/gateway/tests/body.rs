@@ -4,6 +4,7 @@ pub(super) fn gateway(
     body: CallableBodyIdentity,
     target: LocalFunctionRef,
     failure_root: Option<GlobalId>,
+    task_descriptor: TypeDescriptorRef,
 ) -> Function {
     let mut function = support::function(body, GcEffect::Managed);
     let result = AbiValue::new(
@@ -150,6 +151,54 @@ pub(super) fn gateway(
     }
     instructions.push(Instruction::EndCatch);
     function.blocks[failure].instructions = instructions;
+    let reference = AbiValue::new(
+        MANAGED_PTR,
+        AbiNonZeroLayout::new(8, 8).unwrap(),
+        RefScan::References(vec![0]),
+    )
+    .unwrap();
+    let metadata = AbiValue::new(
+        METADATA_PTR,
+        AbiNonZeroLayout::new(8, 8).unwrap(),
+        RefScan::None,
+    )
+    .unwrap();
+    let signature = targets.direct_signatures.alloc(DirectCallSignature::new(
+        vec![AbiArgument::Direct(metadata)],
+        reference,
+        CallingConvention::Cdecl,
+    ));
+    let target = targets.managed_targets.direct.alloc(CallTarget {
+        destination: ManagedCallDestination::Runtime(ManagedRuntimeFunction::ContextEnsureRoot),
+        signature,
+    });
+    let task = function.temps.alloc(Temp { ty: MANAGED_PTR });
+    let safepoint = SafepointSiteRef::from_u32(3);
+    identities.push((
+        safepoint,
+        SafepointIdentity::new(
+            function.callable_body.id(),
+            SafepointSiteRole::ManagedCall,
+            1,
+        )
+        .unwrap(),
+    ));
+    function.blocks[entry].instructions.insert(
+        1,
+        Instruction::Call {
+            site: CallSite::Managed(ManagedCallSite {
+                call: ManagedTypedCall::Direct {
+                    target,
+                    out: task,
+                    args: vec![AbiCallArgument::Direct(Value::TypeDescriptor(
+                        task_descriptor,
+                    ))],
+                },
+                safepoint,
+                live: StatepointLiveSet::default(),
+            }),
+        },
+    );
     function.safepoints = SafepointIdentities::checked(identities).unwrap();
     function
 }

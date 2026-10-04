@@ -74,6 +74,7 @@ impl Lowerer {
         self.loaded_class_definitions.insert(
             owner,
             hir::LoadedClassDefinition {
+                context_contracts: Vec::new(),
                 declaration: Arc::clone(&declaration),
                 definition: hir::ClassDefinition {
                     release_policy: Default::default(),
@@ -93,6 +94,11 @@ impl Lowerer {
                 virtual_methods: Vec::new(),
             },
         );
+        let context_contracts = self.imported_nominal_contexts(owner, &bindings)?;
+        self.loaded_class_definitions
+            .get_mut(&owner)
+            .expect("the nominal builder registered its identity")
+            .context_contracts = context_contracts;
         for (parameter, binder) in type_params.iter_mut().zip(binders) {
             *parameter = self
                 .resolve_imported_type_parameter(binder, parameter.id, &bindings, span)

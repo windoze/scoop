@@ -25,9 +25,14 @@ Module
     bridge function_type3 -> @fn15 id=87edb6e0b7ea5d6bd9ac146543864d62b4821a1ed22c0795cfd5ddc9f7d24204
   closure cc1 $Closure$lambda1 type=function_type4 invoke=@fn12 captures=1
     bridge function_type5 -> @fn16 id=129f4833557873c054ccacbe6690162266c5e79e35a8d23396de61cb30b5562f
-  generated_exact_type get0 location=closure1 nominal_id=52a0548e4bdf579c7a785277e2527c514df21b295d6c362a8b70695c89645ec0 exact_id=1f7759043c1e6fb7d31419eb681a5149bc19922787fe0216d46bc4949f1ae693
-  generated_exact_type get1 location=closure0 nominal_id=90e56175a36212f74f19005e6c3013ee37468224929fe0745233bb5efdf5010d exact_id=767b403e72460d2b3aa3d48200e2b7a56062111a47e4f6c01a15dfeb3959eff2
-  generated_exact_type get2 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=closure1 nominal_id=52a0548e4bdf579c7a785277e2527c514df21b295d6c362a8b70695c89645ec0 exact_id=1f7759043c1e6fb7d31419eb681a5149bc19922787fe0216d46bc4949f1ae693
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=closure0 nominal_id=90e56175a36212f74f19005e6c3013ee37468224929fe0745233bb5efdf5010d exact_id=767b403e72460d2b3aa3d48200e2b7a56062111a47e4f6c01a15dfeb3959eff2
+  generated_exact_type get5 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get6 location=class2 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get7 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_callable gc0 function=@fn14 id=0bdc847b8abc86d111e1e98fc344849e94e021c32a31b13190891d13e7b85809
   generated_callable gc1 function=@fn16 id=129f4833557873c054ccacbe6690162266c5e79e35a8d23396de61cb30b5562f
   generated_callable gc2 function=@fn15 id=87edb6e0b7ea5d6bd9ac146543864d62b4821a1ed22c0795cfd5ddc9f7d24204
@@ -454,8 +459,23 @@ Module
         Type Int
         Local code
       return
-  fun foreign callback adapter 0 @fn14($closure: (Int) -> Int, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
-    bb0 callback.failure
+  fun foreign callback adapter 0 @fn14($closure: (Int) -> Int, $snapshot: internal<context-node>, $result: Ptr<Int>, $arguments: Ptr<Ptr<Unit>>, $exception: Ptr<Throwable>) -> machine<foreign-callback-status>
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 callback.failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $caught: Throwable = @scoop_rt_materialize_exception direct
@@ -468,10 +488,14 @@ Module
         Local $exception
         Type Throwable
         Local $caught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
         Type machine<foreign-callback-status>
         MachineScalarLiteral ForeignCallbackStatus(Threw)
-    bb1 entry unwind bb0
+    bb3 callback.invoke unwind bb2
       call $value: Int = <closure:function_type4> closure[function_type4]
         Type (Int) -> Int
         Local $closure
@@ -491,9 +515,25 @@ Module
         Local $result
         Type Int
         Local $value
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
         Type machine<foreign-callback-status>
         MachineScalarLiteral ForeignCallbackStatus(Returned)
+    bb4 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          Local $snapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb3
   fun function_bridge.$Closure$lambda0.() -> Any @fn15($source: () -> Int) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]

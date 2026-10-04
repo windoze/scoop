@@ -4,11 +4,11 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
-    t0 = box_value external-td0, local0 scan=none sp<managed-call:0> live=[]
+    t0 = box_value external-td4, local0 scan=none sp<managed-call:0> live=[]
     ret t0
   fun @scoop$1$cb$7fd1415f652da06bd08bc68d23b32c502688a6e2f2d996039b1c66dda4733605(ptr<managed>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td0)
+    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td4)
     ret t0
   output library

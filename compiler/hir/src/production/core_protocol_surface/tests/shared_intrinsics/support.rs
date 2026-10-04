@@ -66,6 +66,7 @@ impl Fixture {
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
             crate::CanonicalPersistentIdsV1::empty(),
+            Vec::new(),
         )
         .unwrap();
         (source.clone(), record)
@@ -95,6 +96,7 @@ pub(super) fn replace_signature(
         record.modality(),
         record.access(),
         crate::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .unwrap()
 }

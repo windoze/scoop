@@ -47,6 +47,10 @@ impl DefaultStatementV1 {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefaultStatementKindV1 {
+    ContextScope {
+        value: Box<DefaultExpressionV1>,
+        body: Vec<DefaultStatementV1>,
+    },
     Expr(Box<DefaultExpressionV1>),
     InitializationEnsure(PersistentInitializationUnitId),
     GenericDelegateEnsure(crate::DefaultGenericDelegateReferenceV1),
@@ -109,6 +113,7 @@ impl std::error::Error for DefaultStatementBuildError {}
 
 fn validate_kind(kind: &DefaultStatementKindV1) -> Result<(), DefaultStatementBuildError> {
     match kind {
+        DefaultStatementKindV1::ContextScope { body, .. } => require_statements(body, 16, 2)?,
         DefaultStatementKindV1::If {
             then_body,
             else_body,

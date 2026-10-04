@@ -119,6 +119,7 @@ pub(super) fn declaration(
         record.modality(),
         DeclaredVisibilityV1::Private,
         record.slot_relations().clone(),
+        Vec::new(),
     )
     .unwrap()
 }

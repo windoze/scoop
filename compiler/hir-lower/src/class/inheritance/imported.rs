@@ -118,6 +118,14 @@ impl Lowerer {
                         .ok()
                 })
                 .collect::<Option<Vec<_>>>()?,
+            context_parameters: callable
+                .context_parameters()
+                .iter()
+                .map(|parameter| {
+                    self.imported_signature_type_with_bindings(parameter.value_type(), &bindings)
+                        .ok()
+                })
+                .collect::<Option<Vec<_>>>()?,
             result: self
                 .imported_signature_type_with_bindings(callable.result(), &bindings)
                 .ok()?,

@@ -43,6 +43,7 @@ typedef enum ScoopManagedSegmentState {
 } ScoopManagedSegmentState;
 
 struct ScoopExceptionRecord;
+struct ScoopTaskContext;
 
 /* Runtime-private per-OS-thread state. The address is stable from registry
  * insertion until detach. STW, roots and the owner-only TLAB all belong to
@@ -71,6 +72,7 @@ typedef struct ScoopThreadState {
     char *initialization_cycle_path;
     ScoopThreadTransition *current_transition;
     struct ScoopExceptionRecord *caught_exception_top;
+    struct ScoopTaskContext *current_task_context;
     /* Owner-only allocation cursor while managed. The STW collector retires
      * every pair before sweep; re-entry refills instead of reusing stale
      * ranges. */

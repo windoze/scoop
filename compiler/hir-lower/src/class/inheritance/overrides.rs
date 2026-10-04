@@ -134,6 +134,22 @@ impl Lowerer {
         if decl.is_override {
             self.check_imported_interface_override(id, decl, &sig, &imported_matches);
         }
+        for method in &imported_class_matches {
+            self.check_override_context(
+                &sig,
+                &method.signature.context_parameters,
+                decl.name.span,
+                &format!("{}.{}", self.type_name(method.owner), method.signature.name),
+            );
+        }
+        for member in &imported_matches {
+            self.check_override_context(
+                &sig,
+                &member.signature.context_parameters,
+                decl.name.span,
+                &format!("{}.{}", self.type_name(member.owner), member.signature.name),
+            );
+        }
         let overrides = matching_overrides.first().cloned();
         if !matching_overrides.is_empty() {
             if decl.is_override {
@@ -158,6 +174,16 @@ impl Lowerer {
                     *candidate,
                     arguments,
                     &sig.type_params[sig.owner_type_param_count..],
+                );
+                self.check_override_context(
+                    &sig,
+                    &inherited
+                        .context_parameters
+                        .iter()
+                        .map(|p| p.ty)
+                        .collect::<Vec<_>>(),
+                    decl.name.span,
+                    &self.functions[*candidate].name.clone(),
                 );
                 let mismatch = sig.params.iter().zip(&inherited.params).position(
                     |(implementation, declaration)| {

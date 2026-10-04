@@ -88,6 +88,7 @@ pub(in crate::cross_cone_compile_decode::tests) fn enum_variant_callable_surface
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
         scoop_hir::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .unwrap();
     (

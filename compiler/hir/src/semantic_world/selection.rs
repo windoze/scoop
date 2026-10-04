@@ -68,6 +68,7 @@ impl ImportedDependencySelectionPlan {
                 callables: BTreeMap::new(),
                 bodies: BTreeMap::new(),
                 generated_callables: BTreeMap::new(),
+                callback_registrations: BTreeMap::new(),
                 initializations: BTreeMap::new(),
                 delegates: BTreeMap::new(),
                 properties: BTreeMap::new(),

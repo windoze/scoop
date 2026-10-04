@@ -23,6 +23,7 @@ fn type_alias(name: &str, target: TypeRef) -> Decl {
 
 fn const_property(name: &str) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Explicit {
             visibility: ast::DeclaredVisibility::Public,

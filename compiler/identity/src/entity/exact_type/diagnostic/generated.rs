@@ -45,6 +45,7 @@ pub(super) fn write_nominal(
                 GeneratedNominalKey::BoxedValue { .. } => 6,
                 GeneratedNominalKey::CoroutineSlot { .. } => 7,
                 GeneratedNominalKey::ObjectBackingClass { .. } => 8,
+                GeneratedNominalKey::TaskContext(_) => 9,
             };
             output.push_str("g(r=")?;
             for byte in tag.to_be_bytes() {

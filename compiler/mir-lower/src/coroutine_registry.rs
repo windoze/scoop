@@ -215,19 +215,34 @@ impl CoroutineRegistry {
         enums: &mut EnumRegistry,
         shell: &mut mir::Module,
     ) -> (mir::CoroutineSlotId, mir::Type) {
-        let source = Self::source_type(exact_types, value);
-        let exact = source.identity_record();
-        let nominal_group = source.nominal_specialization();
+        let (exact_record, nominal_group) = match value {
+            mir::Type::Context(storage) if storage.role == mir::ContextStorageRole::Mark => {
+                (storage.exact_record(), None)
+            }
+            _ => {
+                let source = Self::source_type(exact_types, value);
+                (
+                    source.identity_record().clone(),
+                    source.nominal_specialization(),
+                )
+            }
+        };
+        let exact = exact_record.id();
         if let Some((_, id)) = self
             .slots_by_value
             .iter()
-            .find(|(found, _)| *found == exact.id())
+            .find(|(found, _)| *found == exact)
         {
             let slot = &self.slots[*id];
             return (*id, mir::Type::Enum(slot.enum_id(), Vec::new()));
         }
-        let identity = mir::CoroutineSlotIdentity::new(exact, nominal_group)
-            .expect("local-concrete exact types have one coroutine-slot root");
+        let identity = match value {
+            mir::Type::Context(storage) if storage.role == mir::ContextStorageRole::Mark => {
+                mir::CoroutineSlotIdentity::context_mark(storage.core)
+            }
+            _ => mir::CoroutineSlotIdentity::new(&exact_record, nominal_group),
+        }
+        .expect("a saved value has one exact coroutine-slot identity");
         let name = format!("CoroutineSlot<{}>", mir::type_name(shell, value));
         let value_gc_free = mir_type_gc_free(value, structs, enums);
         let mut variants = Vec::new();
@@ -272,7 +287,7 @@ impl CoroutineRegistry {
             mir::CoroutineSlot::checked(&enums.defs, value_payload, empty, value.clone(), identity)
                 .expect("synthesized CoroutineSlot metadata matches its enum definition");
         let id = self.slots.alloc(slot);
-        self.slots_by_value.push((exact.id(), id));
+        self.slots_by_value.push((exact, id));
         (id, mir::Type::Enum(enum_id, Vec::new()))
     }
 }

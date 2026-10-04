@@ -40,7 +40,16 @@ impl DefinitionOriginBuilder<'_> {
     ) -> Result<(), PersistentDefinitionOriginError> {
         for (id, declaration) in self.lowerer.foreign_callback_registrations.iter() {
             let subject = DefinitionOriginSubject::CallbackRegistration(identities[id].id());
-            let file = match declaration.definition_root {
+            let root = match &declaration.definition {
+                hir::ForeignCallbackDefinition::Source { root, .. } => *root,
+                hir::ForeignCallbackDefinition::Imported {
+                    definition_origin, ..
+                } => {
+                    self.append_existing(subject, definition_origin);
+                    continue;
+                }
+            };
+            let file = match root {
                 hir::LexicalDefinitionRoot::Function(function) => {
                     self.lowerer.function_files.get(&function).copied()
                 }

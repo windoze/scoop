@@ -1,0 +1,63 @@
+class Settings(val value: Long)
+class Other(val label: String)
+var evaluations: Long = 0
+
+context(settings: Settings)
+fun current(): Long = settings.value
+
+fun ordinary(): Long = current()
+
+context(settings: Settings)
+fun stableEntry(): Long {
+    context(Settings(20)) {
+        gcCollect()
+        println(current())
+        println(settings.value)
+    }
+    return settings.value
+}
+
+context(settings: Settings)
+fun captureEntry(): () -> Long = { settings.value }
+
+context(_: Other, settings: Settings)
+fun presenceOnly() { println("entered") }
+
+fun binding(): Settings {
+    evaluations += 1
+    return Settings(10)
+}
+
+fun main() {
+    val delayed: () -> Long = ::current
+    val saved = context(binding()) {
+        println(ordinary())
+        println(delayed())
+        println(stableEntry())
+        context(Other("independent")) {
+            println(current())
+            presenceOnly()
+        }
+        captureEntry()
+    }
+    gcCollect()
+    println(saved())
+    println(evaluations)
+    try {
+        delayed()
+    } catch (error: MissingContextException) {
+        println(error.message!!)
+    }
+    try {
+        presenceOnly()
+    } catch (error: MissingContextException) {
+        println(error.message!!)
+    }
+    context(Other("anonymous")) {
+        try {
+            presenceOnly()
+        } catch (error: MissingContextException) {
+            println(error.message!!)
+        }
+    }
+}

@@ -263,7 +263,7 @@ mod tests {
                 application,
                 CallableSignatureSubject::odr(callable_member),
                 ExactCallableSignature::new(Effect::Ordinary, None, Vec::new(), exact),
-                ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+                ForeignCallbackStorageAbi::ClosureContextResultRootsThrowableToStatus,
                 CallbackMode::Reusable,
             )])
             .unwrap();

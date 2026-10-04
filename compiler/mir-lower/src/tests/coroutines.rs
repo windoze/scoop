@@ -285,7 +285,7 @@ fn suspend_call_generates_a_liveness_based_frame_and_resume_point() {
     assert_eq!(fields[1].name, "completion");
     for (index, saved) in frame.identity().saved_fields().iter().enumerate() {
         assert_eq!(
-            fields[index + 2].name,
+            fields[index + 3].name,
             format!(
                 "local${}",
                 module.functions[*driver]
@@ -599,6 +599,7 @@ fn suspend_intrinsic_keeps_machine_kinds_and_generated_loop_header_polls_distinc
     let value = locals.alloc(local("value", result));
     let caller = source.functions.alloc(hir::Function {
         signature: hir::CallableSignature {
+            context_parameters: Vec::new(),
             release_callability: Default::default(),
             name: "suspendIntrinsicCaller".to_string(),
             is_suspend: true,
@@ -737,6 +738,7 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         });
     let launcher = hir_module.functions.alloc(hir::Function {
         signature: hir::CallableSignature {
+            context_parameters: Vec::new(),
             release_callability: Default::default(),
             name: "launcher".to_string(),
             is_suspend: false,
@@ -817,7 +819,19 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
         &[exact(&helper.params[0].ty), exact(&helper.params[1].ty)]
     );
     assert_eq!(signature.result(), exact(&mir::Type::Unit));
-    let entry = &helper.body.blocks[helper.body.entry];
+    let prefix = &helper.body.blocks[helper.body.entry];
+    assert!(
+        matches!(&prefix.statements[0].kind, mir::StatementKind::ValDecl { init, .. }
+        if matches!(init.kind, mir::ExprKind::Context(mir::ContextOperation::Fork { .. })))
+    );
+    assert!(
+        matches!(&prefix.statements[1].kind, mir::StatementKind::ValDecl { init, .. }
+        if matches!(init.kind, mir::ExprKind::Context(mir::ContextOperation::Enter { .. })))
+    );
+    let mir::Terminator::Goto(run_block) = prefix.terminator else {
+        panic!("the child task is installed before invoking run")
+    };
+    let entry = &helper.body.blocks[run_block];
     let (run, step_local) = statement_call(&entry.statements[0]);
     let mir::CallKind::Interface {
         interface: task_interface,
@@ -878,7 +892,10 @@ fn start_coroutine_resumes_only_an_immediately_completed_task() {
                     && matches!(operand.kind, mir::ExprKind::Local(local) if local == step_local))));
 
     let suspended = &helper.body.blocks[suspended];
-    assert!(suspended.statements.is_empty());
+    assert!(
+        matches!(&suspended.statements[0].kind, mir::StatementKind::Expr(expr)
+        if matches!(expr.kind, mir::ExprKind::Context(mir::ContextOperation::Leave { .. })))
+    );
     assert!(matches!(
         suspended.terminator,
         mir::Terminator::Return { value: None }

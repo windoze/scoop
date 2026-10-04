@@ -10,6 +10,11 @@ pub(super) fn dump_expr(
     let pad = "  ".repeat(indent);
     let ty = type_name(module, expr.ty);
     match &expr.kind {
+        ExprKind::ContextLookup(requirement) => out.push_str(&format!(
+            "{pad}ContextLookup {} #{} : {ty}\n",
+            requirement.diagnostic.declaration,
+            requirement.parameter.0 + 1,
+        )),
         ExprKind::ReleaseFieldLoad(field) => out.push_str(&format!(
             "{pad}ReleaseFieldLoad {}.{} : {ty}\n",
             type_name(module, field.owner),

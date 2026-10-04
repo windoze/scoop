@@ -2,6 +2,7 @@ use super::*;
 
 fn const_property(name: &str, ty: TypeRef, expression: Expr) -> ast::PropertyDecl {
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,
@@ -19,6 +20,7 @@ fn const_property(name: &str, ty: TypeRef, expression: Expr) -> ast::PropertyDec
 
 fn ordinary_property(name: &str, expression: Expr) -> ast::PropertyDecl {
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
             name: ident("Global"),
             args: Vec::new(),

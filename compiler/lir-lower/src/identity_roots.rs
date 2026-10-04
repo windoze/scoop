@@ -170,6 +170,7 @@ impl<'input> IdentityRoots<'input> {
 
 fn generated_location(ty: &mir::Type) -> Option<mir::GeneratedExactTypeLocation> {
     match ty {
+        mir::Type::Context(storage) => Some(mir::GeneratedExactTypeLocation::Context(*storage)),
         mir::Type::Class(id) => Some(mir::GeneratedExactTypeLocation::Class(*id)),
         mir::Type::Enum(id, _) => Some(mir::GeneratedExactTypeLocation::Enum(*id)),
         mir::Type::Unit

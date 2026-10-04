@@ -85,6 +85,7 @@ impl Fixture {
             crate::CallableModalityV1::Final,
             crate::DeclaredVisibilityV1::Public,
             crate::CanonicalPersistentIdsV1::empty(),
+            Vec::new(),
         )
         .unwrap();
         let mut pending = PendingIdentityValidation::new();
