@@ -12,8 +12,8 @@ const LOCATION_DIRECT: u8 = 2;
 const LOCATION_INDIRECT: u8 = 3;
 const LOCATION_CONSTANT: u8 = 4;
 const LOCATION_CONSTANT_INDEX: u8 = 5;
-const AARCH64_DWARF_FP: u16 = 29;
-const AARCH64_DWARF_SP: u16 = 31;
+mod architecture;
+use architecture::StackmapArchitecture;
 
 mod record;
 pub use record::*;
@@ -27,12 +27,14 @@ pub use section::*;
 pub(crate) mod verification;
 pub use verification::*;
 
-pub fn normalize_darwin_aarch64_stackmap_record_v1(
+pub fn normalize_stackmap_record_v1(
+    target: scoop_identity::TargetProfileId,
     plan: StrongSafepointSemanticPlanV1,
     constant_pool: &[u64],
     provisional: ProvisionalLlvmStackmapRecordV3,
 ) -> Result<VerifiedNormalizedStackmapRecordV1, StackmapNormalizationError> {
     normalize_record(
+        StackmapArchitecture::for_target(target),
         ExpectedStackmapSemanticsV1 {
             site: plan.site(),
             safepoint_id: plan.safepoint().get(),
@@ -55,6 +57,7 @@ struct ExpectedStackmapSemanticsV1 {
 }
 
 fn normalize_record(
+    architecture: StackmapArchitecture,
     expected: ExpectedStackmapSemanticsV1,
     constant_pool: &[u64],
     provisional: ProvisionalLlvmStackmapRecordV3,
@@ -76,7 +79,11 @@ fn normalize_record(
             provisional.header.flags,
         ));
     }
-    validate_stack_size(provisional.header.stack_size)?;
+    if !architecture.valid_stack_size(provisional.header.stack_size) {
+        return Err(StackmapNormalizationError::InvalidStackSize(
+            provisional.header.stack_size,
+        ));
+    }
     let expected_location_count = usize::try_from(expected.root_pair_count)
         .ok()
         .and_then(|count| count.checked_mul(2))
@@ -96,7 +103,7 @@ fn normalize_record(
         .map(|(index, location)| normalize_location(index, location, constant_pool))
         .collect::<Result<Vec<_>, _>>()?;
     validate_header_locations(&locations)?;
-    validate_root_pairs(&locations[3..], provisional.header.stack_size)?;
+    validate_root_pairs(&locations[3..], provisional.header.stack_size, architecture)?;
     let live_outs = provisional
         .live_outs
         .iter()
@@ -185,14 +192,6 @@ fn normalize_location(
     }
 }
 
-fn validate_stack_size(stack_size: u64) -> Result<(), StackmapNormalizationError> {
-    if stack_size < 16 || stack_size == u64::MAX || stack_size % 16 != 0 {
-        Err(StackmapNormalizationError::InvalidStackSize(stack_size))
-    } else {
-        Ok(())
-    }
-}
-
 fn validate_header_locations(
     locations: &[CanonicalStackmapLocationV1],
 ) -> Result<(), StackmapNormalizationError> {
@@ -221,6 +220,7 @@ fn validate_header_locations(
 fn validate_root_pairs(
     locations: &[CanonicalStackmapLocationV1],
     stack_size: u64,
+    architecture: StackmapArchitecture,
 ) -> Result<(), StackmapNormalizationError> {
     for (root_index, pair) in locations.chunks_exact(2).enumerate() {
         if pair[0] != pair[1] {
@@ -236,17 +236,12 @@ fn validate_root_pairs(
         };
         let register = u16::try_from(dwarf_register)
             .map_err(|_| StackmapNormalizationError::InvalidRootLocation(root_index))?;
-        if !matches!(register, AARCH64_DWARF_SP | AARCH64_DWARF_FP) {
+        let (sp, fp) = architecture.registers();
+        if register != sp && register != fp {
             return Err(StackmapNormalizationError::InvalidRootLocation(root_index));
         }
         let signed_offset = signed_offset_bits as i64;
-        let base = if register == AARCH64_DWARF_SP {
-            0_i128
-        } else {
-            i128::from(stack_size) - 16
-        };
-        let frame_offset = base + i128::from(signed_offset);
-        if frame_offset < 0 || frame_offset + 8 > i128::from(stack_size) {
+        if !architecture.valid_root(register, signed_offset, stack_size) {
             return Err(StackmapNormalizationError::RootOutsideFrame {
                 index: root_index,
                 stack_size,

@@ -7,7 +7,7 @@ use scoop_identity::{
     PersistentCallableBodyId, PersistentSafepointSiteId,
 };
 
-use super::DarwinAarch64StackmapMachineCodeError;
+use super::StackmapMachineCodeError;
 use crate::SlibMemberId;
 use crate::link_object::{ObjectStackmapSectionError, StackmapNormalizationError};
 
@@ -93,7 +93,7 @@ pub enum ScoopLirStackmapValidationError {
     MachineCode {
         member: SlibMemberId,
         owner: PersistentCallableBodyId,
-        source: DarwinAarch64StackmapMachineCodeError,
+        source: StackmapMachineCodeError,
     },
     MissingFunctionOwner {
         member: SlibMemberId,

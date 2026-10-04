@@ -765,6 +765,8 @@ atom range 的持久 section ordinal 同样扩宽为非零 u32；CBOR 数值编�
 
 ELF undefined requirements 来自实际 relocation 引用；仅存在于 symbol table 而未被引用的 undefined 条目（例如 GCC TLS 代码附带的 `_GLOBAL_OFFSET_TABLE_`）不产生链接需求。Mach-O 既有 producer profile 的 undefined 集合约束保持。
 
+独立 `.slib` reader 的 stackmap normalization 按已选择 target 使用架构帧合同，LLVM v3 字段解析、site/owner 匹配和 canonical fingerprint 共用。amd64 要求 `N >= 8`、`N % 16 == 8`，SP/FP 的 DWARF 编号为 7/6，`FP = SP + N - 8`；root 必须是 `[SP, FP)` 内八字节对齐的完整八字节 indirect slot，base/derived 相同。reader 使用不依赖 LLVM 的成熟 amd64 解码库，从实际函数起点解码至最后 safepoint，确认 return PC 是直接或间接 call 的下一条指令边界，并确认首个 call 前已保存 RBP、建立 RBP frame chain。该检查不按 call opcode 的局部字节猜测指令长度，不引入新的产物字段或重复的语言语义检查。
+
 对象 relocation form 保留 Darwin 既有 tags 1～10；ELF RELA 使用 tag 11，CBOR `{0=11, 1=native kind, 2=write width, 3=addend 的 64-bit 补码}`，runtime canonical encoding 对应 `u32(11), u32(kind), u32(width), u64(addend bits)`。width 由实际架构 relocation decoder 取得，不能按 tag 11 统一按八字节处理；对象 hash 只归零实际 relocation 写入字段，kind、signed addend 与 typed target 保留在 canonical relocation 中。
 
 M28 的 LSDA reader 与 runtime spec 5.2 一致，接受 LLVM 的省略 TType cleanup-only 表；它不含 type-table offset，所有 action 必须为零。对象读取以实际 function/section 范围校验 call-site 和 landing pad，并允许 section 的零对齐填充；personality 以 call-site 表长取得有效边界。catch-all 仍使用已有 null type entry 和终止 action。该修复不改变已生成 catch-all 对象的 ABI 或 runtime metadata 布局。

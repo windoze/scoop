@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::{
     ProvisionalLlvmStackmapRecordHeaderV3, ProvisionalLlvmStackmapRecordV3,
     VerifiedNormalizedStackmapRecordV1, VerifiedObjectStackmapSectionV3,
-    normalize_darwin_aarch64_stackmap_record_v1, verify_object_stackmap_section_v3,
+    normalize_stackmap_record_v1, verify_object_stackmap_section_v3,
 };
 use crate::SlibMemberId;
 use crate::link_object::{
@@ -19,7 +19,11 @@ use crate::link_object::{
 
 mod aarch64;
 pub use aarch64::DarwinAarch64StackmapMachineCodeError;
-use aarch64::validate_stackmap_function_machine_code;
+mod machine;
+pub use machine::StackmapMachineCodeError;
+use machine::validate_stackmap_function_machine_code;
+mod x86_64;
+pub use x86_64::X86_64StackmapMachineCodeError;
 
 mod error;
 pub use error::ScoopLirStackmapValidationError;
@@ -373,13 +377,17 @@ fn verify_member_records(
                 parsed.locations().to_vec(),
                 parsed.live_outs().to_vec(),
             );
-            let normalized =
-                normalize_darwin_aarch64_stackmap_record_v1(plan, section.constants(), provisional)
-                    .map_err(|source| ScoopLirStackmapValidationError::Normalization {
-                        member: member.member(),
-                        safepoint_id: parsed.safepoint_id(),
-                        source,
-                    })?;
+            let normalized = normalize_stackmap_record_v1(
+                member.definitions().sections().envelope().target(),
+                plan,
+                section.constants(),
+                provisional,
+            )
+            .map_err(|source| ScoopLirStackmapValidationError::Normalization {
+                member: member.member(),
+                safepoint_id: parsed.safepoint_id(),
+                source,
+            })?;
             if !seen_sites.insert(normalized.canonical().site()) {
                 return Err(ScoopLirStackmapValidationError::DuplicateSite(
                     normalized.canonical().site(),

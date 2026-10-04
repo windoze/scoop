@@ -104,7 +104,7 @@ fn rejects_return_pcs_that_do_not_immediately_follow_aarch64_calls() {
         verify_scoop_lir_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects),
         Err(ScoopLirStackmapValidationError::MachineCode {
             member: actual,
-            source: DarwinAarch64StackmapMachineCodeError::ReturnPcDoesNotFollowCall { .. },
+            source: StackmapMachineCodeError::Aarch64(DarwinAarch64StackmapMachineCodeError::ReturnPcDoesNotFollowCall { .. }),
             ..
         }) if actual == member
     ));
@@ -123,7 +123,7 @@ fn rejects_managed_functions_without_an_aarch64_frame_chain() {
         verify_scoop_lir_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects),
         Err(ScoopLirStackmapValidationError::MachineCode {
             member: actual,
-            source: DarwinAarch64StackmapMachineCodeError::MissingManagedFrameChain { .. },
+            source: StackmapMachineCodeError::Aarch64(DarwinAarch64StackmapMachineCodeError::MissingManagedFrameChain { .. }),
             ..
         }) if actual == member
     ));

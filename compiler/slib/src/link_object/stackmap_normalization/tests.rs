@@ -9,6 +9,53 @@ use scoop_wire::encode_runtime;
 use super::*;
 
 #[test]
+fn amd64_roots_exclude_the_frame_record_red_zone_and_unaligned_slots() {
+    let expected = semantic_plan(1);
+    let record = |register, offset| {
+        let slot = ProvisionalLlvmStackmapLocationV3::new(LOCATION_INDIRECT, 8, register, offset);
+        let mut value = provisional(
+            expected,
+            vec![constant(8, 0), constant(8, 0), constant(8, 0), slot, slot],
+            Vec::new(),
+        );
+        value.header.stack_size = 24;
+        value
+    };
+    for (register, offset) in [(7, 0), (7, 8), (6, -16), (6, -8)] {
+        normalize_record(
+            StackmapArchitecture::X86_64,
+            expected,
+            &[],
+            record(register, offset),
+        )
+        .unwrap();
+    }
+    for (register, offset) in [(7, -8), (7, 1), (7, 16), (6, 0), (6, 8), (6, -24)] {
+        assert!(matches!(
+            normalize_record(
+                StackmapArchitecture::X86_64,
+                expected,
+                &[],
+                record(register, offset)
+            ),
+            Err(StackmapNormalizationError::RootOutsideFrame { .. })
+        ));
+    }
+    assert_eq!(
+        normalize_record(StackmapArchitecture::X86_64, expected, &[], record(31, 0)),
+        Err(StackmapNormalizationError::InvalidRootLocation(0))
+    );
+    for size in [0, 16, 32, u64::MAX] {
+        let mut value = record(7, 0);
+        value.header.stack_size = size;
+        assert_eq!(
+            normalize_record(StackmapArchitecture::X86_64, expected, &[], value),
+            Err(StackmapNormalizationError::InvalidStackSize(size))
+        );
+    }
+}
+
+#[test]
 fn constant_and_constant_index_normalize_to_the_same_record() {
     let expected = semantic_plan(1);
     let direct = provisional(
@@ -34,8 +81,15 @@ fn constant_and_constant_index_normalize_to_the_same_record() {
         Vec::new(),
     );
 
-    let direct = normalize_record(expected, &[0xfeed], direct).unwrap();
-    let indexed = normalize_record(expected, &[0xfeed, 0], indexed).unwrap();
+    let direct =
+        normalize_record(StackmapArchitecture::Aarch64, expected, &[0xfeed], direct).unwrap();
+    let indexed = normalize_record(
+        StackmapArchitecture::Aarch64,
+        expected,
+        &[0xfeed, 0],
+        indexed,
+    )
+    .unwrap();
 
     assert_eq!(direct, indexed);
     assert_eq!(direct.canonical().format_version(), 3);
@@ -71,6 +125,7 @@ fn constant_and_constant_index_normalize_to_the_same_record() {
 fn canonical_fingerprint_preserves_instruction_stack_and_live_out_fields() {
     let expected = semantic_plan(0);
     let baseline = normalize_record(
+        StackmapArchitecture::Aarch64,
         expected,
         &[],
         provisional(
@@ -87,7 +142,7 @@ fn canonical_fingerprint_preserves_instruction_stack_and_live_out_fields() {
     );
     changed.header.instruction_offset = 12;
     changed.header.stack_size = 80;
-    let changed = normalize_record(expected, &[], changed).unwrap();
+    let changed = normalize_record(StackmapArchitecture::Aarch64, expected, &[], changed).unwrap();
 
     assert_ne!(baseline.fingerprint(), changed.fingerprint());
     assert_eq!(changed.canonical().instruction_offset(), 12);
@@ -269,7 +324,7 @@ fn normalize_without_constants(
     expected: ExpectedStackmapSemanticsV1,
     provisional: ProvisionalLlvmStackmapRecordV3,
 ) -> Result<VerifiedNormalizedStackmapRecordV1, StackmapNormalizationError> {
-    normalize_record(expected, &[], provisional)
+    normalize_record(StackmapArchitecture::Aarch64, expected, &[], provisional)
 }
 
 fn constant(size: u16, value: i32) -> ProvisionalLlvmStackmapLocationV3 {
@@ -277,7 +332,7 @@ fn constant(size: u16, value: i32) -> ProvisionalLlvmStackmapLocationV3 {
 }
 
 fn root(offset: i32) -> ProvisionalLlvmStackmapLocationV3 {
-    ProvisionalLlvmStackmapLocationV3::new(LOCATION_INDIRECT, 8, AARCH64_DWARF_SP, offset)
+    ProvisionalLlvmStackmapLocationV3::new(LOCATION_INDIRECT, 8, 31, offset)
 }
 
 fn semantic_plan(root_pair_count: u32) -> ExpectedStackmapSemanticsV1 {
