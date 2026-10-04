@@ -14,3 +14,4 @@ tempfile.workspace = true
 
 [dev-dependencies]
 scoop-identity.workspace = true
+scoop-toolchain.workspace = true

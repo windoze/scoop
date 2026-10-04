@@ -5,6 +5,8 @@ use object::{Object, ObjectSection};
 
 use super::*;
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod bridges;
 mod objects;
 
 fn for_target(mut module: Module, target: scoop_lir::TargetProfileId) -> Module {

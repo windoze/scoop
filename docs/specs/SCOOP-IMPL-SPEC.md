@@ -755,6 +755,8 @@ M28 的对象校验按对象格式和过程架构分层：ELF reader 保留每�
 
 物理 definition atom 清单按目标对象格式投影。Darwin 保持既有 compact-unwind、必要 EH-frame 和 TLV descriptor/template 分离；ELF 的非 release callable 使用 EH-frame，不产生 CompactUnwind atom，含 invoke 时另有 LSDA。ELF raw TLS 的 primary atom 是实际 TLS storage，不另造 Darwin template atom。ELF 边界符号使用实际 section 和 symbol extent，end label 的 symbol size 为零；新增符号及 section flags 不改变已有 relocation/symbol 索引。ODR definition 和同 member 的 associated LLVM globals 使用同一 COMDAT，后端生成的 callable stackmap/EH section 在对象物化时关联到其实际 group。stackmap 输入可写以允许 PIE relocation，最终按 §2.8 的脚本进入只读区域。Linux backend contract 的 CPU 字段明确为 `x86-64`；Darwin 的 `generic` 字段与既有 fingerprint 保持。
 
+generated-C 对象也按格式物化同一 typed bridge plan 的边界。ELF primary entry 使用实际 `STT_FUNC` 的 section-relative offset/size；一字节 signature/context 标记分别位于 `.rodata.scoop_sig` / `.rodata.scoop_ctx`，无指针 relocation。bridge 定义及边界采用 hidden strong linkage；外来 C 函数与 TLS 引用保留平台 ABI。Darwin 的 section 名称和发射形式保持。generated-C 编译沿既有 profile 禁用独立 unwind tables，不把 C bridge 当成含 Scoop stackmap 的 managed callable。
+
 M28 的 LSDA reader 与 runtime spec 5.2 一致，接受 LLVM 的省略 TType cleanup-only 表；它不含 type-table offset，所有 action 必须为零。对象读取以实际 function/section 范围校验 call-site 和 landing pad，并允许 section 的零对齐填充；personality 以 call-site 表长取得有效边界。catch-all 仍使用已有 null type entry 和终止 action。该修复不改变已生成 catch-all 对象的 ABI 或 runtime metadata 布局。
 
 codegen的唯一语义IR输入是**本 Cone**的LIR output，并只额外接收producer所需的已验证profile projection：Scoop LLVM producer取`lir_target + backend`，generated-C producer取`lir_target + c_bridge_toolchain`；两者都不接收上游meta或完整`ResolvedTargetProfile`。object verifier/finalizer与packager消费其正式产物。M23共同约束如下：
