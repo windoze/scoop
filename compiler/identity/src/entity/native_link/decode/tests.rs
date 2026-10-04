@@ -52,6 +52,54 @@ fn native_external_symbol_key_round_trips_and_validates_normalization() {
 }
 
 #[test]
+fn linux_symbols_and_libraries_retain_the_selected_libc() {
+    let mut symbol_ids = Vec::new();
+    let mut library_ids = Vec::new();
+    for target in [
+        crate::TargetProfileWireId::linux_x86_64_gnu(),
+        crate::TargetProfileWireId::linux_x86_64_musl(),
+    ] {
+        for spelling in ["entry", "_entry"] {
+            let key = NativeExternalSymbolKey::for_target(
+                target.clone(),
+                &SourceNativeSymbol::new(spelling).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(key.native_link_symbol().as_bytes(), spelling.as_bytes());
+            let decoded =
+                decode_canonical::<DecodedNativeExternalSymbolKey>(&encode(&key).unwrap())
+                    .unwrap()
+                    .validate()
+                    .unwrap();
+            assert_eq!(decoded, key);
+            symbol_ids.push(PersistentNativeExternalSymbolId::from_key(&key).unwrap());
+        }
+        let key = NativeLinkRequirementKey::for_target(
+            target.clone(),
+            library(),
+            NativeLibraryKind::TargetDefault,
+            NativeLibraryGrouping::Independent,
+        );
+        let decoded = decode_canonical::<DecodedNativeLinkRequirementKey>(&encode(&key).unwrap())
+            .unwrap()
+            .validate()
+            .unwrap();
+        assert_eq!(decoded, key);
+        library_ids.push(NativeLinkRequirementId::from_key(&key).unwrap());
+        assert_eq!(
+            NativeExternalSymbolKey::for_target(
+                target,
+                &SourceNativeSymbol::new("\u{1}entry").unwrap(),
+            ),
+            Err(NativeLinkSymbolError::LlvmEscapePrefix)
+        );
+    }
+    assert_ne!(symbol_ids[0], symbol_ids[1]);
+    assert_ne!(symbol_ids[0], symbol_ids[2]);
+    assert_ne!(library_ids[0], library_ids[1]);
+}
+
+#[test]
 fn native_link_symbol_rejects_noncanonical_logical_inputs() {
     let missing_prefix = decode_canonical::<DecodedNativeLinkSymbol>(b"\x43foo").unwrap();
     assert_eq!(

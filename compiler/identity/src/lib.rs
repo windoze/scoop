@@ -28,7 +28,8 @@ pub use context::{ContextKey, ContextStorageRole, ContextStorageType, DecodedCon
 pub use capability::{
     ArtifactCapabilityProfileId, ArtifactCapabilityProfileRefinementError, BackendProfileWireId,
     CBridgeToolchainProfileId, CapabilityId, CapabilityIdError, CapabilityLabelError,
-    CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId, TargetProfileWireId,
+    CapabilityRefinementError, DecodedCapabilityId, ObjectFormatId, TargetProfileId,
+    TargetProfileWireId,
 };
 pub use cone::{
     ConeCoordinate, ConeCoordinateComponent, ConeCoordinateError, ConeCoordinateTextError,

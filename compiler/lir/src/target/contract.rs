@@ -1,6 +1,6 @@
 use std::fmt;
 
-use scoop_identity::{ObjectFormatId, TargetProfileWireId};
+use scoop_identity::{TargetProfileId, TargetProfileWireId};
 use scoop_wire::{Encoder, HashError, WireEncode, domain_separated_cbor_hash};
 
 use super::{
@@ -47,6 +47,7 @@ impl WireEncode for CAbiLoweringProfile {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum NativeSymbolNormalization {
     MachOExternalUnderscore,
+    ElfIdentity,
 }
 
 impl NativeSymbolNormalization {
@@ -57,13 +58,17 @@ impl NativeSymbolNormalization {
     pub fn compiler_generated_object_symbol(self, logical_symbol: &str) -> String {
         match self {
             Self::MachOExternalUnderscore => format!("_{logical_symbol}"),
+            Self::ElfIdentity => logical_symbol.to_owned(),
         }
     }
 }
 
 impl WireEncode for NativeSymbolNormalization {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.unsigned(1)
+        encoder.unsigned(match self {
+            Self::MachOExternalUnderscore => 1,
+            Self::ElfIdentity => 2,
+        })
     }
 }
 
@@ -92,7 +97,7 @@ impl TargetProfileContract {
     }
 
     pub const fn canonical_triple(self) -> &'static str {
-        "aarch64-apple-darwin"
+        self.profile.id().canonical_triple()
     }
 
     pub const fn byte_order(self) -> ByteOrder {
@@ -120,7 +125,12 @@ impl TargetProfileContract {
     }
 
     pub const fn native_symbol_normalization(self) -> NativeSymbolNormalization {
-        NativeSymbolNormalization::MachOExternalUnderscore
+        match self.profile.id() {
+            TargetProfileId::DarwinAarch64 => NativeSymbolNormalization::MachOExternalUnderscore,
+            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
+                NativeSymbolNormalization::ElfIdentity
+            }
+        }
     }
 }
 
@@ -132,7 +142,7 @@ impl WireEncode for TargetProfileContract {
         encoder.field(2)?;
         encoder.text(self.profile.canonical_llvm_data_layout())?;
         encoder.field(3)?;
-        ObjectFormatId::macho_relocatable().encode(encoder)?;
+        self.profile.id().object_format().encode(encoder)?;
         encoder.field(4)?;
         self.byte_order().encode(encoder)?;
         encoder.field(5)?;

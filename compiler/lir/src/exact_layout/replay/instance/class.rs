@@ -81,7 +81,7 @@ fn replay_class(
     finish_instance(
         identity,
         layout.shape().clone(),
-        InstanceRepresentation::ClassObject(layout),
+        InstanceRepresentation::ClassObject(Box::new(layout)),
         ScanRole::ManagedObject,
         foundation,
     )

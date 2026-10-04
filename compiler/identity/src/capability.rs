@@ -2,6 +2,9 @@ use std::fmt;
 
 use scoop_wire::{Decoder, Encoder, WireDecode, WireEncode, WireError};
 
+mod target;
+pub use target::{TargetProfileId, TargetProfileWireId};
+
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CapabilityId {
     namespace: String,
@@ -118,22 +121,22 @@ impl WireDecode for DecodedCapabilityId {
 }
 
 macro_rules! capability_refinement {
-    ($name:ident, $constructor:ident, $namespace:literal, $value:literal) => {
+    ($name:ident, $namespace:literal, $( $constructor:ident => $value:literal ),+ $(,)?) => {
         #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
         pub struct $name(CapabilityId);
 
         impl $name {
-            pub fn $constructor() -> Self {
+            $(pub fn $constructor() -> Self {
                 Self(CapabilityId::known($namespace, $value))
-            }
+            })+
 
             pub fn capability(&self) -> &CapabilityId {
                 &self.0
             }
 
             pub fn refine(capability: CapabilityId) -> Result<Self, CapabilityRefinementError> {
-                let expected = CapabilityId::known($namespace, $value);
-                if capability == expected {
+                let expected = vec![$(CapabilityId::known($namespace, $value)),+];
+                if expected.contains(&capability) {
                     Ok(Self(capability))
                 } else {
                     Err(CapabilityRefinementError {
@@ -152,21 +155,14 @@ macro_rules! capability_refinement {
     };
 }
 
-capability_refinement!(
-    TargetProfileWireId,
-    darwin_aarch64,
-    "org.scoop-lang.target-profile",
-    "darwin-aarch64"
-);
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CapabilityRefinementError {
-    expected: CapabilityId,
+    expected: Vec<CapabilityId>,
     actual: CapabilityId,
 }
 
 impl CapabilityRefinementError {
-    pub const fn expected(&self) -> &CapabilityId {
+    pub fn expected(&self) -> &[CapabilityId] {
         &self.expected
     }
 
@@ -177,12 +173,22 @@ impl CapabilityRefinementError {
 
 impl fmt::Display for CapabilityRefinementError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("expected capability ")?;
+        for (index, expected) in self.expected.iter().enumerate() {
+            if index != 0 {
+                formatter.write_str(" or ")?;
+            }
+            write!(
+                formatter,
+                "{}/{}/{}",
+                expected.namespace(),
+                expected.name(),
+                expected.major_version()
+            )?;
+        }
         write!(
             formatter,
-            "expected capability {}/{}/{}, found {}/{}/{}",
-            self.expected.namespace(),
-            self.expected.name(),
-            self.expected.major_version(),
+            ", found {}/{}/{}",
             self.actual.namespace(),
             self.actual.name(),
             self.actual.major_version(),
@@ -193,21 +199,20 @@ impl fmt::Display for CapabilityRefinementError {
 impl std::error::Error for CapabilityRefinementError {}
 capability_refinement!(
     BackendProfileWireId,
-    llvm_22_1,
     "org.scoop-lang.backend-profile",
-    "llvm-22-1"
+    llvm_22_1 => "llvm-22-1",
+    llvm_22_1_linux_x86_64 => "llvm-22-1-linux-x86-64",
 );
 capability_refinement!(
     CBridgeToolchainProfileId,
-    darwin_aarch64_apple_clang,
     "org.scoop-lang.c-bridge-toolchain-profile",
-    "darwin-aarch64-apple-clang"
+    darwin_aarch64_apple_clang => "darwin-aarch64-apple-clang",
 );
 capability_refinement!(
     ObjectFormatId,
-    macho_relocatable,
     "org.scoop-lang.object-format",
-    "mach-o-relocatable"
+    macho_relocatable => "mach-o-relocatable",
+    elf_relocatable => "elf-relocatable",
 );
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ArtifactCapabilityProfileId(CapabilityId);

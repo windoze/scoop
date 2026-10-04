@@ -36,24 +36,37 @@ impl NativeLinkSymbol {
     pub fn darwin_macho_external(
         logical: &SourceNativeSymbol,
     ) -> Result<Self, NativeLinkSymbolError> {
-        let length = Self::darwin_macho_external_length(logical)?;
-        let logical = logical.as_bytes();
+        Self::for_target(&TargetProfileWireId::darwin_aarch64(), logical)
+    }
+
+    fn for_target(
+        target: &TargetProfileWireId,
+        logical: &SourceNativeSymbol,
+    ) -> Result<Self, NativeLinkSymbolError> {
+        if logical.as_bytes().first() == Some(&0x01) {
+            return Err(NativeLinkSymbolError::LlvmEscapePrefix);
+        }
+        let prefix = target.id().external_symbol_prefix();
+        let length = logical
+            .as_bytes()
+            .len()
+            .checked_add(prefix.len())
+            .ok_or(NativeLinkSymbolError::LengthOverflow)?;
         let mut symbol = Vec::new();
         symbol
-            .try_reserve_exact(
-                usize::try_from(length).map_err(|_| NativeLinkSymbolError::LengthOverflow)?,
-            )
+            .try_reserve_exact(length)
             .map_err(|_| NativeLinkSymbolError::Allocation)?;
-        symbol.push(b'_');
-        symbol.extend_from_slice(logical);
+        symbol.extend_from_slice(prefix);
+        symbol.extend_from_slice(logical.as_bytes());
         Ok(Self(symbol))
     }
 
-    fn from_owned_darwin_macho_external(
+    fn from_owned_for_target(
+        target: &TargetProfileWireId,
         symbol: Vec<u8>,
     ) -> Result<Self, NativeLinkValidationError> {
         let logical = symbol
-            .strip_prefix(b"_")
+            .strip_prefix(target.id().external_symbol_prefix())
             .ok_or(NativeLinkValidationError::MissingMachOExternalPrefix)?;
         SourceNativeSymbol::validate_bytes(logical)
             .map_err(NativeLinkValidationError::SourceSymbol)?;
@@ -92,17 +105,18 @@ impl NativeExternalSymbolKey {
     pub fn darwin_macho_external(
         logical: &SourceNativeSymbol,
     ) -> Result<Self, NativeLinkSymbolError> {
-        Ok(Self {
-            target_profile: TargetProfileWireId::darwin_aarch64(),
-            native_link_symbol: NativeLinkSymbol::darwin_macho_external(logical)?,
-        })
+        Self::for_target(TargetProfileWireId::darwin_aarch64(), logical)
     }
 
-    fn from_validated_darwin_macho_external(native_link_symbol: NativeLinkSymbol) -> Self {
-        Self {
-            target_profile: TargetProfileWireId::darwin_aarch64(),
+    pub fn for_target(
+        target_profile: TargetProfileWireId,
+        logical: &SourceNativeSymbol,
+    ) -> Result<Self, NativeLinkSymbolError> {
+        let native_link_symbol = NativeLinkSymbol::for_target(&target_profile, logical)?;
+        Ok(Self {
+            target_profile,
             native_link_symbol,
-        }
+        })
     }
 
     pub fn target_profile(&self) -> &TargetProfileWireId {
@@ -233,8 +247,22 @@ impl NativeLinkRequirementKey {
         kind: NativeLibraryKind,
         grouping: NativeLibraryGrouping,
     ) -> Self {
+        Self::for_target(
+            TargetProfileWireId::darwin_aarch64(),
+            library,
+            kind,
+            grouping,
+        )
+    }
+
+    pub fn for_target(
+        target_profile: TargetProfileWireId,
+        library: CanonicalNativeLibraryName,
+        kind: NativeLibraryKind,
+        grouping: NativeLibraryGrouping,
+    ) -> Self {
         Self {
-            target_profile: TargetProfileWireId::darwin_aarch64(),
+            target_profile,
             library,
             kind,
             grouping,
