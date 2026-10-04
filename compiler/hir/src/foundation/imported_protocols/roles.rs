@@ -3,6 +3,10 @@
 use super::*;
 
 impl ImportedCoreFundamentalTypeProtocol {
+    pub fn character(&self) -> ImportedHirNominal<PersistentTypeId> {
+        concrete_nominal(&self.0, 15)
+    }
+
     pub fn unit(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 0)
     }
@@ -119,6 +123,14 @@ impl ImportedCoreExceptionProtocol {
 
     pub fn illegal_state_exception_constructor(&self) -> &ImportedCoreProtocolCallable {
         callable(&self.0, 11)
+    }
+
+    pub fn illegal_argument_exception(&self) -> ImportedHirNominal<PersistentTypeId> {
+        concrete_nominal(&self.0, 13)
+    }
+
+    pub fn illegal_argument_exception_constructor(&self) -> &ImportedCoreProtocolCallable {
+        callable(&self.0, 14)
     }
 
     pub fn initialization_cycle_thrower(&self) -> &ImportedCoreProtocolCallable {

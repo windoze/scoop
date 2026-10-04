@@ -1,7 +1,12 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Box vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun boxed @fn0(value: Int) -> Box
     bb0 entry
       val $argument.0: Int

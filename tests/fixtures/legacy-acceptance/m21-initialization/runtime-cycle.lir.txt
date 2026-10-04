@@ -8,6 +8,7 @@ Module
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   init0 top-level:left storage=@scoop$1$ss$ab3eff0000422e5d392e292a2b60d63bbabdbd797e10f7e6f0fdbe614e88f1bd failure=@scoop$1$ss$4d9f17e0fe2a6007b2285884bc5fc0703c46139dbbfaed3bd8072278fda76e26 initializer=@scoop$1$cb$5b42033dbf1313a6a4175c083f89964eaa7b166fc4553a63c3f9d4e7e35a397c ensure=@scoop$1$cb$1aa717c867f71c0ff6ec2dca9cd8dd87562130008c43fdd054e3c07f66545bc4 deps=[]
   init1 top-level:right storage=@scoop$1$ss$ae108f0a1d0d38996d4f19ddd3dcbda5e8bc424a7319a2654824c7e321e748e2 failure=@scoop$1$ss$b50bdbac082a819142c40fe748d35c04b246a67692f21dd003949012b10dd4f5 initializer=@scoop$1$cb$ecaa0193b39d3a2d1d17d0b7acb643ed54b2ca56b952152d57a1c48d44e9b9e3 ensure=@scoop$1$cb$d853e645d24fd26483b6876e1f9df3c9ca1eb02fd4886d8ca7ddd6c0fe5900f2 deps=[]
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop$1$cb$1eb71d2d24060d4f0c0ae49bf175d3c51afb804056b2ea072a7862cacf17f3ff() -> i32
     local %0 $call.1: i32
   block entry
@@ -277,4 +278,10 @@ Module
     t2 = begin_catch t1 : ptr<managed>
     end_catch
     ret integer<UInt>(0x00000001)
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  layout Option size=16 align=8 enum-scan=none
+  layout Iterable value size=8 align=8 refs=[0]
+  layout Iterator value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

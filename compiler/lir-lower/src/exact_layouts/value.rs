@@ -19,6 +19,11 @@ impl Projection<'_> {
                 lir::ScalarRepresentationKindV1::Integer(crate::metadata::integer_kind(*kind)),
                 foundation,
             )?,
+            Kind::Intrinsic(Intrinsic::Char) => lir::ExactValueLayoutV1::scalar(
+                identity,
+                lir::ScalarRepresentationKindV1::Char,
+                foundation,
+            )?,
             Kind::Intrinsic(Intrinsic::Boolean) => lir::ExactValueLayoutV1::scalar(
                 identity,
                 lir::ScalarRepresentationKindV1::Boolean,

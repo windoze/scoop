@@ -42,6 +42,16 @@ impl CanonicalCAbiBuilder<'_> {
             mir::Type::Struct(id) => {
                 if matches!(
                     self.module.structs[*id].representation,
+                    mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+                ) {
+                    return Ok(identity::CanonicalCStorageType::Integer {
+                        exact_type: self.exact_type(ty),
+                        signedness: identity::Signedness::Unsigned,
+                        bit_width: identity::IntegerBitWidth::Bits32,
+                    });
+                }
+                if matches!(
+                    self.module.structs[*id].representation,
                     mir::StructRepresentation::Declared {
                         c_abi: mir::StructCAbi::UInt64Field { .. },
                         ..

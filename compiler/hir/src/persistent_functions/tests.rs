@@ -61,6 +61,7 @@ impl Fixture {
         let class_applications = Arena::new();
         let interface_applications = Arena::new();
         let intrinsic_core = IntrinsicTypeCore {
+            character: crate::StructId::from_raw(11_u32.into()),
             integers: IntegerTypeCore::new(std::array::from_fn(|index| {
                 crate::StructId::from_raw((index as u32).into())
             }))

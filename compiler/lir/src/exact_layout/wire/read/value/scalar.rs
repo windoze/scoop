@@ -26,6 +26,10 @@ pub(super) fn decode(decoder: &mut Decoder<'_>) -> Result<ScalarRepresentationKi
             length(decoder, fields, 1)?;
             Ok(ScalarRepresentationKindV1::Boolean)
         }
+        3 => {
+            length(decoder, fields, 1)?;
+            Ok(ScalarRepresentationKindV1::Char)
+        }
         value => Err(unknown(decoder, value)),
     }
 }

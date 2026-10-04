@@ -1,7 +1,7 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — parameter `source` is supplied more than once",
+    "message": "no applicable candidate for `Array` in core prelude layer:\n  - no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(size: Long, init: (Long) -> T) — has no parameter named `source`\n  - no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — parameter `source` is supplied more than once",
     "notes": [],
     "origin": {
       "cone": "ba511bb7ef53203dedc4ee6552ae2127752fc561bf4a01a3c09c2ce990979afc",

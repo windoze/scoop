@@ -1,0 +1,41 @@
+struct Letter(val value: Char, val label: String)
+enum Symbol { Mark(Char), Empty }
+@Global
+var stored: Char = '界'
+
+fun <T> identity(value: T): T = value
+fun <T : ToString> display(value: T): String = value.toString()
+fun classify(value: (Char?, Char)): Int = when (value) {
+    (Some('雪'), 'A') -> 42
+    (None, _) -> 0
+    _ -> 1
+}
+fun unpack(value: Symbol): Char = when (value) {
+    Mark(character) -> character
+    Empty -> '\u0000'
+}
+
+fun main() {
+    val array = MutableArray<Char>(130L) { i -> (65 + i.toInt32()).toChar() }
+    val list = ArrayList<Char>()
+    for (value in array) { list.add(value) }
+    val tuple = identity((Some('雪'), 'A'))
+    val letter = identity(Letter('🚀', "launch"))
+    val boxed: ToString = letter.value
+    val any: Any = stored
+    gcCollect()
+    if (classify(tuple) != 42 || unpack(Mark('雪')) != '雪' || unpack(Empty) != '\u0000') {
+        println("pattern"); return
+    }
+    if (display(letter.value) != "🚀" || boxed.toString() != "🚀" || (any as Char) != '界') {
+        println("boxing"); return
+    }
+    list[64L] = '雪'
+    array[0L] = '🚀'
+    if (list.removeAt(64L) != '雪' || list.size != 129L || array[0L] != '🚀') {
+        println("storage"); return
+    }
+    stored = '好'
+    if (stored != '好' || letter.label != "launch") { println("global"); return }
+    println(42)
+}

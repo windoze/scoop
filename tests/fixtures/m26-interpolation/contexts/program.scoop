@@ -1,0 +1,27 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun fail(): Int { throw IllegalStateException() }
+fun <T : ToString> render(value: T, text: String = f"<${value}>"): String = text
+class Label(val text: String) : ToString {
+    public override fun toString(): String = text
+}
+val eager: String = f"init:${42}"
+class Greeting(val name: String) { val text: String = f"hello ${name}" }
+fun main() {
+    check(eager == "init:42" && Greeting("雪").text == "hello 雪")
+    var index = 0
+    while (f"${index}" != "3") { index = index + 1 }
+    check(index == 3)
+    check(!(false && f"${fail()}" == "0"))
+    check(true || f"${fail()}" == "0")
+    val selected = if (true) { f"${42}" } else { f"${fail()}" }
+    check(selected == "42")
+    check(render(42) == "<42>" && render(Label("snow")) == "<snow>")
+    check(render(42, f"${'雪'}") == "雪")
+    val value: String? = Some("present")
+    check((value ?: f"${fail()}") == "present")
+    val missing: String? = None
+    check((missing ?: f"${42}") == "42")
+    val closure = { value: Int -> f"[${value}]" }
+    check(closure(42) == "[42]")
+    println(42)
+}

@@ -39,7 +39,8 @@ pub(super) fn check(
         assert_eq!(key.origin(), source.provider());
         objects += 1;
     }
-    assert_eq!(objects, if name.ends_with("combined") { 3 } else { 2 });
+    // Include the companion that provides String's copying conversions.
+    assert_eq!(objects, if name.ends_with("combined") { 4 } else { 3 });
     for object in section.object_values().records() {
         let remaining = mir::CanonicalMirObjectValuesV1::try_new(
             section

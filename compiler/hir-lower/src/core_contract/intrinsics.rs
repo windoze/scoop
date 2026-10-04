@@ -129,6 +129,7 @@ impl Lowerer {
             };
             integer_owners.push(owner);
         }
+        let character = require(self, hir::IntrinsicTypeKind::Char)?;
         let boolean = require(self, hir::IntrinsicTypeKind::Boolean)?;
         let string = require(self, hir::IntrinsicTypeKind::String)?;
         let array = require(self, hir::IntrinsicTypeKind::Array)?;
@@ -139,13 +140,22 @@ impl Lowerer {
             return None;
         }
         let (
+            IntrinsicTypeOwner::Struct(character),
             IntrinsicTypeOwner::Struct(boolean),
             IntrinsicTypeOwner::Class(string),
             IntrinsicTypeOwner::Class(array),
             IntrinsicTypeOwner::Class(mutable_array),
             IntrinsicTypeOwner::Struct(ptr),
             IntrinsicTypeOwner::Struct(fun_ptr),
-        ) = (boolean, string, array, mutable_array, ptr, fun_ptr)
+        ) = (
+            character,
+            boolean,
+            string,
+            array,
+            mutable_array,
+            ptr,
+            fun_ptr,
+        )
         else {
             unreachable!("the intrinsic registry fixes every declaration target")
         };
@@ -156,6 +166,7 @@ impl Lowerer {
         )
         .expect("one declaration cannot provide two intrinsic integer identities");
         Some(hir::IntrinsicTypeCore {
+            character,
             integers,
             boolean,
             string,

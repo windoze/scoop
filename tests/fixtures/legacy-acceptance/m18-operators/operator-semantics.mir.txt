@@ -3,14 +3,34 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<Score>
+    Completed(value: Score)
+    Suspended()
+  enum CoroutineSlot<Score>
+    Empty()
+    Value(value: Score)
   class Bag vtable=0 itables=0
   class Cell vtable=0 itables=0
   class Coordinates vtable=0 itables=0
   class ArithmeticException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class box<Score> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Continuation<Score>
+  interface SuspendTask<Score>
+  interface SuspendRegistration<Score>
+  generated_exact_type get0 location=enum2 nominal_id=a1fbd3192d97cce980af906a866babedba6566b0dfb8c6e6b57892c5c3a967ec exact_id=7014ba32de15d4f15f7e9e2af74adacef0db36cc4719ff9f701148b096f96a9f
+  generated_exact_type get1 location=enum3 nominal_id=91e42aee914aadfc860d8b814b294c232ba8cee74b73968936bcc58e5a1103d5 exact_id=70bfede9f4d9fa099f2d37a52bbfd8dbec394f0ffd747d6be2d6fdbc302fdbc0
+  generated_exact_type get2 location=class7 nominal_id=5349e5e0ee8010169c5a0b62502c96104a90c5c234b560d04e924815c81bcea9 exact_id=bb50bc20ea3d1c7c1a1b3a81dd145b7616f248a7ceb9db1f5f27bf0f5eab5bc4
+  generated_callable gc0 function=@fn36 id=ae4e78ffc2742e2d899dd1715c30bbded3ac58d2fce9e542cdcd645cabc405f7
   fun Score.unaryPlus @fn0(this: Score) -> Score
     bb0 entry
       return
@@ -31,7 +51,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -60,7 +80,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -89,7 +109,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -120,7 +140,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -151,7 +171,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -182,7 +202,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -273,7 +293,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.3: Score = @fn31 direct
+      call $call.3: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -364,7 +384,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.3: Score = @fn31 direct
+      call $call.3: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -395,7 +415,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -439,7 +459,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -626,7 +646,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -668,7 +688,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $call.1: Score = @fn31 direct
+      call $call.1: Score = @fn35 direct
         Type Int
         Local $parameter.value
       return
@@ -694,7 +714,7 @@ Module
       assign $new.1
         Type Bag
         ClassAlloc Bag
-      call @fn28 direct
+      call @fn32 direct
         Type Bag
         Local $new.1
         Type Int
@@ -722,7 +742,7 @@ Module
       assign $new.1
         Type Cell
         ClassAlloc Cell
-      call @fn29 direct
+      call @fn33 direct
         Type Cell
         Local $new.1
         Type Int
@@ -752,7 +772,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       call positive: Score = @fn0 direct
@@ -792,7 +812,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call updated: Score = @fn31 direct
+      call updated: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $old.0: Score
@@ -892,7 +912,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -901,7 +921,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -929,7 +949,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -938,7 +958,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -966,7 +986,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -975,7 +995,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -1003,7 +1023,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -1012,7 +1032,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -1040,7 +1060,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -1071,7 +1091,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -1080,7 +1100,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -1108,7 +1128,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -1117,7 +1137,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -1145,7 +1165,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -1154,7 +1174,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -1184,7 +1204,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -1193,7 +1213,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -1226,7 +1246,7 @@ Module
       assign $new.10
         Type Bag
         ClassAlloc Bag
-      call @fn28 direct
+      call @fn32 direct
         Type Bag
         Local $new.10
         Type Int
@@ -1240,7 +1260,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.item: Score
@@ -1266,7 +1286,7 @@ Module
       assign $new.11
         Type Bag
         ClassAlloc Bag
-      call @fn28 direct
+      call @fn32 direct
         Type Bag
         Local $new.11
         Type Int
@@ -1280,7 +1300,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.item: Score
@@ -1308,7 +1328,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $receiver: Score = @fn31 direct
+      call $receiver: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $argument.0: Int
@@ -1317,7 +1337,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -1334,7 +1354,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -1469,7 +1489,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $argument.0
-      call $argument.0: Score = @fn31 direct
+      call $argument.0: Score = @fn35 direct
         Type Int
         Local $parameter.value
       val $parameter.other: Score
@@ -1503,7 +1523,7 @@ Module
       assign $new.16
         Type Cell
         ClassAlloc Cell
-      call @fn29 direct
+      call @fn33 direct
         Type Cell
         Local $new.16
         Type Int
@@ -1668,7 +1688,7 @@ Module
       assign $new.17
         Type Coordinates
         ClassAlloc Coordinates
-      call @fn30 direct
+      call @fn34 direct
         Type Coordinates
         Local $new.17
         Type Int
@@ -1832,7 +1852,19 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun init.Bag.$c0 @fn28(this: Bag, expected: Int) -> Unit
+  fun Continuation.resume @fn28(this: Continuation<Score>, value: Score) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn29(this: Continuation<Score>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn30(this: SuspendTask<Score>, $completion: Continuation<Score>) -> CoroutineStep<Score>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn31(this: SuspendRegistration<Score>, continuation: Continuation<Score>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Bag.$c0 @fn32(this: Bag, expected: Int) -> Unit
     bb0 entry
       field_set 0
         Type Bag
@@ -1840,7 +1872,7 @@ Module
         Type Int
         Local expected
       return
-  fun init.Cell.$c1 @fn29(this: Cell, value: Int) -> Unit
+  fun init.Cell.$c1 @fn33(this: Cell, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Cell
@@ -1848,7 +1880,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Coordinates.$c2 @fn30(this: Coordinates, x: Int, y: Int) -> Unit
+  fun init.Coordinates.$c2 @fn34(this: Coordinates, x: Int, y: Int) -> Unit
     bb0 entry
       field_set 0
         Type Coordinates
@@ -1861,16 +1893,66 @@ Module
         Type Int
         Local y
       return
-  fun ctor.Score.$c0 @fn31(value: Int) -> Score <no-gc>
+  fun ctor.Score.$c0 @fn35(value: Int) -> Score <no-gc>
     bb0 entry
       return
         Type Score
         StructInit Score
           Type Int
           Local value
+  fun startCoroutine<Score> @fn36(task: SuspendTask<Score>, completion: Continuation<Score>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn28 interface Continuation<Score>[0]
+        Type Continuation<Score>
+        Local completion
+        Type Score
+        EnumField v0 f0
+          Type CoroutineStep<Score>
+          Local $step
+      return
+    bb2 failed
+      call @fn29 interface Continuation<Score>[1]
+        Type Continuation<Score>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Score> = @fn30 interface SuspendTask<Score>[0]
+        Type SuspendTask<Score>
+        Local task
+        Type Continuation<Score>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Score>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Score> result=Score
+  coroutine_slot cl0 CoroutineSlot<Score> value=Score
+  coroutine_start ct0 result=Score function=fn36
+  coroutine_fn cf0 @fn30 source_return=Score step=cs0 immediate
   instance mi0 function=@fn25 <- println
   instance mi1 function=@fn26 <- println
   instance mi2 function=@fn27 <- println
+  instance mi3 function=@fn28 <- Continuation.resume
+  instance mi4 function=@fn29 <- Continuation.resumeWithException
+  instance mi5 function=@fn30 <- SuspendTask.run
+  instance mi6 function=@fn31 <- SuspendRegistration.register
   str @str0 "cell-receiver"
   str @str1 "left"
   str @str2 "right"

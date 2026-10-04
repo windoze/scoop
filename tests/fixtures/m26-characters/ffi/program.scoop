@@ -1,0 +1,22 @@
+@CLayout
+struct Packet(val prefix: Byte, val character: Char, val tail: Long)
+
+@NoGC @Extern(lib = "fixture_native", name = "round_character")
+fun roundCharacter(value: Char): Char
+
+@NoGC @Extern(lib = "fixture_native", name = "round_packet")
+fun roundPacket(value: Packet): Packet
+
+@NoGC @Extern(lib = "fixture_native", name = "replace_character")
+fun replaceCharacter(value: Ptr<Char>): Unit
+
+@Unsafe
+fun main() {
+    val packet = roundPacket(Packet(7, '雪', 9L))
+    var character = 'A'
+    @Unsafe { replaceCharacter(addressOf(character)) }
+    if (sizeOf<Char>() != 4UL || alignOf<Char>() != 4UL ||
+        packet.character != '雪' || packet.tail != 9L || packet.prefix != 7 ||
+        roundCharacter('🚀') != '🚀' || character != '界') { println("ffi"); return }
+    println(42)
+}

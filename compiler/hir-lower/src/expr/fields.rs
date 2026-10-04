@@ -86,19 +86,7 @@ impl Lowerer {
                 .map(|field| field.read);
         }
         let receiver = self.lower_expr(&access.receiver, sink, None)?;
-        // `array.size` (spec 10.5): the pseudo-property resolves on
-        // both array kinds; any other receiver keeps the ordinary
-        // field rules (so `.size` on a non-array is the usual unknown
-        // field diagnostic).
         if let ast::FieldSelector::Name(field) = &access.selector {
-            if field.text == "size" && self.array_element_ty(receiver.ty).is_some() {
-                return Some(hir::Expr {
-                    kind: ExprKind::ArrayLen(Box::new(receiver)),
-                    ty: self.integer_type(hir::IntegerKind::SIGNED_64),
-                    span: access.span,
-                    origin: self.expression_origin(access.span),
-                });
-            }
             if let Some((property, owner, ty)) =
                 self.find_accessible_nominal_property(receiver.ty, &field.text)
             {

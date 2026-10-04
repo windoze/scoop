@@ -4,9 +4,14 @@ Module
   struct NamedEvent (code: Int, text: String)
   struct ConstructorEvent (count: Int, label: String)
   struct ManagedValue (token: Token)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Token vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun traceInt @fn0(label: String, value: Int) -> Int
     bb0 entry
       val $dependency.argument.0: String

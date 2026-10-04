@@ -1,0 +1,1 @@
+fun main() { val unused = Array<Int>(2L) { _ -> "wrong" } }

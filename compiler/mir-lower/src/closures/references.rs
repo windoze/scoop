@@ -228,8 +228,12 @@ impl Lowerer {
                         mir::ImmortalObjectOwner::Callable(materialization),
                     );
                     lowerer.locals = locals;
-                    let call =
-                        lowerer.lower_primitive_member_values(intrinsic, args, reference.span);
+                    let call = lowerer.lower_primitive_member_values(
+                        intrinsic,
+                        args,
+                        &signature.return_type,
+                        reference.span,
+                    );
                     locals = lowerer.locals;
                     let statements = lowerer
                         .prelude

@@ -3,10 +3,15 @@ Module
   enum Payload
     Record(left: Int, right: Int)
     Pair(_1: Int, _2: Int)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Receiver vtable=0 itables=0
   class Box vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun Receiver.combine @fn0(this: Receiver, first: Int, second: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int

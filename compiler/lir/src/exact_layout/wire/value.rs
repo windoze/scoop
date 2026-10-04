@@ -102,6 +102,7 @@ pub(super) fn scalar(encoder: &mut Encoder, kind: ScalarRepresentationKindV1) ->
             )
         }
         ScalarRepresentationKindV1::Boolean => sum(encoder, 2, 0),
+        ScalarRepresentationKindV1::Char => sum(encoder, 3, 0),
     }
 }
 

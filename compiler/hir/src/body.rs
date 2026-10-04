@@ -203,6 +203,7 @@ pub enum Pattern {
 /// a typed comparison; every other literal kind keeps its ordinary callable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiteralPatternEquality {
+    Char,
     Integer { kind: IntegerKind },
     Ordinary { equals: CallableTarget },
 }
@@ -223,6 +224,9 @@ pub enum ExprKind {
     },
     IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
+    CharLiteral(char),
+    CharCode(Box<Expr>),
+    CharFromCodeUnchecked(Box<Expr>),
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
     StructInit {
@@ -368,6 +372,10 @@ pub enum ExprKind {
     },
     /// `[e1, ...]`; the kind (Array vs MutableArray) is in `Expr::ty`.
     ArrayLiteral(Vec<Expr>),
+    ArrayGenerate {
+        count: Box<Expr>,
+        initializer: Box<Expr>,
+    },
     /// Fresh immutable-array assembly used by positional `vararg` calls.
     /// Every part is an already evaluated temporary read; `CopyArray` always
     /// copies, including the single-spread case.

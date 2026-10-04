@@ -1,6 +1,28 @@
 use super::*;
 
 impl FunctionLowerer<'_> {
+    pub(super) fn lower_array_allocate(
+        &mut self,
+        ty: &mir::Type,
+        array_type: &mir::ClassId,
+        count: &mir::Expr,
+    ) -> StorageResult<lir::Value> {
+        let count = self.lower_expr(count)?;
+        let out_ty = self.value_type(ty);
+        let out = self.new_temp(out_ty);
+        let safepoint = self.new_safepoint(lir::SafepointSiteRole::ManagedCall);
+        let overflow_message = self.trap_message("array size overflow");
+        self.push(lir::Instruction::ArrayAllocDynamic {
+            out,
+            count,
+            array_type: self.array_type_id(*array_type),
+            overflow_message,
+            safepoint,
+            live: lir::StatepointLiveSet::default(),
+        });
+        Ok(lir::Value::Temp(out))
+    }
+
     pub(super) fn lower_array_literal(
         &mut self,
         ty: &mir::Type,

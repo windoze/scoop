@@ -1,10 +1,15 @@
 Module
   struct Count (value: Int)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Base vtable=0 itables=0
   class Derived vtable=0 itables=0
   class Alternate vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun mark @fn0(label: String, value: Int) -> Int
     bb0 entry
       val $dependency.argument.0: String

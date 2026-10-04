@@ -9,6 +9,7 @@ use crate::{
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum DefaultLiteralEqualityV1 {
+    Char,
     Integer { kind: DefaultIntegerKindV1 },
     Ordinary { target: DefaultCallableRefV1 },
 }
@@ -16,6 +17,10 @@ pub enum DefaultLiteralEqualityV1 {
 impl WireEncode for DefaultLiteralEqualityV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::Char => {
+                encoder.map(1)?;
+                encode_tag(encoder, 3)
+            }
             Self::Integer { kind } => {
                 encoder.map(2)?;
                 encode_tag(encoder, 1)?;
@@ -34,6 +39,7 @@ impl WireEncode for DefaultLiteralEqualityV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DecodedDefaultLiteralEqualityV1 {
+    Char,
     Integer { kind: DefaultIntegerKindV1 },
     Ordinary { target: DecodedDefaultCallableRefV1 },
 }
@@ -47,6 +53,7 @@ impl DecodedDefaultLiteralEqualityV1 {
         R: DefaultCallableReferenceResolver<E>,
     {
         match self {
+            Self::Char => Ok(DefaultLiteralEqualityV1::Char),
             Self::Integer { kind } => Ok(DefaultLiteralEqualityV1::Integer { kind }),
             Self::Ordinary { target } => Ok(DefaultLiteralEqualityV1::Ordinary {
                 target: target
@@ -60,6 +67,10 @@ impl DecodedDefaultLiteralEqualityV1 {
 impl WireEncode for DecodedDefaultLiteralEqualityV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::Char => {
+                encoder.map(1)?;
+                encode_tag(encoder, 3)
+            }
             Self::Integer { kind } => {
                 encoder.map(2)?;
                 encode_tag(encoder, 1)?;
@@ -81,6 +92,10 @@ impl WireDecode for DecodedDefaultLiteralEqualityV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
+            3 => {
+                expect_sum_length(decoder, fields, 1)?;
+                Ok(Self::Char)
+            }
             1 => {
                 expect_sum_length(decoder, fields, 2)?;
                 Ok(Self::Integer {

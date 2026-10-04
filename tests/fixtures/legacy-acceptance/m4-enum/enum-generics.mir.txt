@@ -1,4 +1,7 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum Box<Int>
     Full(_1: Int)
     Empty()
@@ -7,6 +10,8 @@ Module
     Empty()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun main @fn0() -> Unit
     bb0 entry
       val $argument.0: Int

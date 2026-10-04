@@ -392,6 +392,15 @@ Module
       val $parameter.value: Int
         Type Int
         Local $parameter.first
+      call $aggregate.0: Int = @fn3 virtual[0]
+        Type ContractBase<Int, String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type Int
+        Local $parameter.value
       val $receiver: ContractBase<Int, String>
         Type ContractBase<Int, String>
         Local this
@@ -410,12 +419,26 @@ Module
       val $parameter.value: String
         Type String
         Local $parameter.second
+      call $aggregate.1: String = @fn11 direct
+        Type ContractBase<Int, String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type String
+        Local $parameter.second
+        Type String
+        Local $parameter.value
       val $receiver: ContractBase<Int, String>
         Type ContractBase<Int, String>
         Local this
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      call $aggregate.2: Int = @fn12 direct
+        Type ContractBase<Int, String>
+        Local $receiver
+        Type Int
+        Local $parameter.value
       val $receiver: ContractBase<Int, String>
         Type ContractBase<Int, String>
         Local this
@@ -431,6 +454,15 @@ Module
       val $parameter.third: Int
         Type Int
         Local $parameter.second
+      call $aggregate.3: Int = @fn13 direct
+        Type ContractBase<Int, String>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.third
       assign $new.1
         Type ContractBase.Static
         ClassAlloc ContractBase.Static
@@ -449,39 +481,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $parameter.first
-      call $call.2: Int = @fn3 virtual[0]
-        Type ContractBase<Int, String>
-        Local $receiver
-        Type Int
-        Local $parameter.first
-        Type String
-        Local $parameter.second
-        Type Int
-        Local $parameter.value
-      call $call.3: String = @fn11 direct
-        Type ContractBase<Int, String>
-        Local $receiver
-        Type Int
-        Local $parameter.first
-        Type String
-        Local $parameter.second
-        Type String
-        Local $parameter.value
-      call $call.4: Int = @fn12 direct
-        Type ContractBase<Int, String>
-        Local $receiver
-        Type Int
-        Local $parameter.value
-      call $call.5: Int = @fn13 direct
-        Type ContractBase<Int, String>
-        Local $receiver
-        Type Int
-        Local $parameter.first
-        Type Int
-        Local $parameter.second
-        Type Int
-        Local $parameter.third
-      call $call.6: Int = @fn14 direct
+      call $aggregate.4: Int = @fn14 direct
         Type ContractBase.Static
         Local $receiver
         Type Int
@@ -492,15 +492,15 @@ Module
         Type (Int, String, Int, Int, Int)
         TupleLiteral
           Type Int
-          Local $call.2
+          Local $aggregate.0
           Type String
-          Local $call.3
+          Local $aggregate.1
           Type Int
-          Local $call.4
+          Local $aggregate.2
           Type Int
-          Local $call.5
+          Local $aggregate.3
           Type Int
-          Local $call.6
+          Local $aggregate.4
   fun $derived.equals.1 @fn8(this: (Int, String, Int, Int, Int), other: (Int, String, Int, Int, Int)) -> Boolean
     bb0 entry
       branch bb1 bb2
@@ -623,6 +623,15 @@ Module
       val $parameter.value: Int
         Type Int
         Local $parameter.first
+      call $aggregate.0: Int = @fn4 virtual[0]
+        Type ContractBase<Int, Int>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.value
       val $receiver: ContractBase<Int, Int>
         Type ContractBase<Int, Int>
         Local this
@@ -641,12 +650,26 @@ Module
       val $parameter.value: Int
         Type Int
         Local $parameter.second
+      call $aggregate.1: Int = @fn15 direct
+        Type ContractBase<Int, Int>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.value
       val $receiver: ContractBase<Int, Int>
         Type ContractBase<Int, Int>
         Local this
       val $parameter.value: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      call $aggregate.2: Int = @fn16 direct
+        Type ContractBase<Int, Int>
+        Local $receiver
+        Type Int
+        Local $parameter.value
       val $receiver: ContractBase<Int, Int>
         Type ContractBase<Int, Int>
         Local this
@@ -662,6 +685,15 @@ Module
       val $parameter.third: Int
         Type Int
         Local $parameter.second
+      call $aggregate.3: Int = @fn17 direct
+        Type ContractBase<Int, Int>
+        Local $receiver
+        Type Int
+        Local $parameter.first
+        Type Int
+        Local $parameter.second
+        Type Int
+        Local $parameter.third
       assign $new.1
         Type ContractBase.Static
         ClassAlloc ContractBase.Static
@@ -680,39 +712,7 @@ Module
       val $parameter.value: Int
         Type Int
         Local $parameter.first
-      call $call.2: Int = @fn4 virtual[0]
-        Type ContractBase<Int, Int>
-        Local $receiver
-        Type Int
-        Local $parameter.first
-        Type Int
-        Local $parameter.second
-        Type Int
-        Local $parameter.value
-      call $call.3: Int = @fn15 direct
-        Type ContractBase<Int, Int>
-        Local $receiver
-        Type Int
-        Local $parameter.first
-        Type Int
-        Local $parameter.second
-        Type Int
-        Local $parameter.value
-      call $call.4: Int = @fn16 direct
-        Type ContractBase<Int, Int>
-        Local $receiver
-        Type Int
-        Local $parameter.value
-      call $call.5: Int = @fn17 direct
-        Type ContractBase<Int, Int>
-        Local $receiver
-        Type Int
-        Local $parameter.first
-        Type Int
-        Local $parameter.second
-        Type Int
-        Local $parameter.third
-      call $call.6: Int = @fn14 direct
+      call $aggregate.4: Int = @fn14 direct
         Type ContractBase.Static
         Local $receiver
         Type Int
@@ -723,15 +723,15 @@ Module
         Type (Int, Int, Int, Int, Int)
         TupleLiteral
           Type Int
-          Local $call.2
+          Local $aggregate.0
           Type Int
-          Local $call.3
+          Local $aggregate.1
           Type Int
-          Local $call.4
+          Local $aggregate.2
           Type Int
-          Local $call.5
+          Local $aggregate.3
           Type Int
-          Local $call.6
+          Local $aggregate.4
   fun $derived.equals.2 @fn10(this: (Int, Int, Int, Int, Int), other: (Int, Int, Int, Int, Int)) -> Boolean
     bb0 entry
       branch bb1 bb2

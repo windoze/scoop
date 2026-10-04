@@ -3,6 +3,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum Option<(Int) -> Int>
     Some(_0: (Int) -> Int)
     None()
@@ -17,14 +20,16 @@ Module
   class Throwable vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<String>
   interface SuspendTask<String>
   interface SuspendRegistration<String>
   interface Continuation<Any>
   interface SuspendTask<Any>
   interface SuspendRegistration<Any>
-  generated_exact_type get0 location=enum2 nominal_id=11095ad3fdb8a19e049d7d29a62d75e350d5ee778b3cd195021b9129aab33c6e exact_id=0e5d4d97d7f257c285a63651f7e787975762977458c4e8c056b56ddcec76465f
-  generated_exact_type get1 location=enum3 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
+  generated_exact_type get0 location=enum3 nominal_id=11095ad3fdb8a19e049d7d29a62d75e350d5ee778b3cd195021b9129aab33c6e exact_id=0e5d4d97d7f257c285a63651f7e787975762977458c4e8c056b56ddcec76465f
+  generated_exact_type get1 location=enum4 nominal_id=1d90b9517ad16680767e5f5f346641f7fdb2b440fcc3407d6f34ee2acd38fd08 exact_id=a7b5de752f5b16397ac2dd0845c02cd2b3b0cbb363c4286d084a2bf5e77678a2
   fun register @fn0(transform: (Int) -> Int, optional: Option<(Int) -> Int>) -> Unit
     bb0 entry
       return

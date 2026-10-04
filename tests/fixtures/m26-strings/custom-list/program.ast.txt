@@ -1,0 +1,82 @@
+SourceFile
+  RootPackage
+  class Characters(), List<Char>
+    var trace: String =
+      StringLiteral ""
+    var fail: Boolean =
+      BoolLiteral false
+    public open override val size: Long <computed>
+      get()
+        assign trace
+          Binary Add
+            Var trace
+            StringLiteral "S"
+        return
+          IntLiteral 3L
+    public operator fun get
+    public operator fun iterator
+  fun scalarSum<T : Iterable<Char>>(value: T): Long
+    var result
+      IntLiteral 0L
+    for character
+      Var value
+      assign result
+        Binary Add
+          Var result
+          MethodCall toInt64
+            FieldAccess code
+              Var character
+    return
+      Var result
+  fun main()
+    val source
+      Call Characters
+    val value
+      MethodCall fromChars
+        Var String
+        Var source
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess trace
+              Var source
+            StringLiteral "S012"
+          Binary Ne
+            Var value
+            StringLiteral "A雪🚀"
+        Binary Ne
+          Call scalarSum
+            Var value
+          IntLiteral 167339L
+      Call println
+        StringLiteral "source"
+      return
+    assign .trace
+      Var source
+      StringLiteral ""
+    assign .fail
+      Var source
+      BoolLiteral true
+    var failed
+      BoolLiteral false
+    try
+      MethodCall fromChars
+        Var String
+        Var source
+    catch e: IllegalStateException
+      assign failed
+        BoolLiteral true
+    if
+      Binary Or
+        Unary Not
+          Var failed
+        Binary Ne
+          FieldAccess trace
+            Var source
+          StringLiteral "S01"
+      Call println
+        StringLiteral "exception"
+      return
+    Call println
+      IntLiteral 42

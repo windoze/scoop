@@ -21,6 +21,12 @@ impl<'a> FunctionLowerer<'a> {
             mir::ExprKind::MachineScalarLiteral(value) => {
                 lir::Value::MachineScalar(machine_scalar_value(*value))
             }
+            mir::ExprKind::CharLiteral(value) => {
+                lir::Value::IntegerConst(lir::LirIntegerConstant::Signed32(*value as u32))
+            }
+            mir::ExprKind::CharCode(operand) | mir::ExprKind::CharFromCodeUnchecked(operand) => {
+                self.lower_expr(operand)?
+            }
             mir::ExprKind::BoolLiteral(value) => lir::Value::BoolConst(*value),
             mir::ExprKind::UnitLiteral => self.unit_value(),
             mir::ExprKind::CaughtException => lir::Value::Local(
@@ -70,6 +76,9 @@ impl<'a> FunctionLowerer<'a> {
             } => self.lower_closure_capture(ty, closure, class, index)?,
             // Every operation consumes the exact array application carried by
             // MIR. The LIR value itself is just a managed pointer.
+            mir::ExprKind::ArrayAllocate { array_type, count } => {
+                self.lower_array_allocate(ty, array_type, count)?
+            }
             mir::ExprKind::ArrayLiteral {
                 array_type,
                 elements,
@@ -207,12 +216,12 @@ impl<'a> FunctionLowerer<'a> {
                     "Retype expression carries one result type"
                 );
                 assert_eq!(
-                    lir_type(&operand.ty),
+                    lir_type(self.module, &operand.ty),
                     lir::MANAGED_PTR,
                     "Retype operand must be a managed reference"
                 );
                 assert_eq!(
-                    lir_type(ty),
+                    lir_type(self.module, ty),
                     lir::MANAGED_PTR,
                     "Retype result must be a managed reference"
                 );

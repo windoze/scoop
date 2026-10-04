@@ -61,6 +61,8 @@ native companion 显式作为 input，并用普通 argv 步骤调用 `${cc}`、`
 整个字符串为引用时保留 JSON 类型。argv 可用 `{hex = "ff"}` 传递原始字节，
 或 `{each = "${build.result.dependencies}", field = "path", prefix = "--dependency-slib"}`
 展开实际清单。程序 JSON 中的非 UTF-8 path carrier 保留字节，不经过 shell。
+字符串中的 `$$` 表示一个字面 `$`，只展开一遍：`$${name}` 匹配诊断中的 `${name}`，
+`$$${name}` 表示字面 `$` 后接 name 的值。预检忽略已转义的引用；引用所得的值不再展开。
 
 每个进程必须声明 `exit` 或 `signal`（如 `"SIGABRT"`）之一，以及完整 stdout/stderr。
 stdin 默认空；cwd 默认 `${work}`；env 继承调用者并应用显式键；timeout 默认 120 秒。

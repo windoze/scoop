@@ -96,6 +96,10 @@ fn statement_contains_return(statement: &ast::Statement) -> bool {
 
 fn expr_contains_return(expr: &ast::Expr) -> bool {
     match expr {
+        ast::Expr::InterpolatedString { parts, .. } => parts.iter().any(|part| match part {
+            ast::StringPart::Text { .. } => false,
+            ast::StringPart::Expression { value, .. } => expr_contains_return(value),
+        }),
         // A nested callable owns its own return target.
         ast::Expr::Lambda { .. }
         | ast::Expr::AnonymousFunction { .. }
@@ -174,6 +178,7 @@ fn expr_contains_return(expr: &ast::Expr) -> bool {
         }
         ast::Expr::StringLiteral { .. }
         | ast::Expr::IntLiteral(_)
+        | ast::Expr::CharLiteral { .. }
         | ast::Expr::BoolLiteral { .. }
         | ast::Expr::UnitLiteral { .. }
         | ast::Expr::Var(_)

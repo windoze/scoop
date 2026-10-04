@@ -1,0 +1,55 @@
+fun main() {
+    val values: MutableArray<Char> = ['A', '雪', '🚀', '\u0000']
+    val text = String.fromChars(values)
+    values[0L] = 'Z'
+    val chars = text.toCharArray()
+    chars[1L] = '好'
+    val list = ArrayList<Char>()
+    for (character in chars) { list.add(character) }
+    val copied = String.fromChars(list)
+    list.clear()
+    if (text != "A雪🚀\u0000" || copied != "A好🚀\u0000" || chars.size != 4L) {
+        println("characters"); return
+    }
+    val bytes = text.toByteArray()
+    val second = text.toByteArray()
+    if (bytes.size != 9L || bytes[1L] != (-23).toInt8() || bytes[8L] != 0.toInt8()) {
+        println("byte-encoding"); return
+    }
+    @Unsafe {
+        val decoded = String.fromUtf8Unchecked(bytes)
+        bytes[0L] = 90.toInt8()
+        gcCollect()
+        if (decoded != text || second[0L] != 65.toInt8() ||
+            String.fromUtf8Unchecked(bytes) != "Z雪🚀\u0000") { println("byte-snapshot"); return }
+    }
+    val many = MutableArray<Char>(120L) { index ->
+        when (index % 4L) { 0L -> 'A'; 1L -> '雪'; 2L -> '🚀'; else -> '\u0000' }
+    }
+    val large = String.fromChars(many)
+    val roundTrip = large.toCharArray()
+    gcCollect()
+    if (large.length != 120L || large.byteLength != 270L || roundTrip.size != many.size) {
+        println("many-size"); return
+    }
+    for (index in 0L until many.size) {
+        if (roundTrip[index] != many[index]) { println("many-values"); return }
+    }
+    val boundaries: Array<Int> = [0, 127, 128, 2047, 2048, 55295, 57344, 65535, 65536, 1114111]
+    for (code in boundaries) {
+        val character = code.toChar()
+        val one: Array<Char> = [character]
+        val encoded = String.fromChars(one)
+        if (encoded.length != 1L || encoded[0L] != character ||
+            encoded != character.toString() || encoded.toCharArray()[0L] != character) {
+            println("unicode-boundary"); return
+        }
+    }
+    val none = ArrayList<Char>()
+    val noBytes = ArrayList<Byte>()
+    @Unsafe {
+        if (String.fromChars(none) != "" || String.fromUtf8Unchecked(noBytes) != "" ||
+            "".toCharArray().size != 0L || "".toByteArray().size != 0L) { println("empty"); return }
+    }
+    println(42)
+}

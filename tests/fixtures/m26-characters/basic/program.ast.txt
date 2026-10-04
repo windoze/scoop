@@ -1,0 +1,234 @@
+SourceFile
+  RootPackage
+  val snow: Char <const> = <expr>
+  val ordered: Boolean <const> = <expr>
+  val unequal: Boolean <const> = <expr>
+    @NoGC
+  fun scalarCode(value: Char): Int
+    =
+      FieldAccess code
+        Var value
+  fun main()
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call scalarCode
+              Var snow
+            IntLiteral 38634
+          Unary Not
+            Var ordered
+        Unary Not
+          Var unequal
+      Call println
+        StringLiteral "const"
+      return
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess code
+              CharLiteral 'A'
+            IntLiteral 65
+          Binary Ne
+            FieldAccess code
+              CharLiteral '🚀'
+            IntLiteral 128640
+        Binary Ne
+          FieldAccess code
+            CharLiteral '\u{10ffff}'
+          IntLiteral 1114111
+      Call println
+        StringLiteral "literal"
+      return
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Or
+                Binary Or
+                  Binary Or
+                    Binary Or
+                      Binary Ne
+                        FieldAccess code
+                          CharLiteral '\t'
+                        IntLiteral 9
+                      Binary Ne
+                        FieldAccess code
+                          CharLiteral '\u{8}'
+                        IntLiteral 8
+                    Binary Ne
+                      FieldAccess code
+                        CharLiteral '\n'
+                      IntLiteral 10
+                  Binary Ne
+                    FieldAccess code
+                      CharLiteral '\r'
+                    IntLiteral 13
+                Binary Ne
+                  FieldAccess code
+                    CharLiteral '\''
+                  IntLiteral 39
+              Binary Ne
+                FieldAccess code
+                  CharLiteral '"'
+                IntLiteral 34
+            Binary Ne
+              FieldAccess code
+                CharLiteral '\\'
+              IntLiteral 92
+          Binary Ne
+            FieldAccess code
+              CharLiteral '$'
+            IntLiteral 36
+        Binary Ne
+          FieldAccess code
+            CharLiteral '\0'
+          IntLiteral 0
+      Call println
+        StringLiteral "escape"
+      return
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            CharLiteral '雪'
+            MethodCall toChar
+              IntLiteral 38634
+          Binary Ge
+            CharLiteral 'A'
+            CharLiteral 'B'
+        Binary Le
+          CharLiteral '\u{10ffff}'
+          CharLiteral '雪'
+      Call println
+        StringLiteral "comparison"
+      return
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              MethodCall toString
+                CharLiteral '雪'
+              StringLiteral "雪"
+            Binary Ne
+              MethodCall toString
+                CharLiteral '🚀'
+              StringLiteral "🚀"
+          Binary Ne
+            MethodCall toString
+              CharLiteral '\0'
+            StringLiteral "\0"
+        Binary Ne
+          MethodCall hash
+            Var snow
+          IntLiteral 38634L
+      Call println
+        StringLiteral "conversion"
+      return
+    val compare: (Char) -> Long
+      CallableReference 0 compareTo
+        Var snow
+    val equal: (Char) -> Boolean
+      CallableReference 1 equals
+        Var snow
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Call compare
+                CharLiteral 'A'
+              IntLiteral 1L
+            Binary Ne
+              Call compare
+                Var snow
+              IntLiteral 0L
+          Unary Not
+            Call equal
+              Var snow
+        Call equal
+          CharLiteral 'A'
+      Call println
+        StringLiteral "reference"
+      return
+    val boundaries
+      Call Array<Int>
+        IntLiteral 6L
+        Lambda 0 suspend=false
+          param i: _
+          when
+            Var i
+            arm 0L
+              IntLiteral 0
+            arm 1L
+              IntLiteral 127
+            arm 2L
+              IntLiteral 2047
+            arm 3L
+              IntLiteral 55295
+            arm 4L
+              IntLiteral 57344
+            else
+              IntLiteral 1114111
+    for number
+      Var boundaries
+      if
+        Binary Ne
+          FieldAccess code
+            MethodCall toChar
+              Var number
+          Var number
+        Call println
+          StringLiteral "boundary"
+        return
+    var errors
+      IntLiteral 0
+    try
+      val unused
+        MethodCall toChar
+          Unary Neg
+            IntLiteral 1
+    catch e: IllegalArgumentException
+      assign errors
+        Binary Add
+          Var errors
+          IntLiteral 1
+    try
+      val unused
+        MethodCall toChar
+          IntLiteral 55296
+    catch e: IllegalArgumentException
+      assign errors
+        Binary Add
+          Var errors
+          IntLiteral 1
+    try
+      val unused
+        MethodCall toChar
+          IntLiteral 57343
+    catch e: IllegalArgumentException
+      assign errors
+        Binary Add
+          Var errors
+          IntLiteral 1
+    try
+      val unused
+        MethodCall toChar
+          IntLiteral 1114112
+    catch e: IllegalArgumentException
+      assign errors
+        Binary Add
+          Var errors
+          IntLiteral 1
+    if
+      Binary Ne
+        Var errors
+        IntLiteral 4
+      Call println
+        StringLiteral "invalid-code"
+      return
+    Call println
+      IntLiteral 42

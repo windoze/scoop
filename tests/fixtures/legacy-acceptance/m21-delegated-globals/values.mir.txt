@@ -8,12 +8,35 @@ Module
   init0 extension:Int:offset eager global0 initializer=@fn12 ensure=@fn13 failure=3 deps=[]
   init1 top-level:message eager global1 initializer=@fn16 ensure=@fn17 failure=4 deps=[]
   init2 top-level:provided eager global2 initializer=@fn20 ensure=@fn21 failure=5 deps=[]
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  enum CoroutineStep<ExtensionDelegate>
+    Completed(value: ExtensionDelegate)
+    Suspended()
+  enum CoroutineSlot<ExtensionDelegate>
+    Empty()
+    Value(value: ExtensionDelegate)
   class ExtensionDelegate vtable=0 itables=0
   class UnitDelegate vtable=0 itables=0
   class EffectiveDelegate vtable=0 itables=0
   class Seed vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  interface Continuation<ExtensionDelegate>
+  interface SuspendTask<ExtensionDelegate>
+  interface SuspendRegistration<ExtensionDelegate>
+  generated_exact_type get0 location=enum2 nominal_id=f5825cc74c19bb0a7e688209dc82ab48fdeec4bf10d6a2d6d2f0d80f615eca40 exact_id=84cc236c060bceef2ff24876d572caa34e77e55daf91a698e701019d99e1b7a9
+  generated_exact_type get1 location=enum3 nominal_id=6a93a1e33f6308c803e0328f617677e64767ea130393db5657dee6880f74cc7b exact_id=8f89834b435657c963baeca0b786ba69fe240a299429a32dc92d3914d2d31f87
+  generated_callable gc0 function=@fn34 id=8a83b472a4d63b9ed98a7c9321258a70c36e81f9d439f510ed04987c170922aa
   fun UnitDelegate.provideDelegate @fn0(this: UnitDelegate) -> UnitDelegate
     bb0 entry
       val $dependency.argument.0: String
@@ -98,7 +121,7 @@ Module
       assign $new.1
         Type EffectiveDelegate
         ClassAlloc EffectiveDelegate
-      call @fn28 direct
+      call @fn32 direct
         Type EffectiveDelegate
         Local $new.1
         Type Int
@@ -186,7 +209,7 @@ Module
       assign $new.1
         Type UnitDelegate
         ClassAlloc UnitDelegate
-      call @fn27 direct
+      call @fn31 direct
         Type UnitDelegate
         Local $new.1
         Type String
@@ -214,7 +237,7 @@ Module
       assign $new.1
         Type ExtensionDelegate
         ClassAlloc ExtensionDelegate
-      call @fn26 direct
+      call @fn30 direct
         Type ExtensionDelegate
         Local $new.1
         Type Int
@@ -585,7 +608,7 @@ Module
       assign $new.1
         Type Seed
         ClassAlloc Seed
-      call @fn29 direct
+      call @fn33 direct
         Type Seed
         Local $new.1
         Type Int
@@ -765,7 +788,19 @@ Module
         Type String
         Local $dependency.local.5
       return
-  fun init.ExtensionDelegate.$c1 @fn26(this: ExtensionDelegate, value: Int) -> Unit
+  fun Continuation.resume @fn26(this: Continuation<ExtensionDelegate>, value: ExtensionDelegate) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn27(this: Continuation<ExtensionDelegate>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn28(this: SuspendTask<ExtensionDelegate>, $completion: Continuation<ExtensionDelegate>) -> CoroutineStep<ExtensionDelegate>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn29(this: SuspendRegistration<ExtensionDelegate>, continuation: Continuation<ExtensionDelegate>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.ExtensionDelegate.$c1 @fn30(this: ExtensionDelegate, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type ExtensionDelegate
@@ -773,7 +808,7 @@ Module
         Type Int
         Local value
       return
-  fun init.UnitDelegate.$c0 @fn27(this: UnitDelegate, value: String) -> Unit
+  fun init.UnitDelegate.$c0 @fn31(this: UnitDelegate, value: String) -> Unit
     bb0 entry
       field_set 0
         Type UnitDelegate
@@ -781,7 +816,7 @@ Module
         Type String
         Local value
       return
-  fun init.EffectiveDelegate.$c3 @fn28(this: EffectiveDelegate, value: Int) -> Unit
+  fun init.EffectiveDelegate.$c3 @fn32(this: EffectiveDelegate, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type EffectiveDelegate
@@ -789,7 +824,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Seed.$c2 @fn29(this: Seed, value: Int) -> Unit
+  fun init.Seed.$c2 @fn33(this: Seed, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type Seed
@@ -797,8 +832,58 @@ Module
         Type Int
         Local value
       return
+  fun startCoroutine<ExtensionDelegate> @fn34(task: SuspendTask<ExtensionDelegate>, completion: Continuation<ExtensionDelegate>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn26 interface Continuation<ExtensionDelegate>[0]
+        Type Continuation<ExtensionDelegate>
+        Local completion
+        Type ExtensionDelegate
+        EnumField v0 f0
+          Type CoroutineStep<ExtensionDelegate>
+          Local $step
+      return
+    bb2 failed
+      call @fn27 interface Continuation<ExtensionDelegate>[1]
+        Type Continuation<ExtensionDelegate>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ExtensionDelegate> = @fn28 interface SuspendTask<ExtensionDelegate>[0]
+        Type SuspendTask<ExtensionDelegate>
+        Local task
+        Type Continuation<ExtensionDelegate>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ExtensionDelegate>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<ExtensionDelegate> result=ExtensionDelegate
+  coroutine_slot cl0 CoroutineSlot<ExtensionDelegate> value=ExtensionDelegate
+  coroutine_start ct0 result=ExtensionDelegate function=fn34
+  coroutine_fn cf0 @fn28 source_return=ExtensionDelegate step=cs0 immediate
   instance mi0 function=@fn24 <- println
   instance mi1 function=@fn25 <- println
+  instance mi2 function=@fn26 <- Continuation.resume
+  instance mi3 function=@fn27 <- Continuation.resumeWithException
+  instance mi4 function=@fn28 <- SuspendTask.run
+  instance mi5 function=@fn29 <- SuspendRegistration.register
   str @str0 "provide-unit"
   str @str1 "get-unit"
   str @str2 "set-unit"

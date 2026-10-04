@@ -90,15 +90,27 @@ Module
       val present: Boolean
         Type Boolean
         Local $result.0
+      val $aggregate.0: Boolean
+        Type Boolean
+        Local present
       val $receiver: Reader
         Type Reader
         Local reader
+      call $aggregate.1: String = @fn6 interface Reader[0]
+        Type Reader
+        Local $receiver
       val $argument.0: Packet
         Type Packet
         Local packet
       val $parameter.value: Packet
         Type Packet
         Local $argument.0
+      call $call.2: () -> String = @fn3 direct
+        Type Packet
+        Local $parameter.value
+      call $aggregate.2: String = <closure:function_type0> closure[function_type0]
+        Type () -> String
+        Local $call.2
       val $argument.0: Any
         Type Any
         Retype Any
@@ -107,29 +119,20 @@ Module
       val $parameter.value: Any
         Type Any
         Local $argument.0
-      call $call.2: String = @fn6 interface Reader[0]
-        Type Reader
-        Local $receiver
-      call $call.3: () -> String = @fn3 direct
-        Type Packet
-        Local $parameter.value
-      call $call.4: String = <closure:function_type0> closure[function_type0]
-        Type () -> String
-        Local $call.3
-      call $call.5: Boolean = @fn4 direct
+      call $aggregate.3: Boolean = @fn4 direct
         Type Any
         Local $parameter.value
       return
         Type (Boolean, String, String, Boolean)
         TupleLiteral
           Type Boolean
-          Local present
+          Local $aggregate.0
           Type String
-          Local $call.2
+          Local $aggregate.1
           Type String
-          Local $call.4
+          Local $aggregate.2
           Type Boolean
-          Local $call.5
+          Local $aggregate.3
     bb4 pattern.pass.4
       val value: Packet
         Type Packet

@@ -275,6 +275,11 @@ impl Lowerer {
                 files,
                 throwable.class(),
             )?,
+            illegal_argument_exception: self.compiler_exception(
+                "IllegalArgumentException",
+                files,
+                throwable.class(),
+            )?,
             illegal_state_exception: illegal_state,
             initialization_cycle_thrower,
         })

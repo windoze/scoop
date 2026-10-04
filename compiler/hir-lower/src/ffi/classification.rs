@@ -58,6 +58,9 @@ impl Lowerer {
             },
             _ => ty,
         };
+        if self.is_char_type(resolved) {
+            return Ok(Classification::Safe);
+        }
         match self.types[resolved].clone() {
             hir::Type::Unit if allow_unit => Ok(Classification::Safe),
             hir::Type::Unit => Err(CAbiError {
@@ -261,6 +264,9 @@ impl Lowerer {
             hir::Type::Param(parameter) => *substitution.get(parameter.into_raw() as usize)?,
             _ => ty,
         };
+        if self.is_char_type(ty) {
+            return Some(false);
+        }
         match self.types[ty].clone() {
             hir::Type::Unit => Some(true),
             hir::Type::Integer(_)

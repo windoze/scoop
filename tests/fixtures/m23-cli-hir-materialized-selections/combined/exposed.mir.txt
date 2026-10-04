@@ -242,6 +242,11 @@ Module
       unreachable
   fun Base.observe @fn3(this: Base, value: Boolean) -> (Int8, String)
     bb0 entry
+      val $aggregate.0: Int8
+        Type Int8
+        FieldAccess 0
+          Type Base
+          Local this
       val $receiver: Base
         Type Base
         Local this
@@ -251,7 +256,7 @@ Module
       val $parameter.value: Boolean
         Type Boolean
         Local $argument.0
-      call $call.1: String = @fn4 virtual[0]
+      call $aggregate.1: String = @fn4 virtual[0]
         Type Base
         Local $receiver
         Type Boolean
@@ -260,11 +265,9 @@ Module
         Type (Int8, String)
         TupleLiteral
           Type Int8
-          FieldAccess 0
-            Type Base
-            Local this
+          Local $aggregate.0
           Type String
-          Local $call.1
+          Local $aggregate.1
   fun Base.echo @fn4(this: Base, value: Boolean) -> String
     bb0 entry
       return

@@ -1,0 +1,26 @@
+class Value(var number: Int) : ToString {
+    var calls: Int = 0
+    public override fun toString(): String {
+        calls = calls + 1
+        gcCollect()
+        return number.toString()
+    }
+}
+fun main() {
+    val builder = StringBuilder()
+    val value = Value(10)
+    builder.add(value)
+    value.number = 11
+    val asInterface: ToString = value
+    builder.add(asInterface)
+    value.number = 99
+    if (value.calls != 2 || builder.build() != "1011") { println("immediate"); return }
+    val result = builder.build()
+    builder.build()
+    builder.add(true).add(255.toUInt8())
+    gcCollect()
+    if (value.calls != 2 || result != "1011" || builder.build() != "1011true255") {
+        println("stable"); return
+    }
+    println(42)
+}

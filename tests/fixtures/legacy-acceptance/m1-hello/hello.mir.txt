@@ -1,6 +1,11 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun hello @fn0() -> Unit
     bb0 entry
       val $dependency.argument.0: String

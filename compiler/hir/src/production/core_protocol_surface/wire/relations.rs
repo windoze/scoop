@@ -137,7 +137,7 @@ fn validate_nominal_relations(
         1,
         foundation,
     )?;
-    for index in [0, 2, 4, 6, 8, 10] {
+    for index in [0, 2, 4, 6, 8, 10, 13] {
         validate_nominal_shape(
             CoreProtocolProductKindV1::Exception,
             surface.exception_protocol.entries(),
@@ -257,7 +257,7 @@ fn validate_protocol_callable_owners(
             foundation,
         )?;
     }
-    for (callable, owner) in [(1, 0), (3, 2), (5, 4), (7, 6), (9, 8), (11, 10)] {
+    for (callable, owner) in [(1, 0), (3, 2), (5, 4), (7, 6), (9, 8), (11, 10), (14, 13)] {
         validate_callable_owner(
             CoreProtocolProductKindV1::Exception,
             surface.exception_protocol.entries(),

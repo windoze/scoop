@@ -143,6 +143,8 @@ _Noreturn void scoop_rt_trap(const char *message) {
     abort();
 }
 
+_Noreturn void scoop_rt_allocation_overflow(void) { scoop_rt_trap("array size overflow"); }
+
 static bool type_is_subtype(const ScoopTypeDescriptor *source,
                             const ScoopTypeDescriptor *target) {
     if (target == NULL || source == target) {

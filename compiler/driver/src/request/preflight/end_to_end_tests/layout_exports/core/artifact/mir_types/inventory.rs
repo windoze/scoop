@@ -7,12 +7,35 @@ use scoop_identity::{
 
 pub(super) fn check(replay: &Replay<'_, '_>) {
     let records = replay.section.types().records();
-    // Application inventory follows machine roots, not the source declaration
-    // inventory checked here. Its required references close in the MIR section.
-    for record in records
+    let required_helpers = replay
+        .section
+        .shape_support()
+        .records()
         .iter()
-        .filter(|record| !matches!(record.origin(), mir::MirTypeOriginV1::NominalApplication(_)))
-    {
+        .flat_map(|shape| {
+            [
+                Some(shape.coroutine_step()),
+                Some(shape.coroutine_slot()),
+                match shape.boxed() {
+                    mir::MirBoxedShapeSupportV1::Available(exact) => Some(exact),
+                    mir::MirBoxedShapeSupportV1::ReferenceNominalRequiresNoBox => None,
+                },
+            ]
+            .into_iter()
+            .flatten()
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+    // Application inventory and its helpers follow machine roots. This
+    // boundary requires source declarations and their finite support families.
+    for record in records.iter().filter(|record| match record.origin() {
+        mir::MirTypeOriginV1::SourceNominal(_) => true,
+        mir::MirTypeOriginV1::GeneratedNominal {
+            role: scoop_identity::GeneratedNominalKey::ObjectBackingClass { .. },
+            ..
+        } => true,
+        mir::MirTypeOriginV1::GeneratedNominal { .. } => required_helpers.contains(&record.exact()),
+        mir::MirTypeOriginV1::NominalApplication(_) => false,
+    }) {
         let mut missing = records.to_vec();
         missing.retain(|candidate| candidate.exact() != record.exact());
         let error = replay.reject(missing);

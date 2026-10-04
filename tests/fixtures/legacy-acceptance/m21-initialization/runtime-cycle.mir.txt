@@ -5,8 +5,13 @@ Module
   global3 $init$failure$1: Any managed initial=zeroed-for-runtime-unit
   init0 top-level:left eager global0 initializer=@fn3 ensure=@fn4 failure=2 deps=[]
   init1 top-level:right eager global1 initializer=@fn6 ensure=@fn7 failure=3 deps=[]
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun readLeft @fn0() -> Int
     bb0 entry
       call $call.1: Int = @fn5 direct

@@ -55,6 +55,7 @@ impl Lowerer {
         match &expr.kind {
             ExprKind::StringLiteral { .. }
             | ExprKind::IntegerLiteral(_)
+            | ExprKind::CharLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
@@ -169,6 +170,8 @@ impl Lowerer {
             }
             ExprKind::FunctionCoercion { source, .. }
             | ExprKind::PtrFromNonZeroULong(source)
+            | ExprKind::CharCode(source)
+            | ExprKind::CharFromCodeUnchecked(source)
             | ExprKind::PtrToULong(source)
             | ExprKind::PtrCast(source)
             | ExprKind::Box(source)
@@ -222,6 +225,10 @@ impl Lowerer {
                 lhs: pointer,
                 rhs: offset,
                 ..
+            }
+            | ExprKind::ArrayGenerate {
+                count: pointer,
+                initializer: offset,
             }
             | ExprKind::Binary {
                 lhs: pointer,

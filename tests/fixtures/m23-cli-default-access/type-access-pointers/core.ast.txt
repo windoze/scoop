@@ -1,5 +1,95 @@
 SourceFile
   RootPackage
+  public class ArrayList<T>(initialCapacity: Long = <expr>), MutableList<T>
+    private var storage: MutableArray<T?> = <expr>
+      Call MutableArray<T?>
+        Var initialCapacity
+        Lambda 0 suspend=false
+          param _: _
+          Var None
+    private var elementCount: Long = <expr>
+      IntLiteral 0L
+    public open override val size: Long <computed>
+      get()
+        Var elementCount
+    internal val backing: MutableArray<T?> <computed>
+      get()
+        Var storage
+    private fun checkIndex
+    private fun ensureRoom
+    public operator fun get
+    public operator fun set
+    public fun add
+    public fun add
+    public fun removeAt
+    public fun clear
+    public operator fun iterator
+    @NoGC
+    @Extern(name = "scoop_rt_allocation_overflow", abi = "scoop")
+  internal fun coreAllocationOverflow()
+SourceFile
+  RootPackage
+    @Intrinsic("core_array")
+  public class Array<T>(), List<T>
+    private fun arrayLength
+    public open override val size: Long <computed>
+      get()
+        Call arrayLength
+    private fun arrayRead
+    public operator fun get
+    public fun toMutableArray
+    public operator fun iterator
+    @Intrinsic("core_mutable_array")
+  public class MutableArray<T>(), List<T>
+    private fun arrayLength
+    public open override val size: Long <computed>
+      get()
+        Call arrayLength
+    private fun arrayRead
+    public operator fun get
+    public operator fun set
+    public fun toArray
+    public operator fun iterator
+SourceFile
+  RootPackage
+    @Intrinsic("core_char")
+  public struct Char <representation omitted> : ToString, Hash
+    private fun codeValue
+    public val code: Int <computed>
+      @NoGC
+      get()
+        Call codeValue
+    public operator fun equals
+    public operator fun compareTo
+    public fun toString
+    public fun hash
+  public fun Int.toChar(): Char
+    if
+      Binary Or
+        Binary Or
+          Binary Lt
+            This
+            IntLiteral 0
+          Binary Gt
+            This
+            IntLiteral 1114111
+        Binary And
+          Binary Ge
+            This
+            IntLiteral 55296
+          Binary Le
+            This
+            IntLiteral 57343
+      throw
+        Call IllegalArgumentException
+    @Unsafe block
+      return
+        MethodCall characterUnchecked
+          This
+    @Extern(name = "scoop_rt_char_to_string", abi = "scoop")
+  internal fun coreCharToString(value: Char): String
+SourceFile
+  RootPackage
   public interface Continuation<T>
     fun resume
     fun resumeWithException
@@ -135,99 +225,6 @@ SourceFile
   public fun gcStats(): ULong
 SourceFile
   RootPackage
-    @Extern(name = "scoop_rt_write", abi = "scoop")
-  public fun write(message: String)
-  public fun print<T : ToString>(value: T)
-    =
-      Call write
-        MethodCall toString
-          Var value
-  public fun println<T : ToString>(value: T)
-    Call write
-      MethodCall toString
-        Var value
-    Call write
-      StringLiteral "\n"
-SourceFile
-  RootPackage
-  public interface Iterator<T>
-    fun next
-  public interface Iterable<T>
-    operator fun iterator
-  internal class ArrayIterator<T>(val source: Array<T>, var index: Long), Iterator<T>
-    public fun next
-  internal class MutableArrayIterator<T>(val source: MutableArray<T>, var index: Long), Iterator<T>
-    public fun next
-SourceFile
-  RootPackage
-  public enum Option<T>
-    Some(T)
-    None
-SourceFile
-  RootPackage
-  public class IntRange(val first: Int, val endpoint: Int, val stride: Int, val descending: Boolean, val inclusive: Boolean), Iterable<Int>
-    public operator fun iterator
-    public infix fun step
-    public operator fun contains
-  internal class IntRangeIterator(var current: Int, val endpoint: Int, val stride: Int, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<Int>
-    public fun next
-  public class LongRange(val first: Long, val endpoint: Long, val stride: Long, val descending: Boolean, val inclusive: Boolean), Iterable<Long>
-    public operator fun iterator
-    public infix fun step
-    public operator fun contains
-  internal class LongRangeIterator(var current: Long, val endpoint: Long, val stride: Long, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<Long>
-    public fun next
-  public class UIntRange(val first: UInt, val endpoint: UInt, val stride: UInt, val descending: Boolean, val inclusive: Boolean), Iterable<UInt>
-    public operator fun iterator
-    public infix fun step
-    public operator fun contains
-  internal class UIntRangeIterator(var current: UInt, val endpoint: UInt, val stride: UInt, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<UInt>
-    public fun next
-  public class ULongRange(val first: ULong, val endpoint: ULong, val stride: ULong, val descending: Boolean, val inclusive: Boolean), Iterable<ULong>
-    public operator fun iterator
-    public infix fun step
-    public operator fun contains
-  internal class ULongRangeIterator(var current: ULong, val endpoint: ULong, val stride: ULong, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<ULong>
-    public fun next
-SourceFile
-  RootPackage
-  public struct SourceLocation
-    field file: String
-    field line: Long
-    field column: Long
-    field functionName: String
-    field typeName: String
-    @Intrinsic("current_source_location")
-  public fun getCurrentSourceLocation(): SourceLocation
-SourceFile
-  RootPackage
-  public fun stage3CoreAnswer(): Long
-    =
-      IntLiteral 42
-  public fun stage3CoreFailure()
-    throw
-      Call ArithmeticException
-SourceFile
-  RootPackage
-  public open class Throwable()
-  public open class Exception(val message: String?) : Throwable(<0 args>)
-  public class UnwrapException() : Exception(<1 args>)
-  public class ClassCastException() : Exception(<1 args>)
-  public class ArithmeticException() : Exception(<1 args>)
-  public class IndexOutOfBoundsException() : Exception(<1 args>)
-  public class IllegalArgumentException(message: String? = <expr>) : Exception(<1 args>)
-  public class IllegalStateException(message: String? = <expr>) : Exception(<1 args>)
-  internal fun __scoopThrowInitializationCycle(message: String)
-    throw
-      Call IllegalStateException
-        Call Some
-          Var message
-SourceFile
-  RootPackage
-  public interface ToString
-    fun toString
-  public interface Hash
-    fun hash
     @Intrinsic("core_int8")
   public struct Int8 <representation omitted> : ToString, Hash
     public operator fun equals
@@ -298,6 +295,7 @@ SourceFile
     public fun hash
     @Intrinsic("core_int")
   public struct Int <representation omitted> : ToString, Hash
+    internal fun characterUnchecked
     public operator fun equals
     public operator fun unaryPlus
     public operator fun unaryMinus
@@ -364,6 +362,8 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
+SourceFile
+  RootPackage
     @Intrinsic("core_uint8")
   public struct UInt8 <representation omitted> : ToString, Hash
     public operator fun equals
@@ -496,6 +496,195 @@ SourceFile
     public infix fun downTo
     public fun toString
     public fun hash
+SourceFile
+  RootPackage
+    @Extern(name = "scoop_rt_write", abi = "scoop")
+  public fun write(message: String)
+  public fun print<T : ToString>(value: T)
+    =
+      Call write
+        MethodCall toString
+          Var value
+  public fun println<T : ToString>(value: T)
+    Call write
+      MethodCall toString
+        Var value
+    Call write
+      StringLiteral "\n"
+SourceFile
+  RootPackage
+  public interface Iterator<T>
+    fun next
+  public interface Iterable<T>
+    operator fun iterator
+  internal class ListIterator<T>(val source: List<T>, var index: Long, var exhausted: Boolean), Iterator<T>
+    public fun next
+SourceFile
+  RootPackage
+  public interface List<T> : Iterable<T>
+    operator fun get
+    public open val size: Long <computed>
+  public interface MutableList<T> : List<T>
+    operator fun set
+    fun add
+    fun add
+    fun removeAt
+    fun clear
+  public fun List<T>.toArray<T>(): Array<T>
+    val count
+      Var size
+    return
+      Call Array<T>
+        Var count
+        Lambda 0 suspend=false
+          param index: _
+          Index
+            This
+            Var index
+  public fun List<T>.toMutableArray<T>(): MutableArray<T>
+    val count
+      Var size
+    return
+      Call MutableArray<T>
+        Var count
+        Lambda 1 suspend=false
+          param index: _
+          Index
+            This
+            Var index
+SourceFile
+  RootPackage
+  public enum Option<T>
+    Some(T)
+    None
+SourceFile
+  RootPackage
+  public class IntRange(val first: Int, val endpoint: Int, val stride: Int, val descending: Boolean, val inclusive: Boolean), Iterable<Int>
+    public operator fun iterator
+    public infix fun step
+    public operator fun contains
+  internal class IntRangeIterator(var current: Int, val endpoint: Int, val stride: Int, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<Int>
+    public fun next
+  public class LongRange(val first: Long, val endpoint: Long, val stride: Long, val descending: Boolean, val inclusive: Boolean), Iterable<Long>
+    public operator fun iterator
+    public infix fun step
+    public operator fun contains
+  internal class LongRangeIterator(var current: Long, val endpoint: Long, val stride: Long, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<Long>
+    public fun next
+  public class UIntRange(val first: UInt, val endpoint: UInt, val stride: UInt, val descending: Boolean, val inclusive: Boolean), Iterable<UInt>
+    public operator fun iterator
+    public infix fun step
+    public operator fun contains
+  internal class UIntRangeIterator(var current: UInt, val endpoint: UInt, val stride: UInt, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<UInt>
+    public fun next
+  public class ULongRange(val first: ULong, val endpoint: ULong, val stride: ULong, val descending: Boolean, val inclusive: Boolean), Iterable<ULong>
+    public operator fun iterator
+    public infix fun step
+    public operator fun contains
+  internal class ULongRangeIterator(var current: ULong, val endpoint: ULong, val stride: ULong, val descending: Boolean, val inclusive: Boolean, var exhausted: Boolean), Iterator<ULong>
+    public fun next
+SourceFile
+  RootPackage
+  public struct SourceLocation
+    field file: String
+    field line: Long
+    field column: Long
+    field functionName: String
+    field typeName: String
+    @Intrinsic("current_source_location")
+  public fun getCurrentSourceLocation(): SourceLocation
+SourceFile
+  RootPackage
+  public fun stage3CoreAnswer(): Long
+    =
+      IntLiteral 42
+  public fun stage3CoreFailure()
+    throw
+      Call ArithmeticException
+SourceFile
+  RootPackage
+  public class StringBuilder()
+    private val parts: ArrayList<String> = <expr>
+      Call ArrayList<String>
+    public fun add
+    public fun add
+    public fun build
+    @Extern(name = "scoop_rt_string_join_parts", abi = "scoop")
+  internal fun coreStringJoinParts(storage: MutableArray<String?>, partCount: Long): String
+SourceFile
+  RootPackage
+  internal class StringIterator(val text: String), Iterator<Char>
+    private var byteCursor: Long = <expr>
+      IntLiteral 0L
+    public fun next
+SourceFile
+  RootPackage
+    @Intrinsic("core_string")
+  public class String(), ToString, Hash, Iterable<Char>
+    public val byteLength: Long <computed>
+      get()
+        Call coreStringByteLength
+          This
+    public val length: Long <computed>
+      get()
+        Call coreStringLength
+          This
+    public operator fun equals
+    public operator fun plus
+    public operator fun compareTo
+    public fun toString
+    public fun hash
+    public operator fun get
+    public fun slice
+    public operator fun iterator
+    public fun toCharArray
+    public fun toByteArray
+    public companion object
+      public fun fromChars
+      public fun fromUtf8Unchecked
+    @Extern(name = "scoop_rt_string_eq", abi = "scoop")
+  internal fun coreStringEquals(left: String, right: String): Boolean
+    @Extern(name = "scoop_rt_string_hash", abi = "scoop")
+  internal fun coreStringHash(value: String): Long
+    @Extern(name = "scoop_rt_string_byte_length", abi = "scoop")
+  internal fun coreStringByteLength(value: String): Long
+    @Extern(name = "scoop_rt_string_length", abi = "scoop")
+  internal fun coreStringLength(value: String): Long
+    @Extern(name = "scoop_rt_string_get", abi = "scoop")
+  internal fun coreStringGet(value: String, index: Long): Char?
+    @Extern(name = "scoop_rt_string_slice_bounds", abi = "scoop")
+  internal fun coreStringSliceBounds(value: String, start: Long, endExclusive: Long): (Long, Long)?
+    @Extern(name = "scoop_rt_string_character_at_byte", abi = "scoop")
+  internal fun coreStringCharacterAtByte(value: String, index: Long): Char
+    @Extern(name = "scoop_rt_string_byte_at", abi = "scoop")
+  internal fun coreStringByteAt(value: String, index: Long): Byte
+    @Extern(name = "scoop_rt_string_slice_bytes", abi = "scoop")
+  internal fun coreStringSliceBytes(value: String, start: Long, endExclusive: Long): String
+    @Extern(name = "scoop_rt_string_from_chars", abi = "scoop")
+  internal fun coreStringFromChars(value: Array<Char>): String
+    @Extern(name = "scoop_rt_string_from_bytes", abi = "scoop")
+  internal fun coreStringFromBytes(value: Array<Byte>): String
+SourceFile
+  RootPackage
+  public open class Throwable()
+  public open class Exception(val message: String?) : Throwable(<0 args>)
+  public class UnwrapException() : Exception(<1 args>)
+  public class ClassCastException() : Exception(<1 args>)
+  public class ArithmeticException() : Exception(<1 args>)
+  public class IndexOutOfBoundsException() : Exception(<1 args>)
+  public class IllegalArgumentException(message: String? = <expr>) : Exception(<1 args>)
+  public class IllegalStateException(message: String? = <expr>) : Exception(<1 args>)
+  internal fun __scoopThrowInitializationCycle(message: String)
+    throw
+      Call IllegalStateException
+        Call Some
+          Var message
+SourceFile
+  RootPackage
+  public interface ToString
+    fun toString
+  public interface Hash
+    fun hash
   public typealias Byte = Int8
   public typealias Short = Int16
   public typealias Int32 = Int
@@ -510,28 +699,8 @@ SourceFile
     public operator fun not
     public fun toString
     public fun hash
-    @Intrinsic("core_string")
-  public class String(), ToString, Hash
-    public operator fun equals
-    public operator fun plus
-    public operator fun compareTo
-    public fun toString
-    public fun hash
-    @Intrinsic("core_array")
-  public class Array<T>(), Iterable<T>
-    public operator fun get
-    public fun toMutableArray
-    public operator fun iterator
-    @Intrinsic("core_mutable_array")
-  public class MutableArray<T>(), Iterable<T>
-    public operator fun get
-    public operator fun set
-    public fun toArray
-    public operator fun iterator
     @Extern(name = "scoop_rt_bool_equals", abi = "scoop")
   internal fun coreBooleanEquals(left: Boolean, right: Boolean): Boolean
-    @Extern(name = "scoop_rt_string_eq", abi = "scoop")
-  internal fun coreStringEquals(left: String, right: String): Boolean
     @Extern(name = "scoop_rt_long_to_string", abi = "scoop")
   internal fun coreLongToString(value: Long): String
     @Extern(name = "scoop_rt_ulong_to_string", abi = "scoop")
@@ -544,5 +713,3 @@ SourceFile
   internal fun coreULongHash(value: ULong): Long
     @Extern(name = "scoop_rt_bool_hash", abi = "scoop")
   internal fun coreBooleanHash(value: Boolean): Long
-    @Extern(name = "scoop_rt_string_hash", abi = "scoop")
-  internal fun coreStringHash(value: String): Long

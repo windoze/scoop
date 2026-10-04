@@ -55,6 +55,7 @@ impl ExportConstValueSemanticAuthority<CrossConeHirConstAuthorityError>
     ) -> Result<(), CrossConeHirConstAuthorityError> {
         let family = match kind {
             CanonicalConstValueKindV1::Integer(kind) => IntrinsicTypeKind::Integer(kind),
+            CanonicalConstValueKindV1::Char => IntrinsicTypeKind::Char,
             CanonicalConstValueKindV1::Boolean => IntrinsicTypeKind::Boolean,
             CanonicalConstValueKindV1::String => IntrinsicTypeKind::String,
         };

@@ -3,6 +3,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<Tool>
     Completed(value: Tool)
     Suspended()
@@ -24,16 +27,18 @@ Module
   interface Exchange<Int>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<Tool>
   interface SuspendTask<Tool>
   interface SuspendRegistration<Tool>
   interface Continuation<Overloads>
   interface SuspendTask<Overloads>
   interface SuspendRegistration<Overloads>
-  generated_exact_type get0 location=enum1 nominal_id=9b7577c5f7db09394b81da74bb03c87100131b9e0a73bdd39d8a036b34d217ab exact_id=3d6610ab44d8a9babeefbf1a32ebdf88658de0158a3756a026feb82a64394844
-  generated_exact_type get1 location=enum4 nominal_id=c282c6b2c0edd6dc6ece9cb292193e0b4c9079ef7cc7fa80932a78d045750686 exact_id=4c2fe72ba2482bbc8eb5de8e293a19bbe51a8fb5fae91ef9a75a4a060b1f9294
-  generated_exact_type get2 location=enum3 nominal_id=8dc0b0730d560445f59bf362c21c2818fec167710dba46d60fb9aeda0fd3e7b6 exact_id=7539cc71bd261b9fe80165d553648b56be656f208e398d0b52b0f55dc5387657
-  generated_exact_type get3 location=enum2 nominal_id=69e20cf088675200fb972e1d862f8a6aa0e26020ba3f5df465d2e741e842db57 exact_id=84bb855f3491dcacbb8f27f29094fa583b47ab85785fc4ca4b15ede56c62ed09
+  generated_exact_type get0 location=enum2 nominal_id=9b7577c5f7db09394b81da74bb03c87100131b9e0a73bdd39d8a036b34d217ab exact_id=3d6610ab44d8a9babeefbf1a32ebdf88658de0158a3756a026feb82a64394844
+  generated_exact_type get1 location=enum5 nominal_id=c282c6b2c0edd6dc6ece9cb292193e0b4c9079ef7cc7fa80932a78d045750686 exact_id=4c2fe72ba2482bbc8eb5de8e293a19bbe51a8fb5fae91ef9a75a4a060b1f9294
+  generated_exact_type get2 location=enum4 nominal_id=8dc0b0730d560445f59bf362c21c2818fec167710dba46d60fb9aeda0fd3e7b6 exact_id=7539cc71bd261b9fe80165d553648b56be656f208e398d0b52b0f55dc5387657
+  generated_exact_type get3 location=enum3 nominal_id=69e20cf088675200fb972e1d862f8a6aa0e26020ba3f5df465d2e741e842db57 exact_id=84bb855f3491dcacbb8f27f29094fa583b47ab85785fc4ca4b15ede56c62ed09
   generated_exact_type get4 location=class5 nominal_id=176232817bf506f5f46430f154c21ee977d67d5e4058b7982b2ce182cf1ca8ef exact_id=b03cc915d7e3b149ec13ba958ea0d82f3ed91157a8b20a6f9db81ecc714dc16a
   generated_callable gc0 function=@fn22 id=a150452df524bdf63b4c1b25bb82758034ecc21f3c1cda0e40db99c9590324a6
   generated_callable gc1 function=@fn21 id=cb8a417f1d60439b5a3630192ff10123dddb73aa9c583ff4f5c3e5e88c674984

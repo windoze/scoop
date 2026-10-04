@@ -75,7 +75,8 @@ impl Lowerer {
             hir::IntrinsicTypeKind::Integer(kind) => fundamental.integer(kind).persistent(),
             hir::IntrinsicTypeKind::Boolean => fundamental.boolean().persistent(),
             hir::IntrinsicTypeKind::String => fundamental.string().persistent(),
-            hir::IntrinsicTypeKind::Array
+            hir::IntrinsicTypeKind::Char
+            | hir::IntrinsicTypeKind::Array
             | hir::IntrinsicTypeKind::MutableArray
             | hir::IntrinsicTypeKind::Ptr
             | hir::IntrinsicTypeKind::FunPtr => return Err(ImportedSignatureTypeError::Generic),

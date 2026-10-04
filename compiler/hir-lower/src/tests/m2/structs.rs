@@ -29,19 +29,20 @@ fn struct_construction_and_field_access() {
   struct Point
     field0 x: Int
     field1 y: Int
-    property9 val x: Int getter9=storage <stored struct15-field0>
-    property10 val y: Int getter10=storage <stored struct15-field1>
+    property9 val x: Int getter9=storage <stored struct16-field0>
+    property10 val y: Int getter10=storage <stored struct16-field1>
   enum Option<T>
     Some(_1: T0)
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter11>
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=body(Exception.$get$message) <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalArgumentException(message: Option<String>)
   class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String

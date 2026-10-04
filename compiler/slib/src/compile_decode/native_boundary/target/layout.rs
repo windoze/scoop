@@ -29,6 +29,11 @@ impl<'a> NativeBoundaryNormalizer<'a> {
                         bit_width,
                     })
                 }
+                scoop_hir::IntrinsicTypeKind::Char => Ok(CanonicalCStorageType::Integer {
+                    exact_type: exact,
+                    signedness: scoop_identity::Signedness::Unsigned,
+                    bit_width: scoop_identity::IntegerBitWidth::Bits32,
+                }),
                 scoop_hir::IntrinsicTypeKind::Boolean => {
                     Ok(CanonicalCStorageType::Boolean { exact_type: exact })
                 }

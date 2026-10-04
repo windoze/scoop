@@ -56,10 +56,12 @@ impl NamedNominalProbe {
                 let owner = state.class_constructors[constructor].owner;
                 (state.class_files[&owner], state.classes[owner].span)
             }
-            NominalConstructorSource::IntrinsicClass(class) => {
+            NominalConstructorSource::IntrinsicClass(class)
+            | NominalConstructorSource::ArrayGenerate(class) => {
                 (state.class_files[&class], state.classes[class].span)
             }
-            NominalConstructorSource::ImportedArray(owner) => {
+            NominalConstructorSource::ImportedArray(owner)
+            | NominalConstructorSource::ImportedArrayGenerate(owner) => {
                 return DeclarationDiagnosticOrder::ImportedIntrinsic(owner);
             }
             NominalConstructorSource::Variant(variant) => {

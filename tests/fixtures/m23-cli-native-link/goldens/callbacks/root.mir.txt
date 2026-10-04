@@ -6,6 +6,9 @@ Module
   foreign_callback_bridge fcb1 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.Reusable adapter=@fn11
   foreign_callback_bridge fcb2 family=fcf0 native=function_type0 managed=function_type2 context=1 mode=ForeignCallbackMode.OneShot adapter=@fn12
   struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum ForeignCallbackMode
     Reusable()
     OneShot()
@@ -21,6 +24,8 @@ Module
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn3 captures=0
     bridge function_type3 -> @fn13 id=62e23189ab410526ca8d18ce1ee70d8121feb89a449e916b0606cb5ea5709829
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn4 captures=2

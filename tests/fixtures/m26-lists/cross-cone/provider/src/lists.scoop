@@ -1,0 +1,14 @@
+package fixtures.lists
+
+public fun <T> collect(size: Long, init: (Long) -> T): MutableList<T> {
+    val result = ArrayList<T>()
+    var index = 0L
+    while (index < size) { result.add(init(index)); index = index + 1L }
+    return result
+}
+public fun <T> snapshot(values: List<T>): Array<T> = values.toArray()
+public fun sum(values: List<Int>): Int {
+    var result = 0
+    for (value in values) { result = result + value }
+    return result
+}

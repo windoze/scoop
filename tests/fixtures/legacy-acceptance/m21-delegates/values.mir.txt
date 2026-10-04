@@ -1,10 +1,28 @@
 Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<ExtensionDelegate>
+    Completed(value: ExtensionDelegate)
+    Suspended()
+  enum CoroutineSlot<ExtensionDelegate>
+    Empty()
+    Value(value: ExtensionDelegate)
   class LocalDelegate vtable=0 itables=0
   class OwnerDelegate vtable=0 itables=0
   class Host vtable=0 itables=0
   class ExtensionDelegate vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Continuation<ExtensionDelegate>
+  interface SuspendTask<ExtensionDelegate>
+  interface SuspendRegistration<ExtensionDelegate>
+  generated_exact_type get0 location=enum1 nominal_id=f5825cc74c19bb0a7e688209dc82ab48fdeec4bf10d6a2d6d2f0d80f615eca40 exact_id=84cc236c060bceef2ff24876d572caa34e77e55daf91a698e701019d99e1b7a9
+  generated_exact_type get1 location=enum2 nominal_id=6a93a1e33f6308c803e0328f617677e64767ea130393db5657dee6880f74cc7b exact_id=8f89834b435657c963baeca0b786ba69fe240a299429a32dc92d3914d2d31f87
+  generated_callable gc0 function=@fn20 id=8a83b472a4d63b9ed98a7c9321258a70c36e81f9d439f510ed04987c170922aa
   fun LocalDelegate.provideDelegate @fn0(this: LocalDelegate) -> LocalDelegate
     bb0 entry
       val $dependency.argument.0: Int
@@ -96,7 +114,7 @@ Module
       assign $new.1
         Type LocalDelegate
         ClassAlloc LocalDelegate
-      call @fn12 direct
+      call @fn16 direct
         Type LocalDelegate
         Local $new.1
         Type Int
@@ -227,7 +245,7 @@ Module
       assign $new.2
         Type ExtensionDelegate
         ClassAlloc ExtensionDelegate
-      call @fn15 direct
+      call @fn19 direct
         Type ExtensionDelegate
         Local $new.2
         Type Int
@@ -249,7 +267,7 @@ Module
       assign $new.3
         Type Host
         ClassAlloc Host
-      call @fn14 direct
+      call @fn18 direct
         Type Host
         Local $new.3
       val host: Host
@@ -313,7 +331,19 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.LocalDelegate.$c0 @fn12(this: LocalDelegate, value: Int) -> Unit
+  fun Continuation.resume @fn12(this: Continuation<ExtensionDelegate>, value: ExtensionDelegate) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn13(this: Continuation<ExtensionDelegate>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn14(this: SuspendTask<ExtensionDelegate>, $completion: Continuation<ExtensionDelegate>) -> CoroutineStep<ExtensionDelegate>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn15(this: SuspendRegistration<ExtensionDelegate>, continuation: Continuation<ExtensionDelegate>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.LocalDelegate.$c0 @fn16(this: LocalDelegate, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type LocalDelegate
@@ -321,7 +351,7 @@ Module
         Type Int
         Local value
       return
-  fun init.OwnerDelegate.$c1 @fn13(this: OwnerDelegate, value: Int) -> Unit
+  fun init.OwnerDelegate.$c1 @fn17(this: OwnerDelegate, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type OwnerDelegate
@@ -329,7 +359,7 @@ Module
         Type Int
         Local value
       return
-  fun init.Host.$c2 @fn14(this: Host) -> Unit
+  fun init.Host.$c2 @fn18(this: Host) -> Unit
     bb0 entry
       val $argument.0: Int
         Type Int
@@ -340,7 +370,7 @@ Module
       assign $new.1
         Type OwnerDelegate
         ClassAlloc OwnerDelegate
-      call @fn13 direct
+      call @fn17 direct
         Type OwnerDelegate
         Local $new.1
         Type Int
@@ -351,7 +381,7 @@ Module
         Type OwnerDelegate
         Local $new.1
       return
-  fun init.ExtensionDelegate.$c3 @fn15(this: ExtensionDelegate, value: Int) -> Unit
+  fun init.ExtensionDelegate.$c3 @fn19(this: ExtensionDelegate, value: Int) -> Unit
     bb0 entry
       field_set 0
         Type ExtensionDelegate
@@ -359,7 +389,57 @@ Module
         Type Int
         Local value
       return
+  fun startCoroutine<ExtensionDelegate> @fn20(task: SuspendTask<ExtensionDelegate>, completion: Continuation<ExtensionDelegate>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn12 interface Continuation<ExtensionDelegate>[0]
+        Type Continuation<ExtensionDelegate>
+        Local completion
+        Type ExtensionDelegate
+        EnumField v0 f0
+          Type CoroutineStep<ExtensionDelegate>
+          Local $step
+      return
+    bb2 failed
+      call @fn13 interface Continuation<ExtensionDelegate>[1]
+        Type Continuation<ExtensionDelegate>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<ExtensionDelegate> = @fn14 interface SuspendTask<ExtensionDelegate>[0]
+        Type SuspendTask<ExtensionDelegate>
+        Local task
+        Type Continuation<ExtensionDelegate>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<ExtensionDelegate>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<ExtensionDelegate> result=ExtensionDelegate
+  coroutine_slot cl0 CoroutineSlot<ExtensionDelegate> value=ExtensionDelegate
+  coroutine_start ct0 result=ExtensionDelegate function=fn20
+  coroutine_fn cf0 @fn14 source_return=ExtensionDelegate step=cs0 immediate
   instance mi0 function=@fn10 <- println
+  instance mi1 function=@fn12 <- Continuation.resume
+  instance mi2 function=@fn13 <- Continuation.resumeWithException
+  instance mi3 function=@fn14 <- SuspendTask.run
+  instance mi4 function=@fn15 <- SuspendRegistration.register
   str @str0 "ordinary"
   str @str1 "\n"
   output executable @fn9

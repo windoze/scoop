@@ -1,9 +1,14 @@
 Module
   struct GenericBox<Int> (value: Int)
   struct GenericBox<String> (value: String)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn17 captures=1
     bridge function_type1 -> @fn41 id=f84578e47f73e447a721003368d2c2f3d41d9283459ccb971de61c6900a71c9e
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn18 captures=1

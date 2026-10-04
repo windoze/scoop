@@ -1,8 +1,13 @@
 Module
   struct Point (x: Int, y: Int)
   struct Line (a: Point, b: Point)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun Point.equals @fn0(this: Point, other: Point) -> Boolean
     bb0 entry
       branch bb1 bb2

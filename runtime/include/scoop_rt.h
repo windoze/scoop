@@ -86,6 +86,16 @@ void scoop_rt_println(const ScoopString *s);
 const ScoopString *scoop_rt_long_to_string(int64_t v);
 const ScoopString *scoop_rt_ulong_to_string(uint64_t v);
 const ScoopString *scoop_rt_bool_to_string(bool v);
+const ScoopString *scoop_rt_char_to_string(uint32_t value);
+int64_t scoop_rt_string_byte_length(const ScoopString *value);
+int64_t scoop_rt_string_length(const ScoopString *value);
+uint32_t scoop_rt_string_character_at_byte(const ScoopString *value, int64_t index);
+int8_t scoop_rt_string_byte_at(const ScoopString *value, int64_t index);
+const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value,
+                                               int64_t start, int64_t end);
+const ScoopString *scoop_rt_string_from_chars(const ScoopArray *value);
+const ScoopString *scoop_rt_string_from_bytes(const ScoopArray *value);
+const ScoopString *scoop_rt_string_join_parts(const ScoopArray *storage, int64_t part_count);
 bool scoop_rt_bool_equals(bool left, bool right);
 int64_t scoop_rt_long_hash(int64_t v);
 int64_t scoop_rt_ulong_hash(uint64_t v);
@@ -104,6 +114,9 @@ void scoop_rt_println_boolean(bool value);
  * Writes the message to stderr and aborts; replaced by a real
  * UnwrapException throw in M8. */
 _Noreturn void scoop_rt_trap(const char *message);
+
+/* Checked core collection growth cannot represent another Long element. */
+_Noreturn void scoop_rt_allocation_overflow(void);
 
 /* M6 additions (milestone6 DESIGN section 3): dispatch support. */
 

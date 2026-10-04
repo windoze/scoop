@@ -89,6 +89,9 @@ pub(super) fn annotate_root_plans(
                 lir::Instruction::ManagedPoll { .. } => RootPlan::Statepoint(statepoint_live_set(
                     context, &live, function, structs, enums,
                 )?),
+                lir::Instruction::ArrayAllocDynamic { .. } => RootPlan::Statepoint(
+                    statepoint_live_set(context, &live, function, structs, enums)?,
+                ),
                 lir::Instruction::ArrayAlloc { elements, .. } => {
                     // Array allocation is expanded in codegen: element values
                     // remain live after the collecting slow-path call until
@@ -260,6 +263,10 @@ pub(super) fn annotate_root_plans(
                 }
                 (
                     lir::Instruction::BoxValue {
+                        live: instruction_live,
+                        ..
+                    }
+                    | lir::Instruction::ArrayAllocDynamic {
                         live: instruction_live,
                         ..
                     }

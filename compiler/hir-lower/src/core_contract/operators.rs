@@ -2,6 +2,7 @@ use super::*;
 
 impl Lowerer {
     pub(crate) fn validate_core_operator_intrinsics(&mut self, files: &[ast::SourceFile]) {
+        self.validate_char_intrinsics(files);
         for kind in hir::PrimitiveUnaryKind::ALL {
             let intrinsic = hir::IntrinsicFunctionKind::PrimitiveUnary(kind);
             if let Some(function) = self.require_intrinsic(intrinsic, files) {
@@ -316,7 +317,8 @@ impl Lowerer {
             && signature.type_params.len() == 1
             && signature.type_params[0].kind() == hir::TypeParamKind::Any
             && parameters_match
-            && signature.modifiers.operator == Some(operator)
+            && (signature.modifiers.operator == Some(operator)
+                || (operator == hir::OperatorKind::Get && signature.modifiers.operator.is_none()))
             && !signature.modifiers.is_infix;
         if !valid {
             self.malformed_operator_intrinsic(function, kind.name());
@@ -345,7 +347,7 @@ impl Lowerer {
             .expect("function names are non-empty")
     }
 
-    fn function_has_intrinsic_owner(
+    pub(super) fn function_has_intrinsic_owner(
         &self,
         function: FunctionId,
         kind: hir::IntrinsicTypeKind,

@@ -1,7 +1,12 @@
 Module
   struct Tagged (tag: String, pair: (Int, String))
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun Tagged.equals @fn0(this: Tagged, other: Tagged) -> Boolean
     bb0 entry
       call $call.1: Boolean = external0 direct

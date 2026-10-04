@@ -50,6 +50,19 @@ fn integer_methods(kind: hir::IntegerKind) -> Vec<ast::FunctionDecl> {
     let type_name = kind.canonical_name();
     let prefix = kind.registry_key();
     let mut methods = Vec::new();
+    if kind == hir::IntegerKind::SIGNED_32 {
+        let mut method = integer_intrinsic_method(
+            "characterUnchecked",
+            "char_from_code_unchecked".into(),
+            Vec::new(),
+            ty_named("Char"),
+            false,
+            false,
+            true,
+        );
+        method.annotations.push(marker_annotation("Unsafe"));
+        methods.push(method);
+    }
     for (name, key) in [
         ("unaryPlus", "unary_plus"),
         ("unaryMinus", "unary_minus"),
@@ -416,6 +429,9 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         .map(ast::ClassMember::Function),
     );
 
+    super::arrays::add_length_getter(array_decl, "array_length");
+    super::arrays::add_length_getter(mutable_array_decl, "mutable_array_length");
+
     let mut declarations = hir::IntegerKind::ALL
         .into_iter()
         .map(|kind| {
@@ -441,6 +457,43 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         array,
         mutable_array,
     ]);
+    let mut character = strukt(
+        "Char",
+        "core_char",
+        vec![
+            integer_intrinsic_method(
+                "codeValue",
+                "char_code".into(),
+                Vec::new(),
+                ty_named("Int"),
+                false,
+                false,
+                true,
+            ),
+            integer_intrinsic_method(
+                "equals",
+                "char_equals".into(),
+                vec![("other", ty_named("Char"))],
+                ty_named("Boolean"),
+                true,
+                false,
+                true,
+            ),
+            integer_intrinsic_method(
+                "compareTo",
+                "char_compare_to".into(),
+                vec![("other", ty_named("Char"))],
+                ty_named("Long"),
+                true,
+                false,
+                true,
+            ),
+        ],
+    );
+    if let Decl::Struct(declaration) = &mut character {
+        declaration.supertypes.clear();
+    }
+    declarations.push(character);
     declarations.extend([
         scoop_extern_fun(
             "coreBooleanEquals",

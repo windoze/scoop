@@ -162,6 +162,17 @@ Module
       val $parameter.value: Token
         Type Token
         Local $argument.0
+      call $aggregate.0: Token = @fn5 direct
+        Type Base
+        Local $receiver
+        Type Token
+        Local $parameter.value
+      call $aggregate.1: Token = @fn8 virtual[1]
+        Type Base
+        Local this
+      call $aggregate.2: Token = @fn9 direct
+        Type Base
+        Local this
       val $receiver: Base
         Type Base
         Local this
@@ -171,18 +182,7 @@ Module
       val $parameter.value: Token
         Type Token
         Local $argument.0
-      call $call.1: Token = @fn5 direct
-        Type Base
-        Local $receiver
-        Type Token
-        Local $parameter.value
-      call $call.2: Token = @fn8 virtual[1]
-        Type Base
-        Local this
-      call $call.3: Token = @fn9 direct
-        Type Base
-        Local this
-      call $call.4: Token = @fn7 direct
+      call $aggregate.3: Token = @fn7 direct
         Type Base
         Local $receiver
         Type Token
@@ -191,13 +191,13 @@ Module
         Type (Token, Token, Token, Token)
         TupleLiteral
           Type Token
-          Local $call.1
+          Local $aggregate.0
           Type Token
-          Local $call.2
+          Local $aggregate.1
           Type Token
-          Local $call.3
+          Local $aggregate.2
           Type Token
-          Local $call.4
+          Local $aggregate.3
   fun Base.pass @fn4(this: Base, value: Token) -> Token
     bb0 entry
       return

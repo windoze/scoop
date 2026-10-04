@@ -1,0 +1,16 @@
+import fixtures.interpolation.*
+import fixtures.interpolation.Pretender as StringBuilder
+
+class Label(val text: String) : ToString { public override fun toString(): String = text }
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    check(StringBuilder().build() == "consumer alias builder")
+    check(ready() == "<42>:[42]:(42)")
+    check(format(42) == "<42>" && defaulted(42) == "[42]" && formatter(42)() == "(42)")
+    check(format(Label("雪"), '!') == "<雪!" && defaulted(Label("雪")) == "[雪]")
+    val closure = formatter(Label("🚀"))
+    gcCollect()
+    check(f"${closure()}:${42}" == "(🚀):42")
+    check(coreInterpolation() == "core:42")
+    println(42)
+}

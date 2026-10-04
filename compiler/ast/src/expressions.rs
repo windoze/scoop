@@ -5,8 +5,16 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    CharLiteral {
+        value: char,
+        span: Span,
+    },
     StringLiteral {
         value: String,
+        span: Span,
+    },
+    InterpolatedString {
+        parts: Vec<StringPart>,
         span: Span,
     },
     IntLiteral(IntegerLiteralSyntax),
@@ -198,7 +206,9 @@ impl Expr {
     pub fn span(&self) -> Span {
         match self {
             Expr::IntLiteral(literal) => literal.span,
-            Expr::StringLiteral { span, .. }
+            Expr::CharLiteral { span, .. }
+            | Expr::StringLiteral { span, .. }
+            | Expr::InterpolatedString { span, .. }
             | Expr::BoolLiteral { span, .. }
             | Expr::UnitLiteral { span }
             | Expr::TupleLiteral { span, .. }
@@ -231,6 +241,13 @@ impl Expr {
             Expr::Call(call) => call.span,
         }
     }
+}
+
+/// Ordered f-string fragments with positions in the original source file.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StringPart {
+    Text { value: String, span: Span },
+    Expression { value: Box<Expr>, span: Span },
 }
 
 /// One lambda parameter. Patterns are retained for the later capture/type

@@ -181,17 +181,18 @@ fn constructor_identities_cover_source_generic_object_and_generated_adapter_case
             hir::ClassConstructorIdentityKind::Source => None,
         })
         .collect::<Vec<_>>();
-    assert_eq!(adapters.len(), 1);
-    let (adapter, source) = adapters[0];
-    let identity = &module.constructor_identities[adapter];
-    assert!(matches!(
-        identity.generated_record().unwrap().key(),
-        GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor }
-            if *constructor == module.constructor_identities[source]
-                .source_record()
-                .unwrap()
-                .id()
-    ));
+    assert_eq!(adapters.len(), 2);
+    for (adapter, source) in adapters {
+        let identity = &module.constructor_identities[adapter];
+        assert!(matches!(
+            identity.generated_record().unwrap().key(),
+            GeneratedCallableKey::ZeroArgumentConstructorAdapter { constructor }
+                if *constructor == module.constructor_identities[source]
+                    .source_record()
+                    .unwrap()
+                    .id()
+        ));
+    }
 }
 
 #[test]

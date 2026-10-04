@@ -285,50 +285,56 @@ Module
         Local $new.4
         Type Int
         Local $dependency.local.30
-      val $dependency.local.31: (Cell, Int)
+      val $dependency.local.31: Cell
+        Type Cell
+        Local $new.4
+      val $dependency.local.32: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.33: (Cell, Int)
         Type (Cell, Int)
         TupleLiteral
           Type Cell
-          Local $new.4
+          Local $dependency.local.31
           Type Int
-          IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.32: (Cell, Int)
+          Local $dependency.local.32
+      val $dependency.local.34: (Cell, Int)
         Type (Cell, Int)
-        Local $dependency.local.31
+        Local $dependency.local.33
       val $dependency.local.3: Option<(Cell, Int)>
         Type Option<(Cell, Int)>
         VariantConstruct Option<(Cell, Int)> v0
           Type (Cell, Int)
-          Local $dependency.local.32
-      call $dependency.local.33: Empty = external3 direct
-      val $dependency.local.34: Empty
+          Local $dependency.local.34
+      call $dependency.local.35: Empty = external3 direct
+      val $dependency.local.36: Empty
         Type Empty
-        Local $dependency.local.33
+        Local $dependency.local.35
       val $dependency.local.4: Option<Empty>
         Type Option<Empty>
         VariantConstruct Option<Empty> v0
           Type Empty
-          Local $dependency.local.34
+          Local $dependency.local.36
       val $dependency.local.5: Option<Empty>
         Type Option<Empty>
         VariantConstruct Option<Empty> v1
-      val $dependency.local.35: () -> Int
+      val $dependency.local.37: () -> Int
         Type () -> Int
         ClosureAlloc cc0 $Closure$lambda0
-      val $dependency.local.36: () -> Int
+      val $dependency.local.38: () -> Int
         Type () -> Int
-        Local $dependency.local.35
+        Local $dependency.local.37
       val $dependency.local.6: Option<() -> Int>
         Type Option<() -> Int>
         VariantConstruct Option<() -> Int> v0
           Type () -> Int
-          Local $dependency.local.36
-      val $dependency.local.37: Int
+          Local $dependency.local.38
+      val $dependency.local.39: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.38: Int
+      val $dependency.local.40: Int
         Type Int
-        Local $dependency.local.37
+        Local $dependency.local.39
       assign $new.5
         Type Cell
         ClassAlloc Cell
@@ -336,19 +342,19 @@ Module
         Type Cell
         Local $new.5
         Type Int
-        Local $dependency.local.38
+        Local $dependency.local.40
       val $dependency.local.7: Cell
         Type Cell
         Local $new.5
-      val $dependency.local.39: Option<Later>
+      val $dependency.local.41: Option<Later>
         Type Option<Later>
         Local $dependency.local.1
-      val $dependency.local.40: Option<Later>
+      val $dependency.local.42: Option<Later>
         Type Option<Later>
-        Local $dependency.local.39
+        Local $dependency.local.41
       call $dependency.local.8: Later = @fn5 direct
         Type Option<Later>
-        Local $dependency.local.40
+        Local $dependency.local.42
       val $when.1: Option<Empty>
         Type Option<Empty>
         Local $dependency.local.4
@@ -366,7 +372,7 @@ Module
         VariantPayloadProject Option<Empty> v0 f0
           Type Option<Empty>
           Local $pattern.subject.2
-      assign $dependency.local.41
+      assign $dependency.local.43
         Type Boolean
         BoolLiteral false
       goto bb3
@@ -382,9 +388,9 @@ Module
     bb3 pattern.merge.3
       branch bb7 bb8
         Type Boolean
-        Local $dependency.local.41
+        Local $dependency.local.43
     bb4 pattern.pass.4
-      assign $dependency.local.41
+      assign $dependency.local.43
         Type Boolean
         BoolLiteral true
       goto bb6
@@ -414,7 +420,7 @@ Module
         VariantPayloadProject Option<Empty> v0 f0
           Type Option<Empty>
           Local $pattern.subject.5
-      assign $dependency.local.42
+      assign $dependency.local.44
         Type Boolean
         BoolLiteral true
       goto bb11
@@ -430,9 +436,9 @@ Module
     bb11 pattern.merge.11
       branch bb15 bb16
         Type Boolean
-        Local $dependency.local.42
+        Local $dependency.local.44
     bb12 pattern.pass.12
-      assign $dependency.local.42
+      assign $dependency.local.44
         Type Boolean
         BoolLiteral false
       goto bb14
@@ -445,145 +451,145 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb16 if.merge.16
-      val $dependency.local.43: Option<Wide>
+      val $dependency.local.45: Option<Wide>
         Type Option<Wide>
         Local $dependency.local.2
-      val $dependency.local.44: Option<Wide>
+      val $dependency.local.46: Option<Wide>
         Type Option<Wide>
-        Local $dependency.local.43
+        Local $dependency.local.45
       call $dependency.local.11: Wide = @fn6 direct
         Type Option<Wide>
-        Local $dependency.local.44
-      val $dependency.local.45: Option<(Cell, Int)>
+        Local $dependency.local.46
+      val $dependency.local.47: Option<(Cell, Int)>
         Type Option<(Cell, Int)>
         Local $dependency.local.3
-      val $dependency.local.46: Option<(Cell, Int)>
+      val $dependency.local.48: Option<(Cell, Int)>
         Type Option<(Cell, Int)>
-        Local $dependency.local.45
+        Local $dependency.local.47
       call $dependency.local.12: (Cell, Int) = @fn7 direct
         Type Option<(Cell, Int)>
-        Local $dependency.local.46
-      val $dependency.local.47: Option<() -> Int>
+        Local $dependency.local.48
+      val $dependency.local.49: Option<() -> Int>
         Type Option<() -> Int>
         Local $dependency.local.6
-      val $dependency.local.48: Option<() -> Int>
+      val $dependency.local.50: Option<() -> Int>
         Type Option<() -> Int>
-        Local $dependency.local.47
+        Local $dependency.local.49
       call $call.6: () -> Int = @fn8 direct
         Type Option<() -> Int>
-        Local $dependency.local.48
-      call $dependency.local.49: Int = <closure:function_type0> closure[function_type0]
+        Local $dependency.local.50
+      call $dependency.local.51: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
         Local $call.6
-      val $dependency.local.50: Int
+      val $dependency.local.52: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.51: Int
+      val $dependency.local.53: Int
         Type Int
-        Local $dependency.local.50
+        Local $dependency.local.52
       branch bb17 bb18
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.49
-            Type Int
             Local $dependency.local.51
+            Type Int
+            Local $dependency.local.53
     bb17 if.then.17
-      val $dependency.local.55: Boolean
+      val $dependency.local.57: Boolean
         Type Boolean
         BoolLiteral true
       goto bb19
     bb18 if.else.18
-      val $dependency.local.52: Int
+      val $dependency.local.54: Int
         Type Int
         FieldAccess 0
           Type Cell
           Local $dependency.local.7
-      val $dependency.local.53: Int
+      val $dependency.local.55: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.54: Int
+      val $dependency.local.56: Int
         Type Int
-        Local $dependency.local.53
-      val $dependency.local.55: Boolean
+        Local $dependency.local.55
+      val $dependency.local.57: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.52
-            Type Int
             Local $dependency.local.54
+            Type Int
+            Local $dependency.local.56
       goto bb19
     bb19 if.merge.19
       branch bb20 bb21
         Type Boolean
-        Local $dependency.local.55
+        Local $dependency.local.57
     bb20 if.then.20
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb21 if.merge.21
-      val $dependency.local.56: Int
+      val $dependency.local.58: Int
         Type Int
         FieldAccess 0
           Type Cell
           FieldAccess 0
             Type Wide
             Local $dependency.local.11
-      val $dependency.local.57: Int
+      val $dependency.local.59: Int
         Type Int
         FieldAccess 0
           Type Cell
           FieldAccess 1
             Type Wide
             Local $dependency.local.11
-      val $dependency.local.58: Int
+      val $dependency.local.60: Int
         Type Int
-        Local $dependency.local.57
-      val $dependency.local.59: Int
+        Local $dependency.local.59
+      val $dependency.local.61: Int
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.56
-          Type Int
           Local $dependency.local.58
-      val $dependency.local.60: Int
+          Type Int
+          Local $dependency.local.60
+      val $dependency.local.62: Int
         Type Int
         FieldAccess 0
           Type Cell
           FieldAccess 2
             Type Wide
             Local $dependency.local.11
-      val $dependency.local.61: Int
+      val $dependency.local.63: Int
         Type Int
-        Local $dependency.local.60
-      val $dependency.local.62: Int
+        Local $dependency.local.62
+      val $dependency.local.64: Int
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.59
-          Type Int
           Local $dependency.local.61
-      val $dependency.local.63: Int
+          Type Int
+          Local $dependency.local.63
+      val $dependency.local.65: Int
         Type Int
         FieldAccess 0
           Type Cell
           FieldAccess 0
             Type (Cell, Int)
             Local $dependency.local.12
-      val $dependency.local.64: Int
+      val $dependency.local.66: Int
         Type Int
-        Local $dependency.local.63
+        Local $dependency.local.65
       return
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.62
-          Type Int
           Local $dependency.local.64
+          Type Int
+          Local $dependency.local.66
   fun exercise @fn2(value: Int) -> Int
     bb0 entry
       val $dependency.local.13: Int
@@ -684,50 +690,56 @@ Module
         Local $new.4
         Type Int
         Local $dependency.local.30
-      val $dependency.local.31: (Cell, Int)
+      val $dependency.local.31: Cell
+        Type Cell
+        Local $new.4
+      val $dependency.local.32: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $dependency.local.33: (Cell, Int)
         Type (Cell, Int)
         TupleLiteral
           Type Cell
-          Local $new.4
+          Local $dependency.local.31
           Type Int
-          IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.32: (Cell, Int)
+          Local $dependency.local.32
+      val $dependency.local.34: (Cell, Int)
         Type (Cell, Int)
-        Local $dependency.local.31
+        Local $dependency.local.33
       val $dependency.local.3: Option<(Cell, Int)>
         Type Option<(Cell, Int)>
         VariantConstruct Option<(Cell, Int)> v0
           Type (Cell, Int)
-          Local $dependency.local.32
-      call $dependency.local.33: Empty = external3 direct
-      val $dependency.local.34: Empty
+          Local $dependency.local.34
+      call $dependency.local.35: Empty = external3 direct
+      val $dependency.local.36: Empty
         Type Empty
-        Local $dependency.local.33
+        Local $dependency.local.35
       val $dependency.local.4: Option<Empty>
         Type Option<Empty>
         VariantConstruct Option<Empty> v0
           Type Empty
-          Local $dependency.local.34
+          Local $dependency.local.36
       val $dependency.local.5: Option<Empty>
         Type Option<Empty>
         VariantConstruct Option<Empty> v1
-      val $dependency.local.35: () -> Int
+      val $dependency.local.37: () -> Int
         Type () -> Int
         ClosureAlloc cc1 $Closure$lambda1
-      val $dependency.local.36: () -> Int
+      val $dependency.local.38: () -> Int
         Type () -> Int
-        Local $dependency.local.35
+        Local $dependency.local.37
       val $dependency.local.6: Option<() -> Int>
         Type Option<() -> Int>
         VariantConstruct Option<() -> Int> v0
           Type () -> Int
-          Local $dependency.local.36
-      val $dependency.local.37: Int
+          Local $dependency.local.38
+      val $dependency.local.39: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.38: Int
+      val $dependency.local.40: Int
         Type Int
-        Local $dependency.local.37
+        Local $dependency.local.39
       assign $new.5
         Type Cell
         ClassAlloc Cell
@@ -735,19 +747,19 @@ Module
         Type Cell
         Local $new.5
         Type Int
-        Local $dependency.local.38
+        Local $dependency.local.40
       val $dependency.local.7: Cell
         Type Cell
         Local $new.5
-      val $dependency.local.39: Option<Int>
+      val $dependency.local.41: Option<Int>
         Type Option<Int>
         Local $dependency.local.1
-      val $dependency.local.40: Option<Int>
+      val $dependency.local.42: Option<Int>
         Type Option<Int>
-        Local $dependency.local.39
+        Local $dependency.local.41
       call $dependency.local.8: Int = @fn11 direct
         Type Option<Int>
-        Local $dependency.local.40
+        Local $dependency.local.42
       val $when.1: Option<Empty>
         Type Option<Empty>
         Local $dependency.local.4
@@ -765,7 +777,7 @@ Module
         VariantPayloadProject Option<Empty> v0 f0
           Type Option<Empty>
           Local $pattern.subject.2
-      assign $dependency.local.41
+      assign $dependency.local.43
         Type Boolean
         BoolLiteral false
       goto bb3
@@ -781,9 +793,9 @@ Module
     bb3 pattern.merge.3
       branch bb7 bb8
         Type Boolean
-        Local $dependency.local.41
+        Local $dependency.local.43
     bb4 pattern.pass.4
-      assign $dependency.local.41
+      assign $dependency.local.43
         Type Boolean
         BoolLiteral true
       goto bb6
@@ -813,7 +825,7 @@ Module
         VariantPayloadProject Option<Empty> v0 f0
           Type Option<Empty>
           Local $pattern.subject.5
-      assign $dependency.local.42
+      assign $dependency.local.44
         Type Boolean
         BoolLiteral true
       goto bb11
@@ -829,9 +841,9 @@ Module
     bb11 pattern.merge.11
       branch bb15 bb16
         Type Boolean
-        Local $dependency.local.42
+        Local $dependency.local.44
     bb12 pattern.pass.12
-      assign $dependency.local.42
+      assign $dependency.local.44
         Type Boolean
         BoolLiteral false
       goto bb14
@@ -844,145 +856,145 @@ Module
         Type Int
         IntegerLiteral Int value=2 bits=0x00000002
     bb16 if.merge.16
-      val $dependency.local.43: Option<Wide>
+      val $dependency.local.45: Option<Wide>
         Type Option<Wide>
         Local $dependency.local.2
-      val $dependency.local.44: Option<Wide>
+      val $dependency.local.46: Option<Wide>
         Type Option<Wide>
-        Local $dependency.local.43
+        Local $dependency.local.45
       call $dependency.local.11: Wide = @fn6 direct
         Type Option<Wide>
-        Local $dependency.local.44
-      val $dependency.local.45: Option<(Cell, Int)>
+        Local $dependency.local.46
+      val $dependency.local.47: Option<(Cell, Int)>
         Type Option<(Cell, Int)>
         Local $dependency.local.3
-      val $dependency.local.46: Option<(Cell, Int)>
+      val $dependency.local.48: Option<(Cell, Int)>
         Type Option<(Cell, Int)>
-        Local $dependency.local.45
+        Local $dependency.local.47
       call $dependency.local.12: (Cell, Int) = @fn7 direct
         Type Option<(Cell, Int)>
-        Local $dependency.local.46
-      val $dependency.local.47: Option<() -> Int>
+        Local $dependency.local.48
+      val $dependency.local.49: Option<() -> Int>
         Type Option<() -> Int>
         Local $dependency.local.6
-      val $dependency.local.48: Option<() -> Int>
+      val $dependency.local.50: Option<() -> Int>
         Type Option<() -> Int>
-        Local $dependency.local.47
+        Local $dependency.local.49
       call $call.6: () -> Int = @fn8 direct
         Type Option<() -> Int>
-        Local $dependency.local.48
-      call $dependency.local.49: Int = <closure:function_type0> closure[function_type0]
+        Local $dependency.local.50
+      call $dependency.local.51: Int = <closure:function_type0> closure[function_type0]
         Type () -> Int
         Local $call.6
-      val $dependency.local.50: Int
+      val $dependency.local.52: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
-      val $dependency.local.51: Int
+      val $dependency.local.53: Int
         Type Int
-        Local $dependency.local.50
+        Local $dependency.local.52
       branch bb17 bb18
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.49
-            Type Int
             Local $dependency.local.51
+            Type Int
+            Local $dependency.local.53
     bb17 if.then.17
-      val $dependency.local.55: Boolean
+      val $dependency.local.57: Boolean
         Type Boolean
         BoolLiteral true
       goto bb19
     bb18 if.else.18
-      val $dependency.local.52: Int
+      val $dependency.local.54: Int
         Type Int
         FieldAccess 0
           Type Cell
           Local $dependency.local.7
-      val $dependency.local.53: Int
+      val $dependency.local.55: Int
         Type Int
         IntegerLiteral Int value=0 bits=0x00000000
-      val $dependency.local.54: Int
+      val $dependency.local.56: Int
         Type Int
-        Local $dependency.local.53
-      val $dependency.local.55: Boolean
+        Local $dependency.local.55
+      val $dependency.local.57: Boolean
         Type Boolean
         Unary BoolNot
           Type Boolean
           IntegerCompare equal operands=Int result=Boolean
             Type Int
-            Local $dependency.local.52
-            Type Int
             Local $dependency.local.54
+            Type Int
+            Local $dependency.local.56
       goto bb19
     bb19 if.merge.19
       branch bb20 bb21
         Type Boolean
-        Local $dependency.local.55
+        Local $dependency.local.57
     bb20 if.then.20
       return
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
     bb21 if.merge.21
-      val $dependency.local.56: Int
+      val $dependency.local.58: Int
         Type Int
         FieldAccess 0
           Type Cell
           FieldAccess 0
             Type Wide
             Local $dependency.local.11
-      val $dependency.local.57: Int
+      val $dependency.local.59: Int
         Type Int
         FieldAccess 0
           Type Cell
           FieldAccess 1
             Type Wide
             Local $dependency.local.11
-      val $dependency.local.58: Int
+      val $dependency.local.60: Int
         Type Int
-        Local $dependency.local.57
-      val $dependency.local.59: Int
+        Local $dependency.local.59
+      val $dependency.local.61: Int
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.56
-          Type Int
           Local $dependency.local.58
-      val $dependency.local.60: Int
+          Type Int
+          Local $dependency.local.60
+      val $dependency.local.62: Int
         Type Int
         FieldAccess 0
           Type Cell
           FieldAccess 2
             Type Wide
             Local $dependency.local.11
-      val $dependency.local.61: Int
+      val $dependency.local.63: Int
         Type Int
-        Local $dependency.local.60
-      val $dependency.local.62: Int
+        Local $dependency.local.62
+      val $dependency.local.64: Int
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.59
-          Type Int
           Local $dependency.local.61
-      val $dependency.local.63: Int
+          Type Int
+          Local $dependency.local.63
+      val $dependency.local.65: Int
         Type Int
         FieldAccess 0
           Type Cell
           FieldAccess 0
             Type (Cell, Int)
             Local $dependency.local.12
-      val $dependency.local.64: Int
+      val $dependency.local.66: Int
         Type Int
-        Local $dependency.local.63
+        Local $dependency.local.65
       return
         Type Int
         IntegerBinary add kind=Int
           Type Int
-          Local $dependency.local.62
-          Type Int
           Local $dependency.local.64
+          Type Int
+          Local $dependency.local.66
   fun wrap @fn3(value: Later) -> Option<Later>
     bb0 entry
       val $dependency.local.1: Later

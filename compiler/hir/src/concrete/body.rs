@@ -156,6 +156,7 @@ pub enum Pattern {
 /// function by MIR lowering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LiteralPatternEquality {
+    Char,
     Integer { kind: IntegerKind },
     Ordinary { equals: CallableTarget },
 }
@@ -176,6 +177,9 @@ pub enum ExprKind {
     },
     IntegerLiteral(HirIntegerConstant),
     BoolLiteral(bool),
+    CharLiteral(char),
+    CharCode(Box<Expr>),
+    CharFromCodeUnchecked(Box<Expr>),
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
     StructInit {
@@ -287,6 +291,10 @@ pub enum ExprKind {
         optional: bool,
     },
     ArrayLiteral(Vec<Expr>),
+    ArrayGenerate {
+        count: Box<Expr>,
+        initializer: Box<Expr>,
+    },
     ArrayAssembly(ArrayAssembly),
     Index {
         access: ArrayAccessKind,

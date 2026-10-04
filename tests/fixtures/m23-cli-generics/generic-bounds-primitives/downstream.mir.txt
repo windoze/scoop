@@ -1,7 +1,12 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Later vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun check @fn0() -> Int
     bb0 entry
       call $argument.0: Int = external0 direct

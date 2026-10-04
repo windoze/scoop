@@ -57,6 +57,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::Unbox(operand)
             | mir::ExprKind::IsInstance { operand, .. }
             | mir::ExprKind::Cast { operand, .. }
+            | mir::ExprKind::ArrayAllocate { count: operand, .. }
             | mir::ExprKind::ArrayLen { operand, .. }
             | mir::ExprKind::ArrayClone { operand, .. }
             | mir::ExprKind::Unary { operand, .. }
@@ -67,6 +68,8 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             | mir::ExprKind::VariantTest { operand, .. }
             | mir::ExprKind::VariantPayloadProject { operand, .. }
             | mir::ExprKind::PtrFromNonZeroULong { operand, .. }
+            | mir::ExprKind::CharCode(operand)
+            | mir::ExprKind::CharFromCodeUnchecked(operand)
             | mir::ExprKind::PtrToULong(operand)
             | mir::ExprKind::PtrCast { operand, .. } => collect_expr(operand, out),
             mir::ExprKind::ClassAlloc { .. } => {}
@@ -142,6 +145,7 @@ pub(super) fn address_taken(function: &mir::Function) -> HashSet<mir::LocalId> {
             mir::ExprKind::StringConst(_)
             | mir::ExprKind::IntegerLiteral(_)
             | mir::ExprKind::MachineScalarLiteral(_)
+            | mir::ExprKind::CharLiteral(_)
             | mir::ExprKind::BoolLiteral(_)
             | mir::ExprKind::UnitLiteral
             | mir::ExprKind::ReleaseFieldLoad { .. }

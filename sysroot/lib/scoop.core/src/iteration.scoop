@@ -6,30 +6,19 @@ public interface Iterable<T> {
     public operator fun iterator(): Iterator<T>
 }
 
-internal class ArrayIterator<T> internal constructor(
-    private val source: Array<T>,
-    private var index: Long
+internal class ListIterator<T> internal constructor(
+    private val source: List<T>,
+    private var index: Long,
+    private var exhausted: Boolean
 ) : Iterator<T> {
     public override fun next(): Option<T> {
-        if (index < source.size) {
-            val value = source[index]
-            index = index + 1L
-            return Some(value)
+        if (exhausted) { return None }
+        if (index >= source.size) {
+            exhausted = true
+            return None
         }
-        return None
-    }
-}
-
-internal class MutableArrayIterator<T> internal constructor(
-    private val source: MutableArray<T>,
-    private var index: Long
-) : Iterator<T> {
-    public override fun next(): Option<T> {
-        if (index < source.size) {
-            val value = source[index]
-            index = index + 1L
-            return Some(value)
-        }
-        return None
+        val value = source[index]
+        index = index + 1L
+        return Some(value)
     }
 }

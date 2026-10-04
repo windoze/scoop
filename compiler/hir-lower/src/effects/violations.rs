@@ -124,6 +124,7 @@ impl Lowerer {
                 "string literals are not allowed in `@NoGC` code".to_string(),
             )),
             ExprKind::IntegerLiteral(_)
+            | ExprKind::CharLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::Local(_)
@@ -148,6 +149,14 @@ impl Lowerer {
                 for element in elements {
                     self.collect_no_gc_expr_violations(element, out, requirements);
                 }
+            }
+            ExprKind::ArrayGenerate { count, initializer } => {
+                out.push((
+                    expr.span,
+                    "array allocation is not allowed in `@NoGC` code".to_string(),
+                ));
+                self.collect_no_gc_expr_violations(count, out, requirements);
+                self.collect_no_gc_expr_violations(initializer, out, requirements);
             }
             ExprKind::ArrayAssembly(assembly) => {
                 out.push((
@@ -372,6 +381,8 @@ impl Lowerer {
             | ExprKind::SomeWrap(operand)
             | ExprKind::IsSome(operand)
             | ExprKind::PtrFromNonZeroULong(operand)
+            | ExprKind::CharCode(operand)
+            | ExprKind::CharFromCodeUnchecked(operand)
             | ExprKind::PtrToULong(operand)
             | ExprKind::PtrCast(operand) => {
                 self.collect_no_gc_expr_violations(operand, out, requirements)

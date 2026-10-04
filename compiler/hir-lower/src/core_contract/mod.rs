@@ -8,6 +8,7 @@ use super::*;
 
 mod arrays;
 mod callbacks;
+mod characters;
 mod common;
 mod coroutines;
 mod exceptions;

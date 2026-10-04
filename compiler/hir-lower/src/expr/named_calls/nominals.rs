@@ -337,6 +337,15 @@ impl Lowerer {
                 let resolved = self
                     .commit_named_nominal(*probe, call.span, sink)
                     .ok_or(())?;
+                if matches!(
+                    resolved.source,
+                    NominalConstructorSource::ArrayGenerate(_)
+                        | NominalConstructorSource::ImportedArrayGenerate(_)
+                ) && let Err(error) = self.prepare_array_size_exception_type()
+                {
+                    self.error(call.span, error.diagnostic("array size exception type"));
+                    return Err(());
+                }
                 Some(self.finish_named_nominal(resolved, call.span))
             }
             (NamedFunctionLikeProbe::IntrinsicStruct(_), NamedFunctionCommit::Intrinsic(layer)) => {

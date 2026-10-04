@@ -1,6 +1,11 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun write @fn0(v: Int) -> String
     bb0 entry
       return

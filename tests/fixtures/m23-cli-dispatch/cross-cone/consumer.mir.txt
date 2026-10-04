@@ -1,4 +1,7 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Both vtable=0 itables=2
   class Wrapped<String> vtable=0 itables=2
   class Defaults vtable=0 itables=2
@@ -11,6 +14,8 @@ Module
   interface Refined<Int> : Echo<Int>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn20 captures=1
     bridge function_type1 -> @fn22 id=40425ea016c6762a9e17b1ceb1c44f785d86afff068c6db6ffd3ec1ca53aec68
   generated_exact_type get0 location=closure0 nominal_id=3c01a054265702e078c7a357812a20ddec30bc9dbfa27ddea16b8f37f579a0ec exact_id=f420a28ee71d92c18970ab7e93bbe039f4a7182fa48ae6424239e444f1db5130

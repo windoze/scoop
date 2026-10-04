@@ -112,6 +112,10 @@ impl Projection<'_> {
         );
         let family = match (value.representation().kind(), &actual.kind) {
             (
+                Kind::Scalar(lir::ScalarRepresentationKindV1::Char),
+                lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::Char),
+            ) => true,
+            (
                 Kind::Scalar(lir::ScalarRepresentationKindV1::Integer(expected)),
                 lir::LayoutKind::Intrinsic(lir::IntrinsicTypeRepresentation::Integer(actual)),
             ) => expected == *actual,

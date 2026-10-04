@@ -1,0 +1,2 @@
+const val value: String = f"text"
+fun main() {}

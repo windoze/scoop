@@ -18,7 +18,7 @@ files = [
   {"copy" = {"from" = "${fixture}/../../core-library/default-data-flow.scoop", "to" = "${work}/core-source/src/user_default_data_flow.scoop"}},
   {"copy" = {"from" = "${fixture}/../../m23-reference-source-fields/standalone.scoop", "to" = "${work}/core-source/src/fields_standalone.scoop"}},
   {"copy" = {"from" = "${fixture}/../../m23-reference-source-fields/combined.scoop", "to" = "${work}/core-source/src/fields_combined.scoop"}},
-  {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = {"file" = "${fixture}/support/int-declaration.scoop"}, "new" = ""}},
+  {"replace" = {"path" = "${work}/core-source/src/integers_signed.scoop", "old" = {"file" = "${fixture}/support/int-declaration.scoop"}, "new" = ""}},
   {"concat" = {"path" = "${work}/core-source/src/hidden_int.scoop", "parts" = [{"file" = "${fixture}/support/int-prefix.scoop"}, {"file" = "${fixture}/support/int-declaration.scoop"}]}},
   {"copy" = {"from" = "${fixture}/support/bindings.scoop", "to" = "${work}/core-source/src/visible_bindings.scoop"}},
   {"replace" = {"path" = "${work}/core-source/src/types.scoop", "old" = "public typealias Int32 = Int\n", "new" = "public typealias Int32 = hidden.Int\n"}},
@@ -34,7 +34,7 @@ stderr = ""
 json = "stderr"
 diagnostics = []
 checks = [
-  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "0308f5dca80adcd2b76719a924d9f4b2d61f6e40eb6bf787217f652d14009340"},
+  {"actual" = "${core.result.root.artifact_fingerprint}", "equals" = "a3bde49d02deb8677edf1ba64efa6bbe7ba2b586247fe8f56a2b5e1d4389fdec"},
 ]
 
 [[steps]]

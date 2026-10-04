@@ -123,6 +123,8 @@ impl Lowerer {
                 }
             }
             kind @ (Kind::PtrFromNonZeroULong(_)
+            | Kind::CharCode(_)
+            | Kind::CharFromCodeUnchecked(_)
             | Kind::PtrToULong(_)
             | Kind::PtrCast(_)
             | Kind::PtrLoad { .. }
@@ -220,6 +222,7 @@ impl Lowerer {
                 owner: hir::StringConstantOwner::CurrentDefinition,
             },
             Kind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral((*value).into()),
+            Kind::CharLiteral(value) => hir::ExprKind::CharLiteral((*value).into()),
             Kind::BooleanLiteral(value) => hir::ExprKind::BoolLiteral((*value).into()),
             Kind::UnitLiteral => hir::ExprKind::UnitLiteral,
             Kind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(
@@ -255,6 +258,19 @@ impl Lowerer {
                 index: Box::new(self.materialize_imported_default_expression(index, context)?),
                 value: Box::new(self.materialize_imported_default_expression(value, context)?),
             },
+            Kind::ArrayGenerate { count, initializer } => {
+                self.prepare_array_size_exception_type().map_err(|error| {
+                    ImportedDefaultMaterializationError::Plan(
+                        error.diagnostic("array size exception type"),
+                    )
+                })?;
+                hir::ExprKind::ArrayGenerate {
+                    count: Box::new(self.materialize_imported_default_expression(count, context)?),
+                    initializer: Box::new(
+                        self.materialize_imported_default_expression(initializer, context)?,
+                    ),
+                }
+            }
             Kind::ArrayLen(array) => hir::ExprKind::ArrayLen(Box::new(
                 self.materialize_imported_default_expression(array, context)?,
             )),

@@ -372,6 +372,6 @@ runtime C 布局/GC 测试沿现有 harness 执行；M24 fixture 声明正常与
 
 ## 7. 后续边界
 
-M26 可以用该 hook 为 off-heap ByteBuffer 兜底，但仍须自行设计容量增长、失败原子性、borrow/view、字符/字节互转、显式 close 和外部内存压力反馈。若需要从 hook 扣减外部内存计数，只能在 M26 增加不请求 GC 的具体 native 操作；M24 不预建记账、配额或通用 release API。
+M26 已改为使用 GC 堆上的 List/MutableList/ArrayList 与 String parts，不依赖该 hook。off-heap ByteBuffer 留到后续另行设计容量增长、失败原子性、borrow/view、显式 close 和外部内存压力反馈；届时可使用 M24 hook 兜底释放。若需要从 hook 扣减外部内存计数，随 ByteBuffer 增加不请求 GC 的具体 native 操作；M24 不预建记账、配额或通用 release API。字符/字节快照互转仍由 M26 负责，见 [M26 设计](../milestone26/DESIGN.md)。
 
 full finalizer、对象复活、weak/phantom reference、异步 cleaner、线程亲和执行器、公开 arm/disarm、RAII/defer/using、自动 close 及 parallel/concurrent/generational GC 都不属于本里程碑。

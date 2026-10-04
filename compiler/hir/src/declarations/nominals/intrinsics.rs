@@ -5,6 +5,7 @@ use super::*;
 pub enum IntrinsicTypeKind {
     Integer(IntegerKind),
     Boolean,
+    Char,
     String,
     Array,
     MutableArray,
@@ -17,6 +18,7 @@ impl IntrinsicTypeKind {
         match self {
             Self::Integer(kind) => kind.intrinsic_name(),
             Self::Boolean => "core_boolean",
+            Self::Char => "core_char",
             Self::String => "core_string",
             Self::Array => "core_array",
             Self::MutableArray => "core_mutable_array",
@@ -29,6 +31,7 @@ impl IntrinsicTypeKind {
         match self {
             Self::Integer(kind) => kind.canonical_name(),
             Self::Boolean => "Boolean",
+            Self::Char => "Char",
             Self::String => "String",
             Self::Array => "Array",
             Self::MutableArray => "MutableArray",
@@ -39,7 +42,7 @@ impl IntrinsicTypeKind {
 
     pub const fn target(self) -> IntrinsicTypeTarget {
         match self {
-            Self::Integer(_) | Self::Boolean | Self::Ptr | Self::FunPtr => {
+            Self::Integer(_) | Self::Boolean | Self::Char | Self::Ptr | Self::FunPtr => {
                 IntrinsicTypeTarget::Struct
             }
             Self::String | Self::Array | Self::MutableArray => IntrinsicTypeTarget::Class,
@@ -48,7 +51,9 @@ impl IntrinsicTypeKind {
 
     pub const fn parameters(self) -> IntrinsicTypeParameters {
         match self {
-            Self::Integer(_) | Self::Boolean | Self::String => IntrinsicTypeParameters::None,
+            Self::Integer(_) | Self::Boolean | Self::Char | Self::String => {
+                IntrinsicTypeParameters::None
+            }
             Self::Array | Self::MutableArray => IntrinsicTypeParameters::OneInvariantUnconstrained,
             Self::Ptr => IntrinsicTypeParameters::OneInvariantValue,
             Self::FunPtr => IntrinsicTypeParameters::OneInvariantUnconstrained,
@@ -59,6 +64,7 @@ impl IntrinsicTypeKind {
         match (self, arguments) {
             (Self::Integer(kind), []) => IntrinsicTypeRepresentation::Integer(kind),
             (Self::Boolean, []) => IntrinsicTypeRepresentation::Boolean,
+            (Self::Char, []) => IntrinsicTypeRepresentation::Char,
             (Self::String, []) => IntrinsicTypeRepresentation::String,
             (Self::Array, [element]) => IntrinsicTypeRepresentation::Array { element: *element },
             (Self::MutableArray, [element]) => {
@@ -79,6 +85,7 @@ impl IntrinsicTypeKind {
 pub enum IntrinsicTypeRepresentation {
     Integer(IntegerKind),
     Boolean,
+    Char,
     String,
     Array { element: TypeId },
     MutableArray { element: TypeId },

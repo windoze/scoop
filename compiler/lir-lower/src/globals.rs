@@ -50,7 +50,13 @@ pub(super) fn lower_globals(
             mir::GlobalStorage::Managed { initial_state } => {
                 let lir_id = globals.alloc(lir::Global {
                     address_kind: lir::PointerKind::Raw,
-                    scan: safepoints::root_scan(context, &lir_type(&global.ty), structs, enums, 0)?,
+                    scan: safepoints::root_scan(
+                        context,
+                        &lir_type(module, &global.ty),
+                        structs,
+                        enums,
+                        0,
+                    )?,
                     init: lir::GlobalInit::Storage {
                         identity: static_storage_identity(
                             context,
@@ -66,7 +72,7 @@ pub(super) fn lower_globals(
                             &global.ty,
                             selected_layout,
                         )?,
-                        ty: lir_type(&global.ty),
+                        ty: lir_type(module, &global.ty),
                         initial_state: lower_static_initial_state(
                             initial_state,
                             enums,
@@ -91,7 +97,7 @@ pub(super) fn lower_globals(
                             enums,
                             global,
                         )?,
-                        ty: lir_type(&global.ty),
+                        ty: lir_type(module, &global.ty),
                         initializer: lower_constant_image(initializer, enums, string_globals),
                         thread_local: *thread_local,
                     },
@@ -287,6 +293,9 @@ pub(super) fn lower_constant_image(
     match value {
         mir::MirConstantImage::Integer(value) => {
             lir::LirConstantImage::Integer(integer_constant(*value))
+        }
+        mir::MirConstantImage::Char(value) => {
+            lir::LirConstantImage::Integer(lir::LirIntegerConstant::Signed32(*value as u32))
         }
         mir::MirConstantImage::Boolean(value) => lir::LirConstantImage::Bool(*value),
         mir::MirConstantImage::String(string) => lir::LirConstantImage::GlobalPointer {

@@ -105,7 +105,7 @@
   },
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "array indexing is not allowed in `@NoGC` code",
+    "message": "calling a managed dependency function is not allowed in `@NoGC` code",
     "notes": [],
     "origin": {
       "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",

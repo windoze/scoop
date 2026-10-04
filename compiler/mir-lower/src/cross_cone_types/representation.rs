@@ -19,6 +19,14 @@ pub(super) fn project(
         (mir::Type::Integer(kind), Source::Intrinsic { .. }) => {
             Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Integer(*kind))
         }
+        (mir::Type::Struct(id), Source::Intrinsic { .. })
+            if matches!(
+                module.structs[*id].representation,
+                mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+            ) =>
+        {
+            Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Char)
+        }
         (mir::Type::Boolean, Source::Intrinsic { .. }) => {
             Repr::Intrinsic(mir::MirParamFreeIntrinsicV1::Boolean)
         }

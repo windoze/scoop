@@ -150,7 +150,9 @@ impl MirTypeBridgeAuthority<'_> {
                     ) | (
                         SourceDeclarationKind::Struct,
                         MirTypeRepresentationV1::Intrinsic(
-                            MirParamFreeIntrinsicV1::Integer(_) | MirParamFreeIntrinsicV1::Boolean
+                            MirParamFreeIntrinsicV1::Integer(_)
+                                | MirParamFreeIntrinsicV1::Char
+                                | MirParamFreeIntrinsicV1::Boolean
                         )
                     ) | (
                         SourceDeclarationKind::Class,
@@ -239,7 +241,9 @@ impl MirTypeBridgeAuthority<'_> {
         let valid = match record.representation() {
             Repr::Intrinsic(MirParamFreeIntrinsicV1::Unit) => facts.kind() == Kind::ZeroSizedValue,
             Repr::Intrinsic(
-                MirParamFreeIntrinsicV1::Integer(_) | MirParamFreeIntrinsicV1::Boolean,
+                MirParamFreeIntrinsicV1::Integer(_)
+                | MirParamFreeIntrinsicV1::Char
+                | MirParamFreeIntrinsicV1::Boolean,
             ) => facts.kind() == Kind::NonZeroValue && facts.gc() == MirGcKindV1::GcFree,
             Repr::Intrinsic(MirParamFreeIntrinsicV1::String)
             | Repr::Class { .. }

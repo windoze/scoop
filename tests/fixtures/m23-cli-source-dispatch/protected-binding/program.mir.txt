@@ -190,6 +190,11 @@ Module
       val $dependency.local.5: Long
         Type Long
         Local $dependency.local.4
+      call $dependency.local.9: Long = external4 direct
+        Type Vault
+        Local $dependency.local.3
+        Type Long
+        Local $dependency.local.5
       val $dependency.local.6: Vault
         Type Vault
         Local this
@@ -199,27 +204,25 @@ Module
       val $dependency.local.8: Argument
         Type Argument
         Local $dependency.local.7
-      call $call.1: Long = external4 direct
-        Type Vault
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.5
-      call $call.2: Argument = @fn3 direct
+      call $dependency.local.10: Argument = @fn3 direct
         Type Vault
         Local $dependency.local.6
         Type Argument
         Local $dependency.local.8
+      val $dependency.local.11: Int
+        Type Int
+        FieldAccess 0
+          Type Vault
+          Local this
       return
         Type (Long, Argument, Int)
         TupleLiteral
           Type Long
-          Local $call.1
+          Local $dependency.local.9
           Type Argument
-          Local $call.2
+          Local $dependency.local.10
           Type Int
-          FieldAccess 0
-            Type Vault
-            Local this
+          Local $dependency.local.11
   fun preserve @fn3(this: Vault, value: Argument) -> Argument
     bb0 entry
       return

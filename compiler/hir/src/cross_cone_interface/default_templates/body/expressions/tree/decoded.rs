@@ -44,6 +44,7 @@ enum DecodedDefaultExpressionKindV1 {
     },
     IntegerLiteral(CanonicalIntegerConstantV1),
     BooleanLiteral(CanonicalBooleanV1),
+    CharLiteral(crate::CanonicalCharV1),
     UnitLiteral,
     TupleLiteral(Vec<DecodedDefaultExpressionV1>),
     StructInit {
@@ -85,6 +86,8 @@ enum DecodedDefaultExpressionKindV1 {
     },
     PtrFromNonZeroULong(Box<DecodedDefaultExpressionV1>),
     PtrToULong(Box<DecodedDefaultExpressionV1>),
+    CharCode(Box<DecodedDefaultExpressionV1>),
+    CharFromCodeUnchecked(Box<DecodedDefaultExpressionV1>),
     PtrCast(Box<DecodedDefaultExpressionV1>),
     PtrLoad {
         pointer: Box<DecodedDefaultExpressionV1>,
@@ -143,6 +146,10 @@ enum DecodedDefaultExpressionKindV1 {
         optional: CanonicalBooleanV1,
     },
     ArrayLiteral(Vec<DecodedDefaultExpressionV1>),
+    ArrayGenerate {
+        count: Box<DecodedDefaultExpressionV1>,
+        initializer: Box<DecodedDefaultExpressionV1>,
+    },
     ArrayAssembly(DecodedDefaultArrayAssemblyV1),
     Index {
         access: DefaultArrayAccessKindV1,

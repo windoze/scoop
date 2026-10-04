@@ -91,6 +91,7 @@ pub enum PropertyRepresentation {
 pub enum ConstPropertyValue {
     Integer(HirIntegerConstant),
     Boolean(bool),
+    Char(char),
     String(String),
 }
 

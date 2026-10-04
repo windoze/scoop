@@ -10,14 +10,20 @@ impl Lowerer {
             hir::ClassRepresentation::Intrinsic(_)
         ) {
             for member in &decl.members {
-                if !matches!(member, ast::ClassMember::Function(_)) {
-                    self.error(
-                        member.span(),
-                        "an intrinsic class cannot declare stored properties, init blocks, or constructors"
-                            .into(),
-                    );
+                let valid = match member {
+                    ast::ClassMember::Function(_)
+                    | ast::ClassMember::Nested(_)
+                    | ast::ClassMember::Companion(_) => true,
+                    ast::ClassMember::StoredProperty(property) => {
+                        matches!(property.body, ast::PropertyBodySyntax::Computed(_))
+                    }
+                    _ => false,
+                };
+                if !valid {
+                    self.error(member.span(), "an intrinsic class cannot declare stored properties, init blocks, or constructors".into());
                 }
             }
+            self.resolve_class_properties(id, decl, &mut std::collections::HashSet::new(), true);
             let interfaces = self.resolve_supertype_interface_list(&decl.supertypes);
             self.classes[id].interfaces = interfaces;
             self.type_params_in_scope.clear();
@@ -76,42 +82,7 @@ impl Lowerer {
             }
             parameter_calling.push(calling);
         }
-        for property in decl.members.iter().filter_map(|member| match member {
-            ast::ClassMember::StoredProperty(property) => Some(property),
-            _ => None,
-        }) {
-            if !field_names.insert(property.name.text.clone()) {
-                self.error(
-                    property.name.span,
-                    format!(
-                        "duplicate field `{}` in class `{}`",
-                        property.name.text, decl.name.text
-                    ),
-                );
-                continue;
-            }
-            let Some(ty) = self.resolve_type_ref(&property.ty) else {
-                continue;
-            };
-            let slot_access = if property.is_override {
-                crate::visibility::MemberSlotAccess::Override
-            } else if property.modifier != ast::MethodModifier::Final {
-                crate::visibility::MemberSlotAccess::Declared
-            } else {
-                crate::visibility::MemberSlotAccess::None
-            };
-            let access = self.member_access(
-                property.visibility,
-                property.name.span,
-                "property",
-                Owner::Class(id),
-                self.current_file,
-                slot_access,
-            );
-            if let Some(field) = self.allocate_class_property(id, property, ty, access) {
-                fields.push(field);
-            }
-        }
+        fields.extend(self.resolve_class_properties(id, decl, &mut field_names, false));
         self.classes[id].representation = hir::ClassRepresentation::Declared;
         self.classes[id].fields = fields;
         let has_explicit_primary = !decl.constructor.is_omitted();
@@ -326,5 +297,54 @@ impl Lowerer {
             }
         }
         interfaces
+    }
+    fn resolve_class_properties(
+        &mut self,
+        id: ClassId,
+        decl: &ast::ClassDecl,
+        field_names: &mut std::collections::HashSet<String>,
+        intrinsic: bool,
+    ) -> Vec<hir::ClassFieldId> {
+        let mut fields = Vec::new();
+        for property in decl.members.iter().filter_map(|member| match member {
+            ast::ClassMember::StoredProperty(property) => Some(property),
+            _ => None,
+        }) {
+            if intrinsic && !matches!(property.body, ast::PropertyBodySyntax::Computed(_)) {
+                continue;
+            }
+            if !field_names.insert(property.name.text.clone()) {
+                self.error(
+                    property.name.span,
+                    format!(
+                        "duplicate field `{}` in class `{}`",
+                        property.name.text, decl.name.text
+                    ),
+                );
+                continue;
+            }
+            let Some(ty) = self.resolve_type_ref(&property.ty) else {
+                continue;
+            };
+            let slot_access = if property.is_override {
+                crate::visibility::MemberSlotAccess::Override
+            } else if property.modifier != ast::MethodModifier::Final {
+                crate::visibility::MemberSlotAccess::Declared
+            } else {
+                crate::visibility::MemberSlotAccess::None
+            };
+            let access = self.member_access(
+                property.visibility,
+                property.name.span,
+                "property",
+                Owner::Class(id),
+                self.current_file,
+                slot_access,
+            );
+            if let Some(field) = self.allocate_class_property(id, property, ty, access) {
+                fields.push(field);
+            }
+        }
+        fields
     }
 }

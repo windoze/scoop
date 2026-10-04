@@ -119,6 +119,14 @@ impl<'a> Projection<'a> {
                 }
                 Ok(())
             }
+            (Kind::Intrinsic(Intrinsic::Char), mir::Type::Struct(id))
+                if matches!(
+                    self.module.structs[*id].representation,
+                    mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+                ) =>
+            {
+                Ok(())
+            }
             (Kind::Intrinsic(Intrinsic::Unit), mir::Type::Unit)
             | (Kind::Intrinsic(Intrinsic::Boolean), mir::Type::Boolean)
             | (Kind::Intrinsic(Intrinsic::String), mir::Type::String)

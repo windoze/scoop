@@ -10,6 +10,13 @@ impl<'a> CfgLowerer<'a> {
             smir::ExprKind::MachineScalarLiteral(value) => {
                 mir::ExprKind::MachineScalarLiteral(*value)
             }
+            smir::ExprKind::CharLiteral(value) => mir::ExprKind::CharLiteral(*value),
+            smir::ExprKind::CharCode(value) => {
+                mir::ExprKind::CharCode(Box::new(self.lower_expr(value, span)))
+            }
+            smir::ExprKind::CharFromCodeUnchecked(value) => {
+                mir::ExprKind::CharFromCodeUnchecked(Box::new(self.lower_expr(value, span)))
+            }
             smir::ExprKind::BoolLiteral(value) => mir::ExprKind::BoolLiteral(*value),
             smir::ExprKind::UnitLiteral => mir::ExprKind::UnitLiteral,
             smir::ExprKind::TupleLiteral(elements) => mir::ExprKind::TupleLiteral(
@@ -222,6 +229,10 @@ impl<'a> CfgLowerer<'a> {
             smir::ExprKind::IsInstance { operand, check_ty } => mir::ExprKind::IsInstance {
                 operand: Box::new(self.lower_expr(operand, span)),
                 check_ty: check_ty.clone(),
+            },
+            smir::ExprKind::ArrayAllocate { array_type, count } => mir::ExprKind::ArrayAllocate {
+                array_type: *array_type,
+                count: Box::new(self.lower_expr(count, span)),
             },
             smir::ExprKind::ArrayLiteral {
                 array_type,

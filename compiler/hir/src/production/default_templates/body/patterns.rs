@@ -66,6 +66,7 @@ impl BodyProjection<'_, '_> {
         equality: LiteralPatternEquality,
     ) -> Result<DefaultLiteralEqualityV1, super::super::DefaultBodyProjectionError> {
         Ok(match equality {
+            LiteralPatternEquality::Char => DefaultLiteralEqualityV1::Char,
             LiteralPatternEquality::Integer { kind } => {
                 DefaultLiteralEqualityV1::Integer { kind: kind.into() }
             }

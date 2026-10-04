@@ -6,18 +6,19 @@ Module
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Option niche(kind=managed,payload_variant=0)
   enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   enum Option niche(kind=raw,payload_variant=0)
   enum Option niche(kind=code,payload_variant=0)
-  fun @scoop$1$cb$a98cb318573d51f85aa9ef80db0694057754b07455bbb3e34f001b32e423f84e(indirect<enum1 size=16 align=8 scan=none>, i32) -> i32
-    local %0 $opt.0: enum1
+  fun @scoop$1$cb$a98cb318573d51f85aa9ef80db0694057754b07455bbb3e34f001b32e423f84e(indirect<enum2 size=16 align=8 scan=none>, i32) -> i32
+    local %0 $opt.0: enum2
     local %1 $res.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
-    t0 = variant_test e1 v0 local0 : i1
+    t0 = variant_test e2 v0 local0 : i1
     cbr t0 then @if.then.1 else @if.else.2
   block if.then.1
-    t1 = variant_payload_project e1 v0 f0 local0 : i32
+    t1 = variant_payload_project e2 v0 f0 local0 : i32
     store t1 -> local1
     br @if.merge.3
   block if.else.2
@@ -42,17 +43,17 @@ Module
     br @if.merge.3
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$25b005255d9577fab30e4a3f3733edab2624642aa58304f85f5c4581184cf4ce(enum2) -> ptr<raw>
-    local %0 $opt.1: enum2
+  fun @scoop$1$cb$25b005255d9577fab30e4a3f3733edab2624642aa58304f85f5c4581184cf4ce(enum3) -> ptr<raw>
+    local %0 $opt.1: enum3
     local %1 $uw.2: ptr<raw>
     local %2 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store param0 -> local0
-    t0 = variant_test e2 v0 local0 : i1
+    t0 = variant_test e3 v0 local0 : i1
     cbr t0 then @if.then.1 else @if.else.2
   block if.then.1
-    t1 = variant_payload_project e2 v0 f0 local0 : ptr<raw>
+    t1 = variant_payload_project e3 v0 f0 local0 : ptr<raw>
     store t1 -> local1
     br @if.merge.3
   block if.else.2
@@ -64,17 +65,17 @@ Module
     unreachable
   block if.merge.3
     ret local1
-  fun @scoop$1$cb$72d8dfa89b71310f8438b0461ad59c0b7523f0bc3fefc1122e9e3efa3b97acb9(enum3) -> ptr<code>
-    local %0 $opt.1: enum3
+  fun @scoop$1$cb$72d8dfa89b71310f8438b0461ad59c0b7523f0bc3fefc1122e9e3efa3b97acb9(enum4) -> ptr<code>
+    local %0 $opt.1: enum4
     local %1 $uw.2: ptr<code>
     local %2 $new.1: ptr<managed>
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
     store param0 -> local0
-    t0 = variant_test e3 v0 local0 : i1
+    t0 = variant_test e4 v0 local0 : i1
     cbr t0 then @if.then.1 else @if.else.2
   block if.then.1
-    t1 = variant_payload_project e3 v0 f0 local0 : ptr<code>
+    t1 = variant_payload_project e4 v0 f0 local0 : ptr<code>
     store t1 -> local1
     br @if.merge.3
   block if.else.2
@@ -89,9 +90,9 @@ Module
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 $dependency.argument.0: i32
     local %1 $dependency.parameter._1: i32
-    local %2 $argument.0: enum1
+    local %2 $argument.0: enum2
     local %3 $argument.1: i32
-    local %4 $parameter.value: enum1
+    local %4 $parameter.value: enum2
     local %5 $parameter.fallback: i32
     local %6 $dependency.argument.0: i32
     local %7 $dependency.parameter.value: i32
@@ -103,18 +104,18 @@ Module
     local %13 $parameter.fallback: ptr<managed>
     local %14 $dependency.argument.0: ptr<managed>
     local %15 $dependency.parameter.value: ptr<managed>
-    local %16 $sc.1: enum1
+    local %16 $sc.1: enum2
   block entry
     poll managed-void-target2 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000029) -> local0
     store local0 -> local1
-    t0 = enum_wrap e1 v0 (local1) : enum1
+    t0 = enum_wrap e2 v0 (local1) : enum2
     store t0 -> local2
     store integer<Int>(0x00000000) -> local3
     store local2 -> local4
     store local3 -> local5
     store local4 -> local16
-    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (indirect<enum1 size=16 align=8 scan=none>, i32) -> i32 local-fn0(indirect local16, local5)
+    call managed-direct-target0 sp<managed-call:0> live=[] t1 = sig=direct0 (indirect<enum2 size=16 align=8 scan=none>, i32) -> i32 local-fn0(indirect local16, local5)
     store t1 -> local6
     store local6 -> local7
     call managed-void-target0 sp<managed-call:1> live=[] sig=void0 (i32) local-fn5(local7)
@@ -184,12 +185,18 @@ Module
     global_store global4, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$99105b2fcc5c078d010bbcc6eb646fc28da5b9a4b54d1154614fd6786521a572 type-id=2541775214623186241 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[x(c;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9baa9c4e640bfa7caed8b9c1c9ed562267e7a439ac3749a4144c0e5ee5a3b463 type-id=13769363773206174195 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9d572fb7b6764129002a75b480deee5a0cda74232de03f5e6f9c4d461dcd7c6b type-id=6459035658027077739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$99105b2fcc5c078d010bbcc6eb646fc28da5b9a4b54d1154614fd6786521a572 type-id=2541775214623186241 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[x(c;[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9baa9c4e640bfa7caed8b9c1c9ed562267e7a439ac3749a4144c0e5ee5a3b463 type-id=13769363773206174195 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td4 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[r(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int))]) @scoop$1$td$9d572fb7b6764129002a75b480deee5a0cda74232de03f5e6f9c4d461dcd7c6b type-id=6459035658027077739 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)]) @scoop$1$td$ae549cdc775dd9ab0e9bae5a7a2d6790f211d7978acd71210d6088d347896a35 type-id=12995891512699415417 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Option size=8 align=8 enum-scan=refs[0]
+  layout Option size=16 align=8 enum-scan=none
   layout Option size=16 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=none
   layout Option size=8 align=8 enum-scan=none
+  layout Iterable value size=8 align=8 refs=[0]
+  layout Iterator value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

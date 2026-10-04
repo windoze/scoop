@@ -51,6 +51,14 @@ pub(crate) fn ref_scan(
         | mir::Type::Interface(_)
         | mir::Type::Function(_)
         | mir::Type::Any => lir::RefScan::References(vec![base]),
+        mir::Type::Struct(id)
+            if matches!(
+                module.structs[*id].representation,
+                mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+            ) =>
+        {
+            lir::RefScan::None
+        }
         mir::Type::Struct(id) => {
             let fields: Vec<mir::Type> = module.structs[*id]
                 .declared_fields()

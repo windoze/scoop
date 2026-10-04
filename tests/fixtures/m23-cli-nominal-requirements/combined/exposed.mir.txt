@@ -135,21 +135,24 @@ Module
             Local other
   fun Factory.observe @fn2(this: Factory) -> (Int, String)
     bb0 entry
+      val $aggregate.0: Int
+        Type Int
+        FieldAccess 0
+          Type Factory
+          Local this
       val $receiver: Factory
         Type Factory
         Local this
-      call $call.1: String = @fn3 virtual[0]
+      call $aggregate.1: String = @fn3 virtual[0]
         Type Factory
         Local $receiver
       return
         Type (Int, String)
         TupleLiteral
           Type Int
-          FieldAccess 0
-            Type Factory
-            Local this
+          Local $aggregate.0
           Type String
-          Local $call.1
+          Local $aggregate.1
   fun Factory.protectedValue @fn3(this: Factory) -> String
     bb0 entry
       return

@@ -4,8 +4,23 @@ use super::{dump_block, dump_pattern, dump_type_ref};
 pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
     let pad = "  ".repeat(indent);
     match expr {
+        Expr::CharLiteral { value, .. } => out.push_str(&format!("{pad}CharLiteral {value:?}\n")),
         Expr::StringLiteral { value, .. } => {
             out.push_str(&format!("{pad}StringLiteral {value:?}\n"));
+        }
+        Expr::InterpolatedString { parts, .. } => {
+            out.push_str(&format!("{pad}InterpolatedString\n"));
+            for part in parts {
+                match part {
+                    StringPart::Text { value, .. } => {
+                        out.push_str(&format!("{pad}  Text {value:?}\n"));
+                    }
+                    StringPart::Expression { value, .. } => {
+                        out.push_str(&format!("{pad}  Expression\n"));
+                        dump_expr(value, indent + 2, out);
+                    }
+                }
+            }
         }
         Expr::IntLiteral(literal) => out.push_str(&format!("{pad}IntLiteral {literal}\n")),
         Expr::BoolLiteral { value, .. } => out.push_str(&format!("{pad}BoolLiteral {value}\n")),

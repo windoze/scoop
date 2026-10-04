@@ -44,6 +44,7 @@ pub(super) fn instruction_uses(
         }
         | lir::Instruction::BeginCatch { raw: operand, .. }
         | lir::Instruction::Throw { exception: operand }
+        | lir::Instruction::ArrayAllocDynamic { count: operand, .. }
         | lir::Instruction::ArrayLen { operand, .. }
         | lir::Instruction::ArrayClone { operand, .. }
         | lir::Instruction::EnumTag { operand, .. }
@@ -161,6 +162,7 @@ pub(super) fn instruction_defs(instruction: &lir::Instruction) -> Vec<LiveValue>
         | lir::Instruction::PtrOffset { out, .. }
         | lir::Instruction::LocalAddress { out, .. }
         | lir::Instruction::BeginCatch { out, .. }
+        | lir::Instruction::ArrayAllocDynamic { out, .. }
         | lir::Instruction::ArrayAlloc { out, .. }
         | lir::Instruction::ArrayAssembly { out, .. }
         | lir::Instruction::ArrayLen { out, .. }

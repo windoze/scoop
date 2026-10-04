@@ -2,6 +2,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<MovingError>
     Completed(value: MovingError)
     Suspended()
@@ -15,11 +18,13 @@ Module
   class IllegalStateException vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<MovingError>
   interface SuspendTask<MovingError>
   interface SuspendRegistration<MovingError>
-  generated_exact_type get0 location=enum1 nominal_id=a3c4a2a8f06e7438cd4d29bdf9e0ad887d91e2335d08c1976acdc56b5fec9bb9 exact_id=185b0e7a73d60626470731e3200bea286785e066d1091894dc3f116627f3cc92
-  generated_exact_type get1 location=enum2 nominal_id=67425907c3cfcd1f82c95442478b508973fb11965c5c242c6e2cadd8d81995c7 exact_id=e2ddb443b4d05437588707a3e18edac0ff19e279f01322099f8bec44e10ba3ad
+  generated_exact_type get0 location=enum2 nominal_id=a3c4a2a8f06e7438cd4d29bdf9e0ad887d91e2335d08c1976acdc56b5fec9bb9 exact_id=185b0e7a73d60626470731e3200bea286785e066d1091894dc3f116627f3cc92
+  generated_exact_type get1 location=enum3 nominal_id=67425907c3cfcd1f82c95442478b508973fb11965c5c242c6e2cadd8d81995c7 exact_id=e2ddb443b4d05437588707a3e18edac0ff19e279f01322099f8bec44e10ba3ad
   generated_callable gc0 function=@fn8 id=ff0903122bfd24f3e9d7396e0e757c15e7f38273e1b049748f44ed0386d28cc1
   fun failWithMovingPayload @fn0() -> Unit
     bb0 entry

@@ -142,57 +142,8 @@ impl<'ctx> FnEmitter<'_, 'ctx> {
                     total = next_total;
                 }
 
-                let exceeds_layout = builder
-                    .build_int_compare(
-                        IntPredicate::UGT,
-                        total,
-                        i64_ty.const_int(layout.maximum_count(), false),
-                        "assembly_bytes_overflow",
-                    )
-                    .map_err(|error| {
-                        CodegenError(format!("array allocation size check: {error}"))
-                    })?;
-                self.array_size_check(exceeds_layout, *overflow_message, "assembly.size.bytes.ok")?;
-                let total_bytes = match layout.storage().kind() {
-                    scoop_lir::ArrayElementStorageKindV1::ZeroSized { .. } => {
-                        i64_ty.const_int(layout.instance().minimum_size(), false)
-                    }
-                    scoop_lir::ArrayElementStorageKindV1::Inline { stride, .. } => {
-                        let bytes = builder
-                            .build_int_mul(
-                                total,
-                                i64_ty.const_int(stride.get(), false),
-                                "assembly_element_bytes",
-                            )
-                            .and_then(|bytes| {
-                                builder.build_int_add(
-                                    bytes,
-                                    i64_ty.const_int(layout.instance().inline_offset(), false),
-                                    "assembly_total_bytes",
-                                )
-                            })
-                            .map_err(|error| {
-                                CodegenError(format!("array allocation bytes: {error}"))
-                            })?;
-                        let mask = layout.instance().instance_alignment() - 1;
-                        builder
-                            .build_int_add(
-                                bytes,
-                                i64_ty.const_int(mask, false),
-                                "assembly_size_round",
-                            )
-                            .and_then(|bytes| {
-                                builder.build_and(
-                                    bytes,
-                                    i64_ty.const_int(!mask, false),
-                                    "assembly_aligned_size",
-                                )
-                            })
-                            .map_err(|error| {
-                                CodegenError(format!("array allocation alignment: {error}"))
-                            })?
-                    }
-                };
+                let total_bytes =
+                    self.checked_array_allocation_size(&layout, total, *overflow_message)?;
                 let safepoint = self.safepoint_id(*safepoint);
                 let live = self.materialize_statepoint_live(live, safepoint)?;
                 let array =

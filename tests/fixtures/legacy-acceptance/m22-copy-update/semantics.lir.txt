@@ -15,6 +15,7 @@ Module
   global @scoop$1$io$5f21604d2e4e126b3ec45d6462f3d27156b8da96e7b690422f6f233dc3e56888 = "\n"
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop$1$cb$40ce5a5a1f0abe817ba9cee30a01bd4714a7d92efe53a3c7d09dba3b6852a842(ptr<managed>, i32) -> i32
     local %0 $dependency.argument.0: ptr<managed>
     local %1 $dependency.parameter.value: ptr<managed>
@@ -311,7 +312,7 @@ Module
     t27 = aggregate () : {}
     store global11 -> local70
     store local70 -> local71
-    call managed-direct-target5 sp<managed-call:16> live=[local71:ptr<managed>@0] t28 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target5 sp<managed-call:16> live=[local71:ptr<managed>@0] t28 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(24)))
     store t28 -> local84
     call managed-void-target10 sp<managed-call:17> live=[local71:ptr<managed>@0, local84:ptr<managed>@0] sig=void10 (ptr<managed>, ptr<managed>) local-fn9(local84, local71)
     t29 = aggregate () : {}
@@ -322,7 +323,7 @@ Module
     store local74 -> local75
     store global12 -> local76
     store local76 -> local77
-    call managed-direct-target6 sp<managed-call:18> live=[local74:struct4@0, local77:ptr<managed>@0] t30 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target6 sp<managed-call:18> live=[local74:struct4@0, local77:ptr<managed>@0] t30 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td2, machine<byte-size>(ByteSize(24)))
     store t30 -> local85
     call managed-void-target11 sp<managed-call:19> live=[local74:struct4@0, local77:ptr<managed>@0, local85:ptr<managed>@0] sig=void11 (ptr<managed>, ptr<managed>) local-fn9(local85, local77)
     t31 = aggregate () : {}
@@ -419,17 +420,23 @@ Module
     global_store global15, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Token) @scoop$1$td$0afb6a711ab769fa0cd661dbbf97bd826d209df6a09a39274ee8e72602640f66 type-id=6847344543245664243 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=Stamped) @scoop$1$td$1c1e7336a6db01bfc21332554233ef9c986f1e90c176f332e444d3306e270a24 type-id=4401630507986590729 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td2 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=ManagedValue) @scoop$1$td$38c9b7b4c188882ea4485962607b001b8cd90548e6a64ea873fe8e434c42ab0a type-id=9656429426427915626 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td3 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=Point) @scoop$1$td$84c8b8d46a8c3f312eb93fdf7c5d589cad69e5d5b2ae3fa2d8b69018a5d64433 type-id=3856548906603048830 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
-  td td4 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NamedEvent) @scoop$1$td$ba31d1aefecafe781a3be8695590a0ded7c56b4017a41d3110a916b32b7f6267 type-id=11310592547722206454 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td5 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=ConstructorEvent) @scoop$1$td$e2b80f756ab2ce60c6ec0c77eb73647a1d3a0ab34e58ec19445b59fa66e7e539 type-id=557627010363350874 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=C;x=Token) @scoop$1$td$0afb6a711ab769fa0cd661dbbf97bd826d209df6a09a39274ee8e72602640f66 type-id=6847344543245664243 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td3 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=Stamped) @scoop$1$td$1c1e7336a6db01bfc21332554233ef9c986f1e90c176f332e444d3306e270a24 type-id=4401630507986590729 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td4 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=ManagedValue) @scoop$1$td$38c9b7b4c188882ea4485962607b001b8cd90548e6a64ea873fe8e434c42ab0a type-id=9656429426427915626 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td5 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=Point) @scoop$1$td$84c8b8d46a8c3f312eb93fdf7c5d589cad69e5d5b2ae3fa2d8b69018a5d64433 type-id=3856548906603048830 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td6 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=NamedEvent) @scoop$1$td$ba31d1aefecafe781a3be8695590a0ded7c56b4017a41d3110a916b32b7f6267 type-id=11310592547722206454 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td7 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td8 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=ConstructorEvent) @scoop$1$td$e2b80f756ab2ce60c6ec0c77eb73647a1d3a0ab34e58ec19445b59fa66e7e539 type-id=557627010363350874 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Point size=8 align=4 refs=[]
   layout Stamped size=16 align=8 refs=[8]
   layout NamedEvent size=16 align=8 refs=[8]
   layout ConstructorEvent size=16 align=8 refs=[8]
   layout ManagedValue size=8 align=8 refs=[0]
+  layout Option size=16 align=8 enum-scan=none
+  layout Iterable value size=8 align=8 refs=[0]
+  layout Iterator value size=8 align=8 refs=[0]
   layout Token value size=8 align=8 refs=[0]
   layout Token size=24 align=8 refs=[16]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

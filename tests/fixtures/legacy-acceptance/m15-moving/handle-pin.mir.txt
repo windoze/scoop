@@ -4,6 +4,9 @@ Module
   enum Option<String>
     Some(_0: String)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum CoroutineStep<MovingResource>
     Completed(value: MovingResource)
     Suspended()
@@ -16,11 +19,13 @@ Module
   class Throwable vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface Continuation<MovingResource>
   interface SuspendTask<MovingResource>
   interface SuspendRegistration<MovingResource>
-  generated_exact_type get0 location=enum1 nominal_id=8f8003a17ab4228ecf5b1ee695385ad3bbd3702d1ae64c117e3027f1cd74e686 exact_id=21a98c1e39297c9f86b536c7e0bdfd50c333547fcc821b22b5361934b35e0b9d
-  generated_exact_type get1 location=enum2 nominal_id=ef2dd334ba201e5a6f22b025785f42dcbd23ab15c4b9e98e22b6916a72de3b61 exact_id=bac2a2aab181538c61f2c44464eb11ecba6ded10b210819ef39f41d877de0be3
+  generated_exact_type get0 location=enum2 nominal_id=8f8003a17ab4228ecf5b1ee695385ad3bbd3702d1ae64c117e3027f1cd74e686 exact_id=21a98c1e39297c9f86b536c7e0bdfd50c333547fcc821b22b5361934b35e0b9d
+  generated_exact_type get1 location=enum3 nominal_id=ef2dd334ba201e5a6f22b025785f42dcbd23ab15c4b9e98e22b6916a72de3b61 exact_id=bac2a2aab181538c61f2c44464eb11ecba6ded10b210819ef39f41d877de0be3
   generated_callable gc0 function=@fn14 id=36a9052876983aa4f7e26913b19de769225925ea8316eda5c13a7172eec2ba21
   fun main @fn0() -> Unit
     bb0 entry

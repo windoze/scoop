@@ -19,13 +19,10 @@ fn if_and_when_parse_in_expression_position() {
 }
 
 #[test]
-fn string_interpolation_not_supported() {
-    let (span, message) = err("fun main() {\n    val s = f\"x {y}\"\n}\n");
-    assert_eq!(span, Span::new(25, 26));
-    assert_eq!(
-        message,
-        "string interpolation is not supported yet (milestone M3)"
-    );
+fn string_interpolation_requires_braces() {
+    let (span, message) = err("fun main() {\n    val s = f\"x $y\"\n}\n");
+    assert_eq!(span, Span::new(29, 31));
+    assert_eq!(message, "`$y` interpolation requires braces; use `${y}`");
 }
 
 #[test]

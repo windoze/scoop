@@ -360,13 +360,22 @@ Module
       val $dependency.local.11: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      call $dependency.local.19: Int = @fn9 direct
+        Type Box<Int>
+        Local $dependency.local.6
+        Type Int
+        Local $dependency.local.9
+        Type Argument
+        Local $dependency.local.10
+        Type Int
+        Local $dependency.local.11
       val $dependency.local.12: Box<Int>
         Type Box<Int>
         Local this
       val $dependency.local.13: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-      call $dependency.local.16: Int = @fn9 direct
+      call $dependency.local.16: Int = @fn10 direct
         Type Box<Int>
         Local $dependency.local.12
         Type Int
@@ -377,7 +386,7 @@ Module
       val $dependency.local.15: Int
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-      call $dependency.local.17: Int = @fn10 direct
+      call $dependency.local.17: Int = @fn11 direct
         Type Box<Int>
         Local $dependency.local.14
         Type Int
@@ -385,26 +394,20 @@ Module
       val $dependency.local.18: Int
         Type Int
         Local $dependency.local.17
-      call $call.1: Int = @fn11 direct
-        Type Box<Int>
-        Local $dependency.local.6
+      val $dependency.local.20: Int
         Type Int
-        Local $dependency.local.9
-        Type Argument
-        Local $dependency.local.10
-        Type Int
-        Local $dependency.local.11
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.16
+          Type Int
+          Local $dependency.local.18
       return
         Type (Int, Int)
         TupleLiteral
           Type Int
-          Local $call.1
+          Local $dependency.local.19
           Type Int
-          IntegerBinary add kind=Int
-            Type Int
-            Local $dependency.local.16
-            Type Int
-            Local $dependency.local.18
+          Local $dependency.local.20
   fun inspect @fn7(this: Box<String>, value: String, other: Argument) -> (String, Int)
     bb0 entry
       val $dependency.local.6: Box<String>
@@ -436,13 +439,22 @@ Module
       val $dependency.local.11: Int
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
+      call $dependency.local.19: String = @fn13 direct
+        Type Box<String>
+        Local $dependency.local.6
+        Type String
+        Local $dependency.local.9
+        Type Argument
+        Local $dependency.local.10
+        Type Int
+        Local $dependency.local.11
       val $dependency.local.12: Box<String>
         Type Box<String>
         Local this
       val $dependency.local.13: Int
         Type Int
         IntegerLiteral Int value=3 bits=0x00000003
-      call $dependency.local.16: Int = @fn13 direct
+      call $dependency.local.16: Int = @fn14 direct
         Type Box<String>
         Local $dependency.local.12
         Type Int
@@ -453,7 +465,7 @@ Module
       val $dependency.local.15: Int
         Type Int
         IntegerLiteral Int value=4 bits=0x00000004
-      call $dependency.local.17: Int = @fn14 direct
+      call $dependency.local.17: Int = @fn15 direct
         Type Box<String>
         Local $dependency.local.14
         Type Int
@@ -461,42 +473,36 @@ Module
       val $dependency.local.18: Int
         Type Int
         Local $dependency.local.17
-      call $call.1: String = @fn15 direct
-        Type Box<String>
-        Local $dependency.local.6
-        Type String
-        Local $dependency.local.9
-        Type Argument
-        Local $dependency.local.10
+      val $dependency.local.20: Int
         Type Int
-        Local $dependency.local.11
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.local.16
+          Type Int
+          Local $dependency.local.18
       return
         Type (String, Int)
         TupleLiteral
           Type String
-          Local $call.1
+          Local $dependency.local.19
           Type Int
-          IntegerBinary add kind=Int
-            Type Int
-            Local $dependency.local.16
-            Type Int
-            Local $dependency.local.18
+          Local $dependency.local.20
   fun take @fn8(this: Box<Int>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun hidden @fn9(this: Box<Int>, value: Int) -> Int
+  fun combine @fn9(this: Box<Int>, value: Int, other: Argument, count: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun inherited @fn10(this: Box<Int>, value: Int) -> Int
+  fun hidden @fn10(this: Box<Int>, value: Int) -> Int
     bb0 entry
       return
         Type Int
         Local value
-  fun combine @fn11(this: Box<Int>, value: Int, other: Argument, count: Int) -> Int
+  fun inherited @fn11(this: Box<Int>, value: Int) -> Int
     bb0 entry
       return
         Type Int
@@ -506,20 +512,20 @@ Module
       return
         Type String
         Local value
-  fun hidden @fn13(this: Box<String>, value: Int) -> Int
-    bb0 entry
-      return
-        Type Int
-        Local value
-  fun inherited @fn14(this: Box<String>, value: Int) -> Int
-    bb0 entry
-      return
-        Type Int
-        Local value
-  fun combine @fn15(this: Box<String>, value: String, other: Argument, count: Int) -> String
+  fun combine @fn13(this: Box<String>, value: String, other: Argument, count: Int) -> String
     bb0 entry
       return
         Type String
+        Local value
+  fun hidden @fn14(this: Box<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local value
+  fun inherited @fn15(this: Box<String>, value: Int) -> Int
+    bb0 entry
+      return
+        Type Int
         Local value
   fun init.Box.$c0 @fn16(this: Box<Int>, value: Int) -> Unit
     bb0 entry
@@ -586,13 +592,13 @@ Module
   instance mi2 function=@fn6 <- inspect
   instance mi3 function=@fn7 <- inspect
   instance mi4 function=@fn8 <- take
-  instance mi5 function=@fn9 <- hidden
-  instance mi6 function=@fn10 <- inherited
-  instance mi7 function=@fn11 <- combine
+  instance mi5 function=@fn9 <- combine
+  instance mi6 function=@fn10 <- hidden
+  instance mi7 function=@fn11 <- inherited
   instance mi8 function=@fn12 <- take
-  instance mi9 function=@fn13 <- hidden
-  instance mi10 function=@fn14 <- inherited
-  instance mi11 function=@fn15 <- combine
+  instance mi9 function=@fn13 <- combine
+  instance mi10 function=@fn14 <- hidden
+  instance mi11 function=@fn15 <- inherited
   str @str0 "illegal state"
   str @str1 "parameters"
   str @str2 "parameters"

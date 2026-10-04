@@ -14,6 +14,7 @@ impl Lowerer {
         }
         match &expression.kind {
             E::IntegerLiteral(_)
+            | E::CharLiteral(_)
             | E::BoolLiteral(_)
             | E::UnitLiteral
             | E::Local(_)
@@ -78,6 +79,8 @@ impl Lowerer {
             E::VariantTest { operand, .. }
             | E::VariantPayloadProject { operand, .. }
             | E::PtrFromNonZeroULong(operand)
+            | E::CharCode(operand)
+            | E::CharFromCodeUnchecked(operand)
             | E::PtrToULong(operand)
             | E::PtrCast(operand)
             | E::IntegerConversion { operand, .. }
@@ -171,6 +174,7 @@ impl Lowerer {
             | E::ReferenceUpcast(_)
             | E::IsInstance { .. }
             | E::Cast { .. }
+            | E::ArrayGenerate { .. }
             | E::ArrayLiteral(_)
             | E::ArrayAssembly(_)
             | E::Index { .. }

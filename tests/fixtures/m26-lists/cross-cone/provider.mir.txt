@@ -1,0 +1,75 @@
+Module
+  enum Option<Int>
+    Some(_0: Int)
+    None()
+  interface List<Int> : Iterable<Int>
+  interface Iterable<Int>
+  interface Iterator<Int>
+  fun sum @fn0(values: List<Int>) -> Int
+    bb0 entry
+      var result: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      val $for.source.0: List<Int>
+        Type List<Int>
+        Local values
+      val $dependency.receiver: Iterable<Int>
+        Type Iterable<Int>
+        Retype Iterable<Int>
+          Type List<Int>
+          Local $for.source.0
+      call $for.iterator.result.1: Iterator<Int> = @fn1 interface Iterable<Int>[0]
+        Type Iterable<Int>
+        Local $dependency.receiver
+      val $for.iterator.2: Iterator<Int>
+        Type Iterator<Int>
+        Local $for.iterator.result.1
+      goto bb1
+    bb1 while.cond.1 <loop-header-poll>
+      call $for.next.3: Option<Int> = @fn2 interface Iterator<Int>[0]
+        Type Iterator<Int>
+        Local $for.iterator.2
+      branch bb3 bb2
+        Type Boolean
+        VariantTest Option<Int> v0
+          Type Option<Int>
+          Local $for.next.3
+    bb2 while.exit.2
+      return
+        Type Int
+        Local result
+    bb3 while.body.3
+      val $for.element.4: Int
+        Type Int
+        VariantPayloadProject Option<Int> v0 f0
+          Type Option<Int>
+          Local $for.next.3
+      val value: Int
+        Type Int
+        Local $for.element.4
+      val $dependency.receiver: Int
+        Type Int
+        Local result
+      val $dependency.argument.0: Int
+        Type Int
+        Local value
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign result
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      goto bb1
+  fun Iterable.iterator @fn1(this: Iterable<Int>) -> Iterator<Int>
+    bb0 entry
+      trap "call to abstract method `Iterable.iterator`"
+  fun Iterator.next @fn2(this: Iterator<Int>) -> Option<Int>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  instance mi0 function=@fn1 <- Iterable.iterator
+  instance mi1 function=@fn2 <- Iterator.next
+  output library

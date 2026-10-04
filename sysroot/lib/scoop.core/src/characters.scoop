@@ -1,0 +1,27 @@
+@Intrinsic("core_char")
+public struct Char : ToString, Hash {
+    @NoGC @Intrinsic("char_code")
+    private fun codeValue(): Int
+
+    public val code: Int
+        @NoGC get() = codeValue()
+
+    @NoGC @Intrinsic("char_equals")
+    public operator fun equals(other: Char): Boolean
+
+    @NoGC @Intrinsic("char_compare_to")
+    public operator fun compareTo(other: Char): Long
+
+    public override fun toString(): String = coreCharToString(this)
+    public override fun hash(): Long = code.toInt64()
+}
+
+public fun Int.toChar(): Char {
+    if (this < 0 || this > 1114111 || (this >= 55296 && this <= 57343)) {
+        throw IllegalArgumentException()
+    }
+    @Unsafe { return this.characterUnchecked() }
+}
+
+@Extern(name = "scoop_rt_char_to_string", abi = "scoop")
+internal fun coreCharToString(value: Char): String

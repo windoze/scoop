@@ -91,6 +91,7 @@ impl Constructor {
 }
 
 pub(super) enum Witness {
+    Char(char),
     EnumVariant {
         name: String,
         style: VariantStyle,
@@ -116,6 +117,8 @@ pub(super) enum Witness {
 impl Witness {
     pub(super) fn render(&self) -> String {
         match self {
+            Self::Char('\0') => "'\\u{0}'".to_string(),
+            Self::Char(value) => format!("{value:?}"),
             Self::EnumVariant {
                 name,
                 style,

@@ -29,10 +29,12 @@ impl BodyLowerer<'_> {
         &mut self,
         intrinsic: scoop_hir::PrimitiveMemberIntrinsic,
         args: Vec<smir::Expr>,
+        result_type: &mir::Type,
         span: Span,
     ) -> smir::Expr {
         use scoop_hir::PrimitiveMemberIntrinsic as I;
         match intrinsic {
+            I::Char(kind) => super::characters::character_member(kind, args, result_type),
             I::Unary(kind) => {
                 let [operand] = args.try_into().expect("a unary member has one receiver");
                 primitive_unary_value(kind, operand)

@@ -40,6 +40,8 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
             closure: operand, ..
         }
         | ExprKind::PtrFromNonZeroULong { operand, .. }
+        | ExprKind::CharCode(operand)
+        | ExprKind::CharFromCodeUnchecked(operand)
         | ExprKind::PtrToULong(operand)
         | ExprKind::PtrCast { operand, .. }
         | ExprKind::ForeignCallbackRegister {
@@ -59,6 +61,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
         | ExprKind::Unbox(operand)
         | ExprKind::IsInstance { operand, .. }
         | ExprKind::Cast { operand, .. }
+        | ExprKind::ArrayAllocate { count: operand, .. }
         | ExprKind::ArrayLen { operand, .. }
         | ExprKind::ArrayClone { operand, .. }
         | ExprKind::Unary { operand, .. }
@@ -124,6 +127,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
         ExprKind::StringConst(_)
         | ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
+        | ExprKind::CharLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::ReleaseFieldLoad { .. }
         | ExprKind::UnitLiteral
@@ -179,6 +183,8 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
             closure: operand, ..
         }
         | ExprKind::PtrFromNonZeroULong { operand, .. }
+        | ExprKind::CharCode(operand)
+        | ExprKind::CharFromCodeUnchecked(operand)
         | ExprKind::PtrToULong(operand)
         | ExprKind::PtrCast { operand, .. }
         | ExprKind::ForeignCallbackRegister {
@@ -198,6 +204,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         | ExprKind::Unbox(operand)
         | ExprKind::IsInstance { operand, .. }
         | ExprKind::Cast { operand, .. }
+        | ExprKind::ArrayAllocate { count: operand, .. }
         | ExprKind::ArrayLen { operand, .. }
         | ExprKind::ArrayClone { operand, .. }
         | ExprKind::Unary { operand, .. }
@@ -263,6 +270,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         ExprKind::StringConst(_)
         | ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
+        | ExprKind::CharLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::ReleaseFieldLoad { .. }
         | ExprKind::UnitLiteral

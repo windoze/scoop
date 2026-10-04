@@ -133,8 +133,8 @@ fn const_value_variants_have_fixed_wire_and_roundtrip() {
 #[test]
 fn const_value_decoder_rejects_unknown_tags_wrong_shape_and_native_boolean() {
     let unknown =
-        decode_canonical::<CanonicalConstValueV1>(&[0xa2, 0x00, 0x04, 0x01, 0x00]).unwrap_err();
-    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 4 });
+        decode_canonical::<CanonicalConstValueV1>(&[0xa2, 0x00, 0x05, 0x01, 0x00]).unwrap_err();
+    assert_eq!(unknown.kind(), &WireErrorKind::UnknownTag { tag: 5 });
 
     let wrong_shape = decode_canonical::<CanonicalConstValueV1>(&[0xa1, 0x00, 0x01]).unwrap_err();
     assert_eq!(

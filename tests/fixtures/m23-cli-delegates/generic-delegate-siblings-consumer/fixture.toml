@@ -149,8 +149,8 @@ files = [
 name = "prepare_siblings_metadata"
 files = [
   {"copy" = {"from" = "${fixture}/../support/siblings.c", "to" = "${work}/native/siblings.c"}},
-  {"replace" = {"path" = "${work}/native/siblings.c", "old" = "LEFT_IMAGE", "new" = "_scoop$1$im$${left.result.root.identity}"}},
-  {"replace" = {"path" = "${work}/native/siblings.c", "old" = "RIGHT_IMAGE", "new" = "_scoop$1$im$${right.result.root.identity}"}},
+  {"replace" = {"path" = "${work}/native/siblings.c", "old" = "LEFT_IMAGE", "new" = "_scoop$1$im$$${left.result.root.identity}"}},
+  {"replace" = {"path" = "${work}/native/siblings.c", "old" = "RIGHT_IMAGE", "new" = "_scoop$1$im$$${right.result.root.identity}"}},
 ]
 
 [[steps]]

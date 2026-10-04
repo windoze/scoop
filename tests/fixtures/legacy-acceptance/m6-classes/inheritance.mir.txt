@@ -1,10 +1,15 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Shape vtable=1 itables=0
   class Circle vtable=1 itables=0
   class Base vtable=1 itables=0
   class Impl vtable=1 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun Shape.kind @fn0(this: Shape) -> Int
     bb0 entry
       return

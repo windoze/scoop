@@ -16,6 +16,9 @@ impl ExactValueLayoutV1 {
         nominal(identity.exact_key())?;
         let layout = match kind {
             ScalarRepresentationKindV1::Integer(kind) => identity.target().integer_layout(kind),
+            ScalarRepresentationKindV1::Char => {
+                identity.target().scalar_layout(BackendScalarKind::I32)
+            }
             ScalarRepresentationKindV1::Boolean => {
                 identity.target().scalar_layout(BackendScalarKind::I1)
             }

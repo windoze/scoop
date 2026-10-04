@@ -1,0 +1,40 @@
+SourceFile
+  RootPackage
+  class StringBuilder()
+    fun add
+    fun build
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call check
+      Binary Eq
+        MethodCall build
+          Call StringBuilder
+        StringLiteral "ordinary user builder"
+    val StringBuilder
+      IntLiteral 40
+    val add
+      IntLiteral 1
+    val build
+      IntLiteral 1
+    val toString
+      StringLiteral "text"
+    Call check
+      Binary Eq
+        InterpolatedString
+          Expression
+            Binary Add
+              Binary Add
+                Var StringBuilder
+                Var add
+              Var build
+          Text ":"
+          Expression
+            Var toString
+        StringLiteral "42:text"
+    Call println
+      IntLiteral 42

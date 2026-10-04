@@ -63,6 +63,7 @@ pub(crate) struct ArrayType {
 
 mod adaptation;
 mod arrays;
+mod characters;
 mod constraints;
 mod display;
 mod fields;

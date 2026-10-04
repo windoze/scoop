@@ -1,0 +1,2 @@
+@NoGC fun allocate() { val unused = Array<Int>(2L) { _ -> 1 } }
+fun main() {}

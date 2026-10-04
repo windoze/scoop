@@ -1,0 +1,15 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "no applicable candidate for `Array` in core prelude layer:\n  - no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(size: Long, init: (Long) -> T) — argument for `size` has type Int, which is not a subtype of Long\n  - no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(source: MutableArray<T>) — expects 1 argument(s), but 2 were supplied",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 79,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 52
+    },
+    "severity": "error"
+  }
+]

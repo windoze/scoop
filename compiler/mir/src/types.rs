@@ -261,6 +261,7 @@ impl StructDef {
             StructRepresentation::Intrinsic(representation) => match representation {
                 IntrinsicTypeRepresentation::Integer(kind) => Type::Integer(*kind),
                 IntrinsicTypeRepresentation::Boolean => Type::Boolean,
+                IntrinsicTypeRepresentation::Char => Type::Struct(id),
                 IntrinsicTypeRepresentation::Ptr { pointee } => {
                     Type::Ptr(Box::new(pointee.clone()))
                 }
@@ -420,6 +421,7 @@ impl ClassDef {
 pub enum IntrinsicTypeRepresentation {
     Integer(IntegerKind),
     Boolean,
+    Char,
     String,
     Array {
         element: Type,

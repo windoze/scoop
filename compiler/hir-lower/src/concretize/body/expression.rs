@@ -84,6 +84,17 @@ impl Concretizer<'_> {
                 },
             },
             export::ExprKind::IntegerLiteral(value) => concrete::ExprKind::IntegerLiteral(*value),
+            export::ExprKind::CharLiteral(value) => concrete::ExprKind::CharLiteral(*value),
+            export::ExprKind::CharCode(value) => {
+                concrete::ExprKind::CharCode(Box::new(self.lower_expr(value, substitution, locals)))
+            }
+            export::ExprKind::CharFromCodeUnchecked(value) => {
+                concrete::ExprKind::CharFromCodeUnchecked(Box::new(self.lower_expr(
+                    value,
+                    substitution,
+                    locals,
+                )))
+            }
             export::ExprKind::BoolLiteral(value) => concrete::ExprKind::BoolLiteral(*value),
             export::ExprKind::UnitLiteral => concrete::ExprKind::UnitLiteral,
             export::ExprKind::TupleLiteral(elements) => concrete::ExprKind::TupleLiteral(
@@ -433,6 +444,13 @@ impl Concretizer<'_> {
                     receiver: Box::new(self.lower_expr(receiver, substitution, locals)),
                     index: Box::new(self.lower_expr(index, substitution, locals)),
                     value: Box::new(self.lower_expr(value, substitution, locals)),
+                }
+            }
+            export::ExprKind::ArrayGenerate { count, initializer } => {
+                self.lower_array_size_exception_type();
+                concrete::ExprKind::ArrayGenerate {
+                    count: Box::new(self.lower_expr(count, substitution, locals)),
+                    initializer: Box::new(self.lower_expr(initializer, substitution, locals)),
                 }
             }
             export::ExprKind::ArrayLen(array) => {

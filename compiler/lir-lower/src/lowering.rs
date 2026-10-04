@@ -83,6 +83,7 @@ pub(super) fn lower_graph(
         .map(|(id, function)| {
             let signature = abi::classify_mir_signature(
                 &context,
+                module,
                 function.params.iter().map(|parameter| &parameter.ty),
                 &function.return_ty,
                 &structs,

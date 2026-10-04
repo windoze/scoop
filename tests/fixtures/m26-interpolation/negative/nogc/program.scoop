@@ -1,0 +1,3 @@
+@NoGC
+fun value(): String = f"text"
+fun main() {}

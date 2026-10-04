@@ -543,6 +543,7 @@ fn constant_image_name(module: &Module, image: &MirConstantImage) -> String {
             format!("{}:0x{:x}", value.kind().canonical_name(), value.raw_bits())
         }
         MirConstantImage::Boolean(value) => value.to_string(),
+        MirConstantImage::Char(value) => format!("{value:?}"),
         MirConstantImage::String(id) => string_ref(*id),
         MirConstantImage::PointerNull(MirPointerNull::Data) => "null<data>".to_string(),
         MirConstantImage::PointerNull(MirPointerNull::Code) => "null<code>".to_string(),

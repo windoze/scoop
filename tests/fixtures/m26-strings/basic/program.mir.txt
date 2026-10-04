@@ -1,0 +1,1688 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class IndexOutOfBoundsException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  fun main @fn0() -> Unit
+    bb0 entry
+      val text: String
+        Type String
+        StringConst @str0
+      call $dependency.receiver: Long = external0 direct
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      call $dependency.receiver: Long = external1 direct
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=12 bits=0x000000000000000c
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Char = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.argument.0: Char
+        Type Char
+        CharLiteral '雪'
+      val $dependency.parameter.other: Char
+        Type Char
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.receiver
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb8 if.else.8
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Char = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.argument.0: Char
+        Type Char
+        CharLiteral '🚀'
+      val $dependency.parameter.other: Char
+        Type Char
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.receiver
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.parameter.other
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.2
+    bb10 if.then.10
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb12
+    bb11 if.else.11
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Char = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.argument.0: Char
+        Type Char
+        CharLiteral '\0'
+      val $dependency.parameter.other: Char
+        Type Char
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.receiver
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.parameter.other
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.3
+    bb13 if.then.13
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb15
+    bb14 if.else.14
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=5 bits=0x0000000000000005
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call $dependency.receiver: Char = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.argument.0: Char
+        Type Char
+        CharLiteral '\u{301}'
+      val $dependency.parameter.other: Char
+        Type Char
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.receiver
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.parameter.other
+      goto bb15
+    bb15 if.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $shortCircuit.4
+    bb16 if.then.16
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str1
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb17 if.merge.17
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=3 bits=0x0000000000000003
+      val $dependency.parameter.start: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.endExclusive: Long
+        Type Long
+        Local $dependency.argument.1
+      call $dependency.receiver: String = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.start
+        Type Long
+        Local $dependency.parameter.endExclusive
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str2
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.1: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      branch bb18 bb19
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.1
+    bb18 if.then.18
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb20
+    bb19 if.else.19
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $dependency.parameter.start: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.endExclusive: Long
+        Type Long
+        Local $dependency.argument.1
+      call $dependency.receiver: String = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.start
+        Type Long
+        Local $dependency.parameter.endExclusive
+      val $dependency.argument.0: String
+        Type String
+        Local text
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.2: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.2
+      goto bb20
+    bb20 if.merge.20
+      branch bb21 bb22
+        Type Boolean
+        Local $shortCircuit.5
+    bb21 if.then.21
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb23
+    bb22 if.else.22
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $dependency.parameter.start: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.endExclusive: Long
+        Type Long
+        Local $dependency.argument.1
+      call $dependency.receiver: String = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.start
+        Type Long
+        Local $dependency.parameter.endExclusive
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str3
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.3: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $shortCircuit.6: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.3
+      goto bb23
+    bb23 if.merge.23
+      branch bb24 bb25
+        Type Boolean
+        Local $shortCircuit.6
+    bb24 if.then.24
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb26
+    bb25 if.else.25
+      val $dependency.receiver: String
+        Type String
+        StringConst @str4
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.start: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.endExclusive: Long
+        Type Long
+        Local $dependency.argument.1
+      call $dependency.receiver: String = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.start
+        Type Long
+        Local $dependency.parameter.endExclusive
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $call.4: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      val $shortCircuit.7: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.4
+      goto bb26
+    bb26 if.merge.26
+      branch bb27 bb28
+        Type Boolean
+        Local $shortCircuit.7
+    bb27 if.then.27
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb28 if.merge.28
+      val empty: String
+        Type String
+        StringConst @str7
+      call $dependency.receiver: Long = external0 direct
+        Type String
+        Local empty
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb29 bb30
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb29 if.then.29
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb31
+    bb30 if.else.30
+      call $dependency.receiver: Long = external1 direct
+        Type String
+        Local empty
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.8: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+      goto bb31
+    bb31 if.merge.31
+      branch bb32 bb33
+        Type Boolean
+        Local $shortCircuit.8
+    bb32 if.then.32
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str8
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb33 if.merge.33
+      val source: Iterable<Char>
+        Type Iterable<Char>
+        Retype Iterable<Char>
+          Type String
+          Local text
+      var count: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $for.source.9: Iterable<Char>
+        Type Iterable<Char>
+        Local source
+      val $dependency.receiver: Iterable<Char>
+        Type Iterable<Char>
+        Local $for.source.9
+      call $for.iterator.result.10: Iterator<Char> = @fn2 interface Iterable<Char>[0]
+        Type Iterable<Char>
+        Local $dependency.receiver
+      val $for.iterator.11: Iterator<Char>
+        Type Iterator<Char>
+        Local $for.iterator.result.10
+      goto bb34
+    bb34 while.cond.34 <loop-header-poll>
+      call $for.next.12: Option<Char> = @fn3 interface Iterator<Char>[0]
+        Type Iterator<Char>
+        Local $for.iterator.11
+      branch bb36 bb35
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $for.next.12
+    bb35 while.exit.35
+      val $dependency.receiver: Iterable<Char>
+        Type Iterable<Char>
+        Local source
+      call iterator: Iterator<Char> = @fn2 interface Iterable<Char>[0]
+        Type Iterable<Char>
+        Local $dependency.receiver
+      goto bb39
+    bb36 while.body.36
+      val $for.element.13: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $for.next.12
+      val character: Char
+        Type Char
+        Local $for.element.13
+      val $equality.lhs: Char
+        Type Char
+        Local character
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        Local count
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.receiver: Char
+        Type Char
+        Local $equality.lhs
+      call $dependency.argument.0: Char = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      val $dependency.parameter.other: Char
+        Type Char
+        Local $dependency.argument.0
+      branch bb37 bb38
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.receiver
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.parameter.other
+    bb37 if.then.37
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str9
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb38 if.merge.38
+      val $dependency.receiver: Long
+        Type Long
+        Local count
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      assign count
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      goto bb34
+    bb39 while.cond.39 <loop-header-poll>
+      val $dependency.receiver: Iterator<Char>
+        Type Iterator<Char>
+        Local iterator
+      call $call.5: Option<Char> = @fn3 interface Iterator<Char>[0]
+        Type Iterator<Char>
+        Local $dependency.receiver
+      call $call.6: Boolean = @fn4 direct
+        Type Option<Char>
+        Local $call.5
+        Type Option<Char>
+        VariantConstruct Option<Char> v1
+      branch bb41 bb40
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.6
+    bb40 while.exit.40
+      val $dependency.receiver: Long
+        Type Long
+        Local count
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      branch bb42 bb43
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+    bb41 while.body.41
+      goto bb39
+    bb42 if.then.42
+      val $shortCircuit.14: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb44
+    bb43 if.else.43
+      val $dependency.receiver: Iterator<Char>
+        Type Iterator<Char>
+        Local iterator
+      call $call.7: Option<Char> = @fn3 interface Iterator<Char>[0]
+        Type Iterator<Char>
+        Local $dependency.receiver
+      call $call.8: Boolean = @fn4 direct
+        Type Option<Char>
+        Local $call.7
+        Type Option<Char>
+        VariantConstruct Option<Char> v1
+      val $shortCircuit.14: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.8
+      goto bb44
+    bb44 if.merge.44
+      branch bb45 bb46
+        Type Boolean
+        Local $shortCircuit.14
+    bb45 if.then.45
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb47
+    bb46 if.else.46
+      val $dependency.receiver: Iterator<Char>
+        Type Iterator<Char>
+        Local iterator
+      call $call.9: Option<Char> = @fn3 interface Iterator<Char>[0]
+        Type Iterator<Char>
+        Local $dependency.receiver
+      call $call.10: Boolean = @fn4 direct
+        Type Option<Char>
+        Local $call.9
+        Type Option<Char>
+        VariantConstruct Option<Char> v1
+      val $shortCircuit.15: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.10
+      goto bb47
+    bb47 if.merge.47
+      branch bb48 bb49
+        Type Boolean
+        Local $shortCircuit.15
+    bb48 if.then.48
+      val $shortCircuit.16: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb50
+    bb49 if.else.49
+      val $dependency.receiver: String
+        Type String
+        Local empty
+      call $dependency.receiver: Iterator<Char> = external5 direct
+        Type String
+        Local $dependency.receiver
+      call $call.11: Option<Char> = @fn3 interface Iterator<Char>[0]
+        Type Iterator<Char>
+        Local $dependency.receiver
+      call $call.12: Boolean = @fn4 direct
+        Type Option<Char>
+        Local $call.11
+        Type Option<Char>
+        VariantConstruct Option<Char> v1
+      val $shortCircuit.16: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          Local $call.12
+      goto bb50
+    bb50 if.merge.50
+      branch bb51 bb52
+        Type Boolean
+        Local $shortCircuit.16
+    bb51 if.then.51
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str10
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb52 if.merge.52
+      var caught: Int
+        Type Int
+        IntegerLiteral Int value=0 bits=0x00000000
+      goto bb60
+    bb53 try.unwind.53
+      landing_pad cleanup=false
+      goto bb54
+    bb54 try.dispatch.54
+      begin_catch
+      branch bb61 bb62
+        Type Boolean
+        IsInstance IndexOutOfBoundsException
+          Type Any
+          CaughtException
+    bb55 try.handler_pad.55
+      landing_pad cleanup=true
+      goto bb56
+    bb56 try.handler_cleanup.56
+      end_catch
+      resume
+    bb57 try.exit_pad.57
+      landing_pad cleanup=true
+      goto bb58
+    bb58 try.exit_cleanup.58
+      end_catch
+      resume
+    bb59 try.end.59
+      goto bb72
+    bb60 try.body.60 unwind bb53
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call value: Char = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      goto bb59
+    bb61 try.catch.61
+      call $catch.13: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: IndexOutOfBoundsException
+        Type IndexOutOfBoundsException
+        Retype IndexOutOfBoundsException
+          Type Any
+          Local $catch.13
+      goto bb63
+    bb62 try.next.62
+      rethrow unwind bb57
+    bb63 scope.63 unwind bb55
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      end_catch
+      goto bb64
+    bb64 scope.64
+      goto bb59
+    bb65 try.unwind.65
+      landing_pad cleanup=false
+      goto bb66
+    bb66 try.dispatch.66
+      begin_catch
+      branch bb73 bb74
+        Type Boolean
+        IsInstance IndexOutOfBoundsException
+          Type Any
+          CaughtException
+    bb67 try.handler_pad.67
+      landing_pad cleanup=true
+      goto bb68
+    bb68 try.handler_cleanup.68
+      end_catch
+      resume
+    bb69 try.exit_pad.69
+      landing_pad cleanup=true
+      goto bb70
+    bb70 try.exit_cleanup.70
+      end_catch
+      resume
+    bb71 try.end.71
+      goto bb84
+    bb72 try.body.72 unwind bb65
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=6 bits=0x0000000000000006
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call value: Char = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      goto bb71
+    bb73 try.catch.73
+      call $catch.14: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: IndexOutOfBoundsException
+        Type IndexOutOfBoundsException
+        Retype IndexOutOfBoundsException
+          Type Any
+          Local $catch.14
+      goto bb75
+    bb74 try.next.74
+      rethrow unwind bb69
+    bb75 scope.75 unwind bb67
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      end_catch
+      goto bb76
+    bb76 scope.76
+      goto bb71
+    bb77 try.unwind.77
+      landing_pad cleanup=false
+      goto bb78
+    bb78 try.dispatch.78
+      begin_catch
+      branch bb85 bb86
+        Type Boolean
+        IsInstance IndexOutOfBoundsException
+          Type Any
+          CaughtException
+    bb79 try.handler_pad.79
+      landing_pad cleanup=true
+      goto bb80
+    bb80 try.handler_cleanup.80
+      end_catch
+      resume
+    bb81 try.exit_pad.81
+      landing_pad cleanup=true
+      goto bb82
+    bb82 try.exit_cleanup.82
+      end_catch
+      resume
+    bb83 try.end.83
+      goto bb96
+    bb84 try.body.84 unwind bb77
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call value: Char = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      goto bb83
+    bb85 try.catch.85
+      call $catch.15: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: IndexOutOfBoundsException
+        Type IndexOutOfBoundsException
+        Retype IndexOutOfBoundsException
+          Type Any
+          Local $catch.15
+      goto bb87
+    bb86 try.next.86
+      rethrow unwind bb81
+    bb87 scope.87 unwind bb79
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      end_catch
+      goto bb88
+    bb88 scope.88
+      goto bb83
+    bb89 try.unwind.89
+      landing_pad cleanup=false
+      goto bb90
+    bb90 try.dispatch.90
+      begin_catch
+      branch bb97 bb98
+        Type Boolean
+        IsInstance IndexOutOfBoundsException
+          Type Any
+          CaughtException
+    bb91 try.handler_pad.91
+      landing_pad cleanup=true
+      goto bb92
+    bb92 try.handler_cleanup.92
+      end_catch
+      resume
+    bb93 try.exit_pad.93
+      landing_pad cleanup=true
+      goto bb94
+    bb94 try.exit_cleanup.94
+      end_catch
+      resume
+    bb95 try.end.95
+      goto bb108
+    bb96 try.body.96 unwind bb89
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.parameter.index: Long
+        Type Long
+        Local $dependency.argument.0
+      call value: Char = external2 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.index
+      goto bb95
+    bb97 try.catch.97
+      call $catch.16: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: IndexOutOfBoundsException
+        Type IndexOutOfBoundsException
+        Retype IndexOutOfBoundsException
+          Type Any
+          Local $catch.16
+      goto bb99
+    bb98 try.next.98
+      rethrow unwind bb93
+    bb99 scope.99 unwind bb91
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      end_catch
+      goto bb100
+    bb100 scope.100
+      goto bb95
+    bb101 try.unwind.101
+      landing_pad cleanup=false
+      goto bb102
+    bb102 try.dispatch.102
+      begin_catch
+      branch bb109 bb110
+        Type Boolean
+        IsInstance IndexOutOfBoundsException
+          Type Any
+          CaughtException
+    bb103 try.handler_pad.103
+      landing_pad cleanup=true
+      goto bb104
+    bb104 try.handler_cleanup.104
+      end_catch
+      resume
+    bb105 try.exit_pad.105
+      landing_pad cleanup=true
+      goto bb106
+    bb106 try.exit_cleanup.106
+      end_catch
+      resume
+    bb107 try.end.107
+      goto bb120
+    bb108 try.body.108 unwind bb101
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-1 bits=0xffffffffffffffff
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.parameter.start: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.endExclusive: Long
+        Type Long
+        Local $dependency.argument.1
+      call $call.17: String = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.start
+        Type Long
+        Local $dependency.parameter.endExclusive
+      goto bb107
+    bb109 try.catch.109
+      call $catch.18: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: IndexOutOfBoundsException
+        Type IndexOutOfBoundsException
+        Retype IndexOutOfBoundsException
+          Type Any
+          Local $catch.18
+      goto bb111
+    bb110 try.next.110
+      rethrow unwind bb105
+    bb111 scope.111 unwind bb103
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      end_catch
+      goto bb112
+    bb112 scope.112
+      goto bb107
+    bb113 try.unwind.113
+      landing_pad cleanup=false
+      goto bb114
+    bb114 try.dispatch.114
+      begin_catch
+      branch bb121 bb122
+        Type Boolean
+        IsInstance IndexOutOfBoundsException
+          Type Any
+          CaughtException
+    bb115 try.handler_pad.115
+      landing_pad cleanup=true
+      goto bb116
+    bb116 try.handler_cleanup.116
+      end_catch
+      resume
+    bb117 try.exit_pad.117
+      landing_pad cleanup=true
+      goto bb118
+    bb118 try.exit_cleanup.118
+      end_catch
+      resume
+    bb119 try.end.119
+      goto bb132
+    bb120 try.body.120 unwind bb113
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=2 bits=0x0000000000000002
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.start: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.endExclusive: Long
+        Type Long
+        Local $dependency.argument.1
+      call $call.19: String = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.start
+        Type Long
+        Local $dependency.parameter.endExclusive
+      goto bb119
+    bb121 try.catch.121
+      call $catch.20: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: IndexOutOfBoundsException
+        Type IndexOutOfBoundsException
+        Retype IndexOutOfBoundsException
+          Type Any
+          Local $catch.20
+      goto bb123
+    bb122 try.next.122
+      rethrow unwind bb117
+    bb123 scope.123 unwind bb115
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      end_catch
+      goto bb124
+    bb124 scope.124
+      goto bb119
+    bb125 try.unwind.125
+      landing_pad cleanup=false
+      goto bb126
+    bb126 try.dispatch.126
+      begin_catch
+      branch bb133 bb134
+        Type Boolean
+        IsInstance IndexOutOfBoundsException
+          Type Any
+          CaughtException
+    bb127 try.handler_pad.127
+      landing_pad cleanup=true
+      goto bb128
+    bb128 try.handler_cleanup.128
+      end_catch
+      resume
+    bb129 try.exit_pad.129
+      landing_pad cleanup=true
+      goto bb130
+    bb130 try.exit_cleanup.130
+      end_catch
+      resume
+    bb131 try.end.131
+      goto bb144
+    bb132 try.body.132 unwind bb125
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.start: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.endExclusive: Long
+        Type Long
+        Local $dependency.argument.1
+      call $call.21: String = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.start
+        Type Long
+        Local $dependency.parameter.endExclusive
+      goto bb131
+    bb133 try.catch.133
+      call $catch.22: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: IndexOutOfBoundsException
+        Type IndexOutOfBoundsException
+        Retype IndexOutOfBoundsException
+          Type Any
+          Local $catch.22
+      goto bb135
+    bb134 try.next.134
+      rethrow unwind bb129
+    bb135 scope.135 unwind bb127
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      end_catch
+      goto bb136
+    bb136 scope.136
+      goto bb131
+    bb137 try.unwind.137
+      landing_pad cleanup=false
+      goto bb138
+    bb138 try.dispatch.138
+      begin_catch
+      branch bb145 bb146
+        Type Boolean
+        IsInstance IndexOutOfBoundsException
+          Type Any
+          CaughtException
+    bb139 try.handler_pad.139
+      landing_pad cleanup=true
+      goto bb140
+    bb140 try.handler_cleanup.140
+      end_catch
+      resume
+    bb141 try.exit_pad.141
+      landing_pad cleanup=true
+      goto bb142
+    bb142 try.exit_cleanup.142
+      end_catch
+      resume
+    bb143 try.end.143
+      goto bb156
+    bb144 try.body.144 unwind bb137
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=7 bits=0x0000000000000007
+      val $dependency.parameter.start: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.endExclusive: Long
+        Type Long
+        Local $dependency.argument.1
+      call $call.23: String = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.start
+        Type Long
+        Local $dependency.parameter.endExclusive
+      goto bb143
+    bb145 try.catch.145
+      call $catch.24: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: IndexOutOfBoundsException
+        Type IndexOutOfBoundsException
+        Retype IndexOutOfBoundsException
+          Type Any
+          Local $catch.24
+      goto bb147
+    bb146 try.next.146
+      rethrow unwind bb141
+    bb147 scope.147 unwind bb139
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      end_catch
+      goto bb148
+    bb148 scope.148
+      goto bb143
+    bb149 try.unwind.149
+      landing_pad cleanup=false
+      goto bb150
+    bb150 try.dispatch.150
+      begin_catch
+      branch bb157 bb158
+        Type Boolean
+        IsInstance IndexOutOfBoundsException
+          Type Any
+          CaughtException
+    bb151 try.handler_pad.151
+      landing_pad cleanup=true
+      goto bb152
+    bb152 try.handler_cleanup.152
+      end_catch
+      resume
+    bb153 try.exit_pad.153
+      landing_pad cleanup=true
+      goto bb154
+    bb154 try.exit_cleanup.154
+      end_catch
+      resume
+    bb155 try.end.155
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=9 bits=0x00000009
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      branch bb161 bb162
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            Local $dependency.receiver
+            Type Int
+            Local $dependency.parameter.other
+    bb156 try.body.156 unwind bb149
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=-9223372036854775808 bits=0x8000000000000000
+      val $dependency.argument.1: Long
+        Type Long
+        IntegerLiteral Long value=9223372036854775807 bits=0x7fffffffffffffff
+      val $dependency.parameter.start: Long
+        Type Long
+        Local $dependency.argument.0
+      val $dependency.parameter.endExclusive: Long
+        Type Long
+        Local $dependency.argument.1
+      call $call.25: String = external3 direct
+        Type String
+        Local $dependency.receiver
+        Type Long
+        Local $dependency.parameter.start
+        Type Long
+        Local $dependency.parameter.endExclusive
+      goto bb155
+    bb157 try.catch.157
+      call $catch.26: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val e: IndexOutOfBoundsException
+        Type IndexOutOfBoundsException
+        Retype IndexOutOfBoundsException
+          Type Any
+          Local $catch.26
+      goto bb159
+    bb158 try.next.158
+      rethrow unwind bb153
+    bb159 scope.159 unwind bb151
+      val $dependency.receiver: Int
+        Type Int
+        Local caught
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      assign caught
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+      end_catch
+      goto bb160
+    bb160 scope.160
+      goto bb155
+    bb161 if.then.161
+      val $shortCircuit.17: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb163
+    bb162 if.else.162
+      val $dependency.receiver: String
+        Type String
+        Local text
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str11
+      val $dependency.parameter.other: String
+        Type String
+        Local $dependency.argument.0
+      call $shortCircuit.17: Boolean = external4 direct
+        Type String
+        Local $dependency.receiver
+        Type String
+        Local $dependency.parameter.other
+      goto bb163
+    bb163 if.merge.163
+      branch bb164 bb165
+        Type Boolean
+        Local $shortCircuit.17
+    bb164 if.then.164
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str12
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn1 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb165 if.merge.165
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn1(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external7 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str13
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun Iterable.iterator @fn2(this: Iterable<Char>) -> Iterator<Char>
+    bb0 entry
+      trap "call to abstract method `Iterable.iterator`"
+  fun Iterator.next @fn3(this: Iterator<Char>) -> Option<Char>
+    bb0 entry
+      trap "call to abstract method `Iterator.next`"
+  fun $derived.equals.0 @fn4(this: Option<Char>, other: Option<Char>) -> Boolean
+    bb0 entry
+      val $when.1: Option<Char>
+        Type Option<Char>
+        Local this
+      val $pattern.subject.2: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb1 bb2
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.2
+    bb1 pattern.pass.1
+      val $left.0.0: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.2
+      val $when.3: Option<Char>
+        Type Option<Char>
+        Local other
+      val $pattern.subject.4: Option<Char>
+        Type Option<Char>
+        Local $when.3
+      branch bb4 bb5
+        Type Boolean
+        VariantTest Option<Char> v0
+          Type Option<Char>
+          Local $pattern.subject.4
+    bb2 pattern.else.2
+      val $pattern.subject.5: Option<Char>
+        Type Option<Char>
+        Local $when.1
+      branch bb7 bb8
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.5
+    bb3 pattern.merge.3
+      unreachable
+    bb4 pattern.pass.4
+      val $right.0.0: Char
+        Type Char
+        VariantPayloadProject Option<Char> v0 f0
+          Type Option<Char>
+          Local $pattern.subject.4
+      return
+        Type Boolean
+        IntegerCompare equal operands=Int result=Boolean
+          Type Int
+          CharCode
+            Type Char
+            Local $left.0.0
+          Type Int
+          CharCode
+            Type Char
+            Local $right.0.0
+    bb5 pattern.else.5
+      return
+        Type Boolean
+        BoolLiteral false
+    bb6 pattern.merge.6
+      unreachable
+    bb7 pattern.pass.7
+      val $when.6: Option<Char>
+        Type Option<Char>
+        Local other
+      val $pattern.subject.7: Option<Char>
+        Type Option<Char>
+        Local $when.6
+      branch bb10 bb11
+        Type Boolean
+        VariantTest Option<Char> v1
+          Type Option<Char>
+          Local $pattern.subject.7
+    bb8 pattern.else.8
+      unreachable
+    bb9 pattern.merge.9
+      unreachable
+    bb10 pattern.pass.10
+      return
+        Type Boolean
+        BoolLiteral true
+    bb11 pattern.else.11
+      return
+        Type Boolean
+        BoolLiteral false
+    bb12 pattern.merge.12
+      unreachable
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external6 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external8 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str14
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external8 direct
+        Type String
+        Local $dependency.local.5
+      return
+  instance mi0 function=@fn1 <- println
+  instance mi1 function=@fn2 <- Iterable.iterator
+  instance mi2 function=@fn3 <- Iterator.next
+  instance mi3 function=@fn5 <- println
+  str @str0 "A雪🚀\0e\u{301}"
+  str @str1 "units"
+  str @str2 "雪🚀"
+  str @str3 ""
+  str @str4 ""
+  str @str5 ""
+  str @str6 "slice"
+  str @str7 ""
+  str @str8 "empty"
+  str @str9 "iteration"
+  str @str10 "exhaustion"
+  str @str11 "A雪🚀\0é"
+  str @str12 "bounds-normalization"
+  str @str13 "\n"
+  str @str14 "\n"
+  output executable @fn0

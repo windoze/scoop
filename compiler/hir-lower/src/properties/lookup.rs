@@ -31,21 +31,31 @@ impl Lowerer {
         receiver_ty: TypeId,
         name: &str,
     ) -> Option<(hir::PropertyId, hir::MethodOwnerApplication, TypeId)> {
-        match self.types[lookup_ty].clone() {
-            hir::Type::Class(application) => {
-                let (declaring, property, ty) = self.find_accessible_class_application_property(
-                    application,
-                    name,
-                    receiver_ty,
-                )?;
-                let owner = match self.properties[property].owner {
-                    hir::PropertyOwner::Object(object) => {
-                        hir::MethodOwnerApplication::Object(self.objects[object].object_type)
+        let class = match self.types[lookup_ty] {
+            hir::Type::Class(application) => Some(application),
+            hir::Type::String => self
+                .intrinsic_type_owners
+                .get(&hir::IntrinsicTypeKind::String)
+                .and_then(|(owner, _)| match owner {
+                    crate::IntrinsicTypeOwner::Class(owner) => {
+                        Some(self.classes[*owner].self_application)
                     }
-                    _ => hir::MethodOwnerApplication::Class(declaring),
-                };
-                Some((property, owner, ty))
-            }
+                    crate::IntrinsicTypeOwner::Struct(_) => None,
+                }),
+            _ => None,
+        };
+        if let Some(application) = class {
+            let (declaring, property, ty) =
+                self.find_accessible_class_application_property(application, name, receiver_ty)?;
+            let owner = match self.properties[property].owner {
+                hir::PropertyOwner::Object(object) => {
+                    hir::MethodOwnerApplication::Object(self.objects[object].object_type)
+                }
+                _ => hir::MethodOwnerApplication::Class(declaring),
+            };
+            return Some((property, owner, ty));
+        }
+        match self.types[lookup_ty].clone() {
             hir::Type::Struct(application) => {
                 let value = self.struct_applications[application].clone();
                 let property = self.structs[self.source_struct_id(value.template)?]

@@ -66,7 +66,7 @@ fn shared_nominal_producer_preserves_every_intrinsic_family() {
             hir::ClassRepresentation::Declared => continue,
         }
     }
-    assert_eq!(expected.len(), 14);
+    assert_eq!(expected.len(), 15);
 
     for (owner, name, family) in expected {
         let record = public.get(owner).unwrap();
@@ -114,6 +114,7 @@ fn constant_and_vararg_projection_keep_actual_nominal_references_in_combination(
             panic!("portable constants carry concrete nominal types");
         };
         let expected = match constant.value().kind() {
+            hir::CanonicalConstValueKindV1::Char => hir::IntrinsicTypeKind::Char,
             hir::CanonicalConstValueKindV1::Integer(kind) => hir::IntrinsicTypeKind::Integer(kind),
             hir::CanonicalConstValueKindV1::Boolean => hir::IntrinsicTypeKind::Boolean,
             hir::CanonicalConstValueKindV1::String => hir::IntrinsicTypeKind::String,

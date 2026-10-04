@@ -51,6 +51,8 @@ mod tests_m23_headers;
 #[cfg(test)]
 mod tests_m24;
 #[cfg(test)]
+mod tests_m26_interpolation;
+#[cfg(test)]
 mod tests_m3;
 #[cfg(test)]
 mod tests_m4;

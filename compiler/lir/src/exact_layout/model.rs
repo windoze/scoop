@@ -152,6 +152,7 @@ impl ExactInstanceLayoutV1 {
 pub enum ScalarRepresentationKindV1 {
     Integer(IntegerKind),
     Boolean,
+    Char,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

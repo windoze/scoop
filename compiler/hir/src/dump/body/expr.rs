@@ -25,6 +25,17 @@ pub(super) fn dump_expr(
         ExprKind::IntegerLiteral(value) => {
             out.push_str(&format!("{pad}IntegerLiteral {value} : {ty}\n"));
         }
+        ExprKind::CharLiteral(value) => {
+            out.push_str(&format!("{pad}CharLiteral {value:?} : {ty}\n"))
+        }
+        ExprKind::CharCode(operand) => {
+            out.push_str(&format!("{pad}CharCode\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::CharFromCodeUnchecked(operand) => {
+            out.push_str(&format!("{pad}CharFromCodeUnchecked\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
         ExprKind::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value} : {ty}\n")),
         ExprKind::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral : {ty}\n")),
         ExprKind::TupleLiteral(elements) => {
@@ -489,6 +500,11 @@ pub(super) fn dump_expr(
             for element in elements {
                 dump_expr(module, locals, element, indent + 1, out);
             }
+        }
+        ExprKind::ArrayGenerate { count, initializer } => {
+            out.push_str(&format!("{pad}ArrayGenerate : {ty}\n"));
+            dump_expr(module, locals, count, indent + 1, out);
+            dump_expr(module, locals, initializer, indent + 1, out);
         }
         ExprKind::ArrayAssembly(assembly) => {
             out.push_str(&format!("{pad}ArrayAssembly : {ty}\n"));

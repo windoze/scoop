@@ -28,7 +28,11 @@ pub(super) fn materializations(
             }
         };
         let found = records.get(root.exact());
-        assert_eq!(found.is_some(), required.contains(&subject));
+        assert_eq!(
+            found.is_some(),
+            required.contains(&subject)
+                || matches!(root, scoop_mir::GeneratedNominalShapeRoot::Odr { .. })
+        );
         let Some(found) = found else {
             continue;
         };

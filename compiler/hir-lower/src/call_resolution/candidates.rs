@@ -51,7 +51,9 @@ pub(crate) enum NominalConstructorSource {
     Struct(hir::StructConstructorId),
     Class(hir::ClassConstructorId),
     IntrinsicClass(hir::ClassId),
+    ArrayGenerate(hir::ClassId),
     ImportedArray(hir::SourceNominalId),
+    ImportedArrayGenerate(hir::SourceNominalId),
     Variant(hir::EnumVariantRef),
 }
 
@@ -231,7 +233,8 @@ impl Lowerer {
                     argument_mode: ArgumentMode::Mixed,
                 }
             }
-            NominalConstructorSource::IntrinsicClass(class) => {
+            NominalConstructorSource::IntrinsicClass(class)
+            | NominalConstructorSource::ArrayGenerate(class) => {
                 let declaration = &self.classes[class];
                 self.array_constructor_view(
                     target,
@@ -239,8 +242,9 @@ impl Lowerer {
                     self.class_applications[declaration.self_application].canonical_type,
                 )
             }
-            NominalConstructorSource::ImportedArray(owner) => {
-                self.imported_array_constructor_view(owner, span)
+            NominalConstructorSource::ImportedArray(owner)
+            | NominalConstructorSource::ImportedArrayGenerate(owner) => {
+                self.imported_array_constructor_view(target, owner, span)
             }
             NominalConstructorSource::Variant(variant) => {
                 let enumeration = variant.enumeration();

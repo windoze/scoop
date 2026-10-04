@@ -1,0 +1,64 @@
+class Gate(var waiter: Continuation<Int>?) {
+    fun complete(value: Int) {
+        val next = waiter!!
+        waiter = None
+        next.resume(value)
+    }
+    fun fail() {
+        val next = waiter!!
+        waiter = None
+        next.resumeWithException(IllegalArgumentException())
+    }
+}
+class Registration(val gate: Gate) : SuspendRegistration<Int> {
+    public override fun register(continuation: Continuation<Int>) {
+        gate.waiter = Some(continuation)
+    }
+}
+suspend fun await(gate: Gate): Int = suspendCoroutine(Registration(gate))
+suspend fun decorate(gate: Gate, text: String, result: String = f"${text}:${await(gate)}"): String = result
+class Journal(var log: String)
+class Mark(val journal: Journal, val text: String) : ToString {
+    public override fun toString(): String {
+        journal.log = journal.log + text
+        gcCollect()
+        return text
+    }
+}
+class Task(val gate: Gate, val journal: Journal) : SuspendTask<String> {
+    public override suspend fun run(): String {
+        val result = f"${Mark(journal, "A")}${await(gate)}${Mark(journal, "B")}${await(gate)}${Mark(journal, "C")}"
+        return decorate(gate, result)
+    }
+}
+class Completion : Continuation<String> {
+    var finished: Boolean = false
+    var failed: Boolean = false
+    var value: String = ""
+    public override fun resume(result: String) { value = result; finished = true }
+    public override fun resumeWithException(error: Throwable) { failed = true; finished = true }
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val gate = Gate(None)
+    val journal = Journal("")
+    val completion = Completion()
+    startCoroutine(Task(gate, journal), completion)
+    check(!completion.finished && journal.log == "A")
+    gcCollect()
+    gate.complete(1)
+    check(!completion.finished && journal.log == "AB")
+    gcCollect()
+    gate.complete(2)
+    check(!completion.finished && journal.log == "ABC")
+    gcCollect()
+    gate.complete(3)
+    check(completion.finished && !completion.failed && completion.value == "A1B2C:3")
+    val failed = Completion()
+    journal.log = ""
+    startCoroutine(Task(gate, journal), failed)
+    gcCollect()
+    gate.fail()
+    check(failed.finished && failed.failed && journal.log == "A")
+    println(42)
+}

@@ -28,6 +28,12 @@ impl Lowerer {
             unreachable!("literal equality probes retain their explicit subject type")
         };
         let integer = candidate.integer_equality_kind();
+        let character = matches!(
+            candidate.normalized_intrinsic(),
+            Some(hir::PrimitiveMemberIntrinsic::Char(
+                hir::CharIntrinsic::Equals
+            ))
+        );
         let [literal] = source_args.as_slice() else {
             unreachable!("an applicable literal equals member has one explicit argument")
         };
@@ -39,7 +45,9 @@ impl Lowerer {
         if candidate.interface().effects().safety() == hir::CallableSafetyV1::Unsafe {
             self.require_unsafe_operation(call_span, "calling an unsafe dependency function");
         }
-        let equality = if let Some(kind) = integer {
+        let equality = if character {
+            hir::LiteralPatternEquality::Char
+        } else if let Some(kind) = integer {
             hir::LiteralPatternEquality::Integer { kind }
         } else {
             let selected = match candidate {

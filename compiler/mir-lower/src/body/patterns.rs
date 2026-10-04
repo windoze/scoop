@@ -30,6 +30,23 @@ impl BodyLowerer<'_> {
             } => {
                 debug_assert_eq!(self.lower_type(*subject_ty), *ty);
                 let test = match equality {
+                    hir::LiteralPatternEquality::Char => {
+                        let kind = mir::IntegerKind::SIGNED_32;
+                        let code = |value| {
+                            smir::Expr::new(
+                                mir::Type::Integer(kind),
+                                smir::ExprKind::CharCode(Box::new(value)),
+                            )
+                        };
+                        smir::Expr::integer_compare(
+                            mir::IntegerComparisonOperation::new(
+                                kind,
+                                mir::IntegerComparisonOperator::Equal,
+                            ),
+                            code(self.accessed(root, path)),
+                            code(self.lower_expr(value)),
+                        )
+                    }
                     hir::LiteralPatternEquality::Integer { kind, .. } => {
                         let kind = lower_integer_kind(*kind);
                         debug_assert_eq!(*ty, mir::Type::Integer(kind));

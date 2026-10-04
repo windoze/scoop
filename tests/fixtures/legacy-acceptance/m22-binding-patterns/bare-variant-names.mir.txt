@@ -188,15 +188,21 @@ Module
       val $parameter._1: Int
         Type Int
         Local $argument.0
+      val $aggregate.0: Signal
+        Type Signal
+        VariantConstruct Signal v1
+          Type Int
+          Local $parameter._1
+      val $aggregate.1: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
       val nested: (Signal, Option<Int>)
         Type (Signal, Option<Int>)
         TupleLiteral
           Type Signal
-          VariantConstruct Signal v1
-            Type Int
-            Local $parameter._1
+          Local $aggregate.0
           Type Option<Int>
-          VariantConstruct Option<Int> v1
+          Local $aggregate.1
       val $binding.subject.2: (Bundle, (Signal, Option<Int>))
         Type (Bundle, (Signal, Option<Int>))
         TupleLiteral
@@ -321,17 +327,23 @@ Module
       val $dependency.parameter._1: Int
         Type Int
         Local $dependency.argument.0
+      val $aggregate.0: Option<Int>
+        Type Option<Int>
+        VariantConstruct Option<Int> v0
+          Type Int
+          Local $dependency.parameter._1
+      val $aggregate.1: Signal
+        Type Signal
+        VariantConstruct Signal v0
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type ((Option<Int>, Signal)) -> Int
         Local $callable.receiver
         Type (Option<Int>, Signal)
         TupleLiteral
           Type Option<Int>
-          VariantConstruct Option<Int> v0
-            Type Int
-            Local $dependency.parameter._1
+          Local $aggregate.0
           Type Signal
-          VariantConstruct Signal v0
+          Local $aggregate.1
       return
         Type Int
         Local $call.1

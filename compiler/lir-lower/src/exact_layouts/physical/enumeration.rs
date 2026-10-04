@@ -69,7 +69,7 @@ impl Projection<'_> {
                         .zip(&source.fields)
                     {
                         if field.storage().offset().get() != actual.offset
-                            || actual.ty != crate::metadata::lir_type(&source.ty)
+                            || actual.ty != crate::metadata::lir_type(self.module, &source.ty)
                         {
                             return Err(error());
                         }

@@ -4,6 +4,9 @@ use super::*;
 
 impl Lowerer {
     pub(super) fn zero_constant_image(&mut self, ty: hir::TypeId) -> Option<hir::HirConstantImage> {
+        if self.is_char_type(ty) {
+            return Some(hir::HirConstantImage::Char('\0'));
+        }
         match self.types[ty].clone() {
             hir::Type::Integer(kind) => Some(hir::HirConstantImage::Integer(
                 hir::HirIntegerConstant::from_magnitude(kind, 0, false)
@@ -96,6 +99,11 @@ impl Lowerer {
             return Some(variant);
         }
         match (self.types[expected].clone(), expr) {
+            (hir::Type::Struct(_), ast::Expr::CharLiteral { value, .. })
+                if self.is_char_type(expected) =>
+            {
+                Some(hir::HirConstantImage::Char(*value))
+            }
             (hir::Type::Integer(_), ast::Expr::IntLiteral(literal)) => self
                 .lower_integer_literal(*literal, Some(expected), false, literal.span)
                 .and_then(|value| match value.kind {

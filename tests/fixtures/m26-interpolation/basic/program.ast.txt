@@ -1,0 +1,145 @@
+SourceFile
+  RootPackage
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call check
+      Binary Eq
+        InterpolatedString
+        StringLiteral ""
+    Call check
+      Binary Eq
+        InterpolatedString
+          Text "text only"
+        StringLiteral "text only"
+    Call check
+      Binary Eq
+        InterpolatedString
+          Expression
+            IntLiteral 1
+          Expression
+            IntLiteral 2
+          Expression
+            IntLiteral 3
+        StringLiteral "123"
+    Call check
+      Binary Eq
+        InterpolatedString
+          Text "雪:"
+          Expression
+            CharLiteral '🚀'
+          Text ":"
+          Expression
+            CharLiteral '\0'
+          Text ":"
+          Expression
+            IntLiteral 42
+          Text ":"
+          Expression
+            BoolLiteral true
+        StringLiteral "雪:🚀:\0:42:true"
+    Call check
+      Binary Eq
+        InterpolatedString
+          Expression
+            MethodCall toInt8
+              Unary Neg
+                IntLiteral 128
+          Text "/"
+          Expression
+            MethodCall toUInt8
+              IntLiteral 255
+          Text "/"
+          Expression
+            MethodCall toInt16
+              Unary Neg
+                IntLiteral 32768
+          Text "/"
+          Expression
+            MethodCall toUInt16
+              IntLiteral 65535
+        StringLiteral "-128/255/-32768/65535"
+    Call check
+      Binary Eq
+        InterpolatedString
+          Expression
+            Unary Neg
+              IntLiteral 2147483648
+          Text "/"
+          Expression
+            IntLiteral 4294967295u
+          Text "/"
+          Expression
+            Unary Neg
+              IntLiteral 9223372036854775808L
+          Text "/"
+          Expression
+            IntLiteral 18446744073709551615uL
+        StringLiteral "-2147483648/4294967295/-9223372036854775808/18446744073709551615"
+    Call check
+      Binary Eq
+        InterpolatedString
+          Text "price $ 9 $$ $9"
+        StringLiteral "price $ 9 $$ $9"
+    val values
+      Call Array<String>
+        IntLiteral 3L
+        Lambda 0 suspend=false
+          param index: _
+          InterpolatedString
+            Text "n"
+            Expression
+              Var index
+    val parts: MutableList<String>
+      Call ArrayList<String>
+    for value
+      Var values
+      MethodCall add
+        Var parts
+        InterpolatedString
+          Text "<"
+          Expression
+            Var value
+          Text ">"
+    Call gcCollect
+    Call check
+      Binary And
+        Binary Eq
+          Index
+            Var parts
+            IntLiteral 0L
+          StringLiteral "<n0>"
+        Binary Eq
+          Index
+            Var parts
+            IntLiteral 2L
+          StringLiteral "<n2>"
+    val text
+      InterpolatedString
+        Expression
+          Index
+            Var values
+            IntLiteral 1L
+        Text "雪"
+    Call check
+      Binary And
+        Binary And
+          Binary Eq
+            FieldAccess length
+              Var text
+            IntLiteral 3L
+          Binary Eq
+            FieldAccess byteLength
+              Var text
+            IntLiteral 5L
+        Binary Eq
+          Index
+            Var text
+            IntLiteral 2L
+          CharLiteral '雪'
+    Call println
+      IntLiteral 42

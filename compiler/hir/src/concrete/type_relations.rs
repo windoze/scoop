@@ -111,6 +111,7 @@ impl<'a> ConcreteTypeRelations<'a> {
                 self.visit_function(*signature, visit)
             }
             IntrinsicTypeRepresentation::Integer(_)
+            | IntrinsicTypeRepresentation::Char
             | IntrinsicTypeRepresentation::Boolean
             | IntrinsicTypeRepresentation::String => Ok(()),
         }

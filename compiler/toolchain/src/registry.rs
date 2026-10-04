@@ -38,6 +38,10 @@ impl ResolvedTargetProfile {
                 canonical_triple: "aarch64-apple-darwin",
                 runtime_sources: &[
                     "runtime/src/rt.c",
+                    "runtime/src/characters.c",
+                    "runtime/src/strings.c",
+                    "runtime/src/string_parts.c",
+                    "runtime/src/utf8.c",
                     "runtime/src/startup.c",
                     "runtime/src/startup/failure.c",
                     "runtime/src/startup/gateway.c",
@@ -90,6 +94,7 @@ impl ResolvedTargetProfile {
                     "runtime/src/platform/image/darwin_sha256.c",
                     "runtime/src/platform/arch/aarch64.c",
                     "runtime/src/platform/arch/aarch64_anchor.S",
+                    "runtime/src/platform/arch/aarch64_strings.S",
                     "runtime/src/platform/os/darwin.c",
                 ],
                 runtime_c_flags: &[

@@ -27,6 +27,7 @@ impl Lowerer {
             hir::ClassRepresentation::Declared
             | hir::ClassRepresentation::Intrinsic(
                 hir::IntrinsicTypeKind::Integer(_)
+                | hir::IntrinsicTypeKind::Char
                 | hir::IntrinsicTypeKind::Boolean
                 | hir::IntrinsicTypeKind::String
                 | hir::IntrinsicTypeKind::Ptr

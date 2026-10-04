@@ -27,6 +27,7 @@ pub(super) const FUNDAMENTAL_LAYOUT: [ProtocolEntryKind; FUNDAMENTAL_TYPE_COUNT]
     ProtocolEntryKind::GenericType,
     ProtocolEntryKind::GenericType,
     ProtocolEntryKind::GenericType,
+    ProtocolEntryKind::Type,
 ];
 pub(super) const OPTION_LAYOUT: [ProtocolEntryKind; OPTION_PROTOCOL_COUNT] = [
     ProtocolEntryKind::GenericType,
@@ -52,6 +53,8 @@ pub(super) const EXCEPTION_LAYOUT: [ProtocolEntryKind; EXCEPTION_PROTOCOL_COUNT]
     ProtocolEntryKind::Callable,
     ProtocolEntryKind::Type,
     ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Callable,
+    ProtocolEntryKind::Type,
     ProtocolEntryKind::Callable,
 ];
 pub(super) const COROUTINE_LAYOUT: [ProtocolEntryKind; COROUTINE_PROTOCOL_COUNT] = [

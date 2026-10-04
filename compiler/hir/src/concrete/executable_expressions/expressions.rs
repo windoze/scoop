@@ -29,6 +29,8 @@ impl<'a> Traversal<'a> {
                 source: operand, ..
             }
             | ExprKind::PtrFromNonZeroULong(operand)
+            | ExprKind::CharCode(operand)
+            | ExprKind::CharFromCodeUnchecked(operand)
             | ExprKind::PtrToULong(operand)
             | ExprKind::PtrCast(operand)
             | ExprKind::Box(operand)
@@ -54,6 +56,10 @@ impl<'a> Traversal<'a> {
                 receiver: operand, ..
             } => self.push(Item::Expression(operand)),
             ExprKind::PrimitiveBinary { lhs, rhs, .. }
+            | ExprKind::ArrayGenerate {
+                count: lhs,
+                initializer: rhs,
+            }
             | ExprKind::Binary { lhs, rhs, .. }
             | ExprKind::PtrOffset {
                 pointer: lhs,
@@ -130,6 +136,7 @@ impl<'a> Traversal<'a> {
             }
             ExprKind::StringLiteral { .. }
             | ExprKind::IntegerLiteral(_)
+            | ExprKind::CharLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::ConstructorReceiver

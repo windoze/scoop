@@ -2,8 +2,13 @@ Module
   enum Choice
     Number(_1: Int)
     Empty()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun render @fn0(choice: Choice) -> String
     bb0 entry
       val $when.1: Choice

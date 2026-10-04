@@ -1,0 +1,69 @@
+SourceFile
+  RootPackage
+  val raw: String <const> = <expr>
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    Call check
+      Binary Eq
+        Var raw
+        StringLiteral "$name ${ignored}\\n\n雪"
+    Call check
+      Binary Eq
+        StringLiteral "ordinary ${unknown} $name"
+        StringLiteral "ordinary ${unknown} $name"
+    Call check
+      Binary Eq
+        InterpolatedString
+          Text "${unknown} ${another} $name"
+        StringLiteral "${unknown} ${another} $name"
+    Call check
+      Binary Eq
+        InterpolatedString
+          Text "\t\u{8}\n\r'\"\\A🚀"
+        StringLiteral "\t\u{8}\n\r'\"\\A🚀"
+    val value
+      InterpolatedString
+        Text "line \\n "
+        Expression
+          StringLiteral "雪"
+        Text "\n"
+        Expression
+          InterpolatedString
+            Expression
+              CharLiteral '🚀'
+        Text " end"
+    Call check
+      Binary Eq
+        Var value
+        StringLiteral "line \\n 雪\n🚀 end"
+    Call check
+      Binary Eq
+        StringLiteral "quoted\""
+        StringLiteral "quoted\""
+    Call check
+      Binary Eq
+        InterpolatedString
+          Text "quoted"
+          Expression
+            IntLiteral 42
+          Text "\"\""
+        StringLiteral "quoted42\"\""
+    Call check
+      Binary Eq
+        InterpolatedString
+          Text "backslash \\"
+          Expression
+            IntLiteral 1
+        StringLiteral "backslash \\1"
+    Call check
+      Binary Eq
+        InterpolatedString
+          Text "$ $9 $$"
+        StringLiteral "$ $9 $$"
+    Call println
+      IntLiteral 42

@@ -1,9 +1,14 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Both vtable=0 itables=2
   interface Describe<Int>
   interface Describe<String>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun Both.describe @fn0(this: Both, value: Int) -> String
     bb0 entry
       return

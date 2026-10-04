@@ -1,12 +1,10 @@
-//! Recursive-descent parser for the M10 subset: token vector -> AST.
+//! Recursive-descent parser: one token vector becomes a spanned AST.
 //!
 //! Parsing recovers at declaration, member and statement boundaries and
 //! returns every independent spanned diagnostic found in one file. A file
-//! with any diagnostic does not produce an AST. Constructs that are
-//! lexically recognizable but outside the subset (string interpolation,
-//! slices, loop labels, `do-while`, `sealed` classes)
-//! get dedicated "not supported" diagnostics rather than generic syntax
-//! errors. Declaration parsing lives in `decl.rs`, type parsing in `ty.rs`,
+//! with any diagnostic does not produce an AST. Unsupported declaration
+//! or control syntax receives a dedicated diagnostic where it is recognized.
+//! Declaration parsing lives in `decl.rs`, type parsing in `ty.rs`,
 //! statement/control-flow parsing in `stmt.rs`, expression parsing in
 //! `expr.rs`, and pattern parsing in `pattern.rs`.
 

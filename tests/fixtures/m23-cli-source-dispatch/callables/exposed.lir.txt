@@ -45,8 +45,8 @@ Module
     local %0 $receiver: ptr<managed>
     local %1 $argument.0: i64
     local %2 $parameter.value: i64
-    local %3 $call.1: i64
-    local %4 $call.2: i32
+    local %3 $aggregate.0: i64
+    local %4 $aggregate.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
     store param0 -> local0

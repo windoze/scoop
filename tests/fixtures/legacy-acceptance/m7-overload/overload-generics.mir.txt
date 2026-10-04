@@ -1,6 +1,11 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun id @fn0(x: Int) -> Int
     bb0 entry
       val $dependency.receiver: Int

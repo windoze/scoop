@@ -42,6 +42,7 @@ pub(in crate::validation) fn validate_expression(
         }
         ExprKind::IntegerLiteral(_)
         | ExprKind::MachineScalarLiteral(_)
+        | ExprKind::CharLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
         | ExprKind::TupleLiteral(_)
@@ -49,6 +50,8 @@ pub(in crate::validation) fn validate_expression(
         | ExprKind::StructConstruct { .. }
         | ExprKind::Local(_)
         | ExprKind::PtrFromNonZeroULong { .. }
+        | ExprKind::CharCode(_)
+        | ExprKind::CharFromCodeUnchecked(_)
         | ExprKind::PtrToULong(_)
         | ExprKind::PtrCast { .. }
         | ExprKind::PtrLoad { .. }
@@ -87,6 +90,7 @@ pub(in crate::validation) fn validate_expression(
         | ExprKind::Unbox(_)
         | ExprKind::IsInstance { .. }
         | ExprKind::Cast { .. }
+        | ExprKind::ArrayAllocate { .. }
         | ExprKind::ArrayLiteral { .. }
         | ExprKind::ArrayAssembly { .. }
         | ExprKind::ArrayGet { .. }

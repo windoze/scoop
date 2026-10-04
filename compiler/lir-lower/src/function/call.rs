@@ -111,6 +111,7 @@ impl<'a> FunctionLowerer<'a> {
                     !signature.is_suspend && signature.return_type == mir::Type::Unit;
                 let call_signature = abi::classify_mir_signature(
                     self.context,
+                    self.module,
                     parameter_types.iter(),
                     if returns_unit {
                         &mir::Type::Unit
@@ -440,6 +441,7 @@ impl<'a> FunctionLowerer<'a> {
         );
         let signature = abi::classify_mir_signature(
             self.context,
+            self.module,
             parameter_types.iter(),
             if returns_unit {
                 &mir::Type::Unit

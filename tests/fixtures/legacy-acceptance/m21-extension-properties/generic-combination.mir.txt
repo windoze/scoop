@@ -1,8 +1,13 @@
 Module
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class Cell<Int> vtable=0 itables=0
   class Cell<String> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun main @fn0() -> Unit
     bb0 entry
       val $argument.0: Int

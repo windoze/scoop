@@ -132,7 +132,7 @@ pub(super) fn lower_function<'a>(
         .enumerate()
     {
         assert_eq!(
-            &lir_type(&param.ty),
+            &lir_type(module, &param.ty),
             abi_argument.logical_storage_type(),
             "preclassified function parameter preserves its LIR storage type"
         );
@@ -165,7 +165,7 @@ pub(super) fn lower_function<'a>(
     if let Some(storage_type) = signature.result().logical_storage_type() {
         assert_eq!(
             storage_type,
-            &lir_type(&function.return_ty),
+            &lir_type(module, &function.return_ty),
             "preclassified function result preserves its LIR storage type"
         );
     }
@@ -433,6 +433,6 @@ impl<'a> FunctionLowerer<'a> {
 
     /// The transient physical LIR shape of a MIR value type.
     fn value_type(&mut self, ty: &mir::Type) -> lir::LirType {
-        lir_type(ty)
+        lir_type(self.module, ty)
     }
 }

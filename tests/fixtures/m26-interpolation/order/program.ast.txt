@@ -1,0 +1,123 @@
+SourceFile
+  RootPackage
+  class Journal(var log: String)
+  class Value(val journal: Journal, val id: Int, val fail: Boolean), ToString
+    public fun toString
+  fun make(journal: Journal, id: Int, fail: Boolean): Value
+    assign .log
+      Var journal
+      Binary Add
+        Binary Add
+          FieldAccess log
+            Var journal
+          StringLiteral "E"
+        MethodCall toString
+          Var id
+    return
+      Call Value
+        Var journal
+        Var id
+        Var fail
+  fun explode(journal: Journal): Int
+    assign .log
+      Var journal
+      Binary Add
+        FieldAccess log
+          Var journal
+        StringLiteral "X"
+    throw
+      Call IllegalArgumentException
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val journal
+      Call Journal
+        StringLiteral ""
+    val text
+      InterpolatedString
+        Expression
+          Call make
+            Var journal
+            IntLiteral 1
+            BoolLiteral false
+        Text "|"
+        Expression
+          Call make
+            Var journal
+            IntLiteral 2
+            BoolLiteral false
+    Call check
+      Binary And
+        Binary Eq
+          Var text
+          StringLiteral "1|2"
+        Binary Eq
+          FieldAccess log
+            Var journal
+          StringLiteral "E1T1E2T2"
+    assign .log
+      Var journal
+      StringLiteral ""
+    var failed
+      BoolLiteral false
+    try
+      val ignored
+        InterpolatedString
+          Expression
+            Call make
+              Var journal
+              IntLiteral 3
+              BoolLiteral false
+          Expression
+            Call make
+              Var journal
+              IntLiteral 4
+              BoolLiteral true
+          Expression
+            Call make
+              Var journal
+              IntLiteral 5
+              BoolLiteral false
+    catch error: IllegalStateException
+      assign failed
+        BoolLiteral true
+    Call check
+      Binary And
+        Var failed
+        Binary Eq
+          FieldAccess log
+            Var journal
+          StringLiteral "E3T3E4T4"
+    assign .log
+      Var journal
+      StringLiteral ""
+    assign failed
+      BoolLiteral false
+    try
+      val ignored
+        InterpolatedString
+          Text "before"
+          Expression
+            Call explode
+              Var journal
+          Expression
+            Call make
+              Var journal
+              IntLiteral 6
+              BoolLiteral false
+    catch error: IllegalArgumentException
+      assign failed
+        BoolLiteral true
+    Call check
+      Binary And
+        Var failed
+        Binary Eq
+          FieldAccess log
+            Var journal
+          StringLiteral "X"
+    Call println
+      IntLiteral 42

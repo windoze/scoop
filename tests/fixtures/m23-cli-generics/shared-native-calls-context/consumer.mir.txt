@@ -5,33 +5,34 @@ Module
   enum Option<Int>
     Some(_0: Int)
     None()
+  class FixedHost vtable=0 itables=0
+  class ListIterator<Int> vtable=0 itables=1
   class IndexOutOfBoundsException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
-  class FixedHost vtable=0 itables=0
-  class ArrayIterator<Int> vtable=0 itables=1
   class box<Int> vtable=0 itables=0
   class box<Int8> vtable=0 itables=0
+  interface List<Int> : Iterable<Int>
   interface Iterable<Int>
   interface Iterator<Int>
-  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn8 captures=0
-    bridge function_type1 -> @fn19 id=970fd2bc5f04ed92ac3c100c22d6049cc3efa52c90decb9d2b838d3866de9c73
-  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn9 captures=0
-    bridge function_type1 -> @fn20 id=ba6f9b24e15d1f306f682cc0d648a6678ade0921a09ecb2e35b3492aabf13c18
-  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn12 captures=0
-    bridge function_type1 -> @fn21 id=9ee8b0d8402d6373051881ea507128fe9c777ff49d1d623752840b303d45c336
-  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn13 captures=0
-    bridge function_type1 -> @fn22 id=381c2b510841a60db760e4ece7f2e77c88571d8270d8f390cf4fddc18d68440e
-  closure cc4 $Closure$lambda4 type=function_type0 invoke=@fn14 captures=0
-    bridge function_type1 -> @fn23 id=358975e967d838ddcb7dc89deaa18aaa871a9ecabf3e2d4e555cd3be9b8f81ca
-  closure cc5 $Closure$anonymous0 type=function_type2 invoke=@fn10 captures=0
-    bridge function_type1 -> @fn24 id=97f7119fbc1187c6d7bcc020c16a4c4f14323ffb9010b011332ac087fb19c55f
-  closure cc6 $Closure$anonymous1 type=function_type2 invoke=@fn11 captures=0
-    bridge function_type1 -> @fn25 id=8ebf45e701ebd2412c90fef6c51628ec27293d32593d1991ec3dce2c85e59b02
-  closure cc7 $Closure$reference0 type=function_type0 invoke=@fn16 captures=0
-    bridge function_type1 -> @fn26 id=305722b6276cac5bb6894a941e72ad7465769beb650f3de02c45195c37a46aed
-  closure cc8 $Closure$reference1 type=function_type0 invoke=@fn17 captures=0
-    bridge function_type1 -> @fn27 id=89690fe0fc887cece9f4dcc01e001e77d673da9bc7bfb25f2e0977b42ff8bb64
+  closure cc0 $Closure$lambda0 type=function_type2 invoke=@fn10 captures=0
+    bridge function_type1 -> @fn23 id=970fd2bc5f04ed92ac3c100c22d6049cc3efa52c90decb9d2b838d3866de9c73
+  closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn11 captures=0
+    bridge function_type1 -> @fn24 id=ba6f9b24e15d1f306f682cc0d648a6678ade0921a09ecb2e35b3492aabf13c18
+  closure cc2 $Closure$lambda2 type=function_type0 invoke=@fn14 captures=0
+    bridge function_type1 -> @fn25 id=9ee8b0d8402d6373051881ea507128fe9c777ff49d1d623752840b303d45c336
+  closure cc3 $Closure$lambda3 type=function_type0 invoke=@fn15 captures=0
+    bridge function_type1 -> @fn26 id=381c2b510841a60db760e4ece7f2e77c88571d8270d8f390cf4fddc18d68440e
+  closure cc4 $Closure$lambda4 type=function_type0 invoke=@fn16 captures=0
+    bridge function_type1 -> @fn27 id=358975e967d838ddcb7dc89deaa18aaa871a9ecabf3e2d4e555cd3be9b8f81ca
+  closure cc5 $Closure$anonymous0 type=function_type2 invoke=@fn12 captures=0
+    bridge function_type1 -> @fn28 id=97f7119fbc1187c6d7bcc020c16a4c4f14323ffb9010b011332ac087fb19c55f
+  closure cc6 $Closure$anonymous1 type=function_type2 invoke=@fn13 captures=0
+    bridge function_type1 -> @fn29 id=8ebf45e701ebd2412c90fef6c51628ec27293d32593d1991ec3dce2c85e59b02
+  closure cc7 $Closure$reference0 type=function_type0 invoke=@fn20 captures=0
+    bridge function_type1 -> @fn30 id=305722b6276cac5bb6894a941e72ad7465769beb650f3de02c45195c37a46aed
+  closure cc8 $Closure$reference1 type=function_type0 invoke=@fn21 captures=0
+    bridge function_type1 -> @fn31 id=89690fe0fc887cece9f4dcc01e001e77d673da9bc7bfb25f2e0977b42ff8bb64
   generated_exact_type get0 location=closure2 nominal_id=929d76c219c177f32860c71e73652f66980615242656ee0abdf6299da13798cc exact_id=0f65b4db4feccd4349de80790058da8b34afdafdc4e4fb75847890f0bec1a4a3
   generated_exact_type get1 location=closure1 nominal_id=2c806fb47391acff6bcc3136e3b12641fc24a9d96315db940eb0952088b004c7 exact_id=144221b8e51844ece62a14da8d45cb430a413e77a0b040398deea6494303c2ce
   generated_exact_type get2 location=closure0 nominal_id=cec57c5cac2b501507d5cddbbe49c8192d757a49c34174f6a034e419ecac25b6 exact_id=17fbf9a8274e90e3039bcb253c9afb8eee67b78ab48af91033dec7abaae25a11
@@ -43,15 +44,15 @@ Module
   generated_exact_type get8 location=class7 nominal_id=de537a479a9750a662a38e8bc8144b7035afa0c1849733a99c565fd3a7bc87b1 exact_id=db9e3cb3d8fc84aff6fadcd13ed41bfabfeba931a2091e153f787fa001f8bcd3
   generated_exact_type get9 location=closure3 nominal_id=27582c13cf62470df347ed8fdc25b587e43bdaeddccd37c003e14f9be5328730 exact_id=e4c84ed04f43d971bdd8f571f1af1e018fbdc831c005feb99f6fa67b1b8de443
   generated_exact_type get10 location=class6 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_callable gc0 function=@fn26 id=305722b6276cac5bb6894a941e72ad7465769beb650f3de02c45195c37a46aed
-  generated_callable gc1 function=@fn23 id=358975e967d838ddcb7dc89deaa18aaa871a9ecabf3e2d4e555cd3be9b8f81ca
-  generated_callable gc2 function=@fn22 id=381c2b510841a60db760e4ece7f2e77c88571d8270d8f390cf4fddc18d68440e
-  generated_callable gc3 function=@fn27 id=89690fe0fc887cece9f4dcc01e001e77d673da9bc7bfb25f2e0977b42ff8bb64
-  generated_callable gc4 function=@fn25 id=8ebf45e701ebd2412c90fef6c51628ec27293d32593d1991ec3dce2c85e59b02
-  generated_callable gc5 function=@fn19 id=970fd2bc5f04ed92ac3c100c22d6049cc3efa52c90decb9d2b838d3866de9c73
-  generated_callable gc6 function=@fn24 id=97f7119fbc1187c6d7bcc020c16a4c4f14323ffb9010b011332ac087fb19c55f
-  generated_callable gc7 function=@fn21 id=9ee8b0d8402d6373051881ea507128fe9c777ff49d1d623752840b303d45c336
-  generated_callable gc8 function=@fn20 id=ba6f9b24e15d1f306f682cc0d648a6678ade0921a09ecb2e35b3492aabf13c18
+  generated_callable gc0 function=@fn30 id=305722b6276cac5bb6894a941e72ad7465769beb650f3de02c45195c37a46aed
+  generated_callable gc1 function=@fn27 id=358975e967d838ddcb7dc89deaa18aaa871a9ecabf3e2d4e555cd3be9b8f81ca
+  generated_callable gc2 function=@fn26 id=381c2b510841a60db760e4ece7f2e77c88571d8270d8f390cf4fddc18d68440e
+  generated_callable gc3 function=@fn31 id=89690fe0fc887cece9f4dcc01e001e77d673da9bc7bfb25f2e0977b42ff8bb64
+  generated_callable gc4 function=@fn29 id=8ebf45e701ebd2412c90fef6c51628ec27293d32593d1991ec3dce2c85e59b02
+  generated_callable gc5 function=@fn23 id=970fd2bc5f04ed92ac3c100c22d6049cc3efa52c90decb9d2b838d3866de9c73
+  generated_callable gc6 function=@fn28 id=97f7119fbc1187c6d7bcc020c16a4c4f14323ffb9010b011332ac087fb19c55f
+  generated_callable gc7 function=@fn25 id=9ee8b0d8402d6373051881ea507128fe9c777ff49d1d623752840b303d45c336
+  generated_callable gc8 function=@fn24 id=ba6f9b24e15d1f306f682cc0d648a6678ade0921a09ecb2e35b3492aabf13c18
   fun localApply @fn0(action: (Int) -> Int, value: Int) -> Int
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
@@ -86,11 +87,9 @@ Module
           Local $dependency.receiver
   fun localArrayFirst @fn3(values: Array<Int>) -> Int
     bb0 entry
-      val $dependency.receiver: Long
-        Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          Local values
+      call $dependency.receiver: Long = @fn9 direct
+        Type Array<Int>
+        Local values
       val $dependency.argument.0: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
@@ -119,62 +118,19 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.1: Array<Int>
+      call $call.1: Int = @fn8 direct
         Type Array<Int>
         Local $dependency.receiver
-      val $idx.2: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb5 bb4
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
+      assign $result.0
+        Type Int
+        Local $call.1
+      goto bb3
     bb3 if.merge.3
       return
         Type Int
         Local $result.0
-    bb4 logic.rhs.4
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Int>
-            Type Array<Int>
-            Local $arr.1
-      goto bb6
-    bb5 logic.short.5
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb6
-    bb6 logic.merge.6
-      branch bb7 bb8
-        Type Boolean
-        Local $logic.1
-    bb7 if.then.7
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external8 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb8 if.merge.8
-      assign $result.0
-        Type Int
-        ArrayGet Array<Int>
-          Type Array<Int>
-          Local $arr.1
-          Type Long
-          Local $idx.2
-      goto bb3
   fun localPack @fn4(values: Array<Int>) -> Array<Int>
     bb0 entry
       return
@@ -675,11 +631,9 @@ Module
       call $call.3: Array<Int> = @fn4 direct
         Type Array<Int>
         Local $parameter.values
-      val $dependency.receiver: Long
-        Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          Local $call.3
+      call $dependency.receiver: Long = @fn9 direct
+        Type Array<Int>
+        Local $call.3
       val $dependency.argument.0: Long
         Type Long
         IntegerLiteral Long value=2 bits=0x0000000000000002
@@ -719,11 +673,9 @@ Module
       call $call.4: Array<Int> = external4 direct
         Type Array<Int>
         Local $dependency.parameter.values
-      val $dependency.receiver: Long
-        Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          Local $call.4
+      call $dependency.receiver: Long = @fn9 direct
+        Type Array<Int>
+        Local $call.4
       val $dependency.argument.0: Long
         Type Long
         IntegerLiteral Long value=2 bits=0x0000000000000002
@@ -755,11 +707,9 @@ Module
       call $call.5: Array<Int> = @fn4 direct
         Type Array<Int>
         Local $parameter.values
-      val $dependency.receiver: Long
-        Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          Local $call.5
+      call $dependency.receiver: Long = @fn9 direct
+        Type Array<Int>
+        Local $call.5
       val $dependency.argument.0: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
@@ -787,11 +737,9 @@ Module
       call $call.6: Array<Int> = external4 direct
         Type Array<Int>
         Local $dependency.parameter.values
-      val $dependency.receiver: Long
-        Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          Local $call.6
+      call $dependency.receiver: Long = @fn9 direct
+        Type Array<Int>
+        Local $call.6
       val $dependency.argument.0: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
@@ -888,154 +836,68 @@ Module
         Local $result.9
   fun iterator @fn7(this: Array<Int>) -> Iterator<Int>
     bb0 entry
-      val $dependency.local.1: Array<Int>
-        Type Array<Int>
-        Local this
+      val $dependency.local.1: List<Int>
+        Type List<Int>
+        Retype List<Int>
+          Type Array<Int>
+          Local this
       val $dependency.local.2: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Int>
-        Type Array<Int>
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Int>
+        Type List<Int>
         Local $dependency.local.1
-      val $dependency.local.4: Long
+      val $dependency.local.5: Long
         Type Long
         Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Int>
-        ClassAlloc ArrayIterator<Int>
-      call @fn18 direct
-        Type ArrayIterator<Int>
-        Local $new.1
-        Type Array<Int>
+      val $dependency.local.6: Boolean
+        Type Boolean
         Local $dependency.local.3
-        Type Long
+      assign $new.1
+        Type ListIterator<Int>
+        ClassAlloc ListIterator<Int>
+      call @fn22 direct
+        Type ListIterator<Int>
+        Local $new.1
+        Type List<Int>
         Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
       return
         Type Iterator<Int>
         Retype Iterator<Int>
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local $new.1
-  fun $lambda.2 @fn8($closure: (Int) -> Int8, value: Int) -> Int8
+  fun get @fn8(this: Array<Int>, index: Long) -> Int
     bb0 entry
-      return
-        Type Int8
-        IntegerLiteral Int8 value=42 bits=0x2a
-  fun $lambda.3 @fn9($closure: (Int) -> Int8, value: Int) -> Int8
-    bb0 entry
-      return
-        Type Int8
-        IntegerLiteral Int8 value=42 bits=0x2a
-  fun $anonymous.0 @fn10($closure: (Int) -> Int8, value: Int) -> Int8
-    bb0 entry
-      return
-        Type Int8
-        IntegerLiteral Int8 value=42 bits=0x2a
-  fun $anonymous.1 @fn11($closure: (Int) -> Int8, value: Int) -> Int8
-    bb0 entry
-      return
-        Type Int8
-        IntegerLiteral Int8 value=42 bits=0x2a
-  fun $lambda.4 @fn12($closure: (Int) -> Int, it: Int) -> Int
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        Local it
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-  fun $lambda.5 @fn13($closure: (Int) -> Int, it: Int) -> Int
-    bb0 entry
-      val $dependency.receiver: Int
-        Type Int
-        Local it
-      val $dependency.argument.0: Int
-        Type Int
-        IntegerLiteral Int value=1 bits=0x00000001
-      val $dependency.parameter.other: Int
-        Type Int
-        Local $dependency.argument.0
-      return
-        Type Int
-        IntegerBinary add kind=Int
-          Type Int
-          Local $dependency.receiver
-          Type Int
-          Local $dependency.parameter.other
-  fun $lambda.6 @fn14($closure: (Int) -> Int, it: Int) -> Int
-    bb0 entry
-      return
-        Type Int
-        Local it
-  fun next @fn15(this: ArrayIterator<Int>) -> Option<Int>
-    bb0 entry
-      val $dependency.local.2: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Int>
-          Local this
+      val $dependency.local.2: Array<Int>
+        Type Array<Int>
+        Local this
       val $dependency.local.3: Long
         Type Long
-        ArrayLen Array<Int>
-          Type Array<Int>
-          FieldAccess 0
-            Type ArrayIterator<Int>
-            Local this
+        Local index
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Long result=Long
-            Type Long
-            Local $dependency.local.2
-            Type Long
-            Local $dependency.local.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Int>
-        Type Array<Int>
-        FieldAccess 0
-          Type ArrayIterator<Int>
-          Local this
-      val $dependency.local.6: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Int>
-          Local this
-      val $dependency.local.7: Long
-        Type Long
-        Local $dependency.local.6
       val $arr.1: Array<Int>
         Type Array<Int>
-        Local $dependency.local.5
+        Local $dependency.local.2
       val $idx.2: Long
         Type Long
-        Local $dependency.local.7
-      branch bb4 bb3
+        Local $dependency.local.4
+      branch bb2 bb1
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
           Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Int>
-        VariantConstruct Option<Int> v1
-    bb3 logic.rhs.3
+    bb1 logic.rhs.1
       assign $logic.1
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
@@ -1045,17 +907,17 @@ Module
           ArrayLen Array<Int>
             Type Array<Int>
             Local $arr.1
-      goto bb5
-    bb4 logic.short.4
+      goto bb3
+    bb2 logic.short.2
       assign $logic.1
         Type Boolean
         BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
         Type Boolean
         Local $logic.1
-    bb6 if.then.6
+    bb4 if.then.4
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
@@ -1065,18 +927,153 @@ Module
       throw
         Type IndexOutOfBoundsException
         Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Int
+    bb5 if.merge.5
+      return
         Type Int
         ArrayGet Array<Int>
           Type Array<Int>
           Local $arr.1
           Type Long
           Local $idx.2
+  fun size @fn9(this: Array<Int>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Int>
+        Type Array<Int>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Int>
+          Type Array<Int>
+          Local $dependency.local.1
+  fun $lambda.2 @fn10($closure: (Int) -> Int8, value: Int) -> Int8
+    bb0 entry
+      return
+        Type Int8
+        IntegerLiteral Int8 value=42 bits=0x2a
+  fun $lambda.3 @fn11($closure: (Int) -> Int8, value: Int) -> Int8
+    bb0 entry
+      return
+        Type Int8
+        IntegerLiteral Int8 value=42 bits=0x2a
+  fun $anonymous.0 @fn12($closure: (Int) -> Int8, value: Int) -> Int8
+    bb0 entry
+      return
+        Type Int8
+        IntegerLiteral Int8 value=42 bits=0x2a
+  fun $anonymous.1 @fn13($closure: (Int) -> Int8, value: Int) -> Int8
+    bb0 entry
+      return
+        Type Int8
+        IntegerLiteral Int8 value=42 bits=0x2a
+  fun $lambda.4 @fn14($closure: (Int) -> Int, it: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local it
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.5 @fn15($closure: (Int) -> Int, it: Int) -> Int
+    bb0 entry
+      val $dependency.receiver: Int
+        Type Int
+        Local it
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=1 bits=0x00000001
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $lambda.6 @fn16($closure: (Int) -> Int, it: Int) -> Int
+    bb0 entry
+      return
+        Type Int
+        Local it
+  fun next @fn17(this: ListIterator<Int>) -> Option<Int>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Int>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      call $dependency.local.3: Long = @fn18 interface List<Int>[2]
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Int>
+        VariantConstruct Option<Int> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Int>
+        Type List<Int>
+        FieldAccess 0
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Int>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Int = @fn19 interface List<Int>[1]
+        Type List<Int>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type ArrayIterator<Int>
+          Type ListIterator<Int>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -1085,7 +1082,7 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -1104,7 +1101,13 @@ Module
         VariantConstruct Option<Int> v0
           Type Int
           Local $dependency.local.12
-  fun $reference.0 @fn16($closure: (Int) -> Int, arg0: Int) -> Int
+  fun List.$get$size @fn18(this: List<Int>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn19(this: List<Int>, index: Long) -> Int
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun $reference.0 @fn20($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn5 direct
         Type Int
@@ -1112,7 +1115,7 @@ Module
       return
         Type Int
         Local $call.1
-  fun $reference.1 @fn17($closure: (Int) -> Int, arg0: Int) -> Int
+  fun $reference.1 @fn21($closure: (Int) -> Int, arg0: Int) -> Int
     bb0 entry
       call $call.1: Int = @fn5 direct
         Type Int
@@ -1120,20 +1123,25 @@ Module
       return
         Type Int
         Local $call.1
-  fun init.ArrayIterator.$c0 @fn18(this: ArrayIterator<Int>, source: Array<Int>, index: Long) -> Unit
+  fun init.ListIterator.$c0 @fn22(this: ListIterator<Int>, source: List<Int>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
-        Type Array<Int>
+        Type List<Int>
         Local source
       field_set 1
-        Type ArrayIterator<Int>
+        Type ListIterator<Int>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Int>
+        Local this
+        Type Boolean
+        Local exhausted
       return
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn19($source: (Int) -> Int8, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn23($source: (Int) -> Int8, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int8 = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int8
@@ -1147,7 +1155,7 @@ Module
         Box
           Type Int8
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn20($source: (Int) -> Int8, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn24($source: (Int) -> Int8, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int8 = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int8
@@ -1161,7 +1169,7 @@ Module
         Box
           Type Int8
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn21($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn25($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1175,7 +1183,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn22($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda3.(Any) -> Any @fn26($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1189,7 +1197,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn23($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda4.(Any) -> Any @fn27($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1203,7 +1211,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn24($source: (Int) -> Int8, arg0: Any) -> Any
+  fun function_bridge.$Closure$anonymous0.(Any) -> Any @fn28($source: (Int) -> Int8, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int8 = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int8
@@ -1217,7 +1225,7 @@ Module
         Box
           Type Int8
           Local $call.1
-  fun function_bridge.$Closure$anonymous1.(Any) -> Any @fn25($source: (Int) -> Int8, arg0: Any) -> Any
+  fun function_bridge.$Closure$anonymous1.(Any) -> Any @fn29($source: (Int) -> Int8, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int8 = <closure:function_type2> closure[function_type2]
         Type (Int) -> Int8
@@ -1231,7 +1239,7 @@ Module
         Box
           Type Int8
           Local $call.1
-  fun function_bridge.$Closure$reference0.(Any) -> Any @fn26($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference0.(Any) -> Any @fn30($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1245,7 +1253,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$reference1.(Any) -> Any @fn27($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$reference1.(Any) -> Any @fn31($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (Int) -> Int
@@ -1260,5 +1268,9 @@ Module
           Type Int
           Local $call.1
   instance mi0 function=@fn7 <- iterator
-  instance mi1 function=@fn15 <- next
+  instance mi1 function=@fn8 <- get
+  instance mi2 function=@fn9 <- size
+  instance mi3 function=@fn17 <- next
+  instance mi4 function=@fn18 <- List.$get$size
+  instance mi5 function=@fn19 <- List.get
   output library

@@ -58,10 +58,26 @@ fn with_production<R>(
         &[],
     )
     .unwrap();
-    let sources = scoop_mir_lower::lower_source_type_exports(&source, &mir.strong, &graph).unwrap();
-    let records =
-        CanonicalParamFreeMirTypeExportsV1::from_generated_shapes(&mir.strong, &sources, &graph)
-            .unwrap();
+    let complete = scoop_mir_lower::lower_type_exports(
+        input.output.output().local.module(),
+        &source,
+        &mir.strong,
+        &graph,
+    )
+    .unwrap();
+    let (generated, sources) = complete.into_records().into_iter().partition(|record| {
+        matches!(
+            record.origin(),
+            MirTypeOriginV1::GeneratedNominal {
+                role: GeneratedNominalKey::BoxedValue { .. }
+                    | GeneratedNominalKey::CoroutineStep { .. }
+                    | GeneratedNominalKey::CoroutineSlot { .. },
+                ..
+            }
+        )
+    });
+    let sources = CanonicalParamFreeMirTypeExportsV1::try_new(sources).unwrap();
+    let records = CanonicalParamFreeMirTypeExportsV1::try_new(generated).unwrap();
     run(&mir.strong, &mut graph, &records, &sources)
 }
 

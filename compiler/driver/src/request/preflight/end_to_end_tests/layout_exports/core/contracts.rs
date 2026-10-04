@@ -83,10 +83,20 @@ pub(super) fn check(
         "unexpected source-only descriptors: {names:?}"
     );
     let mut expected_local = vec![
+        "(Long) -> Char",
+        "(Long) -> Int8",
+        "(Long) -> Option<String>",
         "IntRangeIterator",
         "LongRangeIterator",
+        "StringIterator",
         "UIntRangeIterator",
         "ULongRangeIterator",
+        "closure (Long) -> Char",
+        "closure (Long) -> Char",
+        "closure (Long) -> Int8",
+        "closure (Long) -> Int8",
+        "closure (Long) -> Option<String>",
+        "closure (Long) -> Option<String>",
     ];
     expected_local.extend(match name {
         "shared-callables-combined" => Some("SharedCallableImpl"),
@@ -152,6 +162,33 @@ fn source_only_descriptors(
             .meta
             .source_exact_types
             .get_by_identity(exact);
+        let body_shape = match local.map(|local| local.ty()) {
+            Some(ty @ mir::Type::Function(_)) => Some(mir::type_name(input.mir.module(), ty)),
+            _ => input
+                .mir
+                .module()
+                .meta
+                .generated_exact_types
+                .get_by_identity(exact)
+                .and_then(|identity| match identity.location() {
+                    mir::GeneratedExactTypeLocation::Closure(id) => Some(format!(
+                        "closure {}",
+                        mir::type_name(
+                            input.mir.module(),
+                            &mir::Type::Function(
+                                input.mir.module().closure_classes[id].function_type
+                            )
+                        )
+                    )),
+                    _ => None,
+                }),
+        };
+        if let Some(name) = body_shape {
+            assert!(input.bridge.types().get(exact).is_none());
+            assert!(result.descriptors().get(exact).is_none());
+            local_only.push(name);
+            continue;
+        }
         if let Some(local) = local
             && let mir::SourceExactTypeOwner::NominalApplication(group) = local.owner()
         {

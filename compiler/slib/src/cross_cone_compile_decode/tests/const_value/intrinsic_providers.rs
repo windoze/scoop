@@ -23,6 +23,7 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
                     .map(IntrinsicTypeKind::Integer),
             )
             .chain([
+                IntrinsicTypeKind::Char,
                 IntrinsicTypeKind::String,
                 IntrinsicTypeKind::Array,
                 IntrinsicTypeKind::MutableArray,
@@ -58,6 +59,12 @@ fn intrinsic_queries_follow_all_actual_typed_references_across_reachable_provide
                     .validate_const_value_type(
                         concrete(provider.owner),
                         CanonicalConstValueKindV1::Integer(kind),
+                    )
+                    .unwrap(),
+                IntrinsicTypeKind::Char => authority
+                    .validate_const_value_type(
+                        concrete(provider.owner),
+                        CanonicalConstValueKindV1::Char,
                     )
                     .unwrap(),
                 IntrinsicTypeKind::Boolean => authority

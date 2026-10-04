@@ -1,0 +1,86 @@
+public class ArrayList<T> public constructor(initialCapacity: Long = 0L) : MutableList<T> {
+    private var storage: MutableArray<T?> = MutableArray<T?>(initialCapacity) { _ -> None }
+    private var elementCount: Long = 0L
+
+    public override val size: Long get() = elementCount
+
+    // Used by StringBuilder's concrete parts boundary inside scoop.core.
+    internal val backing: MutableArray<T?> get() = storage
+
+    private fun checkIndex(index: Long) {
+        if (index < 0L || index >= elementCount) { throw IndexOutOfBoundsException() }
+    }
+
+    private fun ensureRoom() {
+        if (elementCount == 9223372036854775807L) { coreAllocationOverflow() }
+        val required = elementCount + 1L
+        val capacity = storage.size
+        if (required <= capacity) { return }
+        val nextCapacity = if (capacity == 0L) { 8L } else {
+            if (capacity > 4611686018427387903L) { required } else { capacity * 2L }
+        }
+        val old = storage
+        val count = elementCount
+        val replacement = MutableArray<T?>(nextCapacity) { index ->
+            if (index < count) { old[index] } else { None }
+        }
+        storage = replacement
+    }
+
+    public override operator fun get(index: Long): T {
+        checkIndex(index)
+        return storage[index]!!
+    }
+
+    public override operator fun set(index: Long, value: T) {
+        checkIndex(index)
+        storage[index] = Some(value)
+    }
+
+    public override fun add(value: T) {
+        ensureRoom()
+        storage[elementCount] = Some(value)
+        elementCount = elementCount + 1L
+    }
+
+    public override fun add(index: Long, value: T) {
+        if (index < 0L || index > elementCount) { throw IndexOutOfBoundsException() }
+        ensureRoom()
+        var cursor = elementCount
+        while (cursor > index) {
+            storage[cursor] = storage[cursor - 1L]
+            cursor = cursor - 1L
+        }
+        storage[index] = Some(value)
+        elementCount = elementCount + 1L
+    }
+
+    public override fun removeAt(index: Long): T {
+        checkIndex(index)
+        val result = storage[index]!!
+        val last = elementCount - 1L
+        var cursor = index
+        while (cursor < last) {
+            storage[cursor] = storage[cursor + 1L]
+            cursor = cursor + 1L
+        }
+        storage[last] = None
+        elementCount = last
+        return result
+    }
+
+    public override fun clear() {
+        var cursor = 0L
+        while (cursor < elementCount) {
+            storage[cursor] = None
+            cursor = cursor + 1L
+        }
+        elementCount = 0L
+    }
+
+    public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
+}
+
+@NoGC
+@Extern(name = "scoop_rt_allocation_overflow", abi = "scoop")
+internal fun coreAllocationOverflow()

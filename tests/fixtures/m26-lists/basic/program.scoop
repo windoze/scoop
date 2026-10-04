@@ -1,0 +1,49 @@
+fun main() {
+    val values: MutableList<Int> = ArrayList<Int>()
+    if (values.size != 0L) { println("empty"); return }
+    var index = 0L
+    while (index < 130L) { values.add(index.toInt32()); index = index + 1L }
+    values.add(0L, -1)
+    values.add(66L, 42)
+    values.add(values.size, 999)
+    if (values.size != 133L || values[0L] != -1 || values[66L] != 42 || values[132L] != 999) {
+        println("insert"); return
+    }
+    if (values.removeAt(66L) != 42 || values.removeAt(0L) != -1 || values.removeAt(130L) != 999) {
+        println("remove"); return
+    }
+    index = 0L
+    while (index < values.size) {
+        if (values[index] != index.toInt32()) { println("shift"); return }
+        index = index + 1L
+    }
+    val view: List<Int> = values
+    val snapshot = view.toArray()
+    val mutable = view.toMutableArray()
+    values[3L] = 42
+    if (view[3L] != 42 || snapshot[3L] != 3 || mutable[3L] != 3) { println("snapshot"); return }
+    mutable[3L] = -3
+    val arrays: List<Int> = snapshot
+    val mutableArrays: List<Int> = mutable
+    if (arrays.size != 130L || mutableArrays[3L] != -3) { println("array-interface"); return }
+    values.clear()
+    values.clear()
+    values.add(7)
+    if (values.size != 1L || values[0L] != 7 || snapshot[3L] != 3) { println("clear"); return }
+    var caught = 0
+    try { val unused = values[-1L] } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { values[1L] = 2 } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { values.add(-1L, 2) } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { values.add(2L, 2) } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { values.removeAt(1L) } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { val unused = ArrayList<Int>(-1L) } catch (e: IllegalArgumentException) { caught = caught + 1 }
+    if (caught != 6 || values.size != 1L || values[0L] != 7) { println("bounds"); return }
+    val nested = ArrayList<Int?>()
+    nested.add(None)
+    nested.add(Some(42))
+    if (nested[0L] != None || nested[1L]!! != 42 || nested.removeAt(0L) != None) { println("nested-option"); return }
+    val units = ArrayList<Unit>()
+    units.add(Unit)
+    if (units.size != 1L) { println("unit"); return }
+    println(42)
+}

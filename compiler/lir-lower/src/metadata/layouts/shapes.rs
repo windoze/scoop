@@ -46,6 +46,10 @@ pub(crate) fn struct_shape(
                 let layout = context.integer_layout(integer_kind(kind));
                 (Vec::new(), layout.size, layout.align)
             }
+            mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char) => {
+                let layout = context.scalar_layout(lir::BackendScalarKind::I32);
+                (Vec::new(), layout.size, layout.align)
+            }
             mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Boolean) => {
                 let layout = context.scalar_layout(lir::BackendScalarKind::I1);
                 (Vec::new(), layout.size, layout.align)

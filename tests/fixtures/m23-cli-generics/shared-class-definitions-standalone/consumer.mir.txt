@@ -27,37 +27,37 @@ Module
   class Base<Unit, Unit> vtable=2 itables=1
   class Remote<Int> vtable=2 itables=1
   class Base<Unit, Int> vtable=2 itables=1
-  class ArrayIterator<Link<String>> vtable=0 itables=1
-  class MutableArrayIterator<Link<String>> vtable=0 itables=1
-  class ArrayIterator<Link<Unit>> vtable=0 itables=1
-  class MutableArrayIterator<Link<Unit>> vtable=0 itables=1
-  class ArrayIterator<Link<Int>> vtable=0 itables=1
-  class MutableArrayIterator<Link<Int>> vtable=0 itables=1
+  class ListIterator<Link<String>> vtable=0 itables=1
+  class ListIterator<Link<Unit>> vtable=0 itables=1
+  class ListIterator<Link<Int>> vtable=0 itables=1
   class box<Int> vtable=0 itables=0
   class box<Unit> vtable=0 itables=0
   interface Readable<String>
+  interface List<Link<String>> : Iterable<Link<String>>
   interface Iterable<Link<String>>
   interface Iterator<Link<String>>
   interface Readable<Unit>
+  interface List<Link<Unit>> : Iterable<Link<Unit>>
   interface Iterable<Link<Unit>>
   interface Iterator<Link<Unit>>
   interface Readable<Int>
+  interface List<Link<Int>> : Iterable<Link<Int>>
   interface Iterable<Link<Int>>
   interface Iterator<Link<Int>>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn1 captures=0
-    bridge function_type1 -> @fn70 id=a16fc5362f360c41d8c5b7053cd21a8e48a7f2ecf317ffec2f2a6fbedb08972a
+    bridge function_type1 -> @fn82 id=a16fc5362f360c41d8c5b7053cd21a8e48a7f2ecf317ffec2f2a6fbedb08972a
   closure cc1 $Closure$lambda1 type=function_type2 invoke=@fn3 captures=0
-    bridge function_type1 -> @fn71 id=141ee590562f0b178d8f4340bd78c37acb7be5d5811f0d5097e90bcc4938c6a5
+    bridge function_type1 -> @fn83 id=141ee590562f0b178d8f4340bd78c37acb7be5d5811f0d5097e90bcc4938c6a5
   closure cc2 $Closure$lambda2 type=function_type3 invoke=@fn7 captures=0
-    bridge function_type1 -> @fn72 id=34971ec391a88e804ef142b0641a0af579bfca419ba002d0ed46c95294ab80e1
+    bridge function_type1 -> @fn84 id=34971ec391a88e804ef142b0641a0af579bfca419ba002d0ed46c95294ab80e1
   generated_exact_type get0 location=closure1 nominal_id=880fa5e2d8a9dcd0e1a96e4f8f95a8319568cee3d952b4b847ae3b0373788f59 exact_id=0f0ccc9fa97e3f2a70502220f1f54f1384848e32b21f0a9074227620fe1060aa
   generated_exact_type get1 location=closure2 nominal_id=2a6e3d5b86f807d3438642d799ee732ede9ab77194bbafd8f03055a6932d8a21 exact_id=3930ee0d901e30f1b3f83933f5cfcffb2767ac76330192ffac5fe526b9b6c23f
-  generated_exact_type get2 location=class26 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get2 location=class23 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
   generated_exact_type get3 location=closure0 nominal_id=99a643b0f2124ebe0934a2ab53e8540bdec9991bd48a54ddea6a069df0478551 exact_id=aead5a485d772a8d556d62e5971ba8f3b4ba9bbac0ddb344bfb14868dfeeddee
-  generated_exact_type get4 location=class25 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_callable gc0 function=@fn71 id=141ee590562f0b178d8f4340bd78c37acb7be5d5811f0d5097e90bcc4938c6a5
-  generated_callable gc1 function=@fn72 id=34971ec391a88e804ef142b0641a0af579bfca419ba002d0ed46c95294ab80e1
-  generated_callable gc2 function=@fn70 id=a16fc5362f360c41d8c5b7053cd21a8e48a7f2ecf317ffec2f2a6fbedb08972a
+  generated_exact_type get4 location=class22 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_callable gc0 function=@fn83 id=141ee590562f0b178d8f4340bd78c37acb7be5d5811f0d5097e90bcc4938c6a5
+  generated_callable gc1 function=@fn84 id=34971ec391a88e804ef142b0641a0af579bfca419ba002d0ed46c95294ab80e1
+  generated_callable gc2 function=@fn82 id=a16fc5362f360c41d8c5b7053cd21a8e48a7f2ecf317ffec2f2a6fbedb08972a
   fun result @fn0() -> Int
     bb0 entry
       val $argument.0: String
@@ -176,7 +176,7 @@ Module
       val $dependency.parameter.value: String
         Type String
         Local $dependency.argument.0
-      call leaf: Link<String> = @fn14 direct
+      call leaf: Link<String> = @fn18 direct
         Type String
         Local $dependency.parameter.value
       val $dependency.argument.0: String
@@ -202,7 +202,7 @@ Module
       assign $new.1
         Type Link<String>
         ClassAlloc Link<String>
-      call @fn52 direct
+      call @fn67 direct
         Type Link<String>
         Local $new.1
         Type String
@@ -221,7 +221,7 @@ Module
       val $dependency.parameter._1: Link<String>
         Type Link<String>
         Local $dependency.argument.0
-      call @fn15 direct
+      call @fn19 direct
         Type Link<String>
         Local $place.0
         Type Option<Link<String>>
@@ -234,10 +234,10 @@ Module
       val $dependency.parameter.head: Link<String>
         Type Link<String>
         Local $dependency.argument.0
-      call wrapped: Wrapper<String> = @fn67 direct
+      call wrapped: Wrapper<String> = @fn79 direct
         Type Link<String>
         Local $dependency.parameter.head
-      call $opt.1: Option<Link<String>> = @fn16 direct
+      call $opt.1: Option<Link<String>> = @fn20 direct
         Type Link<String>
         FieldAccess 0
           Type Wrapper<String>
@@ -265,7 +265,7 @@ Module
         Type UnwrapException
         Local $new.2
     bb3 if.merge.3
-      call $call.3: String = @fn17 direct
+      call $call.3: String = @fn21 direct
         Type Link<String>
         Local $uw.2
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -293,7 +293,7 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb5 if.merge.5
-      call $opt.3: Option<Link<String>> = @fn16 direct
+      call $opt.3: Option<Link<String>> = @fn20 direct
         Type Link<String>
         Local leaf
       branch bb6 bb7
@@ -319,7 +319,7 @@ Module
         Type UnwrapException
         Local $new.4
     bb8 if.merge.8
-      call $call.5: String = @fn17 direct
+      call $call.5: String = @fn21 direct
         Type Link<String>
         Local $uw.4
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -356,7 +356,7 @@ Module
       assign $new.6
         Type Remote<String>
         ClassAlloc Remote<String>
-      call @fn53 direct
+      call @fn68 direct
         Type Remote<String>
         Local $new.6
         Type String
@@ -374,7 +374,7 @@ Module
         Retype Readable<String>
           Type Remote<String>
           Local remote
-      call $call.7: String = @fn18 direct
+      call $call.7: String = @fn22 direct
         Type Remote<String>
         Local remote
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
@@ -408,7 +408,7 @@ Module
       val $dependency.receiver: Base<Unit, String>
         Type Base<Unit, String>
         Local base
-      call $dependency.parameter.other: String = @fn19 direct
+      call $dependency.parameter.other: String = @fn23 direct
         Type Base<Unit, String>
         Local $dependency.receiver
       call $call.8: String = @fn10 virtual[1]
@@ -574,69 +574,26 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.8: MutableArray<Link<String>>
+      call $call.11: Link<String> = @fn16 direct
         Type MutableArray<Link<String>>
         Local $dependency.receiver
-      val $idx.9: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb23 bb22
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.9
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb22 logic.rhs.22
-      assign $logic.11
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.9
-          Type Long
-          ArrayLen MutableArray<Link<String>>
-            Type MutableArray<Link<String>>
-            Local $arr.8
-      goto bb24
-    bb23 logic.short.23
-      assign $logic.11
-        Type Boolean
-        BoolLiteral true
-      goto bb24
-    bb24 logic.merge.24
-      branch bb25 bb26
-        Type Boolean
-        Local $logic.11
-    bb25 if.then.25
-      assign $new.12
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external1 direct
-        Type IndexOutOfBoundsException
-        Local $new.12
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.12
-    bb26 if.merge.26
-      call $call.13: String = @fn17 direct
+      call $call.12: String = @fn21 direct
         Type Link<String>
-        ArrayGet MutableArray<Link<String>>
-          Type MutableArray<Link<String>>
-          Local $arr.8
-          Type Long
-          Local $idx.9
+        Local $call.11
       call $dependency.receiver: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
         Local $callable.receiver
         Type String
-        Local $call.13
+        Local $call.12
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      branch bb27 bb28
+      branch bb22 bb23
         Type Boolean
         Unary BoolNot
           Type Boolean
@@ -645,11 +602,11 @@ Module
             Local $dependency.receiver
             Type Int
             Local $dependency.parameter.other
-    bb27 if.then.27
+    bb22 if.then.22
       return
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
-    bb28 if.merge.28
+    bb23 if.merge.23
       val $callable.receiver: (String) -> Int
         Type (String) -> Int
         Local read
@@ -665,22 +622,22 @@ Module
       val $default.local.2: String
         Type String
         Local $default.local.1
-      call $dependency.parameter.link: Link<String> = @fn14 direct
+      call $dependency.parameter.link: Link<String> = @fn18 direct
         Type String
         Local $default.local.2
-      call $call.14: String = @fn20 direct
+      call $call.13: String = @fn24 direct
         Type String
         Local $dependency.parameter.value
         Type Link<String>
         Local $dependency.parameter.link
-      call $call.15: Int = <closure:function_type0> closure[function_type0]
+      call $call.14: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
         Local $callable.receiver
         Type String
-        Local $call.14
+        Local $call.13
       return
         Type Int
-        Local $call.15
+        Local $call.14
   fun $lambda.1 @fn3($closure: (Unit) -> Int, item: Unit) -> Int
     bb0 entry
       return
@@ -694,7 +651,7 @@ Module
       val $dependency.parameter.value: Unit
         Type Unit
         Local $dependency.argument.0
-      call leaf: Link<Unit> = @fn26 direct
+      call leaf: Link<Unit> = @fn34 direct
         Type Unit
         Local $dependency.parameter.value
       val $dependency.argument.0: Unit
@@ -720,7 +677,7 @@ Module
       assign $new.1
         Type Link<Unit>
         ClassAlloc Link<Unit>
-      call @fn54 direct
+      call @fn69 direct
         Type Link<Unit>
         Local $new.1
         Type Unit
@@ -739,7 +696,7 @@ Module
       val $dependency.parameter._1: Link<Unit>
         Type Link<Unit>
         Local $dependency.argument.0
-      call @fn27 direct
+      call @fn35 direct
         Type Link<Unit>
         Local $place.0
         Type Option<Link<Unit>>
@@ -752,10 +709,10 @@ Module
       val $dependency.parameter.head: Link<Unit>
         Type Link<Unit>
         Local $dependency.argument.0
-      call wrapped: Wrapper<Unit> = @fn68 direct
+      call wrapped: Wrapper<Unit> = @fn80 direct
         Type Link<Unit>
         Local $dependency.parameter.head
-      call $opt.1: Option<Link<Unit>> = @fn28 direct
+      call $opt.1: Option<Link<Unit>> = @fn36 direct
         Type Link<Unit>
         FieldAccess 0
           Type Wrapper<Unit>
@@ -783,7 +740,7 @@ Module
         Type UnwrapException
         Local $new.2
     bb3 if.merge.3
-      call @fn29 direct
+      call @fn37 direct
         Type Link<Unit>
         Local $uw.2
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
@@ -811,7 +768,7 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb5 if.merge.5
-      call $opt.3: Option<Link<Unit>> = @fn28 direct
+      call $opt.3: Option<Link<Unit>> = @fn36 direct
         Type Link<Unit>
         Local leaf
       branch bb6 bb7
@@ -837,7 +794,7 @@ Module
         Type UnwrapException
         Local $new.3
     bb8 if.merge.8
-      call @fn29 direct
+      call @fn37 direct
         Type Link<Unit>
         Local $uw.4
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
@@ -874,7 +831,7 @@ Module
       assign $new.4
         Type Remote<Unit>
         ClassAlloc Remote<Unit>
-      call @fn55 direct
+      call @fn70 direct
         Type Remote<Unit>
         Local $new.4
         Type Unit
@@ -892,7 +849,7 @@ Module
         Retype Readable<Unit>
           Type Remote<Unit>
           Local remote
-      call @fn30 direct
+      call @fn38 direct
         Type Remote<Unit>
         Local remote
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
@@ -926,13 +883,13 @@ Module
       val $dependency.receiver: Base<Unit, Unit>
         Type Base<Unit, Unit>
         Local base
-      call @fn31 direct
+      call @fn39 direct
         Type Base<Unit, Unit>
         Local $dependency.receiver
       val $dependency.parameter.other: Unit
         Type Unit
         UnitLiteral
-      call @fn22 virtual[1]
+      call @fn26 virtual[1]
         Type Base<Unit, Unit>
         Local $dependency.receiver
         Type Unit
@@ -971,7 +928,7 @@ Module
       val $dependency.parameter.convert: (Unit) -> Int
         Type (Unit) -> Int
         Local $dependency.argument.0
-      call $dependency.receiver: Int = @fn23 interface Readable<Unit>[1]
+      call $dependency.receiver: Int = @fn27 interface Readable<Unit>[1]
         Type Readable<Unit>
         Local $dependency.receiver
         Type (Unit) -> Int
@@ -1095,57 +1052,14 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.8: MutableArray<Link<Unit>>
+      call $call.7: Link<Unit> = @fn32 direct
         Type MutableArray<Link<Unit>>
         Local $dependency.receiver
-      val $idx.9: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb23 bb22
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.9
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb22 logic.rhs.22
-      assign $logic.7
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.9
-          Type Long
-          ArrayLen MutableArray<Link<Unit>>
-            Type MutableArray<Link<Unit>>
-            Local $arr.8
-      goto bb24
-    bb23 logic.short.23
-      assign $logic.7
-        Type Boolean
-        BoolLiteral true
-      goto bb24
-    bb24 logic.merge.24
-      branch bb25 bb26
-        Type Boolean
-        Local $logic.7
-    bb25 if.then.25
-      assign $new.8
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external1 direct
-        Type IndexOutOfBoundsException
-        Local $new.8
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.8
-    bb26 if.merge.26
-      call @fn29 direct
+      call @fn37 direct
         Type Link<Unit>
-        ArrayGet MutableArray<Link<Unit>>
-          Type MutableArray<Link<Unit>>
-          Local $arr.8
-          Type Long
-          Local $idx.9
+        Local $call.7
       call $dependency.receiver: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
@@ -1157,7 +1071,7 @@ Module
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      branch bb27 bb28
+      branch bb22 bb23
         Type Boolean
         Unary BoolNot
           Type Boolean
@@ -1166,11 +1080,11 @@ Module
             Local $dependency.receiver
             Type Int
             Local $dependency.parameter.other
-    bb27 if.then.27
+    bb22 if.then.22
       return
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
-    bb28 if.merge.28
+    bb23 if.merge.23
       val $callable.receiver: (Unit) -> Int
         Type (Unit) -> Int
         Local read
@@ -1186,22 +1100,22 @@ Module
       val $default.local.2: Unit
         Type Unit
         Local $default.local.1
-      call $dependency.parameter.link: Link<Unit> = @fn26 direct
+      call $dependency.parameter.link: Link<Unit> = @fn34 direct
         Type Unit
         Local $default.local.2
-      call @fn32 direct
+      call @fn40 direct
         Type Unit
         Local $dependency.parameter.value
         Type Link<Unit>
         Local $dependency.parameter.link
-      call $call.9: Int = <closure:function_type2> closure[function_type2]
+      call $call.8: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
         Local $callable.receiver
         Type Unit
         UnitLiteral
       return
         Type Int
-        Local $call.9
+        Local $call.8
   fun make @fn5(value: Int) -> Link<Int>
     bb0 entry
       val $dependency.local.1: Int
@@ -1216,7 +1130,7 @@ Module
       assign $new.1
         Type Link<Int>
         ClassAlloc Link<Int>
-      call @fn56 direct
+      call @fn71 direct
         Type Link<Int>
         Local $new.1
         Type Int
@@ -1272,7 +1186,7 @@ Module
       assign $new.1
         Type Link<Int>
         ClassAlloc Link<Int>
-      call @fn56 direct
+      call @fn71 direct
         Type Link<Int>
         Local $new.1
         Type Int
@@ -1291,7 +1205,7 @@ Module
       val $dependency.parameter._1: Link<Int>
         Type Link<Int>
         Local $dependency.argument.0
-      call @fn38 direct
+      call @fn50 direct
         Type Link<Int>
         Local $place.0
         Type Option<Link<Int>>
@@ -1304,10 +1218,10 @@ Module
       val $dependency.parameter.head: Link<Int>
         Type Link<Int>
         Local $dependency.argument.0
-      call wrapped: Wrapper<Int> = @fn69 direct
+      call wrapped: Wrapper<Int> = @fn81 direct
         Type Link<Int>
         Local $dependency.parameter.head
-      call $opt.1: Option<Link<Int>> = @fn39 direct
+      call $opt.1: Option<Link<Int>> = @fn51 direct
         Type Link<Int>
         FieldAccess 0
           Type Wrapper<Int>
@@ -1363,7 +1277,7 @@ Module
         Type Int
         IntegerLiteral Int value=1 bits=0x00000001
     bb5 if.merge.5
-      call $opt.3: Option<Link<Int>> = @fn39 direct
+      call $opt.3: Option<Link<Int>> = @fn51 direct
         Type Link<Int>
         Local leaf
       branch bb6 bb7
@@ -1426,7 +1340,7 @@ Module
       assign $new.6
         Type Remote<Int>
         ClassAlloc Remote<Int>
-      call @fn57 direct
+      call @fn72 direct
         Type Remote<Int>
         Local $new.6
         Type Int
@@ -1444,7 +1358,7 @@ Module
         Retype Readable<Int>
           Type Remote<Int>
           Local remote
-      call $call.7: Int = @fn40 direct
+      call $call.7: Int = @fn52 direct
         Type Remote<Int>
         Local remote
       call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
@@ -1478,10 +1392,10 @@ Module
       val $dependency.receiver: Base<Unit, Int>
         Type Base<Unit, Int>
         Local base
-      call $dependency.parameter.other: Int = @fn41 direct
+      call $dependency.parameter.other: Int = @fn53 direct
         Type Base<Unit, Int>
         Local $dependency.receiver
-      call $call.8: Int = @fn34 virtual[1]
+      call $call.8: Int = @fn42 virtual[1]
         Type Base<Unit, Int>
         Local $dependency.receiver
         Type Int
@@ -1520,7 +1434,7 @@ Module
       val $dependency.parameter.convert: (Int) -> Int
         Type (Int) -> Int
         Local $dependency.argument.0
-      call $dependency.receiver: Int = @fn35 interface Readable<Int>[1]
+      call $dependency.receiver: Int = @fn43 interface Readable<Int>[1]
         Type Readable<Int>
         Local $dependency.receiver
         Type (Int) -> Int
@@ -1644,69 +1558,26 @@ Module
       val $dependency.parameter.index: Long
         Type Long
         Local $dependency.argument.0
-      val $arr.8: MutableArray<Link<Int>>
+      call $call.11: Link<Int> = @fn48 direct
         Type MutableArray<Link<Int>>
         Local $dependency.receiver
-      val $idx.9: Long
         Type Long
         Local $dependency.parameter.index
-      branch bb23 bb22
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.9
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb22 logic.rhs.22
-      assign $logic.11
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.9
-          Type Long
-          ArrayLen MutableArray<Link<Int>>
-            Type MutableArray<Link<Int>>
-            Local $arr.8
-      goto bb24
-    bb23 logic.short.23
-      assign $logic.11
-        Type Boolean
-        BoolLiteral true
-      goto bb24
-    bb24 logic.merge.24
-      branch bb25 bb26
-        Type Boolean
-        Local $logic.11
-    bb25 if.then.25
-      assign $new.12
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external1 direct
-        Type IndexOutOfBoundsException
-        Local $new.12
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.12
-    bb26 if.merge.26
-      call $call.13: Int = @fn6 direct
+      call $call.12: Int = @fn6 direct
         Type Link<Int>
-        ArrayGet MutableArray<Link<Int>>
-          Type MutableArray<Link<Int>>
-          Local $arr.8
-          Type Long
-          Local $idx.9
+        Local $call.11
       call $dependency.receiver: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
-        Local $call.13
+        Local $call.12
       val $dependency.argument.0: Int
         Type Int
         IntegerLiteral Int value=42 bits=0x0000002a
       val $dependency.parameter.other: Int
         Type Int
         Local $dependency.argument.0
-      branch bb27 bb28
+      branch bb22 bb23
         Type Boolean
         Unary BoolNot
           Type Boolean
@@ -1715,11 +1586,11 @@ Module
             Local $dependency.receiver
             Type Int
             Local $dependency.parameter.other
-    bb27 if.then.27
+    bb22 if.then.22
       return
         Type Int
         IntegerLiteral Int value=6 bits=0x00000006
-    bb28 if.merge.28
+    bb23 if.merge.23
       val $callable.receiver: (Int) -> Int
         Type (Int) -> Int
         Local read
@@ -1738,22 +1609,22 @@ Module
       call $dependency.parameter.link: Link<Int> = @fn5 direct
         Type Int
         Local $default.local.2
-      call $call.14: Int = @fn42 direct
+      call $call.13: Int = @fn54 direct
         Type Int
         Local $dependency.parameter.value
         Type Link<Int>
         Local $dependency.parameter.link
-      call $call.15: Int = <closure:function_type3> closure[function_type3]
+      call $call.14: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
         Local $callable.receiver
         Type Int
-        Local $call.14
+        Local $call.13
       return
         Type Int
-        Local $call.15
+        Local $call.14
   fun read @fn9(this: Base<Unit, String>) -> String
     bb0 entry
-      call $call.1: String = @fn19 direct
+      call $call.1: String = @fn23 direct
         Type Base<Unit, String>
         Local this
       return
@@ -1772,7 +1643,7 @@ Module
       val $dependency.local.2: Readable<String>
         Type Readable<String>
         Local this
-      call $call.1: String = @fn43 interface Readable<String>[0]
+      call $call.1: String = @fn55 interface Readable<String>[0]
         Type Readable<String>
         Local $dependency.local.2
       call $call.2: Int = <closure:function_type0> closure[function_type0]
@@ -1785,63 +1656,227 @@ Module
         Local $call.2
   fun iterator @fn12(this: Array<Link<String>>) -> Iterator<Link<String>>
     bb0 entry
-      val $dependency.local.1: Array<Link<String>>
-        Type Array<Link<String>>
-        Local this
+      val $dependency.local.1: List<Link<String>>
+        Type List<Link<String>>
+        Retype List<Link<String>>
+          Type Array<Link<String>>
+          Local this
       val $dependency.local.2: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Link<String>>
-        Type Array<Link<String>>
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Link<String>>
+        Type List<Link<String>>
         Local $dependency.local.1
-      val $dependency.local.4: Long
+      val $dependency.local.5: Long
         Type Long
         Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Link<String>>
-        ClassAlloc ArrayIterator<Link<String>>
-      call @fn58 direct
-        Type ArrayIterator<Link<String>>
-        Local $new.1
-        Type Array<Link<String>>
+      val $dependency.local.6: Boolean
+        Type Boolean
         Local $dependency.local.3
-        Type Long
+      assign $new.1
+        Type ListIterator<Link<String>>
+        ClassAlloc ListIterator<Link<String>>
+      call @fn73 direct
+        Type ListIterator<Link<String>>
+        Local $new.1
+        Type List<Link<String>>
         Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
       return
         Type Iterator<Link<String>>
         Retype Iterator<Link<String>>
-          Type ArrayIterator<Link<String>>
+          Type ListIterator<Link<String>>
           Local $new.1
-  fun iterator @fn13(this: MutableArray<Link<String>>) -> Iterator<Link<String>>
+  fun get @fn13(this: Array<Link<String>>, index: Long) -> Link<String>
+    bb0 entry
+      val $dependency.local.2: Array<Link<String>>
+        Type Array<Link<String>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Link<String>>
+        Type Array<Link<String>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Link<String>>
+            Type Array<Link<String>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external1 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Link<String>
+        ArrayGet Array<Link<String>>
+          Type Array<Link<String>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn14(this: Array<Link<String>>) -> Long
+    bb0 entry
+      val $dependency.local.1: Array<Link<String>>
+        Type Array<Link<String>>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Link<String>>
+          Type Array<Link<String>>
+          Local $dependency.local.1
+  fun iterator @fn15(this: MutableArray<Link<String>>) -> Iterator<Link<String>>
+    bb0 entry
+      val $dependency.local.1: List<Link<String>>
+        Type List<Link<String>>
+        Retype List<Link<String>>
+          Type MutableArray<Link<String>>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Link<String>>
+        Type List<Link<String>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Link<String>>
+        ClassAlloc ListIterator<Link<String>>
+      call @fn73 direct
+        Type ListIterator<Link<String>>
+        Local $new.1
+        Type List<Link<String>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Link<String>>
+        Retype Iterator<Link<String>>
+          Type ListIterator<Link<String>>
+          Local $new.1
+  fun get @fn16(this: MutableArray<Link<String>>, index: Long) -> Link<String>
+    bb0 entry
+      val $dependency.local.2: MutableArray<Link<String>>
+        Type MutableArray<Link<String>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<Link<String>>
+        Type MutableArray<Link<String>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Link<String>>
+            Type MutableArray<Link<String>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external1 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Link<String>
+        ArrayGet MutableArray<Link<String>>
+          Type MutableArray<Link<String>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn17(this: MutableArray<Link<String>>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Link<String>>
         Type MutableArray<Link<String>>
         Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: MutableArray<Link<String>>
-        Type MutableArray<Link<String>>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type MutableArrayIterator<Link<String>>
-        ClassAlloc MutableArrayIterator<Link<String>>
-      call @fn59 direct
-        Type MutableArrayIterator<Link<String>>
-        Local $new.1
-        Type MutableArray<Link<String>>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
       return
-        Type Iterator<Link<String>>
-        Retype Iterator<Link<String>>
-          Type MutableArrayIterator<Link<String>>
-          Local $new.1
-  fun make @fn14(value: String) -> Link<String>
+        Type Long
+        ArrayLen MutableArray<Link<String>>
+          Type MutableArray<Link<String>>
+          Local $dependency.local.1
+  fun make @fn18(value: String) -> Link<String>
     bb0 entry
       val $dependency.local.1: String
         Type String
@@ -1855,7 +1890,7 @@ Module
       assign $new.1
         Type Link<String>
         ClassAlloc Link<String>
-      call @fn52 direct
+      call @fn67 direct
         Type Link<String>
         Local $new.1
         Type String
@@ -1865,7 +1900,7 @@ Module
       return
         Type Link<String>
         Local $new.1
-  fun next @fn15(this: Link<String>, value: Option<Link<String>>) -> Unit
+  fun next @fn19(this: Link<String>, value: Option<Link<String>>) -> Unit
     bb0 entry
       field_set 1
         Type Link<String>
@@ -1873,54 +1908,54 @@ Module
         Type Option<Link<String>>
         Local value
       return
-  fun next @fn16(this: Link<String>) -> Option<Link<String>>
+  fun next @fn20(this: Link<String>) -> Option<Link<String>>
     bb0 entry
       return
         Type Option<Link<String>>
         FieldAccess 1
           Type Link<String>
           Local this
-  fun value @fn17(this: Link<String>) -> String
+  fun value @fn21(this: Link<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 0
           Type Link<String>
           Local this
-  fun echoed @fn18(this: Remote<String>) -> String
+  fun echoed @fn22(this: Remote<String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 2
           Type Remote<String>
           Local this
-  fun second @fn19(this: Base<Unit, String>) -> String
+  fun second @fn23(this: Base<Unit, String>) -> String
     bb0 entry
       return
         Type String
         FieldAccess 1
           Type Base<Unit, String>
           Local this
-  fun readLink @fn20(value: String, link: Link<String>) -> String
+  fun readLink @fn24(value: String, link: Link<String>) -> String
     bb0 entry
-      call $call.1: String = @fn17 direct
+      call $call.1: String = @fn21 direct
         Type Link<String>
         Local link
       return
         Type String
         Local $call.1
-  fun read @fn21(this: Base<Unit, Unit>) -> Unit
+  fun read @fn25(this: Base<Unit, Unit>) -> Unit
     bb0 entry
-      call @fn31 direct
+      call @fn39 direct
         Type Base<Unit, Unit>
         Local this
       return
-  fun select @fn22(this: Base<Unit, Unit>, other: Unit) -> Unit
+  fun select @fn26(this: Base<Unit, Unit>, other: Unit) -> Unit
     bb0 entry
       Type Unit
       Local other
       return
-  fun apply @fn23(this: Readable<Unit>, convert: (Unit) -> Int) -> Int
+  fun apply @fn27(this: Readable<Unit>, convert: (Unit) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Unit) -> Int
         Type (Unit) -> Int
@@ -1928,7 +1963,7 @@ Module
       val $dependency.local.2: Readable<Unit>
         Type Readable<Unit>
         Local this
-      call @fn46 interface Readable<Unit>[0]
+      call @fn57 interface Readable<Unit>[0]
         Type Readable<Unit>
         Local $dependency.local.2
       call $call.1: Int = <closure:function_type2> closure[function_type2]
@@ -1939,65 +1974,229 @@ Module
       return
         Type Int
         Local $call.1
-  fun iterator @fn24(this: Array<Link<Unit>>) -> Iterator<Link<Unit>>
+  fun iterator @fn28(this: Array<Link<Unit>>) -> Iterator<Link<Unit>>
+    bb0 entry
+      val $dependency.local.1: List<Link<Unit>>
+        Type List<Link<Unit>>
+        Retype List<Link<Unit>>
+          Type Array<Link<Unit>>
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Link<Unit>>
+        Type List<Link<Unit>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Link<Unit>>
+        ClassAlloc ListIterator<Link<Unit>>
+      call @fn74 direct
+        Type ListIterator<Link<Unit>>
+        Local $new.1
+        Type List<Link<Unit>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Link<Unit>>
+        Retype Iterator<Link<Unit>>
+          Type ListIterator<Link<Unit>>
+          Local $new.1
+  fun get @fn29(this: Array<Link<Unit>>, index: Long) -> Link<Unit>
+    bb0 entry
+      val $dependency.local.2: Array<Link<Unit>>
+        Type Array<Link<Unit>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: Array<Link<Unit>>
+        Type Array<Link<Unit>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen Array<Link<Unit>>
+            Type Array<Link<Unit>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external1 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Link<Unit>
+        ArrayGet Array<Link<Unit>>
+          Type Array<Link<Unit>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn30(this: Array<Link<Unit>>) -> Long
     bb0 entry
       val $dependency.local.1: Array<Link<Unit>>
         Type Array<Link<Unit>>
         Local this
+      return
+        Type Long
+        ArrayLen Array<Link<Unit>>
+          Type Array<Link<Unit>>
+          Local $dependency.local.1
+  fun iterator @fn31(this: MutableArray<Link<Unit>>) -> Iterator<Link<Unit>>
+    bb0 entry
+      val $dependency.local.1: List<Link<Unit>>
+        Type List<Link<Unit>>
+        Retype List<Link<Unit>>
+          Type MutableArray<Link<Unit>>
+          Local this
       val $dependency.local.2: Long
         Type Long
         IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Link<Unit>>
-        Type Array<Link<Unit>>
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Link<Unit>>
+        Type List<Link<Unit>>
         Local $dependency.local.1
-      val $dependency.local.4: Long
+      val $dependency.local.5: Long
         Type Long
         Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Link<Unit>>
-        ClassAlloc ArrayIterator<Link<Unit>>
-      call @fn60 direct
-        Type ArrayIterator<Link<Unit>>
-        Local $new.1
-        Type Array<Link<Unit>>
+      val $dependency.local.6: Boolean
+        Type Boolean
         Local $dependency.local.3
-        Type Long
+      assign $new.1
+        Type ListIterator<Link<Unit>>
+        ClassAlloc ListIterator<Link<Unit>>
+      call @fn74 direct
+        Type ListIterator<Link<Unit>>
+        Local $new.1
+        Type List<Link<Unit>>
         Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
       return
         Type Iterator<Link<Unit>>
         Retype Iterator<Link<Unit>>
-          Type ArrayIterator<Link<Unit>>
+          Type ListIterator<Link<Unit>>
           Local $new.1
-  fun iterator @fn25(this: MutableArray<Link<Unit>>) -> Iterator<Link<Unit>>
+  fun get @fn32(this: MutableArray<Link<Unit>>, index: Long) -> Link<Unit>
+    bb0 entry
+      val $dependency.local.2: MutableArray<Link<Unit>>
+        Type MutableArray<Link<Unit>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      val $arr.1: MutableArray<Link<Unit>>
+        Type MutableArray<Link<Unit>>
+        Local $dependency.local.2
+      val $idx.2: Long
+        Type Long
+        Local $dependency.local.4
+      branch bb2 bb1
+        Type Boolean
+        IntegerCompare less-than operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb1 logic.rhs.1
+      assign $logic.1
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          Local $idx.2
+          Type Long
+          ArrayLen MutableArray<Link<Unit>>
+            Type MutableArray<Link<Unit>>
+            Local $arr.1
+      goto bb3
+    bb2 logic.short.2
+      assign $logic.1
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $logic.1
+    bb4 if.then.4
+      assign $new.2
+        Type IndexOutOfBoundsException
+        ClassAlloc IndexOutOfBoundsException
+      call external1 direct
+        Type IndexOutOfBoundsException
+        Local $new.2
+      throw
+        Type IndexOutOfBoundsException
+        Local $new.2
+    bb5 if.merge.5
+      return
+        Type Link<Unit>
+        ArrayGet MutableArray<Link<Unit>>
+          Type MutableArray<Link<Unit>>
+          Local $arr.1
+          Type Long
+          Local $idx.2
+  fun size @fn33(this: MutableArray<Link<Unit>>) -> Long
     bb0 entry
       val $dependency.local.1: MutableArray<Link<Unit>>
         Type MutableArray<Link<Unit>>
         Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: MutableArray<Link<Unit>>
-        Type MutableArray<Link<Unit>>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type MutableArrayIterator<Link<Unit>>
-        ClassAlloc MutableArrayIterator<Link<Unit>>
-      call @fn61 direct
-        Type MutableArrayIterator<Link<Unit>>
-        Local $new.1
-        Type MutableArray<Link<Unit>>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
       return
-        Type Iterator<Link<Unit>>
-        Retype Iterator<Link<Unit>>
-          Type MutableArrayIterator<Link<Unit>>
-          Local $new.1
-  fun make @fn26(value: Unit) -> Link<Unit>
+        Type Long
+        ArrayLen MutableArray<Link<Unit>>
+          Type MutableArray<Link<Unit>>
+          Local $dependency.local.1
+  fun make @fn34(value: Unit) -> Link<Unit>
     bb0 entry
       val $dependency.local.1: Unit
         Type Unit
@@ -2011,7 +2210,7 @@ Module
       assign $new.1
         Type Link<Unit>
         ClassAlloc Link<Unit>
-      call @fn54 direct
+      call @fn69 direct
         Type Link<Unit>
         Local $new.1
         Type Unit
@@ -2021,7 +2220,7 @@ Module
       return
         Type Link<Unit>
         Local $new.1
-  fun next @fn27(this: Link<Unit>, value: Option<Link<Unit>>) -> Unit
+  fun next @fn35(this: Link<Unit>, value: Option<Link<Unit>>) -> Unit
     bb0 entry
       field_set 1
         Type Link<Unit>
@@ -2029,54 +2228,54 @@ Module
         Type Option<Link<Unit>>
         Local value
       return
-  fun next @fn28(this: Link<Unit>) -> Option<Link<Unit>>
+  fun next @fn36(this: Link<Unit>) -> Option<Link<Unit>>
     bb0 entry
       return
         Type Option<Link<Unit>>
         FieldAccess 1
           Type Link<Unit>
           Local this
-  fun value @fn29(this: Link<Unit>) -> Unit
+  fun value @fn37(this: Link<Unit>) -> Unit
     bb0 entry
       Type Unit
       FieldAccess 0
         Type Link<Unit>
         Local this
       return
-  fun echoed @fn30(this: Remote<Unit>) -> Unit
+  fun echoed @fn38(this: Remote<Unit>) -> Unit
     bb0 entry
       Type Unit
       FieldAccess 2
         Type Remote<Unit>
         Local this
       return
-  fun second @fn31(this: Base<Unit, Unit>) -> Unit
+  fun second @fn39(this: Base<Unit, Unit>) -> Unit
     bb0 entry
       Type Unit
       FieldAccess 1
         Type Base<Unit, Unit>
         Local this
       return
-  fun readLink @fn32(value: Unit, link: Link<Unit>) -> Unit
+  fun readLink @fn40(value: Unit, link: Link<Unit>) -> Unit
     bb0 entry
-      call @fn29 direct
+      call @fn37 direct
         Type Link<Unit>
         Local link
       return
-  fun read @fn33(this: Base<Unit, Int>) -> Int
+  fun read @fn41(this: Base<Unit, Int>) -> Int
     bb0 entry
-      call $call.1: Int = @fn41 direct
+      call $call.1: Int = @fn53 direct
         Type Base<Unit, Int>
         Local this
       return
         Type Int
         Local $call.1
-  fun select @fn34(this: Base<Unit, Int>, other: Int) -> Int
+  fun select @fn42(this: Base<Unit, Int>, other: Int) -> Int
     bb0 entry
       return
         Type Int
         Local other
-  fun apply @fn35(this: Readable<Int>, convert: (Int) -> Int) -> Int
+  fun apply @fn43(this: Readable<Int>, convert: (Int) -> Int) -> Int
     bb0 entry
       val $dependency.local.3: (Int) -> Int
         Type (Int) -> Int
@@ -2084,7 +2283,7 @@ Module
       val $dependency.local.2: Readable<Int>
         Type Readable<Int>
         Local this
-      call $call.1: Int = @fn49 interface Readable<Int>[0]
+      call $call.1: Int = @fn59 interface Readable<Int>[0]
         Type Readable<Int>
         Local $dependency.local.2
       call $call.2: Int = <closure:function_type3> closure[function_type3]
@@ -2095,682 +2294,70 @@ Module
       return
         Type Int
         Local $call.2
-  fun iterator @fn36(this: Array<Link<Int>>) -> Iterator<Link<Int>>
+  fun iterator @fn44(this: Array<Link<Int>>) -> Iterator<Link<Int>>
     bb0 entry
-      val $dependency.local.1: Array<Link<Int>>
-        Type Array<Link<Int>>
-        Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: Array<Link<Int>>
-        Type Array<Link<Int>>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type ArrayIterator<Link<Int>>
-        ClassAlloc ArrayIterator<Link<Int>>
-      call @fn62 direct
-        Type ArrayIterator<Link<Int>>
-        Local $new.1
-        Type Array<Link<Int>>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
-      return
-        Type Iterator<Link<Int>>
-        Retype Iterator<Link<Int>>
-          Type ArrayIterator<Link<Int>>
-          Local $new.1
-  fun iterator @fn37(this: MutableArray<Link<Int>>) -> Iterator<Link<Int>>
-    bb0 entry
-      val $dependency.local.1: MutableArray<Link<Int>>
-        Type MutableArray<Link<Int>>
-        Local this
-      val $dependency.local.2: Long
-        Type Long
-        IntegerLiteral Long value=0 bits=0x0000000000000000
-      val $dependency.local.3: MutableArray<Link<Int>>
-        Type MutableArray<Link<Int>>
-        Local $dependency.local.1
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.2
-      assign $new.1
-        Type MutableArrayIterator<Link<Int>>
-        ClassAlloc MutableArrayIterator<Link<Int>>
-      call @fn63 direct
-        Type MutableArrayIterator<Link<Int>>
-        Local $new.1
-        Type MutableArray<Link<Int>>
-        Local $dependency.local.3
-        Type Long
-        Local $dependency.local.4
-      return
-        Type Iterator<Link<Int>>
-        Retype Iterator<Link<Int>>
-          Type MutableArrayIterator<Link<Int>>
-          Local $new.1
-  fun next @fn38(this: Link<Int>, value: Option<Link<Int>>) -> Unit
-    bb0 entry
-      field_set 1
-        Type Link<Int>
-        Local this
-        Type Option<Link<Int>>
-        Local value
-      return
-  fun next @fn39(this: Link<Int>) -> Option<Link<Int>>
-    bb0 entry
-      return
-        Type Option<Link<Int>>
-        FieldAccess 1
-          Type Link<Int>
-          Local this
-  fun echoed @fn40(this: Remote<Int>) -> Int
-    bb0 entry
-      return
-        Type Int
-        FieldAccess 2
-          Type Remote<Int>
-          Local this
-  fun second @fn41(this: Base<Unit, Int>) -> Int
-    bb0 entry
-      return
-        Type Int
-        FieldAccess 1
-          Type Base<Unit, Int>
-          Local this
-  fun readLink @fn42(value: Int, link: Link<Int>) -> Int
-    bb0 entry
-      call $call.1: Int = @fn6 direct
-        Type Link<Int>
-        Local link
-      return
-        Type Int
-        Local $call.1
-  fun Readable.read @fn43(this: Readable<String>) -> String
-    bb0 entry
-      trap "call to abstract method `Readable.read`"
-  fun next @fn44(this: ArrayIterator<Link<String>>) -> Option<Link<String>>
-    bb0 entry
-      val $dependency.local.2: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Link<String>>
-          Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen Array<Link<String>>
-          Type Array<Link<String>>
-          FieldAccess 0
-            Type ArrayIterator<Link<String>>
-            Local this
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.3
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Long result=Long
-            Type Long
-            Local $dependency.local.2
-            Type Long
-            Local $dependency.local.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Link<String>>
-        Type Array<Link<String>>
-        FieldAccess 0
-          Type ArrayIterator<Link<String>>
-          Local this
-      val $dependency.local.6: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Link<String>>
-          Local this
-      val $dependency.local.7: Long
-        Type Long
-        Local $dependency.local.6
-      val $arr.1: Array<Link<String>>
-        Type Array<Link<String>>
-        Local $dependency.local.5
-      val $idx.2: Long
-        Type Long
-        Local $dependency.local.7
-      branch bb4 bb3
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Link<String>>
-        VariantConstruct Option<Link<String>> v1
-    bb3 logic.rhs.3
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Link<String>>
-            Type Array<Link<String>>
-            Local $arr.1
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.1
-    bb6 if.then.6
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external1 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Link<String>
-        Type Link<String>
-        ArrayGet Array<Link<String>>
-          Type Array<Link<String>>
-          Local $arr.1
-          Type Long
-          Local $idx.2
-      val $dependency.local.8: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Link<String>>
-          Local this
-      val $dependency.local.9: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.local.10: Long
-        Type Long
-        Local $dependency.local.9
-      field_set 1
-        Type ArrayIterator<Link<String>>
-        Local this
-        Type Long
-        IntegerBinary add kind=Long
-          Type Long
-          Local $dependency.local.8
-          Type Long
-          Local $dependency.local.10
-      val $dependency.local.11: Link<String>
-        Type Link<String>
-        Local $dependency.local.1
-      val $dependency.local.12: Link<String>
-        Type Link<String>
-        Local $dependency.local.11
-      return
-        Type Option<Link<String>>
-        VariantConstruct Option<Link<String>> v0
-          Type Link<String>
-          Local $dependency.local.12
-  fun next @fn45(this: MutableArrayIterator<Link<String>>) -> Option<Link<String>>
-    bb0 entry
-      val $dependency.local.2: Long
-        Type Long
-        FieldAccess 1
-          Type MutableArrayIterator<Link<String>>
-          Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen MutableArray<Link<String>>
-          Type MutableArray<Link<String>>
-          FieldAccess 0
-            Type MutableArrayIterator<Link<String>>
-            Local this
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.3
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Long result=Long
-            Type Long
-            Local $dependency.local.2
-            Type Long
-            Local $dependency.local.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: MutableArray<Link<String>>
-        Type MutableArray<Link<String>>
-        FieldAccess 0
-          Type MutableArrayIterator<Link<String>>
-          Local this
-      val $dependency.local.6: Long
-        Type Long
-        FieldAccess 1
-          Type MutableArrayIterator<Link<String>>
-          Local this
-      val $dependency.local.7: Long
-        Type Long
-        Local $dependency.local.6
-      val $arr.1: MutableArray<Link<String>>
-        Type MutableArray<Link<String>>
-        Local $dependency.local.5
-      val $idx.2: Long
-        Type Long
-        Local $dependency.local.7
-      branch bb4 bb3
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Link<String>>
-        VariantConstruct Option<Link<String>> v1
-    bb3 logic.rhs.3
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen MutableArray<Link<String>>
-            Type MutableArray<Link<String>>
-            Local $arr.1
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.1
-    bb6 if.then.6
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external1 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Link<String>
-        Type Link<String>
-        ArrayGet MutableArray<Link<String>>
-          Type MutableArray<Link<String>>
-          Local $arr.1
-          Type Long
-          Local $idx.2
-      val $dependency.local.8: Long
-        Type Long
-        FieldAccess 1
-          Type MutableArrayIterator<Link<String>>
-          Local this
-      val $dependency.local.9: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.local.10: Long
-        Type Long
-        Local $dependency.local.9
-      field_set 1
-        Type MutableArrayIterator<Link<String>>
-        Local this
-        Type Long
-        IntegerBinary add kind=Long
-          Type Long
-          Local $dependency.local.8
-          Type Long
-          Local $dependency.local.10
-      val $dependency.local.11: Link<String>
-        Type Link<String>
-        Local $dependency.local.1
-      val $dependency.local.12: Link<String>
-        Type Link<String>
-        Local $dependency.local.11
-      return
-        Type Option<Link<String>>
-        VariantConstruct Option<Link<String>> v0
-          Type Link<String>
-          Local $dependency.local.12
-  fun Readable.read @fn46(this: Readable<Unit>) -> Unit
-    bb0 entry
-      trap "call to abstract method `Readable.read`"
-  fun next @fn47(this: ArrayIterator<Link<Unit>>) -> Option<Link<Unit>>
-    bb0 entry
-      val $dependency.local.2: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Link<Unit>>
-          Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen Array<Link<Unit>>
-          Type Array<Link<Unit>>
-          FieldAccess 0
-            Type ArrayIterator<Link<Unit>>
-            Local this
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.3
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Long result=Long
-            Type Long
-            Local $dependency.local.2
-            Type Long
-            Local $dependency.local.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Link<Unit>>
-        Type Array<Link<Unit>>
-        FieldAccess 0
-          Type ArrayIterator<Link<Unit>>
-          Local this
-      val $dependency.local.6: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Link<Unit>>
-          Local this
-      val $dependency.local.7: Long
-        Type Long
-        Local $dependency.local.6
-      val $arr.1: Array<Link<Unit>>
-        Type Array<Link<Unit>>
-        Local $dependency.local.5
-      val $idx.2: Long
-        Type Long
-        Local $dependency.local.7
-      branch bb4 bb3
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Link<Unit>>
-        VariantConstruct Option<Link<Unit>> v1
-    bb3 logic.rhs.3
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen Array<Link<Unit>>
-            Type Array<Link<Unit>>
-            Local $arr.1
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.1
-    bb6 if.then.6
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external1 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Link<Unit>
-        Type Link<Unit>
-        ArrayGet Array<Link<Unit>>
-          Type Array<Link<Unit>>
-          Local $arr.1
-          Type Long
-          Local $idx.2
-      val $dependency.local.8: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Link<Unit>>
-          Local this
-      val $dependency.local.9: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.local.10: Long
-        Type Long
-        Local $dependency.local.9
-      field_set 1
-        Type ArrayIterator<Link<Unit>>
-        Local this
-        Type Long
-        IntegerBinary add kind=Long
-          Type Long
-          Local $dependency.local.8
-          Type Long
-          Local $dependency.local.10
-      val $dependency.local.11: Link<Unit>
-        Type Link<Unit>
-        Local $dependency.local.1
-      val $dependency.local.12: Link<Unit>
-        Type Link<Unit>
-        Local $dependency.local.11
-      return
-        Type Option<Link<Unit>>
-        VariantConstruct Option<Link<Unit>> v0
-          Type Link<Unit>
-          Local $dependency.local.12
-  fun next @fn48(this: MutableArrayIterator<Link<Unit>>) -> Option<Link<Unit>>
-    bb0 entry
-      val $dependency.local.2: Long
-        Type Long
-        FieldAccess 1
-          Type MutableArrayIterator<Link<Unit>>
-          Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen MutableArray<Link<Unit>>
-          Type MutableArray<Link<Unit>>
-          FieldAccess 0
-            Type MutableArrayIterator<Link<Unit>>
-            Local this
-      val $dependency.local.4: Long
-        Type Long
-        Local $dependency.local.3
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Long result=Long
-            Type Long
-            Local $dependency.local.2
-            Type Long
-            Local $dependency.local.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: MutableArray<Link<Unit>>
-        Type MutableArray<Link<Unit>>
-        FieldAccess 0
-          Type MutableArrayIterator<Link<Unit>>
-          Local this
-      val $dependency.local.6: Long
-        Type Long
-        FieldAccess 1
-          Type MutableArrayIterator<Link<Unit>>
-          Local this
-      val $dependency.local.7: Long
-        Type Long
-        Local $dependency.local.6
-      val $arr.1: MutableArray<Link<Unit>>
-        Type MutableArray<Link<Unit>>
-        Local $dependency.local.5
-      val $idx.2: Long
-        Type Long
-        Local $dependency.local.7
-      branch bb4 bb3
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Link<Unit>>
-        VariantConstruct Option<Link<Unit>> v1
-    bb3 logic.rhs.3
-      assign $logic.1
-        Type Boolean
-        IntegerCompare greater-than-or-equal operands=Long result=Boolean
-          Type Long
-          Local $idx.2
-          Type Long
-          ArrayLen MutableArray<Link<Unit>>
-            Type MutableArray<Link<Unit>>
-            Local $arr.1
-      goto bb5
-    bb4 logic.short.4
-      assign $logic.1
-        Type Boolean
-        BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
-        Type Boolean
-        Local $logic.1
-    bb6 if.then.6
-      assign $new.2
-        Type IndexOutOfBoundsException
-        ClassAlloc IndexOutOfBoundsException
-      call external1 direct
-        Type IndexOutOfBoundsException
-        Local $new.2
-      throw
-        Type IndexOutOfBoundsException
-        Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Link<Unit>
-        Type Link<Unit>
-        ArrayGet MutableArray<Link<Unit>>
-          Type MutableArray<Link<Unit>>
-          Local $arr.1
-          Type Long
-          Local $idx.2
-      val $dependency.local.8: Long
-        Type Long
-        FieldAccess 1
-          Type MutableArrayIterator<Link<Unit>>
-          Local this
-      val $dependency.local.9: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.local.10: Long
-        Type Long
-        Local $dependency.local.9
-      field_set 1
-        Type MutableArrayIterator<Link<Unit>>
-        Local this
-        Type Long
-        IntegerBinary add kind=Long
-          Type Long
-          Local $dependency.local.8
-          Type Long
-          Local $dependency.local.10
-      val $dependency.local.11: Link<Unit>
-        Type Link<Unit>
-        Local $dependency.local.1
-      val $dependency.local.12: Link<Unit>
-        Type Link<Unit>
-        Local $dependency.local.11
-      return
-        Type Option<Link<Unit>>
-        VariantConstruct Option<Link<Unit>> v0
-          Type Link<Unit>
-          Local $dependency.local.12
-  fun Readable.read @fn49(this: Readable<Int>) -> Int
-    bb0 entry
-      trap "call to abstract method `Readable.read`"
-  fun next @fn50(this: ArrayIterator<Link<Int>>) -> Option<Link<Int>>
-    bb0 entry
-      val $dependency.local.2: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Link<Int>>
-          Local this
-      val $dependency.local.3: Long
-        Type Long
-        ArrayLen Array<Link<Int>>
+      val $dependency.local.1: List<Link<Int>>
+        Type List<Link<Int>>
+        Retype List<Link<Int>>
           Type Array<Link<Int>>
-          FieldAccess 0
-            Type ArrayIterator<Link<Int>>
-            Local this
+          Local this
+      val $dependency.local.2: Long
+        Type Long
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Link<Int>>
+        Type List<Link<Int>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Link<Int>>
+        ClassAlloc ListIterator<Link<Int>>
+      call @fn75 direct
+        Type ListIterator<Link<Int>>
+        Local $new.1
+        Type List<Link<Int>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Link<Int>>
+        Retype Iterator<Link<Int>>
+          Type ListIterator<Link<Int>>
+          Local $new.1
+  fun get @fn45(this: Array<Link<Int>>, index: Long) -> Link<Int>
+    bb0 entry
+      val $dependency.local.2: Array<Link<Int>>
+        Type Array<Link<Int>>
+        Local this
+      val $dependency.local.3: Long
+        Type Long
+        Local index
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Long result=Long
-            Type Long
-            Local $dependency.local.2
-            Type Long
-            Local $dependency.local.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: Array<Link<Int>>
-        Type Array<Link<Int>>
-        FieldAccess 0
-          Type ArrayIterator<Link<Int>>
-          Local this
-      val $dependency.local.6: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Link<Int>>
-          Local this
-      val $dependency.local.7: Long
-        Type Long
-        Local $dependency.local.6
       val $arr.1: Array<Link<Int>>
         Type Array<Link<Int>>
-        Local $dependency.local.5
+        Local $dependency.local.2
       val $idx.2: Long
         Type Long
-        Local $dependency.local.7
-      branch bb4 bb3
+        Local $dependency.local.4
+      branch bb2 bb1
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
           Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Link<Int>>
-        VariantConstruct Option<Link<Int>> v1
-    bb3 logic.rhs.3
+    bb1 logic.rhs.1
       assign $logic.1
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
@@ -2780,17 +2367,17 @@ Module
           ArrayLen Array<Link<Int>>
             Type Array<Link<Int>>
             Local $arr.1
-      goto bb5
-    bb4 logic.short.4
+      goto bb3
+    bb2 logic.short.2
       assign $logic.1
         Type Boolean
         BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
         Type Boolean
         Local $logic.1
-    bb6 if.then.6
+    bb4 if.then.4
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
@@ -2800,105 +2387,88 @@ Module
       throw
         Type IndexOutOfBoundsException
         Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Link<Int>
+    bb5 if.merge.5
+      return
         Type Link<Int>
         ArrayGet Array<Link<Int>>
           Type Array<Link<Int>>
           Local $arr.1
           Type Long
           Local $idx.2
-      val $dependency.local.8: Long
-        Type Long
-        FieldAccess 1
-          Type ArrayIterator<Link<Int>>
-          Local this
-      val $dependency.local.9: Long
-        Type Long
-        IntegerLiteral Long value=1 bits=0x0000000000000001
-      val $dependency.local.10: Long
-        Type Long
-        Local $dependency.local.9
-      field_set 1
-        Type ArrayIterator<Link<Int>>
-        Local this
-        Type Long
-        IntegerBinary add kind=Long
-          Type Long
-          Local $dependency.local.8
-          Type Long
-          Local $dependency.local.10
-      val $dependency.local.11: Link<Int>
-        Type Link<Int>
-        Local $dependency.local.1
-      val $dependency.local.12: Link<Int>
-        Type Link<Int>
-        Local $dependency.local.11
-      return
-        Type Option<Link<Int>>
-        VariantConstruct Option<Link<Int>> v0
-          Type Link<Int>
-          Local $dependency.local.12
-  fun next @fn51(this: MutableArrayIterator<Link<Int>>) -> Option<Link<Int>>
+  fun size @fn46(this: Array<Link<Int>>) -> Long
     bb0 entry
+      val $dependency.local.1: Array<Link<Int>>
+        Type Array<Link<Int>>
+        Local this
+      return
+        Type Long
+        ArrayLen Array<Link<Int>>
+          Type Array<Link<Int>>
+          Local $dependency.local.1
+  fun iterator @fn47(this: MutableArray<Link<Int>>) -> Iterator<Link<Int>>
+    bb0 entry
+      val $dependency.local.1: List<Link<Int>>
+        Type List<Link<Int>>
+        Retype List<Link<Int>>
+          Type MutableArray<Link<Int>>
+          Local this
       val $dependency.local.2: Long
         Type Long
-        FieldAccess 1
-          Type MutableArrayIterator<Link<Int>>
-          Local this
+        IntegerLiteral Long value=0 bits=0x0000000000000000
+      val $dependency.local.3: Boolean
+        Type Boolean
+        BoolLiteral false
+      val $dependency.local.4: List<Link<Int>>
+        Type List<Link<Int>>
+        Local $dependency.local.1
+      val $dependency.local.5: Long
+        Type Long
+        Local $dependency.local.2
+      val $dependency.local.6: Boolean
+        Type Boolean
+        Local $dependency.local.3
+      assign $new.1
+        Type ListIterator<Link<Int>>
+        ClassAlloc ListIterator<Link<Int>>
+      call @fn75 direct
+        Type ListIterator<Link<Int>>
+        Local $new.1
+        Type List<Link<Int>>
+        Local $dependency.local.4
+        Type Long
+        Local $dependency.local.5
+        Type Boolean
+        Local $dependency.local.6
+      return
+        Type Iterator<Link<Int>>
+        Retype Iterator<Link<Int>>
+          Type ListIterator<Link<Int>>
+          Local $new.1
+  fun get @fn48(this: MutableArray<Link<Int>>, index: Long) -> Link<Int>
+    bb0 entry
+      val $dependency.local.2: MutableArray<Link<Int>>
+        Type MutableArray<Link<Int>>
+        Local this
       val $dependency.local.3: Long
         Type Long
-        ArrayLen MutableArray<Link<Int>>
-          Type MutableArray<Link<Int>>
-          FieldAccess 0
-            Type MutableArrayIterator<Link<Int>>
-            Local this
+        Local index
       val $dependency.local.4: Long
         Type Long
         Local $dependency.local.3
-      branch bb1 bb2
-        Type Boolean
-        IntegerCompare less-than operands=Long result=Boolean
-          Type Long
-          IntegerCompareTo operands=Long result=Long
-            Type Long
-            Local $dependency.local.2
-            Type Long
-            Local $dependency.local.4
-          Type Long
-          IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb1 if.then.1
-      val $dependency.local.5: MutableArray<Link<Int>>
-        Type MutableArray<Link<Int>>
-        FieldAccess 0
-          Type MutableArrayIterator<Link<Int>>
-          Local this
-      val $dependency.local.6: Long
-        Type Long
-        FieldAccess 1
-          Type MutableArrayIterator<Link<Int>>
-          Local this
-      val $dependency.local.7: Long
-        Type Long
-        Local $dependency.local.6
       val $arr.1: MutableArray<Link<Int>>
         Type MutableArray<Link<Int>>
-        Local $dependency.local.5
+        Local $dependency.local.2
       val $idx.2: Long
         Type Long
-        Local $dependency.local.7
-      branch bb4 bb3
+        Local $dependency.local.4
+      branch bb2 bb1
         Type Boolean
         IntegerCompare less-than operands=Long result=Boolean
           Type Long
           Local $idx.2
           Type Long
           IntegerLiteral Long value=0 bits=0x0000000000000000
-    bb2 if.merge.2
-      return
-        Type Option<Link<Int>>
-        VariantConstruct Option<Link<Int>> v1
-    bb3 logic.rhs.3
+    bb1 logic.rhs.1
       assign $logic.1
         Type Boolean
         IntegerCompare greater-than-or-equal operands=Long result=Boolean
@@ -2908,17 +2478,17 @@ Module
           ArrayLen MutableArray<Link<Int>>
             Type MutableArray<Link<Int>>
             Local $arr.1
-      goto bb5
-    bb4 logic.short.4
+      goto bb3
+    bb2 logic.short.2
       assign $logic.1
         Type Boolean
         BoolLiteral true
-      goto bb5
-    bb5 logic.merge.5
-      branch bb6 bb7
+      goto bb3
+    bb3 logic.merge.3
+      branch bb4 bb5
         Type Boolean
         Local $logic.1
-    bb6 if.then.6
+    bb4 if.then.4
       assign $new.2
         Type IndexOutOfBoundsException
         ClassAlloc IndexOutOfBoundsException
@@ -2928,18 +2498,132 @@ Module
       throw
         Type IndexOutOfBoundsException
         Local $new.2
-    bb7 if.merge.7
-      val $dependency.local.1: Link<Int>
+    bb5 if.merge.5
+      return
         Type Link<Int>
         ArrayGet MutableArray<Link<Int>>
           Type MutableArray<Link<Int>>
           Local $arr.1
           Type Long
           Local $idx.2
+  fun size @fn49(this: MutableArray<Link<Int>>) -> Long
+    bb0 entry
+      val $dependency.local.1: MutableArray<Link<Int>>
+        Type MutableArray<Link<Int>>
+        Local this
+      return
+        Type Long
+        ArrayLen MutableArray<Link<Int>>
+          Type MutableArray<Link<Int>>
+          Local $dependency.local.1
+  fun next @fn50(this: Link<Int>, value: Option<Link<Int>>) -> Unit
+    bb0 entry
+      field_set 1
+        Type Link<Int>
+        Local this
+        Type Option<Link<Int>>
+        Local value
+      return
+  fun next @fn51(this: Link<Int>) -> Option<Link<Int>>
+    bb0 entry
+      return
+        Type Option<Link<Int>>
+        FieldAccess 1
+          Type Link<Int>
+          Local this
+  fun echoed @fn52(this: Remote<Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 2
+          Type Remote<Int>
+          Local this
+  fun second @fn53(this: Base<Unit, Int>) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 1
+          Type Base<Unit, Int>
+          Local this
+  fun readLink @fn54(value: Int, link: Link<Int>) -> Int
+    bb0 entry
+      call $call.1: Int = @fn6 direct
+        Type Link<Int>
+        Local link
+      return
+        Type Int
+        Local $call.1
+  fun Readable.read @fn55(this: Readable<String>) -> String
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun next @fn56(this: ListIterator<Link<String>>) -> Option<Link<String>>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Link<String>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Link<String>>
+        VariantConstruct Option<Link<String>> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Link<String>>
+          Local this
+      call $dependency.local.3: Long = @fn61 interface List<Link<String>>[2]
+        Type List<Link<String>>
+        FieldAccess 0
+          Type ListIterator<Link<String>>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Link<String>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Link<String>>
+        VariantConstruct Option<Link<String>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Link<String>>
+        Type List<Link<String>>
+        FieldAccess 0
+          Type ListIterator<Link<String>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Link<String>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Link<String> = @fn62 interface List<Link<String>>[1]
+        Type List<Link<String>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
       val $dependency.local.8: Long
         Type Long
         FieldAccess 1
-          Type MutableArrayIterator<Link<Int>>
+          Type ListIterator<Link<String>>
           Local this
       val $dependency.local.9: Long
         Type Long
@@ -2948,7 +2632,203 @@ Module
         Type Long
         Local $dependency.local.9
       field_set 1
-        Type MutableArrayIterator<Link<Int>>
+        Type ListIterator<Link<String>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Link<String>
+        Type Link<String>
+        Local $dependency.local.1
+      val $dependency.local.12: Link<String>
+        Type Link<String>
+        Local $dependency.local.11
+      return
+        Type Option<Link<String>>
+        VariantConstruct Option<Link<String>> v0
+          Type Link<String>
+          Local $dependency.local.12
+  fun Readable.read @fn57(this: Readable<Unit>) -> Unit
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun next @fn58(this: ListIterator<Link<Unit>>) -> Option<Link<Unit>>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Link<Unit>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Link<Unit>>
+        VariantConstruct Option<Link<Unit>> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Link<Unit>>
+          Local this
+      call $dependency.local.3: Long = @fn63 interface List<Link<Unit>>[2]
+        Type List<Link<Unit>>
+        FieldAccess 0
+          Type ListIterator<Link<Unit>>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Link<Unit>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Link<Unit>>
+        VariantConstruct Option<Link<Unit>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Link<Unit>>
+        Type List<Link<Unit>>
+        FieldAccess 0
+          Type ListIterator<Link<Unit>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Link<Unit>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Link<Unit> = @fn64 interface List<Link<Unit>>[1]
+        Type List<Link<Unit>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Link<Unit>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<Link<Unit>>
+        Local this
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.8
+          Type Long
+          Local $dependency.local.10
+      val $dependency.local.11: Link<Unit>
+        Type Link<Unit>
+        Local $dependency.local.1
+      val $dependency.local.12: Link<Unit>
+        Type Link<Unit>
+        Local $dependency.local.11
+      return
+        Type Option<Link<Unit>>
+        VariantConstruct Option<Link<Unit>> v0
+          Type Link<Unit>
+          Local $dependency.local.12
+  fun Readable.read @fn59(this: Readable<Int>) -> Int
+    bb0 entry
+      trap "call to abstract method `Readable.read`"
+  fun next @fn60(this: ListIterator<Link<Int>>) -> Option<Link<Int>>
+    bb0 entry
+      branch bb1 bb2
+        Type Boolean
+        FieldAccess 2
+          Type ListIterator<Link<Int>>
+          Local this
+    bb1 if.then.1
+      return
+        Type Option<Link<Int>>
+        VariantConstruct Option<Link<Int>> v1
+    bb2 if.merge.2
+      val $dependency.local.2: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Link<Int>>
+          Local this
+      call $dependency.local.3: Long = @fn65 interface List<Link<Int>>[2]
+        Type List<Link<Int>>
+        FieldAccess 0
+          Type ListIterator<Link<Int>>
+          Local this
+      val $dependency.local.4: Long
+        Type Long
+        Local $dependency.local.3
+      branch bb3 bb4
+        Type Boolean
+        IntegerCompare greater-than-or-equal operands=Long result=Boolean
+          Type Long
+          IntegerCompareTo operands=Long result=Long
+            Type Long
+            Local $dependency.local.2
+            Type Long
+            Local $dependency.local.4
+          Type Long
+          IntegerLiteral Long value=0 bits=0x0000000000000000
+    bb3 if.then.3
+      field_set 2
+        Type ListIterator<Link<Int>>
+        Local this
+        Type Boolean
+        BoolLiteral true
+      return
+        Type Option<Link<Int>>
+        VariantConstruct Option<Link<Int>> v1
+    bb4 if.merge.4
+      val $dependency.local.5: List<Link<Int>>
+        Type List<Link<Int>>
+        FieldAccess 0
+          Type ListIterator<Link<Int>>
+          Local this
+      val $dependency.local.6: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Link<Int>>
+          Local this
+      val $dependency.local.7: Long
+        Type Long
+        Local $dependency.local.6
+      call $dependency.local.1: Link<Int> = @fn66 interface List<Link<Int>>[1]
+        Type List<Link<Int>>
+        Local $dependency.local.5
+        Type Long
+        Local $dependency.local.7
+      val $dependency.local.8: Long
+        Type Long
+        FieldAccess 1
+          Type ListIterator<Link<Int>>
+          Local this
+      val $dependency.local.9: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.local.10: Long
+        Type Long
+        Local $dependency.local.9
+      field_set 1
+        Type ListIterator<Link<Int>>
         Local this
         Type Long
         IntegerBinary add kind=Long
@@ -2967,7 +2847,25 @@ Module
         VariantConstruct Option<Link<Int>> v0
           Type Link<Int>
           Local $dependency.local.12
-  fun init.Link.$c0 @fn52(this: Link<String>, value: String, next: Option<Link<String>>) -> Unit
+  fun List.$get$size @fn61(this: List<Link<String>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn62(this: List<Link<String>>, index: Long) -> Link<String>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun List.$get$size @fn63(this: List<Link<Unit>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn64(this: List<Link<Unit>>, index: Long) -> Link<Unit>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun List.$get$size @fn65(this: List<Link<Int>>) -> Long
+    bb0 entry
+      trap "call to abstract method `List.$get$size`"
+  fun List.get @fn66(this: List<Link<Int>>, index: Long) -> Link<Int>
+    bb0 entry
+      trap "call to abstract method `List.get`"
+  fun init.Link.$c0 @fn67(this: Link<String>, value: String, next: Option<Link<String>>) -> Unit
     bb0 entry
       field_set 0
         Type Link<String>
@@ -2980,7 +2878,7 @@ Module
         Type Option<Link<String>>
         Local next
       return
-  fun init.Remote.$c2 @fn53(this: Remote<String>, value: String) -> Unit
+  fun init.Remote.$c2 @fn68(this: Remote<String>, value: String) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
         Type Unit
@@ -2994,7 +2892,7 @@ Module
       val $dependency.constructor.local.3: String
         Type String
         Local $dependency.constructor.local.1
-      call @fn64 direct
+      call @fn76 direct
         Type Base<Unit, String>
         Retype Base<Unit, String>
           Type Remote<String>
@@ -3013,7 +2911,7 @@ Module
             Type Remote<String>
             Local this
       return
-  fun init.Link.$c0 @fn54(this: Link<Unit>, value: Unit, next: Option<Link<Unit>>) -> Unit
+  fun init.Link.$c0 @fn69(this: Link<Unit>, value: Unit, next: Option<Link<Unit>>) -> Unit
     bb0 entry
       field_set 0
         Type Link<Unit>
@@ -3026,7 +2924,7 @@ Module
         Type Option<Link<Unit>>
         Local next
       return
-  fun init.Remote.$c2 @fn55(this: Remote<Unit>, value: Unit) -> Unit
+  fun init.Remote.$c2 @fn70(this: Remote<Unit>, value: Unit) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
         Type Unit
@@ -3040,7 +2938,7 @@ Module
       val $dependency.constructor.local.3: Unit
         Type Unit
         Local $dependency.constructor.local.1
-      call @fn65 direct
+      call @fn77 direct
         Type Base<Unit, Unit>
         Retype Base<Unit, Unit>
           Type Remote<Unit>
@@ -3059,7 +2957,7 @@ Module
             Type Remote<Unit>
             Local this
       return
-  fun init.Link.$c0 @fn56(this: Link<Int>, value: Int, next: Option<Link<Int>>) -> Unit
+  fun init.Link.$c0 @fn71(this: Link<Int>, value: Int, next: Option<Link<Int>>) -> Unit
     bb0 entry
       field_set 0
         Type Link<Int>
@@ -3072,7 +2970,7 @@ Module
         Type Option<Link<Int>>
         Local next
       return
-  fun init.Remote.$c2 @fn57(this: Remote<Int>, value: Int) -> Unit
+  fun init.Remote.$c2 @fn72(this: Remote<Int>, value: Int) -> Unit
     bb0 entry
       val $dependency.constructor.local.0: Unit
         Type Unit
@@ -3086,7 +2984,7 @@ Module
       val $dependency.constructor.local.3: Int
         Type Int
         Local $dependency.constructor.local.1
-      call @fn66 direct
+      call @fn78 direct
         Type Base<Unit, Int>
         Retype Base<Unit, Int>
           Type Remote<Int>
@@ -3105,85 +3003,61 @@ Module
             Type Remote<Int>
             Local this
       return
-  fun init.ArrayIterator.$c3 @fn58(this: ArrayIterator<Link<String>>, source: Array<Link<String>>, index: Long) -> Unit
+  fun init.ListIterator.$c3 @fn73(this: ListIterator<Link<String>>, source: List<Link<String>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator<Link<String>>
+        Type ListIterator<Link<String>>
         Local this
-        Type Array<Link<String>>
+        Type List<Link<String>>
         Local source
       field_set 1
-        Type ArrayIterator<Link<String>>
+        Type ListIterator<Link<String>>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Link<String>>
+        Local this
+        Type Boolean
+        Local exhausted
       return
-  fun init.MutableArrayIterator.$c4 @fn59(this: MutableArrayIterator<Link<String>>, source: MutableArray<Link<String>>, index: Long) -> Unit
+  fun init.ListIterator.$c3 @fn74(this: ListIterator<Link<Unit>>, source: List<Link<Unit>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type MutableArrayIterator<Link<String>>
+        Type ListIterator<Link<Unit>>
         Local this
-        Type MutableArray<Link<String>>
+        Type List<Link<Unit>>
         Local source
       field_set 1
-        Type MutableArrayIterator<Link<String>>
+        Type ListIterator<Link<Unit>>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Link<Unit>>
+        Local this
+        Type Boolean
+        Local exhausted
       return
-  fun init.ArrayIterator.$c3 @fn60(this: ArrayIterator<Link<Unit>>, source: Array<Link<Unit>>, index: Long) -> Unit
+  fun init.ListIterator.$c3 @fn75(this: ListIterator<Link<Int>>, source: List<Link<Int>>, index: Long, exhausted: Boolean) -> Unit
     bb0 entry
       field_set 0
-        Type ArrayIterator<Link<Unit>>
+        Type ListIterator<Link<Int>>
         Local this
-        Type Array<Link<Unit>>
+        Type List<Link<Int>>
         Local source
       field_set 1
-        Type ArrayIterator<Link<Unit>>
+        Type ListIterator<Link<Int>>
         Local this
         Type Long
         Local index
+      field_set 2
+        Type ListIterator<Link<Int>>
+        Local this
+        Type Boolean
+        Local exhausted
       return
-  fun init.MutableArrayIterator.$c4 @fn61(this: MutableArrayIterator<Link<Unit>>, source: MutableArray<Link<Unit>>, index: Long) -> Unit
-    bb0 entry
-      field_set 0
-        Type MutableArrayIterator<Link<Unit>>
-        Local this
-        Type MutableArray<Link<Unit>>
-        Local source
-      field_set 1
-        Type MutableArrayIterator<Link<Unit>>
-        Local this
-        Type Long
-        Local index
-      return
-  fun init.ArrayIterator.$c3 @fn62(this: ArrayIterator<Link<Int>>, source: Array<Link<Int>>, index: Long) -> Unit
-    bb0 entry
-      field_set 0
-        Type ArrayIterator<Link<Int>>
-        Local this
-        Type Array<Link<Int>>
-        Local source
-      field_set 1
-        Type ArrayIterator<Link<Int>>
-        Local this
-        Type Long
-        Local index
-      return
-  fun init.MutableArrayIterator.$c4 @fn63(this: MutableArrayIterator<Link<Int>>, source: MutableArray<Link<Int>>, index: Long) -> Unit
-    bb0 entry
-      field_set 0
-        Type MutableArrayIterator<Link<Int>>
-        Local this
-        Type MutableArray<Link<Int>>
-        Local source
-      field_set 1
-        Type MutableArrayIterator<Link<Int>>
-        Local this
-        Type Long
-        Local index
-      return
-  fun init.Base.$c5 @fn64(this: Base<Unit, String>, first: Unit, second: String) -> Unit
+  fun init.Base.$c4 @fn76(this: Base<Unit, String>, first: Unit, second: String) -> Unit
     bb0 entry
       field_set 0
         Type Base<Unit, String>
@@ -3196,7 +3070,7 @@ Module
         Type String
         Local second
       return
-  fun init.Base.$c5 @fn65(this: Base<Unit, Unit>, first: Unit, second: Unit) -> Unit
+  fun init.Base.$c4 @fn77(this: Base<Unit, Unit>, first: Unit, second: Unit) -> Unit
     bb0 entry
       field_set 0
         Type Base<Unit, Unit>
@@ -3209,7 +3083,7 @@ Module
         Type Unit
         Local second
       return
-  fun init.Base.$c5 @fn66(this: Base<Unit, Int>, first: Unit, second: Int) -> Unit
+  fun init.Base.$c4 @fn78(this: Base<Unit, Int>, first: Unit, second: Int) -> Unit
     bb0 entry
       field_set 0
         Type Base<Unit, Int>
@@ -3222,28 +3096,28 @@ Module
         Type Int
         Local second
       return
-  fun ctor.Wrapper.$c1 @fn67(head: Link<String>) -> Wrapper<String> <no-gc>
+  fun ctor.Wrapper.$c1 @fn79(head: Link<String>) -> Wrapper<String> <no-gc>
     bb0 entry
       return
         Type Wrapper<String>
         StructInit Wrapper<String>
           Type Link<String>
           Local head
-  fun ctor.Wrapper.$c1 @fn68(head: Link<Unit>) -> Wrapper<Unit> <no-gc>
+  fun ctor.Wrapper.$c1 @fn80(head: Link<Unit>) -> Wrapper<Unit> <no-gc>
     bb0 entry
       return
         Type Wrapper<Unit>
         StructInit Wrapper<Unit>
           Type Link<Unit>
           Local head
-  fun ctor.Wrapper.$c1 @fn69(head: Link<Int>) -> Wrapper<Int> <no-gc>
+  fun ctor.Wrapper.$c1 @fn81(head: Link<Int>) -> Wrapper<Int> <no-gc>
     bb0 entry
       return
         Type Wrapper<Int>
         StructInit Wrapper<Int>
           Type Link<Int>
           Local head
-  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn70($source: (String) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda0.(Any) -> Any @fn82($source: (String) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]
         Type (String) -> Int
@@ -3257,7 +3131,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn71($source: (Unit) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda1.(Any) -> Any @fn83($source: (Unit) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type2> closure[function_type2]
         Type (Unit) -> Int
@@ -3271,7 +3145,7 @@ Module
         Box
           Type Int
           Local $call.1
-  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn72($source: (Int) -> Int, arg0: Any) -> Any
+  fun function_bridge.$Closure$lambda2.(Any) -> Any @fn84($source: (Int) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type3> closure[function_type3]
         Type (Int) -> Int
@@ -3294,44 +3168,59 @@ Module
   instance mi6 function=@fn10 <- select
   instance mi7 function=@fn11 <- apply
   instance mi8 function=@fn12 <- iterator
-  instance mi9 function=@fn13 <- iterator
-  instance mi10 function=@fn14 <- make
-  instance mi11 function=@fn15 <- next
-  instance mi12 function=@fn16 <- next
-  instance mi13 function=@fn17 <- value
-  instance mi14 function=@fn18 <- echoed
-  instance mi15 function=@fn19 <- second
-  instance mi16 function=@fn20 <- readLink
-  instance mi17 function=@fn21 <- read
-  instance mi18 function=@fn22 <- select
-  instance mi19 function=@fn23 <- apply
-  instance mi20 function=@fn24 <- iterator
-  instance mi21 function=@fn25 <- iterator
-  instance mi22 function=@fn26 <- make
-  instance mi23 function=@fn27 <- next
-  instance mi24 function=@fn28 <- next
-  instance mi25 function=@fn29 <- value
-  instance mi26 function=@fn30 <- echoed
-  instance mi27 function=@fn31 <- second
-  instance mi28 function=@fn32 <- readLink
-  instance mi29 function=@fn33 <- read
-  instance mi30 function=@fn34 <- select
-  instance mi31 function=@fn35 <- apply
-  instance mi32 function=@fn36 <- iterator
-  instance mi33 function=@fn37 <- iterator
-  instance mi34 function=@fn38 <- next
-  instance mi35 function=@fn39 <- next
-  instance mi36 function=@fn40 <- echoed
-  instance mi37 function=@fn41 <- second
-  instance mi38 function=@fn42 <- readLink
-  instance mi39 function=@fn43 <- Readable.read
-  instance mi40 function=@fn44 <- next
-  instance mi41 function=@fn45 <- next
-  instance mi42 function=@fn46 <- Readable.read
-  instance mi43 function=@fn47 <- next
-  instance mi44 function=@fn48 <- next
-  instance mi45 function=@fn49 <- Readable.read
+  instance mi9 function=@fn13 <- get
+  instance mi10 function=@fn14 <- size
+  instance mi11 function=@fn15 <- iterator
+  instance mi12 function=@fn16 <- get
+  instance mi13 function=@fn17 <- size
+  instance mi14 function=@fn18 <- make
+  instance mi15 function=@fn19 <- next
+  instance mi16 function=@fn20 <- next
+  instance mi17 function=@fn21 <- value
+  instance mi18 function=@fn22 <- echoed
+  instance mi19 function=@fn23 <- second
+  instance mi20 function=@fn24 <- readLink
+  instance mi21 function=@fn25 <- read
+  instance mi22 function=@fn26 <- select
+  instance mi23 function=@fn27 <- apply
+  instance mi24 function=@fn28 <- iterator
+  instance mi25 function=@fn29 <- get
+  instance mi26 function=@fn30 <- size
+  instance mi27 function=@fn31 <- iterator
+  instance mi28 function=@fn32 <- get
+  instance mi29 function=@fn33 <- size
+  instance mi30 function=@fn34 <- make
+  instance mi31 function=@fn35 <- next
+  instance mi32 function=@fn36 <- next
+  instance mi33 function=@fn37 <- value
+  instance mi34 function=@fn38 <- echoed
+  instance mi35 function=@fn39 <- second
+  instance mi36 function=@fn40 <- readLink
+  instance mi37 function=@fn41 <- read
+  instance mi38 function=@fn42 <- select
+  instance mi39 function=@fn43 <- apply
+  instance mi40 function=@fn44 <- iterator
+  instance mi41 function=@fn45 <- get
+  instance mi42 function=@fn46 <- size
+  instance mi43 function=@fn47 <- iterator
+  instance mi44 function=@fn48 <- get
+  instance mi45 function=@fn49 <- size
   instance mi46 function=@fn50 <- next
   instance mi47 function=@fn51 <- next
+  instance mi48 function=@fn52 <- echoed
+  instance mi49 function=@fn53 <- second
+  instance mi50 function=@fn54 <- readLink
+  instance mi51 function=@fn55 <- Readable.read
+  instance mi52 function=@fn56 <- next
+  instance mi53 function=@fn57 <- Readable.read
+  instance mi54 function=@fn58 <- next
+  instance mi55 function=@fn59 <- Readable.read
+  instance mi56 function=@fn60 <- next
+  instance mi57 function=@fn61 <- List.$get$size
+  instance mi58 function=@fn62 <- List.get
+  instance mi59 function=@fn63 <- List.$get$size
+  instance mi60 function=@fn64 <- List.get
+  instance mi61 function=@fn65 <- List.$get$size
+  instance mi62 function=@fn66 <- List.get
   str @str0 "value"
   output library

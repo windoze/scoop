@@ -41,6 +41,7 @@ pub(super) fn install_with_intrinsics_at(
         mutable_array,
         ptr.clone(),
         fun_ptr.clone(),
+        builder.concrete_nominal(SourceNominalKind::Struct),
     ]));
 
     let option_protocol = CoreOptionProtocolV1(product([
@@ -69,7 +70,7 @@ pub(super) fn install_with_intrinsics_at(
     let iteration_protocol =
         CoreIterationProtocolV1(product([iterator, next, builder.dispatch(next_id)]));
 
-    let exception_classes: [PersistentTypeId; 6] = std::array::from_fn(|_| builder.concrete_type());
+    let exception_classes: [PersistentTypeId; 7] = std::array::from_fn(|_| builder.concrete_type());
     let exception_constructors =
         exception_classes.map(|class| builder.constructor(class, Vec::new()));
     let initialization_cycle_thrower = builder
@@ -97,6 +98,8 @@ pub(super) fn install_with_intrinsics_at(
         concrete_entry(exception_classes[5]),
         exception_constructors[5].clone(),
         initialization_cycle_thrower,
+        concrete_entry(exception_classes[6]),
+        exception_constructors[6].clone(),
     ]));
 
     let continuation = builder.generic_nominal(SourceNominalKind::Interface);

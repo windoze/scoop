@@ -450,6 +450,11 @@ Module
       val $parameter.value: () -> String
         Type () -> String
         Local $result.1
+      call $aggregate.0: () -> String = @fn9 direct
+        Type String
+        Local $parameter.seed
+        Type () -> String
+        Local $parameter.value
       val $argument.0: String
         Type String
         Local $parameter.seed
@@ -482,12 +487,7 @@ Module
       val $parameter.value: () -> String
         Type () -> String
         Local $result.1
-      call $call.9: () -> String = @fn9 direct
-        Type String
-        Local $parameter.seed
-        Type () -> String
-        Local $parameter.value
-      call $call.10: () -> String = @fn9 direct
+      call $aggregate.1: () -> String = @fn9 direct
         Type String
         Local $parameter.seed
         Type () -> String
@@ -496,10 +496,10 @@ Module
         Type (() -> String, () -> String)
         TupleLiteral
           Type () -> String
-          Local $call.9
+          Local $aggregate.0
           Type () -> String
-          Local $call.10
-      call $call.11: (() -> String, () -> String) = @fn23 direct
+          Local $aggregate.1
+      call $call.9: (() -> String, () -> String) = @fn23 direct
         Type DependencyCombinationHost
         Local $receiver
         Type String
@@ -547,6 +547,11 @@ Module
       val $parameter.value: () -> Int
         Type () -> Int
         Local $result.1
+      call $aggregate.0: () -> Int = @fn17 direct
+        Type Int
+        Local $parameter.seed
+        Type () -> Int
+        Local $parameter.value
       val $argument.0: Int
         Type Int
         Local $parameter.seed
@@ -579,12 +584,7 @@ Module
       val $parameter.value: () -> Int
         Type () -> Int
         Local $result.1
-      call $call.12: () -> Int = @fn17 direct
-        Type Int
-        Local $parameter.seed
-        Type () -> Int
-        Local $parameter.value
-      call $call.13: () -> Int = @fn17 direct
+      call $aggregate.1: () -> Int = @fn17 direct
         Type Int
         Local $parameter.seed
         Type () -> Int
@@ -593,10 +593,10 @@ Module
         Type (() -> Int, () -> Int)
         TupleLiteral
           Type () -> Int
-          Local $call.12
+          Local $aggregate.0
           Type () -> Int
-          Local $call.13
-      call $call.14: (() -> Int, () -> Int) = @fn24 direct
+          Local $aggregate.1
+      call $call.10: (() -> Int, () -> Int) = @fn24 direct
         Type DependencyCombinationHost
         Local $receiver
         Type Int

@@ -22,13 +22,17 @@ impl Lowerer {
             _ => None,
         });
         let mut lowered = Vec::with_capacity(elements.len());
+        let mut element_sinks = Vec::with_capacity(elements.len());
         for (index, element) in elements.iter().enumerate() {
             let hint = expected_elements.as_ref().map(|expected| expected[index]);
-            lowered.push(self.lower_expr(element, sink, hint)?);
+            let mut setup = Vec::new();
+            lowered.push(self.lower_expr(element, &mut setup, hint)?);
+            element_sinks.push(setup);
         }
         let ty = self.intern_type(Type::Tuple(
             lowered.iter().map(|element| element.ty).collect(),
         ));
+        let lowered = self.materialize_aggregate_elements(lowered, element_sinks, sink);
         Some(hir::Expr {
             kind: ExprKind::TupleLiteral(lowered),
             ty,
@@ -57,8 +61,10 @@ impl Lowerer {
             expected.and_then(|ty| self.array_type_info(ty).map(|array| (ty, array.element)));
         if let Some((array_ty, element_ty)) = expected_array {
             let mut lowered = Vec::with_capacity(elements.len());
+            let mut element_sinks = Vec::with_capacity(elements.len());
             for element in elements {
-                let element = self.lower_expr(element, sink, Some(element_ty))?;
+                let mut setup = Vec::new();
+                let element = self.lower_expr(element, &mut setup, Some(element_ty))?;
                 let would_auto_box = self.is_value_ty(element.ty)
                     && self.is_ref_ty(element_ty)
                     && !self.types_equal(element.ty, element_ty);
@@ -74,7 +80,9 @@ impl Lowerer {
                     return None;
                 }
                 lowered.push(self.adapt_to(element, element_ty));
+                element_sinks.push(setup);
             }
+            let lowered = self.materialize_aggregate_elements(lowered, element_sinks, sink);
             return Some(hir::Expr {
                 kind: ExprKind::ArrayLiteral(lowered),
                 ty: array_ty,
@@ -136,9 +144,6 @@ impl Lowerer {
                 }
             }
         }
-        for mut element_sink in element_sinks {
-            sink.append(&mut element_sink);
-        }
         let lowered = lowered
             .into_iter()
             .map(|element| element.expect("every array element was lowered"))
@@ -170,6 +175,7 @@ impl Lowerer {
             .into_iter()
             .map(|element| self.adapt_to(element, element_ty))
             .collect();
+        let lowered = self.materialize_aggregate_elements(lowered, element_sinks, sink);
         let ty = self.array_type(ArrayKind::Immutable, element_ty);
         Some(hir::Expr {
             kind: ExprKind::ArrayLiteral(lowered),
@@ -177,6 +183,28 @@ impl Lowerer {
             span,
             origin: self.expression_origin(span),
         })
+    }
+
+    /// Each element completes before the next element's statement expansion.
+    fn materialize_aggregate_elements(
+        &mut self,
+        elements: Vec<hir::Expr>,
+        setups: Vec<Vec<hir::Statement>>,
+        sink: &mut Vec<hir::Statement>,
+    ) -> Vec<hir::Expr> {
+        if setups.iter().all(Vec::is_empty) {
+            return elements;
+        }
+        elements
+            .into_iter()
+            .zip(setups)
+            .enumerate()
+            .map(|(index, (element, setup))| {
+                sink.extend(setup);
+                let span = element.span;
+                self.materialize_temporary(format!("$aggregate.{index}"), element, span, sink)
+            })
+            .collect()
     }
 
     /// Derive the provisional array element from expressions already lowered

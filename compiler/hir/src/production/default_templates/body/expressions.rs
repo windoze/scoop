@@ -62,6 +62,13 @@ impl BodyProjection<'_, '_> {
             ExprKind::IntegerLiteral(value) => {
                 DefaultExpressionKindV1::IntegerLiteral((*value).into())
             }
+            ExprKind::CharLiteral(value) => DefaultExpressionKindV1::CharLiteral((*value).into()),
+            ExprKind::CharCode(value) => {
+                DefaultExpressionKindV1::CharCode(Box::new(self.expression(value)?))
+            }
+            ExprKind::CharFromCodeUnchecked(value) => {
+                DefaultExpressionKindV1::CharFromCodeUnchecked(Box::new(self.expression(value)?))
+            }
             ExprKind::BoolLiteral(value) => {
                 DefaultExpressionKindV1::BooleanLiteral((*value).into())
             }
@@ -263,6 +270,12 @@ impl BodyProjection<'_, '_> {
             },
             ExprKind::ArrayLiteral(elements) => {
                 DefaultExpressionKindV1::ArrayLiteral(self.expressions(elements)?)
+            }
+            ExprKind::ArrayGenerate { count, initializer } => {
+                DefaultExpressionKindV1::ArrayGenerate {
+                    count: Box::new(self.expression(count)?),
+                    initializer: Box::new(self.expression(initializer)?),
+                }
             }
             ExprKind::ArrayAssembly(assembly) => {
                 DefaultExpressionKindV1::ArrayAssembly(self.array_assembly(assembly)?)

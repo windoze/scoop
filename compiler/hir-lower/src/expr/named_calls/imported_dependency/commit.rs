@@ -201,6 +201,15 @@ impl Lowerer {
         if let Some(intrinsic) = candidate.normalized_intrinsic() {
             let receiver = receiver.expect("a resolved imported intrinsic member has a receiver");
             let kind = match intrinsic {
+                NormalizedImportedIntrinsic::Char(kind) => {
+                    return Some(self.normalize_char_method_call(
+                        kind,
+                        receiver,
+                        &parameter_values,
+                        result_type,
+                        call_span,
+                    ));
+                }
                 NormalizedImportedIntrinsic::Integer(kind) => {
                     return Some(self.normalize_integer_method_call(
                         kind,

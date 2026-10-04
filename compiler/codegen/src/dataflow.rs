@@ -83,6 +83,7 @@ pub(super) fn instruction_uses(instruction: &Instruction, function: &Function) -
         }
         | Instruction::BeginCatch { raw: operand, .. }
         | Instruction::Throw { exception: operand }
+        | Instruction::ArrayAllocDynamic { count: operand, .. }
         | Instruction::ArrayLen { operand, .. }
         | Instruction::ArrayClone { operand, .. }
         | Instruction::EnumTag { operand, .. }
@@ -201,6 +202,7 @@ pub(super) fn instruction_defs(instruction: &Instruction) -> Vec<LiveValue> {
         | Instruction::PtrOffset { out, .. }
         | Instruction::LocalAddress { out, .. }
         | Instruction::BeginCatch { out, .. }
+        | Instruction::ArrayAllocDynamic { out, .. }
         | Instruction::ArrayAlloc { out, .. }
         | Instruction::ArrayAssembly { out, .. }
         | Instruction::ArrayLen { out, .. }

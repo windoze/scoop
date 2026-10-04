@@ -1,0 +1,39 @@
+@Intrinsic("core_array")
+public class Array<T> : List<T> {
+    @Intrinsic("array_length")
+    private fun arrayLength(): Long
+
+    public override val size: Long get() = arrayLength()
+
+    @Intrinsic("array_get")
+    private fun arrayRead(index: Long): T
+
+    public override operator fun get(index: Long): T = arrayRead(index)
+
+    @Intrinsic("array_to_mutable")
+    public fun toMutableArray(): MutableArray<T>
+
+    public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
+}
+
+@Intrinsic("core_mutable_array")
+public class MutableArray<T> : List<T> {
+    @Intrinsic("mutable_array_length")
+    private fun arrayLength(): Long
+
+    public override val size: Long get() = arrayLength()
+
+    @Intrinsic("mutable_array_get")
+    private fun arrayRead(index: Long): T
+
+    public override operator fun get(index: Long): T = arrayRead(index)
+
+    @Intrinsic("mutable_array_set")
+    public operator fun set(index: Long, value: T)
+
+    @Intrinsic("array_to_immutable")
+    public fun toArray(): Array<T>
+
+    public override operator fun iterator(): Iterator<T> = ListIterator<T>(this, 0L, false)
+}
+

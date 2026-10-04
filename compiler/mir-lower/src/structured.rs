@@ -348,6 +348,9 @@ pub(crate) enum ExprKind {
     StringConst(mir::StringConstId),
     IntegerLiteral(mir::MirIntegerConstant),
     MachineScalarLiteral(mir::MachineScalarValue),
+    CharLiteral(char),
+    CharCode(Box<Expr>),
+    CharFromCodeUnchecked(Box<Expr>),
     BoolLiteral(bool),
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
@@ -442,6 +445,12 @@ pub(crate) enum ExprKind {
     IsInstance {
         operand: Box<Expr>,
         check_ty: Box<mir::Type>,
+    },
+    /// Zeroed internal storage, reached only after the managed negative-size guard.
+    /// The generated loop publishes the array after every element is initialized.
+    ArrayAllocate {
+        array_type: mir::ClassId,
+        count: Box<Expr>,
     },
     ArrayLiteral {
         array_type: mir::ClassId,

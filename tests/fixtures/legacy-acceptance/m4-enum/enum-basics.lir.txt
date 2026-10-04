@@ -9,6 +9,7 @@ Module
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   enum Color tagged size=8 align=8 variants=()@8+0 ()@8+0 ()@8+0
   enum Shape tagged size=16 align=8 variants=(i32)@8+4 (i32, i32)@8+8 (i32, i32)@8+8 (i32)@8+4
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   fun @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca() -> void
     local %0 c: enum0
     local %1 $dependency.argument.0: ptr<managed>
@@ -365,8 +366,14 @@ Module
     global_store global7, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Shape) @scoop$1$td$cb352992eddd86a4cd29d6523a8e6256905ef4ac739aa684b3c2793506084ebc type-id=13449677770524913228 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
-  td td1 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Color) @scoop$1$td$e0cf6adcb3a723f06051007f6f765e7ff80bc06601447a2f382eaeccf41ac1b5 type-id=15829688036497725554 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Shape) @scoop$1$td$cb352992eddd86a4cd29d6523a8e6256905ef4ac739aa684b3c2793506084ebc type-id=13449677770524913228 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td3 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td4 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=E;x=Color) @scoop$1$td$e0cf6adcb3a723f06051007f6f765e7ff80bc06601447a2f382eaeccf41ac1b5 type-id=15829688036497725554 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout Color size=8 align=8 enum-scan=none
   layout Shape size=16 align=8 enum-scan=none
+  layout Option size=16 align=8 enum-scan=none
+  layout Iterable value size=8 align=8 refs=[0]
+  layout Iterator value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

@@ -10,6 +10,9 @@ Module
   struct Marker (text: String)
   struct Pair (left: Int, right: Int) <c-layout aligned=natural packed=natural>
   struct ForeignCallback<(Int, Ptr<Unit>) -> Int> (function: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>)
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum ForeignCallbackMode
     Reusable()
     OneShot()
@@ -25,6 +28,8 @@ Module
   class box<Int> vtable=0 itables=0
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn4 captures=2
     bridge function_type1 -> @fn10 id=98f89fb2cc447577502015771a08a4e2d1565034ce88b1a01d012fda0f841825
   generated_exact_type get0 location=closure0 nominal_id=4faa28e81e4536e0b516866d2e5a89aba12aa1cc26937545652b0bae31a4f456 exact_id=bb3ce1ff92ae1dad87a343eaace013665b694e9cd9cbfda935d6818bf3795056

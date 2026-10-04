@@ -1,0 +1,10 @@
+class Char(val number: Int)
+
+fun main() {
+    val character = '雪'
+    val ordinary = Char(42)
+    if (character.code != 38634 || character.toString() != "雪" || ordinary.number != 42) {
+        println("shadow"); return
+    }
+    println(42)
+}

@@ -813,6 +813,13 @@ Module
       val $dependency.local.38: Long
         Type Long
         Local $dependency.local.37
+      val $dependency.local.47: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.36
+          Type Long
+          Local $dependency.local.38
       val $dependency.local.39: Source
         Type Source
         Local this
@@ -822,6 +829,11 @@ Module
       val $dependency.local.41: Int
         Type Int
         Local $dependency.local.40
+      call $dependency.local.48: Int = @fn8 direct
+        Type Source
+        Local $dependency.local.39
+        Type Int
+        Local $dependency.local.41
       val $dependency.local.42: Source
         Type Source
         Local this
@@ -831,52 +843,43 @@ Module
       val $dependency.local.44: Argument
         Type Argument
         Local $dependency.local.43
+      call $dependency.local.49: Argument = @fn9 direct
+        Type Source
+        Local $dependency.local.42
+        Type Argument
+        Local $dependency.local.44
       val $dependency.local.45: Source
         Type Source
         Local this
       val $dependency.local.46: Long
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
-      call $call.3: Int = @fn8 direct
-        Type Source
-        Local $dependency.local.39
-        Type Int
-        Local $dependency.local.41
-      call $call.4: Argument = @fn9 direct
-        Type Source
-        Local $dependency.local.42
-        Type Argument
-        Local $dependency.local.44
-      call $call.5: Long = external0 virtual[0]
+      call $dependency.local.50: Long = external0 virtual[0]
         Type Source
         Local $dependency.local.45
         Type Long
         Local $dependency.local.46
-      call $call.6: Int = external1 virtual[1]
+      call $dependency.local.51: Int = external1 virtual[1]
         Type Source
         Local this
-      call $call.7: Int = external20 direct
+      call $dependency.local.52: Int = external20 direct
         Type Source
         Local this
       return
         Type (Long, Int, Argument, Long, Int, Int)
         TupleLiteral
           Type Long
-          IntegerBinary add kind=Long
-            Type Long
-            Local $dependency.local.36
-            Type Long
-            Local $dependency.local.38
+          Local $dependency.local.47
           Type Int
-          Local $call.3
+          Local $dependency.local.48
           Type Argument
-          Local $call.4
+          Local $dependency.local.49
           Type Long
-          Local $call.5
+          Local $dependency.local.50
           Type Int
-          Local $call.6
+          Local $dependency.local.51
           Type Int
-          Local $call.7
+          Local $dependency.local.52
   fun observe @fn6(this: Source, value: String, other: Argument) -> (Long, String, Argument, Long, Int, Int)
     bb0 entry
       var $dependency.local.3: Long
@@ -1084,6 +1087,13 @@ Module
       val $dependency.local.38: Long
         Type Long
         Local $dependency.local.37
+      val $dependency.local.47: Long
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.local.36
+          Type Long
+          Local $dependency.local.38
       val $dependency.local.39: Source
         Type Source
         Local this
@@ -1093,6 +1103,11 @@ Module
       val $dependency.local.41: String
         Type String
         Local $dependency.local.40
+      call $dependency.local.48: String = @fn10 direct
+        Type Source
+        Local $dependency.local.39
+        Type String
+        Local $dependency.local.41
       val $dependency.local.42: Source
         Type Source
         Local this
@@ -1102,52 +1117,43 @@ Module
       val $dependency.local.44: Argument
         Type Argument
         Local $dependency.local.43
+      call $dependency.local.49: Argument = @fn9 direct
+        Type Source
+        Local $dependency.local.42
+        Type Argument
+        Local $dependency.local.44
       val $dependency.local.45: Source
         Type Source
         Local this
       val $dependency.local.46: Long
         Type Long
         IntegerLiteral Long value=1 bits=0x0000000000000001
-      call $call.3: String = @fn10 direct
-        Type Source
-        Local $dependency.local.39
-        Type String
-        Local $dependency.local.41
-      call $call.4: Argument = @fn9 direct
-        Type Source
-        Local $dependency.local.42
-        Type Argument
-        Local $dependency.local.44
-      call $call.5: Long = external0 virtual[0]
+      call $dependency.local.50: Long = external0 virtual[0]
         Type Source
         Local $dependency.local.45
         Type Long
         Local $dependency.local.46
-      call $call.6: Int = external1 virtual[1]
+      call $dependency.local.51: Int = external1 virtual[1]
         Type Source
         Local this
-      call $call.7: Int = external20 direct
+      call $dependency.local.52: Int = external20 direct
         Type Source
         Local this
       return
         Type (Long, String, Argument, Long, Int, Int)
         TupleLiteral
           Type Long
-          IntegerBinary add kind=Long
-            Type Long
-            Local $dependency.local.36
-            Type Long
-            Local $dependency.local.38
+          Local $dependency.local.47
           Type String
-          Local $call.3
+          Local $dependency.local.48
           Type Argument
-          Local $call.4
+          Local $dependency.local.49
           Type Long
-          Local $call.5
+          Local $dependency.local.50
           Type Int
-          Local $call.6
+          Local $dependency.local.51
           Type Int
-          Local $call.7
+          Local $dependency.local.52
   fun $derived.equals.0 @fn7(this: (Int, Int), other: (Int, Int)) -> Boolean
     bb0 entry
       branch bb1 bb2

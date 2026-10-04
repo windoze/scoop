@@ -138,6 +138,7 @@ impl<'module> CanonicalCAbiBuilder<'module> {
             mir::ExternAbi::Scoop => {
                 let physical = abi::classify_mir_signature(
                     context,
+                    self.module,
                     external.params.iter(),
                     &external.return_type,
                     self.structs,

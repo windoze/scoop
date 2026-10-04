@@ -1,0 +1,247 @@
+SourceFile
+  RootPackage
+  fun main()
+    val text
+      StringLiteral "A雪🚀\0e\u{301}"
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Or
+                Binary Ne
+                  FieldAccess length
+                    Var text
+                  IntLiteral 6L
+                Binary Ne
+                  FieldAccess byteLength
+                    Var text
+                  IntLiteral 12L
+              Binary Ne
+                Index
+                  Var text
+                  IntLiteral 1L
+                CharLiteral '雪'
+            Binary Ne
+              Index
+                Var text
+                IntLiteral 2L
+              CharLiteral '🚀'
+          Binary Ne
+            Index
+              Var text
+              IntLiteral 3L
+            CharLiteral '\0'
+        Binary Ne
+          Index
+            Var text
+            IntLiteral 5L
+          CharLiteral '\u{301}'
+      Call println
+        StringLiteral "units"
+      return
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              MethodCall slice
+                Var text
+                IntLiteral 1L
+                IntLiteral 3L
+              StringLiteral "雪🚀"
+            Binary Ne
+              MethodCall slice
+                Var text
+                IntLiteral 0L
+                IntLiteral 6L
+              Var text
+          Binary Ne
+            MethodCall slice
+              Var text
+              IntLiteral 6L
+              IntLiteral 6L
+            StringLiteral ""
+        Binary Ne
+          MethodCall slice
+            StringLiteral ""
+            IntLiteral 0L
+            IntLiteral 0L
+          StringLiteral ""
+      Call println
+        StringLiteral "slice"
+      return
+    val empty
+      StringLiteral ""
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess length
+            Var empty
+          IntLiteral 0L
+        Binary Ne
+          FieldAccess byteLength
+            Var empty
+          IntLiteral 0L
+      Call println
+        StringLiteral "empty"
+      return
+    val source: Iterable<Char>
+      Var text
+    var count
+      IntLiteral 0L
+    for character
+      Var source
+      if
+        Binary Ne
+          Var character
+          Index
+            Var text
+            Var count
+        Call println
+          StringLiteral "iteration"
+        return
+      assign count
+        Binary Add
+          Var count
+          IntLiteral 1L
+    val iterator
+      MethodCall iterator
+        Var source
+    while
+      Binary Ne
+        MethodCall next
+          Var iterator
+        Var None
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Ne
+              Var count
+              IntLiteral 6L
+            Binary Ne
+              MethodCall next
+                Var iterator
+              Var None
+          Binary Ne
+            MethodCall next
+              Var iterator
+            Var None
+        Binary Ne
+          MethodCall next
+            MethodCall iterator
+              Var empty
+          Var None
+      Call println
+        StringLiteral "exhaustion"
+      return
+    var caught
+      IntLiteral 0
+    try
+      val value
+        Index
+          Var text
+          Unary Neg
+            IntLiteral 1L
+    catch e: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      val value
+        Index
+          Var text
+          IntLiteral 6L
+    catch e: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      val value
+        Index
+          Var text
+          IntLiteral 9223372036854775807L
+    catch e: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      val value
+        Index
+          Var text
+          Unary Neg
+            IntLiteral 9223372036854775808L
+    catch e: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      MethodCall slice
+        Var text
+        Unary Neg
+          IntLiteral 1L
+        IntLiteral 0L
+    catch e: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      MethodCall slice
+        Var text
+        IntLiteral 2L
+        IntLiteral 1L
+    catch e: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      MethodCall slice
+        Var text
+        IntLiteral 0L
+        IntLiteral 7L
+    catch e: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      MethodCall slice
+        Var text
+        IntLiteral 7L
+        IntLiteral 7L
+    catch e: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    try
+      MethodCall slice
+        Var text
+        Unary Neg
+          IntLiteral 9223372036854775808L
+        IntLiteral 9223372036854775807L
+    catch e: IndexOutOfBoundsException
+      assign caught
+        Binary Add
+          Var caught
+          IntLiteral 1
+    if
+      Binary Or
+        Binary Ne
+          Var caught
+          IntLiteral 9
+        Binary Eq
+          Var text
+          StringLiteral "A雪🚀\0é"
+      Call println
+        StringLiteral "bounds-normalization"
+      return
+    Call println
+      IntLiteral 42
