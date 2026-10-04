@@ -12,6 +12,7 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 已实现 Linux thread/VM、amd64 精确 frame adapter、18 个 managed entry 汇编入口和 String sret adapter。共有 stackmap decoder 不再硬编码 AArch64 的 frame-size 对齐。线程在 boundary/anchor/native transition 范围 miss 时重新查询当前 OS 栈范围，并沿原有 world/park 协议发布；musl 主线程的深栈不会继续使用 attach 时的过小范围。runtime build 接入和完整 moving collector 闭环尚待后续完成。
 - Linux platform bundle 已完整组合 ELF image、Linux thread/VM、amd64 frame。ELF adapter 读取加载后的 program headers 和实际 VM permissions，按 hidden linker bounds 取得 stackmaps；已提供动态 RELRO 与静态只读段两套 metadata scripts。共有 callable 范围检查不再硬编码 4-byte 指令。Linux SHA-256 使用最小配置的 Mbed TLS 3.6.6 模块，保留上游文件/许可证并隔离嵌入符号；Darwin 继续 CommonCrypto。
 - runtime 构建配置已拆成共有源文件与封闭平台组合，并提供各自的 include/编译参数。target resolution 不再提前解析最终链接工具。runtime cache schema 2 按实际 depfile 跟踪外部头文件内容和 include locator，适用于 SDK、GCC、musl 与 LLVM unwind headers；安装路径只留在本地失效检查中，不进入 artifact 输入 identity。正式 Linux runtime index 与最终链接接入仍在后续批次。
+- 共有 ELF64 对象 reader 已加入 slib，格式边界/group/symbol 读取与 amd64 relocation 宽度分开。runtime/native object 入口按真实 target 分派，Linux runtime index 沿用现有格式与 ABI registry，正确读取 ELF TLS；程序入口和 String binding 使用 target 的符号规则。正式 Linux target resolution/runtime 构建入口以及 compiler-generated `.slib` 对象尚需接入。
 - 后续按设计完成 target/toolchain、ELF/codegen/runtime、正式 CLI 与多 Cone，再进行三种 Linux 链接配置及 macOS/AArch64 回归。
 
 每项实现记录实际运行的验证及其局限。原生探针通过不等于正式 Scoop CLI 已支持对应目标。
@@ -31,3 +32,4 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - ELF image 测试在 glibc PIE、musl static/PIE 下验证完整 platform bundle、load bias、stackmap relocation、metadata 实际只读、无 `DT_TEXTREL`；移除 ELF section table locator 后仍通过。将 stackmap 页临时改为可写时，adapter 正确拒绝，恢复只读后成功。SHA-256 的空串、短串、多 block、百万 byte 向量在三个配置均通过。
 - 原有 4 项 runtime image/registration 测试已在 Linux 运行，通过 canonical stackmap 的 Rust/C 共用向量及全部损坏 metadata 负例。迁移时发现 Linux piped core handler 会忽略 `RLIMIT_CORE`，现仅在预期 abort 的测试子进程关闭 dumpability；这组测试由约 114 秒恢复为不到 1 秒，生产 runtime 无此设置。Linux runtime 组件共 5 项 Rust 测试通过，全 workspace fmt/clippy 无警告。
 - 新 runtime 构建配置分别通过 glibc、musl 的全部 C/汇编源文件编译（GCC、O2、Wall/Wextra/Werror、对应 LLVM unwind headers），检查完整 runtime ABI 的函数/数据/TLS 定义、重复定义和 SHA 符号隔离。外部头文件缓存测试覆盖三个 header root、内容变化、缺失 depfile 和 symlink 改指向；全 workspace fmt/clippy 通过。该批是完整 runtime 对象编译，尚非正式 Scoop 程序链接/运行验收。
+- 完整 runtime 对象测试现位于 linker，进一步覆盖两 libc 的 index 写入/读取、symbol records/fingerprint 一致、目标混用拒绝和对象损坏拒绝。4 项真实 GCC/assembler ELF 测试覆盖普通函数/数据/TLS、weak、debug relocation、32/64-bit 写入宽度、COMDAT，以及坏 machine、坏 symbol index/extent、坏 group member、common storage、constructor 和 C++ EH 依赖诊断；全 workspace fmt/clippy 通过。

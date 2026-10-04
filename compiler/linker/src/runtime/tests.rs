@@ -2,6 +2,7 @@ use super::*;
 use object::{Object, ObjectSymbol, SymbolKind};
 use scoop_lir::{RuntimeAbiSymbolV1, RuntimeSymbolContractRegistryV1};
 use scoop_process::CommandExt;
+use scoop_toolchain::{ValidatedRuntimeBuildProfile, resolve_linux_c_toolchain};
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -16,7 +17,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         LirTargetProfile::LINUX_X86_64_GNU,
         LirTargetProfile::LINUX_X86_64_MUSL,
     ] {
-        let invocation = crate::resolve_linux_c_toolchain(target, None, None).unwrap();
+        let invocation = resolve_linux_c_toolchain(target, None, None).unwrap();
         let profile = ValidatedRuntimeBuildProfile::for_target(target);
         let directory = tempfile::tempdir().unwrap();
         let unwind = workspace
@@ -25,6 +26,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
             .join("unwind/include");
         assert!(unwind.join("unwind.h").is_file());
         let mut definitions = BTreeMap::new();
+        let mut objects = Vec::new();
         for (index, source) in profile.runtime_sources().iter().enumerate() {
             let path = directory.path().join(format!("runtime-{index}.o"));
             let mut command = invocation.object_compilation_command(&workspace.join(source), &path);
@@ -59,6 +61,7 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
                     "duplicate runtime definition {name}"
                 );
             }
+            objects.push(bytes);
         }
         let registry = RuntimeSymbolContractRegistryV1::current(target).unwrap();
         for contract in registry.contracts() {
@@ -80,5 +83,36 @@ fn linux_runtime_sources_compile_and_define_the_complete_runtime_abi() {
         );
         assert!(!definitions.contains_key("main"));
         assert!(!definitions.keys().any(|name| name.starts_with("mbedtls_")));
+        let runtime = RuntimeObjectSet::from_objects(
+            target,
+            invocation.profile(),
+            RuntimeBuildConfiguration {
+                input_key: sha256(b"runtime index integration"),
+                compiler_digest: sha256(&std::fs::read(invocation.compiler_driver()).unwrap()),
+                flags: profile
+                    .runtime_c_flags()
+                    .iter()
+                    .map(|value| (*value).to_owned())
+                    .collect(),
+            },
+            objects,
+        )
+        .unwrap();
+        let index = runtime
+            .write_index(&directory.path().join("index"))
+            .unwrap();
+        let decoded = RuntimeObjectSet::read_index(&index, target, invocation.profile()).unwrap();
+        assert_eq!(decoded.fingerprint(), runtime.fingerprint());
+        assert_eq!(decoded.symbols(), runtime.symbols());
+        assert_eq!(decoded.target(), target);
+        let other = if target == LirTargetProfile::LINUX_X86_64_GNU {
+            LirTargetProfile::LINUX_X86_64_MUSL
+        } else {
+            LirTargetProfile::LINUX_X86_64_GNU
+        };
+        assert!(RuntimeObjectSet::read_index(&index, other, invocation.profile()).is_err());
+        let first = &decoded.input_paths()[1];
+        std::fs::write(first, b"truncated").unwrap();
+        assert!(RuntimeObjectSet::read_index(&index, target, invocation.profile()).is_err());
     }
 }

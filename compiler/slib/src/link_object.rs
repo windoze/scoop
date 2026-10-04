@@ -132,6 +132,9 @@ pub use link_identity_closure::*;
 mod macho;
 pub use macho::*;
 
+mod elf;
+pub use elf::{ElfObjectError, ElfRelocation, ValidatedElfObject};
+
 macro_rules! typed_digest {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]

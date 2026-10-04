@@ -654,6 +654,8 @@ LocalConcrete → MIR 的 source exact relation 同时保留完整物化归属�
 
 M28 增加 `x86_64-unknown-linux-gnu` 与 `x86_64-unknown-linux-musl` 两个封闭 LIR target，profile name 分别为 `linux-x86-64-gnu/1`、`linux-x86-64-musl/1`。两者采用 ELF64 little-endian LP64、16-byte 调用栈对齐，复用既有 scalar/aggregate/ZST Scoop ABI 分类；布局、native symbol 与 library identity 均保存实际 target，reader 不重建为 Darwin。LLVM `byval` 表示 caller-owned 的按值副本，其真实寄存器/栈传递由目标后端降低，不保证物理上传一个 C 指针。amd64 的 `sret` 使用 RDI，返回地址值遵守 RAX 结果规则。
 
+ELF 对象读取复用 `object` 的 ELF64 parser，在对象边界检查 `ET_REL`、目标 machine、section/symbol extent、RELA 表和 group 引用。格式读取与架构 relocation 写入宽度分离；普通数据、代码、debug 的写入均按实际 relocation 类型检查范围，不统一假定 64-bit pointer。TLS 定义由 `STT_TLS` 和 `SHF_TLS` storage 识别，不套用 Darwin TLV descriptor 或普通地址规则。runtime index 使用同一目标相关对象读取入口和原有 ABI symbol registry，保存实际 libc target/C toolchain；ELF 本身不能证明对象采用哪种 libc，也不从 symbol 拼写推断 libc。对象读取结果在本次消费中复用，不增加来源认证或语义重放。
+
 两种 Linux libc 共用独立的 `llvm-22-1-linux-x86-64/1` backend profile。它复用已有 fields 1～25 的含义，field 19 为 X86=2、24 为 LLVM libunwind=2、25 为 ELF=2；field 23 增加 inner field 4 保存 cleanup-only TType omit（0xff），其余为 LPStart=0xff、catch TType=0x9b、call-site=1。追加 field 26 保存 `noredzone` 必需值 1，field 27 保存固定帧合同 `{1=DWARF SP 7, 2=DWARF FP 6, 3=FP 相对 SP+stack_size 的减量 8, 4=caller SP 相对 FP 的增量 16}`。Darwin 既有 profile bytes/fingerprint 保持；reader 接受多个已知 profile 不表示可把不同 target 的产物混用。实际工具链/CLI 支持与完成范围见 [M28](../milestone28/DESIGN.md)。
 
 数组的共有 instance layout 与其他 managed object 一样关联 `ManagedObject` scan；该程序从对象起点读取长度并扫描元素区。TD 的非空 inline scan 则关联同一 layout 下已有的 `ArrayElement` scan，只扫描一个元素。两种 scan 保留各自的 typed identity 与实际程序，不能因共享 layout 而混用；GC-free／ZST 元素的 inline scan 仍为空。数组的 vtable／itable 使用实际 class application 的普通 dispatch schema，保留 core 源码声明的 `Iterable<T>` 等接口关系。
