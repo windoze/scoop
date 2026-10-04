@@ -140,6 +140,12 @@ impl Concretizer<'_> {
         method: &ResolvedInterfaceMethod<'_>,
         substitution: &[concrete::TypeId],
     ) -> concrete::MethodSig {
+        self.check_context_instantiation(
+            method.context_owner,
+            method.name,
+            &method.context_parameters,
+            substitution,
+        );
         concrete::MethodSig {
             name: method.name.to_owned(),
             is_suspend: method.is_suspend,

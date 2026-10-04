@@ -114,6 +114,7 @@ fn restricted_setter_is_required_and_checked_against_the_logical_property() {
             original.modality(),
             original.declared_visibility(),
             original.slot_relations().clone(),
+            Vec::new(),
         )
         .unwrap();
         let mut wrong = support;

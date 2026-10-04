@@ -112,6 +112,7 @@ impl BodyLowerer<'_> {
         let throwable = crate::coroutine_registry::throwable_type(self.module, self.class_map);
         let helper = self.coroutines.start_helper(
             self.source_exact_types,
+            crate::context::core_provider(self.module),
             result,
             task_interface,
             continuation_interface,

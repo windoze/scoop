@@ -20,6 +20,7 @@ fn integer_infix(lhs: Expr, name: &str, rhs: Expr) -> Expr {
 
 fn const_property(name: &str, ty: TypeRef, expression: Expr) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,
@@ -37,6 +38,7 @@ fn const_property(name: &str, ty: TypeRef, expression: Expr) -> Decl {
 
 fn raw_storage_without_initializer(name: &str, ty: TypeRef) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: vec![marker("Global")],
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,
@@ -54,6 +56,7 @@ fn raw_storage_without_initializer(name: &str, ty: TypeRef) -> Decl {
 
 fn raw_storage_with_initializer(name: &str, ty: TypeRef, expression: Expr) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: vec![marker("Global")],
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

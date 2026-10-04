@@ -171,6 +171,7 @@ impl Lowerer {
                         &prepared.bindings,
                     )?,
                     signature.span,
+                    Vec::new(),
                 ),
                 type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
                 no_gc_type_params: Vec::new(),

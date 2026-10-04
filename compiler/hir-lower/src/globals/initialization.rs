@@ -12,6 +12,7 @@ impl Lowerer {
         let allocate = |this: &mut Self, display_role: &str, kind| {
             let function = this.functions.alloc(Function {
                 signature: hir::CallableSignature {
+                    context_parameters: Vec::new(),
                     release_callability: Default::default(),
                     name: format!("$init${display_role}${}", unit.into_raw()),
                     is_suspend: false,
@@ -31,6 +32,7 @@ impl Lowerer {
             this.signatures.insert(
                 function,
                 FnSig {
+                    context_parameters: Vec::new(),
                     is_suspend: false,
                     modifiers: hir::CallableModifiers::default(),
                     attributes: hir::FunctionAttributes::default(),

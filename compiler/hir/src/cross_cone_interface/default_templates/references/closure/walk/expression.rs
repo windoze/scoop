@@ -38,7 +38,8 @@ impl<'body, V: DefaultBodyReferenceVisitorV1<'body>> ReferenceWalker<'_, 'body, 
                     origin,
                     ExportDefaultReferenceOccurrenceSiteV1::Expression,
                 ),
-            DefaultExpressionKindV1::StringLiteral { .. }
+            DefaultExpressionKindV1::ContextLookup { .. }
+            | DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
             | DefaultExpressionKindV1::CharLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)

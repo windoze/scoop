@@ -179,6 +179,17 @@ impl Parser {
             }
         };
 
+        if !prefix.modifiers.context_parameters.is_empty()
+            && !matches!(
+                body,
+                PropertyBodySyntax::Computed(_) | PropertyBodySyntax::Abstract
+            )
+        {
+            return Err(Diagnostic::at(
+                prefix.modifiers.context_parameters[0].span,
+                "contextual properties cannot have backing storage, an initializer or a delegate",
+            ));
+        }
         let start = prefix_start
             .into_iter()
             .chain(match visibility {
@@ -188,6 +199,7 @@ impl Parser {
             .min()
             .unwrap_or(keyword.span.start);
         Ok(PropertyDecl {
+            context_parameters: prefix.modifiers.context_parameters,
             annotations,
             visibility,
             modifier,

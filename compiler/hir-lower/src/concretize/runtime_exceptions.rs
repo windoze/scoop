@@ -8,6 +8,18 @@ use crate::imported_core::ImportedSignatureTypeError;
 use crate::{CoreLoweringAuthority, Lowerer};
 
 impl Lowerer {
+    pub(crate) fn prepare_missing_context_exception_type(
+        &mut self,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        let CoreLoweringAuthority::Imported(imported) = &self.core else {
+            return Ok(());
+        };
+        let declaration = imported
+            .exceptions()
+            .missing_context_exception()
+            .persistent();
+        self.prepare_runtime_exception_type(declaration)
+    }
     pub(crate) fn prepare_unwrap_exception_type(
         &mut self,
     ) -> Result<(), ImportedSignatureTypeError> {
@@ -86,6 +98,17 @@ impl Lowerer {
 }
 
 impl Concretizer<'_> {
+    pub(super) fn lower_missing_context_exception_type(&mut self) {
+        let export::CoreProtocols::Imported(protocols) = self.core else {
+            return;
+        };
+        self.lower_runtime_exception_type(
+            protocols
+                .exceptions()
+                .missing_context_exception()
+                .persistent(),
+        );
+    }
     pub(super) fn lower_unwrap_exception_type(&mut self) {
         let export::CoreProtocols::Imported(protocols) = self.core else {
             return;
@@ -151,6 +174,12 @@ pub(super) fn check_runtime_layout(module: &concrete::Module) -> Result<(), Vec<
             .any(|(_, class)| class.origin.concrete_type_id() == Some(declaration))
     };
     let cast_layout = has_layout(protocols.exceptions().class_cast_exception().persistent());
+    let context_layout = has_layout(
+        protocols
+            .exceptions()
+            .missing_context_exception()
+            .persistent(),
+    );
     let arithmetic_layout = has_layout(protocols.exceptions().arithmetic_exception().persistent());
     let unwrap_layout = has_layout(protocols.exceptions().unwrap_exception().persistent());
     let bounds_layout = has_layout(
@@ -165,11 +194,18 @@ pub(super) fn check_runtime_layout(module: &concrete::Module) -> Result<(), Vec<
             .illegal_argument_exception()
             .persistent(),
     );
-    if cast_layout && arithmetic_layout && unwrap_layout && bounds_layout && size_layout {
+    if cast_layout
+        && arithmetic_layout
+        && unwrap_layout
+        && bounds_layout
+        && size_layout
+        && context_layout
+    {
         return Ok(());
     }
     module.visit_executable_expressions(|occurrence| {
         let operation = match occurrence.expression.kind {
+            concrete::ExprKind::ContextLookup { .. } if !context_layout => "missing context exception constructor",
             concrete::ExprKind::ArrayGenerate { .. } if !size_layout => "array size exception constructor",
             concrete::ExprKind::Unwrap { trap_on_none: true, .. } if !unwrap_layout => "Option unwrap exception constructor",
             concrete::ExprKind::Cast { optional: false, .. } if !cast_layout => "runtime cast failure constructor",

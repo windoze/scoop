@@ -9,6 +9,7 @@ use crate::tests::{
 
 fn runtime_property(name: &str, expression: ast::Expr) -> ast::Decl {
     ast::Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

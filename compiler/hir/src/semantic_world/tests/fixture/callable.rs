@@ -70,6 +70,7 @@ impl CallableProviderFixture {
             CallableModalityV1::Final,
             PublicLookupAccessV1::DirectOnly,
             crate::CanonicalPersistentIdsV1::empty(),
+            Vec::new(),
         )
         .unwrap();
         let source = CallableSourceInterfaceV1::try_new(

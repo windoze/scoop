@@ -8,6 +8,8 @@ use scoop_identity::{
 use scoop_wire::{Encoder, WireEncode, WireErrorKind, decode_canonical, encode};
 
 use super::*;
+
+mod context;
 use crate::{
     CallableInfixV1, CallableOperatorRoleV1, CallableSafetyV1, CallableSourceEffectsBuildError,
     CanonicalBinderListV1, SourceParameterShapeV1, TypeParameterBinderV1, TypeParameterBoundsV1,
@@ -18,7 +20,7 @@ fn callable_record_has_fixed_field_wire_and_accessors() {
     let fixture = Fixture::new();
     let record = fixture.record();
     let expected = [
-        b"\xa2\x01\xaa\x01".as_slice(),
+        b"\xa2\x01\xab\x01".as_slice(),
         encode(&record.declaration()).unwrap().as_slice(),
         b"\x02".as_slice(),
         encode(&record.owner()).unwrap().as_slice(),
@@ -42,6 +44,7 @@ fn callable_record_has_fixed_field_wire_and_accessors() {
         encode(&record.declared_visibility()).unwrap().as_slice(),
         b"\x0a".as_slice(),
         encode(record.slot_relations()).unwrap().as_slice(),
+        b"\x0b\x80".as_slice(),
         b"\x02".as_slice(),
         encode(&record.access()).unwrap().as_slice(),
     ]
@@ -367,6 +370,7 @@ fn build_record(
         modality,
         access,
         crate::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
 }
 
@@ -445,7 +449,7 @@ impl WireEncode for InvalidEffectsRecord<'_> {
         let record = self.0;
         encoder.map(2)?;
         encoder.field(1)?;
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         record.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -467,6 +471,11 @@ impl WireEncode for InvalidEffectsRecord<'_> {
         record.declared_visibility().encode(encoder)?;
         encoder.field(10)?;
         record.slot_relations().encode(encoder)?;
+        encoder.field(11)?;
+        encoder.array(record.context_parameters().len() as u64)?;
+        for parameter in record.context_parameters() {
+            parameter.encode(encoder)?;
+        }
         encoder.field(2)?;
         record.access().encode(encoder)
     }

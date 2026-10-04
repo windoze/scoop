@@ -1,6 +1,10 @@
 use super::*;
 
 impl CanonicalHirFoundation {
+    pub(crate) fn callback_registration_records(&self) -> &[CallbackRegistrationRecord] {
+        &self.callback_registrations
+    }
+
     pub(crate) fn type_source_generated_callable_records(&self) -> &[GeneratedCallableRecord] {
         &self.generated_callables
     }

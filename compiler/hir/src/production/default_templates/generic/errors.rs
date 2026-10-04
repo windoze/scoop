@@ -4,6 +4,7 @@ use scoop_identity::{DefinitionOriginSubject, PersistentSourceContextId, SourceI
 
 #[derive(Debug)]
 pub enum GenericTemplateProductionError {
+    ContextParameters(crate::SourceParameterProjectionError),
     Declarations(Box<crate::NominalInterfaceBuildError>),
     Entity(crate::DefaultEntityProjectionError),
     Signature(crate::HirInterfaceSignatureProjectionError),
@@ -28,6 +29,7 @@ pub enum GenericTemplateProductionError {
 impl fmt::Display for GenericTemplateProductionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ContextParameters(error) => error.fmt(f),
             Self::Declarations(error) => error.fmt(f),
             Self::Entity(error) => error.fmt(f),
             Self::Signature(error) => error.fmt(f),

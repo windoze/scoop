@@ -107,6 +107,7 @@ fn operator(mut declaration: Decl) -> Decl {
 
 fn property(name: &str, receiver: Option<&str>, value_ty: &str) -> ast::PropertyDecl {
     ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

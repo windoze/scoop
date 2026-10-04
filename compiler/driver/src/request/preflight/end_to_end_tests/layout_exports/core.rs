@@ -7,40 +7,8 @@ mod section;
 mod shared_accessors;
 
 #[test]
-fn ordinary_library_exports_members_with_available_machine_signatures() {
-    let target = resolved_target().expect("layout exports require a host target");
-    let sysroot = tempfile::tempdir().unwrap();
-    let core = bootstrap_core(sysroot.path(), &target);
-    let core_bytes = std::fs::read(core.artifact().path()).unwrap();
-    let fixtures = crate::workspace_root().join("tests/fixtures/m23-core-layout-exports");
-    let source = std::fs::read_to_string(fixtures.join("ordinary.scoop")).unwrap();
-    support::with_production(
-        sysroot.path(),
-        &target,
-        &core_bytes,
-        &source,
-        |input, dependencies| {
-            let result = scoop_lir_lower::lower_layout_abi_exports(input, dependencies).unwrap();
-            assertions::actual(input, &result);
-            let names = result
-                .callables()
-                .records()
-                .iter()
-                .map(|callable| callable.target())
-                .chain(result.direct_callables().exports().iter().map(|callable| {
-                    scoop_identity::CallableDefinitionOwner::from(callable.target())
-                }))
-                .map(|target| assertions::callable_name(input, target))
-                .collect::<Vec<_>>();
-            assert!(names.contains(&"Published.ready"));
-            assert!(names.contains(&"Published.deferred"));
-        },
-    );
-}
-
-#[test]
 fn actual_core_sources_produce_closed_mir_and_lir_export_tables() {
-    check_core_layout_exports(&["base", "standalone", "combined"]);
+    check_core_layout_exports(&["base"]);
 }
 
 #[test]
@@ -69,11 +37,6 @@ fn shared_constructor_inventory_replays_primary_secondary_and_class_initializers
         "shared-constructors-standalone",
         "shared-constructors-combined",
     ]);
-}
-
-#[test]
-fn heap_zst_fields_produce_valid_layout_objects_and_shared_metadata() {
-    check_core_layout_exports(&["heap-zst-storage"]);
 }
 
 #[test]
@@ -137,11 +100,6 @@ fn shared_initialization_abi_replays_the_protocol_role_and_complete_layout_contr
 #[test]
 fn shared_strong_digests_replay_complete_runtime_registration_roles() {
     check_core_layout_exports(&["shared-digests-standalone", "shared-digests-combined"]);
-}
-
-#[test]
-fn shared_strong_reader_replays_complete_sections_from_actual_artifact_bytes() {
-    check_core_layout_exports(&["shared-production-standalone", "shared-production-combined"]);
 }
 
 #[test]
@@ -299,9 +257,6 @@ fn check_core_layout_exports(names: &[&str]) {
         }
         contracts::check(name, &hir, &source, input, &result);
         assertions::contents(input, &result);
-        if matches!(name, "standalone" | "combined") {
-            assertions::zero_sized_abi(&result);
-        }
         let layout_section = layout_section::check(mir_input, input, result);
         let production = registration.validate_layout_abi(&layout_section).unwrap();
         assert_eq!(

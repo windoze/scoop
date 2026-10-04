@@ -15,7 +15,7 @@ use support::callable_plan;
 
 #[test]
 fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
-    let plan = callable_plan();
+    let (plan, surface) = callable_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
     let llvm = context.create_module("callable-registration");
@@ -25,7 +25,15 @@ fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
         None,
     );
 
-    let emitted = emit_strong_callable_registrations_v1(&context, &llvm, &plan).unwrap();
+    let emitted = emit_strong_callable_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        &surface,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        super::CallableRegistrationSelection::NonContext,
+    )
+    .unwrap();
 
     assert_eq!(emitted.producer(), ConeIdentity::SINGLE_FILE);
     assert_eq!(emitted.registrations().len(), 1);
@@ -64,7 +72,7 @@ fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
         constant_u64(prefix, 0),
         CALLABLE_REGISTRATION_DESCRIPTOR_MAGIC
     );
-    assert_eq!(constant_u64(prefix, 1), 3);
+    assert_eq!(constant_u64(prefix, 1), 4);
     assert_eq!(
         constant_u64(prefix, 2),
         CALLABLE_REGISTRATION_DESCRIPTOR_SIZE
@@ -111,7 +119,7 @@ fn emits_closed_strong_record_entry_and_both_zero_patch_sites() {
 
 #[test]
 fn completes_a_matching_image_declaration_then_rejects_redefinition() {
-    let plan = callable_plan();
+    let (plan, surface) = callable_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
     let llvm = context.create_module("callable-registration-declaration");
@@ -129,24 +137,48 @@ fn completes_a_matching_image_declaration_then_rejects_redefinition() {
         None,
     );
 
-    let emitted = emit_strong_callable_registrations_v1(&context, &llvm, &plan).unwrap();
+    let emitted = emit_strong_callable_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        &surface,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        super::CallableRegistrationSelection::NonContext,
+    )
+    .unwrap();
     assert_eq!(
         emitted.registrations()[0].descriptor().get_name(),
         declaration.get_name()
     );
     assert!(declaration.get_initializer().is_some());
 
-    let error = emit_strong_callable_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_callable_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        &surface,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        super::CallableRegistrationSelection::NonContext,
+    )
+    .unwrap_err();
     assert!(error.0.contains("already defined"), "{error}");
 }
 
 #[test]
 fn rejects_missing_or_non_address_significant_callable_entries() {
-    let plan = callable_plan();
+    let (plan, surface) = callable_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
     let llvm = context.create_module("callable-registration-missing-entry");
-    let error = emit_strong_callable_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_callable_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        &surface,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        super::CallableRegistrationSelection::NonContext,
+    )
+    .unwrap_err();
     assert!(error.0.contains("is not declared"), "{error}");
     assert!(
         llvm.get_global(expected.symbol().symbol().as_str())
@@ -162,7 +194,15 @@ fn rejects_missing_or_non_address_significant_callable_entries() {
     entry
         .as_global_value()
         .set_unnamed_address(UnnamedAddress::Global);
-    let error = emit_strong_callable_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_callable_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        &surface,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        super::CallableRegistrationSelection::NonContext,
+    )
+    .unwrap_err();
     assert!(error.0.contains("address-significant"), "{error}");
     assert!(
         llvm.get_global(expected.symbol().symbol().as_str())
@@ -172,7 +212,7 @@ fn rejects_missing_or_non_address_significant_callable_entries() {
 
 #[test]
 fn rejects_incompatible_prior_declarations_and_entry_linkage() {
-    let plan = callable_plan();
+    let (plan, surface) = callable_plan();
     let expected = plan.registrations()[0];
     let context = Context::create();
     let llvm = context.create_module("callable-registration-collision");
@@ -184,7 +224,15 @@ fn rejects_incompatible_prior_declarations_and_entry_linkage() {
         context.void_type().fn_type(&[], false),
         None,
     );
-    let error = emit_strong_callable_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_callable_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        &surface,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        super::CallableRegistrationSelection::NonContext,
+    )
+    .unwrap_err();
     assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
 
     let llvm = context.create_module("callable-registration-unnamed-declaration");
@@ -201,7 +249,15 @@ fn rejects_incompatible_prior_declarations_and_entry_linkage() {
         context.void_type().fn_type(&[], false),
         None,
     );
-    let error = emit_strong_callable_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_callable_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        &surface,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        super::CallableRegistrationSelection::NonContext,
+    )
+    .unwrap_err();
     assert!(error.0.contains("incompatible LLVM declaration"), "{error}");
 
     let llvm = context.create_module("callable-registration-private-entry");
@@ -211,7 +267,15 @@ fn rejects_incompatible_prior_declarations_and_entry_linkage() {
         None,
     );
     entry.set_linkage(Linkage::Private);
-    let error = emit_strong_callable_registrations_v1(&context, &llvm, &plan).unwrap_err();
+    let error = emit_strong_callable_registrations_v1(
+        &context,
+        &llvm,
+        &plan,
+        &surface,
+        crate::target::ValidatedBackendProfile::darwin_aarch64_for_test(),
+        super::CallableRegistrationSelection::NonContext,
+    )
+    .unwrap_err();
     assert!(error.0.contains("external linkage"), "{error}");
 }
 

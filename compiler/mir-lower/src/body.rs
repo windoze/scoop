@@ -14,6 +14,7 @@ mod patterns;
 mod release;
 mod statements;
 mod static_callbacks;
+mod task_context;
 
 /// Per-function-body lowering state.
 pub(super) struct BodyLowerer<'a> {

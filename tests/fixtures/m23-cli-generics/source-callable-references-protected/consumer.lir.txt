@@ -106,7 +106,7 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 dispatch[Closure:2] param0(param0)
     store t0 -> local0
     store local0 -> local1
-    t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
+    t1 = box_value external-td4, local1 scan=none sp<managed-call:1> live=[]
     ret t1
   fun @scoop$1$cb$fa06d910941fea6fa480bd84e0bd7f7e558f72596acd26cf1ef58f55b17a3d60(ptr<managed>) -> ptr<managed>
     local %0 $call.1: i32
@@ -116,11 +116,11 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 dispatch[Closure:2] param0(param0)
     store t0 -> local0
     store local0 -> local1
-    t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
+    t1 = box_value external-td4, local1 scan=none sp<managed-call:1> live=[]
     ret t1
   td td0 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.references;o=-;k=C;x=Protected);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$d271fecee0e380a4683ec17cc58b1f14502c28afd41e6b9d02deb75b90a42bf7 type-id=9700204619413715799 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td1 a(n(c=dev.example%3Ageneric-member-protected%3A0.1.0;p=consumer.references;o=-;k=C;x=LocalChild);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$30f0fc9dc662554b8ef32b3e1a98b379b3658aabdb5fd9f6b842dd7ea2b87e2f type-id=17614307556035807295 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[] itables=[]
-  td td2 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td0
+  td td2 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td4
   td td3 g(r=00000001;i=32022211852fca6e63b3770d04a7dc502f8aa59780d74b5815b48969f52ea57c) @scoop$1$td$d0031f31e257749df37abe18667f81203c9509b26d7f4f5fee421a8a20293e75 type-id=14130593399793350416 shape=FixedObject minimum-size=32 align=8 parent=td2 vtable=[local-fn9] itables=[]
   td td4 g(r=00000001;i=a71e36e851af0932127047dd8764bd0f62fcce8b97e44d7f41f3c8b483695638) @scoop$1$td$08f9567a11b9a3ddc2314d0a331bcd55f5b308de68bc7f4daf6291310373f87c type-id=9549034715480731640 shape=FixedObject minimum-size=32 align=8 parent=td2 vtable=[local-fn10] itables=[]
   layout LocalChild value size=8 align=8 refs=[0]

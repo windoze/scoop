@@ -1,5 +1,6 @@
 use super::*;
 
+mod adapter;
 mod protocol;
 
 impl BodyLowerer<'_> {
@@ -104,206 +105,20 @@ impl BodyLowerer<'_> {
         let signature = self.shell.function_types[managed_signature].clone();
         debug_assert!(!signature.is_suspend);
 
-        let mut locals = Arena::new();
-        let closure_ty = mir::Type::Function(managed_signature);
-        let closure = locals.alloc(mir::Local {
-            name: "$closure".to_string(),
-            ty: closure_ty.clone(),
-            mutable: false,
-        });
-        let result_pointer_ty = mir::Type::Ptr(Box::new(signature.return_type.clone()));
-        let result_storage = locals.alloc(mir::Local {
-            name: "$result".to_string(),
-            ty: result_pointer_ty.clone(),
-            mutable: false,
-        });
-        let opaque_pointer = mir::Type::Ptr(Box::new(mir::Type::Unit));
-        let arguments_pointer_ty = mir::Type::Ptr(Box::new(opaque_pointer.clone()));
-        let argument_storage = locals.alloc(mir::Local {
-            name: "$arguments".to_string(),
-            ty: arguments_pointer_ty.clone(),
-            mutable: false,
-        });
+        let adapter_index = self.foreign_callback_adapters.len();
         let throwable = mir::Type::Class(
             self.foreign_callback_families[family]
                 .failure_result
                 .throwable(),
         );
-        let exception_pointer_ty = mir::Type::Ptr(Box::new(throwable.clone()));
-        let exception_out = locals.alloc(mir::Local {
-            name: "$exception".to_string(),
-            ty: exception_pointer_ty.clone(),
-            mutable: false,
-        });
-
-        let params = vec![
-            mir::Param {
-                name: "$closure".to_string(),
-                ty: closure_ty.clone(),
-                local: closure,
-            },
-            mir::Param {
-                name: "$result".to_string(),
-                ty: result_pointer_ty.clone(),
-                local: result_storage,
-            },
-            mir::Param {
-                name: "$arguments".to_string(),
-                ty: arguments_pointer_ty.clone(),
-                local: argument_storage,
-            },
-            mir::Param {
-                name: "$exception".to_string(),
-                ty: exception_pointer_ty.clone(),
-                local: exception_out,
-            },
-        ];
-
-        let mut call_args = vec![mir::Expr::local(closure, closure_ty.clone())];
-        for (index, parameter_ty) in signature.parameter_types.iter().enumerate() {
-            let raw = mir::Expr::new(
-                opaque_pointer.clone(),
-                mir::ExprKind::PtrLoad {
-                    pointer: Box::new(mir::Expr::local(
-                        argument_storage,
-                        arguments_pointer_ty.clone(),
-                    )),
-                    pointee: Box::new(opaque_pointer.clone()),
-                    offset: Some(Box::new(mir::Expr::machine_scalar(
-                        mir::MachineScalarValue::PointerElementOffset(
-                            u64::try_from(index).expect("callback argument index fits u64"),
-                        ),
-                    ))),
-                },
-            );
-            let parameter_pointer = mir::Type::Ptr(Box::new(parameter_ty.clone()));
-            call_args.push(mir::Expr::new(
-                parameter_ty.clone(),
-                mir::ExprKind::PtrLoad {
-                    pointer: Box::new(mir::Expr::new(
-                        parameter_pointer,
-                        mir::ExprKind::PtrCast {
-                            operand: Box::new(raw),
-                            pointee: Box::new(parameter_ty.clone()),
-                        },
-                    )),
-                    pointee: Box::new(parameter_ty.clone()),
-                    offset: None,
-                },
-            ));
-        }
-        let call = mir::Call {
-            target: mir::CallTarget {
-                kind: mir::CallKind::Closure {
-                    function_type: managed_signature,
-                },
-                callee: mir::Callee::Closure(managed_signature),
-            },
-            args: call_args,
-            pending: mir::CoroutinePendingContext::Root,
-        };
-
-        let exception = locals.alloc(mir::Local {
-            name: "$caught".to_string(),
-            ty: throwable.clone(),
-            mutable: false,
-        });
-        let statement = |kind| mir::Statement { kind, span };
-        let mut blocks = Arena::new();
-        let catch = blocks.alloc(mir::BasicBlock {
-            name: "callback.failure".to_string(),
-            statements: vec![
-                statement(mir::StatementKind::Eh(mir::EhStatement::LandingPad {
-                    cleanup: false,
-                })),
-                statement(mir::StatementKind::Eh(mir::EhStatement::BeginCatch)),
-                statement(mir::StatementKind::Call(mir::CallEffect::Value {
-                    destination: exception,
-                    call: mir::Call {
-                        target: mir::CallTarget {
-                            kind: mir::CallKind::Direct,
-                            callee: mir::Callee::Runtime(mir::RuntimeFn::MaterializeException),
-                        },
-                        args: vec![mir::Expr::caught_exception()],
-                        pending: mir::CoroutinePendingContext::Root,
-                    },
-                })),
-                statement(mir::StatementKind::Eh(mir::EhStatement::EndCatch)),
-                statement(mir::StatementKind::Expr(mir::Expr::new(
-                    mir::Type::Unit,
-                    mir::ExprKind::PtrStore {
-                        pointer: Box::new(mir::Expr::local(
-                            exception_out,
-                            exception_pointer_ty.clone(),
-                        )),
-                        pointee: Box::new(throwable.clone()),
-                        offset: None,
-                        value: Box::new(mir::Expr::local(exception, throwable.clone())),
-                    },
-                ))),
-            ],
-            terminator: mir::Terminator::Return {
-                value: Some(mir::Expr::machine_scalar(
-                    mir::MachineScalarValue::ForeignCallbackStatus(
-                        mir::ForeignCallbackStatus::Threw,
-                    ),
-                )),
-            },
-            unwind: None,
-        });
-
-        let mut success_statements = Vec::new();
-        if signature.return_type == mir::Type::Unit {
-            success_statements.push(statement(mir::StatementKind::Call(mir::CallEffect::Unit(
-                call,
-            ))));
-        } else {
-            let value = locals.alloc(mir::Local {
-                name: "$value".to_string(),
-                ty: signature.return_type.clone(),
-                mutable: false,
-            });
-            success_statements.push(statement(mir::StatementKind::Call(
-                mir::CallEffect::Value {
-                    destination: value,
-                    call,
-                },
-            )));
-            success_statements.push(statement(mir::StatementKind::Expr(mir::Expr::new(
-                mir::Type::Unit,
-                mir::ExprKind::PtrStore {
-                    pointer: Box::new(mir::Expr::local(result_storage, result_pointer_ty.clone())),
-                    pointee: Box::new(signature.return_type.clone()),
-                    offset: None,
-                    value: Box::new(mir::Expr::local(value, signature.return_type.clone())),
-                },
-            ))));
-        }
-        let entry = blocks.alloc(mir::BasicBlock {
-            name: "entry".to_string(),
-            statements: success_statements,
-            terminator: mir::Terminator::Return {
-                value: Some(mir::Expr::machine_scalar(
-                    mir::MachineScalarValue::ForeignCallbackStatus(
-                        mir::ForeignCallbackStatus::Returned,
-                    ),
-                )),
-            },
-            unwind: Some(catch),
-        });
-        let adapter_index = self.foreign_callback_adapters.len();
-        let function = self.functions.alloc(mir::Function {
-            gc_effect: mir::GcEffect::Managed,
-            name: format!("foreign callback adapter {adapter_index}"),
-            params,
-            return_ty: mir::Type::MachineScalar(mir::MachineScalarKind::ForeignCallbackStatus),
-            body: mir::Body {
-                locals,
-                blocks,
-                entry,
-                loop_header_polls: Vec::new(),
-            },
-        });
+        let function = self.functions.alloc(adapter::build(
+            crate::context::core_provider(self.module),
+            managed_signature,
+            &signature,
+            throwable,
+            adapter_index,
+            span,
+        ));
         self.top_level.push(function);
         let generated = hir::PersistentGeneratedCallableId::from_key(
             &hir::GeneratedCallableKey::ForeignCallbackManagedAdapter {
@@ -334,7 +149,7 @@ impl BodyLowerer<'_> {
             registration.application,
             self.foreign_callback_adapters[adapter].signature_subject(),
             exact_managed_signature,
-            mir::ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+            mir::ForeignCallbackStorageAbi::ClosureContextResultRootsThrowableToStatus,
             callback_mode,
         );
         let bridge = self

@@ -27,6 +27,10 @@ pub struct DecodedDefaultStatementV1 {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum DecodedDefaultStatementKindV1 {
+    ContextScope {
+        value: Box<DecodedDefaultExpressionV1>,
+        body: Vec<DecodedDefaultStatementV1>,
+    },
     Expr(Box<DecodedDefaultExpressionV1>),
     InitializationEnsure(DecodedPersistentId<PersistentInitializationUnitId>),
     GenericDelegateEnsure(crate::DecodedDefaultGenericDelegateReferenceV1),
@@ -68,6 +72,12 @@ impl DecodedDefaultStatementV1 {
         L: TemplateLocalSelectorResolver,
     {
         let kind = match self.kind {
+            DecodedDefaultStatementKindV1::ContextScope { value, body } => {
+                DefaultStatementKindV1::ContextScope {
+                    value: Box::new(resolve_expression(*value, resolver, locals, 16, 1)?),
+                    body: resolve_statements(body, resolver, locals, 16, 2)?,
+                }
+            }
             DecodedDefaultStatementKindV1::Expr(value) => DefaultStatementKindV1::Expr(Box::new(
                 resolve_expression(*value, resolver, locals, 1, 1)?,
             )),
@@ -197,6 +207,14 @@ impl WireDecode for DecodedDefaultStatementV1 {
 impl WireEncode for DecodedDefaultStatementKindV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::ContextScope { value, body } => {
+                encoder.map(3)?;
+                encode_tag(encoder, 16)?;
+                encoder.field(1)?;
+                value.encode(encoder)?;
+                encoder.field(2)?;
+                encode_sequence(encoder, body)
+            }
             Self::Expr(value) => encode_one(encoder, 1, value.as_ref()),
             Self::InitializationEnsure(unit) => encode_one(encoder, 2, unit),
             Self::GenericDelegateEnsure(reference) => encode_one(encoder, 15, reference),
@@ -230,6 +248,13 @@ impl WireDecode for DecodedDefaultStatementKindV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
+            16 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::ContextScope {
+                    value: decode_boxed_expression(decoder, 1)?,
+                    body: decoder.field(2, decode_statements)?,
+                })
+            }
             1 => {
                 expect_sum_length(decoder, fields, 2)?;
                 decode_boxed_expression(decoder, 1).map(Self::Expr)

@@ -18,7 +18,7 @@
 #error "Scoop runtime metadata ABI v1 requires little-endian byte order"
 #endif
 
-#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(3)
+#define SCOOP_RUNTIME_METADATA_ABI_VERSION_V1 UINT32_C(4)
 
 /* Unused program/core record magic values 0x53434f4f50505247 and
  * 0x53434f4f50434f52 are retired and must not be reused. */
@@ -167,11 +167,18 @@ typedef struct ScoopTypeRegistrationDescriptorV1 {
 
 typedef void (*ScoopCallableAddressV1)(void);
 
+typedef struct ScoopContextKeyUseV1 {
+    ScoopDigest256V1 exact_key;
+    uint64_t *slot_cell;
+} ScoopContextKeyUseV1;
+
 typedef struct ScoopCallableRegistrationDescriptorV1 {
     ScoopDescriptorPrefixV1 prefix;
     ScoopRegistrationIdentityV1 registration;
     ScoopDigest256V1 body_definition_fingerprint;
     ScoopCallableAddressV1 entry;
+    const ScoopContextKeyUseV1 *context_keys;
+    uint64_t context_key_count;
 } ScoopCallableRegistrationDescriptorV1;
 
 struct ScoopImmortalObjectDescriptorV1 {
@@ -334,12 +341,17 @@ SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, reserved_zero, 1
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, descriptor, 168);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, descriptor_fingerprint, 176);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopTypeRegistrationDescriptorV1, layout_fingerprint, 208);
-SCOOP_METADATA_ASSERT_LAYOUT(ScoopCallableRegistrationDescriptorV1, 192, 8);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopContextKeyUseV1, 40, 8);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopContextKeyUseV1, exact_key, 0);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopContextKeyUseV1, slot_cell, 32);
+SCOOP_METADATA_ASSERT_LAYOUT(ScoopCallableRegistrationDescriptorV1, 208, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, registration, 16);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1,
                              body_definition_fingerprint, 152);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, entry, 184);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, context_keys, 192);
+SCOOP_METADATA_ASSERT_OFFSET(ScoopCallableRegistrationDescriptorV1, context_key_count, 200);
 SCOOP_METADATA_ASSERT_LAYOUT(ScoopImmortalObjectDescriptorV1, 184, 8);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, prefix, 0);
 SCOOP_METADATA_ASSERT_OFFSET(ScoopImmortalObjectDescriptorV1, registration, 16);

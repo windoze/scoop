@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use scoop_identity::{
-    CborIdentityRecord, DigestKind, DigestNodeId, DigestOwnerAndRoleKey, DigestPatchIntentId,
-    DigestPatchIntentKey, DigestSemanticFieldRole, ObjectDefinitionPlanId,
+    CborIdentityRecord, DefinitionAtomRole, DigestKind, DigestNodeId, DigestOwnerAndRoleKey,
+    DigestPatchIntentId, DigestPatchIntentKey, DigestSemanticFieldRole, ObjectDefinitionPlanId,
     ObjectDefinitionPlanRole, StrongDefinitionRole,
 };
 
@@ -89,6 +89,12 @@ pub(super) fn validate_plan(
         .collect::<BTreeMap<_, _>>();
     let mut image = None;
     let mut writers = BTreeMap::new();
+    let mut targets = BTreeMap::new();
+    for atom in foundation.definition_atoms() {
+        *targets
+            .entry((atom.key().plan(), atom.key().role()))
+            .or_insert(0_usize) += 1;
+    }
 
     for node in nodes {
         validate_owner(node, foundation)?;
@@ -153,7 +159,7 @@ pub(super) fn validate_plan(
                     role: key.semantic_field_role(),
                 });
             }
-            validate_patch_target(patch.id(), key, foundation)?;
+            validate_patch_target(patch.id(), key, &targets)?;
             let writer_key = (
                 key.target_definition(),
                 key.atom_role(),
@@ -185,10 +191,7 @@ fn validate_owner(
         DigestOwnerAndRoleKey::Layout(_) | DigestOwnerAndRoleKey::Scan(_) => true,
         DigestOwnerAndRoleKey::LirDefinition(id)
         | DigestOwnerAndRoleKey::ObjectSupport(id)
-        | DigestOwnerAndRoleKey::ObjectDefinition(id) => foundation
-            .definition_atoms()
-            .iter()
-            .any(|record| record.id() == id),
+        | DigestOwnerAndRoleKey::ObjectDefinition(id) => foundation.definition_atom(id).is_some(),
         DigestOwnerAndRoleKey::StackmapRecord(id) => foundation.contains_safepoint_site(id),
         DigestOwnerAndRoleKey::OdrMemberDefinition(member) => {
             foundation.definition_plans().iter().any(|record| {
@@ -196,11 +199,7 @@ fn validate_owner(
             })
         }
         DigestOwnerAndRoleKey::StrongRegistration(plan) => {
-            let Some(record) = foundation
-                .definition_plans()
-                .iter()
-                .find(|record| record.id() == plan)
-            else {
+            let Some(record) = foundation.definition_plan(plan) else {
                 return Err(DigestPlanError::UnknownOwner(node.id()));
             };
             if !matches!(
@@ -242,15 +241,12 @@ fn validate_owner(
 fn validate_patch_target(
     intent: DigestPatchIntentId,
     key: &DigestPatchIntentKey,
-    foundation: &crate::ConeLirFoundation,
+    targets: &BTreeMap<(ObjectDefinitionPlanId, DefinitionAtomRole), usize>,
 ) -> Result<(), DigestPlanError> {
-    let count = foundation
-        .definition_atoms()
-        .iter()
-        .filter(|record| {
-            record.key().plan() == key.target_definition() && record.key().role() == key.atom_role()
-        })
-        .count();
+    let count = targets
+        .get(&(key.target_definition(), key.atom_role()))
+        .copied()
+        .unwrap_or(0);
     match count {
         0 => Err(DigestPlanError::MissingPatchTarget(intent)),
         1 => Ok(()),

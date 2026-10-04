@@ -160,6 +160,21 @@ fn finish(
         }
     }
     .map_err(CallableProjectionError::Effects)?;
+    let context_parameters = match implementation {
+        PropertyAccessorImplementation::Body(function)
+        | PropertyAccessorImplementation::AbstractSlot(function) => {
+            let function = &projection.export.functions[function];
+            let binders = projection
+                .signatures
+                .function_binders(function)
+                .map_err(CallableProjectionError::Signature)?;
+            super::parameters::context(&projection.signatures, function, &binders)
+                .map_err(CallableProjectionError::Parameters)?
+        }
+        PropertyAccessorImplementation::Storage | PropertyAccessorImplementation::Constant => {
+            Vec::new()
+        }
+    };
     crate::CallableDeclarationRecordV1::try_new(
         CallableTemplateOrigin::Accessor(accessor),
         interface.owner(),
@@ -171,6 +186,7 @@ fn finish(
         modality(property, implementation, declaration_access.declared),
         declaration_access.declared.into(),
         super::slots::accessor(projection.export, implementation)?,
+        context_parameters,
     )
     .map_err(CallableProjectionError::Record)
 }

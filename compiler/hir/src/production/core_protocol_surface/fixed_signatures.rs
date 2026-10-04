@@ -74,8 +74,18 @@ pub(super) fn validate_fixed_callable_signatures(
         12,
         signature(
             Effect::Ordinary,
-            vec![string],
+            vec![string.clone()],
             concrete_type(fundamental, 0),
+        ),
+    )?;
+    validate(
+        exceptions,
+        CoreProtocolProductKindV1::Exception,
+        16,
+        signature(
+            Effect::Ordinary,
+            vec![application(surface.option_protocol.entries(), 0, string)],
+            concrete_type(exceptions, 15),
         ),
     )
 }

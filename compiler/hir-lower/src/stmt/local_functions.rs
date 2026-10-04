@@ -54,6 +54,7 @@ impl Lowerer {
             Some(ty) => self.resolve_type_ref(ty)?,
             None => self.unit,
         };
+        let context_parameters = self.resolve_context_parameters(decl);
         let function_ty = self.intern_function_type(
             decl.is_suspend,
             sig_params.iter().map(|param| param.ty).collect(),
@@ -72,6 +73,7 @@ impl Lowerer {
         let access = self.local_declaration_access();
         let function = self.functions.alloc(hir::Function {
             signature: hir::CallableSignature {
+                context_parameters,
                 release_callability: Default::default(),
                 name: format!("$local.{local_number}.{}", decl.name.text),
                 is_suspend: decl.is_suspend,
@@ -100,6 +102,7 @@ impl Lowerer {
         self.signatures.insert(
             function,
             FnSig {
+                context_parameters: self.functions[function].context_parameters.clone(),
                 is_suspend: decl.is_suspend,
                 modifiers: hir::CallableModifiers::default(),
                 attributes,
@@ -206,8 +209,9 @@ impl Lowerer {
                     local,
                 });
             }
+            let mut statements = self.lower_context_entry(function);
             let returns_unit = self.types_equal(return_ty, self.unit);
-            let mut statements = match &decl.body {
+            let body_statements = match &decl.body {
                 ast::FunctionBody::Block(block) => {
                     let diagnostics_before = self.diagnostics.len();
                     let statements = self.lower_block(block);
@@ -257,6 +261,7 @@ impl Lowerer {
                     Vec::new()
                 }
             };
+            statements.extend(body_statements);
             let captures = self.finish_current_captures(declaration_origin);
             patch_local_function_calls(self, &mut statements, local, &captures);
             let mut abi_params = Vec::with_capacity(captures.len() + params.len());

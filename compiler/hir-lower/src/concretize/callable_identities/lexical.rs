@@ -156,13 +156,17 @@ impl CallableIdentityBuilder<'_> {
         inherited_arguments: &[concrete::TypeId],
     ) -> CallableMaterializationContext {
         let registration = &self.concretizer.source.foreign_callback_registrations[callback];
-        self.enclosing_materialization(
-            None,
-            registration.definition_root,
-            &registration.definition_path,
-            inherited_arguments,
-        )
-        .context()
+        match &registration.definition {
+            export::ForeignCallbackDefinition::Source { root, path } => self
+                .enclosing_materialization(None, *root, path, inherited_arguments)
+                .context(),
+            export::ForeignCallbackDefinition::Imported { identity, .. } => self
+                .imported_parent_materialization(
+                    identity.key().parent().template(),
+                    inherited_arguments,
+                )
+                .context(),
+        }
     }
 
     pub(super) fn enclosing_materialization(

@@ -41,7 +41,7 @@ fn computes_the_canonical_static_storage_strong_registration_fingerprint() {
     assert_eq!(actual.scan_node(), plan.scan_fingerprint_node());
     assert_eq!(
         actual.registration().to_string(),
-        "a5d7d6222f82efa65af5b70dccd94f846bb57ee6c95e74b53535033320c9be32"
+        "44b2db65668b462151b46b0720ee233bc4ecd6175515ba2301e9a5cb24a93fc8"
     );
 }
 

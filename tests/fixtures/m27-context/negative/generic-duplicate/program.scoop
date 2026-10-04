@@ -1,0 +1,2 @@
+context(a: A, b: B) fun <A: ref, B: ref> read() {}
+fun main() { read<String, String>() }

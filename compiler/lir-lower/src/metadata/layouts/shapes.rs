@@ -107,6 +107,18 @@ pub(crate) fn size_align(
     ty: &mir::Type,
 ) -> StorageResult<(u64, u64)> {
     let (size, align) = match ty {
+        mir::Type::Context(storage) => {
+            let layout = context.pointer_layout(lir::PointerKind::Managed);
+            (
+                layout.size
+                    * if storage.role == mir::ContextStorageRole::Mark {
+                        2
+                    } else {
+                        1
+                    },
+                layout.align,
+            )
+        }
         mir::Type::Unit => (0, 1),
         mir::Type::Integer(kind) => {
             let layout = context.integer_layout(integer_kind(*kind));

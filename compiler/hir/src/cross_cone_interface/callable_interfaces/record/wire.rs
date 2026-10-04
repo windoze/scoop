@@ -2,7 +2,7 @@ use super::*;
 
 impl WireEncode for CallableDeclarationRecordV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -22,7 +22,13 @@ impl WireEncode for CallableDeclarationRecordV1 {
         encoder.field(9)?;
         self.visibility.encode(encoder)?;
         encoder.field(10)?;
-        self.slots.encode(encoder)
+        self.slots.encode(encoder)?;
+        encoder.field(11)?;
+        encoder.array(self.context_parameters.len() as u64)?;
+        for parameter in &self.context_parameters {
+            parameter.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
@@ -38,6 +44,7 @@ pub struct DecodedCallableDeclarationRecordV1 {
     modality: CallableModalityV1,
     visibility: DeclaredVisibilityV1,
     slots: DecodedCanonicalPersistentIdsV1<PersistentDispatchSlotId>,
+    context_parameters: Vec<crate::DecodedSourceParameterShapeV1>,
 }
 
 impl DecodedCallableDeclarationRecordV1 {
@@ -93,6 +100,15 @@ impl DecodedCallableDeclarationRecordV1 {
             self.slots
                 .resolve(resolver)
                 .map_err(CallableInterfaceRecordResolutionError::Slots)?,
+            self.context_parameters
+                .into_iter()
+                .enumerate()
+                .map(|(index, parameter)| {
+                    parameter.resolve(resolver).map_err(|error| {
+                        CallableInterfaceRecordResolutionError::ContextParameter { index, error }
+                    })
+                })
+                .collect::<Result<_, _>>()?,
         )
         .map_err(CallableInterfaceRecordResolutionError::Record)
     }
@@ -100,7 +116,7 @@ impl DecodedCallableDeclarationRecordV1 {
 
 impl WireEncode for DecodedCallableDeclarationRecordV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.declaration.encode(encoder)?;
         encoder.field(2)?;
@@ -120,13 +136,19 @@ impl WireEncode for DecodedCallableDeclarationRecordV1 {
         encoder.field(9)?;
         self.visibility.encode(encoder)?;
         encoder.field(10)?;
-        self.slots.encode(encoder)
+        self.slots.encode(encoder)?;
+        encoder.field(11)?;
+        encoder.array(self.context_parameters.len() as u64)?;
+        for parameter in &self.context_parameters {
+            parameter.encode(encoder)?;
+        }
+        Ok(())
     }
 }
 
 impl WireDecode for DecodedCallableDeclarationRecordV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
+        decoder.expect_map(11)?;
         let value = Self {
             declaration: decoder.field(1, DecodedCallableTemplateOrigin::decode)?,
             owner: decoder.field(2, DecodedPublicDeclarationOwnerV1::decode)?,
@@ -138,6 +160,11 @@ impl WireDecode for DecodedCallableDeclarationRecordV1 {
             modality: decoder.field(8, CallableModalityV1::decode)?,
             visibility: decoder.field(9, DeclaredVisibilityV1::decode)?,
             slots: decoder.field(10, DecodedCanonicalPersistentIdsV1::decode)?,
+            context_parameters: decoder.field(11, |decoder| {
+                decoder.decode_array(|decoder, _| {
+                    crate::DecodedSourceParameterShapeV1::decode(decoder)
+                })
+            })?,
         };
 
         Ok(value)

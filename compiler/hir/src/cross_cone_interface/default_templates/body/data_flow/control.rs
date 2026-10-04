@@ -46,6 +46,10 @@ impl Validator<'_> {
         region: Region,
     ) -> Result<Flow, ExportDefaultLocalDataFlowValidationError> {
         match statement.kind() {
+            DefaultStatementKindV1::ContextScope { value, body } => {
+                self.validate_expression(value, &available, reachable)?;
+                self.validate_statements(body, Flow::falling_through(available), reachable, region)
+            }
             DefaultStatementKindV1::Expr(expression) => {
                 self.validate_expression(expression, &available, reachable)?;
                 Ok(Flow::falling_through(available))

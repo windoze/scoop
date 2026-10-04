@@ -1,0 +1,72 @@
+class Request(var value: Int)
+
+interface Reader {
+    context(request: Request)
+    fun read(): Int
+
+    context(request: Request)
+    fun twice(): Int = request.value * 2
+
+    context(request: Request)
+    var current: Int
+}
+
+class ReaderImpl : Reader {
+    context(other: Request)
+    override fun read(): Int = other.value
+
+    context(other: Request)
+    override var current: Int
+        get() = other.value
+        set(next) { other.value = next }
+}
+
+abstract class AbstractReader {
+    context(request: Request)
+    abstract fun read(): Int
+}
+
+class ConcreteReader : AbstractReader() {
+    context(renamed: Request)
+    override fun read(): Int = renamed.value
+}
+
+context(request: Request)
+fun Request.plusCurrent(offset: Int = 1): Int = this.value + request.value + offset
+
+context(request: Request)
+infix fun Request.withOffset(offset: Int): Int = request.value + offset
+
+class Calculator {
+    context(request: Request)
+    operator fun plus(offset: Int): Int = request.value + offset
+}
+
+context(request: Request)
+var active: Int
+    get() = request.value
+    set(next) { request.value = next }
+
+fun main() {
+    context(local: Request)
+    fun localRead(): Int = local.value
+
+    val request = Request(7)
+    val reader: Reader = ReaderImpl()
+    val abstractReader: AbstractReader = ConcreteReader()
+    context(request) {
+        println(reader.read())
+        println(reader.twice())
+        reader.current = 9
+        gcCollect()
+        println(reader.current)
+        println(abstractReader.read())
+        println(request.plusCurrent())
+        println(request withOffset 3)
+        println(Calculator() + 4)
+        active = 11
+        println(active)
+        println(localRead())
+    }
+    try { reader.read() } catch (error: MissingContextException) { println("restored") }
+}

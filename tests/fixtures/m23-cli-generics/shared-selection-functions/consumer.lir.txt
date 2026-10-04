@@ -153,7 +153,7 @@ Module
     ret integer<Int>(0x00000002)
   block if.merge.5
     store integer<Int>(0x0000002a) -> local78
-    t6 = box_value external-td0, local78 scan=none sp<managed-call:2> live=[]
+    t6 = box_value external-td4, local78 scan=none sp<managed-call:2> live=[]
     store t6 -> local11
     store local11 -> local12
     call managed-direct-target2 sp<managed-call:3> live=[local12:ptr<managed>@0] t7 = sig=direct2 (ptr<managed>) -> i32 local-fn2(local12)
@@ -168,7 +168,7 @@ Module
     br @if.merge.8
   block if.else.7
     store integer<Int>(0x0000002a) -> local79
-    t10 = box_value external-td0, local79 scan=none sp<managed-call:4> live=[]
+    t10 = box_value external-td4, local79 scan=none sp<managed-call:4> live=[]
     store t10 -> local16
     store local16 -> local17
     call managed-direct-target3 sp<managed-call:5> live=[local17:ptr<managed>@0] t11 = sig=direct3 (ptr<managed>) -> i32 external-fn1(local17)
@@ -259,7 +259,7 @@ Module
   block if.else.22
     store integer<Int>(0x0000002a) -> local49
     store local49 -> local50
-    call managed-direct-target9 sp<managed-call:12> live=[] t31 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target9 sp<managed-call:12> live=[] t31 = sig=direct9 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
     store t31 -> local74
     call managed-void-target1 sp<managed-call:13> live=[local74:ptr<managed>@0] sig=void1 (ptr<managed>, i32) external-fn4(local74, local50)
     t32 = aggregate () : {}
@@ -277,7 +277,7 @@ Module
     ret integer<Int>(0x00000006)
   block if.merge.25
     store integer<Int>(0x0000002a) -> local80
-    t36 = box_value external-td0, local80 scan=none sp<managed-call:15> live=[]
+    t36 = box_value external-td4, local80 scan=none sp<managed-call:15> live=[]
     store t36 -> local55
     store local55 -> local56
     call managed-direct-target11 sp<managed-call:16> live=[local56:ptr<managed>@0] t37 = sig=direct11 (ptr<managed>) -> i32 local-fn8(local56)
@@ -292,7 +292,7 @@ Module
     br @if.merge.28
   block if.else.27
     store integer<Int>(0x0000002a) -> local81
-    t40 = box_value external-td0, local81 scan=none sp<managed-call:17> live=[]
+    t40 = box_value external-td4, local81 scan=none sp<managed-call:17> live=[]
     store t40 -> local60
     store local60 -> local61
     call managed-direct-target12 sp<managed-call:18> live=[local61:ptr<managed>@0] t41 = sig=direct12 (ptr<managed>) -> i32 external-fn6(local61)
@@ -382,7 +382,7 @@ Module
   block logic.merge.3
     cbr local5 then @if.then.4 else @if.merge.5
   block if.then.4
-    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td4, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td9, machine<byte-size>(ByteSize(24)))
     store t3 -> local6
     call managed-void-target0 sp<managed-call:1> live=[local6:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn7(local6)
     t4 = aggregate () : {}

@@ -73,6 +73,24 @@ impl Concretizer<'_> {
         let definition = self.resolved_function_definition(key);
         let signature = definition.signature;
         let arguments = self.function_key_arguments(key);
+        let context_owner = match self.function_source(key) {
+            FunctionSource::Local(function) => export::ContextRequirementOwner::Source(function),
+            FunctionSource::Imported(template) => export::ContextRequirementOwner::Imported(
+                self.source.imported_generic_templates[template]
+                    .declaration
+                    .body_owner(),
+            ),
+        };
+        self.check_context_instantiation(
+            context_owner,
+            &signature.name,
+            &signature
+                .context_parameters
+                .iter()
+                .map(|p| p.ty)
+                .collect::<Vec<_>>(),
+            &arguments,
+        );
         let (kind, local_map) = match definition.implementation {
             export::FunctionKind::User(body) => {
                 let (body, locals) = self.lower_body(body, &arguments);

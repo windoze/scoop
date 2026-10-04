@@ -272,20 +272,38 @@ pub(super) fn lower_graph(
             code,
         });
     }
-    if let (Some(reference), Some(gateway)) = (root_gateway_ref, root_artifacts) {
+    let task_descriptor = || {
+        let storage = module
+            .meta
+            .generated_exact_types
+            .iter()
+            .find_map(|entry| match entry.location() {
+                mir::GeneratedExactTypeLocation::Context(storage)
+                    if storage.role == mir::ContextStorageRole::Task =>
+                {
+                    Some(storage)
+                }
+                _ => None,
+            })
+            .expect("MIR gateways retain the actual core Task Context type");
+        type_descriptor_refs.for_type(&mir::Type::Context(storage))
+    };
+    if let (Some(reference), Some(mut gateway)) = (root_gateway_ref, root_artifacts) {
         assert_eq!(
             reference.declaration().into_u32() as usize,
             lowered_functions.len(),
             "the root gateway reference must address its appended LIR function"
         );
+        production::initialize_task(&mut gateway, task_descriptor());
         lowered_functions.push(gateway);
     }
-    for (reference, gateway) in startup_gateways {
+    for (reference, mut gateway) in startup_gateways {
         assert_eq!(
             reference.declaration().into_u32() as usize,
             lowered_functions.len(),
             "an initialization startup-gateway reference must address its appended LIR function"
         );
+        production::initialize_task(&mut gateway, task_descriptor());
         lowered_functions.push(gateway);
     }
     let functions = lowered_functions

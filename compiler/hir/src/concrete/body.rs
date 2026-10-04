@@ -11,6 +11,10 @@ pub struct Statement {
 
 #[derive(Debug, Clone)]
 pub enum StatementKind {
+    ContextScope {
+        value: Expr,
+        body: Vec<Statement>,
+    },
     Expr(Expr),
     InitializationEnsure(InitializationUnitId),
     LocalFunction(LocalFunctionId),
@@ -171,6 +175,11 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
+    ContextLookup {
+        declaration: String,
+        label: crate::ContextParameterLabel,
+        parameter: crate::ContextParameterIndex,
+    },
     StringLiteral {
         value: String,
         owner: StringConstantOwner<scoop_identity::PropertyOwner>,

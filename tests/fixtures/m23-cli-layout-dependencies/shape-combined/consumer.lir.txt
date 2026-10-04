@@ -5,17 +5,17 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store param0 -> local0
-    t0 = box_value external-td1, local0 scan=none sp<managed-call:0> live=[]
+    t0 = box_value external-td5, local0 scan=none sp<managed-call:0> live=[]
     ret t0
   fun @scoop$1$cb$cdf5fb868f85581c19dee8ccc8c47cc537e2365b04cb169098e5ceeb72ef35aa(elided-zst<{} size=0 align=1>) -> ptr<managed>
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
-    t0 = box_zst external-td0 sp<managed-call:0> live=[]
+    t0 = box_zst external-td2 sp<managed-call:0> live=[]
     ret t0
   fun @scoop$1$cb$e7b17693c75e1d5cc8920da5a0fad59e1c3442874054de33450a6c18f2acbf2a(ptr<managed>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td4)
+    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td9)
     ret t0
   fun @scoop$1$cb$fa5ca93648dd532b235a9475f8273f2aaf5c0c05cb035599d722f358c1b27260() -> ptr<managed>
   block entry
@@ -26,10 +26,10 @@ Module
     local %1 $box.1: i32
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td1)
+    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td5)
     cbr t0 then @if.then.1 else @if.merge.2
   block if.then.1
-    unbox_value external-td1, param0 -> local1
+    unbox_value external-td5, param0 -> local1
     store local1 -> local0
     ret local0
   block if.merge.2
@@ -37,7 +37,7 @@ Module
   fun @scoop$1$cb$aabd7e07c5fd7b6afb2ec522aa12327dd7cebe2f4a28f85ee87dc04664d1162c(ptr<managed>) -> i1
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td1)
+    call no-gc-direct-target0 t0 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(param0, external-td5)
     ret t0
   fun @scoop$1$cb$c090e51042ef5640a125103701bcba6d75b1bb3b5fae87798c178b280b8a6a75() -> i1
     local %0 $parameter.value: ptr<managed>
@@ -49,14 +49,14 @@ Module
   block entry
     poll managed-void-target0 sp<managed-poll:0> live=[]
     store integer<Int>(0x00000007) -> local4
-    t0 = box_value external-td1, local4 scan=none sp<managed-call:0> live=[]
+    t0 = box_value external-td5, local4 scan=none sp<managed-call:0> live=[]
     store t0 -> local0
     call managed-direct-target0 sp<managed-call:1> live=[local0:ptr<managed>@0] t1 = sig=direct0 (ptr<managed>) -> i1 local-fn5(local0)
     store t1 -> local3
     cbr local3 then @if.then.1 else @if.else.2
   block if.then.1
     store integer<Int>(0x00000007) -> local5
-    t2 = box_value external-td1, local5 scan=none sp<managed-call:2> live=[]
+    t2 = box_value external-td5, local5 scan=none sp<managed-call:2> live=[]
     store t2 -> local1
     call managed-direct-target1 sp<managed-call:3> live=[local1:ptr<managed>@0] t3 = sig=direct1 (ptr<managed>) -> i1 local-fn5(local1)
     store t3 -> local2

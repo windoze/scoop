@@ -1,0 +1,5 @@
+context(value: String)
+var size: Int
+    get() = 0
+    set(value) {}
+fun main() {}

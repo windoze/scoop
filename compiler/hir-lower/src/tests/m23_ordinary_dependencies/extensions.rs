@@ -503,6 +503,7 @@ fn operator(mut declaration: Decl) -> Decl {
 
 fn computed_int_property(name: &str, value: i64) -> Decl {
     Decl::Global(scoop_ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: scoop_ast::VisibilitySyntax::Omitted,
         modifier: scoop_ast::MethodModifier::Final,

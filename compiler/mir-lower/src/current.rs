@@ -241,6 +241,9 @@ fn lower_runtime_constructors(
         return Ok(());
     };
     for constructor in [
+        protocols
+            .exceptions()
+            .missing_context_exception_constructor(),
         protocols.exceptions().class_cast_exception_constructor(),
         protocols.exceptions().arithmetic_exception_constructor(),
         protocols.exceptions().unwrap_exception_constructor(),

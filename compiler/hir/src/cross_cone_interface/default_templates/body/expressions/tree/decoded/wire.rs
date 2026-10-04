@@ -47,6 +47,11 @@ impl WireDecode for DecodedDefaultExpressionV1 {
 impl WireEncode for DecodedDefaultExpressionKindV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::ContextLookup {
+                declaration,
+                parameter,
+                diagnostic,
+            } => encode_three(encoder, 66, declaration, &U32Wire(parameter.0), diagnostic),
             Self::StringLiteral { value, owner } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 1)?;
@@ -259,6 +264,14 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
         let fields = decoder.map()?;
         let tag = decoder.field(0, Decoder::unsigned)?;
         match tag {
+            66 => {
+                expect_sum_length(decoder, fields, 4)?;
+                Ok(Self::ContextLookup {
+                    declaration: decoder.field(1, DecodedDefaultCallableDeclarationV1::decode)?,
+                    parameter: crate::ContextParameterIndex(decoder.field(2, Decoder::u32)?),
+                    diagnostic: decoder.field(3, crate::ContextDiagnostic::decode)?,
+                })
+            }
             1 => {
                 expect_sum_length(decoder, fields, 3)?;
                 Ok(Self::StringLiteral {

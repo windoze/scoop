@@ -112,6 +112,7 @@ fn property(receiver: Option<&str>, name: &str, marker: i64, setter: SetterMode)
         }),
     };
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

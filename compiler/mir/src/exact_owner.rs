@@ -98,6 +98,23 @@ impl ExactOwnerRoot {
         if source_nominal || matches!(exact.key(), ExactTypeKey::NominalApplication { .. }) {
             return Err(ExactOwnerRootError::ExpectedStructuralType);
         }
+        Self::structural_value(exact, role, discriminator)
+    }
+
+    pub(crate) fn context_mark(
+        core: scoop_identity::ConeIdentity,
+        role: OdrMemberRole,
+        discriminator: OdrMemberDiscriminator,
+    ) -> Result<Self, ExactOwnerRootError> {
+        let value = crate::ContextStorageType::new(core, crate::ContextStorageRole::Mark);
+        Self::structural_value(&value.exact_record(), role, discriminator)
+    }
+
+    fn structural_value(
+        exact: &ExactTypeRecord,
+        role: OdrMemberRole,
+        discriminator: OdrMemberDiscriminator,
+    ) -> Result<Self, ExactOwnerRootError> {
         let group = CborIdentityRecord::from_key(SpecializationKey::StructuralType {
             exact_type: exact.id(),
         })

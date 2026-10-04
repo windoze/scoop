@@ -19,6 +19,12 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::ContextScope { value, body } => {
+                    facts.requirements = None;
+                    facts.violation.get_or_insert(statement.span);
+                    self.release_expression(value, values, facts);
+                    self.release_statements(body, values, facts);
+                }
                 hir::StatementKind::Expr(expression)
                 | hir::StatementKind::ValDecl {
                     init: expression, ..

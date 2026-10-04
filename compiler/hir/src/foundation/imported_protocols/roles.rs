@@ -77,6 +77,13 @@ impl ImportedCoreIterationProtocol {
 }
 
 impl ImportedCoreExceptionProtocol {
+    pub fn missing_context_exception(&self) -> ImportedHirNominal<PersistentTypeId> {
+        concrete_nominal(&self.0, 15)
+    }
+
+    pub fn missing_context_exception_constructor(&self) -> &ImportedCoreProtocolCallable {
+        callable(&self.0, 16)
+    }
     pub fn throwable(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 0)
     }

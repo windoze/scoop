@@ -47,6 +47,7 @@ impl Lowerer {
                 hir::MethodModifier::Final
             };
         let source = ast::PropertyDecl {
+            context_parameters: Vec::new(),
             annotations: Vec::new(),
             visibility: ast::VisibilitySyntax::Omitted,
             modifier: match modifier {

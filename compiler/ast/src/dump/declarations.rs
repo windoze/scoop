@@ -272,6 +272,7 @@ pub fn dump(file: &SourceFile) -> String {
                 }
             }
             Decl::Function(f) => {
+                super::dump_context(&f.context_parameters, 2, &mut out);
                 dump_annotations(&f.annotations, 2, &mut out);
                 let type_params = if f.type_params.is_empty() {
                     String::new()
@@ -426,6 +427,7 @@ fn dump_secondary_constructor(
 }
 
 fn dump_member_function(function: &FunctionDecl, indent: usize, out: &mut String) {
+    super::dump_context(&function.context_parameters, indent, out);
     let pad = "  ".repeat(indent);
     let suspend = if function.is_suspend { "suspend " } else { "" };
     let operator = if function.operator.is_some() {
@@ -492,6 +494,7 @@ fn dump_companion(companion: &CompanionObjectDecl, indent: usize, out: &mut Stri
 }
 
 fn dump_property(property: &PropertyDecl, indent: usize, out: &mut String) {
+    super::dump_context(&property.context_parameters, indent, out);
     let pad = "  ".repeat(indent);
     dump_annotations(&property.annotations, indent, out);
     let modality = match (property.modifier, property.is_override) {
@@ -543,6 +546,7 @@ fn dump_property(property: &PropertyDecl, indent: usize, out: &mut String) {
 }
 
 fn dump_global_property(property: &PropertyDecl, out: &mut String) {
+    super::dump_context(&property.context_parameters, 2, out);
     dump_annotations(&property.annotations, 2, out);
     let type_params = dump_type_params(&property.type_params);
     let receiver = property

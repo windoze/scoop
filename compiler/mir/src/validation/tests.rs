@@ -189,6 +189,7 @@ fn install_generated_exact_types(module: &mut Module) {
     let generated_types = entries
         .iter()
         .filter_map(|entry| match entry.location() {
+            GeneratedExactTypeLocation::Context(storage) => Some(Type::Context(storage)),
             GeneratedExactTypeLocation::Closure(_) => None,
             GeneratedExactTypeLocation::Class(id) => Some(Type::Class(id)),
             GeneratedExactTypeLocation::Enum(id) => {

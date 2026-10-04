@@ -363,7 +363,8 @@ pub(super) fn mir_type_gc_free(
         mir::Type::Tuple(elements) => elements
             .iter()
             .all(|element| mir_type_gc_free(element, structs, enums)),
-        mir::Type::String
+        mir::Type::Context(_)
+        | mir::Type::String
         | mir::Type::Class(_)
         | mir::Type::Interface(_)
         | mir::Type::Any
@@ -466,7 +467,8 @@ pub(super) fn is_boxable(ty: &mir::Type) -> bool {
 pub(super) fn is_reference_mir(ty: &mir::Type) -> bool {
     matches!(
         ty,
-        mir::Type::String
+        mir::Type::Context(_)
+            | mir::Type::String
             | mir::Type::Class(_)
             | mir::Type::Interface(_)
             | mir::Type::Function(_)

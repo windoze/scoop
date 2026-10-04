@@ -93,6 +93,21 @@ pub struct CoroutineSlotIdentity {
 }
 
 impl CoroutineSlotIdentity {
+    /// Context marks are compiler values, specialized in the existing exact ODR group.
+    pub fn context_mark(
+        core: scoop_identity::ConeIdentity,
+    ) -> Result<Self, CoroutineShapeIdentityError> {
+        let value = crate::ContextStorageType::new(core, crate::ContextStorageRole::Mark);
+        let mut identity = Self::new(&value.exact_record(), None)?;
+        identity.root = ExactOwnerRoot::context_mark(
+            core,
+            OdrMemberRole::GeneratedNominal,
+            OdrMemberDiscriminator::GeneratedNominal(identity.generated_type.id()),
+        )
+        .map_err(CoroutineShapeIdentityError::Root)?;
+        Ok(identity)
+    }
+
     pub fn new(
         value: &ExactTypeRecord,
         nominal_group: Option<&OdrGroupRecord>,

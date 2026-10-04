@@ -73,6 +73,7 @@ impl Lowerer {
         );
         let id = self.functions.alloc(Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name,
                 is_suspend: decl.is_suspend,
@@ -176,6 +177,7 @@ impl Lowerer {
         let access = self.top_level_access(decl.visibility, decl.name.span, "function", file_index);
         let id = self.functions.alloc(Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: decl.name.text.clone(),
                 is_suspend: decl.is_suspend,

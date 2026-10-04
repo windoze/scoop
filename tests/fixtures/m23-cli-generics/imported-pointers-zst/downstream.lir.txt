@@ -113,7 +113,7 @@ Module
     store t1 -> local1
     store integer<Int>(0x00000000) -> local7
     store local7 -> local8
-    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(24)))
     store t2 -> local43
     call managed-void-target0 sp<managed-call:1> live=[local43:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn1(local43, local8)
     t3 = aggregate () : {}
@@ -253,7 +253,7 @@ Module
     store t1 -> local1
     store integer<Int>(0x00000000) -> local7
     store local7 -> local8
-    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(24)))
     store t2 -> local43
     call managed-void-target0 sp<managed-call:1> live=[local43:ptr<managed>@0] sig=void0 (ptr<managed>, i32) external-fn1(local43, local8)
     t3 = aggregate () : {}

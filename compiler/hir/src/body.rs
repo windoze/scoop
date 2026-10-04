@@ -36,6 +36,10 @@ pub struct Statement {
 
 #[derive(Debug, Clone)]
 pub enum StatementKind {
+    ContextScope {
+        value: Expr,
+        body: Vec<Statement>,
+    },
     Expr(Expr),
     /// Enter the exactly-once gate before a runtime-backed accessor touches
     /// its storage. LocalConcrete's unit declaration carries the exact cycle
@@ -218,6 +222,7 @@ pub struct Expr {
 
 #[derive(Debug, Clone)]
 pub enum ExprKind {
+    ContextLookup(crate::ContextRequirementRef),
     StringLiteral {
         value: String,
         owner: StringConstantOwner<PropertyId>,

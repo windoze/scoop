@@ -67,8 +67,10 @@ pub use static_storage::{
 };
 
 mod production;
-pub(crate) use production::emit_strong_runtime_metadata_v1;
 pub use production::{EmittedStrongRuntimeMetadataV1, ProvisionalStrongDigestPatchLocationV1};
+pub(crate) use production::{
+    emit_context_callable_metadata_v1, emit_strong_runtime_metadata_v1, validate_patch_coverage,
+};
 
 mod registration_identity;
 use registration_identity::registration_identity_value;
@@ -220,13 +222,15 @@ const TYPE_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
 };
 const CALLABLE_REGISTRATION_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
     name: "ScoopCallableRegistrationDescriptorV1",
-    size: 192,
+    size: 208,
     alignment: 8,
     fields: expected_fields!(
         "prefix" => 0,
         "registration" => 16,
         "body_definition_fingerprint" => 152,
         "entry" => 184,
+        "context_keys" => 192,
+        "context_key_count" => 200,
     ),
 };
 const IMMORTAL_OBJECT_DESCRIPTOR: ExpectedStruct = ExpectedStruct {
@@ -439,6 +443,8 @@ impl<'ctx> RuntimeMetadataV1Types<'ctx> {
                 registration_identity.into(),
                 digest.into(),
                 ptr.into(),
+                ptr.into(),
+                i64.into(),
             ],
             false,
         );

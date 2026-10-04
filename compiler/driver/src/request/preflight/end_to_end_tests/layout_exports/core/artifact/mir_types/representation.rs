@@ -13,6 +13,7 @@ pub(super) fn check(replay: &Replay<'_, '_>, combined: bool) {
 fn structs(replay: &Replay<'_, '_>) {
     let record = replay.section.types().records().iter().find(|record| {
         record.facts().kind() == mir::MirValueKindV1::NonZeroValue
+            && matches!(record.origin(), mir::MirTypeOriginV1::SourceNominal(_))
             && matches!(record.representation(), Repr::Struct { fields, .. } if fields.len() > 1)
     }).unwrap();
     let exact = record.exact();

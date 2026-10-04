@@ -21,6 +21,7 @@ impl CallableInterfaceRecordV1 {
         modality: CallableModalityV1,
         access: PublicLookupAccessV1,
         slots: CanonicalPersistentIdsV1<PersistentDispatchSlotId>,
+        context_parameters: Vec<crate::SourceParameterShapeV1>,
     ) -> Result<Self, CallableInterfaceRecordBuildError> {
         validate_type_parameter_shape(declaration, &type_parameters)?;
         validate_receiver_shape(owner, receiver.is_some())?;
@@ -37,6 +38,7 @@ impl CallableInterfaceRecordV1 {
             modality,
             DeclaredVisibilityV1::Public,
             slots,
+            context_parameters,
         )?;
         Self::from_declaration(data, access)
     }

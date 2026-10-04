@@ -108,6 +108,10 @@ pub enum CallableInterfaceRecordResolutionError<E> {
     Receiver(E),
     Parameters(SourceParameterListValidationError<E>),
     Result(E),
+    ContextParameter {
+        index: usize,
+        error: crate::SourceParameterShapeResolutionError<E>,
+    },
     Effects(CallableSourceEffectsBuildError),
     Record(CallableInterfaceRecordBuildError),
 }
@@ -123,6 +127,9 @@ impl<E: fmt::Display> fmt::Display for CallableInterfaceRecordResolutionError<E>
             }
             Self::Receiver(error) => write!(formatter, "invalid callable receiver: {error}"),
             Self::Parameters(error) => write!(formatter, "invalid callable parameters: {error}"),
+            Self::ContextParameter { index, error } => {
+                write!(formatter, "invalid context parameter {index}: {error}")
+            }
             Self::Result(error) => write!(formatter, "invalid callable result: {error}"),
             Self::Effects(error) => write!(formatter, "invalid callable effects: {error}"),
             Self::Record(error) => error.fmt(formatter),

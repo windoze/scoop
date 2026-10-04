@@ -61,12 +61,18 @@ pub(super) fn validate_sources(
             inputs.iter().zip(checked.iter().zip(&dependencies))
         {
             let mut validate = || -> Result<_, Error> {
+                let type_tables = std::iter::once(mir.types())
+                    .chain(reachable.iter().map(|position| inputs[*position].2.types()))
+                    .collect::<Vec<_>>();
+                let payload_types = scoop_mir::MirTypeBridgeTypeIndexV1::try_new(&type_tables)
+                    .map_err(scoop_mir::MirTypeBridgeSectionError::from)?;
                 super::super::mir_types::validate_shared_mir_type_exports(
                     *source,
                     dependencies,
                     graph,
                     parts.hir_core,
                     mir.types(),
+                    &payload_types,
                     mir.shape_support(),
                 )?;
                 validate_shared_mir_source_callables(

@@ -57,6 +57,17 @@ impl DecodedDefaultExpressionKindV1 {
         L: TemplateLocalSelectorResolver,
     {
         Ok(match self {
+            Self::ContextLookup {
+                declaration,
+                parameter,
+                diagnostic,
+            } => DefaultExpressionKindV1::ContextLookup {
+                declaration: declaration
+                    .resolve(resolver)
+                    .map_err(DefaultExpressionResolutionError::CallableDeclaration)?,
+                parameter,
+                diagnostic,
+            },
             Self::StringLiteral { value, owner } => DefaultExpressionKindV1::StringLiteral {
                 value,
                 owner: owner

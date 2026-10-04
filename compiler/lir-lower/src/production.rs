@@ -1,6 +1,8 @@
 use la_arena::Arena;
 
+mod context;
 mod root;
+pub(super) use context::initialize_task;
 
 use root::root_gateway;
 

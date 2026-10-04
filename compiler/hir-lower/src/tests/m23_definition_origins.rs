@@ -15,6 +15,7 @@ fn type_alias(name: &str, target: TypeRef) -> Decl {
 
 fn runtime_property(name: &str) -> Decl {
     Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

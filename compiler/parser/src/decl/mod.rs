@@ -38,6 +38,7 @@ pub(crate) enum FunctionContext {
 /// `start` is the byte offset of the first modifier keyword, for spans.
 #[derive(Debug, Default)]
 pub(crate) struct Modifiers {
+    pub context_parameters: Vec<scoop_ast::ContextParameter>,
     pub is_suspend: bool,
     pub suspend_span: Option<Span>,
     pub is_override: bool,
@@ -76,6 +77,7 @@ fn interfaces_only(supertypes: Vec<SupertypeSpec>) -> Result<Vec<scoop_ast::Type
 }
 
 mod annotations;
+mod context;
 mod enums;
 mod functions;
 mod generics;

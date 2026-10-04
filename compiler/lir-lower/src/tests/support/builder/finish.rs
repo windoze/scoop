@@ -183,6 +183,16 @@ impl Builder {
         let source_exact_types = mir::SourceExactTypeIdentities::checked(exact_types).unwrap();
         let source_callable_materializations =
             mir::SourceCallableMaterializations::checked(source_callables).unwrap();
+        let task = mir::ContextStorageType::new(provider, mir::ContextStorageRole::Task);
+        let generated_exact_types = mir::GeneratedExactTypeIdentities::checked(vec![
+            mir::GeneratedExactTypeIdentity::new(
+                mir::GeneratedExactTypeLocation::Context(task),
+                &task.nominal_record(),
+                None,
+            )
+            .unwrap(),
+        ])
+        .unwrap();
         let callable_signatures = mir::MirCallableSignatures::checked(
             source_callable_materializations
                 .iter()
@@ -218,6 +228,7 @@ impl Builder {
             interfaces: self.interfaces,
             output: mir::MirOutput::Executable { entry },
             meta: mir::MirMeta {
+                generated_exact_types,
                 source_exact_types,
                 source_callable_materializations,
                 callable_signatures,

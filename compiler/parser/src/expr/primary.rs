@@ -57,6 +57,9 @@ impl Parser {
             TokenKind::Break => Err(loop_jump_expression_diagnostic("break", token.span)),
             TokenKind::Continue => Err(loop_jump_expression_diagnostic("continue", token.span)),
             TokenKind::Ident(ref text) if text == "try" => self.parse_try_expression(),
+            TokenKind::Ident(ref text) if text == "context" && self.starts_context_scope() => {
+                self.parse_context_scope()
+            }
             TokenKind::Ident(text) => {
                 self.pos += 1;
                 // `Unit` is an ordinary identifier; in expression position

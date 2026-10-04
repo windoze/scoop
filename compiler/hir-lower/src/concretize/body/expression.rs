@@ -55,6 +55,14 @@ impl Concretizer<'_> {
             return location;
         }
         let kind = match &source.kind {
+            export::ExprKind::ContextLookup(requirement) => {
+                self.lower_missing_context_exception_type();
+                concrete::ExprKind::ContextLookup {
+                    declaration: requirement.diagnostic.declaration.clone(),
+                    label: requirement.diagnostic.label.clone(),
+                    parameter: requirement.parameter,
+                }
+            }
             export::ExprKind::ReleaseFieldLoad(field) => {
                 let concrete::FieldRef::ClassField { class_id, index } = self.lower_field_ref(
                     export::FieldRef::ClassField {

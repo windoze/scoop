@@ -23,6 +23,17 @@ impl WireEncode for IndexedDefaultExpressionV1<'_> {
 impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::ContextLookup {
+                declaration,
+                parameter,
+                diagnostic,
+            } => encode_three(
+                encoder,
+                66,
+                *declaration,
+                &U32Wire(parameter.0),
+                *diagnostic,
+            ),
             Self::StringLiteral { value, owner } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 1)?;

@@ -349,6 +349,7 @@ Module
   fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @success unwind @failure
     br @success
   block success
@@ -356,11 +357,11 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
     global_store global8, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)) @scoop$1$td$b03d2ff0c4e8855348852fc576e022c3d11227840902a324524021224dee3732 type-id=10189649510598587113 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td0
+  td td0 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=C;x=String)) @scoop$1$td$b03d2ff0c4e8855348852fc576e022c3d11227840902a324524021224dee3732 type-id=10189649510598587113 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td5
   td td1 g(r=00000001;i=cdbe7523292ee1361f0dbb4d33a8907f7f0c0ceb33f7e8c93a91d0b982644f02) @scoop$1$td$12aceda3f9bbaa033c3ec7a3c5b0e4d9aaf35df2a23ee809644fe1844cdd53eb type-id=16816825797161048268 shape=FixedObject minimum-size=32 align=8 parent=td0 vtable=[local-fn19] itables=[]
   td td2 g(r=00000001;i=00ddcf6f092a357fb4d85fb566f6aee0d718293456a33ee51db2fab3f4539373) @scoop$1$td$19a6db55a0d94ce42aa55fb757cab73c469bfb15362b81ac98e12166d09b4da3 type-id=6309499599316520005 shape=FixedObject minimum-size=32 align=8 parent=td0 vtable=[local-fn20] itables=[]
   td td3 g(r=00000001;i=11a2112d1b0cffe6c789afbbb848b37302654ea725d556a2a0704208b2cd6697) @scoop$1$td$f48153016d1f9dd8a73b710d24c95e53eef3e03acb3d0420103b09a9fe7aa851 type-id=8841143060751306851 shape=FixedObject minimum-size=32 align=8 parent=td0 vtable=[local-fn21] itables=[]

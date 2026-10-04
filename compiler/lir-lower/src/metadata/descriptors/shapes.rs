@@ -1,5 +1,76 @@
 use super::*;
 
+pub(super) fn context_type_descriptor(
+    context: &LoweringContext,
+    module: &mir::Module,
+    storage: mir::ContextStorageType,
+    root: lir::MaterializationRoot,
+) -> StorageResult<lir::TypeDescriptor> {
+    let exact = storage.exact_record().id();
+    let identity = lir::TypeDescriptorIdentity::new(
+        lir::RuntimeTypeMappingRecord::new(exact)
+            .expect("a context type has an exact runtime identity"),
+        root.clone(),
+    )
+    .expect("a context type has a descriptor identity");
+    let instance_layout =
+        lir::LayoutIdentity::managed_object(exact, context.target_profile(), root.clone())
+            .expect("a context type has an instance layout identity");
+    let pointer = context.pointer_layout(lir::PointerKind::Managed);
+    let (instance_shape, inline_scan) = match storage.role {
+        mir::ContextStorageRole::Task | mir::ContextStorageRole::Node => {
+            let count = if storage.role == mir::ContextStorageRole::Task {
+                1
+            } else {
+                4
+            };
+            let header = context.object_header_layout().size;
+            let scan = lir::RefScan::References(
+                (0..count)
+                    .map(|index| header + index * pointer.size)
+                    .collect(),
+            );
+            (
+                lir::TypeInstanceShapeV1::fixed_object(
+                    context.target_profile(),
+                    header + count * pointer.size,
+                    pointer.align,
+                    scan,
+                )?,
+                lir::TypeDescriptorInlineScanV1::Null,
+            )
+        }
+        mir::ContextStorageRole::Binding => (
+            lir::TypeInstanceShapeV1::abstract_ref(),
+            lir::TypeDescriptorInlineScanV1::Null,
+        ),
+        mir::ContextStorageRole::Mark | mir::ContextStorageRole::SwitchGuard => {
+            return value_or_abstract_type_descriptor(
+                context,
+                module,
+                &lir::EnumDefs::default(),
+                &mir::Type::Context(storage),
+                exact,
+                root,
+            );
+        }
+    };
+    let vtable = lir::VtableRecord::new(&identity, Vec::new())
+        .expect("context descriptor has an empty vtable");
+    Ok(lir::TypeDescriptor {
+        release_policy: Default::default(),
+        relations: lir::TypeDescriptorRelations::Absent,
+        diagnostic_name: storage.role.name().to_string(),
+        identity,
+        instance_layout,
+        instance_shape,
+        inline_scan,
+        parent: None,
+        vtable,
+        itables: Vec::new(),
+    })
+}
+
 pub(super) fn value_or_abstract_type_descriptor(
     context: &LoweringContext,
     module: &mir::Module,

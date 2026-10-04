@@ -126,6 +126,7 @@ pub(super) fn validate_callback_declarations(module: &Module) -> Result<(), Code
 
     let expected_params = [
         scoop_lir::MANAGED_PTR,
+        scoop_lir::MANAGED_PTR,
         scoop_lir::RAW_PTR,
         scoop_lir::RAW_PTR,
         scoop_lir::RAW_PTR,
@@ -227,7 +228,7 @@ pub(super) fn validate_callback_declarations(module: &Module) -> Result<(), Code
             || !adapter_result_matches
         {
             return Err(CodegenError(format!(
-                "foreign callback adapter @{} must be managed (ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> machine<foreign-callback-status>",
+                "foreign callback adapter @{} must be managed (ptr<managed>, ptr<managed>, ptr<raw>, ptr<raw>, ptr<raw>) -> machine<foreign-callback-status>",
                 adapter.symbol()
             )));
         }

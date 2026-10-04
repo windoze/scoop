@@ -254,5 +254,7 @@ fn definition_atom_role_tag(role: DefinitionAtomRole) -> u32 {
         DefinitionAtomRole::Stackmap => 5,
         DefinitionAtomRole::RuntimeRecord => 6,
         DefinitionAtomRole::AddressTakenConstant => 7,
+        DefinitionAtomRole::ContextKeyCell => 8,
+        DefinitionAtomRole::ContextKeyTable => 9,
     }
 }

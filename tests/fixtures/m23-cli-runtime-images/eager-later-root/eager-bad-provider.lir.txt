@@ -32,7 +32,7 @@ Module
     store local2 -> local3
     t1 = enum_wrap e0 v0 (local3) : enum0
     store t1 -> local4
-    call managed-direct-target0 sp<managed-call:0> live=[local4:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[local4:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(24)))
     store t2 -> local5
     call managed-void-target0 sp<managed-call:1> live=[local4:enum0@0, local5:ptr<managed>@0] sig=void1 (ptr<managed>, enum0) external-fn0(local5, local4)
     t3 = aggregate () : {}
@@ -135,6 +135,7 @@ Module
   fun @scoop$1$cb$8eeae5fa99466de1e214b9bc4722e21ffd5b397503084424f65880494a70f5c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn3() normal @success unwind @failure
     br @success
   block success

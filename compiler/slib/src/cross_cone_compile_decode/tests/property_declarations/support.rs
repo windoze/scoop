@@ -148,6 +148,7 @@ impl Fixture {
                 CallableModalityV1::Final,
                 visibility,
                 CanonicalPersistentIdsV1::empty(),
+                Vec::new(),
             )
             .unwrap()
         };

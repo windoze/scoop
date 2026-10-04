@@ -16,3 +16,7 @@ M24 迁移对照原有效产物与当前正式产物，确认上述 registration
 M26 迁移逐表确认原有 initialization、storage 和 callable registration 与当前产物相同，
 保持五种删除或交换不变，同步新的 core 依赖、member、LIR semantic 和 artifact 摘要。
 每组片段均核对唯一匹配，并确认替换后的完整字节等于迁移产物。
+
+M27 迁移逐字节核对被删除的原 registration 记录，保持原有五种删除或交换以及错误断言；
+保留新的 context key 信息和 runtime ABI，以正式 Slib writer 重算摘要。每组替换片段
+均确认唯一匹配，组合后的完整产物与 writer 输出一致。

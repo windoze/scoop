@@ -20,7 +20,7 @@ Module
     store local1 -> local2
     t1 = enum_wrap e0 v0 (local2) : enum0
     store t1 -> local3
-    call managed-direct-target0 sp<managed-call:0> live=[local3:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[local3:enum0@0] t2 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td10, machine<byte-size>(ByteSize(24)))
     store t2 -> local4
     call managed-void-target0 sp<managed-call:1> live=[local3:enum0@0, local4:ptr<managed>@0] sig=void0 (ptr<managed>, enum0) external-fn0(local4, local3)
     t3 = aggregate () : {}
@@ -116,7 +116,7 @@ Module
   block if.then.1
     store local2 -> local7
     t3 = heap_load local7 +0 : ptr<metadata>
-    call no-gc-direct-target0 t4 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t3, external-td2)
+    call no-gc-direct-target0 t4 = sig=direct2 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t3, external-td7)
     call managed-direct-target2 sp<managed-call:2> live=[local1:ptr<managed>@0, local7:ptr<managed>@0] t5 = sig=direct3 (ptr<managed>) -> i32 dispatch[Interface:1] t4(local7)
     store t5 -> local8
     store integer<Int>(0x00000004) -> local9
@@ -131,7 +131,7 @@ Module
     cbr local11 then @if.then.4 else @if.else.5
   block if.then.4
     t7 = heap_load local1 +0 : ptr<metadata>
-    call no-gc-direct-target1 t8 = sig=direct4 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t7, external-td4)
+    call no-gc-direct-target1 t8 = sig=direct4 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t7, external-td9)
     call managed-direct-target3 sp<managed-call:3> live=[local1:ptr<managed>@0] t9 = sig=direct5 (ptr<managed>) -> i32 dispatch[Interface:1] t8(local1)
     store t9 -> local12
     store integer<Int>(0x00000002) -> local13
@@ -152,7 +152,7 @@ Module
     store local18 -> local19
     store local19 -> local20
     t13 = heap_load local20 +0 : ptr<metadata>
-    call no-gc-direct-target2 t14 = sig=direct7 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t13, external-td4)
+    call no-gc-direct-target2 t14 = sig=direct7 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t13, external-td9)
     call managed-direct-target5 sp<managed-call:6> live=[local19:ptr<managed>@0, local20:ptr<managed>@0] t15 = sig=direct8 (ptr<managed>) -> i32 dispatch[Interface:0] t14(local20)
     store t15 -> local21
     store integer<Int>(0x00000005) -> local22
@@ -161,7 +161,7 @@ Module
     cbr t16 then @if.then.7 else @if.else.8
   block if.then.7
     t17 = heap_load local19 +0 : ptr<metadata>
-    call no-gc-direct-target3 t18 = sig=direct9 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t17, external-td4)
+    call no-gc-direct-target3 t18 = sig=direct9 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t17, external-td9)
     call managed-direct-target6 sp<managed-call:7> live=[local19:ptr<managed>@0] t19 = sig=direct10 (ptr<managed>) -> i32 dispatch[Interface:1] t18(local19)
     store t19 -> local24
     store integer<Int>(0x00000006) -> local25
@@ -221,9 +221,9 @@ Module
   block if.then.13
     call no-gc-elided-zst-target1 t38 = sig=elided-zst1 () -> elided-zst<struct0 size=0 align=1> external-fn10()
     store t38 -> local67
-    t39 = box_zst external-td1 sp<managed-call:15> live=[]
+    t39 = box_zst external-td6 sp<managed-call:15> live=[]
     t40 = heap_load t39 +0 : ptr<metadata>
-    call no-gc-direct-target4 t41 = sig=direct14 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t40, external-td4)
+    call no-gc-direct-target4 t41 = sig=direct14 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t40, external-td9)
     call managed-direct-target10 sp<managed-call:16> live=[t39:ptr<managed>@0] t42 = sig=direct15 (ptr<managed>) -> i32 dispatch[Interface:1] t41(t39)
     store t42 -> local44
     store integer<Int>(0x00000002) -> local45
@@ -251,9 +251,9 @@ Module
   block if.then.16
     t48 = enum_wrap e1 v0 () : enum1
     store t48 -> local70
-    t49 = box_value external-td0, local70 scan=none sp<managed-call:19> live=[]
+    t49 = box_value external-td5, local70 scan=none sp<managed-call:19> live=[]
     t50 = heap_load t49 +0 : ptr<metadata>
-    call no-gc-direct-target5 t51 = sig=direct17 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t50, external-td4)
+    call no-gc-direct-target5 t51 = sig=direct17 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t50, external-td9)
     call managed-direct-target12 sp<managed-call:20> live=[t49:ptr<managed>@0] t52 = sig=direct18 (ptr<managed>) -> i32 dispatch[Interface:1] t51(t49)
     store t52 -> local54
     store integer<Int>(0x00000002) -> local55
@@ -288,6 +288,7 @@ Module
   fun @scoop$1$cb$98f2c46db3afc37c7fae9bdd979e26c7c58c4cb7bff8f4e1083b4f44c6c18804() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
     br @success
   block success
@@ -295,7 +296,7 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
     global_store global2, t3
     end_catch
     ret integer<UInt>(0x00000001)

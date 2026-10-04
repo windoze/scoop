@@ -121,6 +121,7 @@ pub(crate) fn method_full(
     body: FunctionBody,
 ) -> FunctionDecl {
     FunctionDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         is_suspend: false,

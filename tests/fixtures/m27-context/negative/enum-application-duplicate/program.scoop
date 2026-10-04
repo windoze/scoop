@@ -1,0 +1,4 @@
+enum Reader<A: ref, B: ref> { Ready
+context(a: A, b: B) fun read(): Int = 1 }
+fun use(value: Reader<String, String>) {}
+fun main() {}

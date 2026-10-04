@@ -1,5 +1,6 @@
 //! Complete value representations obtained from dependency declarations.
 
+mod context;
 use super::*;
 use std::sync::Arc;
 

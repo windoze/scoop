@@ -38,6 +38,7 @@ impl GeneratedExactTypeOwner {
 /// Typed physical location of one MIR-generated nominal type.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum GeneratedExactTypeLocation {
+    Context(crate::ContextStorageType),
     Closure(ClosureClassId),
     Class(ClassId),
     Enum(EnumId),
@@ -59,6 +60,7 @@ impl GeneratedExactTypeIdentity {
         odr_member: Option<&GeneratedExactTypeOdrMemberRecord>,
     ) -> Result<Self, GeneratedExactTypeIdentityError> {
         let expected = match nominal.key() {
+            GeneratedNominalKey::TaskContext(_) => GeneratedExactTypeKind::Context,
             GeneratedNominalKey::ClosureEnvironment { .. }
             | GeneratedNominalKey::CallableAdapterEnvironment { .. } => {
                 GeneratedExactTypeKind::Closure
@@ -115,6 +117,7 @@ impl GeneratedExactTypeIdentity {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum GeneratedExactTypeKind {
+    Context,
     Closure,
     Class,
     Enum,
@@ -123,6 +126,7 @@ enum GeneratedExactTypeKind {
 impl GeneratedExactTypeKind {
     const fn of(location: GeneratedExactTypeLocation) -> Self {
         match location {
+            GeneratedExactTypeLocation::Context(_) => Self::Context,
             GeneratedExactTypeLocation::Closure(_) => Self::Closure,
             GeneratedExactTypeLocation::Class(_) => Self::Class,
             GeneratedExactTypeLocation::Enum(_) => Self::Enum,

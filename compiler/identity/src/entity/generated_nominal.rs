@@ -64,6 +64,7 @@ impl WireEncode for CallableAdapterEnvironmentKey {
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum GeneratedNominalKey {
+    TaskContext(crate::ContextStorageType),
     ClosureEnvironment {
         callable: CallableMaterialization,
         role: ClosureEnvironmentRole,
@@ -95,6 +96,7 @@ pub enum GeneratedNominalKey {
 impl WireEncode for GeneratedNominalKey {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::TaskContext(storage) => encode_value_sum(encoder, 9, storage),
             Self::ClosureEnvironment { callable, role } => {
                 encoder.map(3)?;
                 encode_tag(encoder, 1)?;

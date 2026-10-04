@@ -338,7 +338,7 @@ fn callback_module() -> (Module, ForeignCallbackFamilyId, ForeignCallbackBridgeI
                 application,
                 module.foreign_callback_adapters[adapter].signature_subject(),
                 exact_signature,
-                ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+                ForeignCallbackStorageAbi::ClosureContextResultRootsThrowableToStatus,
                 CallbackMode::Reusable,
             ),
             adapter,
@@ -631,7 +631,7 @@ fn materialized_callback_adapter_uses_its_generated_callable_odr_member() {
         application,
         subject,
         exact_signature,
-        ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+        ForeignCallbackStorageAbi::ClosureContextResultRootsThrowableToStatus,
         CallbackMode::Reusable,
     );
     install_generated_callables(&mut module);

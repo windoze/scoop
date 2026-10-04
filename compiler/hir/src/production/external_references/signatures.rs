@@ -146,6 +146,13 @@ where
             )?;
         }
         observe(accumulator, record.result(), &path.clone().field(6))?;
+        for (index, parameter) in (0_u64..).zip(record.context_parameters()) {
+            observe(
+                accumulator,
+                parameter.value_type(),
+                &path.clone().field(11).index(index).field(2),
+            )?;
+        }
     }
     Ok(())
 }

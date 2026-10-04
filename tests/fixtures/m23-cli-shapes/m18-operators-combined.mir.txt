@@ -90,25 +90,30 @@ Module
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn11 captures=2
     bridge function_type1 -> @fn48 id=9025a0711c305273836a4c16215cafd2a39a4fe96e12e5d7800cce5f6d5d66ba
   generated_exact_type get0 location=enum9 nominal_id=11095ad3fdb8a19e049d7d29a62d75e350d5ee778b3cd195021b9129aab33c6e exact_id=0e5d4d97d7f257c285a63651f7e787975762977458c4e8c056b56ddcec76465f
-  generated_exact_type get1 location=enum11 nominal_id=841889dabd9d0fae5391f43f5df6131312477644a52bc1270f88250fb7b13690 exact_id=115e41725a93b78c189ab4958c47a22f83d5b4f38e6a4de93ff7918c573fd9b0
-  generated_exact_type get2 location=class16 nominal_id=6e435e1c75ca1b0155d39507033259d2792d1aefe15cba566d2b05c2c4d405da exact_id=1524e48c39e54de1aea3c5285e7181325daadc0ab48cfa36e5846d61a78223f4
-  generated_exact_type get3 location=enum3 nominal_id=5c219a95b47c955bd785bcb6a1cb0d6313bf608939b101500354787daf4cce27 exact_id=1682a14aebe83dc0fc180b7ccbef7fd633aa78caa1b9f3b6ac11a2dc9a94dd75
-  generated_exact_type get4 location=enum6 nominal_id=a7b5b31a1bfb6a6dc3c748b164d120a09ad8994b64b908ef37f2130548204c28 exact_id=2cb009f826aaac6adcbfaa4599edc1d43ced2dd021d87c4e4913f1d41d48bdce
-  generated_exact_type get5 location=class12 nominal_id=8207d2e3e841804fcb2047a1bc974cb1165c6c2b0cf0fc18aabe48067bac6515 exact_id=2f844334bb29658dcd9e72ed1de0ea917328c6e72e2117c1a1e4989476e48c33
-  generated_exact_type get6 location=enum4 nominal_id=a63dd0b60d99f27c6db1414a574e128c8057f9795b7add9a0d0ee21846f046ec exact_id=39d6831137dac4d708a48cad409cb4d0973f33bb4f799d0b2e2ede5cc0af6080
-  generated_exact_type get7 location=closure0 nominal_id=5d254d0609ce04f1cfe9c5b9e38b616f4cd1231c5cb58e2803d302a8f632c326 exact_id=3aa1c490ad9887a16ccb82ef6d2822c4d2219d3448904c6e380e3b07e90dcdfd
-  generated_exact_type get8 location=class15 nominal_id=f9b484c18159cb5a0ae19f8c2eee5553470aa36c861ea976c53d969ef0ecf0c0 exact_id=4a065e4bc30c9923285504a7d6c8eb367662e9075c81bb29ae231c70ca813e94
-  generated_exact_type get9 location=enum8 nominal_id=5fb9048477fb824c08aa39d192fa1d7b94ab07d59631da04bf5cee4684482b85 exact_id=5883d52437c0c12f7ddc6738f30638b58ced3033e1a8428def652c8c8b4eed48
-  generated_exact_type get10 location=class13 nominal_id=00e26cc93b87ece1085bd6a43e4766d81fa21fec3767513851b97450454d6321 exact_id=598ca97e0af6ff637d06cb11185440ec3bc6f41f1513d8e74cc28c3ac8158a60
-  generated_exact_type get11 location=class17 nominal_id=542a70b62ab307f6e4842060f6941e9963e8c398b8219c16b3f848b94cfacc5a exact_id=7b86dece62f5aef40f7e71f23703fe4f70ade8d5138b776da7e1abbae20989bc
-  generated_exact_type get12 location=enum5 nominal_id=488b2509422df37d5d59933d4ff8f1e85727b0f922c238d9fa3f608dabbf0bd0 exact_id=81ce74a7580396718202a2cb062e25a49ca3861a672c484841b61b04965aa5bc
-  generated_exact_type get13 location=enum7 nominal_id=fe0690fc91596c679b2c13e80c9e1b61fa0f1d399a99cec22ab4d25bf93d8b2b exact_id=95126728ff5d164c61cf3c875064144dd5fbbd822e2d75561dc05425db7146c8
-  generated_exact_type get14 location=class14 nominal_id=f3796bc3278fb3839ec7c4c97de2febd0d90a3995eabbc02288514e04710b247 exact_id=96fc8e989b222beab6bc66cc493e68cb2429012dbaa8a94337c2bc6f443a9daa
-  generated_exact_type get15 location=enum10 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
-  generated_exact_type get16 location=enum13 nominal_id=0598cca557d775ad9e04038d817f5e7dbe9ff08ab1e1a29726fac596be173764 exact_id=bb515d6fd746592ef469422f17f2eb52fa1e474ba464df1b19b16d0e52b0ced6
-  generated_exact_type get17 location=enum14 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
-  generated_exact_type get18 location=enum15 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
-  generated_exact_type get19 location=enum12 nominal_id=0a64a92067055bbf06a9f1dd0481fd91f119340b97f1501d7feccd45d9fecad9 exact_id=f834f773e44df304e1307ad0a06b8e78d5af56e78d767407c6d26e42f3f5c6d4
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=enum11 nominal_id=841889dabd9d0fae5391f43f5df6131312477644a52bc1270f88250fb7b13690 exact_id=115e41725a93b78c189ab4958c47a22f83d5b4f38e6a4de93ff7918c573fd9b0
+  generated_exact_type get3 location=class16 nominal_id=6e435e1c75ca1b0155d39507033259d2792d1aefe15cba566d2b05c2c4d405da exact_id=1524e48c39e54de1aea3c5285e7181325daadc0ab48cfa36e5846d61a78223f4
+  generated_exact_type get4 location=enum3 nominal_id=5c219a95b47c955bd785bcb6a1cb0d6313bf608939b101500354787daf4cce27 exact_id=1682a14aebe83dc0fc180b7ccbef7fd633aa78caa1b9f3b6ac11a2dc9a94dd75
+  generated_exact_type get5 location=enum6 nominal_id=a7b5b31a1bfb6a6dc3c748b164d120a09ad8994b64b908ef37f2130548204c28 exact_id=2cb009f826aaac6adcbfaa4599edc1d43ced2dd021d87c4e4913f1d41d48bdce
+  generated_exact_type get6 location=class12 nominal_id=8207d2e3e841804fcb2047a1bc974cb1165c6c2b0cf0fc18aabe48067bac6515 exact_id=2f844334bb29658dcd9e72ed1de0ea917328c6e72e2117c1a1e4989476e48c33
+  generated_exact_type get7 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get8 location=enum4 nominal_id=a63dd0b60d99f27c6db1414a574e128c8057f9795b7add9a0d0ee21846f046ec exact_id=39d6831137dac4d708a48cad409cb4d0973f33bb4f799d0b2e2ede5cc0af6080
+  generated_exact_type get9 location=closure0 nominal_id=5d254d0609ce04f1cfe9c5b9e38b616f4cd1231c5cb58e2803d302a8f632c326 exact_id=3aa1c490ad9887a16ccb82ef6d2822c4d2219d3448904c6e380e3b07e90dcdfd
+  generated_exact_type get10 location=class15 nominal_id=f9b484c18159cb5a0ae19f8c2eee5553470aa36c861ea976c53d969ef0ecf0c0 exact_id=4a065e4bc30c9923285504a7d6c8eb367662e9075c81bb29ae231c70ca813e94
+  generated_exact_type get11 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get12 location=enum8 nominal_id=5fb9048477fb824c08aa39d192fa1d7b94ab07d59631da04bf5cee4684482b85 exact_id=5883d52437c0c12f7ddc6738f30638b58ced3033e1a8428def652c8c8b4eed48
+  generated_exact_type get13 location=class13 nominal_id=00e26cc93b87ece1085bd6a43e4766d81fa21fec3767513851b97450454d6321 exact_id=598ca97e0af6ff637d06cb11185440ec3bc6f41f1513d8e74cc28c3ac8158a60
+  generated_exact_type get14 location=class17 nominal_id=542a70b62ab307f6e4842060f6941e9963e8c398b8219c16b3f848b94cfacc5a exact_id=7b86dece62f5aef40f7e71f23703fe4f70ade8d5138b776da7e1abbae20989bc
+  generated_exact_type get15 location=enum5 nominal_id=488b2509422df37d5d59933d4ff8f1e85727b0f922c238d9fa3f608dabbf0bd0 exact_id=81ce74a7580396718202a2cb062e25a49ca3861a672c484841b61b04965aa5bc
+  generated_exact_type get16 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get17 location=enum7 nominal_id=fe0690fc91596c679b2c13e80c9e1b61fa0f1d399a99cec22ab4d25bf93d8b2b exact_id=95126728ff5d164c61cf3c875064144dd5fbbd822e2d75561dc05425db7146c8
+  generated_exact_type get18 location=class14 nominal_id=f3796bc3278fb3839ec7c4c97de2febd0d90a3995eabbc02288514e04710b247 exact_id=96fc8e989b222beab6bc66cc493e68cb2429012dbaa8a94337c2bc6f443a9daa
+  generated_exact_type get19 location=enum10 nominal_id=16eb07fc5cc4c97ad08fbf6b69c7e65ac7075bc2f68c9d9ef2fdd2eec3e71bc0 exact_id=b8eb707f2b7f406c2e94e35b5e0a093ac125351c5c71418d9a2850df324d7483
+  generated_exact_type get20 location=enum13 nominal_id=0598cca557d775ad9e04038d817f5e7dbe9ff08ab1e1a29726fac596be173764 exact_id=bb515d6fd746592ef469422f17f2eb52fa1e474ba464df1b19b16d0e52b0ced6
+  generated_exact_type get21 location=enum14 nominal_id=ba96b2c719aa9930b95dbad95a6e3550ed9f0e92d8d096a67d0d69fd6feb3502 exact_id=c0fb0732ab6219f44998140f1b9331e22d0234090a00b8df7cb7e16605290f42
+  generated_exact_type get22 location=enum15 nominal_id=c06fe089df24c64bc2a5a9f4b0269fe38bbcc63fc2f3bb9f02d53cc64aad2541 exact_id=c6ed5063e5693dbaade12bc6687f7bb3cf7f6cbc25f73d01920eef3757deac0e
+  generated_exact_type get23 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get24 location=enum12 nominal_id=0a64a92067055bbf06a9f1dd0481fd91f119340b97f1501d7feccd45d9fecad9 exact_id=f834f773e44df304e1307ad0a06b8e78d5af56e78d767407c6d26e42f3f5c6d4
   generated_callable gc0 function=@fn57 id=2f436a441ffdb0771d22b643a99a8454a538c0352bac51e3bb5b91eea5a7a09a
   generated_callable gc1 function=@fn49 id=57c1c551f61d6b4b2527e08c3e68e6a6c20ed0ae8fc6f217d852c676e5026823
   generated_callable gc2 function=@fn47 id=58ca0f0c0c8e584e8d813b799a977e00396d964fc2c6fcd611204c29dc08ebde
@@ -211,16 +216,21 @@ Module
       field_set 2
         Type CoroutineFrame<OperatorTask.run>
         Local $frame
+        Type internal<task-context>
+        ContextCurrent
+      field_set 3
+        Type CoroutineFrame<OperatorTask.run>
+        Local $frame
         Type CoroutineSlot<OperatorTask>
         VariantConstruct CoroutineSlot<OperatorTask> v1
           Type OperatorTask
           Local this
-      field_set 3
+      field_set 4
         Type CoroutineFrame<OperatorTask.run>
         Local $frame
         Type CoroutineSlot<AsyncNumber<Payload>>
         VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v0
-      field_set 4
+      field_set 5
         Type CoroutineFrame<OperatorTask.run>
         Local $frame
         Type CoroutineSlot<Throwable>
@@ -286,16 +296,21 @@ Module
       field_set 2
         Type CoroutineFrame<awaitOperator>
         Local $frame
+        Type internal<task-context>
+        ContextCurrent
+      field_set 3
+        Type CoroutineFrame<awaitOperator>
+        Local $frame
         Type CoroutineSlot<Int>
         VariantConstruct CoroutineSlot<Int> v0
-      field_set 3
+      field_set 4
         Type CoroutineFrame<awaitOperator>
         Local $frame
         Type CoroutineSlot<OperatorGate>
         VariantConstruct CoroutineSlot<OperatorGate> v1
           Type OperatorGate
           Local gate
-      field_set 4
+      field_set 5
         Type CoroutineFrame<awaitOperator>
         Local $frame
         Type CoroutineSlot<Throwable>
@@ -729,23 +744,28 @@ Module
       field_set 2
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
-        Type CoroutineSlot<AsyncNumber<Payload>>
-        VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v1
-          Type AsyncNumber<Payload>
-          Local this
+        Type internal<task-context>
+        ContextCurrent
       field_set 3
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
         Type CoroutineSlot<AsyncNumber<Payload>>
         VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v1
           Type AsyncNumber<Payload>
-          Local other
+          Local this
       field_set 4
+        Type CoroutineFrame<AsyncNumber.plus>
+        Local $frame
+        Type CoroutineSlot<AsyncNumber<Payload>>
+        VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v1
+          Type AsyncNumber<Payload>
+          Local other
+      field_set 5
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
         Type CoroutineSlot<Int>
         VariantConstruct CoroutineSlot<Int> v0
-      field_set 5
+      field_set 6
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
         Type CoroutineSlot<Throwable>
@@ -1018,9 +1038,28 @@ Module
         Local amount
       return
   fun startCoroutine<OperatorFailure> @fn45(task: SuspendTask<OperatorFailure>, completion: Continuation<OperatorFailure>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn21 interface Continuation<OperatorFailure>[0]
         Type Continuation<OperatorFailure>
         Local completion
@@ -1028,29 +1067,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<OperatorFailure>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn22 interface Continuation<OperatorFailure>[1]
         Type Continuation<OperatorFailure>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<OperatorFailure> = @fn23 interface SuspendTask<OperatorFailure>[0]
         Type SuspendTask<OperatorFailure>
         Local task
         Type Continuation<OperatorFailure>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -1059,10 +1106,41 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun startCoroutine<Payload> @fn46(task: SuspendTask<Payload>, completion: Continuation<Payload>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn25 interface Continuation<Payload>[0]
         Type Continuation<Payload>
         Local completion
@@ -1070,29 +1148,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<Payload>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn26 interface Continuation<Payload>[1]
         Type Continuation<Payload>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<Payload> = @fn27 interface SuspendTask<Payload>[0]
         Type SuspendTask<Payload>
         Local task
         Type Continuation<Payload>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -1101,10 +1187,41 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun startCoroutine<OperatorGate> @fn47(task: SuspendTask<OperatorGate>, completion: Continuation<OperatorGate>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn29 interface Continuation<OperatorGate>[0]
         Type Continuation<OperatorGate>
         Local completion
@@ -1112,29 +1229,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<OperatorGate>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn30 interface Continuation<OperatorGate>[1]
         Type Continuation<OperatorGate>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<OperatorGate> = @fn31 interface SuspendTask<OperatorGate>[0]
         Type SuspendTask<OperatorGate>
         Local task
         Type Continuation<OperatorGate>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -1143,6 +1268,18 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun function_bridge.$Closure$lambda0.() -> Any @fn48($source: () -> String) -> Any
     bb0 entry
       call $call.1: String = <closure:function_type0> closure[function_type0]
@@ -1374,7 +1511,7 @@ Module
         Type AsyncNumber<Payload>
         EnumField v1 f0
           Type CoroutineSlot<AsyncNumber<Payload>>
-          FieldAccess 3
+          FieldAccess 4
             Type CoroutineFrame<OperatorTask.run>
             Local $frame
       goto bb10
@@ -1383,7 +1520,7 @@ Module
         Type Throwable
         EnumField v1 f0
           Type CoroutineSlot<Throwable>
-          FieldAccess 4
+          FieldAccess 5
             Type CoroutineFrame<OperatorTask.run>
             Local $frame
     bb18 coroutine.initial
@@ -1391,7 +1528,7 @@ Module
         Type OperatorTask
         EnumField v1 f0
           Type CoroutineSlot<OperatorTask>
-          FieldAccess 2
+          FieldAccess 3
             Type CoroutineFrame<OperatorTask.run>
             Local $frame
       atomic_store_release kind=coroutine-frame-state field=0
@@ -1445,7 +1582,22 @@ Module
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb1 completed
+    bb1 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb3 completed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<OperatorTask.run>
         FieldAccess 0
@@ -1464,10 +1616,18 @@ Module
         EnumField v0 f0
           Type CoroutineStep<String>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 suspended
+    bb4 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 failed
+    bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<OperatorTask.run>
         FieldAccess 0
@@ -1484,17 +1644,30 @@ Module
             Local this
         Type Throwable
         Local $uncaught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb4 body_failure
+    bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 3
+      goto bb5
+    bb7 valid unwind bb6
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          FieldAccess 2
+            Type CoroutineFrame<OperatorTask.run>
+            FieldAccess 0
+              Type CoroutineAdapter<OperatorTask.run>$1
+              Local this
+      field_set 4
         Type CoroutineFrame<OperatorTask.run>
         FieldAccess 0
           Type CoroutineAdapter<OperatorTask.run>$1
@@ -1515,7 +1688,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -1524,14 +1697,14 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-    bb6 invalid_frame
+    bb8 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
         Type CoroutineAdapter<OperatorTask.run>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
       goto bb0
-    bb7 claim_frame
+    bb9 claim_frame
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
@@ -1543,14 +1716,14 @@ Module
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb5 bb6
+      branch bb7 bb8
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
           Local $frame_claim
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb8 claim_waiting
+    bb10 claim_waiting
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
@@ -1560,7 +1733,7 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
-      branch bb7 bb0
+      branch bb9 bb0
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
@@ -1578,7 +1751,22 @@ Module
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb1 completed
+    bb1 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb3 completed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<OperatorTask.run>
         FieldAccess 0
@@ -1597,10 +1785,18 @@ Module
         EnumField v0 f0
           Type CoroutineStep<String>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 suspended
+    bb4 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 failed
+    bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<OperatorTask.run>
         FieldAccess 0
@@ -1617,17 +1813,30 @@ Module
             Local this
         Type Throwable
         Local $uncaught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb4 body_failure
+    bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 4
+      goto bb5
+    bb7 valid unwind bb6
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          FieldAccess 2
+            Type CoroutineFrame<OperatorTask.run>
+            FieldAccess 0
+              Type CoroutineAdapter<OperatorTask.run>$1
+              Local this
+      field_set 5
         Type CoroutineFrame<OperatorTask.run>
         FieldAccess 0
           Type CoroutineAdapter<OperatorTask.run>$1
@@ -1648,7 +1857,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -1657,14 +1866,14 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-    bb6 invalid_frame
+    bb8 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
         Type CoroutineAdapter<OperatorTask.run>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
       goto bb0
-    bb7 claim_frame
+    bb9 claim_frame
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
@@ -1676,14 +1885,14 @@ Module
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb5 bb6
+      branch bb7 bb8
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
           Local $frame_claim
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb8 claim_waiting
+    bb10 claim_waiting
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
@@ -1693,7 +1902,7 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-      branch bb7 bb0
+      branch bb9 bb0
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
@@ -1998,7 +2207,7 @@ Module
         Type Int
         EnumField v1 f0
           Type CoroutineSlot<Int>
-          FieldAccess 2
+          FieldAccess 3
             Type CoroutineFrame<awaitOperator>
             Local $frame
       goto bb1
@@ -2007,7 +2216,7 @@ Module
         Type Throwable
         EnumField v1 f0
           Type CoroutineSlot<Throwable>
-          FieldAccess 4
+          FieldAccess 5
             Type CoroutineFrame<awaitOperator>
             Local $frame
     bb25 coroutine.initial
@@ -2015,7 +2224,7 @@ Module
         Type OperatorGate
         EnumField v1 f0
           Type CoroutineSlot<OperatorGate>
-          FieldAccess 3
+          FieldAccess 4
             Type CoroutineFrame<awaitOperator>
             Local $frame
       atomic_store_release kind=coroutine-frame-state field=0
@@ -2069,7 +2278,22 @@ Module
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb1 completed
+    bb1 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb3 completed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitOperator>
         FieldAccess 0
@@ -2088,10 +2312,18 @@ Module
         EnumField v0 f0
           Type CoroutineStep<Int>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 suspended
+    bb4 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 failed
+    bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitOperator>
         FieldAccess 0
@@ -2108,17 +2340,30 @@ Module
             Local this
         Type Throwable
         Local $uncaught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb4 body_failure
+    bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 2
+      goto bb5
+    bb7 valid unwind bb6
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          FieldAccess 2
+            Type CoroutineFrame<awaitOperator>
+            FieldAccess 0
+              Type CoroutineAdapter<awaitOperator>$1
+              Local this
+      field_set 3
         Type CoroutineFrame<awaitOperator>
         FieldAccess 0
           Type CoroutineAdapter<awaitOperator>$1
@@ -2139,7 +2384,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -2148,14 +2393,14 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-    bb6 invalid_frame
+    bb8 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
         Type CoroutineAdapter<awaitOperator>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
       goto bb0
-    bb7 claim_frame
+    bb9 claim_frame
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
@@ -2167,14 +2412,14 @@ Module
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb5 bb6
+      branch bb7 bb8
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
           Local $frame_claim
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb8 claim_waiting
+    bb10 claim_waiting
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
@@ -2184,14 +2429,14 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
-      branch bb7 bb0
+      branch bb9 bb0
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-    bb9 latched
+    bb11 latched
       field_set 2
         Type CoroutineAdapter<awaitOperator>$1
         Local this
@@ -2205,7 +2450,7 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedSuccess)
       return
-    bb10 entry
+    bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
@@ -2215,7 +2460,7 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Registering)
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
-      branch bb9 bb8
+      branch bb11 bb10
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
@@ -2233,7 +2478,22 @@ Module
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb1 completed
+    bb1 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb3 completed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitOperator>
         FieldAccess 0
@@ -2252,10 +2512,18 @@ Module
         EnumField v0 f0
           Type CoroutineStep<Int>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 suspended
+    bb4 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 failed
+    bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<awaitOperator>
         FieldAccess 0
@@ -2272,17 +2540,30 @@ Module
             Local this
         Type Throwable
         Local $uncaught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb4 body_failure
+    bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 4
+      goto bb5
+    bb7 valid unwind bb6
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          FieldAccess 2
+            Type CoroutineFrame<awaitOperator>
+            FieldAccess 0
+              Type CoroutineAdapter<awaitOperator>$1
+              Local this
+      field_set 5
         Type CoroutineFrame<awaitOperator>
         FieldAccess 0
           Type CoroutineAdapter<awaitOperator>$1
@@ -2303,7 +2584,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -2312,14 +2593,14 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-    bb6 invalid_frame
+    bb8 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
         Type CoroutineAdapter<awaitOperator>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
       goto bb0
-    bb7 claim_frame
+    bb9 claim_frame
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
@@ -2331,14 +2612,14 @@ Module
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb5 bb6
+      branch bb7 bb8
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
           Local $frame_claim
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb8 claim_waiting
+    bb10 claim_waiting
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
@@ -2348,14 +2629,14 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-      branch bb7 bb0
+      branch bb9 bb0
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
           Local $adapter_claim
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(Waiting)
-    bb9 latched
+    bb11 latched
       field_set 3
         Type CoroutineAdapter<awaitOperator>$1
         Local this
@@ -2369,7 +2650,7 @@ Module
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(LatchedFailure)
       return
-    bb10 entry
+    bb12 entry
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
@@ -2379,7 +2660,7 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Registering)
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-      branch bb9 bb8
+      branch bb11 bb10
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
@@ -2396,14 +2677,14 @@ Module
       val $parameter.gate: OperatorGate
         Type OperatorGate
         Local $argument.0
-      field_set 2
+      field_set 3
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
         Type CoroutineSlot<AsyncNumber<Payload>>
         VariantConstruct CoroutineSlot<AsyncNumber<Payload>> v1
           Type AsyncNumber<Payload>
           Local this
-      field_set 3
+      field_set 4
         Type CoroutineFrame<AsyncNumber.plus>
         Local $frame
         Type CoroutineSlot<AsyncNumber<Payload>>
@@ -2626,21 +2907,21 @@ Module
         Type AsyncNumber<Payload>
         EnumField v1 f0
           Type CoroutineSlot<AsyncNumber<Payload>>
-          FieldAccess 2
+          FieldAccess 3
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       assign other
         Type AsyncNumber<Payload>
         EnumField v1 f0
           Type CoroutineSlot<AsyncNumber<Payload>>
-          FieldAccess 3
+          FieldAccess 4
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       assign bonus
         Type Int
         EnumField v1 f0
           Type CoroutineSlot<Int>
-          FieldAccess 4
+          FieldAccess 5
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       goto bb3
@@ -2649,21 +2930,21 @@ Module
         Type AsyncNumber<Payload>
         EnumField v1 f0
           Type CoroutineSlot<AsyncNumber<Payload>>
-          FieldAccess 2
+          FieldAccess 3
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       assign other
         Type AsyncNumber<Payload>
         EnumField v1 f0
           Type CoroutineSlot<AsyncNumber<Payload>>
-          FieldAccess 3
+          FieldAccess 4
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       throw
         Type Throwable
         EnumField v1 f0
           Type CoroutineSlot<Throwable>
-          FieldAccess 5
+          FieldAccess 6
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
     bb11 coroutine.initial
@@ -2671,14 +2952,14 @@ Module
         Type AsyncNumber<Payload>
         EnumField v1 f0
           Type CoroutineSlot<AsyncNumber<Payload>>
-          FieldAccess 2
+          FieldAccess 3
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       assign other
         Type AsyncNumber<Payload>
         EnumField v1 f0
           Type CoroutineSlot<AsyncNumber<Payload>>
-          FieldAccess 3
+          FieldAccess 4
             Type CoroutineFrame<AsyncNumber.plus>
             Local $frame
       atomic_store_release kind=coroutine-frame-state field=0
@@ -2732,7 +3013,22 @@ Module
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb1 completed
+    bb1 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb3 completed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<AsyncNumber.plus>
         FieldAccess 0
@@ -2751,10 +3047,18 @@ Module
         EnumField v0 f0
           Type CoroutineStep<AsyncNumber<Payload>>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 suspended
+    bb4 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 failed
+    bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<AsyncNumber.plus>
         FieldAccess 0
@@ -2771,17 +3075,30 @@ Module
             Local this
         Type Throwable
         Local $uncaught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb4 body_failure
+    bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 4
+      goto bb5
+    bb7 valid unwind bb6
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          FieldAccess 2
+            Type CoroutineFrame<AsyncNumber.plus>
+            FieldAccess 0
+              Type CoroutineAdapter<AsyncNumber.plus>$1
+              Local this
+      field_set 5
         Type CoroutineFrame<AsyncNumber.plus>
         FieldAccess 0
           Type CoroutineAdapter<AsyncNumber.plus>$1
@@ -2802,7 +3119,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -2811,14 +3128,14 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-    bb6 invalid_frame
+    bb8 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
         Type CoroutineAdapter<AsyncNumber.plus>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
       goto bb0
-    bb7 claim_frame
+    bb9 claim_frame
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
@@ -2830,14 +3147,14 @@ Module
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb5 bb6
+      branch bb7 bb8
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
           Local $frame_claim
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb8 claim_waiting
+    bb10 claim_waiting
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
@@ -2847,7 +3164,7 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingSuccess)
-      branch bb7 bb0
+      branch bb9 bb0
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
@@ -2865,7 +3182,22 @@ Module
       throw
         Type IllegalStateException
         Local $protocol_error
-    bb1 completed
+    bb1 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb3 completed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<AsyncNumber.plus>
         FieldAccess 0
@@ -2884,10 +3216,18 @@ Module
         EnumField v0 f0
           Type CoroutineStep<AsyncNumber<Payload>>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 suspended
+    bb4 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 failed
+    bb5 failed unwind bb1
       atomic_store_release kind=coroutine-frame-state field=0
         Type CoroutineFrame<AsyncNumber.plus>
         FieldAccess 0
@@ -2904,17 +3244,30 @@ Module
             Local this
         Type Throwable
         Local $uncaught
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb4 body_failure
+    bb6 body_failure unwind bb2
       landing_pad cleanup=false
       begin_catch
       call $uncaught: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb3
-    bb5 valid unwind bb4
-      field_set 5
+      goto bb5
+    bb7 valid unwind bb6
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          FieldAccess 2
+            Type CoroutineFrame<AsyncNumber.plus>
+            FieldAccess 0
+              Type CoroutineAdapter<AsyncNumber.plus>$1
+              Local this
+      field_set 6
         Type CoroutineFrame<AsyncNumber.plus>
         FieldAccess 0
           Type CoroutineAdapter<AsyncNumber.plus>$1
@@ -2935,7 +3288,7 @@ Module
           Local this
         Type machine<coroutine-frame-state>
         MachineScalarLiteral CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))
-      branch bb1 bb2
+      branch bb3 bb4
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -2944,14 +3297,14 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
-    bb6 invalid_frame
+    bb8 invalid_frame
       atomic_store_release kind=coroutine-adapter-state field=1
         Type CoroutineAdapter<AsyncNumber.plus>$1
         Local this
         Type machine<coroutine-adapter-state>
         MachineScalarLiteral CoroutineAdapterState(Consumed)
       goto bb0
-    bb7 claim_frame
+    bb9 claim_frame
       val $frame_claim: machine<coroutine-frame-state>
         Type machine<coroutine-frame-state>
         AtomicCompareExchange kind=coroutine-frame-state field=0 success=acq_rel failure=acquire
@@ -2963,14 +3316,14 @@ Module
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Running)
-      branch bb5 bb6
+      branch bb7 bb8
         Type Boolean
         Binary MachineEq(CoroutineFrameState)
           Type machine<coroutine-frame-state>
           Local $frame_claim
           Type machine<coroutine-frame-state>
           MachineScalarLiteral CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))
-    bb8 claim_waiting
+    bb10 claim_waiting
       val $adapter_claim: machine<coroutine-adapter-state>
         Type machine<coroutine-adapter-state>
         AtomicCompareExchange kind=coroutine-adapter-state field=1 success=acq_rel failure=acquire
@@ -2980,7 +3333,7 @@ Module
           MachineScalarLiteral CoroutineAdapterState(Waiting)
           Type machine<coroutine-adapter-state>
           MachineScalarLiteral CoroutineAdapterState(CompletingFailure)
-      branch bb7 bb0
+      branch bb9 bb0
         Type Boolean
         Binary MachineEq(CoroutineAdapterState)
           Type machine<coroutine-adapter-state>
@@ -3003,19 +3356,19 @@ Module
   coroutine_start ct0 result=OperatorFailure function=fn45
   coroutine_start ct1 result=Payload function=fn46
   coroutine_start ct2 result=OperatorGate function=fn47
-  coroutine_saved cv0 class=CoroutineFrame<OperatorTask.run> field=2 slot=cl3 value=OperatorTask
-  coroutine_saved cv1 class=CoroutineFrame<OperatorTask.run> field=3 slot=cl4 value=AsyncNumber<Payload>
-  coroutine_saved cv2 class=CoroutineFrame<awaitOperator> field=2 slot=cl6 value=Int
-  coroutine_saved cv3 class=CoroutineFrame<awaitOperator> field=3 slot=cl2 value=OperatorGate
-  coroutine_saved cv4 class=CoroutineFrame<AsyncNumber.plus> field=2 slot=cl4 value=AsyncNumber<Payload>
-  coroutine_saved cv5 class=CoroutineFrame<AsyncNumber.plus> field=3 slot=cl4 value=AsyncNumber<Payload>
-  coroutine_saved cv6 class=CoroutineFrame<AsyncNumber.plus> field=4 slot=cl6 value=Int
-  coroutine_failure cx0 class=CoroutineFrame<OperatorTask.run> field=4 slot=cl5 throwable=Throwable
-  coroutine_failure cx1 class=CoroutineFrame<awaitOperator> field=4 slot=cl5 throwable=Throwable
-  coroutine_failure cx2 class=CoroutineFrame<AsyncNumber.plus> field=5 slot=cl5 throwable=Throwable
-  coroutine_frame cr0 CoroutineFrame<OperatorTask.run> id=8207d2e3e841804fcb2047a1bc974cb1165c6c2b0cf0fc18aabe48067bac6515 owner=cf0 state=field0 completion=field1 saved=[cv0,cv1] failure=cx0
-  coroutine_frame cr1 CoroutineFrame<awaitOperator> id=f3796bc3278fb3839ec7c4c97de2febd0d90a3995eabbc02288514e04710b247 owner=cf1 state=field0 completion=field1 saved=[cv2,cv3] failure=cx1
-  coroutine_frame cr2 CoroutineFrame<AsyncNumber.plus> id=6e435e1c75ca1b0155d39507033259d2792d1aefe15cba566d2b05c2c4d405da owner=cf2 state=field0 completion=field1 saved=[cv4,cv5,cv6] failure=cx2
+  coroutine_saved cv0 class=CoroutineFrame<OperatorTask.run> field=3 slot=cl3 value=OperatorTask
+  coroutine_saved cv1 class=CoroutineFrame<OperatorTask.run> field=4 slot=cl4 value=AsyncNumber<Payload>
+  coroutine_saved cv2 class=CoroutineFrame<awaitOperator> field=3 slot=cl6 value=Int
+  coroutine_saved cv3 class=CoroutineFrame<awaitOperator> field=4 slot=cl2 value=OperatorGate
+  coroutine_saved cv4 class=CoroutineFrame<AsyncNumber.plus> field=3 slot=cl4 value=AsyncNumber<Payload>
+  coroutine_saved cv5 class=CoroutineFrame<AsyncNumber.plus> field=4 slot=cl4 value=AsyncNumber<Payload>
+  coroutine_saved cv6 class=CoroutineFrame<AsyncNumber.plus> field=5 slot=cl6 value=Int
+  coroutine_failure cx0 class=CoroutineFrame<OperatorTask.run> field=5 slot=cl5 throwable=Throwable
+  coroutine_failure cx1 class=CoroutineFrame<awaitOperator> field=5 slot=cl5 throwable=Throwable
+  coroutine_failure cx2 class=CoroutineFrame<AsyncNumber.plus> field=6 slot=cl5 throwable=Throwable
+  coroutine_frame cr0 CoroutineFrame<OperatorTask.run> id=8207d2e3e841804fcb2047a1bc974cb1165c6c2b0cf0fc18aabe48067bac6515 owner=cf0 state=field0 completion=field1 task=field2 saved=[cv0,cv1] failure=cx0
+  coroutine_frame cr1 CoroutineFrame<awaitOperator> id=f3796bc3278fb3839ec7c4c97de2febd0d90a3995eabbc02288514e04710b247 owner=cf1 state=field0 completion=field1 task=field2 saved=[cv2,cv3] failure=cx1
+  coroutine_frame cr2 CoroutineFrame<AsyncNumber.plus> id=6e435e1c75ca1b0155d39507033259d2792d1aefe15cba566d2b05c2c4d405da owner=cf2 state=field0 completion=field1 task=field2 saved=[cv4,cv5,cv6] failure=cx2
   coroutine_resume cp0 site=1 result=AsyncNumber<Payload> frame=cr0 adapter=CoroutineAdapter<OperatorTask.run>$1 environment_id=00e26cc93b87ece1085bd6a43e4766d81fa21fec3767513851b97450454d6321 resume=@fn50 success_id=f2d5aca838a4665f150841f96f9f090302230db3b743812f419a10deed30c1e9 failure=@fn51 failure_id=6562f927916271101e498fcabf3f8d14dca0fa6c110db5ca18fa61cf1401edcf
     success suspended.1 -> Fallthrough(bb10)
       entry=bb16

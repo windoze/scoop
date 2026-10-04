@@ -149,6 +149,13 @@ impl ExportGenericCallableBodyV1 {
                 ExportDefaultReferenceOccurrenceSiteV1::CallableBodyHeader { field: 10, index },
             )?;
         }
+        for (index, parameter) in self.context_parameters().iter().enumerate() {
+            walker.observe(
+                DefaultBodyReferenceTargetV1::Type(parameter.value_type()),
+                self.definition_origin(),
+                ExportDefaultReferenceOccurrenceSiteV1::CallableBodyHeader { field: 11, index },
+            )?;
+        }
         walker.walk_locals(self.locals(), self.definition_origin())?;
         walker.current = attachment;
         walker.walk_statements(self.statements())

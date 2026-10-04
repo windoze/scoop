@@ -129,6 +129,11 @@ impl Lowerer {
                 body.effects(),
                 self.imported_release_callability(&body.effects(), &bindings)?,
                 definition.span,
+                self.imported_context_parameters(
+                    body.context_parameters(),
+                    &bindings,
+                    definition.span,
+                )?,
             ),
             type_parameters: hir::ImportedCallableTypeParameters::Substitution(parameters),
             no_gc_type_params,

@@ -4,6 +4,7 @@
 
 mod abstract_members;
 mod closures;
+mod context;
 mod delegates;
 pub(crate) mod intrinsic;
 mod local;

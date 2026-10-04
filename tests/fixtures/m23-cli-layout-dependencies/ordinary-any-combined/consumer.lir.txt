@@ -70,13 +70,13 @@ Module
     call managed-direct-target5 sp<managed-call:6> live=[local5:ptr<managed>@0, local7:ptr<managed>@0] t6 = sig=direct5 (ptr<managed>) -> ptr<managed> external-fn10(local7)
     store t6 -> local8
     t7 = aggregate () : {}
-    t8 = box_zst external-td0 sp<managed-call:7> live=[local5:ptr<managed>@0]
+    t8 = box_zst external-td2 sp<managed-call:7> live=[local5:ptr<managed>@0]
     store t8 -> local9
     store local9 -> local10
     call managed-direct-target6 sp<managed-call:8> live=[local5:ptr<managed>@0, local10:ptr<managed>@0] t9 = sig=direct6 (ptr<managed>) -> ptr<managed> external-fn7(local10)
     store t9 -> local11
     store integer<Int>(0x00000004) -> local19
-    t10 = box_value external-td1, local19 scan=none sp<managed-call:9> live=[local5:ptr<managed>@0]
+    t10 = box_value external-td5, local19 scan=none sp<managed-call:9> live=[local5:ptr<managed>@0]
     store t10 -> local12
     store local12 -> local13
     call managed-direct-target7 sp<managed-call:10> live=[local5:ptr<managed>@0, local13:ptr<managed>@0] t11 = sig=direct7 (ptr<managed>) -> ptr<managed> external-fn7(local13)
@@ -783,6 +783,7 @@ Module
   fun @scoop$1$cb$cccd4fd28ba73e407225b66f826a7b073951b91e3deb5e8abc4282f472edd7c4() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn4() normal @success unwind @failure
     br @success
   block success
@@ -795,6 +796,7 @@ Module
   fun @scoop$1$cb$8e06fa1f61cd83c1f9cd92643865f8d09d2376f0fa4761ec14f72cad39854d24() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn7() normal @success unwind @failure
     br @success
   block success
@@ -807,6 +809,7 @@ Module
   fun @scoop$1$cb$7836ff25aea369e94dc5a257f3a160c4c994fb61abb79abf01ba1f4596fa6eea() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn10() normal @success unwind @failure
     br @success
   block success
@@ -819,6 +822,7 @@ Module
   fun @scoop$1$cb$3fce79815b86228f776adbbdf24ef5410730b588a53e3745d71ae8121586f818() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn13() normal @success unwind @failure
     br @success
   block success
@@ -831,6 +835,7 @@ Module
   fun @scoop$1$cb$496430b83f8bab17005a79179b016e15c5c84468d0c9e9b99e3d6e21a8f4ec23() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn16() normal @success unwind @failure
     br @success
   block success
@@ -843,6 +848,7 @@ Module
   fun @scoop$1$cb$e31f3a79ce6901a0effedfc7158e172d0446af86addfbac9e9a2d6fce6fd87d8() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn19() normal @success unwind @failure
     br @success
   block success
@@ -855,6 +861,7 @@ Module
   fun @scoop$1$cb$552031913590ba60957b13423af3cb2f9ba7bc84ff0e5efcd87092f550b76294() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td4)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn22() normal @success unwind @failure
     br @success
   block success

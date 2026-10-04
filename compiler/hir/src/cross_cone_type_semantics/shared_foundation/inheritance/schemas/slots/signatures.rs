@@ -31,6 +31,7 @@ pub(super) fn project<'a>(
         .iter()
         .copied()
         .chain([signature.exact_signature().result(), receiver])
+        .chain(signature.context_keys().iter().map(|key| key.0))
     {
         exact_keys(&mut data.exacts, metadata, exact)?;
     }

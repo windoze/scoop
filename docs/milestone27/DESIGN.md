@@ -1,738 +1,471 @@
-# M27 Task-local Context 设计
+# M27 设计：Task-local Context
 
-状态：设计完成，待规范同步与实现
+状态：已完成（2026-10-05）；第 9 节六批实现及全仓验收均已通过，结果见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
-日期：2026-09-07
+日期：2026-10-04。
 
-依赖：M10 coroutine、M13 foreign-thread managed callback、M15 moving GC、M22 typed cleanup、M23-11 多 Cone 与 `.slib`总验收、M25 自有异常 ABI
+依赖：M10/M13 的协程、完成权与 managed callback，M15 moving GC，M22 的结构化 cleanup，M23 的共有 HIR/跨 Cone/ODR/正式 CLI，以及 M25 的异常 ABI。以已完成 M24/M26 的 core、runtime 和产物格式为当前基线。
 
-## 0. 结论
+对应 [路线图 M27](../ROADMAP.md)、[语言规范](../specs/SCOOP-SPEC.md) 8.3、11.7、11.9、14.3、[运行时规范](../specs/SCOOP-RUNTIME-SPEC.md)第 9 章和[实现规范](../specs/SCOOP-IMPL-SPEC.md) 2.16。本文取代 2026-09-07 的旧草案，不保留“设计完成但规范仍采用 Kotlin 静态解析”的分叉。
 
-M27保留Kotlin context parameters的主要源码形态，但把底层语义改成**运行期解析、动态作用域、属于logical task的Context**：
+## 0. 目标与当前基础
+
+M27 交付运行期按精确类型查找的动态 Context，属于逻辑任务，支持源码编译、独立产物消费、链接与运行：
 
 ```scoop
-interface DatabaseService {
-    fun load(id: UserId): User
-}
+class Request(val id: Long)
 
-context(database: DatabaseService)
-fun loadUser(id: UserId): User = database.load(id)
+context(request: Request)
+fun currentId(): Long = request.id
 
-fun run(database: DatabaseService): User =
-    context(database) {
-        loadUser(UserId(42))
+fun execute(request: Request): Long =
+    context(request) {
+        currentId()
     }
 ```
 
-本里程碑固定以下语义与架构不变量：
+`context(request: Request)` 声明入口 requirement 并引入正文 local；`context(request) { ... }` 安装一个结构化 binding。两者使用同一 canonical exact static type 作为 key。中间普通调用不需要传隐式参数；缺失时由被调用实现抛可捕获的 MissingContextException。
 
-- `context(name: T)`声明一个context requirement和声明体内的不可变参数名；canonical exact static type `T`就是key，参数名不参与key identity；
-- `context(value) { body }`是compiler-known结构化表达式，不是普通函数调用。它按`value`的canonical exact static type安装一个binding，body结束时严格LIFO恢复；
-- M27只做**exact type match**。`context(Impl())`不满足`context(service: Service)`；调用者必须先通过变量类型、显式转换或其他既有方式把value静态定型为`Service`；
-- contextual declaration进入时按声明顺序lookup一次：具名结果保存为普通不可变local，匿名项执行同样的presence check但不建立local。函数内部后来安装的同型binding不会改变本次activation已经取得的参数；
-- lookup未绑定时抛普通、可捕获的`MissingContextException`。runtime不做subtype、variance、generic compatibility、反射或动态scope链搜索；
-- context requirement是导出语义契约，但M27不让它参与overload selection、类型推断、普通函数类型、mangle或机器ABI；未经标注的中间调用链不需要转发hidden参数；
-- binding属于logical task而非OS thread。普通调用与同一coroutine内的direct suspend调用共享TaskContext；`startCoroutine`从当前有效binding建立独立child TaskContext；
-- 挂起不是scope退出。resume在frame所属TaskContext下继续，离开driver时恢复resumer原Context，真正穿过scope exit edge时才恢复binding；
-- 普通closure不隐式捕获整个Context；如果它引用已声明的context参数，则只按现有closure规则捕获那个普通local。`foreignCallback` registration另行捕获binding snapshot，并为每次invocation建立独立调用Context；
-- 所有保存binding、旧binding、snapshot或current TaskContext的地址都必须是GC可扫描、可重定位的managed ref/root，不能擦成`void *`或未登记TLS裸指针；
-- 跨Cone key identity从`PersistentExactTypeId`确定；机器热路径使用进程内slot，但slot不进入源码语义、`.slib` semantic identity、mangle或fingerprint；
-- M27不引入静态effect row、effect inference、effect polymorphism或编译期“binding一定存在”证明。
+实现前基线没有 Context 专用 AST、TaskContext 或该异常；M27-1 至 M27-6 已完成同步作用域、声明契约、泛型与独立产物、协程、callback、GC 生命周期回归及全仓总验收。实现复用下列已有基础：
 
-本文把约束分为两类：使用“必须/不得”的内容是语义或架构不变量；第7节的索引结构、fanout、字段布局、helper拆分与slot编码只是针对当前实现的**参考方案**。只要保持上述不变量、typed IR边界和验收结果，后续可以替换物理实现。
+| 已有实现 | M27 使用方式 |
+| --- | --- |
+| 共有 HIR 的声明、类型表达式、具体化和接口 contract | 保存有序 requirement，复用 substitution、可见性与 override 检查 |
+| MIR 的 PendingTransfer、CleanupCursor、EndCatch 与 coroutine transform | 加入恢复 binding 的 cleanup，保留 exact result/mark 跨挂起 |
+| CoroutineFrame、start helper、resume adapter 的原子协议 | frame 持有 task；真正驱动时切换 Context |
+| ThreadState、ManagedEntry、native roots 与 collector thread scanner | 保活 current/previous task，沿已有入口分配和 relocation |
+| callback token 的 closure/failure handles 与 active lease | 增加不可变 binding-root snapshot handle |
+| callable registration、associated atoms、Strong/ODR、object reader | 保存 body 使用的 key cell，沿现有链接关系合并 |
+| 64-byte small-object 上限、32-KiB large-object block | 使用小节点树，不为 Context 改写 allocator |
 
-## 1. 源码表面
+源码范围覆盖现有合法的命名函数、计算/abstract property、泛型、协程、closure 与 managed callback。Context 不引入静态 effect row、scheduler、取消或公开 Context 容器 API。
 
-### 1.1 contextual declaration
+## 1. 关键决策
 
-语法：
+| 问题 | 决策 |
+| --- | --- |
+| key | alias 展开后的完整静态引用类型；不按对象动态类型或兼容父类型查找 |
+| 值 | 非空 managed ref；已有普通装箱/转换可先把值变为引用 |
+| 入口取得 | 每次 source implementation activation 按声明顺序取得一次 |
+| 缺失 | 普通 MissingContextException；caller 可以 catch |
+| 作用域 | compiler-known block；所有真实退出恢复，仅挂起不恢复 |
+| 调用契约 | requirement 参与导出、override 与内容 fingerprint，不参与重载、推断、函数类型或普通 ABI |
+| task | 普通/direct suspend 调用共享；startCoroutine fork child |
+| closure | 只捕获显式使用的词法 local，不隐式保存整个 Context |
+| callback | 注册时 snapshot；每次 invocation 使用独立 TaskContext |
+| 存储 | 可变 TaskContext root + immutable 四叉 radix node；scope 保存旧 root |
+| key 物化 | 每 body/key 一个 associated slot cell，登记到现有 callable record |
+| 验证 | 在实际类型、CFG、格式、对象和运行时边界检查，复用未变化的结果 |
+
+与旧草案相比，删除独立 undo 链、undo depth、snapshot 堆对象、ContextKey 的第二份 hash、独立 key-use record family 和 program support descriptor。旧 root 已能完成恢复，已有 exact type 与 callable identity 已能表达 key 和 cell 归属。旧稿规定了 undo-top/depth 与 LIFO 检查，并未定义独立 mark registry；本版继续保留 typed scope mark、必要的 owner 检查和 cleanup 验证，不新增登记表。
+
+## 2. 源码与类型规则
+
+### 2.1 声明前缀
 
 ```text
 context-parameter-list ::= "context" "(" context-parameter
                            ("," context-parameter)* ")"
 context-parameter      ::= (Identifier | "_") ":" type
-contextual-declaration ::= context-parameter-list eligible-contextual-declaration
+contextual-declaration ::= context-parameter-list eligible-declaration
+context-scope          ::= "context" "(" expression ")" block
 ```
 
-`context-parameter-list`是一个且至多一个最外层declaration prefix；重复`context(...) context(...)`不等价于合并list。它位于被修饰declaration及其既有annotation/modifier整体之前，prefix与declaration之间允许普通换行，但不能跨显式statement terminator。parser不得把非法target先接受为任意`declaration`后留给后端猜测。
+前缀非空、至多一个，位于 annotation/modifier 之前，可以换行，不跨显式分号。参数不接受默认值、vararg 或修饰符。
 
-示例：
+允许的 target：
 
-```scoop
-context(database: DatabaseService, logger: Logger)
-fun serve(id: UserId): User {
-    logger.info("loading user")
-    return database.load(id)
-}
+- 顶层、成员、扩展及局部命名函数；ordinary、suspend、generic、abstract/interface/default body 沿既有合法形态使用。
+- 没有 backing storage、initializer 或 delegate 的计算/abstract property。property list 同时约束 getter 与已有 setter；不增加 accessor 自己的 list。
 
-context(_: Tracer)
-fun tracedWork() {
-    nestedContextualCall()
-}
-```
+名义类型、constructor、init、release block、lambda、匿名函数、函数类型、stored/delegated property 及 Extern/Intrinsic/NoGC 声明不能带前缀。Context 不放宽 generic virtual、interface method-level generic、generic extension property 等原有实现边界，也不让 getter/setter 挂起。
 
-M27允许context parameters修饰：
+具名项在 list、普通值参数及实际 setter 参数中必须唯一。`_` 可以重复，但不建立名称，诊断使用从 1 开始的源码序号。context name 只在函数或 accessor 正文中作为 immutable local 可见，不进入 annotation、类型子句或 caller-side default。正文中的普通词法 shadow/capture 继续遵守现有规则。
 
-- top-level、member、extension或local named function，包含当前语言原本允许的ordinary、`suspend`、generic、abstract和interface method形态；M27不借此放宽interface method-level generic、generic virtual/override等既有禁令；
-- 没有backing storage、initializer或delegate的accessor-only property；一个property-level context list同时约束其全部已有getter/setter，并在每次accessor invocation入口分别取得。
+### 2.2 ref 类型与 exact key
 
-M27不允许它修饰class/interface/object/struct/enum声明、constructor、`init`、lambda、anonymous function、function type、stored/delegated property、`@Extern`或`@Intrinsic`声明。constructor和native entry的所有权/调用边界不同，intrinsic又可能在HIR/LIR展开而没有唯一source implementation entry；context function type会立即把requirement带入类型与HOF规则，均不在本里程碑混入。
-
-因此contextual abstract/interface property在M27只能由带相同context contract的accessor-only property实现；stored/delegated property、constructor property及其implicit accessor不能满足该obligation。这个限制与普通non-contextual property obligation的实现集合有意不同，必须在override诊断中直接说明，不能静默丢掉context contract。
-
-context parameter规则：
-
-- 参数标签在IR中使用`Named(name) | Unnamed { ordinal, span }`封闭表示。具名参数在同一list、该声明的ordinary value parameter及property setter parameter命名空间中必须唯一；`_`可重复但不建立可引用名称，诊断以稳定的源码序号标识；
-- canonical exact type相同的两个context parameter非法。generic template定义处先拒绝正规化后已经相同的parameterized key recipe；不同recipe在某个concrete substitution后合并到同一exact key时，只拒绝该具体化并在调用或显式实例化处诊断；
-- 类型必须在最终concrete application中是non-null managed ref。class、interface、object、Array等nominal ref application以及fully typed ordinary/suspend managed function value可以使用；struct、enum、tuple、`Option<T>`、`Ptr`、`FunPtr`和其他value/raw/code carrier不能直接使用。这里的managed function value不等于M27明确排除的“携带context requirement的context function type”；
-- generic declaration可以在context type内部引用其type parameter，但Export HIR必须证明所有合法substitution都保持ref category；Export template保存typed key recipe，每个fully concrete contract application（包括没有body的abstract/interface owner application）都必须完成substitution、得到完整exact key并再次执行duplicate-key检查，implementation body随后才建立LocalConcrete entry plan；
-- transparent `typealias`先展开，因此alias和target是同一个key；不同generic application是不同key；
-- public/protected contract中的context type遵守9.1.5与M23的signature exposure规则，不能借context metadata泄漏不可见类型；
-- context name只在函数body/expression body或property accessor body中可见，不进入receiver/type clause、annotation argument、property type或ordinary parameter default expression。M17 default在caller侧展开，而context参数到callee entry才取得；M27不建立第二套default隐式传值规则。
-
-### 1.2 参数取得时点
-
-context parameter看起来并表现为参数：每次进入source-level concrete function body或property accessor时，生成的prologue按源码顺序对每个required exact type lookup一次。具名结果保存为普通immutable local；`_`只完成presence check并丢弃临时结果，但binding仍由当前TaskContext正常保活。
-
-```scoop
-context(current: Logger)
-fun example(next: Logger) {
-    current.write("outer")
-    context(next) {
-        current.write("still outer")
-        anotherContextualCall() // 新callee取得next
-    }
-}
-```
-
-这条规则带来以下确定行为：
-
-- 某个parameter即使最终没有被body读取，declaration仍明确要求它，进入body前缺失就抛异常；
-- 同一activation内的parameter identity稳定，不会因嵌套`context(...)`而隐式变化；
-- ordinary closure引用parameter时，捕获的是该immutable local；不引用时不会因为创建位置而捕获TaskContext；
-- suspend declaration的parameter若跨挂起存活，按普通managed local进入exact coroutine slot；
-- abstract declaration及无body的interface member只保存contract，没有可执行prologue；任何实际source body（包括interface default body）都在其唯一implementation entry执行lookup。
-
-prologue按一次source implementation activation插入，而不是按machine callable插入：this-adjust thunk、variance/callable-reference adapter、跨Cone bridge等只转入唯一body entry，不能重复lookup。suspend body也只在initial state执行prologue；resume state从frame中的已取得local继续，不重新读取当前binding。
-
-### 1.3 exact type key
-
-key由context requirement或binding expression的**canonical exact static type**唯一确定，而不是：
-
-- 参数/变量名称；
-- expression的运行期TypeDescriptor；
-- 某个兼容父类或interface；
-- typealias拼写；
-- runtime generic variance或subtype搜索结果。
+String、Array/MutableArray、class/interface/object、Any 和 ordinary/suspend 函数值均可作为 key。Option、struct、enum、tuple、Ptr、FunPtr 不能直接绑定；不因正文需要某个接口就自动装箱或转换 binding value。
 
 ```scoop
 interface Service
-final class ServiceImpl : Service
+class ServiceImpl : Service
 
 context(service: Service)
 fun useService() {}
 
-fun examples(impl: ServiceImpl) {
+fun needsServiceBinding(impl: ServiceImpl) {
     context(impl) {
-        useService() // 运行时缺少Service；这里只安装ServiceImpl
+        useService() // ServiceImpl does not supply Service.
     }
+}
 
+fun withServiceBinding(impl: ServiceImpl) {
     val service: Service = impl
     context(service) {
-        useService() // 命中Service
+        useService() // Exact Service binding.
     }
 }
 ```
 
-binding body中出现哪些contextual call不能反向影响`value`的类型推断。否则binder需要知道任意深调用、FFI和separate compilation之后的requirement集合，等价于提前引入本里程碑明确排除的静态Context传播。
+key 使用表达式完成普通类型检查和 smart cast 后的静态类型。别名与目标同 key；不同 nominal application 或完整函数类型不同 key，函数型变不会自动增加另一个 binding。同型多角色使用不同 nominal wrapper，透明 alias 不能充当新 key。不同 key 可以共存，安装 ServiceImpl 不遮蔽外层 Service；只有后者也不存在时 needsServiceBinding 才抛缺失异常。
 
-exact match的代价是同一exact type只能表示一个context角色。需要同时区分primary/replica database之类的同型角色时，必须声明不同的nominal wrapper或capability view；transparent typealias不足以创建新key。
+泛型直接使用已有 type expression：
 
-### 1.4 `context(value) { ... }` scope
+- `Array<T>`、`(T) -> T` 等始终为 ref，可以作为符号化 key。
+- 裸 T 需要 `T : ref` 或 class 上界；无约束或仅 interface 上界的 T 可能为 value，定义处即拒绝。
+- 保留 13.9 的 kind bound 与 nominal bound 互斥规则，不为 Context 发明新的 bound 组合。
+- 定义处拒绝已经 canonical 相同的 key；完整替换后再拒绝新合并的 key。例如 `context(a: A, b: B)` 的 A/B 各自满足 ref 条件，A=B 的具体 application 仍非法。
+- 具体化检查不能只在有 body 的调用处执行；只有 abstract/interface contract 的 owner application 也须检查。
 
-语法：
+公开/protected requirement 遵守普通签名暴露规则。类型只出现在 requirement 中也属于真实接口依赖，按实际 provider 导出和查询。
 
-```text
-context-scope-expression ::= "context" "(" expression ")" block
-```
+### 2.3 取得时点与声明契约
 
-它是compiler-known表达式，body是词法block而不是lambda。M27一次只绑定一个value；多个不同类型使用嵌套scope：
+source implementation 的 prologue 按 list 顺序完成全部 lookup，再进入用户 body。named 项建立 local，anonymous/未使用项也执行 presence check；第一个 missing 决定异常。用户函数内部的 try 尚未进入，只有 caller 能捕获 prologue 失败。
 
 ```scoop
-context(database) {
-    context(logger) {
-        serve()
+context(current: Request)
+fun observe(next: Request): Long =
+    context(next) {
+        current.id + currentId()
     }
-}
 ```
 
-求值与退出规则：
+上例 current 始终是本次入口取得的对象，currentId() 取得 next。suspend activation 只在 initial state 查找，resume 使用已保存 local。this-adjust thunk、callable-reference adapter、跨 Cone bridge 不重复插入 prologue；abstract/interface 无 body 声明只保存 contract。
 
-1. `value`先在外层Context中完整求值一次并确定canonical exact static ref type；body不向它提供expected context type，整个Context scope收到的外层expected result type也只传给body/result，不传给`value`；
-2. value正常完成后才安装binding；安装必须failure-atomic，body不能观察半完成状态；
-3. body在新binding下执行一次，body的normal result是整个表达式结果；
-4. 同exact type的内层scope shadow外层scope，退出后恢复外层值；原先unbound时恢复unbound；
-5. normal fallthrough、`return`、`break`、`continue`和exception unwind只要真正离开scope，都必须恰好恢复一次；
-6. 仅仅挂起不离开scope，不恢复binding；resume后仍在同一TaskContext与同一scope状态继续；
-7. body中的`try`/`finally`继续使用8.7既有规则；Context cleanup只加入同一typed cleanup stack，不建立平行控制流模型。
+override/interface implementation 在完成 owner/callable substitution 后必须保持 requirement 的数量、顺序和 exact type，名称可不同。继承同一普通签名却带不同 contract 是 owner application 冲突。property 的 getter/setter 分别承接同一 list；stored/delegated/constructor property 的隐式 accessor 不能实现 contextual property obligation。
 
-body不建立callable或suspension boundary：位于`suspend` callable时，它直接继承所在body的挂起能力；位于ordinary callable时，它仍不能调用suspend callable。ordinary/suspend两个`context`函数overload不参与这条规则。
+只差 context list 的函数是重复声明。context list 不参与 candidate applicability、MSC、类型推断或函数类型，也不转成机器参数。无 requirement 的中间函数可以调用 contextual function；不推导传递 effect。函数引用创建时不 lookup/snapshot，在真正调用目标 body 时取得。普通 receiver、实参和 default 先按 M17 规则求值；default 可以调用别的 contextual function，但不能引用尚未建立的 callee context local。
 
-`context(value) { ... }`的token序列与“调用名为`context`的函数并传trailing lambda”相同。parser必须在生成普通Call/Lambda前按本形态建立专用AST；无receiver的完整形态保留给Context。`)`与`{`之间采用现有control-flow header的换行/terminator规则；qualified `obj.context(...) { ... }`及不满足本shape的标识符使用仍可按普通语法处理。
+### 2.4 parser 消歧与诊断
 
-### 1.5 与Kotlin表面的有意差异
+无 receiver 的完整 `context(value) { ... }` 形态保留给专用表达式，在生成普通 Call/trailing Lambda 前识别。qualified `obj.context(...) { ... }` 及其他不匹配该形态的 identifier 用法仍按普通规则。括号与 block 间使用既有 control-flow header 的换行规则。
 
-M27保留声明前缀、参数名和binding block的形态，但不复制Kotlin的call-site implicit resolution：
+scope body 是原 callable 内的词法 block，可使用原有 return/break/continue，也继承挂起能力；没有 non-local lambda return 或额外 suspend overload。value 独立求类型，scope 的 expected result type 只传给 body，body 的 contextual calls 不能反向给 value 提供类型约束。
 
-- context requirement不参与overload candidate applicability或MSC；两个声明若只差context list，仍是重复声明；
-- override/interface implementation的context list是导出contract。每个concrete owner/callable application完成全部substitution和alias canonicalization后，required type的数量、顺序和canonical identity必须exact-match；参数名可按ordinary override参数规则不同；
-- property-level context list分别投影到getter和已有setter的accessor contract，并按各自slot验证。若一个owner继承到ordinary signature相同而context contract不同的多个function/accessor slot，则该owner application冲突；不能按声明顺序选一个，也不能让单个override同时冒充两份不同contract；
-- call site不静态检查当前是否有binding，也不插入隐式参数；callee entry在运行期lookup，缺失时抛异常；
-- context list只枚举本declaration entry显式执行的lookup，不要求覆盖callee的context list，也不从body/call graph推导、传播或闭包化；无context list的函数可以调用contextual declaration，缺失只在后者entry动态抛出；
-- M27没有explicit context argument、`contextOf<T>()`、context function type或Context-aware callable conversion；
-- `context(value)`只按exact static type绑定一个key，不执行compatible-type resolution，也不接受同层多value list。
+非法 target、空/重复前缀、缺类型、多 binding value、非法参数修饰和错误 block 形态在声明/表达式边界报错，不退化成“找不到 context 函数”。名称、exact key、ref 类别、可见性、override 与 effect 错误由 HIR 给出原 source span。
 
-这些差异是保持普通ABI、透明中间调用链和O(1) exact lookup的基础，不是parser限制。
+## 3. 作用域、异常与 cleanup
 
-### 1.6 effect与ABI分类
+### 3.1 求值与恢复
 
-- Context不增加ordinary/suspend function的机器参数，不改变函数类型、mangle、vtable/itable slot、C ABI或Scoop ABI；
-- context list仍进入Export HIR declaration contract、override验证、`.slib` semantic fingerprint和诊断metadata。修改它是source contract变化，但不必是machine calling convention变化；
-- prologue lookup可能走missing异常分支，因此contextual concrete body不是`@NoGC`；`context(value)`安装可能分配/GC，也不是`@NoGC`；二者均不得出现在release-safe、const或其他禁止managed effect的body；
-- payload对象的方法仍按普通签名调用，可以是ordinary或suspend method。Context lookup本身不拥有、捕获或暴露continuation；
-- context requirement不参与M16类型推断，generic type argument仍只能由ordinary args、receiver、expected type和explicit type args决定。
-- contextual declaration的callable reference是相同ordinary/suspend function type；创建reference时不lookup或snapshot Context，调用该function value进入目标body时才从invocation所属TaskContext执行prologue。reference resolution与MSC同样忽略context list。
+1. 在外层 Context 完整求值一次 value；抛出或挂起时，新 scope 尚未安装。
+2. 构造新的 binding root，成功后提交并取得 mark。
+3. 执行 body；同 key 的内层 binding shadow 外层。
+4. 真实退出按词法 cleanup 恢复旧 root，保留原结果或控制转移。
 
-## 2. Task与动态作用域语义
-
-### 2.1 ownership模型
-
-Context属于logical task，不属于OS thread、native stack frame或词法closure：
+MIR 示意：
 
 ```text
-logical task
-  └── TaskContext
-        ├── exact-type bindings
-        └── structured restore state
+value = evaluate_in_outer_context()
+mark = ContextPush(key, value)
+activate_cleanup(RestoreContext(mark))
+body_outcome = execute_body()
 
-OS thread
-  └── ScoopThreadState.current_task_context  // 当前执行入口，也是GC root
+normal_value:
+    store_exact_result_if_non_unit()
+real_scope_exit:
+    run_existing_cleanup_chain()
+    continue_original_transfer_or_unwind()
+suspend:
+    save_live_mark_and_values()
+    return_suspended_without_scope_restore()
 ```
 
-同一个TaskContext同一时刻只能由一个执行者驱动。普通函数调用、virtual/interface调用、普通closure invocation以及同一coroutine内部的direct suspend调用都共享当前TaskContext，不发生fork。
+push 失败时没有激活 cleanup。ContextRestore 与 finally、EndCatch 使用同一个 cleanup stack，不增加另一套 pending tag、异常存储或运行期解释器。
 
-binding重绑定与bound对象自身mutation必须区分：parent和child后续`context(value)`互不影响，但继承到的managed object仍是同一个对象；其线程安全继续服从普通数据竞争规则，Context不复制对象也不提供同步。
+| 嵌套关系 | 实际退出顺序 |
+| --- | --- |
+| context 内含 try/finally | 内部 finally 仍看到该 binding，之后 restore |
+| try 内含 context，外部有 finally | 先 restore，外部 finally 看到恢复后的 binding |
+| context 内含 active catch | 退出 catch 的 EndCatch 先于外层 restore |
+| active catch 内含 context | 内层 restore 先于 EndCatch |
+| 内部 catch 处理异常且未退出 scope | 保留当前 binding |
+| 只挂起 | 不消费 scope mark，只退出本次 driver execution entry |
 
-### 2.2 execution enter与binding restore
+非 Unit normal result、return/pending payload 和含 ref aggregate 先进入既有 exact place/root，再执行 cleanup。throw/rethrow 沿 M25 的 EH record 规则；需要跨挂起时沿已有 materialization 生成 managed Throwable，不能把 native record 放进 frame。
 
-必须区分两套操作：
+### 3.2 MissingContextException
 
-- **task execution enter/leave**：OS thread开始或结束驱动某个logical task时，临时替换`ScoopThreadState.current_task_context`，离开driver后恢复调用者原Context；
-- **binding push/restore**：源码真正进入或退出`context(value) { ... }`时，修改当前TaskContext中的有效binding。
+core 增加 `public final class MissingContextException(message: String?) : Exception`，普通可构造、可捕获。缺失分支以实际 core constructor 和 Some(message) 构造，再走现有 throw 路径。
 
-因此挂起只会使当前线程leave task execution，不会pop源码binding。resume先enter frame所属TaskContext，再从挂起点继续；真正穿过scope exit edge时才restore。
+消息包含声明 diagnostic path、named label 或匿名序号、canonical type；可以在具体化时生成不可变字符串常量，不需要 runtime 反射。消息不使用进程 slot、对象地址或 host 路径作为类型身份。第一个 missing 项稳定，不受 hash table 或登记顺序影响。
 
-execution enter必须严格LIFO。保存的previous TaskContext本身也是managed ref，必须位于collector可原地更新的root slot中；不能只放在未扫描的C local或第二个TLS裸缓存。
+lookup hit 是无分配 leaf，miss 的异常构造属于 managed CFG。ContextPush 可分配；因此 contextual declaration 和 binding scope 均不属于源码 NoGC，也不能用于 const/release-safe body。OOM 仍沿现有 fatal allocation failure，不改成 MissingContextException。
 
-### 2.3 root task与启动
+## 4. 逻辑任务与控制边界
 
-M23的eager initializer和最终`main`由多个独立managed gateway调用，中间C coordinator回到native-safe。M27必须在第一个eager gateway前增加受检context bootstrap：
+### 4.1 传播矩阵
 
-1. program/image/context metadata先完成native validation与slot解析；
-2. 主线程attach后，在仍为native-safe且`current_task_context`为空时调用唯一受限的runtime Context entry constructor。它只消费已验证的Context runtime support，以显式可回写native root保护分配中间值，完整建立empty root TaskContext后先安装到ThreadState，再进入任何Scoop managed gateway；
-3. root跨全部eager gateway、gateway间native-safe区间和最终root gateway保持存活并接受GC relocation；
-4. `main`完成且不再进入managed代码后，经受检teardown清空；detach验证没有残留current Context或execution entry。
+| 边界 | 有效 Context |
+| --- | --- |
+| 普通/virtual/interface/closure 调用 | 当前 task |
+| 同一协程的 direct suspend 调用 | 当前 task，不 fork |
+| startCoroutine 的 ordinary 实参及适配器构造 | caller task |
+| 真正进入 startCoroutine task body | 从当前有效 binding fork 的 child |
+| task 的最终 completion 通知 | child task，body scope 已按正常/异常路径退出 |
+| REGISTERING 时投递同步 completion payload | 不驱动 frame，不切换 task |
+| 实际 resume driver | frame 持有的 task；退出后恢复 resumer |
+| 同步 outbound C/Scoop ABI 调用 | 保持当前 task |
+| foreignCallback 注册 | 保存当前不可变 binding root |
+| 每次 callback invocation | 从 registration root fork 的独立 task |
 
-initializer中的contextual call因而具有普通语言语义：没有同一initializer词法scope提供的binding时抛`MissingContextException`，而不是“没有TaskContext”的runtime invariant错误。
+parent、child 与 callback invocation 只共享 immutable node 和 bound 对象；后续重绑定不互相写回，对象 mutation 仍是普通共享对象行为。Context 不提供同步或深拷贝。
 
-foreign thread attach本身处于native-safe，可以尚未安装Context；任何后续managed gateway必须先通过同一受限entry constructor安装empty entry Context或下述callback invocation Context，返回native并准备detach时恢复为空。该constructor不是可调用的Scoop body，不执行用户代码、lookup、callback或普通managed dispatch；这是允许`current_task_context == null`的唯一分配入口。
+### 4.2 启动与线程根
 
-### 2.4 coroutine fork与resume
+ThreadState 增加可回写 current_task_context root。主线程 attach 仍是 native-safe；第一个 eager/root gateway 先执行原 mandatory poll，再分配空 TaskContext 并安装，之后才执行源码 initializer/main。后续 gateway 复用同一个 task；没有 eager initializer 时由 root gateway 完成首次建立。
 
-`startCoroutine`是当前核心语言中明确的logical child boundary：
+允许没有 task 的阶段仅为 native attachment、gateway 的内部准备前缀及最终 teardown。准备前缀只分配/安装 Context，不运行用户 body 或 requirement。无 binding 的 initializer 调用 contextual function 得到普通 MissingContextException。
 
-- task、completion及其他ordinary实参先在caller Context中按源码顺序求值；
-- 真正调用task body前，从caller当前**有效binding**建立独立child TaskContext，child restore history为空；
-- task body与最终`completion.resume`/`resumeWithException`都在child Context下运行；
-- immediate completion、真实挂起、恢复失败及completion自身抛出都必须最终leave execution entry并恢复调用者Context；
-- caller之后退出外层`context(value)`不影响已建立的child；child重绑定也不写回parent。
+root 在 gateway 之间的 native-safe 区间仍被扫描。main 完成、不再进入 managed 代码后，在现有 thread/registry 同步下清空；foreign callback 恢复外层 task 或空值后再 detach。不得额外缓存未扫描的 TLS TaskContext 指针。
 
-每个compiler-generated resumable coroutine frame必须有非可选、immutable的`task_context` managed-ref field，并进入普通TypeDescriptor RefScan。frame发布给continuation前完成该字段初始化。每个resume adapter在M13 atomic claim成功后：
+### 4.3 frame、resume 与 completion
 
-1. 从frame取得所属TaskContext；
-2. enter并保存resumer原Context；
-3. 驱动到再次`Suspended`、成功完成或失败完成；
-4. 在全部出口leave并恢复resumer Context。
+每个 resumable frame 有非可选、发布后不重新赋值的 TaskContext field，GC relocation 除外；direct suspend 创建的新 frame 取得同一 task。跨挂起的入口参数和 scope mark 使用已有 exact CoroutineSlot。
 
-resumer当前恰好绑定同exact type不能覆盖frame Context。嵌套resume形成普通LIFO序列，例如callback Context A进入coroutine Context B，resume返回后恢复A，callback返回后再恢复其外层Context。
+resume adapter 继续先做原 atomic claim。只写 latched payload 的路径不 enter；真正取得驱动权后才取得 frame task、保存 resumer Context 并 enter。Suspended、Completed、失败通知和 unwind 出口均 leave，previous root 活到恢复完成。
 
-本规则不改变hidden continuation calling convention：TaskContext由frame持有，不给ordinary或suspend callable额外增加context参数。
+同一 task 的 binding 更新使用 M13 已有驱动串行性；发布可恢复状态后，原 driver 不再修改已交出的 task，只恢复自己的线程入口。不得只因“单个 frame 有 CAS”就忽略 direct suspend 链的交接；真实跨线程组合 fixture 必须覆盖这一顺序。无需另加全局 task 锁。
 
-### 2.5 closure
+completion 自身抛出仍执行 leave，不能将它误作 task body 失败而再次调用 completion。callback A 恢复 coroutine B 的正常嵌套顺序为 A → B → A → callback 外层。
 
-普通closure不捕获创建位置的TaskContext。两种情况必须区分：
+### 4.4 closure 与 callback
+
+普通 closure 没有隐式 TaskContext field：
 
 ```scoop
-context(logger: Logger)
-fun captureParameter(): () -> Logger = { logger } // 捕获entry local
+context(request: Request)
+fun captureRequest(): () -> Request = { request }
 
-fun deferCall(): () -> Unit = {
-    contextualLog() // invocation时由contextualLog自己的prologue lookup
-}
+fun deferredRead(): () -> Long = { currentId() }
 ```
 
-第一种只复用现有lexical closure capture；第二种在closure实际invocation所属TaskContext中解析callee requirement。不能仅因closure在`context(value)`内部创建，就给它添加隐式snapshot field。
+第一种捕获入口 local；第二种在 invocation 时由 currentId 的 prologue 查找。
 
-### 2.6 FFI与managed callback
+callback token 增加 `Empty | RootHandle` 快照存储。注册成功前取得 current root，非空时沿既有 handle 表保活；retain 共享它，不重新采样。每次 invocation 的 active lease 同时保活 closure、snapshot 和 failure 所需状态；owner/active 归零后一起释放，OneShot 与 Reusable 沿原协议。
 
-同步C ABI或Scoop ABI outbound调用不切换logical task。native-safe/native-borrowed区间不清空`current_task_context`；该slot继续作为GC可更新root，因此同一同步调用链返回后观察到原binding。ordinary function ABI没有hidden Context参数，foreign frame无需理解Context。
+C gateway 在已进入的 managed 段内 resolve/root closure、snapshot 和 exception，再调用 generated adapter。adapter 的入口 poll 后 fork snapshot、enter invocation task、调用用户 closure，正常和 catch/status 出口都 leave。快照作为 typed nullable managed 输入加入私有 adapter；C trampoline 的外部签名、contextIndex 与 ForeignCallback<F> 表示不变。
 
-现有`foreignCallback(...)` registration是明确的Context snapshot边界：
+MissingContextException 在 callback 内沿原 catch-all/status/failure-handle 路径处理。同步重入也使用 registration snapshot；当时调用线程的 outer Context 只用于恢复。并发 invocation 各有独立 mutable task。
 
-- registration成功前捕获当前有效binding的immutable snapshot，token通过独立GC handle保活；retain共享snapshot，final release/token destruction在active lease归零后同步释放closure、snapshot与failure handle，不引入GC finalizer；
-- OneShot和Reusable的每次invocation都从snapshot建立新的TaskContext，restore history为空；并发invocation不得共享可变TaskContext；
-- native gateway attach线程并取得closure/snapshot handle roots后，先用受限runtime entry constructor从snapshot建立invocation Context并安装；只有安装完成后才进入generated managed adapter调用closure，并在normal、异常转换和全部失败出口leave；已有outer Context的同步重入也先建立独立invocation Context并以execution guard暂存outer；
-- callback内部的`context(value)`只影响本次invocation，不污染snapshot、其他并发invocation或下一次调用；
-- `MissingContextException`由既有callback catch-all物化为token failure/managed exception handle，不得展开穿越C frame。
+M27 不承诺取消或 abandoned continuation cleanup；永不恢复的 frame 与 task 不可达后由普通 GC 回收。
 
-M12静态`FunPtr` target本来就必须`@NoGC`，因而不能使用Context；M27不改变其能力。
+## 5. Runtime 表示与 GC
 
-## 3. Exact-type key、slot与artifact契约
-
-### 3.1 三种身份不得混用
-
-至少区分：
+### 5.1 两种内部对象
 
 ```text
-PersistentExactTypeId      // M23既有exact type身份
-PersistentContextKeyId     // 由exact type确定的Context key身份
-ContextKeyRef              // 各IR crate自己的local/external typed引用
-PersistentContextKeyUseId  // 一个machine-code owner对一个concrete key的materialized use
-ContextSlotCellRef         // 由该use唯一拥有、与owner同linkage的cell
-ContextSlotId              // 当前进程内lookup索引
+TaskContext                         // 24 bytes with the current header
+    bindings: ContextNode?
+
+ContextNode                         // 48 bytes with the current header
+    child[4]: NullableManagedRef
+
+ContextScopeMark                    // compiler aggregate, not a heap object
+    owner: TaskContext
+    previousRoot: ContextNode?
+
+ContextExecutionGuard               // distinct compiler/native aggregate
+    previousTask: TaskContext?
 ```
 
-`PersistentContextKeyId`使用独立、versioned、domain-separated canonical encoding，并非直接type alias裸digest。下面只是编码示意，实际hash/tag拼接随wire spec固定：
+node 中间层存 child node，最后一层存实际 payload，全部槽有 managed provenance 和精确扫描。null 表示内部空边，不是源码 nullable payload。published node 除 GC 更新指针外不可修改。
+
+TaskContext 提供同一逻辑任务的共享可变入口：该任务的多个 frame 都通过它观察最新 binding root；fork 则建立另一个入口，共享当前不可变节点。snapshot 没有独立的源码 identity 或其他状态，一个 root 引用已能表示同一版本；callback 的非空 root 仍由 GcHandle 保活。scope 的历史版本保存在各自 mark 中，跨挂起保留在 frame，不是取消恢复状态或 GC root。
+
+TaskContext 与 ContextNode 由实际 core provider 以两个封闭 generated nominal role 生成，key 使用既有 `(core provider identity, role)` 关系，进入普通 exact type/Strong TD/scan 导出。consumer 使用原定义；不按用户 Cone 重复生成，也不恢复已删除的 program/core descriptor。角色、typed layout 与 C struct 必须对应，helper 的 TD 通过显式 typed metadata 参数取得。
+
+这两种内部类型不公开为源码 Any、Context 容器或 intrinsic API。C 与 LLVM 共享本版固定 layout，必要的 ABI 测试检查 size/offset/scan；其 release hook 为 None。字段和表示发生真实改变时更新 ABI/layout fingerprint，不追加“表示来源”证明。
+
+### 5.2 索引与成本
+
+全程序登记的实际 key 数为 K。`K > 0` 时选择覆盖 `0..K-1` 的最小非零树高，最多 16 层；K=0 保持空树。slot 固定为进程内 u32，超出实际可表示容量是分配/metadata 错误，不是新的语言配额。
+
+- lookup 按 2-bit digit 访问，无节点则 miss；成本 O(H)，H≤16，与动态 scope 深度无关。
+- push 只 path-copy 目标路径，成本 O(H) 小对象；新路径全部完成后提交一次 task.bindings。
+- restore 直接恢复 mark.previousRoot，O(1)，不分配、不 unwind。
+- snapshot 只取得 immutable root，O(1)，不分配。
+- fork 只分配新的 TaskContext，O(1)，无需复制 undo 或所有 binding。
+
+mark 通过普通局部/frame root 保活旧树，足以恢复被 shadow 的值。去掉 undo 对象后，task 本身不保留历史 scope；消费 mark 后结束 liveness。coroutine transform 在原有 ContextRestore 后清空对应 frame slot，正常与异常 cleanup 共用此路径，已完成 continuation 仍可达也不保留旧树。不要使用 64-ref managed page：当前 allocator 会把约 528-byte page 放入至少一个 32-KiB large block。allocator 优化另行评估。
+
+fanout、树高、节点字段和 slot 排序属于本版 runtime 实现，不是源码可观察值或长期产物身份；首版固定这一条实现，不同时提供 hash map、COW page 等平行路径。
+
+这项选型优先满足低成本 snapshot/fork、无分配恢复，以及不随 scope 深度增长的查找。保存整份旧 root 能正确恢复，依赖绑定只按结构化 LIFO 修改、同一 task 串行驱动、child 使用独立 TaskContext；它只恢复 binding 映射，不回滚 payload 对象的 mutation。
+
+代价是每次 push 复制 H 个节点并增加 GC 压力，lookup 也需要 H 次路径访问。例如全程序有 1000 个 key 时 H=5，一次完整路径复制约为 5×48=240 byte 的对象存储，尚未包含分配器元数据。这是按布局计算的成本，不是基准结果；当前没有数据证明 radix tree 是性能最优。可变 slot 表可以降低 push/lookup 成本，但需要为 snapshot/fork 复制存储或维护 COW；链式 binding 可以便宜地追加和保存快照，但 lookup 随链深度增长。后续实际性能数据可以支持替换表示，不改变本章的源码、GC 与恢复契约。
+
+### 5.3 根与 effect
+
+| 持有位置 | 扫描/恢复方式 |
+| --- | --- |
+| ThreadState.current_task_context | 所有 thread mode 下的可回写 root |
+| execution guard 的 previous | compiler root 或明确登记的 native slot |
+| scope mark 的 owner/previousRoot | 普通 exact aggregate；跨挂起进入 frame slot |
+| task/root/node/payload | 普通 TD 与 RefScan |
+| push/fork 分配中间值 | 已有 ManagedEntry/native root，GC 后 reload |
+| named context local | 普通 local/capture/frame liveness |
+| callback snapshot | handle-registry 的 object slot，token 只保存整数 handle |
+
+所有 ref store 服从现有 checked barrier，包括 task root 替换和新节点字段初始化。push 的 input value、旧 root、新建部分及 task 在每个 allocation slow path 都有完整 root；不能保留 GC 前的裸地址继续构造路径。
+
+try-get、restore、snapshot、enter/leave 为 no-allocation/no-GC/nounwind runtime leaf；仍读写 managed ref，不等于源码 NoGC。push/fork/初始 task 构造是 may-GC 操作，复用已有薄 ManagedEntry/NativeBorrowedEntry。无需让 native-safe 状态直接分配，不新建 Context allocator。
+
+这些 leaf 访问 ThreadState/tree，首版保持保守 LLVM memory effect，不能标为 readnone/argmemonly。lookup/snapshot 不得跨 push/restore/enter/leave 错误 hoist 或合并；没有 safepoint 不代表没有内存 effect。
+
+仅保留实际动态状态的局部检查，例如 unresolved cell、错误入口或 restore owner 不匹配。LIFO/退出正确性由既有 typed cleanup 构造和结构验证负责；不在每次 restore 重放 CFG、扫描整棵树或维护 mark 凭证。
+
+## 6. 编译器分层与代码落点
+
+### 6.1 数据边界
 
 ```text
-PersistentContextKeyId = H(
-    "scoop-context-exact-type-key-v1",
-    PersistentExactTypeId
-)
+ContextContract
+    ordered requirements:
+        label: Named | Unnamed
+        refTypeExpr
+        sourceSpan
+
+ContextLookup
+    declarationRequirementRef + ordered parameter index
+    complete expression type (generic type expression / concrete exact type)
+    immutable local initializer or standalone presence-check expression
+
+ContextScope
+    value + exact/symbolic ref type
+    typed body + result/ControlOutcome
 ```
 
-一对canonical exact type/key是一一对应关系，但typed wrapper保证context key、key use、cell、type、field、dispatch slot和机器slot不能混用。不得以FQN、parameter label、link symbol、host path、输入顺序或arena ordinal作为identity/fallback。
+declaration requirement 使用原 callable/property typed identity 加独立 parameter index 引用；不保存 body local。generic 复用共有 type expression，concrete application 才有 exact key；不重复保存另一份 key recipe/hash。空 contract 与缺失信息不同，必要字段不能用 Option 待下游补齐。
 
-transparent alias展开到同一key；`Repository<User>`和`Repository<Order>`为不同key。context parameter名字只进入source interface/诊断metadata，不改变key。
+入口按声明顺序生成普通的 immutable local initializer 或 presence-check expression；每项使用专用 ContextLookup，完整类型给出 key，不另设平行的入口指令列表。MIR scope 的 push 先于结构化 try，restore 放入该 try 的 generated finally，复用已有 CleanupCursor/EndCatch/PendingTransfer 的次序；不新增与 finally 重复的 cleanup 状态机。
 
-### 3.2 context match plan
+mark/guard 以不同的逻辑 variant 保持类型区分，物理存储使用已有 exact aggregate/nullable-ref 和 scan。Task、Node、erased binding ref、mark、switch guard 使用 compiler-owned Context storage role；只有 Task 和 Node 是新增的可分配堆对象；其余 role 复用普通值布局、abstract-reference 或 boxed-value descriptor 表示存储与扫描，不生成额外 Context 堆对象。各 role 的持久名义身份由实际 core Cone 与 role 导出，源码不能命名这些类型；Task/Node 的内部 ref 可以为空，binding ref 不解释为源码 Any。跨挂起 mark 的 CoroutineSlot 携带这份完整 storage type，不用 opaque bytes，也不为它增加 Context 堆对象。
 
-HIR对每个requirement和binding site产生非可选typed plan：
+| 层 | 负责的变化 |
+| --- | --- |
+| AST/parser | 前缀、参数 label/span、独立 scope/block、恢复边界与 dump |
+| HIR lowering | ref 类别、key、名称域、default 边界、signature exposure、override、具体化重复、入口绑定、scope 类型/ControlOutcome |
+| HIR/export | 同一声明与共享正文的 requirement/scope codec、原 provider 与必要支持引用 |
+| MIR lowering | prologue、missing CFG、ContextRestore cleanup、exact mark/result、frame task、start/resume/adapter enter/leave |
+| MIR | 完整操作/类型、frame field 和 callable contract；复用现有结构与引用验证 |
+| LIR lowering | managed/null provenance、helper ABI、TD 参数、statepoint/root、cell atom 与 registration |
+| codegen | 机械发射已有选择、共享 C layout、callable cell 表与 relocation |
+| slib/linker/runtime-build | section/profile、object 引用与 ODR、缓存失效；不重做源码语义 |
 
-```text
-DeclaredContextRequirement {
-    parameter_label: Named(name) | Unnamed { ordinal, span },
-    key: Symbolic { ref_type_expr, key_recipe }
-       | Concrete { exact_ref_type, persistent_key },
-    access/origin metadata,
-}
+普通函数及 hidden continuation signature 不添加 Context 参数。私有 callback adapter 的新增 snapshot 输入必须同时进入 C typedef、MIR/LIR physical signature、root plan 与 runtime 调用。
 
-AppliedContextRequirement {
-    declaration_requirement: Local | External checked ref,
-    exact_ref_type,
-    persistent_key,
-}
+### 6.2 现有文件与模块
 
-ConcreteEntryRequirement {
-    applied_requirement: AppliedContextRequirementRef,
-    action: BindNamedLocal(ConcreteLocalId) | CheckPresenceOnly,
-}
+实施沿现有模块扩展，不新增 stage crate：
 
-ContextBinding = Template { value_ref_type_expr, key_recipe }
-               | Concrete { value_exact_ref_type, persistent_key }
+- `compiler/ast/src/declarations.rs`、`expressions.rs`；`compiler/parser/src/decl/`、`expr/primary.rs` 及 dump。
+- `compiler/hir/src/entities/core_protocols.rs`、共有声明/正文/codec，以及 `compiler/hir-lower/src/` 的声明、表达式、substitution 与 override 入口。
+- `compiler/mir-lower/src/cfg/`、`coroutine/`、`coroutine_registry/start.rs`；`compiler/mir/src/module.rs` 的 CoroutineFrame 与相关 typed metadata。
+- `compiler/lir-lower/src/callbacks.rs`、production、root lowering；`compiler/codegen/src/` 的操作、frame、callback 和 registration 发射。
+- `runtime/src/thread.h`、`thread/`、`gc/collector.c`、`callback.c`、`image/` 及 `runtime/src/task_context.c` 的实际 Context 操作。
+- `sysroot/lib/scoop.core/src/throwable.scoop`、core 协议生产、identity/generated nominal、slib profile/object reader 和对应 schema 1 fixture。
+
+大型模块按已有职责拆分。实现前先阅读具体落点；上表指定职责，不要求机械创建与表项一一对应的文件或工厂。
+
+## 7. key cell、跨 Cone 与格式迁移
+
+### 7.1 只增加实际 cell
+
+`ContextKey(PersistentExactTypeId)` 是不同于 type/slot 的 newtype，没有第二份 digest。cell 使用 `(PersistentCallableBodyId, ContextKey)` 的 typed associated-atom key；machine code 经 cell 取得进程 slot，不烘焙 artifact-local ordinal。
+
+每 body/key 只发射一份 cell 与使用项，多个 lookup/push site 复用。抽象 contract 没有实际操作时不发射 cell，入口 local 的后续读取也不产生新 use。
+
+使用项加入**现有 callable registration**的有序 cell 列表，保存 exact key 与 cell relocation。含 key 的 body 将其现有 callable registration、表和 cell 一起输出到该 body 的 LinkObject；无 key 的 registration 继续放在普通 metadata 对象。这是 codegen 的对象分片选择，不产生新的 record family。表、cell 继承 body 的 Strong/ODR associated-atom linkage。同一 ODR body 的这些 atom 一起 coalesce；不同 body 的同 key cell 可以并存。不给 cell 新建 ODR member、key declaration 或独立 registration family。
+
+编译期 key 的 ref 类型、alias 和 identity 已完成检查，runtime 不用对象 TD 重新检查绑定资格。跨 Cone 只比较同一个 PersistentExactTypeId，不用 FQN、symbol、参数名、arena index 或诊断文本回退。
+
+### 7.2 启动发布与 fingerprint
+
+slot cell 为 u64，canonical 初值 0，运行期写入 `u64(slot) + 1`；这可表示全部 u32 slot，包括 0。登记全部 callable 后按 exact key 分组，选定 slot 并一次发布到各 cell；全部输入检查成功前不写入，发布完才调用 gateway。
+
+runtime 检查新增 span/cell 的范围、可写性、零初态、实际 owner 及必要的重复关系，复用既有 ODR 去重。它不重新计算 type hash 或整份 object fingerprint。slot 在本进程内固定，不回收、不复用；首版无动态 image 登记。
+
+内容 fingerprint 包含 contract、操作、key、cell canonical zero bytes、owner 与 typed relocation，继续沿原 ObjectDefinition/registration/RuntimeImage 路径计算。运行期 cell 值、slot 分配顺序和树高不参与持久 fingerprint。只有 fingerprint 自身字段沿既有规则归零，不添加第二个回填/重验状态机。
+
+### 7.3 当前基线与迁移面
+
+下表对照 2026-10-04 的实现前基线与 M27 已落地的格式迁移；各批次验证证据见 ACCEPTANCE.md：
+
+| 项目 | 实现前基线 | M27 迁移 |
+| --- | --- | --- |
+| runtime metadata | ABI 3；image 六类 table，callable record exact-sized | ABI 4，更新 callable cell-list 字段与 size；image table 集合和启动参数保持 |
+| HIR | core-bootstrap-interface /7、cross-cone-interface /48、type-semantics /15 | core-bootstrap-interface /8、cross-cone-interface /50、type-semantics /16（/49 是 M27-1 共享 body 节点的中间版本） |
+| MIR | identity-foundation /2、type-bridge /8 | identity-foundation /5、type-bridge /10（/3、/9 是同步批次版本，foundation /4 是协程批次版本），callback storage ABI 使用 tag 2，保留现有表示表 |
+| LIR | foundation /3、layout-abi /7、layout-link-closure /5、cone-production /5、strong-production /17、link-identity-closure /10 | foundation /4、cone-production /6、strong-production /18、link-identity-closure /11；布局字段未改变的 section 保留版本，更新内容 fingerprint |
+| profile | 两个 Strong /4、cross-cone-generic /3 | Strong /5、generic /4，required inventory 同批切换 |
+| outer/container/identity | HIR/MIR/LIR outer schema 2，callable-body-v2，persistent-v1 mangler | 保留既有域与规则，新增封闭 generated nominal/atom variant |
+| runtime 构建缓存 | 当前源集与 ABI/toolchain fingerprint | runtime ABI contract /6，包含 Context 源文件、共享 layout、adapter 与 registration ABI 的变化 |
+
+共有 callable 声明在 field 11 保存独立的有序 context 参数数组（label/type），不改声明 identity 和普通 value parameters；portable callable body 的 field 11 同样保留 context 参数，涵盖没有公开声明记录的 local function；inheritance signature 在 field 3 保存替换后的有序 ContextKey。context 类型引用沿原 signature reference/visibility 入口收集，正文 lookup 的声明和 ordinal 沿原 body 验证边界解析。
+
+section 的具体新编号/字段号在对应 codec 变更时登记；只有内容变化、编码不变的 section 使用新的内容 fingerprint，不无差别升级所有 schema。core/provider/consumer/runtime 同步重建；旧 ABI 在 prefix 或 capability 边界拒绝，不为旧 frame/callback/record 保留兼容实现。
+
+不恢复已删除的 ProgramDescriptor/CoreBindings，也不为 Context 建立单独授权、来源证明、预算或通用登记框架。
+
+## 8. 测试矩阵
+
+新测试使用 [fixture schema 1](../../tests/fixture_runner/README.md) 与正式 scoop/scoopc/scoop-linker 命令；本次设计不创建未实现语法的通过 fixture。实施时每项都有独立正例、相关 negative 和组合覆盖，诊断断言原位置与信息。
+
+| 组 | 独立覆盖 | 组合覆盖 |
+| --- | --- | --- |
+| 声明/parser | 合法 function/property/anonymous requirement；prefix 与普通 context method 消歧；非法 target/list | local capture、operator/extension、default、setter 名称、三层 dump |
+| 类型/key | ref/Any/函数类型、alias、不同 exact application、derived 不隐式提供 base、不同 key 共存 | smart cast、显式 upcast、M16 推断不受 body 影响、generic substitution 后重复 |
+| contract | duplicate name/key、顺序、override/继承冲突、可见性、NoGC/const/release 禁令 | abstract owner 仅用作类型、跨 Cone property obligation、default 中无 context local |
+| 入口 | first missing、anonymous/未使用项、caller catch、entry local 稳定 | callable reference 创建/调用分离、interface default/adjust thunk 只有一次 prologue |
+| scope | value 求值一次、求值失败/挂起时尚未安装、嵌套 shadow、结果与 normal/return/break/continue/throw | 内外 finally/EndCatch、M25 rethrow、含 ref aggregate 与 M26 插值 |
+| coroutine | immediate/真实挂起、resume failure、direct suspend 共享、start child 隔离 | 同型 binding 与旧 entry local 跨挂起、finally 内挂起和 pending transfer、跨线程/两 child/completion throw |
+| callback | 注册内/调用外、空 snapshot、OneShot/Reusable、exception status | 同步重入、并发 invocation、callback→resume、retain/release 和 foreign detach |
+| GC | 只有 binding 持有 payload、current/previous/task/node/old root 全部移动 | 每个 push/fork 分配点 stress、native-safe 往返、跨挂起 mark 清空、callback handle roots |
+| artifact | HIR/MIR/LIR round-trip、旧版本拒绝、cell/relocation 损坏、缓存重建 | A→B→C、去掉 provider 源码消费、重复 generic/ODR cell 合并、re-export 与独立 body 同 key |
+
+补充验收要求：
+
+- runtime 单测覆盖空树、分支边界、较高 slot、嵌套恢复、分配中间值 relocation；实现测试可以检查本版节点，源码 fixture 不锁定具体 slot 数字。
+- negative fixture 覆盖 2.1–2.4 的每个编译错误类别，包括只有 interface bound 的 T、具体化后重复、stored property 实现 contextual obligation、仅靠当前 binding 推断 T 失败。
+- 跨 Cone fixture 分别从 A 声明类型/requirement，B 包装或物化，C 只凭产物链接运行；同一 generic body 在 B/C 重复物化时 cell 跟随原 ODR member 合并。
+- AST/HIR golden 锁定 scope 是 block、ordered contract、exact/symbolic key 与 entry action；MIR 锁定 prologue、cleanup、mark/result/frame 和 enter/leave；LIR 锁定 provenance、root、cell relocation、ordinary ABI 参数未增加。
+- GC stress 验证恢复后不再保活已消费 mark 的旧树；可以组合 M24 既有 release-hook fixture 观察显式测试 collection 后的不可达性，不引入 weak-ref API 或新回收承诺。
+- 产物损坏在现有 reader/runtime 真实边界测试，不建立另一套正常语言语义 verifier、通用故障框架或测试专用编译器。
+
+## 9. 实施顺序与完成门
+
+每批以能运行的源码路径推进，不先完成全部 metadata 再等待语言入口。
+
+| 批次 | 交付内容 | 批次完成依据 |
+| --- | --- | --- |
+| M27-1 同步纵向闭环 | core exception/内部类型、key cell、root gateway、lookup/push/restore、普通声明与 scope | 正式 CLI 运行独立/嵌套/missing/GC scope，含各 stage dump |
+| M27-2 完整源码契约 | 所有合法命名函数与 property、入口 local/capture、defaults、override、effect 和退出边 | 语言规则 negative 与 finally/EndCatch/loop/result 组合通过 |
+| M27-3 泛型与独立产物 | symbolic→concrete、abstract contract、共有 HIR 导出、A→B→C、Strong/ODR 与缓存 | 删除 provider 源码后消费，实际 key/cell 合并和必要损坏用例通过 |
+| M27-4 协程任务传播 | frame task、start fork、实际 resume enter/leave、mark/local exact slots | immediate/真实挂起、跨线程、direct 链、completion 抛出与 moving GC 通过 |
+| M27-5 callback 传播 | snapshot handle、private adapter ABI、独立 invocation task、全出口恢复 | native 重入、并发 Reusable、OneShot、失败与 retain/release 组合通过 |
+| M27-6 总验收 | 文档/codec/profile/runtime 一致，全部正式 CLI、golden 与回归 | 下列命令无更新模式全部通过，另记录结果到 ACCEPTANCE.md |
+
+内部批次不代表已完成 M27，也不允许把暂未接通的形态输出为成功但缺字段的 IR。迁移期间沿路线图既有正式诊断报告未进入该批的能力，全部 M27 范围在总验收前关闭。
+
+按仓库约定，每批代码完成后先格式化、lint，再测试。最终至少执行：
+
+```sh
+cargo fmt --all
+cargo clippy --workspace --all-targets
+cargo test --workspace
+cargo build -p scoop -p scoopc -p scoop-linker --bins
+python3 -m unittest discover -s tests/fixture_runner/tests
+python3 tests/run_fixtures.py --all
 ```
 
-declaration contract不引用body local：non-generic source/export declaration持有concrete exact type/key，generic Export template持有结构完备的`ContextExactTypeRecipe`/`ContextKeyRecipe`。每个fully concrete callable/owner contract先建立`AppliedContextRequirement`并完成pairwise duplicate检查，因此abstract/interface requirement也能完整存在而没有entry action。只有LocalConcrete implementation body再建立`ConcreteEntryRequirement`并可能引用`ConcreteLocalId`。generic body的binding site也保存template recipe，不能在substitution完成前伪造`PersistentContextKeyId`。这些variant不能用平行optional字段拼接；若两个原本不同的requirement recipe具体化后合并为同一key，该contract application失败。
+如修改 Python runner，先按 AGENTS.md 执行固定 Ruff 版本的 format/check。fixture 不用 --update-snapshots 作为验收；新增预期先独立审阅。runtime 相关 C 测试沿现有仓库构建/测试入口执行，不把 cargo test 当作正式 CLI 覆盖。
 
-generic binding expression的static type同样必须由bound证明始终属于ref category；否则在template定义处拒绝，不能等某次碰巧为ref的instantiation才接受。
+只有以下条件同时满足才标记 M27 完成：spec、core、三个 IR 与 runtime 一致；source 和 artifact-only 链接均可运行；lookup 无动态类型搜索；普通 ABI 无 hidden Context 实参；全部真实退出/挂起/回调边界正确恢复；moving GC 可更新每个 root；旧格式可靠拒绝且缓存重建；没有 TODO、空分支或只在测试存在的替代实现。
 
-concrete requirement与binding只有`PersistentContextKeyId`相等时才命中。runtime不接收source type relation，也不调用`is_instance`、itable lookup或generic solver。binding expression的body、callee集合和当前已安装binding都不参与plan构造。
+## 10. 明确的后续边界
 
-### 3.3 slot解析与间接cell
+以下不进入 M27：静态 effect row/可用性推断、compatible/subtype lookup、context function type、显式 context 实参、公开 contextOf/capture/runWithContext、first-class/generative key、多 value 同层 binding、直接 value/nullable payload、非结构 set/remove、反射/枚举 Context、普通 closure 隐式 snapshot、scheduler/launch/async/取消、多次 continuation 或 native stack capture。
 
-生成代码不得把artifact-local ordinal或最终程序某次排列直接烘成Context语义。每个实际发射lookup/binding操作的registered machine callable按concrete key产生一个`ContextKeyUse { owner_callable_body, key, exact_type_ref, cell }`；同一body中的多个site复用它。`PersistentContextKeyUseId`由稳定的typed owner body identity与`PersistentContextKeyId`共同确定。use record与cell都是该body的typed associated atom/ObjectDefinition role，并与owner body物化在同一个`LinkObject`：strong body使用对应的strong associated definition；ODR body沿用该body既有的`OdrMemberId`和materialization relation，绝不为use或cell新建第二个ODR member。程序登记期把全部合法use按key分组并解析到同一`ContextSlotId`，再向各use独立拥有的只写一次cell发布该slot：
-
-```text
-PersistentContextKeyUseId = H(
-    versioned context-key-use domain,
-    PersistentCallableBodyId,
-    PersistentContextKeyId,
-)
-```
-
-- cell初始为明确unresolved encoding；登记成功后只发生一次publish，已发布值在进程余下生命周期不改变、也不复用；
-- 同一key由不同body使用、因而拥有多个cell是合法的；这些use必须引用同一`PersistentExactTypeId`，最终取得同一slot；
-- 同一generic/structural callable可由多个Cone重复materialize时，其use record与cell作为该body既有ODR member的associated atom共同coalesce；所有body relocation因此指向相同semantic cell identity。final link后同一`PersistentContextKeyUseId`仍有不同record/cell地址说明ODR失败，必须拒绝；
-- 同一`(owner_callable_body, key)`出现多条未coalesce use、一个cell被不同use拥有、同一use重复publish，或相同key关联不同exact type，均是稳定metadata错误；
-- cell只保存GC-free机器标量，不是managed root；slot数值对源码不可观察，不进入persistent id、semantic fingerprint、mangle或diagnostic identity；
-- verifier通过typed owner/use/cell、ODR relation与object relocation定位cell，不能只凭cell地址、TypeDescriptor地址或symbol碰运气；
-- slot空间耗尽，或managed execution开始后仍读取unresolved cell，是稳定runtime/metadata错误，不退化成missing binding。
-
-`ContextKeyUse`是M23 registration prefix下新增的封闭record family，沿用既有单向digest DAG而不得自创循环：canonical LIR/ObjectDefinition是上游leaf；strong use record的`definition_fingerprint`由`StrongRegistration`产生，在计算该record的normalized object bytes时把自身fingerprint slot归零；ODR use record 按 M23-7 的逐 member 规则使用自身 registration member 的 `OdrDefinitionFingerprint`，其内容通过实际 typed 引用关联 owner body；计算该 member 的 normalized object bytes 时把自身 fingerprint slot 归零。`RuntimeImage`最后消费完成的use registration。cell在object中只以canonical unresolved初始bytes参与ObjectDefinition/ODR/registration验证；启动登记写入的live slot值永不进入fingerprint、cache key或后续object revalidation。
-
-Context没有独立source key declaration或单独的全局definition record；全局key从exact type确定，runtime materialization是上述code-owner use。generic/abstract contract若未产生concrete code，不制造cell。具体table分片与record字段布局留给wire spec；硬约束是typed关系完整、无nullable尾字段、合法的同key多use与非法的同owner duplicate可结构化区分，也不在lookup时临时解析type关系。
-
-### 3.4 descriptor与wire版本
-
-M23 当前实际发射的 `ScoopImageDescriptorV1` 是 exact-sized，只覆盖既有 registration 种类。M23-6 已删除没有生产用途的 program/core binding 结构；本文不再假设这些结构、其 Graph digest 或验证包装是已有 ABI。M27 实施时以届时实际运行的启动和链接格式为基线：
-
-- image 或已实现的 program 启动数据增加 Context 字段时，按正常规则升级相应格式和 runtime ABI；不得直接在 exact-sized V1 尾部追加字段；
-- 登记实际 code-owner 的 Context key use、cell 所属 callable 与必要的 ODR 关系。Context runtime support 的类型、布局、scan 和 native entry 由实际 program-link 产物表达，使用普通定义、要求和 typed relocation；
-- program 级 Context 支持只生成一份，用户 Cone 不重复生成这些定义。bootstrap/teardown 由 C runtime 调用其 native entry，不为这些调用伪造 managed callable body 或 registration；
-- 同步升级实际受影响的 HIR、MIR、LIR 和 `.slib` 格式。HIR 保存 symbolic requirement 和 key recipe，后续完整 IR 保存具体 key 和 Context 操作；
-- 缓存 fingerprint 覆盖实际语义、布局、object bytes 和 relocation 的变化；RuntimeImage 只包含本 image 实际生成的记录。启动登记写入的 cell slot 值不参与持久身份或产物 fingerprint；
-- 在实际消费边界检查类型、引用、布局、GC 和初始化顺序，复用未变化的 IR 及检查结果。删除预设的 program digest 证明链、独立回填状态机及回填后重放整份 object 验证的要求；
-- Context cell 在关系解析完成后、managed initializer 运行前初始化。其字段、table 与版本在实现相应功能时按具体需要确定，不提前冻结未实现的结构。
-
-## 4. Runtime正确性契约
-
-### 4.1 managed ref与moving GC
-
-无论使用何种索引结构，以下要求都是硬约束：
-
-- effective binding只保存managed ref；内部unbound carrier必须保持`NullableManagedRef`一类provenance，不能转成Raw pointer；
-- current TaskContext、binding storage、restore history、snapshot、context parameter local、scope mark/execution guard中的managed leaf和coroutine frame field全部出现在M15可扫描且可回写的root/TypeDescriptor计划中。现有C-heap callback token仍只保存`GcHandle`整数；closure/snapshot/failure对应的handle-registry object slot是可回写external root，token本身没有TypeDescriptor或RefScan；
-- `ScoopThreadState.current_task_context`是显式GC root。TLS只保存`ScoopThreadState *`，不得另有collector未知的TaskContext cache；
-- execution entry中保存的previous Context也由thread scanner访问并原地更新；
-- 所有managed-ref store服从当前collector的checked write-barrier plan；Context安装/fork/snapshot的中间结果与binding实参在每个可能GC调用点都有完整native/compiler root，并在GC后reload。当前M15 lowering使用atomic monotonic card barrier，但具体barrier形态不是Context语义；
-- restore后清掉不再需要的undo引用，使shadow前后的对象按可达性及时回收；
-- lookup成功路径不得分配或触发GC；restore必须no-alloc、nounwind，可安全用于EH cleanup。安装、fork和snapshot允许分配/GC，但必须failure-atomic。
-
-把managed ref放进`void *`数组、把TaskContext只存在TLS、依赖conservative C stack扫描、为每个slot临时创建`GcHandle`，或在GC后继续使用旧地址，都不满足M27。
-
-### 4.2 并发与发布
-
-TaskContext由logical task独占，同一时刻只允许一个driver修改；lookup/push/restore不应为共享可变表支付全局锁或逐slot原子操作。跨线程resume沿用M13 continuation/frame状态机的release publication与acquire claim，frame中的TaskContext及其已完成写入由该happens-before边发布。
-
-child/snapshot可以共享immutable索引节点，但不得共享可变root/undo状态。callback每次invocation拥有独立TaskContext。若实现使用mutable page/tree，fork必须复制或建立正确copy-on-write ownership，不能让parent、child和并发callback相互覆盖binding。
-
-slot cell的publish/read与thread start、metadata commit形成明确release/acquire关系；publish后不可改写。bound对象本身的并发访问仍由普通语言内存模型负责。
-
-### 4.3 操作级契约
-
-IR到runtime至少需要表达以下不同effect类别；名称和拆分方式不是固定ABI：
-
-| 语义操作 | 必须保证 |
-|---|---|
-| `try_get(exact_key)` | 返回internal nullable managed ref；hit路径no-alloc、no-GC、nounwind；只比较/索引exact key |
-| `push(exact_key, value)` | value已由HIR按key对应的exact静态ref type检查；runtime只接收managed-ref carrier，不读取或验证对象的运行期TypeDescriptor；可分配/GC；commit前failure-atomic；返回typed scope mark |
-| `restore(mark)` | 线性消费mark并恢复其owner TaskContext的严格LIFO状态；no-alloc、no-GC、nounwind；非法/重复mark为runtime invariant错误 |
-| `fork_current()` | 复制当前有效binding语义，child restore history为空；可分配/GC |
-| `snapshot_current()` | 捕获immutable有效binding，不携带undo history；可分配/GC |
-| `fork_snapshot(snapshot)` | 每次产生独立可变TaskContext；可分配/GC |
-| `enter(next)` / `leave(guard)` | 保存/恢复thread current Context；no-alloc、严格LIFO并线性消费guard；guard内installed/previous ref可扫描 |
-
-2.3/2.6的受限native-safe entry constructor是empty construction/`fork_snapshot`的专用runtime boundary：它在普通managed-entry invariant生效前以显式native roots持有输入handle、分配中间值和返回TaskContext，并在调用任何Scoop body前完成`enter`。它不能复用一个要求current Context已经存在的普通managed helper入口。
-
-抽象`ContextScopeMark`至少绑定owning TaskContext identity与本次push安装的undo-top identity；restore要求thread current Context仍是owner且owner当前undo top恰为该项，然后才允许pop。只保存depth不够，因为两个TaskContext可处于相同depth。抽象execution guard同样绑定installed/previous Context与当前execution-entry top identity，leave只接受当前top。具体carrier可换，但其managed-ref leaf必须始终可扫描/重定位。
-
-scope mark/guard必须是compiler-internal typed linear value，不能伪装成源码`Int`/`Long`或与其他machine scalar混用。mark跨挂起点存活时进入exact coroutine slot；`Suspended`返回边不消费mark，但会消费本次driver的execution guard。
-
-## 5. 编译器分层
-
-### 5.1 parser与AST
-
-AST增加独立封闭节点：
-
-```text
-ContextParameterListSyntax
-ContextParameterSyntax { name_or_underscore, type }
-ContextScopeSyntax { value, body }
-```
-
-`ContextScopeSyntax.body`是block，不是lambda/call argument。parser在形成普通Call + trailing lambda前识别无receiver `context(expr) block`；declaration位置则要求冒号分隔的parameter list后紧跟合法declaration。
-
-parser按当前declaration/block item边界恢复；非法target、缺type、malformed list/scope进入稳定语法或HIR诊断，不能先伪装普通调用再报“无匹配overload”。
-
-### 5.2 HIR
-
-HIR负责全部名称与类型语义：
-
-- Export/LocalConcrete分别定义typed requirement/binding/key id和`Local | External` checked ref；generic Export使用typed exact-type/key recipe，concrete实体使用persistent key；recipe、persistent key与exact type使用不同newtype；
-- context type使用已证明ref category的refined表示，不能保存`TypeId + bool`让下游补检；
-- 完成parameter label/name scope、template与具体化两阶段duplicate exact-key检查、visibility/signature exposure、generic substitution、alias canonicalization、scope value独立定型、body result与`ControlOutcome`；
-- Export HIR保存public/inheritance contract中的ordered declared-requirement list及typed exact key/recipe，但从不引用body local或entry action；generic template携带完整substitution recipe，hidden support不靠名称重解；
-- HIR为每个fully concrete callable/owner contract生成ordered applied-requirement list并在此完成duplicate与override/slot比较，即使该contract没有body；
-- LocalConcrete为每个contextual concrete body产生ordered entry snapshot plan；每项checked引用一个applied requirement，并带封闭的`BindNamedLocal(local) | CheckPresenceOnly` action。property getter/setter各自获得完备plan；
-- 新增完备`CompilerContextCore`，至少绑定`MissingContextException` exact class/constructor及canonical type-name诊断所需实体。缺项不能进入MIR；下游不得按`scoop.core`名称查找；
-- context list不进入overload/MSC，调用点也不产生hidden argument或static availability proof。
-
-### 5.3 MIR与cleanup CFG
-
-每个concrete contextual body先建立entry prologue：
-
-```text
-for requirement in source order:
-    hit + BindNamedLocal -> initialize immutable context local
-    hit + CheckPresenceOnly -> discard temporary result
-    miss -> construct MissingContextException and throw
-execute original body
-```
-
-lookup用typed hit/miss分支表达：hit边产生按requirement静态类型refine的managed ref，missing边走普通managed exception CFG；runtime不检查对象动态类型，不得表示成`void*`后由下游bitcast/unwrap。
-
-HIR的structured `ContextScope`进入MIR cleanup plan，并在coroutine transform前正规化：
-
-```text
-evaluate value
-mark = ContextPush(exact_key, value)
-outcome = execute body
-
-normal outcome:
-    write exact typed hidden result place
-
-every real scope-exit edge, in existing cleanup order:
-    ContextRestore(mark)
-    clear consumed mark storage when it has scanned managed leaves
-    continue original Fallthrough / PendingTransfer / EH unwind
-```
-
-non-`Unit` normal body result必须先写入现有structured-expression的exact typed hidden result place，再restore，最后向外读取；`Unit`只保留body effects与restore，不伪造storage。managed ref或含ref aggregate在cleanup期间进入完整root/liveness计划。`return`/`break`/`continue`及其payload复用M22 `PendingTransfer`/`CleanupCursor`，不另建Context专用pending tag；throw/rethrow保留M25 typed unwind/native record并沿EH cleanup edge传播，Context不能把它物化成普通pending值或替换record identity。
-
-`ContextRestore`是按lexical depth插入现有cleanup stack的普通typed item，与`finally`、`EndCatch`及其他cleanup严格LIFO。context位于active catch内部时离开顺序为restore后`EndCatch`；catch位于context内部时为`EndCatch`后restore。内部catch未离开context scope时不得提前restore。push失败前scope未active；validator证明每个mark在每条真正退出路径恰恢复一次，嵌套次序正确，且suspend edge不restore。coroutine transform继续消费既有static continuation chain，并把跨挂起存活的result/pending payload/mark放入exact frame slot；mark成功consume后必须在继续原transfer/unwind前把含managed leaf的frame storage清为canonical null，不能让静态RefScan经stale mark继续保活旧undo/root链。普通SSA mark可用liveness结束表达；execution guard若存入scanned storage也遵守相同清除规则。不能由codegen扫描CFG猜cleanup。
-
-MIR还需要typed `ContextFork`、`ContextSnapshot`和`ContextExecutionEnter/Leave`，并在coroutine metadata中非可选记录frame TaskContext field、start boundary与resume guard。validator必须证明prologue只由source implementation initial entry执行，所有resume state绕过它；每次`ContextExecutionEnter`成功后，guard在`Suspended`、completed、failure和unwind的每个driver出口恰消费一次，previous TaskContext root活到`Leave`完成。`Suspended`出口执行execution leave，但绝不执行binding restore。closure conversion只捕获实际context local；foreign callback registration非可选记录snapshot capture policy。
-
-### 5.4 LIR与codegen
-
-LIR为exact context key、scope mark、TaskContext ref、snapshot ref与runtime target使用各自typed family：
-
-- entry lookup的hit leaf及scope lookup fast path是明确no-GC/nounwind operation；missing branch构造异常属于managed CFG；
-- `ContextPush/Fork/Snapshot`是managed、may-GC operation，携带`SafepointId`与完整statepoint/native root plan；
-- restore和enter/leave使用受约束no-GC/nounwind target family，不塞入任意symbol call；
-- managed/null/raw/code/metadata pointer provenance分离，LLVM同为opaque `ptr`不构成擦除理由；
-- coroutine frame及runtime-private managed object的RefScan从LIR metadata完整产生；callback registration metadata则完整描述closure/snapshot/failure `GcHandle`的所有权、retain/release与失败清理，不能为C-heap token伪造RefScan；
-- codegen机械发射与owner body linkage一致的key-use record/cell、runtime calls和cleanup blocks，不按type name、slot值、TLS layout或runtime struct offset补语义；
-- M27首版不内联TaskContext物理布局；以后优化仍从同一个typed LIR operation降低，并保留helper基线。
-
-ordinary call signature、Scoop ABI、C ABI和hidden continuation ABI都不增加Context参数。
-
-### 5.5 stage与artifact完备性
-
-各stage输出从结构上排除：
-
-- declared requirement缺parameter label/exact ref（或合法template recipe）/key，错误携带body local，concrete duplicate key或public contract缺access witness；
-- applied contract缺到declared requirement的checked mapping/exact key，或没有在owner/callable application上完成duplicate/override验证；contextual concrete body缺到applied requirement的checked mapping、entry action或missing edge；`BindNamedLocal`缺local、`CheckPresenceOnly`却携带local均无法构造；
-- scope缺value exact key、mark或restore，或用`Option<Cleanup>`表示待决定；
-- coroutine frame缺TaskContext field，resume/start boundary缺execution guard；
-- callback registration有closure但缺snapshot capture policy；
-- LIR managed operation缺root plan，nullable managed carrier被标成Raw；
-- metadata只有type name/cell/symbol而缺persistent exact type/key/fingerprint关系。
-
-`.slib` reader验证后只交付typed view；HIR→MIR→LIR相邻stage显式映射本crate id，不共享裸id type alias，也不由下游扫描arena重建关系。
-
-## 6. 异常与生命周期边界
-
-### 6.1 `MissingContextException`
-
-core新增final `MissingContextException(message: String?) : Exception`，由compiler core contract精确绑定。compiler在missing分支构造稳定message，至少标识required canonical exact type、context parameter label和所属declaration diagnostic path；匿名label使用`context parameter #n: T`形式，不能伪造普通名称。M27不为它增加独立`SourceLocation`字段，对象布局与生命周期沿用普通`Exception`。
-
-异常按M25 ordinary managed throw处理，可以被用户`catch`。callback边界按M13现有exception materialization/status协议处理。runtime lookup helper不按字符串构造Scoop对象，也不让异常跨C frame展开。
-
-### 6.2 无取消保证
-
-当前规范不定义coroutine cancellation。永不恢复的continuation不会隐式执行`finally`，M27同样不宣称会运行Context cleanup。其frame、TaskContext、undo和binding整体不可达后由GC回收；没有外部可观察的全局binding需要另行pop。
-
-### 6.3 runtime invariant failure
-
-以下不是用户可恢复的missing错误：
-
-- 除2.3/2.6所述native-safe受限entry constructor外，任何Scoop managed body、generated managed adapter或普通managed runtime entry开始执行时没有current TaskContext；
-- unresolved/损坏slot cell或exact type/key metadata不一致；
-- restore mark属于错误depth/TaskContext或破坏LIFO；
-- execution entry非LIFO leave；
-- callback/resume离开时未恢复原Context；
-- collector发现未登记或provenance错误的Context managed pointer。
-
-这些情况打印稳定runtime ABI诊断后终止，不能继续执行已损坏的binding状态。
-
-## 7. 当前runtime的参考实现
-
-本节说明一条可落地路线，不把fanout、字段offset、helper名称、节点数量或slot分配顺序升级为长期契约。
-
-### 7.1 不能直接照搬64-slot managed page
-
-当前Immix配置`GC_LINE_SIZE = 128`、`GC_SMALL_MAX = 64`；超过64B的managed object进入large-object路径并至少占用一个32KiB block。一个含64个managed ref和16B header的page约528B，直接照搬附件中的64-slot page会把每个稀疏Context页放大成一个large block。
-
-这是当前实现必须处理的真实障碍。M27不能在不同时重写allocator的前提下使用该布局。可选路线包括小节点radix、专门受GC理解的variable-size small array表示，或先改进allocator；最后一项会显著扩大里程碑。
-
-### 7.2 建议：immutable persistent radix tree
-
-首版建议使用全部不超过64B的小节点persistent radix tree，例如每层2 bit、每节点4个managed ref：
-
-```text
-TaskContext
-  root: ContextNode?
-  undoTop: ContextUndo?
-  undoDepth: u64
-
-ContextNode
-  child[4]: managed ref?  // 中间层为node，叶层为payload
-
-ContextUndo
-  previous: ContextUndo?
-  previousRoot: ContextNode?
-
-ContextSnapshot
-  root: ContextNode?
-
-ContextScopeMark                 // compiler aggregate，不一定单独分配对象
-  owner: TaskContext
-  installedUndoTop: ContextUndo
-```
-
-节点publish后immutable：
-
-- lookup按`ContextSlotId`的2-bit digit走固定层数，不扫描scope链、不做hash或type query；缺节点/叶null即unbound；
-- push path-copy目标路径，先构造新root与undo，全部成功后一次commit `root/undoTop/depth`；
-- restore先验证mark owner与当前TaskContext一致、installedUndoTop恰为当前top，再把root换回undo保存的previousRoot并弹栈，不分配；
-- child TaskContext与snapshot共享immutable root，fork只分配新TaskContext并令undo为空；child rebind通过path-copy隔离；
-- tree height不进入source/IR ABI。此参考方案按slot范围增长root，无需为每个task预分配与全程序key总数成比例的dense table；是否把这一空间性质提升为后续表示的验收约束，应由profiling与runtime spec另行决定。
-
-在16B object header下，4-ref node约48B，TaskContext/undo/snapshot也可控制在64B以内。具体字段压缩、digit方向和height cache由runtime与TypeDescriptor layout共同决定。
-
-该方案代价是每次push分配O(tree height)个小节点。若profiling证明Context切换远多于task fork，可以换成mutable small-node tree加fork复制或其他受检表示；不得改变第4节操作契约与GC可见性。
-
-### 7.3 runtime-private managed types
-
-参考结构中的TaskContext/node/undo/snapshot都使用ordinary managed object与精确RefScan，而不是C heap对象内藏managed pointer。其exact TypeDescriptor由compiler-owned typed metadata提供，并在program semantic phase验证size、alignment、scan与`release_hook = None`后交给runtime helper。
-
-采用本参考结构时，为现有`GeneratedNominalRole`增加domain-separated的Context runtime role（TaskContext、Node、Undo、Snapshot）。其identity只来自一个program-independent、无环的runtime type key：
-
-```text
-ContextRuntimeTypeKey {
-    representation_version: ContextRepresentationVersion,
-    role: TaskContext | Node | Undo | Snapshot,
-}
-
-PersistentTypeId = H(
-    "scoop-context-runtime-type-v1",
-    representation_version,
-    role,
-)
-
-PersistentExactTypeId = canonical exact-nominal encoding(
-    PersistentTypeId,
-    NoTypeArguments,
-)
-```
-
-`ContextRepresentationVersion`是wire/spec固定的显式版本，物理字段、layout或scan角色改变时必须升级。identity不得消费`GraphFingerprint`、`ContextRuntimeSupportFingerprint`、program/object digest、最终地址或由这些type反向决定的runtime ABI fingerprint；相反，runtime ABI和support fingerprint消费已经确定的representation version与type定义。
-
-这些internal exact type仍加入M23既有的全程序`PersistentExactTypeId ↔ TypeDescriptor address`唯一性验证，以及从full key导出`runtime_type_id`后的全局collision map；不得为Context建立第二套type registry。最终program-link在既有`VerifiedProgramDescriptorObject`内生成由`ContextRuntimeSupport`拥有的strong associated atoms，定义并登记对应TypeDescriptor/scan；不同Cone不得各自产生一份strong descriptor。它们与source Context key完全分离，并由semantic/layout/scan/ObjectDefinition leaf进入support及final program fingerprint，不进入任一用户Cone的RuntimeImage。若改用另一物理结构，则升级representation version并使用与之对应的封闭role集合，而不是保留不存在的占位descriptor。
-
-仅列出TypeDescriptor不足以让C helper知道字段位置。当前实现还必须二选一提供封闭、versioned的runtime访问契约：要么由共享C/LLVM header固定本版layout并逐字段验证`sizeof`/`offsetof`/RefScan，要么由Context runtime support record提供已验证的typed offset/shape或generated accessor。选定契约随runtime ABI fingerprint发布；以后替换物理表示时升级该版本即可。runtime不能手写未登记的伪TypeDescriptor、按type name寻找它们，或在没有layout/access contract时猜offset。
-
-### 7.4 参考slot cell编码
-
-可用64位cell的0表示unresolved，非零值编码`ContextSlotId + 1`，保留完整u32 slot域并避免与合法slot 0混淆。registry以release publish，lookup以acquire读取；上层始终使用typed wrapper，不把编码值当源码integer。
-
-为可复现metadata诊断，初始program key可按`PersistentContextKeyId` bytes排序分配slot；该顺序不是语义保证，测试不得断言某个source type恒为具体slot数字。
-
-## 8. 测试与验收
-
-### 8.1 parser、HIR与negative fixture
-
-- ordinary/suspend、top-level/member/extension/local、generic、abstract/interface function及accessor-only property context list；property-level list同时约束getter/setter；`_`参数使用稳定ordinal诊断；
-- 非法declaration target、stored/initialized/delegated/constructor property、以这些property实现contextual property obligation、constructor、lambda/function type、extern/intrinsic、duplicate name/key、非ref key及default中引用context name稳定报错；
-- `context(value) { ... }`生成专用AST；qualified同名method仍是ordinary call；malformed prefix/scope按正确边界恢复；
-- exact match正反例：derived binding不满足base/interface requirement，显式上转型后命中；运行期object subtype不影响；
-- binding value只接受其自身ordinary typing context：body中的requirement和整个scope的expected result type都不反向给它提供父类型或generic约束；无context list的中间函数调用contextual declaration时不传播callee requirement；
-- typealias与target同key，不同exact generic application不同key；generic substitution必须最终为ref；两个不同key recipe具体化后合并为同一exact key时，在function调用/显式实例化及无body的abstract/interface owner application处都拒绝；
-- 两个声明只差context list是duplicate；override context contract缺失、多余、乱序或type不同稳定报错；
-- Context操作在`@NoGC`、release block、const及其他非法effect位置正确拒绝；
-- contextual callable reference创建时不lookup/snapshot，调用时才在当前TaskContext执行目标prologue；Context scope位于suspend body时可直接挂起，位于ordinary body时不产生新的挂起能力；
-- AST/HIR golden锁定requirement list、entry snapshot plan、persistent exact type/key、scope value独立定型、access witness及`CompilerContextCore`。
-
-### 8.2 参数snapshot、scope与异常
-
-- unbound contextual declaration在body前抛精确`MissingContextException`并可catch；按list源码顺序报告第一个missing；`_`和未使用参数仍执行requirement；
-- entry取得后嵌套同型binding不改变既有parameter，新callee取得内层值；
-- closure引用context parameter时按ordinary local capture，创建于scope但不引用parameter的closure不隐式捕获Context；
-- scope value在外层Context下只求值一次；求值失败或安装失败时新scope未active；
-- 同key多层shadow正确恢复；normal result、return、break、continue、throw、catch和多层finally的每条scope-exit edge只restore一次；
-- context在active catch内部与catch在context内部两种嵌套分别锁定`restore → EndCatch`/`EndCatch → restore`，rethrow保持同一M25 record identity；伪造wrong-owner/wrong-top或重复mark/guard稳定触发runtime invariant错误；
-- binding对象在slot中是唯一强引用时保持存活；restore后新值可回收，旧值只在undo/未消费mark期间保持存活；跨挂起mark消费后frame slot被清空，不额外延长旧root链生命周期。
-
-### 8.3 coroutine与线程迁移
-
-- contextual suspend function的entry parameter及scope binding经过immediate和真实挂起均稳定；同型shadow中挂起再resume不重跑prologue，旧entry local不变；仅挂起不restore，最终scope exit才restore；
-- `finally`内嵌Context与挂起、外层已有pending return/break/throw的组合，使mark、non-`Unit` exact result/pending payload共同跨frame且按既有cleanup chain恢复；每个driver的execution guard在Suspended/completed/failure出口恰leave一次；
-- direct suspend调用共享TaskContext；`startCoroutine` child继承有效binding但undo为空；parent退出scope后child仍可由新callee取得binding，child override不污染parent；
-- 两个child彼此隔离，bound object identity仍共享；
-- 同线程和foreign thread resume都进入frame Context。resumer有冲突binding时coroutine看到自己的值，resume返回后resumer值恢复；
-- nested suspend/completion/callback→resume覆盖A/B/A/outer的LIFO切换；
-- abandoned continuation不运行finally/Context cleanup，丢弃全部引用后相关TaskContext可由GC回收。
-
-### 8.4 FFI与callback
-
-- `managed → native → return`的普通同步outbound往返保持当前Context，object/Mach-O检查证明ordinary ABI无hidden参数；native代码若中途经`foreignCallback`反向调用managed closure，则该invocation看到registration snapshot，而不是把调用线程当时的outer current Context当作callback Context；
-- scope内registration、scope外invocation仍看到registration snapshot；registration后的外层rebind不改变snapshot；
-- Reusable并发invocation拥有独立TaskContext；一次callback内override不泄漏到下一次或另一线程；
-- callback normal/throw/GC/OneShot/Reusable/token final release都恢复outer Context并释放snapshot handle；
-- callback中的missing异常进入token failure，绝不展开穿越C frame。
-
-### 8.5 metadata、GC与artifact
-
-- context key-use record缺失、同owner重复、跨owner合法同key、type/key/fingerprint不一致、cell越权/重复/unresolved及slot exhaustion稳定覆盖；同一ODR body跨Cone重复materialize时use/cell随body共同coalesce，未coalesce地址分裂稳定失败；runtime slot不改变semantic/program fingerprint；
-- 主线程root及无outer Context的foreign callback通过受限native-safe entry constructor建立首个TaskContext；故意让任意managed body在安装前执行则稳定fatal，bootstrap/callback每个分配点强制GC仍由显式root保护；
-- 0、1、多个及跨参考radix边界的key、稀疏高slot和empty Context正确；测试不锁定fanout与具体slot号；
-- moving-GC stress搬迁ThreadState current root、execution previous root、TaskContext/node/undo/snapshot、context parameter local、bound/previous value、suspended frame及callback handle-registry中的closure/snapshot/failure object slot，并验证root/slot原地更新；
-- push/fork/snapshot每个可能分配点强制GC，验证中间root reload与write barrier；native-safe期间GC后同步返回仍读取正确binding；
-- HIR/MIR/LIR `.slib` round-trip、损坏矩阵、schema/capability mismatch、object record/cell ownership及program registration顺序完整覆盖；
-- MIR golden锁定entry prologue、missing edge、cleanup、frame Context、start fork、resume guard和callback snapshot；LIR golden锁定managed/no-GC target与root plan；LLVM/object测试锁定typed registration/cell与TypeDescriptor scan，不锁死runtime-private node offset。
-
-## 9. 实现顺序与完成门
-
-建议分六批落地：
-
-1. 先同步三份权威spec，固定Kotlin-like source surface、exact-match语义、declaration contract、core exception和task/callback规则；
-2. 扩展三层wire、`.slib`、object verifier、image/program descriptor与program registry，完成exact-type key验证和slot cell publish；
-3. 落地ThreadState root/execution entry、empty root bootstrap、Context runtime操作及选定表示，先通过C runtime与moving-GC stress；
-4. parser/HIR/MIR接入context list、entry snapshot与scope，复用typed cleanup CFG，打通ordinary同步程序与property accessor；
-5. coroutine frame、`startCoroutine` fork和resume guard接入，完成真实挂起与跨线程迁移；
-6. foreign callback snapshot/token/adapter接入，补齐跨Cone、artifact corruption、全量golden与组合回归。
-
-每批按仓库约定先执行`cargo fmt --all`和`cargo clippy --workspace`，再运行对应unit/golden/fixture。M27只有在以下条件同时满足时完成：
-
-- 三份spec、core contract、IR和runtime对同一Context语义一致；
-- exact match不暗中退化为subtype/runtime-type查询，body不反向影响binding value定型；
-- ordinary ABI无hidden Context参数，key无FQN/name/symbol/ordinal fallback；
-- entry snapshot、全部scope exit、suspend/resume、start child和callback边界通过typed validator与E2E测试；
-- moving GC能更新全部Context root/ref，lookup hit无分配，restore no-alloc/nounwind，push/fork/snapshot failure-atomic；
-- `.slib`与program metadata跨Cone exact-type identity闭合，slot不进入semantic fingerprint；
-- 不保留`TODO`、`unimplemented`、未覆盖分支或依赖debug assert才能成立的结构约束。
-
-## 10. 规范同步清单
-
-正式实现前按spec-first工作流同步：
-
-- `SCOOP-SPEC.md`：第2.1节能力列表；以本文运行期exact-match语义重写8.3；在11.7登记`MissingContextException`；在property/override/default规则中加入context contract；在11.9固定`startCoroutine` child inheritance；在14.3固定`foreignCallback` snapshot/invocation语义；
-- `SCOOP-RUNTIME-SPEC.md`：program/image exact-type key-use metadata与slot cell；ThreadState current root和execution entry扫描；Context操作effect；受限native-safe bootstrap/teardown；callback token的snapshot `GcHandle`所有权及handle-registry root；coroutine frame/resume enter/leave；
-- `SCOOP-IMPL-SPEC.md`：parser contextual syntax；HIR requirement/key/core identity；MIR entry snapshot、cleanup与coroutine transform顺序；LIR provenance/root plan；`.slib` schema、object materialization及validator责任。
-
-这些修改与对应schema/version代码同批提交，不能只更新一份规范或长期让milestone文档与权威spec分叉。
-
-## 11. 明确不在 M27
-
-1. static effect row、effect-use inference、effect annotation、effect polymorphism、purity boundary或compile-time availability proof；
-2. compatible-type/subtype Context resolution、body-to-binder requirement反推、同层多candidate ambiguity或按运行期类型选择binding；
-3. general algebraic/control effect、可观察continuation、resume/drop/clone/multi-shot handler或native stack capture；
-4. 独立source `context key`声明、first-class `ContextKey<T>`值、local/member/generative key、运行期制造key或key variance；
-5. 直接承载struct/enum/tuple/raw pointer等value payload，以及公开nullable/optional lookup；
-6. `context(v1, v2) { ... }`多value binding、无结构set/remove及源码直接操作TaskContext；多个binding用嵌套scope；
-7. Context key/binding枚举、反射、`contextOf<T>()`、explicit context argument或context function type；
-8. 普通closure隐式snapshot、公开`captureContext`/`runWithContext` API或任意arity callback wrapper；
-9. `launch`/`async`/scheduler/structured concurrency库、coroutine cancellation及abandoned continuation cleanup；
-10. lookup hoist、known-binding消除、slot constant folding、TaskContext scalar replacement及其他优化；M27保留typed operation/helper基线；
-11. 为采用附件中的64-slot page顺带重写Immix allocator；物理表示优化作为独立性能工作评估。
+Context 索引优化、lookup hoist、slot constant folding、frame/task elision 以及 allocator 改造需要实际性能证据另行设计。它们不成为本里程碑源码、链接与运行闭环的前置门槛。

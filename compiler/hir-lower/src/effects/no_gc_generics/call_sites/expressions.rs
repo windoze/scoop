@@ -53,7 +53,8 @@ impl Lowerer {
             }
         };
         match &expr.kind {
-            ExprKind::StringLiteral { .. }
+            ExprKind::ContextLookup(_)
+            | ExprKind::StringLiteral { .. }
             | ExprKind::IntegerLiteral(_)
             | ExprKind::CharLiteral(_)
             | ExprKind::BoolLiteral(_)

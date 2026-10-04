@@ -4,7 +4,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use scoop_codegen::{
-    EmittedConeObjectMemberKindV1, EmittedConeObjectSetV1, EmittedGeneratedCBridgeObjectSetV1,
+    EmittedConeObjectSetV1, EmittedGeneratedCBridgeObjectSetV1,
     ProvisionalStrongDigestPatchLocationV1,
 };
 use scoop_lir::{

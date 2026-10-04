@@ -189,9 +189,9 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i1 dispatch[Closure:2] param0(param0)
     store t0 -> local0
     store local0 -> local1
-    t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
+    t1 = box_value external-td4, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  td td0 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)) @scoop$1$td$cbf6e19d1a4a5b2fd6dacbc5b2f0fdb3c14deef8042b68a45f9aa9ec65363df8 type-id=3939516843114488071 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td0
+  td td0 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Boolean)) @scoop$1$td$cbf6e19d1a4a5b2fd6dacbc5b2f0fdb3c14deef8042b68a45f9aa9ec65363df8 type-id=3939516843114488071 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td4
   td td1 g(r=00000001;i=c2538caa226c5eab55778cb75cdc8d0bfdb2b5c4ca4930221b67b8188798e2bb) @scoop$1$td$e2d17f79871b50fb7d27a79a1c4a1c1deb95b47ac3bedb3405ad3e7b42d30618 type-id=6022421716082612450 shape=FixedObject minimum-size=24 align=8 parent=td0 vtable=[local-fn10] itables=[]
   td td2 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=E;x=Choice) @scoop$1$td$4a5878ec7384724f6fba66b4bb67f9d8acf19bb290def00d2c0c5efc186ab769 type-id=13911763925094048789 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td3 n(c=test%3Ascoop-hir-lower%3A0.0.0;p=;o=-;k=S;x=Atom) @scoop$1$td$63219b936c03b24f6c8258dd1cda310a6591b530a1c8e817e448cca5312a868a type-id=67990013529017969 shape=BoxedValue minimum-size=16 align=8 parent=none vtable=[] itables=[]

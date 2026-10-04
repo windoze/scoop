@@ -15,6 +15,7 @@ use crate::Lowerer;
 /// before any body, so calls resolve regardless of declaration order.
 #[derive(Clone)]
 pub(crate) struct FnSig {
+    pub(crate) context_parameters: Vec<hir::ContextParameter>,
     pub(crate) is_suspend: bool,
     /// Validated language-level operator role. It participates in override
     /// and interface matching instead of being inferred from the name.

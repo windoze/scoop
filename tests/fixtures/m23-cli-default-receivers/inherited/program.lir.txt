@@ -39,7 +39,7 @@ Module
     local %31 $new.4: ptr<managed>
   block entry
     poll managed-void-target4 sp<managed-poll:0> live=[]
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(16)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(16)))
     store t0 -> local28
     call managed-void-target0 sp<managed-call:1> live=[local28:ptr<managed>@0] sig=void0 (ptr<managed>) external-fn0(local28)
     t1 = aggregate () : {}
@@ -59,7 +59,7 @@ Module
     store local7 -> local8
     t5 = enum_wrap e0 v0 (local8) : enum0
     store t5 -> local9
-    call managed-direct-target2 sp<managed-call:9> live=[local9:enum0@0] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp<managed-call:9> live=[local9:enum0@0] t6 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t6 -> local29
     call managed-void-target1 sp<managed-call:10> live=[local9:enum0@0, local29:ptr<managed>@0] sig=void1 (ptr<managed>, enum0) external-fn2(local29, local9)
     t7 = aggregate () : {}
@@ -80,7 +80,7 @@ Module
     store local15 -> local16
     t11 = enum_wrap e0 v0 (local16) : enum0
     store t11 -> local17
-    call managed-direct-target4 sp<managed-call:7> live=[local17:enum0@0] t12 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target4 sp<managed-call:7> live=[local17:enum0@0] t12 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t12 -> local30
     call managed-void-target2 sp<managed-call:8> live=[local17:enum0@0, local30:ptr<managed>@0] sig=void2 (ptr<managed>, enum0) external-fn2(local30, local17)
     t13 = aggregate () : {}
@@ -103,7 +103,7 @@ Module
     store local25 -> local26
     t17 = enum_wrap e0 v0 (local26) : enum0
     store t17 -> local27
-    call managed-direct-target6 sp<managed-call:5> live=[local27:enum0@0] t18 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target6 sp<managed-call:5> live=[local27:enum0@0] t18 = sig=direct6 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t18 -> local31
     call managed-void-target3 sp<managed-call:6> live=[local27:enum0@0, local31:ptr<managed>@0] sig=void3 (ptr<managed>, enum0) external-fn2(local31, local27)
     t19 = aggregate () : {}
@@ -134,6 +134,7 @@ Module
   fun @scoop$1$cb$4d860bd139bb6967a8c06715bf28295578f138e4f07aef4983bb0c5723044990() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
     br @success
   block success
@@ -141,7 +142,7 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
     global_store global3, t3
     end_catch
     ret integer<UInt>(0x00000001)

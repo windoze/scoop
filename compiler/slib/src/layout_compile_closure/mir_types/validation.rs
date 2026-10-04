@@ -15,12 +15,14 @@ pub fn validate_shared_mir_type_exports(
     inheritance: &hir::CheckedNominalInheritanceGraphV1<'_>,
     core: &hir::CoreBootstrapInterfaceSectionV1,
     types: &mir::CanonicalParamFreeMirTypeExportsV1,
+    payload_types: &dyn mir::MirTypeBridgeTypeLookupV1,
     shapes: &mir::CanonicalMirShapeSupportsV1,
 ) -> Result<(), Error> {
     let mut comparison = Comparison {
         source,
         inheritance,
         types,
+        payload_types,
 
         expected: Vec::new(),
     };
@@ -73,6 +75,7 @@ pub(super) struct Comparison<'s, 'g> {
     pub(super) source: hir::CheckedSharedTypeFoundationV1<'s>,
     pub(super) inheritance: &'g hir::CheckedNominalInheritanceGraphV1<'g>,
     pub(super) types: &'s mir::CanonicalParamFreeMirTypeExportsV1,
+    pub(super) payload_types: &'s dyn mir::MirTypeBridgeTypeLookupV1,
 
     expected: Vec<PersistentExactTypeId>,
 }

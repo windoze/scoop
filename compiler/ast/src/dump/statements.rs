@@ -12,6 +12,7 @@ fn dump_statement(statement: &Statement, indent: usize, out: &mut String) {
     match &statement.kind {
         StatementKind::Expr(expr) => dump_expr(expr, indent, out),
         StatementKind::LocalFunction(function) => {
+            super::dump_context(&function.context_parameters, indent, out);
             let suspend = if function.is_suspend { "suspend " } else { "" };
             let operator = if function.operator.is_some() {
                 "operator "

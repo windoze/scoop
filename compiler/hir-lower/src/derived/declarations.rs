@@ -75,6 +75,7 @@ impl Lowerer {
         };
         let function = self.functions.alloc(Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: format!("{}.equals", owner.describe_name(self)),
                 is_suspend: false,
@@ -115,6 +116,7 @@ impl Lowerer {
         self.signatures.insert(
             function,
             FnSig {
+                context_parameters: Vec::new(),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
                     operator: Some(hir::OperatorKind::Equals),
@@ -156,6 +158,7 @@ impl Lowerer {
         };
         let function = self.functions.alloc(Function {
             signature: hir::CallableSignature {
+                context_parameters: Vec::new(),
                 release_callability: Default::default(),
                 name: format!("{}.equals", self.type_name(owner_ty)),
                 is_suspend: false,
@@ -194,6 +197,7 @@ impl Lowerer {
         self.signatures.insert(
             function,
             FnSig {
+                context_parameters: Vec::new(),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
                     operator: Some(hir::OperatorKind::Equals),

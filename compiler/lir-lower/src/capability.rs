@@ -198,6 +198,7 @@ fn expression_requirement(
     expression: &mir::Expr,
 ) -> Option<StrongLirMaterializationRequirement> {
     match &expression.kind {
+        mir::ExprKind::Context(_) => None,
         mir::ExprKind::ClassAlloc { class_id } => {
             unavailable_descriptor(module, roots, dependencies, &mir::Type::Class(*class_id))
         }
@@ -297,6 +298,7 @@ fn unavailable_descriptor(
     ty: &mir::Type,
 ) -> Option<StrongLirMaterializationRequirement> {
     let available = match ty {
+        mir::Type::Context(_) => roots.materializes_type(ty) || dependencies.contains(ty),
         mir::Type::Class(_) | mir::Type::Interface(_) | mir::Type::String => {
             roots.materializes_type(ty) || dependencies.contains(ty)
         }

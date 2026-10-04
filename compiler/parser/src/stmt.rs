@@ -70,6 +70,13 @@ impl Parser {
     }
 
     fn parse_statement(&mut self) -> Result<Statement, Diagnostic> {
+        if self.starts_context_declaration() {
+            let function = self.parse_context_local_function()?;
+            return Ok(Statement {
+                span: function.span,
+                kind: StatementKind::LocalFunction(function),
+            });
+        }
         if self.starts_unsupported_loop_label() {
             return self.reject_loop_label();
         }

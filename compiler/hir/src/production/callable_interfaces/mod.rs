@@ -14,6 +14,7 @@ mod errors;
 mod functions;
 mod nominal_declarations;
 mod parameters;
+pub(in crate::production) use parameters::context as context_parameters;
 mod slots;
 mod support;
 mod variants;

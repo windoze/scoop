@@ -107,6 +107,16 @@ impl CallableDeclarationRecordV1 {
                     |error| CallableInterfaceSemanticValidationError::Parameter { index, error },
                 )?;
         }
+        for (index, parameter) in self.context_parameters.iter().enumerate() {
+            scope
+                .validate_signature_semantics(parameter.value_type(), authority)
+                .map_err(
+                    |error| CallableInterfaceSemanticValidationError::ContextParameter {
+                        index,
+                        error,
+                    },
+                )?;
+        }
         scope
             .validate_signature_semantics(&self.result, authority)
             .map_err(CallableInterfaceSemanticValidationError::Result)

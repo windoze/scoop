@@ -127,7 +127,7 @@ impl Parser {
     }
 
     fn enum_member_starts_here(&self) -> bool {
-        if self.release_block_starts_here() {
+        if self.release_block_starts_here() || self.starts_context_declaration() {
             return true;
         }
         match &self.peek().kind {

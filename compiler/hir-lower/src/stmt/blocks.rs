@@ -108,7 +108,7 @@ impl Lowerer {
     /// Type-check and materialize a structured expression's branch result.
     /// Each normal non-Unit branch assigns the same hidden local; Unit tails
     /// are merely evaluated for side effects.
-    pub(super) fn finish_control_value(
+    pub(crate) fn finish_control_value(
         &mut self,
         kind: &str,
         span: Span,

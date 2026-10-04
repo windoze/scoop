@@ -259,7 +259,20 @@ impl Harness {
             },
         );
         assert_eq!(self.top_level.pop(), Some(initialization_cycle_thrower));
+        let message_type = self.option(self.string);
+        let missing = self.class(
+            if include {
+                "MissingContextException"
+            } else {
+                "_MissingContextExceptionProtocol"
+            },
+            hir::ClassModifier::Final,
+            &[("message", message_type)],
+            None,
+            &[],
+        );
         hir::CompilerExceptionCore {
+            missing_context_constructor: self.classes[missing].constructors[0],
             throwable: self.exception_target("Throwable", include),
             unwrap_exception: self.exception_target("UnwrapException", include),
             class_cast_exception: self.exception_target("ClassCastException", include),

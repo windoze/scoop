@@ -83,6 +83,7 @@ mod analysis;
 mod captures;
 mod characters;
 mod constructors;
+mod context;
 mod copy_updates;
 mod fields;
 mod interpolation;
@@ -246,6 +247,9 @@ impl Lowerer {
             return None;
         }
         let lowered = match expr {
+            ast::Expr::ContextScope { value, body, span } => {
+                self.lower_context_scope(value, body, *span, sink, expected)
+            }
             ast::Expr::InterpolatedString { parts, span } => {
                 self.lower_interpolated_string(parts, *span, sink)
             }

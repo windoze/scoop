@@ -201,6 +201,7 @@ fn rejected_duplicate_members_block_extension_fallback() {
 #[test]
 fn global_initializer_uses_the_frozen_duplicate_surface() {
     let global = Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: ast::VisibilitySyntax::Omitted,
         modifier: ast::MethodModifier::Final,

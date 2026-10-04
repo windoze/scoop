@@ -38,6 +38,7 @@ pub(super) fn check(
                     error,
                     Error::DependencyLayout(
                         lir::LayoutExternalMaterializationError::MissingShapeSupport { .. }
+                            | lir::LayoutExternalMaterializationError::MissingDescriptor { .. }
                     )
                 ),
                 "{error}"
@@ -51,7 +52,10 @@ pub(super) fn check(
     }
     let root = input
         .materialization()
-        .dependency_generated_nominal_shapes()[0];
+        .dependency_generated_nominal_shapes()
+        .iter()
+        .find(|root| !matches!(root.location(), mir::GeneratedExactTypeLocation::Context(_)))
+        .unwrap();
     let subject = lir::ExternalStrongShapeSubjectV1::TypeDescriptor(root.exact());
     let missing = Source {
         roots: source.roots.clone(),

@@ -113,6 +113,8 @@ pub(super) fn project(
         modality,
         function.access.declared.into(),
         super::slots::method(projection.export, function.method)?,
+        parameters::context(&projection.signatures, function, &binders)
+            .map_err(CallableProjectionError::Parameters)?,
     )
     .map_err(CallableProjectionError::Record)
 }

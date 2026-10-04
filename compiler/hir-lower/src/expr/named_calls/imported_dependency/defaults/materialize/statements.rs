@@ -12,6 +12,15 @@ impl Lowerer {
     ) -> Result<hir::Statement, ImportedDefaultMaterializationError> {
         use hir::DefaultStatementKindV1 as Kind;
         let kind = match source.kind() {
+            Kind::ContextScope { value, body } => hir::StatementKind::ContextScope {
+                value: self.materialize_imported_default_expression(value, context)?,
+                body: body
+                    .iter()
+                    .map(|statement| {
+                        self.materialize_imported_default_statement(statement, context)
+                    })
+                    .collect::<Result<_, _>>()?,
+            },
             Kind::GenericDelegateEnsure(reference) => hir::StatementKind::GenericDelegateEnsure(
                 self.materialize_imported_delegate_reference(reference, context)?,
             ),

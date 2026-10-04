@@ -129,7 +129,7 @@ fn imported_core_inputs_expose_compiler_protocols() {
     let imported = imported_foundation(&fixture.foundation);
 
     let core = imported.import_core_inputs(&fixture.interface).unwrap();
-    assert_eq!(core.protocols().fixed_subject_count(), 87);
+    assert_eq!(core.protocols().fixed_subject_count(), 89);
     let protocols = core.protocols().clone();
     assert_eq!(
         protocols.fundamental_types().unit().persistent(),

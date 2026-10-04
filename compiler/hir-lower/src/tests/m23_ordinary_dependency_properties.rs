@@ -282,6 +282,7 @@ fn computed_property(
     setter: Option<Vec<Statement>>,
 ) -> Decl {
     Decl::Global(scoop_ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: Vec::new(),
         visibility: scoop_ast::VisibilitySyntax::Omitted,
         modifier: scoop_ast::MethodModifier::Final,

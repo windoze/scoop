@@ -1,0 +1,173 @@
+schema = 1
+name = "m27-context-artifacts"
+inputs = ["a", "b", "c", "bad", "../../m13-callback/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
+targets = ["aarch64-apple-darwin"]
+tags = ["m27", "context", "generics", "artifact-only", "stage-golden"]
+
+[[steps]]
+name = "prepare_native"
+files = [{mkdir = {path = "${work}/native"}}]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-I", "${runtime}/include", "-c", "${fixture}/../../m13-callback/native.c", "-o", "${work}/native/fixture.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/native/libfixture_native.a", "${work}/native/fixture.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "prepare_core"
+files = [
+  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/sources/core"}},
+  {mkdir = {path = "${work}/empty-sysroot"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/sources/core", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_core"
+files = [
+  {remove = {path = "${work}/sources/core"}},
+]
+
+[[steps]]
+name = "prepare_a"
+files = [
+  {copy = {from = "${fixture}/a", to = "${work}/sources/a"}},
+]
+
+[[steps]]
+name = "a"
+argv = ["${scoop}", "build", "${work}/sources/a", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-a", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-a/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/a"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/a/${a.result.root.identity}/hir.txt", snapshot = "a.hir.txt"},
+  {file = "${work}/dump/a/${a.result.root.identity}/mir.txt", snapshot = "a.mir.txt"},
+  {file = "${work}/dump/a/${a.result.root.identity}/lir.txt", snapshot = "a.lir.txt"},
+]
+
+[[steps]]
+name = "remove_a"
+files = [
+  {remove = {path = "${work}/sources/a"}},
+]
+
+[[steps]]
+name = "prepare_b"
+files = [
+  {copy = {from = "${fixture}/b", to = "${work}/sources/b"}},
+]
+
+[[steps]]
+name = "b"
+argv = ["${scoop}", "build", "${work}/sources/b", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-b", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/artifacts/dev.m27/context-b/0.1.0/cone.slib", "--emit", "all", "--dump-dir", "${work}/dump/b"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/b/${b.result.root.identity}/hir.txt", snapshot = "b.hir.txt"},
+  {file = "${work}/dump/b/${b.result.root.identity}/mir.txt", snapshot = "b.mir.txt"},
+  {file = "${work}/dump/b/${b.result.root.identity}/lir.txt", snapshot = "b.lir.txt"},
+]
+
+[[steps]]
+name = "remove_b"
+files = [
+  {remove = {path = "${work}/sources/b"}},
+]
+
+[[steps]]
+name = "prepare_c"
+files = [
+  {copy = {from = "${fixture}/c", to = "${work}/sources/c"}},
+]
+
+[[steps]]
+name = "c"
+argv = ["${scoop}", "build", "${work}/sources/c", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-c", "--library-path", "${work}/native", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program-build", "--emit", "all", "--dump-dir", "${work}/dump/c"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/c/${c.result.root.identity}/hir.txt", snapshot = "c.hir.txt"},
+  {file = "${work}/dump/c/${c.result.root.identity}/mir.txt", snapshot = "c.mir.txt"},
+  {file = "${work}/dump/c/${c.result.root.identity}/lir.txt", snapshot = "c.lir.txt"},
+]
+
+[[steps]]
+name = "remove_c"
+files = [
+  {remove = {path = "${work}/sources/c"}},
+]
+
+[[steps]]
+name = "isolate"
+files = [
+  {copy = {from = "${c.result.root.path}", to = "${work}/artifacts/root.slib"}},
+  {copy = {from = "${scoop}", to = "${work}/standalone/scoop"}},
+  {remove = {path = "${work}/sources"}},
+]
+
+[[steps]]
+name = "link"
+argv = ["${work}/standalone/scoop", "link", "--library-path", "${work}/native", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${c.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+env = {PATH = "/usr/bin:/bin", LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+checks = [{actual = "${link.result.link_plan_fingerprint}", equals = "${c.result.link_plan_fingerprint}"}]
+
+[[steps]]
+name = "run"
+argv = ["${work}/program"]
+exit = 0
+stdout = "artifacts-ok\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${work}/program"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "artifacts-ok\n"
+stderr = ""
+
+[[steps]]
+name = "prepare_bad"
+files = [
+  {copy = {from = "${fixture}/bad", to = "${work}/sources/bad"}},
+]
+
+[[steps]]
+name = "reject"
+argv = ["${scoop}", "build", "${work}/sources/bad", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-reject", "--cone-path", "${work}/artifacts", "--message-format", "json"]
+exit = 1
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = {file = "bad.diagnostics.json"}

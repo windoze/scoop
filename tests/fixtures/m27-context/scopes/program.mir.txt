@@ -1,0 +1,879 @@
+Module
+  global0 evaluations: Long managed initial=encoded(Long:0x0)
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
+  class Settings vtable=0 itables=0
+  class Other vtable=0 itables=0
+  class MissingContextException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class UnwrapException vtable=0 itables=0
+  class box<Long> vtable=0 itables=0
+  interface ToString
+  interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
+  closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn10 captures=1
+    bridge function_type1 -> @fn15 id=0f74dd5b25ce2c802cb3779018addc636a2547e1f0f1d8f3d7ea10fc5e0bb39e
+  closure cc1 $Closure$reference0 type=function_type0 invoke=@fn12 captures=0
+    bridge function_type1 -> @fn16 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get2 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get3 location=closure0 nominal_id=8fe6266a35162a3646b5cad9157eaf416a5b7b9268c5743be4412d6624cff3b6 exact_id=6ecf274741508ba7fa8a027deaeb6cbb517d50a749f3a84cd7ca624fe97487ad
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=closure1 nominal_id=f874136277b146368b5105d72074178ee40ec33e01f9439c28a2d7e1505cba93 exact_id=cb83ad14693bb4e9877fdfa2a03447b6878c94ccdd03acaa290b56769c654eba
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get7 location=class6 nominal_id=1019845dbac8b40486c7a8317715dddb4016698da08e810513dc12e31dd8b68f exact_id=f4ac53b66a5aaca260a9f537cf582a82b69042d884a570f92ccc8e738ababceb
+  generated_callable gc0 function=@fn15 id=0f74dd5b25ce2c802cb3779018addc636a2547e1f0f1d8f3d7ea10fc5e0bb39e
+  generated_callable gc1 function=@fn16 id=a64569ecdd7fee9d4ac087001e51d3c6c12ca940c937c386a6e4f7862851aaef
+  fun current @fn0() -> Long
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet b175d4a1a9921238516fae04895b0b5f2e9828462f5529b3b04442fe5cac2ab9
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external4 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str0
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val settings: Settings
+        Type Settings
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      return
+        Type Long
+        FieldAccess 0
+          Type Settings
+          Local settings
+  fun ordinary @fn1() -> Long
+    bb0 entry
+      call $call.1: Long = @fn0 direct
+      return
+        Type Long
+        Local $call.1
+  fun stableEntry @fn2() -> Long
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet b175d4a1a9921238516fae04895b0b5f2e9828462f5529b3b04442fe5cac2ab9
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external4 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str1
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val settings: Settings
+        Type Settings
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=20 bits=0x0000000000000014
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.2
+        Type Settings
+        ClassAlloc Settings
+      call @fn13 direct
+        Type Settings
+        Local $new.2
+        Type Long
+        Local $parameter.value
+      val $context_mark.2: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush b175d4a1a9921238516fae04895b0b5f2e9828462f5529b3b04442fe5cac2ab9
+          Type Settings
+          Local $new.2
+      goto bb9
+    bb4 try.unwind.4
+      landing_pad cleanup=false
+      goto bb5
+    bb5 try.dispatch.5
+      begin_catch
+      goto bb11
+    bb6 try.exit_pad.6
+      landing_pad cleanup=true
+      goto bb7
+    bb7 try.exit_cleanup.7
+      end_catch
+      resume
+    bb8 try.end.8
+      return
+        Type Long
+        FieldAccess 0
+          Type Settings
+          Local settings
+    bb9 try.body.9 unwind bb4
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Long = @fn0 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $dependency.argument.0: Long
+        Type Long
+        FieldAccess 0
+          Type Settings
+          Local settings
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb10
+    bb10 scope.10
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.2
+      goto bb8
+    bb11 scope.11 unwind bb6
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.2
+      rethrow unwind bb6
+  fun captureEntry @fn3() -> () -> Long
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet b175d4a1a9921238516fae04895b0b5f2e9828462f5529b3b04442fe5cac2ab9
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external4 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str2
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val settings: Settings
+        Type Settings
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      return
+        Type () -> Long
+        ClosureAlloc cc0 $Closure$lambda0
+          CaptureInit field=0
+            Type Settings
+            Local settings
+  fun presenceOnly @fn4() -> Unit
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet fd8d7db59507723c2381f1dd3b68954ed6aa224d8ecdfc5d0ab413013d785bf1
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external4 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str3
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      Type Other
+      ContextUnwrapBinding
+        Type internal<context-binding-ref>
+        Local $context_binding.1
+      val $context_binding.2: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet b175d4a1a9921238516fae04895b0b5f2e9828462f5529b3b04442fe5cac2ab9
+      branch bb4 bb5
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.2
+    bb4 if.then.4
+      goto bb6
+    bb5 if.else.5
+      assign $new.2
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external4 direct
+        Type MissingContextException
+        Local $new.2
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str4
+      throw
+        Type MissingContextException
+        Local $new.2
+    bb6 if.merge.6
+      val settings: Settings
+        Type Settings
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.2
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str5
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+  fun binding @fn5() -> Settings
+    bb0 entry
+      call $old.0: Long = @fn7 direct
+      val $dependency.receiver: Long
+        Type Long
+        Local $old.0
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=1 bits=0x0000000000000001
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn8 direct
+        Type Long
+        IntegerBinary add kind=Long
+          Type Long
+          Local $dependency.receiver
+          Type Long
+          Local $dependency.parameter.other
+      val $argument.0: Long
+        Type Long
+        IntegerLiteral Long value=10 bits=0x000000000000000a
+      val $parameter.value: Long
+        Type Long
+        Local $argument.0
+      assign $new.1
+        Type Settings
+        ClassAlloc Settings
+      call @fn13 direct
+        Type Settings
+        Local $new.1
+        Type Long
+        Local $parameter.value
+      return
+        Type Settings
+        Local $new.1
+  fun main @fn6() -> Unit
+    bb0 entry
+      val delayed: () -> Long
+        Type () -> Long
+        ClosureAlloc cc1 $Closure$reference0
+      call $call.1: Settings = @fn5 direct
+      val $context_mark.1: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush b175d4a1a9921238516fae04895b0b5f2e9828462f5529b3b04442fe5cac2ab9
+          Type Settings
+          Local $call.1
+      goto bb6
+    bb1 try.unwind.1
+      landing_pad cleanup=false
+      goto bb2
+    bb2 try.dispatch.2
+      begin_catch
+      goto bb16
+    bb3 try.exit_pad.3
+      landing_pad cleanup=true
+      goto bb4
+    bb4 try.exit_cleanup.4
+      end_catch
+      resume
+    bb5 try.end.5
+      val saved: () -> Long
+        Type () -> Long
+        Local $result.1
+      call @scoop_rt_gc_collect direct
+      call $dependency.argument.0: Long = <closure:function_type0> closure[function_type0]
+        Type () -> Long
+        Local saved
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Long
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Long = @fn7 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Long
+        Local $dependency.parameter.value
+      goto bb24
+    bb6 try.body.6 unwind bb1
+      call $dependency.argument.0: Long = @fn1 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Long
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Long = <closure:function_type0> closure[function_type0]
+        Type () -> Long
+        Local delayed
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Long
+        Local $dependency.parameter.value
+      call $dependency.argument.0: Long = @fn2 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Long
+        Local $dependency.parameter.value
+      val $argument.0: String
+        Type String
+        StringConst @str6
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      assign $new.2
+        Type Other
+        ClassAlloc Other
+      call @fn14 direct
+        Type Other
+        Local $new.2
+        Type String
+        Local $parameter.label
+      val $context_mark.2: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush fd8d7db59507723c2381f1dd3b68954ed6aa224d8ecdfc5d0ab413013d785bf1
+          Type Other
+          Local $new.2
+      goto bb12
+    bb7 try.unwind.7 unwind bb1
+      landing_pad cleanup=false
+      goto bb8
+    bb8 try.dispatch.8 unwind bb1
+      begin_catch
+      goto bb14
+    bb9 try.exit_pad.9 unwind bb1
+      landing_pad cleanup=false
+      goto bb10
+    bb10 try.exit_cleanup.10 unwind bb1
+      end_catch
+      goto bb2
+    bb11 try.end.11 unwind bb1
+      call $call.3: () -> Long = @fn3 direct
+      assign $result.1
+        Type () -> Long
+        Local $call.3
+      goto bb15
+    bb12 try.body.12 unwind bb7
+      call $dependency.argument.0: Long = @fn0 direct
+      val $dependency.parameter.value: Long
+        Type Long
+        Local $dependency.argument.0
+      call @fn9 direct
+        Type Long
+        Local $dependency.parameter.value
+      call @fn4 direct
+      goto bb13
+    bb13 scope.13 unwind bb1
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.2
+      goto bb11
+    bb14 scope.14 unwind bb9
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.2
+      rethrow unwind bb9
+    bb15 scope.15
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.1
+      goto bb5
+    bb16 scope.16 unwind bb3
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.1
+      rethrow unwind bb3
+    bb17 try.unwind.17
+      landing_pad cleanup=false
+      goto bb18
+    bb18 try.dispatch.18
+      begin_catch
+      branch bb25 bb26
+        Type Boolean
+        IsInstance MissingContextException
+          Type Any
+          CaughtException
+    bb19 try.handler_pad.19
+      landing_pad cleanup=true
+      goto bb20
+    bb20 try.handler_cleanup.20
+      end_catch
+      resume
+    bb21 try.exit_pad.21
+      landing_pad cleanup=true
+      goto bb22
+    bb22 try.exit_cleanup.22
+      end_catch
+      resume
+    bb23 try.end.23
+      goto bb39
+    bb24 try.body.24 unwind bb17
+      call $call.4: Long = <closure:function_type0> closure[function_type0]
+        Type () -> Long
+        Local delayed
+      goto bb23
+    bb25 try.catch.25
+      call $catch.5: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: MissingContextException
+        Type MissingContextException
+        Retype MissingContextException
+          Type Any
+          Local $catch.5
+      goto bb27
+    bb26 try.next.26
+      rethrow unwind bb21
+    bb27 scope.27 unwind bb19
+      call $opt.3: Option<String> = external0 direct
+        Type Exception
+        Retype Exception
+          Type MissingContextException
+          Local error
+      branch bb28 bb29
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $opt.3
+    bb28 if.then.28 unwind bb19
+      val $uw.4: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $opt.3
+      goto bb30
+    bb29 if.else.29 unwind bb19
+      assign $new.6
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external5 direct
+        Type UnwrapException
+        Local $new.6
+      throw unwind bb19
+        Type UnwrapException
+        Local $new.6
+    bb30 if.merge.30 unwind bb19
+      val $dependency.argument.0: String
+        Type String
+        Local $uw.4
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb31
+    bb31 scope.31
+      goto bb23
+    bb32 try.unwind.32
+      landing_pad cleanup=false
+      goto bb33
+    bb33 try.dispatch.33
+      begin_catch
+      branch bb40 bb41
+        Type Boolean
+        IsInstance MissingContextException
+          Type Any
+          CaughtException
+    bb34 try.handler_pad.34
+      landing_pad cleanup=true
+      goto bb35
+    bb35 try.handler_cleanup.35
+      end_catch
+      resume
+    bb36 try.exit_pad.36
+      landing_pad cleanup=true
+      goto bb37
+    bb37 try.exit_cleanup.37
+      end_catch
+      resume
+    bb38 try.end.38
+      val $argument.0: String
+        Type String
+        StringConst @str7
+      val $parameter.label: String
+        Type String
+        Local $argument.0
+      assign $new.9
+        Type Other
+        ClassAlloc Other
+      call @fn14 direct
+        Type Other
+        Local $new.9
+        Type String
+        Local $parameter.label
+      val $context_mark.7: internal<context-mark>
+        Type internal<context-mark>
+        ContextPush fd8d7db59507723c2381f1dd3b68954ed6aa224d8ecdfc5d0ab413013d785bf1
+          Type Other
+          Local $new.9
+      goto bb52
+    bb39 try.body.39 unwind bb32
+      call @fn4 direct
+      goto bb38
+    bb40 try.catch.40
+      call $catch.7: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: MissingContextException
+        Type MissingContextException
+        Retype MissingContextException
+          Type Any
+          Local $catch.7
+      goto bb42
+    bb41 try.next.41
+      rethrow unwind bb36
+    bb42 scope.42 unwind bb34
+      call $opt.5: Option<String> = external0 direct
+        Type Exception
+        Retype Exception
+          Type MissingContextException
+          Local error
+      branch bb43 bb44
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $opt.5
+    bb43 if.then.43 unwind bb34
+      val $uw.6: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $opt.5
+      goto bb45
+    bb44 if.else.44 unwind bb34
+      assign $new.8
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external5 direct
+        Type UnwrapException
+        Local $new.8
+      throw unwind bb34
+        Type UnwrapException
+        Local $new.8
+    bb45 if.merge.45 unwind bb34
+      val $dependency.argument.0: String
+        Type String
+        Local $uw.6
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb46
+    bb46 scope.46
+      goto bb38
+    bb47 try.unwind.47
+      landing_pad cleanup=false
+      goto bb48
+    bb48 try.dispatch.48
+      begin_catch
+      goto bb68
+    bb49 try.exit_pad.49
+      landing_pad cleanup=true
+      goto bb50
+    bb50 try.exit_cleanup.50
+      end_catch
+      resume
+    bb51 try.end.51
+      return
+    bb52 try.body.52 unwind bb47
+      goto bb60
+    bb53 try.unwind.53 unwind bb47
+      landing_pad cleanup=false
+      goto bb54
+    bb54 try.dispatch.54 unwind bb47
+      begin_catch
+      branch bb61 bb62
+        Type Boolean
+        IsInstance MissingContextException
+          Type Any
+          CaughtException
+    bb55 try.handler_pad.55 unwind bb47
+      landing_pad cleanup=false
+      goto bb56
+    bb56 try.handler_cleanup.56 unwind bb47
+      end_catch
+      goto bb48
+    bb57 try.exit_pad.57 unwind bb47
+      landing_pad cleanup=false
+      goto bb58
+    bb58 try.exit_cleanup.58 unwind bb47
+      end_catch
+      goto bb48
+    bb59 try.end.59
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.7
+      goto bb51
+    bb60 try.body.60 unwind bb53
+      call @fn4 direct
+      goto bb59
+    bb61 try.catch.61 unwind bb47
+      call $catch.10: Any = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      val error: MissingContextException
+        Type MissingContextException
+        Retype MissingContextException
+          Type Any
+          Local $catch.10
+      goto bb63
+    bb62 try.next.62
+      rethrow unwind bb57
+    bb63 scope.63 unwind bb55
+      call $opt.8: Option<String> = external0 direct
+        Type Exception
+        Retype Exception
+          Type MissingContextException
+          Local error
+      branch bb64 bb65
+        Type Boolean
+        VariantTest Option<String> v0
+          Type Option<String>
+          Local $opt.8
+    bb64 if.then.64 unwind bb55
+      val $uw.9: String
+        Type String
+        VariantPayloadProject Option<String> v0 f0
+          Type Option<String>
+          Local $opt.8
+      goto bb66
+    bb65 if.else.65 unwind bb55
+      assign $new.11
+        Type UnwrapException
+        ClassAlloc UnwrapException
+      call external5 direct
+        Type UnwrapException
+        Local $new.11
+      throw unwind bb55
+        Type UnwrapException
+        Local $new.11
+    bb66 if.merge.66 unwind bb55
+      val $dependency.argument.0: String
+        Type String
+        Local $uw.9
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn11 direct
+        Type String
+        Local $dependency.parameter.value
+      end_catch
+      goto bb67
+    bb67 scope.67 unwind bb47
+      goto bb59
+    bb68 scope.68 unwind bb49
+      Type Unit
+      ContextRestore
+        Type internal<context-mark>
+        Local $context_mark.7
+      rethrow unwind bb49
+  fun $get$evaluations @fn7() -> Long <no-gc>
+    bb0 entry
+      return
+        Type Long
+        GlobalRead evaluations
+  fun $set$evaluations @fn8(value: Long) -> Unit <no-gc>
+    bb0 entry
+      global_assign evaluations
+        Type Long
+        Local value
+      return
+  fun println @fn9(value: Long) -> Unit
+    bb0 entry
+      val $dependency.local.1: Long
+        Type Long
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type Long
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str8
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $lambda.0 @fn10($closure: () -> Long) -> Long
+    bb0 entry
+      return
+        Type Long
+        FieldAccess 0
+          Type Settings
+          ClosureCapture cc0 0
+            Type () -> Long
+            Local $closure
+  fun println @fn11(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external2 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external3 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str9
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external3 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun $reference.0 @fn12($closure: () -> Long) -> Long
+    bb0 entry
+      call $call.1: Long = @fn0 direct
+      return
+        Type Long
+        Local $call.1
+  fun init.Settings.$c0 @fn13(this: Settings, value: Long) -> Unit
+    bb0 entry
+      field_set 0
+        Type Settings
+        Local this
+        Type Long
+        Local value
+      return
+  fun init.Other.$c1 @fn14(this: Other, label: String) -> Unit
+    bb0 entry
+      field_set 0
+        Type Other
+        Local this
+        Type String
+        Local label
+      return
+  fun function_bridge.$Closure$lambda0.() -> Any @fn15($source: () -> Long) -> Any
+    bb0 entry
+      call $call.1: Long = <closure:function_type0> closure[function_type0]
+        Type () -> Long
+        Local $source
+      return
+        Type Any
+        Box
+          Type Long
+          Local $call.1
+  fun function_bridge.$Closure$reference0.() -> Any @fn16($source: () -> Long) -> Any
+    bb0 entry
+      call $call.1: Long = <closure:function_type0> closure[function_type0]
+        Type () -> Long
+        Local $source
+      return
+        Type Any
+        Box
+          Type Long
+          Local $call.1
+  instance mi0 function=@fn9 <- println
+  instance mi1 function=@fn11 <- println
+  str @str0 "missing context current.settings: Settings"
+  str @str1 "missing context stableEntry.settings: Settings"
+  str @str2 "missing context captureEntry.settings: Settings"
+  str @str3 "missing context presenceOnly.#1: Other"
+  str @str4 "missing context presenceOnly.settings: Settings"
+  str @str5 "entered"
+  str @str6 "independent"
+  str @str7 "anonymous"
+  str @str8 "\n"
+  str @str9 "\n"
+  output executable @fn6

@@ -13,6 +13,10 @@ impl Lowerer {
             facts.violation.get_or_insert(expression.span);
         }
         match &expression.kind {
+            E::ContextLookup(_) => {
+                facts.requirements = None;
+                facts.violation.get_or_insert(expression.span);
+            }
             E::IntegerLiteral(_)
             | E::CharLiteral(_)
             | E::BoolLiteral(_)

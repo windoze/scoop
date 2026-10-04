@@ -42,6 +42,10 @@ pub enum CallableInterfaceSemanticValidationError<E> {
         error: SignatureTypeSemanticError<E>,
     },
     Result(SignatureTypeSemanticError<E>),
+    ContextParameter {
+        index: usize,
+        error: SignatureTypeSemanticError<E>,
+    },
     ReleaseRequirement(crate::SignatureBinderScopeError),
 }
 
@@ -83,6 +87,9 @@ impl<E: fmt::Display> fmt::Display for CallableInterfaceSemanticValidationError<
             Self::Receiver(error) => write!(formatter, "invalid callable receiver: {error}"),
             Self::Parameter { index, error } => {
                 write!(formatter, "invalid callable parameter {index}: {error}")
+            }
+            Self::ContextParameter { index, error } => {
+                write!(formatter, "invalid context parameter {index}: {error}")
             }
             Self::Result(error) => write!(formatter, "invalid callable result: {error}"),
             Self::ReleaseRequirement(error) => {

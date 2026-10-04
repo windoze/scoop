@@ -98,8 +98,12 @@ fn signature(checked: CheckedSharedTypeFoundationV1<'_>, core: CheckedSharedType
         )
         .unwrap();
         assert_ne!(effects, e);
-        hir::InheritanceCallableSignatureV1::try_new(source.exact_signature().clone(), effects)
-            .unwrap()
+        hir::InheritanceCallableSignatureV1::try_new(
+            source.exact_signature().clone(),
+            effects,
+            Vec::new(),
+        )
+        .unwrap()
     };
     let target = InheritanceSlotTargetV1::new(
         target.declaration(),

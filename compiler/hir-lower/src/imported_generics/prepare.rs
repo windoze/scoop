@@ -14,6 +14,7 @@ impl Lowerer {
         if body.owner() != identity.body_owner()
             || body.effects() != interface.effects()
             || body.result() != interface.result()
+            || body.context_parameters() != interface.context_parameters()
         {
             return Err("dependency callable body does not match its declaration header".into());
         }
@@ -137,6 +138,7 @@ impl Lowerer {
                 body.effects(),
                 self.imported_release_callability(&body.effects(), &bindings)?,
                 span,
+                self.imported_context_parameters(body.context_parameters(), &bindings, span)?,
             ),
             type_parameters: hir::ImportedCallableTypeParameters::Declared(type_parameters),
             no_gc_type_params,

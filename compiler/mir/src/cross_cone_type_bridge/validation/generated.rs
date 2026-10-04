@@ -25,6 +25,11 @@ impl MirTypeBridgeAuthority<'_> {
             return Err(MirTypeBridgeError::MissingGeneratedFoundation { nominal });
         }
         match (role, record.representation()) {
+            (GeneratedNominalKey::TaskContext(storage), actual) => {
+                if actual != &crate::context_type_representation(*storage) {
+                    return Err(MirTypeBridgeError::GeneratedPayloadMismatch { nominal });
+                }
+            }
             (
                 GeneratedNominalKey::ObjectBackingClass { object },
                 MirTypeRepresentationV1::ObjectBacking { .. },

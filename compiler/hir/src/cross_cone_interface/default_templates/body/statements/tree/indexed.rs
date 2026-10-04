@@ -24,6 +24,10 @@ pub struct IndexedDefaultStatementV1<'a> {
 
 #[derive(Debug)]
 enum IndexedDefaultStatementKindV1<'a> {
+    ContextScope {
+        value: IndexedDefaultExpressionV1<'a>,
+        body: Vec<IndexedDefaultStatementV1<'a>>,
+    },
     Expr(IndexedDefaultExpressionV1<'a>),
     InitializationEnsure(&'a PersistentInitializationUnitId),
     GenericDelegateEnsure(&'a crate::DefaultGenericDelegateReferenceV1),
@@ -69,6 +73,12 @@ impl DefaultStatementV1 {
         I: TemplateLocalIndexResolver,
     {
         let kind = match &self.kind {
+            DefaultStatementKindV1::ContextScope { value, body } => {
+                IndexedDefaultStatementKindV1::ContextScope {
+                    value: index_expression(value, resolver, 16, 1)?,
+                    body: index_statements(body, resolver, 16, 2)?,
+                }
+            }
             DefaultStatementKindV1::Expr(value) => {
                 IndexedDefaultStatementKindV1::Expr(index_expression(value, resolver, 1, 1)?)
             }
@@ -169,6 +179,14 @@ impl WireEncode for IndexedDefaultStatementV1<'_> {
 impl WireEncode for IndexedDefaultStatementKindV1<'_> {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
         match self {
+            Self::ContextScope { value, body } => {
+                encoder.map(3)?;
+                encode_tag(encoder, 16)?;
+                encoder.field(1)?;
+                value.encode(encoder)?;
+                encoder.field(2)?;
+                encode_sequence(encoder, body)
+            }
             Self::Expr(value) => encode_one(encoder, 1, value),
             Self::InitializationEnsure(unit) => encode_one(encoder, 2, *unit),
             Self::GenericDelegateEnsure(reference) => encode_one(encoder, 15, *reference),

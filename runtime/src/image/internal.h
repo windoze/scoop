@@ -48,6 +48,7 @@ void scoop_metadata_scan(ScoopImageRegistry *registry,
                          const ScoopMetadataCheck *check, const uint64_t *scan);
 void scoop_metadata_scan_dispose(ScoopImageRegistry *registry);
 void scoop_image_type_relations(const ScoopImageRegistry *registry);
+void scoop_image_context_keys(ScoopImageRegistry *registry);
 void scoop_image_immortals(ScoopImageRegistry *registry);
 void scoop_image_initial_values(const ScoopImageRegistry *registry,
                                 size_t index);

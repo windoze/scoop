@@ -56,6 +56,12 @@ impl Lowerer {
             .map(|(&id, signature)| {
                 let mut types = self.type_parameter_signature_types(&signature.type_params);
                 types.extend(signature.params.iter().map(|parameter| parameter.ty));
+                types.extend(
+                    signature
+                        .context_parameters
+                        .iter()
+                        .map(|parameter| parameter.ty),
+                );
                 types.push(signature.return_ty);
                 (id, types)
             })

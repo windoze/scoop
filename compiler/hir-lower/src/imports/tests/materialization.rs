@@ -2,6 +2,7 @@ use super::*;
 
 fn invalid_raw_string_property(name: &str) -> ast::Decl {
     ast::Decl::Global(ast::PropertyDecl {
+        context_parameters: Vec::new(),
         annotations: vec![ast::Annotation {
             name: ident("Global"),
             args: Vec::new(),

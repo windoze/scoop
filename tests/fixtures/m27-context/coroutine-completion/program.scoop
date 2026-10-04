@@ -1,0 +1,102 @@
+class Request(val id: Int)
+
+context(request: Request)
+fun current(): Int = request.id
+
+fun expect(value: Boolean) {
+    if (!value) { throw IllegalStateException() }
+}
+
+class CompletionError : Exception(None)
+
+class Gate : SuspendRegistration<Int> {
+    var waiter: Continuation<Int>? = None
+    public override fun register(continuation: Continuation<Int>) {
+        waiter = Some(continuation)
+    }
+    fun complete(fail: Boolean) {
+        val continuation = waiter!!
+        waiter = None
+        if (fail) { continuation.resumeWithException(IllegalStateException()) }
+        else { continuation.resume(41) }
+    }
+}
+
+class ThrowingCompletion(val expected: Int) : Continuation<Int> {
+    var successes: Int = 0
+    var failures: Int = 0
+    public override fun resume(value: Int) {
+        expect(current() == expected)
+        successes = successes + 1
+        gcCollect()
+        throw CompletionError()
+    }
+    public override fun resumeWithException(exception: Throwable) {
+        expect(current() == expected)
+        failures = failures + 1
+        gcCollect()
+        throw CompletionError()
+    }
+}
+
+suspend fun body(gate: Gate): Int = context(Request(2)) {
+    val value = suspendCoroutine(gate)
+    expect(current() == 2)
+    value + 1
+}
+
+context(entry: Request)
+suspend fun required(): Int = entry.id
+
+class MissingCompletion : Continuation<Int> {
+    public override fun resume(value: Int) { throw IllegalStateException() }
+    public override fun resumeWithException(exception: Throwable) {
+        expect(exception is MissingContextException)
+    }
+}
+
+fun main() {
+    context(Request(1)) {
+        val immediate = ThrowingCompletion(1)
+        try {
+            startCoroutine(suspend { 42 }, immediate)
+            throw IllegalStateException()
+        } catch (expected: CompletionError) {
+            expect(current() == 1)
+        }
+        expect(immediate.successes == 1 && immediate.failures == 0)
+
+        val immediateFailure = ThrowingCompletion(1)
+        try {
+            startCoroutine(suspend {
+                if (true) { throw IllegalStateException() }
+                0
+            }, immediateFailure)
+            throw IllegalStateException()
+        } catch (expected: CompletionError) {
+            expect(current() == 1)
+        }
+        expect(immediateFailure.successes == 0 && immediateFailure.failures == 1)
+
+        var index = 0
+        while (index < 2) {
+            val gate = Gate()
+            val done = ThrowingCompletion(1)
+            startCoroutine(suspend { body(gate) }, done)
+            expect(current() == 1)
+            context(Request(9)) {
+                try {
+                    gate.complete(index == 1)
+                    throw IllegalStateException()
+                } catch (expected: CompletionError) {
+                    expect(current() == 9)
+                }
+            }
+            expect(current() == 1)
+            expect(done.successes == 1 - index && done.failures == index)
+            index = index + 1
+        }
+    }
+    startCoroutine(suspend { required() }, MissingCompletion())
+    println("completion-ok")
+}

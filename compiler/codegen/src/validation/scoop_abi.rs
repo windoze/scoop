@@ -1287,6 +1287,21 @@ fn runtime_signature(
                 Managed::MaterializeException => {
                     (vec![scoop_lir::MANAGED_PTR], Some(scoop_lir::MANAGED_PTR))
                 }
+                Managed::ContextPush => (
+                    vec![
+                        scoop_lir::RAW_PTR,
+                        scoop_lir::MANAGED_PTR,
+                        scoop_lir::METADATA_PTR,
+                    ],
+                    Some(scoop_lir::MANAGED_PTR),
+                ),
+                Managed::ContextFork => (
+                    vec![scoop_lir::MANAGED_PTR, scoop_lir::METADATA_PTR],
+                    Some(scoop_lir::MANAGED_PTR),
+                ),
+                Managed::ContextEnsureRoot => {
+                    (vec![scoop_lir::METADATA_PTR], Some(scoop_lir::MANAGED_PTR))
+                }
                 Managed::StringConcat => (
                     vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR],
                     Some(scoop_lir::MANAGED_PTR),
@@ -1321,6 +1336,15 @@ fn runtime_signature(
                 NoGc::Unpin | NoGc::ReleaseHandle => {
                     (vec![LirType::I64], Some(scoop_lir::MANAGED_PTR))
                 }
+                NoGc::ContextTryGet => (vec![scoop_lir::RAW_PTR], Some(scoop_lir::MANAGED_PTR)),
+                NoGc::ContextRestore => {
+                    (vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR], None)
+                }
+                NoGc::ContextSnapshot | NoGc::ContextCurrent => {
+                    (Vec::new(), Some(scoop_lir::MANAGED_PTR))
+                }
+                NoGc::ContextEnter => (vec![scoop_lir::MANAGED_PTR], Some(scoop_lir::MANAGED_PTR)),
+                NoGc::ContextLeave => (vec![scoop_lir::MANAGED_PTR], None),
                 NoGc::GcStats => (Vec::new(), Some(LirType::I64)),
                 NoGc::StringCompare => (
                     vec![scoop_lir::MANAGED_PTR, scoop_lir::MANAGED_PTR],

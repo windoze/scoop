@@ -8,6 +8,10 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::ContextScope { value, body } => {
+                    self.collect_generic_calls_in_expr(value, out);
+                    self.collect_generic_calls_in_statements(body, out);
+                }
                 hir::StatementKind::InitializationEnsure(_)
                 | hir::StatementKind::GenericDelegateEnsure(_) => {}
                 hir::StatementKind::Expr(expr) | hir::StatementKind::Throw(expr) => {

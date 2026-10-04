@@ -1,0 +1,56 @@
+@Extern(lib = "fixture_native", name = "m13_run_many")
+fun runMany(callback: FunPtr<(Int, Ptr<Unit>) -> Int>, context: Ptr<Unit>, base: Int, count: Int): Int
+
+@Extern(lib = "fixture_native", name = "m13_callback_barrier")
+fun barrier()
+
+@Extern(lib = "fixture_native", name = "m13_attached_thread_count")
+fun attachedThreads(): Int
+
+class Request(val id: Int)
+
+context(request: Request)
+fun current(): Int = request.id
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+@Unsafe
+fun register(): ForeignCallback<(Int, Ptr<Unit>) -> Int> = context(Request(1)) {
+    foreignCallback<(Int, Ptr<Unit>) -> Int>(
+        { value: Int ->
+            expect(current() == 1)
+            val result = context(Request(value)) {
+                @Unsafe { barrier() }
+                gcCollect()
+                expect(current() == value)
+                @Unsafe { barrier() }
+                gcCollect()
+                expect(current() == value)
+                value
+            }
+            expect(current() == 1)
+            result
+        }, 1, ForeignCallbackMode.Reusable
+    )
+}
+
+fun main() {
+    @Unsafe {
+        val original = register()
+        gcCollect()
+        context(Request(9)) {
+            val callback = retainForeignCallback(original)
+            releaseForeignCallback(original)
+            expect(runMany(callback.function, callback.context, 10, 4) == 46)
+            expect(runMany(callback.function, callback.context, 20, 4) == 86)
+            expect(current() == 9 && attachedThreads() == 1)
+            expect(foreignCallbackState(callback) == ForeignCallbackState.Registered)
+            expect(when (foreignCallbackFailure(callback)) {
+                Some(_) -> false
+                None -> true
+            })
+            releaseForeignCallback(callback)
+        }
+    }
+    println("callback-concurrent-ok")
+}

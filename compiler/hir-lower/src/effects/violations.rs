@@ -9,6 +9,14 @@ impl Lowerer {
     ) {
         for statement in statements {
             match &statement.kind {
+                hir::StatementKind::ContextScope { value, body } => {
+                    out.push((
+                        statement.span,
+                        "context scopes are not allowed in `@NoGC` code".into(),
+                    ));
+                    self.collect_no_gc_expr_violations(value, out, requirements);
+                    self.collect_no_gc_statement_violations(body, out, requirements);
+                }
                 hir::StatementKind::InitializationEnsure(_)
                 | hir::StatementKind::GenericDelegateEnsure(_) => out.push((
                     statement.span,
@@ -119,6 +127,10 @@ impl Lowerer {
         use hir::ExprKind;
         self.collect_no_gc_type_violations(expr.ty, expr.span, out, requirements);
         match &expr.kind {
+            ExprKind::ContextLookup(_) => out.push((
+                expr.span,
+                "context lookup is not allowed in `@NoGC` code".into(),
+            )),
             ExprKind::StringLiteral { .. } => out.push((
                 expr.span,
                 "string literals are not allowed in `@NoGC` code".to_string(),

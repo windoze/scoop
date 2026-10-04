@@ -55,6 +55,7 @@ impl std::ops::DerefMut for StructDecl {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LoadedStructDefinition {
+    pub context_contracts: Vec<crate::LoadedContextContract>,
     pub declaration: std::sync::Arc<ImportedNominalDeclaration>,
     pub definition: StructDefinition,
 }

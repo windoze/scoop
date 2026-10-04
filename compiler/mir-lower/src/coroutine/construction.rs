@@ -67,6 +67,7 @@ pub(super) fn wrapper_params(
 #[allow(clippy::too_many_arguments)]
 pub(super) fn wrapper_body(
     frame_class: mir::ClassId,
+    task_storage: mir::ContextStorageType,
     mut locals: Arena<mir::Local>,
     saved: &[mir::LocalId],
     frame_slots: &HashMap<mir::LocalId, FrameSlot>,
@@ -81,6 +82,10 @@ pub(super) fn wrapper_body(
     let mut args = vec![
         frame_state(STATE_INITIAL),
         mir::Expr::local(completion, locals[completion].ty.clone()),
+        mir::Expr::new(
+            mir::Type::Context(task_storage),
+            mir::ExprKind::Context(mir::ContextOperation::Current),
+        ),
     ];
     for old_local in saved {
         let slot = &frame_slots[old_local];

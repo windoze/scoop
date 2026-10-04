@@ -30,14 +30,18 @@ impl StrongCallableRuntimeScanAtomV1 {
     }
 }
 
-/// Complete callable-local runtime-scan closure for one body.
+/// Callable-owned scan programs and Context key cells for one body.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StrongCallableRuntimeScanPlanV1 {
+    context_keys: Vec<crate::CallableContextKeyCellV1>,
     body: PersistentCallableBodyId,
     atoms: Vec<StrongCallableRuntimeScanAtomV1>,
 }
 
 impl StrongCallableRuntimeScanPlanV1 {
+    pub fn context_keys(&self) -> &[crate::CallableContextKeyCellV1] {
+        &self.context_keys
+    }
     pub const fn body(&self) -> PersistentCallableBodyId {
         self.body
     }
@@ -49,8 +53,13 @@ impl StrongCallableRuntimeScanPlanV1 {
     pub(crate) const fn from_artifact(
         body: PersistentCallableBodyId,
         atoms: Vec<StrongCallableRuntimeScanAtomV1>,
+        context_keys: Vec<crate::CallableContextKeyCellV1>,
     ) -> Self {
-        Self { body, atoms }
+        Self {
+            body,
+            atoms,
+            context_keys,
+        }
     }
 }
 
@@ -91,6 +100,7 @@ impl StrongCallableRuntimeScanPlanSetV1 {
                 Ok(StrongCallableRuntimeScanPlanV1 {
                     body,
                     atoms: Vec::new(),
+                    context_keys: Vec::new(),
                 })
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -180,7 +190,21 @@ fn callable_plan(
             Ok(StrongCallableRuntimeScanAtomV1 { atom, scan })
         })
         .collect::<Result<Vec<_>, StrongCallableRuntimeScanPlanError>>()?;
-    Ok(StrongCallableRuntimeScanPlanV1 { body, atoms })
+    let context_keys = crate::function_context_keys(function)
+        .into_iter()
+        .map(|key| {
+            Ok(crate::CallableContextKeyCellV1 {
+                key,
+                atom: crate::context_key_cell_atom(plan, key)
+                    .map_err(StrongCallableRuntimeScanPlanError::Hash)?,
+            })
+        })
+        .collect::<Result<Vec<_>, StrongCallableRuntimeScanPlanError>>()?;
+    Ok(StrongCallableRuntimeScanPlanV1 {
+        body,
+        atoms,
+        context_keys,
+    })
 }
 
 fn append_instruction_scans(
@@ -277,6 +301,7 @@ fn validate_artifact_callable(
     callable: &StrongCallableRuntimeScanPlanV1,
 ) -> Result<(), StrongCallableRuntimeScanPlanError> {
     let plan = callable_definition_plan(foundation, callable.body)?;
+    crate::task_context::validate_context_plan(foundation, plan, callable)?;
     for (ordinal, atom) in callable.atoms.iter().enumerate() {
         let ordinal = u32::try_from(ordinal)
             .map_err(|_| StrongCallableRuntimeScanPlanError::TooManyAtoms(callable.body))?;
@@ -333,6 +358,7 @@ fn runtime_scan_atom(
 pub enum StrongCallableRuntimeScanPlanError {
     DuplicateBody(PersistentCallableBodyId),
     NonCanonicalBodyOrder,
+    InvalidContextKeys(PersistentCallableBodyId),
     TooManyAtoms(PersistentCallableBodyId),
     EmptyArrayElement(PersistentCallableBodyId),
     EmptyAtom {

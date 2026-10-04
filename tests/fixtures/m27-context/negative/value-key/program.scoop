@@ -1,0 +1,2 @@
+context(a: Int) fun read() {}
+fun main() {}

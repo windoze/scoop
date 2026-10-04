@@ -23,6 +23,7 @@ pub use runtime_scans::*;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StrongCallableRegistrationPlanV1 {
     body: PersistentCallableBodyId,
+    context_key_count: u64,
     symbol: PersistentSymbolRequest,
     definition_plan: ObjectDefinitionPlanId,
     primary_atom: ObjectDefinitionAtomId,
@@ -38,6 +39,9 @@ pub struct StrongCallableRegistrationPlanV1 {
 }
 
 impl StrongCallableRegistrationPlanV1 {
+    pub const fn context_key_count(self) -> u64 {
+        self.context_key_count
+    }
     pub const fn definition_owner(self) -> crate::RegistrationDefinitionOwner {
         self.definition_owner
     }
@@ -171,14 +175,21 @@ impl StrongCallableRegistrationPlanSetV1 {
 
         let mut registrations = Vec::with_capacity(expected.len());
         for (body, identity) in expected.into_iter().zip(identities.callables()) {
-            registrations.push(build_registration(
+            let context_key_count = runtime_scans
+                .callable(body)
+                .expect("the callable support set has already been matched")
+                .context_keys()
+                .len() as u64;
+            let registration = build_registration(
                 foundation,
                 digests,
                 body,
                 identity.definition_plan(),
                 identity.fingerprint_node(),
                 identity.owner(),
-            )?);
+                context_key_count,
+            )?;
+            registrations.push(registration);
         }
         Ok(Self {
             producer: foundation.producer(),
@@ -207,6 +218,7 @@ fn build_registration(
     identity_definition: ObjectDefinitionPlanId,
     identity_fingerprint: DigestNodeId,
     definition_owner: crate::RegistrationDefinitionOwner,
+    context_key_count: u64,
 ) -> Result<StrongCallableRegistrationPlanV1, StrongCallableRegistrationPlanBuildError> {
     let registration_definition = require_definition(
         foundation,
@@ -325,6 +337,7 @@ fn build_registration(
 
     Ok(StrongCallableRegistrationPlanV1 {
         body,
+        context_key_count,
         symbol,
         definition_plan: registration_definition.id(),
         primary_atom,

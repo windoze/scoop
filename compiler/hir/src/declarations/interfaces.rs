@@ -59,6 +59,7 @@ pub struct LoadedInterfaceMethod {
     pub declaration: CallableDeclarationRecordV1,
     pub name: String,
     pub parameters: Vec<(String, TypeId)>,
+    pub context_parameters: Vec<TypeId>,
     pub return_type: TypeId,
     pub span: Span,
 }

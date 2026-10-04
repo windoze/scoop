@@ -143,6 +143,13 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
                     ty: Type::Interface(continuation),
                 },
                 Field {
+                    name: "task".to_string(),
+                    ty: Type::Context(ContextStorageType::new(
+                        module.cone,
+                        ContextStorageRole::Task,
+                    )),
+                },
+                Field {
                     name: "return".to_string(),
                     ty: saved_slot_ty,
                 },
@@ -160,8 +167,9 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
     let state_field = CoroutineFrameFieldRef::checked(&module.classes, frame_class, 0).unwrap();
     let completion_field =
         CoroutineFrameFieldRef::checked(&module.classes, frame_class, 1).unwrap();
-    let saved_field = CoroutineFrameFieldRef::checked(&module.classes, frame_class, 2).unwrap();
-    let failure_field = CoroutineFrameFieldRef::checked(&module.classes, frame_class, 3).unwrap();
+    let task_field = CoroutineFrameFieldRef::checked(&module.classes, frame_class, 2).unwrap();
+    let saved_field = CoroutineFrameFieldRef::checked(&module.classes, frame_class, 3).unwrap();
+    let failure_field = CoroutineFrameFieldRef::checked(&module.classes, frame_class, 4).unwrap();
     let saved_value = module.meta.coroutine_saved_values.alloc(
         CoroutineSavedValue::checked(
             &module.classes,
@@ -193,6 +201,7 @@ fn coroutine_fixture(continue_parent: bool) -> CoroutineFixture {
             coroutine,
             state_field,
             completion_field,
+            task_field,
             vec![saved_value],
             failure_value,
             frame_identity,
@@ -518,7 +527,7 @@ fn complete_coroutine_metadata_validates_and_dumps_typed_roles() {
     assert_eq!(fixture.module.validate(), Ok(()));
 
     let dump = dump(&fixture.module);
-    assert!(dump.contains("state=field0 completion=field1 saved=[cv0] failure=cx0"));
+    assert!(dump.contains("state=field0 completion=field1 task=field2 saved=[cv0] failure=cx0"));
     assert!(dump.contains("environment_id="));
     assert!(dump.contains("success_id="));
     assert!(dump.contains("failure_id="));

@@ -163,6 +163,7 @@ fn ordinary_reader_checks_restricted_accessor_signatures_and_visibility() {
                         record.declared_visibility()
                     },
                     record.slot_relations().clone(),
+                    Vec::new(),
                 )
                 .unwrap()
             })

@@ -27,6 +27,11 @@ pub struct IndexedDefaultExpressionV1<'a> {
 
 #[derive(Debug)]
 enum IndexedDefaultExpressionKindV1<'a> {
+    ContextLookup {
+        declaration: &'a DefaultCallableDeclarationV1,
+        parameter: crate::ContextParameterIndex,
+        diagnostic: &'a crate::ContextDiagnostic,
+    },
     StringLiteral {
         value: &'a str,
         owner: &'a DefaultStringOwnerV1,
@@ -242,6 +247,15 @@ impl DefaultExpressionV1 {
         I: TemplateLocalIndexResolver,
     {
         let kind = match &self.kind {
+            DefaultExpressionKindV1::ContextLookup {
+                declaration,
+                parameter,
+                diagnostic,
+            } => IndexedDefaultExpressionKindV1::ContextLookup {
+                declaration,
+                parameter: *parameter,
+                diagnostic,
+            },
             DefaultExpressionKindV1::StringLiteral { value, owner } => {
                 IndexedDefaultExpressionKindV1::StringLiteral { value, owner }
             }

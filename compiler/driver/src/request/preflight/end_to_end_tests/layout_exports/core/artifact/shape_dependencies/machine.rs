@@ -40,6 +40,10 @@ pub(super) fn check(
     let mut source = Source::from_mir(input.mir, provider.layout);
     for root in plan.dependency_generated_nominal_shapes() {
         assert_eq!(root.provider(), provider.layout.provider());
+        if matches!(root.location(), mir::GeneratedExactTypeLocation::Context(_)) {
+            assert!(provider.layout.descriptors().get(root.exact()).is_some());
+            continue;
+        }
         let shape = provider
             .layout
             .shape_support()

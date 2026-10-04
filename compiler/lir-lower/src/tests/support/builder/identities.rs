@@ -41,6 +41,7 @@ pub(super) fn test_exact_type_at(
         return existing.identity_record().id();
     }
     let key = match ty {
+        mir::Type::Context(storage) => storage.exact_record().key().clone(),
         mir::Type::Unit => ExactTypeKey::Nominal(CoreBuiltinNominal::Unit.identity_record().id()),
         mir::Type::Any => ExactTypeKey::Nominal(CoreBuiltinNominal::Any.identity_record().id()),
         mir::Type::Integer(kind) => test_nominal_exact(

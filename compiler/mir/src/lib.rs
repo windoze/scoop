@@ -110,7 +110,12 @@ pub use module::*;
 mod validation;
 pub use validation::*;
 
+mod context;
 mod control_flow;
+pub use context::{
+    ContextKey, ContextOperation, ContextStorageRole, ContextStorageType, context_fields,
+    context_type_representation,
+};
 pub use control_flow::*;
 
 mod dump;

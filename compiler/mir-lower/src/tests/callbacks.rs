@@ -256,14 +256,16 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         source
             .foreign_callback_registrations
             .alloc(hir::ForeignCallbackRegistration {
-                definition_root: hir::LexicalDefinitionRoot::Function(target),
-                definition_path: scoop_identity::StructuralDefinitionPath::from_first(
-                    scoop_identity::StructuralPathSegment::new(
-                        scoop_identity::StructuralDefinitionSiteRole::CallbackConversion,
-                        0,
+                definition: hir::ForeignCallbackDefinition::Source {
+                    root: hir::LexicalDefinitionRoot::Function(target),
+                    path: scoop_identity::StructuralDefinitionPath::from_first(
+                        scoop_identity::StructuralPathSegment::new(
+                            scoop_identity::StructuralDefinitionSiteRole::CallbackConversion,
+                            0,
+                        ),
+                        [],
                     ),
-                    [],
-                ),
+                },
                 native_function_type,
                 managed_function_type: function_type,
                 context_index: 0,
@@ -446,19 +448,51 @@ fn foreign_callback_adapter_uses_typed_status_and_argument_offsets() {
         function.return_ty,
         mir::Type::MachineScalar(mir::MachineScalarKind::ForeignCallbackStatus)
     );
-    assert_callback_status(
-        &function.body.blocks[function.body.entry].terminator,
-        mir::ForeignCallbackStatus::Returned,
-    );
-    let catch = function.body.blocks[function.body.entry]
+    assert_eq!(function.params.len(), 5);
+    assert!(matches!(function.params[1].ty, mir::Type::Context(storage)
+        if storage.role == mir::ContextStorageRole::Node));
+    let entry = &function.body.blocks[function.body.entry];
+    assert!(matches!(
+        entry.statements[0].kind,
+        mir::StatementKind::ValDecl {
+            init: mir::Expr {
+                kind: mir::ExprKind::Context(mir::ContextOperation::Fork { .. }),
+                ..
+            },
+            ..
+        }
+    ));
+    assert!(matches!(
+        entry.statements[1].kind,
+        mir::StatementKind::ValDecl {
+            init: mir::Expr {
+                kind: mir::ExprKind::Context(mir::ContextOperation::Enter { .. }),
+                ..
+            },
+            ..
+        }
+    ));
+    let mir::Terminator::Goto(invoke) = entry.terminator else {
+        panic!("the adapter prepares its task before invoking the closure")
+    };
+    let invoke = &function.body.blocks[invoke];
+    assert_callback_status(&invoke.terminator, mir::ForeignCallbackStatus::Returned);
+    let catch = invoke
         .unwind
         .expect("the adapter catches managed exceptions");
-    assert_callback_status(
-        &function.body.blocks[catch].terminator,
-        mir::ForeignCallbackStatus::Threw,
-    );
+    let catch = &function.body.blocks[catch];
+    assert_callback_status(&catch.terminator, mir::ForeignCallbackStatus::Threw);
+    for block in [invoke, catch] {
+        assert!(matches!(
+            block.statements.last().unwrap().kind,
+            mir::StatementKind::Expr(mir::Expr {
+                kind: mir::ExprKind::Context(mir::ContextOperation::Leave { .. }),
+                ..
+            })
+        ));
+    }
 
-    let (call, _) = statement_call(&function.body.blocks[function.body.entry].statements[0]);
+    let (call, _) = statement_call(&invoke.statements[0]);
     let offsets = call.args[1..]
         .iter()
         .map(callback_argument_offset)

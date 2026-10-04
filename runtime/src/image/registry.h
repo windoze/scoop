@@ -33,6 +33,12 @@ typedef struct ScoopRecordTable {
     size_t count;
 } ScoopRecordTable;
 
+typedef struct ScoopContextCell {
+    const ScoopContextKeyUseV1 *use;
+    size_t owner;
+    uint64_t encoded_slot;
+} ScoopContextCell;
+
 typedef struct ScoopImageRegistry {
     const ScoopPlatformMetadataImages *loaded;
     const ScoopImageDescriptorV1 **images;
@@ -50,6 +56,10 @@ typedef struct ScoopImageRegistry {
     size_t eager_unit_count;
     struct ScoopScanRanges *scan_ranges;
     ScoopStackMapIndex stackmaps;
+    ScoopContextCell *context_cells;
+    size_t context_cell_count;
+    uint64_t context_key_count;
+    unsigned context_height;
 } ScoopImageRegistry;
 
 /* Collection has no managed side effects. Cross-record GC and initialization

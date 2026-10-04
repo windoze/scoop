@@ -34,7 +34,7 @@ Module
   block if.else.2
     store integer<Long>(0x0000000000000000) -> local5
     store local5 -> local6
-    call managed-direct-target2 sp<managed-call:4> live=[] t8 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp<managed-call:4> live=[] t8 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t8 -> local8
     call managed-void-target2 sp<managed-call:5> live=[local8:ptr<managed>@0] sig=void2 (ptr<managed>, i64) external-fn5(local8, local6)
     t9 = aggregate () : {}

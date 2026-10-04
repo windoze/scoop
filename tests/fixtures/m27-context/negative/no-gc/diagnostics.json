@@ -1,0 +1,54 @@
+[
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "contextual declarations cannot be annotated with `@NoGC`",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 24,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 19
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "`@NoGC` function `read` has local `a` of non-GC-free type String",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 38,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 0
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "value of non-GC-free type String is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 17,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 8
+    },
+    "severity": "error"
+  },
+  {
+    "code": "SCOOPC_HIR_ERROR",
+    "message": "context lookup is not allowed in `@NoGC` code",
+    "notes": [],
+    "origin": {
+      "cone": "00769af7cd4a85d98841cd63dabb8e73c4d41bce56f5e225f7295dd27c3f39b6",
+      "end": 17,
+      "kind": "source",
+      "path": "main.scoop",
+      "start": 8
+    },
+    "severity": "error"
+  }
+]

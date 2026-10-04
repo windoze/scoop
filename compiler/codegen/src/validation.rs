@@ -306,6 +306,7 @@ fn checked_value_type(
         Value::IntegerConst(value) => Ok(value.scalar_type()),
         Value::MachineScalar(value) => Ok(LirType::MachineScalar(value.kind())),
         Value::BoolConst(_) => Ok(LirType::I1),
+        Value::ContextKeyCell(_) => Ok(scoop_lir::RAW_PTR),
         Value::NullPointer(kind) => Ok(LirType::Ptr(kind)),
         Value::TypeDescriptor(reference) => {
             let (kind, index, len) = match reference {

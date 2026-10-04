@@ -7,6 +7,7 @@ use crate::imports::lookup::calls::wire_operator;
 pub(in crate::class) struct InterfaceSignature {
     pub name: String,
     pub parameters: Vec<TypeId>,
+    pub context_parameters: Vec<TypeId>,
     pub result: TypeId,
     pub is_suspend: bool,
     pub safety: hir::CallableSafetyV1,
@@ -51,6 +52,7 @@ impl InterfaceSignature {
                 .expect("callables have a name")
                 .into(),
             parameters: signature.params.iter().map(|p| p.ty).collect(),
+            context_parameters: signature.context_parameters.iter().map(|p| p.ty).collect(),
             result: signature.return_ty,
             is_suspend: signature.is_suspend,
             safety: match signature.attributes.safety {
@@ -228,6 +230,11 @@ impl Lowerer {
                             .map(|(_, ty)| self.instantiate_ty(*ty, arguments))
                             .collect(),
                         result: self.instantiate_ty(method.return_type, arguments),
+                        context_parameters: method
+                            .context_parameters
+                            .iter()
+                            .map(|ty| self.instantiate_ty(*ty, arguments))
+                            .collect(),
                         is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
                         safety: effects.safety(),
                         gc_effect: effects.gc_effect(),
