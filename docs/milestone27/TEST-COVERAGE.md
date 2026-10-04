@@ -56,6 +56,18 @@ ABI 检查仍保留，不能将指纹用作额外的来源授权。
 局部单元测试；正式 CLI fixture 继续锁定生成产物、阶段输出、独立消费、
 链接和执行结果。这里删除的是重复全链路枚举，不改生产侧 reader 的行为。
 
+## 产物读取热点
+
+慢测试采样还暴露了产物读取中的重复线性扫描。definition plan 与 atom 已按
+持久 ID 排序，改为派生实际 typed key 后使用已有二分查询；callable body
+保持依赖顺序，继续按该表的实际顺序查询。digest patch 的目标数量在一次
+validation 内统一统计，复用结果并保留缺失／歧义错误。
+
+Strong relocation bindings 已按 member、atom、offset、target slot 排序，
+读取单个 relocation 的绑定时直接定位连续区间，避免对每个 relocation
+重新扫描整个闭包并分配临时列表。没有改变 wire 格式、错误条件或验证边界，
+也没有新增跨阶段缓存或重复的语义检查。
+
 ## 验证
 
 删除后先执行 `cargo fmt --all` 和 `cargo clippy --workspace --all-targets`。

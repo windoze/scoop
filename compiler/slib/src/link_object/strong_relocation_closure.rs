@@ -192,6 +192,27 @@ impl VerifiedCurrentConeStrongRelocationClosureV1 {
     pub fn bindings(&self) -> &[StrongRelocationBindingV1] {
         &self.bindings
     }
+
+    pub(in crate::link_object) fn bindings_at(
+        &self,
+        member: SlibMemberId,
+        atom: ObjectDefinitionAtomId,
+        offset: u64,
+    ) -> &[StrongRelocationBindingV1] {
+        let key = (member, atom, offset);
+        let site = |binding: &StrongRelocationBindingV1| {
+            (
+                binding.source_member,
+                binding.containing_atom,
+                binding.offset_within_atom,
+            )
+        };
+        // binding_key orders every target slot of a relocation contiguously.
+        let start = self.bindings.partition_point(|binding| site(binding) < key);
+        let rest = &self.bindings[start..];
+        let count = rest.partition_point(|binding| site(binding) == key);
+        &rest[..count]
+    }
 }
 
 pub fn verify_current_cone_strong_relocation_closure_v1(
