@@ -196,6 +196,8 @@ M23-1先以经验证、不可序列化的request-local `Stage1SourceHandle`在AS
 
 M24 在 type body member sum 中增加独立 `ReleaseBlock { body, span }`；contextual `release` 不伪装为 method，也不改变普通 identifier。parser 保留完整 block 和位置，拒绝 modifier/annotation/参数/返回类型等非法拼写；HIR 诊断重复 block、非法 owner 和 block 内不允许的声明。恢复边界与其他 type body item 一致。
 
+M27 的 `context` 仍按位置识别：声明前缀保存有序参数 list，无 receiver 的 `context(value) { body }` 保存独立 ContextScope 节点；scope body 是 block，不先建立 Call/Lambda。非法 target、重复前缀和残缺列表在对应声明/表达式边界诊断。完整分层见 2.16。
+
 ### 2.2 HIR
 
 同一 Cone 的继承检查使用已解析的 class/interface 父类型关系，按父声明先于派生声明的顺序完成属性覆盖、accessor 和普通方法检查。基类的 virtual family 与父接口的覆盖关系须在派生声明消费之前建立；同一 owner 内保持源码成员顺序。源码文件的排序、发现顺序及派生类型在文件中先出现都不能改变合法性或槽身份。依赖声明已携带完整关系，直接复用；该调度不改变声明身份、产物格式或 runtime ABI。
@@ -1563,6 +1565,46 @@ String 的数组快照由普通 MutableArray(size, init) 生成，Char initializ
 词法分析使用一个 token 流和嵌套的文本/插值表达式状态，插值中的 callable 与其他表达式共享 parser 的身份序列。定义 core 时直接查询本 Cone 根包的实际 StringBuilder 类型，消费 core 时只使用既有 core prelude 的类型绑定；随后复用普通构造与成员候选，不进入用户扩展层。数组和 tuple 的元素若产生语句展开，HIR 按元素顺序交错放置各自的 setup 与结果临时值，不能先执行所有 setup 再求值前面的元素。
 
 **产物。** Char 表示/常量、ArrayGenerate 与实际新增 scalar intrinsic 必须进入各自现有 codec、canonical fingerprint、布局/native ABI 分类及 golden dump；新增 wire variant 的所属 section 版本和依赖 fingerprint 在实现批次同步更新，旧产物/缓存按已有版本边界重建。AST 插值 part 保留源位置并进入 AST dump；它在 HIR 导出前完全脱糖，不新增持久化格式。普通 List/ArrayList 方法不新增专用 section，String/Array 对象头与 TD release-hook ABI 不因本里程碑扩展。各边界验证新增字段自身的类型、格式、引用与 ABI，成功读取后复用，不增加来源资格、证明链、通用预算或下游语义重放。
+
+### 2.16 M27：Task-local Context
+
+行为以 language spec 8.3、11.7、11.9、14.3 为准；runtime 契约见 runtime spec 第 9 章，实施次序与验收见 [M27 设计](../milestone27/DESIGN.md)。本节为待实现设计，承接已完成 M24/M26 的 core、产物及工具链基线。
+
+**共有 HIR。** 函数及 property 声明增加有序 `ContextContract`；空 list 明确表示没有 requirement。每项保存 `Named(identifier) | Unnamed(ordinal)`、完整 ref 类型表达式及原 source span。requirement 的引用由原声明 typed identity 与独立 `ContextParameterIndex` 构成，不能借名称或 body local 标识；body local 仅在具体实现的入口绑定中出现。
+
+泛型直接使用已有类型表达式与 substitution，不另建 ContextKeyRecipe 或平行泛型求解器。类型表达式在定义处须已确定为 ref 类别，完整 callable/owner application 按已有具体化入口代换一次，形成 concrete exact key，并检查代换后重复及 override/继承 contract；无正文的 application 也执行这些语义检查。key 是 `ContextKey(PersistentExactTypeId)` 独立 newtype，非裸 alias，不再散列出一份 key 身份。类型、key、进程 slot、scope mark 使用不同 typed domain。
+
+公开与继承声明的 requirement 使用共有导出图、签名可见性和实际 provider 查询；不是另建一份来源协议。context list 不进入 callable signature identity、overload、MSC 或普通函数类型；原声明内容 fingerprint 必须包含有序 list。调用点不产生隐式 Context 实参。property 的 getter/setter 从同一 property contract 各自得到入口绑定；声明与 abstract slot 不持有 body local。
+
+LocalConcrete 的每个实现具有完整 `ContextLookup prologue`，为 `NoneRequired | Requirements(NonEmpty<ContextLookup prologueBinding>)`；binding 由 concrete requirement 引用、exact key 和 `BindLocal(ImmutableLocalId) | CheckPresence` 组成。context 参数名称只进入正文词法作用域，普通 default 继续在 caller 侧展开。`ContextScope` 保存 value、已确定的 ref 类型/key、typed block result/ControlOutcome；value 独立定型，外部 expected type 只传给 body。MIR 不再推断这些事实。
+
+**core 与内部类型。** 在已有 CompilerExceptionCore 中绑定实际 `MissingContextException` 类及 constructor，普通共享选择提前收集其 String、Option 和调用依赖。不得在 MIR/LIR 通过 FQN 找回异常构造器。另在既有 core 协议/类型输出中增加两个封闭的 Context 支持角色：TaskContext 与 ContextNode，由实际 core provider 单次生成，并以 `(core provider identity, role)` 扩展现有 generated nominal identity。它们的 exact type、布局、TD、scan 经正常 Strong 类型导出供消费者引用，不创建新 ProgramDescriptor、core 授权表或平行 type registry。
+
+两个角色的字段采用 runtime spec 9.1 的内部 managed carrier；它们不能成为用户可命名类型，不把异构 node 槽解释成源码 Any。MIR/LIR 的 TaskContext ref、nullable node/snapshot root 与 mark/guard 聚合都有完整的内部类型和扫描表示。C helper 的 task/node TD 从同一 typed core 支持引用降低为 metadata 参数；字段 offset 的共享 C/LLVM 布局在生产及必要的 ABI 测试处核对，runtime 热点不重复验证整套布局。
+
+mark/guard 的逻辑角色是不同封闭 variant，物理存储复用现有 exact tuple/nullable-ref 表示及 scan；跨挂起的 mark 以这份完整 storage type 进入 CoroutineSlot，不保存 opaque bytes，也不增加第三种 Context 堆对象。
+
+**MIR。** contextual body 的 initial entry 在原用户 CFG 之前按顺序产生 try-get 与 hit/miss 分支：hit 初始化 named local 或完成 anonymous presence check；miss 沿已选择的普通 constructor/throw CFG 抛异常。没有 body 的声明不生成入口，adapter/bridge 转入唯一实现，suspend resume state 不重跑 prologue。成功 lookup 的 managed ref 由 key 对应静态类型 refine，不经 raw pointer、动态 cast 或二次 TD 检查。
+
+ContextScope 在 coroutine transform 前纳入已有结构化 cleanup：先求值 value，再 push，成功后登记 `RestoreContext(mark)` cleanup item。normal 非 Unit 结果先写 exact hidden result place，真实的 return/break/continue/exception 出口按既有 CleanupCursor/PendingTransfer/EH 路径恢复后继续；Unit 不建立虚构结果存储。finally、EndCatch 与 ContextRestore 按词法层次排序，内部 catch 不退出外部 Context。仅挂起不消费 mark；跨挂起 mark 和其 payload 使用 exact CoroutineSlot，消费后清空含 ref 的 slot。此过程复用现有 cleanup 构造与结构验证，不增加 Context 专用控制流证明或运行期 undo/mark registry。
+
+每个 resumable frame 增加非可选 TaskContext field，source callable 的 initial entry 从 current task 初始化它。start helper fork/enter child，resume adapter 在现有 atomic claim 成功并将实际驱动时 enter frame task，所有 driver 出口 leave。REGISTERING/latched payload 路径不驱动 frame，也不切换 Context。execution guard 不跨一个已退出的 driver 保留；source scope mark 则可以跨挂起。普通 closure conversion 只捕获实际词法 local；callback registration 的固定 snapshot 语义属于该操作，不给所有 closure 增加 Context field。
+
+**LIR/codegen 与入口。** try-get、restore、enter/leave 是独立 runtime target 的 managed-ref leaf，不冒充源码 NoGC callable。push/fork/空 task allocation 携带真实 SafepointId、完整 caller/statepoint/native root plan；所有 internal null 保留 nullable managed provenance。codegen 机械发射这些操作、实际 TD 引用和已生成的 cleanup，不读取 TLS 私有 offset 来补语义。
+
+无分配 leaf 仍访问 ThreadState/tree。codegen 保留保守 memory effect，只声明实际保证的 nounwind/GC-leaf 属性；不得按“没有 safepoint”推成 readnone/argmemonly，或让 LLVM 把查找跨 binding/task 切换错误 hoist/CSE。不为此增加新的 effect 推断框架。
+
+root/eager gateway 继续先执行原 mandatory poll，再在 current task 为空时建立 root task，之后调用源码 initializer/main；root 在 ThreadState 跨 gateway 保持。callback 的现有 C gateway 同时 root closure/snapshot/exception，typed adapter 在自身 poll 后 fork/enter snapshot，正常和 catch/status 出口 leave。私有 adapter 增加 nullable snapshot 输入，并同批更新 MIR signature、LIR ABI、generated C typedef、root plan 和 runtime；C trampoline 的用户签名及 hidden continuation 参数不变。所有分配仍使用既有 ManagedEntry/NativeBorrowedEntry，不增加 native-safe Context 分配通道。
+
+**产物与链接。** Context contract/scope 进入已有 HIR 声明与共享正文 codec；具体操作、frame 和 callback adapter 进入已有 MIR/LIR 输出。每个实际 machine body 对每个 exact key 只有一个 ContextSlotCell associated atom，用 `(PersistentCallableBodyId, ContextKey)` 作 typed key。同 body 的 lookup/push 引用它，不为只存在于 abstract contract 的 key 发射 cell。
+
+在现有 callable registration 增加 cell-use 列表，空表表示该 body 无 lookup/push；每项保存 exact key 和 cell relocation。body、表及 cell 的 canonical zero bytes 随同一 LinkObject、Strong/ODR member 和 object fingerprint 生产；不同 body 的同 key cell 可并存，同一 ODR body 的 associated atoms 必须一起合并。沿既有 registration → RuntimeImage 依赖关系计算摘要，不新增 key-use registration member、第二个 ODR group 或摘要回填链。reader 检查新增字段、对应 atom 与实际 relocation，之后直接复用完整记录。
+
+M27 的 metadata ABI 从 3 升为 4，callable record 采用新 exact size，启动保留原 image 集合/root entry 参数和六类 table。三层 outer schema 2、container schema、既有 callable-body-v2 和 persistent-v1 mangler 保持；新增 generated nominal/atom variant 与实际改动的 section major、profile required inventory、object verifier 和 runtime-build fingerprint 同批升级。当前 cross-cone-generic/3、两个 Strong /4 profile 分别迁到 /4、/5；不保留混用旧 frame/adapter/record 的路径。具体字段号随其 codec 批次在既有格式定义处分配，不为设计中的未发射字段创建占位 schema。core、依赖与 runtime 必须重建，进程 slot、加载地址与树高不参与缓存身份。
+
+入口使用按 requirement 顺序排列的专用 ContextLookup 表达式，分别作为普通 immutable local initializer 或独立 presence check；完整表达式类型提供 exact key。MIR scope 先生成 push，再以含 restore 的 generated finally 包裹 body，直接复用既有 cleanup 链。内部 Task、Node、binding-ref、mark、switch-guard 的 compiler-owned storage role 保留不同类型；只有 Task/Node 生成堆 instance/TD，其余使用普通 exact value layout 和扫描。role 的持久身份从实际 core Cone 派生，不能降格为源码 Any 或 raw pointer。
+
+**职责与验收。** HIR 完成一次源码/实例化语义检查；MIR 负责实际 CFG、cleanup 与 frame；LIR 负责表示、ABI 与 root；reader 负责外部字节的格式、引用和对象内容；runtime 负责加载后的范围、地址、cell 发布及动态执行状态。没有新 stage 依赖、访问凭证、预算、状态证明或无变化数据的整套语义重放。每批提供能经正式 CLI 编译/链接/运行的真实 fixture，最终覆盖同步 scope、全部退出、具体化/跨 Cone/ODR、真实挂起与跨线程 resume、callback 快照及 moving GC；完整完成门见设计第 9 节。
 
 ## 3. 待明确事项
 

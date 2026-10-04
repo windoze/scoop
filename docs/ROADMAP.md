@@ -439,16 +439,15 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - ByteBuffer、off-heap storage、borrow/view、close 及外部内存压力反馈整体延期；本里程碑不依赖 M24 release hook，也不扩展为通用集合/ownership 框架。旧 M16 字符串设计不作为实现依据。
 - 正式总验收通过：全 workspace 5,252 项测试、公共 fixture runner 32 项测试、全部 2,242 个文件 fixture；M26 新增 84 个 fixture，覆盖源码与产物编译、跨 Cone/ODR、异常、协程和 moving GC，详见设计第 11 节。
 
-### M27 Task-local Context（设计见 `docs/milestone27/DESIGN.md`）
+### M27 Task-local Context（2026-10-04 设计与规范同步完成，待实现，[设计](milestone27/DESIGN.md)）
 
-- 保留Kotlin-like的`context(name: T)` contextual declaration与compiler-known `context(value) { ... }`结构化表达式；后者是block而非lambda/普通函数调用，首版一次绑定一个non-null managed ref，多个binding通过嵌套scope表达；
-- canonical exact static type就是Context key。binding与requirement必须exact match；静态类型为derived type的binding不会隐式满足base/interface requirement，调用者须先把表达式显式定型为目标父类型。lookup缺失时抛可捕获的`MissingContextException`；context requirement进入导出metadata与override contract，但不参与overload、MSC、类型推断、函数类型、mangle或普通函数ABI，M27不引入静态effect row；
-- contextual declaration在每次activation入口按源码顺序lookup一次，把结果snapshot为普通不可变local；同一activation内后来安装的同型binding不改变已取得的参数；
-- binding属于logical coroutine task而非OS thread：普通调用与direct suspend调用共享，`startCoroutine`从当前有效binding fork独立child context；挂起不退出scope，resume在所属TaskContext下运行并在离开driver时严格恢复调用者context；
-- `context(value) { ... }`按结构化LIFO语义覆盖normal、return、break、continue与exception cleanup；普通closure不隐式捕获Context，现有`foreignCallback`在registration处捕获binding snapshot，并为每次invocation建立相互隔离的调用Context；同步FFI不切换logical task；
-- key从跨Cone的`PersistentExactTypeId`确定，并使用独立的kind-specific typed identity；artifact显式携带与machine-code owner/ODR关系一致的key-use与只写一次cell metadata，程序登记期把同key解析为同一个进程内slot。slot值不是语义identity，不进入`.slib`或program fingerprint，也不以FQN、symbol或arena ordinal回退；
-- binding、undo、snapshot、scope mark/execution guard、coroutine frame、thread current-context root及callback handle-registry root中的全部managed ref都必须参与M15精确扫描、relocation与checked write barrier，TLS只定位`ScoopThreadState`。物理索引结构保持runtime-private；设计文档给出适配当前64B small-object上限的小节点persistent radix tree作为参考实现，但不把fanout、节点布局或helper命名固化为语言契约；
-- HIR/MIR/LIR以互不混用的typed key/context/mark实体表达完整语义，MIR在coroutine transform前生成scope cleanup CFG，LIR完整携带managed provenance、safepoint与root plan；验收覆盖shadow/missing、全部退出边、真实挂起与跨线程resume、child隔离、同步FFI、并发callback、跨Cone identity及moving-GC stress。
+- `context(name: T)` 声明命名函数或计算/abstract property 的 requirement；`context(value) { ... }` 是词法 block 表达式，每次绑定一个非空 managed ref。key 为 canonical exact static type，alias 展开后相同；derived binding 不隐式满足 base/interface requirement。
+- 实现入口按源码顺序取得一次参数 local，未使用/匿名项同样要求存在，缺失抛可捕获的 `MissingContextException`。requirement 进入导出与 override contract，不参与重载、MSC、推断、函数类型、mangle 或普通 ABI。
+- 真实的 normal/return/break/continue/exception 退出沿既有 typed cleanup 恢复；挂起保留 scope。普通/direct suspend 调用共享 task，`startCoroutine` fork child；实际 resume 进入 frame task 并在全部 driver 出口恢复 resumer。
+- 普通 closure 只捕获实际词法 local。`foreignCallback` 注册时保存不可变 binding root，每次 invocation fork 独立 task，覆盖同步重入与并发 Reusable；同步 outbound FFI 保持当前 task。
+- 首版使用 TaskContext 与小型 immutable radix node 两种 GC 对象，scope mark 直接保存旧 root；无需独立 undo 链或 snapshot 堆对象。current/previous、frame、临时节点与 callback handle 全部沿 M15 精确扫描、relocation 和 barrier。首次 task 在现有 gateway poll 后建立，继续使用既有分配入口。
+- `ContextKey` 是既有 `PersistentExactTypeId` 的独立 typed wrapper；每 body/key 的 slot cell 随原 callable registration/associated atoms 与 Strong/ODR 发射。metadata ABI 3→4，保留 image 六类 table；不增加独立 key-use family 或 program/core descriptor，进程 slot 不进入持久 identity/fingerprint。
+- 按同步纵向闭环、完整源码契约、泛型/跨 Cone、协程、callback、总验收六批推进。三份规范已分别同步到 language 8.3、runtime 第 9 章、impl 2.16；完成门包含正式 CLI、artifact-only 链接、negative/golden、跨线程与 moving GC。静态 effect、公开 Context API、scheduler/取消及 allocator 改造不进入本里程碑。
 
 ## 3. 备注
 
@@ -471,6 +470,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 2026-09-08 M23拆分与单文件模式：原M23按依赖拆为M23-1…M23-11，依次落实source语法、persistent identity/`.slib` container、single-Cone/core边界、build graph、多Cone名称语义、ZST/ABI、generic/ODR、runtime registry、基础program-link、native闭包/hardening与最终CLI。正式`scoop build/run <file>`把指定文件作为固定reserved identity、唯一source、core-only Cone dependency的synthetic executable Cone；不发现旁边manifest/源码，native FFI只由artifact已有typed requirement经显式library search root解析。历史fixture在M23-11切到该正式路径并删除旧`scoopc`直编直链/core拼接旁路。
 - 2026-09-07 顺序调整：M24改为GC-free release hook，采用“完整构造后ready、逻辑死亡且真正reclaim前同步调用TypeDescriptor hook”的直接模型，不采用payload复制或异步queue；原M24字符串范围整体移至M26，并补入Char、safe字符互转、unsafe byte互转及off-heap growable ByteBuffer。既有已完成M25编号保持不变。
 - 2026-10-04 M26 重新设计：采用 List/MutableList/ArrayList 与 String parts 主线，保留 Char 与字符串能力并明确 Unicode 标量索引。ByteBuffer 及所有 off-heap 配套设计移至后续待排期；三份规范与 M24 后续边界同步修订。
+- 2026-10-04 M27 设计修订并同步三份规范：替换旧 8.3 的 Kotlin 静态解析，采用 exact-type 动态 Context；以 scope 保存旧 root、callable 内 cell 列表和现有 managed gateway 完成恢复、链接与启动，删除旧草案的独立 undo/key-use/program support 机制。实现与功能验收尚未开始。
 - 2026-09-07 新增M27“Task-local Context”：保留Kotlin-like的`context(name: T)`/`context(value) { ... }`表面，以canonical exact static type为key，结合结构化动态binding和logical-task传播重写原spec 8.3 context parameters。首版不做子类型兼容解析或静态effect row；ordinary ABI保持不变。实现细节区分架构不变量与参考方案，物理索引布局不作为长期契约。
 
 ## 4. 待补齐清单（backlog）

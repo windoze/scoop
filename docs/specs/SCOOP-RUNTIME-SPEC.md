@@ -328,6 +328,7 @@ M15的macOS/AArch64 runtime只更新stack-resident managed roots。固定的LLVM
 
 ### 3.3 根集合
 
+- M27 的线程 Context root：`ScoopThreadState.current_task_context` 是可回写 managed slot，在 native-safe、挂起驱动退出及 gateway 之间仍被扫描。切换时保存的 previous Context、scope 保存的旧 binding root、coroutine frame 和 callback 快照同样使用本章已有的精确 root/RefScan；具体契约见第 9 章。
 - 栈根：managed caller在statepoint处的live root location、managed invoke显式compiler root frame、Scoop ABI调用点保持的caller roots，以及native callee显式登记的可更新root slot链。M19的initializing receiver从class allocation返回起就是普通managed root，跨base/`this` initializer、property/`init` managed call与异常边时按同一规则relocate；不存在constructor专用handle或不可移动区。runtime以精确return PC查stack-map record并把每个location解析为可写slot；不存在保守栈扫描fallback；
 - 静态storage root：ordinary top-level property/delegate storage、object/companion published singleton slot、root entry及initialization failure slot。LIR/codegen为每个compiler-owned static storage输出2.8的typed descriptor、非可选`scan_kind`与封闭`StaticInitialState`；`ZeroedForRuntimeUnit`在任一managed代码前使完整extent为零，`EncodedStaticValue`则只允许Recursive leaf为null或经typed relocation指向已登记immutable object-start，两者都在registry commit后携带完备scan登记为可写root。`None`明确表示GC-free且禁止relocation，只参与storage/init identity验证。零尺寸payload强制为`None`，但仍拥有独立的1-byte writable identity token；该token在两种variant中的canonical byte均为零，GC绝不扫描。spec 13.6显式`@Global`/`@ThreadLocal` raw storage仍是另一种FFI representation；
 - stable/immortal对象：活跃的Scoop exception record中按值复制的对象payload作为动态stable external object登记，其内部ref slot可更新；编译器生成的静态String等只读immortal object必须有精确地址/size/TD登记。M15只允许GC-free payload的只读immortal对象；未登记的heap外地址不能出现在managed slot；
@@ -426,10 +427,11 @@ best effort 不保证何时再次 GC、对象间顺序、执行线程、native r
 ### 4.3 回调 Scoop closure
 
 - M13 提供 managed callback registration协议。概念入口为 `scoop_runtime_callback_register(closure, adapter, signature, mode) -> cookie`：注册函数按 Scoop ABI直接接收 ordinary、非 suspend closure，为其建立 `GcHandle`，并在runtime registry中创建 opaque token slot。64位host的GC-free cookie在目标ABI保证可往返且保持canonical的非零payload位内编码generation和slot，只做`uintptr_t`/`void *`往返、从不解引用；超出该位预算的slot/generation不得分配。slot复用递增generation，因而可检测stale/use-after-final-release而无需永久泄漏C heap tombstone。
-- token slot至少保存closure handle、首个异常handle、typed adapter、静态signature descriptor、`Reusable`/`OneShot` mode、owner/active计数和完成/失败状态；C侧不得读取这些字段，也不得把cookie当地址解引用。
+- token slot至少保存closure handle、首个异常handle、typed adapter、静态signature descriptor、`Reusable`/`OneShot` mode、owner/active计数和完成/失败状态；M27 另保存第 9 章的 binding-root snapshot handle，空快照用明确的空分支。C侧不得读取这些字段，也不得把cookie当地址解引用。
 - callback ABI中的mode/state整数只是固定wire code，不具有Scoop nominal enum identity：`scoop_runtime_callback_register`的`uint32_t mode`中`0/1`分别表示header常量`SCOOP_FOREIGN_CALLBACK_REUSABLE`/`SCOOP_FOREIGN_CALLBACK_ONE_SHOT`及经core-contract验证的`Reusable`/`OneShot`；其他mode输入是fatal ABI error。`scoop_runtime_callback_state`的`uint32_t`返回中`0/1/2/3`分别表示header常量`SCOOP_FOREIGN_CALLBACK_REGISTERED`/`ACTIVE`/`COMPLETED`/`FAILED`及经验证的`Registered`/`Active`/`Completed`/`Failed`。compiler metadata必须原子保存每个code对应的exact typed variant并在边界穷尽转换；runtime返回其他state值属于ABI破坏，generated code必须fatal/trap，不能把该整数直接作为语言enum tag。
 - 编译器为每个实际导出的 concrete函数类型生成 managed invoke adapter，并按`(C signature, context index)`生成/复用静态 C ABI trampoline。源码`contextIndex: Long`在HIR已验证为非负且可索引该签名，进入runtime/bridge metadata后是zero-based typed `CallbackParameterIndex(u32)`，不是源码`Long`；负数、超过`u32`、越界或非`Ptr<Unit>`槽均在生成trampoline前失败。trampoline identity只包含canonical C signature fingerprint与该index，不包含具体closure、registration、managed adapter或callback body id。trampoline按真实 C签名收参，移除被token占用的context参数，把其余值写入 C-FFI-safe args/result storage，再调用 C-callable `scoop_runtime_callback_invoke(cookie, signature, args, result)`；runtime不能用未类型化可变参数直接猜 managed invoke ABI。
 - `scoop_runtime_callback_invoke` 执行 attach-if-needed → enter managed → 从 handle取得 closure并登记为root → 调用 adapter → leave managed → detach-if-owned。closure调用期间使用普通 managed ABI、statepoint和异常处理，可以分配及触发 GC；跨调用保存的不是 closure裸指针，而是 token中的 handle。
+- M27 在同一流程中同时 resolve/root binding snapshot，typed managed adapter 在其入口 poll 后、用户 closure 前建立并进入独立 TaskContext；全部正常/异常出口先恢复 previous Context，再返回 C。它不在 native-safe 阶段分配 Context，也不新增另一套 attach/GC 协议；私有 adapter 参数变化见 9.4。
 - token提供 `retain` / `release` 等价能力并明确 ownership transfer。普通值复制不增加owner；owner与active lease都为零后撤销handles并回收slot，之后调用属于 ABI错误。`Reusable`调用只增减active lease，持久owner由unregister后的调用者释放；`OneShot`入口原子claim并把一份worker owner转为active worker lease，出口消费。需要在`join`侧观察完成/异常时，observer必须预先retain并持有到读取状态后最终release；创建失败路径释放所有尚未转移的ownership。
 - callback adapter必须在返回 C前捕获所有 Scoop异常，物化成managed对象并以status/受管异常handle报告失败；异常不得展开穿越 trampoline/C frame。token以first-wins保存首个失败，trampoline按真实C返回类型返回全零值；由API-specific同步点后的observer决定重新抛出。invalid/stale cookie、signature不匹配、one-shot重复调用或shutdown后调用无法安全映射为任意C API错误，统一视为fatal runtime ABI error。
 - 首版只支持原生API具有显式 `void *` context/user-data槽的 callback；静态 trampoline和token分别占据 function pointer与context。缺少context槽的API不能导出任意closure，只能使用 spec 13.10 的静态 `FunPtr`，直到后续实现动态 executable trampoline或有限slot registry。
@@ -537,6 +539,8 @@ Char 编码、String 解码到 `MutableArray<Char>` 与 UTF-8 字节快照都沿
 
 主线程attach仅建立native-safe状态；每次eager gateway及最后root gateway分别按2.8建立boundary、完成epoch enter握手、执行mandatory gateway入口poll，并在GC-free status返回后完成leave与boundary回收。两次调用之间的C coordinator没有活动managed段，不能跨C frame扫描或展开。
 
+M27 在第一个实际 gateway 的入口 poll 后、执行任何源码 initializer/main 前建立空 root TaskContext，保存在 ThreadState 中并跨后续 gateway 复用。Context 不改变 EntryPending/活动段的区分，不要求 native-safe 分配；结束时按 9.4 清空 root。
+
 - 进程启动先建立纯 native runtime/thread/callback 基础状态，再按 2.8 接收实际 image pointer 集合和 root entry。先检查已加载范围内的 prefix/span，再收集全部六类 record，核对实际引用、地址唯一性、TD/scan、初始化初态与全部连续 stackmap v3 blob；在同一 image dependency 索引上形成语言规范 12.3 的 canonical Kahn 顺序。全部成功后一次性冻结静态 registry，初始化 heap/handle 并以 native-safe attach 主线程，随后逐次通过 eager gateway 和 root gateway 执行 managed 代码。登记失败前没有 managed 副作用，不能留下部分 GC root 或改写 cell；gateway 失败后后续 eager 与 main 不执行。此过程不读取已删除的 program/core descriptor，不重算 RuntimeImage/Graph/ObjectDefinition 摘要，不重放语言语义。异常报告按 2.8 的实际 failure root 和已有 world 同步读取只读类型诊断，随后 abort；任何 Scoop exception 不得穿越 C startup frame；
 - object/companion不因metadata登记或其const读取而初始化；第一次非const访问通过2.7 gate同步ensure。initializer entry是编译器生成的ordinary managed callable，可以分配、触发GC或抛异常但不能挂起；runtime只协调状态、wait与发布，不按名称反射调用property/accessor，也不补initializer body；
 - 线程：主线程启动时注册；runtime创建的线程及 foreign thread在首次进入 managed代码前 attach，在退出最后一个 managed入口且不再持有 runtime thread state时 detach（配合 3.5、4.3）；
@@ -550,12 +554,71 @@ Char 编码、String 解码到 `MutableArray<Char>` 与 UTF-8 字节快照都沿
 - `CoroutineFrameState`是pending控制流的唯一物理discriminator；runtime frame不另存target、cleanup cursor、continuation chain或第二套pending tag，这些都是编译器的GC-free静态metadata。frame只保存state和实际动态payload的exact `CoroutineSlot<T>`；所有slot从`Empty`/canonical zero初始化，对应live/pending payload必须在使其恢复/dispatch edge可消费之前写完，恢复方只在规定的acquire/claim成功后读取。frame TypeDescriptor必须递归扫描每个可能活动slot，包括含managed ref的aggregate；`Return(Unit)`不占动态payload slot，其他`Return(T)`保持exact `T`，异常slot只能保存5.4已经物化并`EndCatch`后的managed `Throwable`，不得保存`Any`、opaque bytes、native exception record或EH状态；
 - continuation 的完成状态与 frame 的当前恢复状态存于 managed 对象字段。M10–M12 的最小实现是单线程协议；M13 把adapter claim/完成与frame `running/suspended/completed`转换升级为64位对齐原子状态机：winner以acq_rel CAS取得完成/驱动权，先写payload再release发布终态，读取方以acquire消费；等待短暂`Completing`状态的循环必须包含safepoint/backoff。该状态机的64位字段是compiler/runtime共享的独立typed atomic state carrier，不是源码`Long`属性，不得经普通integer operation读写。已attach线程可安全恢复既有continuation，重复完成仍抛`IllegalStateException`。调度器、队列和恢复后在哪个线程继续执行仍由后续标准库规定；
 - hidden continuation ABI 仅存在于编译器生成的 Scoop 托管调用之间。runtime 不提供 suspend FFI 入口、extern trampoline 或 callback wrapper；`@Extern` 与 `suspend` 的互斥，以及挂起函数声明引用不能在 `FunPtr` 上下文中解析为原生地址，由 HIR 保证（spec 8.2、13.4、13.10）；
-- runtime 只提供第 5 章所述的 ABI 异常物化辅助，不参与状态分派、恢复、队列或线程切换；
+- runtime 提供第 5 章的 ABI 异常物化及 M27 第 9 章的 Context 操作；状态分派、完成权竞争与何时进入 frame Context 仍由生成的 driver/adapter 决定，runtime 不接管恢复、队列或调度；
 - 调度器、事件循环与取消属于标准库。永不恢复的 continuation 只会按普通不可达对象被 GC 回收，runtime 不替它执行 cleanup / `finally`。
 
 ---
 
-## 9. TBD 清单
+## 9. Task-local Context（M27）
+
+语言行为以 language spec 8.3、11.9、14.3 为准，实施设计见 [M27 设计](../milestone27/DESIGN.md)。Context 只承担精确类型动态绑定、结构化恢复和任务传播；源码不能直接操作 runtime 的 TaskContext、key cell 或 snapshot。
+
+### 9.1 表示与操作
+
+首版使用一个可变 TaskContext root 和不可变的四叉 radix tree。两个内部 managed 类型分别为 `TaskContext { bindings }` 与 `ContextNode { child[4] }`；16-byte 对象头下分别为 24/48 byte，均适配当前 64-byte small-object 上限。node 的槽是有 managed provenance 的 nullable ref，中间层指向 node，叶层指向实际 payload；collector 只需递归扫描这些 ref，不执行动态类型查找。已发布节点除 GC relocation 外不可修改。
+
+slot 为进程内 `u32`。登记完全部实际 key 后选择统一树高，最多 16 层；lookup 按 slot digit 索引，遇到空边即缺失，不随动态 scope 深度遍历链表。slot 数值、树高、fanout 和字段 offset 不属于语言或 `.slib` 身份；表示变更通过实际 runtime ABI/layout fingerprint 迁移。
+
+| 操作 | 语义与 effect |
+| --- | --- |
+| try-get(key cell) | 返回 typed nullable managed ref；不分配、不 GC、不 unwind；miss 由生成的 managed CFG 构造并抛异常 |
+| push(key cell, value) | 从 current root path-copy 新节点；旧 root 与输入在所有分配点保活；完成后提交一次 bindings 并返回 typed scope mark |
+| restore(mark) | 恢复 mark 保存的旧 root；no-alloc、no-GC、nounwind，与现有 cleanup 同序 |
+| snapshot-current | 取得当前不可变 root，空 Context 返回明确的空 root；no-alloc、no-GC |
+| fork(root) | 分配一个独立 TaskContext 并持有同一 immutable root；可分配/GC，不复制 payload |
+| enter(task) / leave(guard) | 保存/恢复当前线程 Context；no-alloc、no-GC、nounwind，严格词法 LIFO |
+
+scope mark 只保存 owner TaskContext 与旧 root，由 compiler-internal typed aggregate 表示；嵌套与消费顺序由现有 cleanup CFG 保证。无需再维护 TaskContext undo 栈、depth、mark token registry 或独立 snapshot 堆对象。execution guard 是保存 previous Context 的另一种 typed value，不能与 scope mark 或源码整数混用。restore/leave 可做局部 owner/入口状态检查，不重放控制流或整棵树验证。
+
+这些 leaf 仍读取或修改 ThreadState/tree，GC effect 不代表 memory purity。首版保留保守的 LLVM memory effect，不能标为 readnone/仅参数内存，也不能让 lookup/snapshot 跨 push、restore、enter 或 leave 错误合并或前移。
+
+只有 push/fork/首次空 task 构造可分配。push 在提交前不修改可见 root，资源耗尽沿现有 fatal allocation failure；不会把 OOM 转成 `MissingContextException`。try-get/push 不读 payload 的 TypeDescriptor，不重复检查已经由 HIR 确定的静态类型关系。
+
+### 9.2 GC 与并发
+
+两个内部类型的 exact identity、完整 layout/scan 和 TypeDescriptor 由实际 core provider 生成并通过已有类型/布局产物导出；消费者引用原定义。runtime helper 需要的 descriptor 由 typed metadata 参数提供，使用与本版共享 C 布局一致的普通 TD，不手写伪 descriptor 或在启动恢复已退役的 ProgramDescriptor/CoreBindings。所有字段是普通扫描 ref，release hook 为 None。
+
+current Context、previous guard、旧 binding root、push 中间节点与 value、取得的参数 local、frame field、callback snapshot 都必须出现在现有 root/RefScan 中。ThreadState scanner 不依赖当前 thread mode 来省略 current Context；TLS 只定位 ThreadState。所有 ref store 沿已有 checked write-barrier 路径，可能 GC 后重新取得对象地址；restore 不再需要的 mark/frame slot 必须清空，以免保留旧树。
+
+同一 TaskContext 的 binding 更新由其逻辑任务串行驱动。M13 的 frame/adapter release publication 与 acquire claim 同时发布 TaskContext 及其 binding；真正挂起后原 driver 只恢复本线程入口，不继续修改已交出的 task。同步 registration 的 latched completion 只投递 payload，不能同时启动第二个 driver。child 和 callback invocation 共享 immutable node，但各自持有可变 TaskContext；payload 对象本身仍遵守普通并发规则。M27 不新增 scheduler、task 锁或逐 lookup 全局锁。
+
+### 9.3 key cell 与加载
+
+canonical exact type 是唯一的 key 信息。IR 的 `ContextKey` 是对已有 `PersistentExactTypeId` 的独立 typed wrapper，不引入第二份 type hash、source key declaration 或 key-use 证明。机器 slot 是另一类型，绝不进入持久 identity。
+
+每个实际使用 key 的 machine body 为该 key 发射一个 writable slot cell，同 body 多个 site 共用；cell 的 typed associated-atom identity 为 `(PersistentCallableBodyId, ContextKey)`。把该 body 的非空/空 cell-use 列表加入**现有 callable registration**，不增加第七类 image record 或另一张 program support 表。每项保存 exact key 与本 cell 的 typed relocation，cell 与 body 位于同一 LinkObject，沿其 Strong/ODR associated-atom 规则发射和合并。不同 body 使用相同 key 可以持有不同 cell。
+
+当前 metadata ABI 3 的 callable record 是 exact-sized；M27 将 metadata ABI 升为 4，并更新 callable record 的版式及 size 检查。image 的六类 table 和启动函数参数保持，其他 record 的字段没有因此增加。旧 ABI 3 产物在 prefix 边界拒绝，不能在旧 record 尾部静默追加。
+
+启动登记在既有全部 image/callable 收集过程中检查新增 span、cell 的可写范围和实际 body 归属；同址 ODR 引用复用已有去重结果。按 exact key 去重后分配进程 slot，一次发布给各 cell，再执行任何 managed gateway。cell 的 canonical object 初值为 0，live encoding 为 `u64(slot) + 1`，可以表示整个 u32 slot 域；所有登记成功前不修改 cell。
+
+runtime 只处理实际加载地址、范围、cell 初态、重复归属及 slot 容量，不重新构造语言类型或 canonical hash，不复算 ObjectDefinition/ODR fingerprint。compiler/reader 在各自已有边界检查引用与内容；cell 初值、关联 key、owner 和 relocation 进入既有 object fingerprint，进程 slot 和已写入的 cell 值不进入 fingerprint/cache key。同一个 ODR body 的 cell 随 body 合并，不为 cell 再建独立 ODR member。
+
+### 9.4 入口、协程与 callback
+
+root/eager gateway 保持入口 poll 为第一条可握手操作。poll 后，生成代码在 current Context 为空时通过普通 managed allocation 建立空 TaskContext 并安装，再调用源码 body；后续 gateway 复用它。root 在 gateway 之间作为 ThreadState slot 保活。main 完成且不再进入 managed 代码后，在已有 thread/registry 同步下清空；detach 不得留下活动 Context entry。
+
+foreign attach 可以保持空 current Context。callback gateway 按 4.3 进入已有活动 managed 段后，resolve closure 和 snapshot handles 并登记 native roots；typed adapter 执行自身入口 poll，然后 fork snapshot、enter invocation Context，再调用用户 closure。这个内部准备前缀允许尚未安装 TaskContext；它只分配/安装 Context，不执行 requirement 或用户 body。不增加可在 native-safe 任意分配的入口。
+
+callback token 以 `Empty | RootHandle` 保存快照，handle 的空分支不尝试 resolve。非空 root、closure、failure 全部沿既有 handle 表管理；invocation 的 active lease 同时保活这些输入。注册不复制树，retain 不重新采样，final release 在 owner/active 都结束后释放全部 handle。私有 managed adapter 在已有 closure/storage/status 参数中增加 typed nullable snapshot-root 输入；外部 C trampoline 和 `ForeignCallback<F>` ABI 不变。adapter 的 catch/status 路径及正常出口均先 leave Context，再返回 C；快照取得/安装期间的临时 ref 也有完整 root plan。
+
+每个 resumable frame 保存非可选 TaskContext ref，并在发布 continuation 前初始化。start helper 在普通实参求值后 fork/enter child，task 与最终 completion 均在 child 下执行；adapter 只有成功取得实际驱动权才 enter frame Context。每次 driver 的 suspended、completed、failure 与 unwind 出口都 leave；仅 suspended 出口不执行源码 binding restore。跨挂起的 mark/参数沿 exact frame slot 保存；已消费的 mark slot 清空。completion 自身抛出也必须恢复入口，不能再次发送 completion 通知。
+
+缺失 binding 是普通 `MissingContextException`；unresolved cell、错误入口或损坏 root 属于 compiler/runtime invariant failure。没有取消或 GC finalizer：永不恢复的 frame 不运行 cleanup，可达性结束后连同其 task/旧 root 正常回收。
+
+---
+
+## 10. TBD 清单
 
 仍待后续里程碑补充：
 
