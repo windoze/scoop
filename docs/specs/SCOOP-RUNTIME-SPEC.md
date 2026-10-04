@@ -486,6 +486,7 @@ M23-7 的实际泛型存储将该 section 升至 `/9`，并沿当前 MIR `cross-
 
 ### 5.2 Personality 与 landing pad
 
+- LLVM 22.1 的封闭 LSDA 形态包含 catch-all 和纯 cleanup：LPStart 为 `DW_EH_PE_omit (0xff)`，call-site 为 ULEB128；有 catch-all 时 TType 为 `0x9b`，只有一个 null type entry；省略 TType（`0xff`）时不读取 type-table offset，所有 call-site 的 action 必须为零，只能表达 cleanup 或无 action。无 TType 的有效表在 call-site 表结束，不能从后续 section 字节推断 catch/action。此规则适用于 Darwin/AArch64 和 Linux/amd64；不增加 C++ typed catch/filter。
 - 栈展开使用LLVM `invoke` / `landingpad` / `resume`和runtime自有`scoop_eh_personality`。M25的personality直接消费LLVM 22.1为当前Itanium target生成的LSDA，只接受编译器封闭输出的两类action：Scoop catch-all与cleanup；Scoop源码catch类型继续由landing pad之后的普通`scoop_rt_is_instance`分派完成，LSDA不携带C++ RTTI或Scoop TypeDescriptor类型表。
 - search phase只允许Scoop `exception_class`的catch-all action成为handler；cleanup-only action不能提前终止search。cleanup phase在匹配call-site range时按ABI设置exception/selector数据寄存器与landing-pad IP：中间cleanup进入cleanup pad，`_UA_HANDLER_FRAME`进入已选中的catch pad。`resume`保持LLVM生成的`_Unwind_Resume`，不能用它实现源码重抛。
 - personality必须验证version、action flag、LSDA header、pointer encoding、call-site范围和action链；当前target profile没有声明的encoding、typed catch/filter、损坏或越界表项均为fatal unwind错误，不能退回`__gxx_personality_v0`、`__gcc_personality_v0`或把任意非零action当作合法Scoop handler。

@@ -744,6 +744,8 @@ LIR中String与Array的可变长度表示不因源码integer重命名而改变�
 
 ### 2.5 codegen
 
+M28 的 LSDA reader 与 runtime spec 5.2 一致，接受 LLVM 的省略 TType cleanup-only 表；它不含 type-table offset，所有 action 必须为零。对象读取以实际 function/section 范围校验 call-site 和 landing pad，并允许 section 的零对齐填充；personality 以 call-site 表长取得有效边界。catch-all 仍使用已有 null type entry 和终止 action。该修复不改变已生成 catch-all 对象的 ABI 或 runtime metadata 布局。
+
 codegen的唯一语义IR输入是**本 Cone**的LIR output，并只额外接收producer所需的已验证profile projection：Scoop LLVM producer取`lir_target + backend`，generated-C producer取`lir_target + c_bridge_toolchain`；两者都不接收上游meta或完整`ResolvedTargetProfile`。object verifier/finalizer与packager消费其正式产物。M23共同约束如下：
 
 root/init gateway 在 LIR 中使用已有 RootGateway/InitializationStartupGateway body kind，强制入口 poll 使用本 body 的 safepoint ID 并发布准确 managed anchor，再执行调用/异常路径；不新增单独的 entry 身份或资格记录。runtime对每次C→gateway调用独立执行runtime spec 2.8的boundary/epoch enter-leave协议；`EntryPending`只证明尚无managed frame，不得把C PC当anchor。gateway须在返回GC-free status前发布failure root并EndCatch，编译器CFG verifier不能允许绕过入口poll或让异常跨C frame的出口。

@@ -450,6 +450,13 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 已按同步纵向闭环、完整源码契约、泛型/跨 Cone、协程、callback、总验收六批完成。三份规范已分别同步到 language 8.3、runtime 第 9 章、impl 2.16；完成门包含正式 CLI、artifact-only 链接、negative/golden、跨线程与 moving GC。静态 effect、公开 Context API、scheduler/取消及 allocator 改造不进入本里程碑。
 - 正式总验收通过：全 workspace 5,270 项测试、公共 fixture runner 32 项测试、全部 2,314 个文件 fixture；其中 M27 新增 72 个用例，覆盖独立与组合功能、错误诊断、跨 Cone、跨线程和 moving GC。清理重复 driver 测试与产物修改矩阵，保留独有的引用／ABI 错误覆盖，具体耗时和覆盖依据见验收记录。
 
+### M28 Linux glibc / musl amd64（实施中，[设计](milestone28/DESIGN.md)，[调研](milestone28/INVESTIGATION.md)）
+
+- 新增 `x86_64-unknown-linux-gnu` 动态 PIE，以及 `x86_64-unknown-linux-musl` 默认静态 executable、显式动态 PIE；保持 Darwin/AArch64 回归。Linux arm64、glibc 全静态及 musl static PIE 留待后续。
+- 架构 ABI、OS/VM、ELF/Mach-O 和 libc 工具链分别承担实际差异，复用已有完整 target projection；不按 libc 复制 compiler/runtime，也不增加 target 插件框架。
+- Linux 采用分别为 glibc、musl 构建的 LLVM libunwind 22.1.2 静态库，Scoop personality 与精确 GC 契约保持。支持 LLVM 生成的 cleanup-only LSDA；不可变 metadata 在 PIE 和静态程序中均须实际只读，musl 主线程栈增长沿既有线程发布协议处理。
+- 验收包含正式 CLI、跨 Cone/ODR、artifact-only、FFI/TLS/异常、moving GC、Context/协程及缓存目标隔离。每个功能验证后提交，最终分别执行 Linux 三种链接配置和真实 macOS/AArch64 全量回归。
+
 ## 3. 备注
 
 - 里程碑内的特性验收标准：独立 fixture + 组合 fixture + 相关编译错误规则的 negative fixture + 各 stage 的 golden dump（见 AGENTS.md 编码准则）。
