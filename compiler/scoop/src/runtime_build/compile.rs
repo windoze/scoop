@@ -29,14 +29,13 @@ pub(super) fn compile(
                 "-fasynchronous-unwind-tables",
                 "-fno-lto",
             ])
-            .arg("-I")
-            .arg(root.join("include"))
-            .arg("-I")
-            .arg(root.join("src"))
             .arg(format!("-ffile-prefix-map={}=runtime", root.display()))
             .arg(format!("-fmacro-prefix-map={}=runtime", root.display()))
             .args(["-MD", "-MT", "runtime.o", "-MF"])
             .arg(&depfile);
+        for include in request.target.runtime_build().include_directories() {
+            command.arg("-I").arg(root.join(include));
+        }
         let output = command.scoop_output().map_err(error)?;
         if !output.status.success() {
             return Err(error(format!(
@@ -47,6 +46,6 @@ pub(super) fn compile(
         objects.push(std::fs::read(object).map_err(error)?);
         files.push(std::fs::read_to_string(depfile).ok());
     }
-    let dependencies = dependencies::Dependencies::collect(inputs, &root, files);
+    let dependencies = dependencies::Dependencies::collect(&root, files);
     Ok((objects, dependencies))
 }

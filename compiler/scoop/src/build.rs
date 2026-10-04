@@ -85,10 +85,13 @@ pub fn build(request: BuildRequest) -> BuildResult<BuildOutcome> {
             .prefix(".scoop-build-")
             .tempdir_in(output.parent())
             .map_err(output_error)?;
+        let final_link = target.final_link().map_err(|error| {
+            BuildFailure::tool("SCOOP_LINK_TOOLCHAIN", BuildFailurePhase::FinalLink, error)
+        })?;
         let linked = link_built_program(
             graph.closure(),
             &runtime,
-            target.final_link(),
+            &final_link,
             &request.library_paths,
             &directory.path().join("program"),
         )

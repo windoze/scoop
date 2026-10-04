@@ -12,14 +12,16 @@ mod final_link;
 mod linux_c;
 mod paths;
 mod registry;
+mod runtime;
 mod system_provider;
 mod trusted_core;
 
 pub use final_link::ValidatedFinalLinkProfile;
 pub use linux_c::resolve_linux_c_toolchain;
 pub use paths::{configured_sysroot_root, development_runtime_root, development_workspace_root};
+pub use registry::ResolvedTargetProfile;
 pub use registry::host_target_triple;
-pub use registry::{ResolvedTargetProfile, ValidatedRuntimeBuildProfile};
+pub use runtime::ValidatedRuntimeBuildProfile;
 pub use system_provider::{
     LIBSYSTEM_INSTALL_NAME, NativeExport, SystemExportKind, SystemProvider, SystemStubFile,
     TextStubInterface, read_text_stubs, write_link_stub,

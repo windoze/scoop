@@ -1,7 +1,5 @@
 use super::*;
-use scoop_process::CommandExt;
 use std::collections::BTreeMap;
-use std::process::Command;
 
 use scoop_wire::{Encoder, WireEncode, domain_separated_cbor_hash, sha256};
 
@@ -10,8 +8,6 @@ pub(super) struct Inputs {
     pub sources: Vec<String>,
     pub flags: Vec<String>,
     pub compiler_digest: Digest256,
-    pub sdk: PathBuf,
-    pub resource: Option<PathBuf>,
     pub base_key: Digest256,
 }
 
@@ -30,18 +26,18 @@ impl Inputs {
             );
             sources.push(relative.to_owned());
         }
-        read_headers(&root, Path::new("include"), true, &mut files)?;
-        read_headers(&root, Path::new("src"), false, &mut files)?;
+        let include_dirs = request.target.runtime_build().include_directories();
+        for (index, path) in include_dirs.iter().enumerate() {
+            if include_dirs[..index]
+                .iter()
+                .any(|parent| Path::new(path).starts_with(parent))
+            {
+                continue;
+            }
+            read_headers(&root, Path::new(path), *path == "include", &mut files)?;
+        }
         let invocation = request.target.c_bridge_toolchain();
         let compiler_digest = sha256(&std::fs::read(invocation.compiler_driver()).map_err(error)?);
-        let resource = Command::new(invocation.compiler_driver())
-            .env_clear()
-            .arg("-print-resource-dir")
-            .scoop_output()
-            .ok()
-            .filter(|output| output.status.success())
-            .and_then(|output| String::from_utf8(output.stdout).ok())
-            .and_then(|path| std::fs::canonicalize(path.trim()).ok());
         let mut flags: Vec<String> = request
             .target
             .runtime_build()
@@ -58,8 +54,6 @@ impl Inputs {
                 "-funwind-tables",
                 "-fasynchronous-unwind-tables",
                 "-fno-lto",
-                "-Iinclude",
-                "-Isrc",
                 "-ffile-prefix-map=<runtime>=runtime",
                 "-fmacro-prefix-map=<runtime>=runtime",
                 "-MD",
@@ -71,6 +65,7 @@ impl Inputs {
             .into_iter()
             .map(str::to_owned),
         );
+        flags.extend(include_dirs.iter().map(|path| format!("-I{path}")));
         let toolchain = encode(invocation.profile().contract()).map_err(error)?;
         let base_key = domain_separated_cbor_hash(
             "scoop-runtime-build-inputs-v1",
@@ -88,8 +83,6 @@ impl Inputs {
             sources,
             flags,
             compiler_digest,
-            sdk: invocation.sdk_root().map_err(error)?.to_owned(),
-            resource,
             base_key,
         })
     }

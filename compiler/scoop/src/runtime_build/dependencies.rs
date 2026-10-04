@@ -13,27 +13,18 @@ pub(super) struct Dependencies {
 }
 #[derive(Clone, Debug)]
 struct Header {
-    kind: u64,
     path: String,
     digest: Digest256,
 }
 
 impl Dependencies {
-    pub fn input_paths<'a>(
-        &'a self,
-        inputs: &'a inputs::Inputs,
-    ) -> impl Iterator<Item = PathBuf> + 'a {
-        self.headers.iter().filter_map(|header| {
-            let root = match header.kind {
-                1 => Some(&inputs.sdk),
-                2 => inputs.resource.as_ref(),
-                _ => None,
-            };
-            root.map(|root| root.join(&header.path))
-        })
+    pub fn input_paths(&self) -> impl Iterator<Item = PathBuf> + '_ {
+        self.headers
+            .iter()
+            .map(|header| PathBuf::from(&header.path))
     }
 
-    pub fn collect(inputs: &inputs::Inputs, runtime: &Path, depfiles: Vec<Option<String>>) -> Self {
+    pub fn collect(runtime: &Path, depfiles: Vec<Option<String>>) -> Self {
         let mut headers = BTreeMap::new();
         let mut reusable = true;
         for depfile in depfiles {
@@ -42,28 +33,16 @@ impl Dependencies {
                 continue;
             };
             for path in paths {
-                let Ok(path) = std::fs::canonicalize(path) else {
+                // Preserve the consumed spelling: resolving symlinks here would
+                // miss changes to an include alias while its old target survives.
+                if !path.is_absolute() {
                     reusable = false;
                     continue;
-                };
+                }
                 if path.starts_with(runtime) {
                     continue;
                 }
-                let selected = path
-                    .strip_prefix(&inputs.sdk)
-                    .ok()
-                    .map(|path| (1, path))
-                    .or_else(|| {
-                        inputs
-                            .resource
-                            .as_ref()
-                            .and_then(|root| path.strip_prefix(root).ok().map(|path| (2, path)))
-                    });
-                let Some((kind, relative)) = selected else {
-                    reusable = false;
-                    continue;
-                };
-                let Some(relative) = relative.to_str() else {
+                let Some(locator) = path.to_str() else {
                     reusable = false;
                     continue;
                 };
@@ -72,41 +51,28 @@ impl Dependencies {
                     continue;
                 };
                 headers.insert(
-                    (kind, relative.to_owned()),
+                    locator.to_owned(),
                     Header {
-                        kind,
-                        path: relative.to_owned(),
+                        path: locator.to_owned(),
                         digest: sha256(&bytes),
                     },
                 );
             }
         }
         Self {
-            schema: 1,
+            schema: 2,
             reusable,
             headers: headers.into_values().collect(),
         }
     }
 
-    pub fn is_current(&self, inputs: &inputs::Inputs) -> bool {
-        self.schema == 1
+    pub fn is_current(&self) -> bool {
+        self.schema == 2
             && self.reusable
             && self.headers.iter().all(|header| {
-                let root = match header.kind {
-                    1 => Some(&inputs.sdk),
-                    2 => inputs.resource.as_ref(),
-                    _ => None,
-                };
                 let path = Path::new(&header.path);
-                if path.as_os_str().is_empty()
-                    || path
-                        .components()
-                        .any(|part| !matches!(part, std::path::Component::Normal(_)))
-                {
-                    return false;
-                }
-                root.and_then(|root| std::fs::read(root.join(path)).ok())
-                    .is_some_and(|bytes| sha256(&bytes) == header.digest)
+                path.is_absolute()
+                    && std::fs::read(path).is_ok_and(|bytes| sha256(&bytes) == header.digest)
             })
     }
 
@@ -118,10 +84,19 @@ impl Dependencies {
                 e.field(1)?;
                 self.0.encode(e)?;
                 e.field(2)?;
-                self.1.encode(e)
+                // Locators stay in the local cache. The runtime input identity
+                // includes the consumed bytes, not SDK installation paths.
+                let mut digests: Vec<_> =
+                    self.1.headers.iter().map(|header| header.digest).collect();
+                digests.sort();
+                e.array(digests.len() as u64)?;
+                for digest in digests {
+                    digest.encode(e)?;
+                }
+                Ok(())
             }
         }
-        domain_separated_cbor_hash("scoop-runtime-build-key-v1", &Key(base, self)).map_err(error)
+        domain_separated_cbor_hash("scoop-runtime-build-key-v2", &Key(base, self)).map_err(error)
     }
 }
 
@@ -139,12 +114,10 @@ impl WireEncode for Dependencies {
         e.field(3)?;
         e.array(self.headers.len() as u64)?;
         for header in &self.headers {
-            e.map(3)?;
+            e.map(2)?;
             e.field(1)?;
-            e.unsigned(header.kind)?;
-            e.field(2)?;
             e.text(&header.path)?;
-            e.field(3)?;
+            e.field(2)?;
             header.digest.encode(e)?;
         }
         Ok(())
@@ -158,11 +131,10 @@ impl WireDecode for Dependencies {
             reusable: d.field(2, |d| Ok(d.unsigned()? == 1))?,
             headers: d.field(3, |d| {
                 d.decode_array(|d, _| {
-                    d.expect_map(3)?;
+                    d.expect_map(2)?;
                     Ok(Header {
-                        kind: d.field(1, Decoder::unsigned)?,
-                        path: d.field(2, |d| Ok(d.text()?.to_owned()))?,
-                        digest: d.field(3, Digest256::decode)?,
+                        path: d.field(1, |d| Ok(d.text()?.to_owned()))?,
+                        digest: d.field(2, Digest256::decode)?,
                     })
                 })
             })?,

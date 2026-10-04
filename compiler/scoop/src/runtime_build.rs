@@ -130,7 +130,7 @@ fn cached_objects(
 ) -> Option<(RuntimeObjectSet, dependencies::Dependencies)> {
     let bytes = std::fs::read(entry.join("dependencies.cbor")).ok()?;
     let dependencies: dependencies::Dependencies = scoop_wire::decode_canonical(&bytes).ok()?;
-    if !dependencies.is_current(inputs) {
+    if !dependencies.is_current() {
         return None;
     }
     let objects = RuntimeObjectSet::read_index(
@@ -152,6 +152,6 @@ fn input_paths(
         .files
         .keys()
         .map(|path| request.runtime_root.join(path))
-        .chain(dependencies.input_paths(inputs))
+        .chain(dependencies.input_paths())
         .collect()
 }

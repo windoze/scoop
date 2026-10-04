@@ -1,3 +1,5 @@
+use crate::runtime::ValidatedRuntimeBuildProfile;
+
 use scoop_lir::{
     BackendProfile, LirTargetProfile, TargetProfileId, ValidatedCBridgeToolchainInvocation,
     ValidatedLirTargetSelection,
@@ -14,14 +16,6 @@ pub struct ResolvedTargetProfile {
     backend: BackendProfile,
     c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
     runtime_build: ValidatedRuntimeBuildProfile,
-    final_link: ValidatedFinalLinkProfile,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct ValidatedRuntimeBuildProfile {
-    canonical_triple: &'static str,
-    runtime_sources: &'static [&'static str],
-    runtime_c_flags: &'static [&'static str],
 }
 
 impl ResolvedTargetProfile {
@@ -29,85 +23,11 @@ impl ResolvedTargetProfile {
         c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
     ) -> Result<Self, ToolchainError> {
         let lir_target = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
-        let final_link = ValidatedFinalLinkProfile::from_startup(c_bridge_toolchain.clone())?;
         Ok(Self {
             lir_target,
             backend: lir_target.backend(),
             c_bridge_toolchain,
-            runtime_build: ValidatedRuntimeBuildProfile {
-                canonical_triple: "aarch64-apple-darwin",
-                runtime_sources: &[
-                    "runtime/src/rt.c",
-                    "runtime/src/characters.c",
-                    "runtime/src/strings.c",
-                    "runtime/src/string_parts.c",
-                    "runtime/src/utf8.c",
-                    "runtime/src/startup.c",
-                    "runtime/src/startup/failure.c",
-                    "runtime/src/startup/gateway.c",
-                    "runtime/src/boxing.c",
-                    "runtime/src/arrays.c",
-                    "runtime/src/task_context.c",
-                    "runtime/src/value_shape.c",
-                    "runtime/src/value_scan.c",
-                    "runtime/src/eh.c",
-                    "runtime/src/eh_personality.c",
-                    "runtime/src/eh/lsda.c",
-                    "runtime/src/initialization.c",
-                    "runtime/src/image/ranges.c",
-                    "runtime/src/image/checks.c",
-                    "runtime/src/image/dependencies.c",
-                    "runtime/src/image/records.c",
-                    "runtime/src/image/registry.c",
-                    "runtime/src/image/lookup.c",
-                    "runtime/src/image/active.c",
-                    "runtime/src/image/scan_ranges.c",
-                    "runtime/src/image/types.c",
-                    "runtime/src/image/context_keys.c",
-                    "runtime/src/image/type_relations.c",
-                    "runtime/src/image/storage.c",
-                    "runtime/src/image/immortals.c",
-                    "runtime/src/image/static_values.c",
-                    "runtime/src/image/units.c",
-                    "runtime/src/image/allocation_ranges.c",
-                    "runtime/src/image/stackmaps.c",
-                    "runtime/src/gc.c",
-                    "runtime/src/gc/allocation.c",
-                    "runtime/src/gc/collector.c",
-                    "runtime/src/gc/evacuation.c",
-                    "runtime/src/gc/reclamation.c",
-                    "runtime/src/gc/heap.c",
-                    "runtime/src/gc/heap_objects.c",
-                    "runtime/src/gc/handles.c",
-                    "runtime/src/gc/root_frames.c",
-                    "runtime/src/gc/roots.c",
-                    "runtime/src/gc/stackmap.c",
-                    "runtime/src/gc/stackmap/parser.c",
-                    "runtime/src/gc/stackmap/records.c",
-                    "runtime/src/gc/stackmap/fingerprint.c",
-                    "runtime/src/gc/stack_roots.c",
-                    "runtime/src/thread.c",
-                    "runtime/src/thread/collection.c",
-                    "runtime/src/thread/debug.c",
-                    "runtime/src/thread/roots.c",
-                    "runtime/src/thread/transitions.c",
-                    "runtime/src/callback.c",
-                    "runtime/src/platform/profiles/darwin_aarch64.c",
-                    "runtime/src/platform/common.c",
-                    "runtime/src/platform/image/macho.c",
-                    "runtime/src/platform/image/darwin_sha256.c",
-                    "runtime/src/platform/arch/aarch64.c",
-                    "runtime/src/platform/arch/aarch64_anchor.S",
-                    "runtime/src/platform/arch/aarch64_strings.S",
-                    "runtime/src/platform/os/darwin.c",
-                ],
-                runtime_c_flags: &[
-                    "-pthread",
-                    "-fno-omit-frame-pointer",
-                    "-fno-optimize-sibling-calls",
-                ],
-            },
-            final_link,
+            runtime_build: ValidatedRuntimeBuildProfile::for_target(lir_target.target()),
         })
     }
 
@@ -128,7 +48,7 @@ impl ResolvedTargetProfile {
 
     /// Returns the unique target spelling transported to the paired compiler.
     pub const fn canonical_triple(&self) -> &'static str {
-        self.runtime_build.canonical_triple
+        self.runtime_build.canonical_triple()
     }
 
     pub const fn lir_target(&self) -> LirTargetProfile {
@@ -151,8 +71,8 @@ impl ResolvedTargetProfile {
         self.runtime_build
     }
 
-    pub const fn final_link(&self) -> &ValidatedFinalLinkProfile {
-        &self.final_link
+    pub fn final_link(&self) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
+        ValidatedFinalLinkProfile::from_startup(self.c_bridge_toolchain.clone())
     }
 }
 
@@ -162,20 +82,6 @@ pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
         (arch, os) => Err(ToolchainError(format!(
             "unsupported host {arch}-{os}; M23 supports only macOS/AArch64"
         ))),
-    }
-}
-
-impl ValidatedRuntimeBuildProfile {
-    pub const fn canonical_triple(self) -> &'static str {
-        self.canonical_triple
-    }
-
-    pub const fn runtime_sources(self) -> &'static [&'static str] {
-        self.runtime_sources
-    }
-
-    pub const fn runtime_c_flags(self) -> &'static [&'static str] {
-        self.runtime_c_flags
     }
 }
 
@@ -248,23 +154,25 @@ mod tests {
                     "-fno-optimize-sibling-calls",
                 ]
             );
-            assert!(profile.final_link().linker_driver().is_absolute());
+            assert!(profile.final_link().unwrap().linker_driver().is_absolute());
             assert!(
                 profile
                     .final_link()
+                    .unwrap()
                     .linker_args()
                     .contains(&"-no_deduplicate")
             );
             assert!(
                 profile
                     .final_link()
+                    .unwrap()
                     .system_provider()
                     .exports()
                     .contains_key("_getpagesize")
             );
             assert_eq!(
-                profile.final_link().fingerprint().unwrap(),
-                expected.final_link().fingerprint().unwrap()
+                profile.final_link().unwrap().fingerprint().unwrap(),
+                expected.final_link().unwrap().fingerprint().unwrap()
             );
         }
     }
