@@ -126,36 +126,7 @@ impl Dependencies {
 }
 
 fn parse_depfile(input: &str) -> Option<Vec<PathBuf>> {
-    // Clang is invoked with the fixed, unescaped target `runtime.o`.
-    let input = input.strip_prefix("runtime.o:")?;
-    let mut paths = Vec::new();
-    let mut word = String::new();
-    let mut chars = input.chars().peekable();
-    while let Some(ch) = chars.next() {
-        match ch {
-            '\\' => match chars.next()? {
-                '\n' => {}
-                '\r' if chars.peek() == Some(&'\n') => {
-                    chars.next();
-                }
-                escaped => word.push(escaped),
-            },
-            '$' if chars.peek() == Some(&'$') => {
-                chars.next();
-                word.push('$');
-            }
-            ch if ch.is_whitespace() => {
-                if !word.is_empty() {
-                    paths.push(PathBuf::from(std::mem::take(&mut word)));
-                }
-            }
-            ch => word.push(ch),
-        }
-    }
-    if !word.is_empty() {
-        paths.push(PathBuf::from(word));
-    }
-    (!paths.is_empty()).then_some(paths)
+    scoop_process::parse_make_dependencies(input, "runtime.o")
 }
 
 impl WireEncode for Dependencies {

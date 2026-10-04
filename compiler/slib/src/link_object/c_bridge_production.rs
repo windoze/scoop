@@ -133,7 +133,10 @@ pub fn verify_c_bridge_production_envelopes_v1(
         let plan = &member_plan.generated_bridge_members()[plan_index];
         let envelope = validate_generated_c_bridge_object_envelope_v1(
             object.bytes,
-            profile.contract().deployment(),
+            profile
+                .contract()
+                .deployment()
+                .map_err(CBridgeProductionEnvelopeValidationError::Platform)?,
         )
         .map_err(
             |source| CBridgeProductionEnvelopeValidationError::ObjectEnvelope {
@@ -237,6 +240,7 @@ fn validate_canonical_object_order(
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CBridgeProductionEnvelopeValidationError {
+    Platform(scoop_lir::CBridgePlatformError),
     ProducerMismatch {
         bridge_plan: ConeIdentity,
         member_plan: ConeIdentity,

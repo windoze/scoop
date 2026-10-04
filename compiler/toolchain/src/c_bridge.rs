@@ -373,7 +373,7 @@ mod tests {
     fn system_resolver_qualifies_the_actual_probe_object() {
         let resolved = resolve_system_c_bridge_toolchain().unwrap();
         assert!(resolved.compiler_driver().is_file());
-        assert!(resolved.sdk_root().is_dir());
+        assert!(resolved.sdk_root().expect("Darwin test toolchain").is_dir());
         assert_eq!(
             resolved.profile().contract().canonical_triple(),
             "aarch64-apple-darwin"
@@ -387,14 +387,46 @@ mod tests {
             resolved.compiler_driver(),
             Path::new("/toolchain/bin/clang")
         );
-        assert_eq!(resolved.sdk_root(), Path::new("/toolchain/SDKs/MacOSX.sdk"));
+        assert_eq!(
+            resolved.sdk_root().expect("Darwin test toolchain"),
+            Path::new("/toolchain/SDKs/MacOSX.sdk")
+        );
         let contract = resolved.profile().contract();
         assert_eq!(contract.canonical_triple(), "aarch64-apple-darwin");
-        assert_eq!(contract.deployment().minimum_os().components(), (15, 6, 2));
-        assert_eq!(contract.deployment().sdk().components(), (26, 5, 0));
-        assert!(contract.deployment().tools().is_empty());
-        assert_eq!(contract.compiler().version_major(), 21);
-        assert_eq!(contract.compiler().build(), "clang-2100.1.1.101");
+        assert_eq!(
+            contract
+                .deployment()
+                .expect("Darwin test toolchain")
+                .minimum_os()
+                .components(),
+            (15, 6, 2)
+        );
+        assert_eq!(
+            contract
+                .deployment()
+                .expect("Darwin test toolchain")
+                .sdk()
+                .components(),
+            (26, 5, 0)
+        );
+        assert!(
+            contract
+                .deployment()
+                .expect("Darwin test toolchain")
+                .tools()
+                .is_empty()
+        );
+        assert_eq!(
+            contract
+                .compiler()
+                .expect("Darwin test toolchain")
+                .version_major(),
+            21
+        );
+        assert_eq!(
+            contract.compiler().expect("Darwin test toolchain").build(),
+            "clang-2100.1.1.101"
+        );
     }
 
     #[test]

@@ -57,7 +57,8 @@ impl StartupObject {
                 .startup_toolchain()
                 .profile()
                 .contract()
-                .deployment(),
+                .deployment()
+                .map_err(error)?,
         )?;
         let mut expected: BTreeSet<_> = inputs.images.iter().cloned().collect();
         expected.extend([inputs.root.clone(), "_scoop_rt_run_program".to_owned()]);

@@ -62,7 +62,8 @@ pub(super) fn read(
                 .startup_toolchain()
                 .profile()
                 .contract()
-                .deployment(),
+                .deployment()
+                .map_err(error)?,
         )
         .map_err(|err| error(format!("archive member {ordinal} ({name}): {err}")))?;
         let start = slice

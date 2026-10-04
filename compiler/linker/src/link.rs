@@ -77,7 +77,9 @@ fn link_inputs(
     }
     let candidate = directory.path().join("program");
     let link_map = directory.path().join("program.map");
-    let mut command = profile.command(&sdk, &candidate, &link_map);
+    let mut command = profile
+        .command(&sdk, &candidate, &link_map)
+        .map_err(error)?;
     command
         .args(&paths)
         .arg("-alias")

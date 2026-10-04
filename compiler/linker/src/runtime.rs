@@ -92,7 +92,8 @@ impl RuntimeObjectSet {
         }
         let mut inputs = Vec::with_capacity(objects.len());
         for bytes in objects {
-            let info = NativeObjectInfo::read(&bytes, toolchain.contract().deployment())?;
+            let info =
+                NativeObjectInfo::read(&bytes, toolchain.contract().deployment().map_err(error)?)?;
             let digest = sha256(&bytes);
             let id = RuntimeObjectId(
                 domain_separated_cbor_hash(

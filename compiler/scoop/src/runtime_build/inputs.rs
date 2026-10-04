@@ -88,7 +88,7 @@ impl Inputs {
             sources,
             flags,
             compiler_digest,
-            sdk: invocation.sdk_root().to_owned(),
+            sdk: invocation.sdk_root().map_err(error)?.to_owned(),
             resource,
             base_key,
         })

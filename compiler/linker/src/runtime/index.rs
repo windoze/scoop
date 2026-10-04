@@ -75,8 +75,9 @@ impl RuntimeObjectSet {
                     record.id
                 )));
             }
-            let info = NativeObjectInfo::read(&bytes, toolchain.contract().deployment())
-                .map_err(|err| error(format!("runtime object {}: {err}", record.id)))?;
+            let info =
+                NativeObjectInfo::read(&bytes, toolchain.contract().deployment().map_err(error)?)
+                    .map_err(|err| error(format!("runtime object {}: {err}", record.id)))?;
             let id = domain_separated_cbor_hash(
                 "scoop-runtime-object-v1",
                 &fingerprint::ObjectKey {

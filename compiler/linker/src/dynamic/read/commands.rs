@@ -72,6 +72,7 @@ pub(super) fn read<'a>(
                             .profile()
                             .contract()
                             .deployment()
+                            .map_err(error)?
                             .minimum_os()
                             .packed()
                 {

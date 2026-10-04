@@ -127,9 +127,16 @@ pub(super) fn views_and_profile(
             if matches!(*error, slib::LayoutLinkObjectContentsError::CompileView))
         );
     }
-    let compiler = profile.contract().compiler();
+    let compiler = profile
+        .contract()
+        .compiler()
+        .expect("Darwin test toolchain");
     let wrong = lir::CBridgeToolchainProfileV1::new_darwin_aarch64_apple_clang(
-        profile.contract().deployment().clone(),
+        profile
+            .contract()
+            .deployment()
+            .expect("Darwin test toolchain")
+            .clone(),
         lir::AppleClangCompilerIdentityV1::new(
             compiler.version_major() + 1,
             compiler.version_minor(),

@@ -166,7 +166,8 @@ impl FinalImage<'_> {
             .startup_toolchain()
             .profile()
             .contract()
-            .deployment();
+            .deployment()
+            .map_err(error)?;
         if build.platform.get(endian) != macho::PLATFORM_MACOS
             || build.minos.get(endian) != expected.minimum_os().packed()
             || build.sdk.get(endian) != expected.sdk().packed()

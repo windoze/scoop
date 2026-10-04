@@ -95,7 +95,8 @@ pub(crate) fn read(
                     .startup_toolchain()
                     .profile()
                     .contract()
-                    .deployment(),
+                    .deployment()
+                    .map_err(error)?,
             )?;
             NativeContent::Object(index)
         }

@@ -39,6 +39,7 @@ impl DynamicInputs {
             locator: profile
                 .startup_toolchain()
                 .sdk_root()
+                .map_err(error)?
                 .join(system.root_stub()),
         });
         let mut result = Self {

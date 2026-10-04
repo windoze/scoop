@@ -207,6 +207,8 @@ capability_refinement!(
     CBridgeToolchainProfileId,
     "org.scoop-lang.c-bridge-toolchain-profile",
     darwin_aarch64_apple_clang => "darwin-aarch64-apple-clang",
+    linux_x86_64_gnu_gcc => "linux-x86-64-gnu-gcc",
+    linux_x86_64_musl_gcc => "linux-x86-64-musl-gcc",
 );
 capability_refinement!(
     ObjectFormatId,

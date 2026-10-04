@@ -55,8 +55,13 @@ impl ValidatedFinalLinkProfile {
         let linker_digest = sha256(&std::fs::read(&linker).map_err(error)?);
         let compiler_digest = sha256(&std::fs::read(startup.compiler_driver()).map_err(error)?);
         let system = SystemProvider::read(
-            startup.sdk_root(),
-            startup.profile().contract().deployment().minimum_os(),
+            startup.sdk_root().map_err(error)?,
+            startup
+                .profile()
+                .contract()
+                .deployment()
+                .map_err(error)?
+                .minimum_os(),
         )?;
         let profile = Self {
             startup,
@@ -104,8 +109,18 @@ impl ValidatedFinalLinkProfile {
     }
 
     /// Callers append the ordered objects, aliases and snapshotted system stub.
-    pub fn command(&self, sdk_snapshot: &Path, output: &Path, map: &Path) -> Command {
-        let deployment = self.startup.profile().contract().deployment();
+    pub fn command(
+        &self,
+        sdk_snapshot: &Path,
+        output: &Path,
+        map: &Path,
+    ) -> Result<Command, ToolchainError> {
+        let deployment = self
+            .startup
+            .profile()
+            .contract()
+            .deployment()
+            .map_err(error)?;
         let mut command = Command::new(&self.linker);
         command
             .env_clear()
@@ -124,7 +139,7 @@ impl ValidatedFinalLinkProfile {
             .arg("-map")
             .arg(map)
             .arg("-t");
-        command
+        Ok(command)
     }
 }
 
