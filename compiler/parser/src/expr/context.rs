@@ -38,10 +38,31 @@ impl Parser {
         let Some(close) = self.context_close() else {
             return false;
         };
-        self.tokens[self.pos + 2..close].iter().any(|token| matches!(token.kind, TokenKind::Colon))
-            || self.tokens.get(close + 1).is_some_and(|token| {
-                matches!(token.kind, TokenKind::Fun | TokenKind::At | TokenKind::Suspend | TokenKind::Val | TokenKind::Var)
-                    || matches!(&token.kind, TokenKind::Ident(name) if matches!(name.as_str(), "context" | "operator" | "public" | "private" | "class"))
+        self.tokens
+            .get(close + 1)
+            .is_some_and(|token| match &token.kind {
+                TokenKind::Fun
+                | TokenKind::At
+                | TokenKind::Suspend
+                | TokenKind::Infix
+                | TokenKind::Val
+                | TokenKind::Var => true,
+                TokenKind::Ident(name) => matches!(
+                    name.as_str(),
+                    "context"
+                        | "operator"
+                        | "public"
+                        | "private"
+                        | "protected"
+                        | "internal"
+                        | "open"
+                        | "abstract"
+                        | "override"
+                        | "final"
+                        | "inline"
+                        | "tailrec"
+                ),
+                _ => false,
             })
     }
 

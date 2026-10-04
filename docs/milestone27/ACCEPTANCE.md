@@ -26,6 +26,14 @@ context 参数在 callable 声明与 portable callable body 中分别以独立�
 
 新增 `declarations`、`types` 两个正式正例，每个均有 HIR/MIR/LIR golden 及普通/moving GC 运行；`negative/` 保存 51 个独立错误用例及完整诊断和 byte span。新增生产模块均低于 130 行。HIR wire 875、HIR lowering 1324 项测试与 profile 固定向量复验通过；完整 M27 CLI 批次以普通验收模式通过 56/56 个用例、66 个进程与 15 份 stage golden。
 
+## M27-3 泛型与独立产物
+
+具体化 callable 与 owner application 时检查替换后新合并的 key，并在同次具体化内复用已检查的声明与完整 key 列表。导入 class/struct/enum 的无泛型成员契约由原声明目录载入，接口契约随 owner 参数替换；没有 body 或未调用方法的类型应用也能在原使用位置诊断。补齐 enum 的 context member 与名为 context 的 variant 之间的 parser 消歧。
+
+新增 `generics` 正例覆盖精确 Array/函数类型 key、class bound、generic owner、enum member、anonymous requirements 和泛型 local function；七个独立负例覆盖 callable、Array 以及 interface/abstract/class/struct/enum 应用的新合并。新增 `artifacts` 正式链路构建实际 core 和 A→B→C，每步移除上游源码；仅保留 slib、runtime objects 和独立 scoop 命令后完成链接并核对 link plan。跨 Cone 泛型 body、local function、default、property、interface dispatch 与同一 ODR body 的 context metadata 均完成普通和 moving GC 运行，导入 owner 的三个无调用负例保存完整诊断。
+
+本批通过格式化与全 workspace lint、parser 451、HIR lowering 1327 项库测试及四项 callable registration 测试。正式 M27 CLI 集合以普通验收模式通过 65/65 个用例、84 个进程和 27 份 stage golden。新增生产模块为 19、47、79 行；codegen 使用既有 body 发射计划识别尚未生成基本块的 ODR 定义，保持 metadata 与 body 同对象发射。
+
 ## 后续批次
 
-M27-3 泛型与独立产物、M27-4 协程任务传播、M27-5 callback snapshot 和 M27-6 总验收仍在实施计划内。全部完成前不标记路线图 M27 完成。
+M27-4 协程任务传播、M27-5 callback snapshot 和 M27-6 总验收仍在实施计划内。全部完成前不标记路线图 M27 完成。

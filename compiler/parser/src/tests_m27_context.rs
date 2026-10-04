@@ -58,6 +58,19 @@ fn qualified_context_and_calls_without_blocks_remain_ordinary() {
 }
 
 #[test]
+fn enum_context_members_are_distinct_from_a_variant_named_context() {
+    let file = ok(
+        "enum Choice { context(val value: String), Ready\ncontext(value: String) fun read(): String = value\n}",
+    );
+    let scoop_ast::Decl::Enum(declaration) = &file.declarations[0] else {
+        panic!("enum declaration");
+    };
+    assert_eq!(declaration.variants.len(), 2);
+    assert_eq!(declaration.variants[0].name.text, "context");
+    assert_eq!(declaration.methods[0].context_parameters.len(), 1);
+}
+
+#[test]
 fn property_and_member_targets_retain_the_list() {
     let file = ok(
         "interface View {\ncontext(_: String) fun read()\ncontext(_: String) val value: Long\n}\ncontext(_: String) val computed: Long get() = 3",

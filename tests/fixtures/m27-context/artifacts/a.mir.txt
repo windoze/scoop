@@ -1,0 +1,355 @@
+Module
+  enum Option<String>
+    Some(_0: String)
+    None()
+  enum CoroutineStep<Request>
+    Completed(value: Request)
+    Suspended()
+  enum CoroutineSlot<Request>
+    Empty()
+    Value(value: Request)
+  class Request vtable=0 itables=0
+  class MissingContextException vtable=0 itables=0
+  class Exception vtable=0 itables=0
+  class Throwable vtable=0 itables=0
+  class IllegalStateException vtable=0 itables=0
+  interface Continuation<Request>
+  interface SuspendTask<Request>
+  interface SuspendRegistration<Request>
+  generated_exact_type get0 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get1 location=enum1 nominal_id=d67e3d36150adbfb18c2b5767ad7ada155b8e776cb53217fb30c0d5baef3445c exact_id=13228aa03ce9f8cff007beb2573695189e76473219a82a0de9f24f9ffe2bf4c0
+  generated_exact_type get2 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get3 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get4 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get5 location=enum2 nominal_id=06cb901f6b67b56f51493b2bc4fc0ff918d23fd585c5a3aaa2df9dd4aa9192b7 exact_id=9ee6b77e4667a47d77648938544ca1c71b7ca768ff85c859315172c80628dd55
+  generated_exact_type get6 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_callable gc0 function=@fn13 id=044169f252d71fb14311325a37e096c878216286f8fe24d5950a0f91b5b5fce9
+  fun Request.$get$value @fn0(this: Request) -> Int
+    bb0 entry
+      return
+        Type Int
+        FieldAccess 0
+          Type Request
+          Local this
+  fun Request.$set$value @fn1(this: Request, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Request
+        Local this
+        Type Int
+        Local value
+      return
+  fun direct @fn2() -> Int
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 7edf52c5d65758002c3e58506f0622681dd6372d8ec0daa3f61e09402b204f9e
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external0 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str0
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val request: Request
+        Type Request
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      call $call.2: Int = @fn0 direct
+        Type Request
+        Local request
+      return
+        Type Int
+        Local $call.2
+  fun fromA @fn3() -> Int
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 7edf52c5d65758002c3e58506f0622681dd6372d8ec0daa3f61e09402b204f9e
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external0 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str1
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val request: Request
+        Type Request
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      call $call.2: Request = @fn7 direct
+      call $call.3: Int = @fn0 direct
+        Type Request
+        Local $call.2
+      return
+        Type Int
+        Local $call.3
+  fun withDefault @fn4(value: Int) -> Int
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 7edf52c5d65758002c3e58506f0622681dd6372d8ec0daa3f61e09402b204f9e
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external0 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str2
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val request: Request
+        Type Request
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      val $dependency.receiver: Int
+        Type Int
+        Local value
+      call $dependency.argument.0: Int = @fn0 direct
+        Type Request
+        Local request
+      val $dependency.parameter.other: Int
+        Type Int
+        Local $dependency.argument.0
+      return
+        Type Int
+        IntegerBinary add kind=Int
+          Type Int
+          Local $dependency.receiver
+          Type Int
+          Local $dependency.parameter.other
+  fun $get$active @fn5() -> Int
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 7edf52c5d65758002c3e58506f0622681dd6372d8ec0daa3f61e09402b204f9e
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external0 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str3
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val request: Request
+        Type Request
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      call $call.2: Int = @fn0 direct
+        Type Request
+        Local request
+      return
+        Type Int
+        Local $call.2
+  fun $set$active @fn6(next: Int) -> Unit
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 7edf52c5d65758002c3e58506f0622681dd6372d8ec0daa3f61e09402b204f9e
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external0 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str4
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val request: Request
+        Type Request
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      call @fn1 direct
+        Type Request
+        Local request
+        Type Int
+        Local next
+      return
+  fun current @fn7() -> Request
+    bb0 entry
+      val $context_binding.1: internal<context-binding-ref>
+        Type internal<context-binding-ref>
+        ContextTryGet 7edf52c5d65758002c3e58506f0622681dd6372d8ec0daa3f61e09402b204f9e
+      branch bb1 bb2
+        Type Boolean
+        ContextIsPresent
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+    bb1 if.then.1
+      goto bb3
+    bb2 if.else.2
+      assign $new.1
+        Type MissingContextException
+        ClassAlloc MissingContextException
+      call external0 direct
+        Type MissingContextException
+        Local $new.1
+        Type Option<String>
+        VariantConstruct Option<String> v0
+          Type String
+          StringConst @str5
+      throw
+        Type MissingContextException
+        Local $new.1
+    bb3 if.merge.3
+      val value: Request
+        Type Request
+        ContextUnwrapBinding
+          Type internal<context-binding-ref>
+          Local $context_binding.1
+      return
+        Type Request
+        Local value
+  fun Continuation.resume @fn8(this: Continuation<Request>, value: Request) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resume`"
+  fun Continuation.resumeWithException @fn9(this: Continuation<Request>, exception: Throwable) -> Unit
+    bb0 entry
+      trap "call to abstract method `Continuation.resumeWithException`"
+  fun SuspendTask.run @fn10(this: SuspendTask<Request>, $completion: Continuation<Request>) -> CoroutineStep<Request>
+    bb0 entry
+      trap "call to abstract method `SuspendTask.run`"
+  fun SuspendRegistration.register @fn11(this: SuspendRegistration<Request>, continuation: Continuation<Request>) -> Unit
+    bb0 entry
+      trap "call to abstract method `SuspendRegistration.register`"
+  fun init.Request.$c0 @fn12(this: Request, value: Int) -> Unit
+    bb0 entry
+      field_set 0
+        Type Request
+        Local this
+        Type Int
+        Local value
+      return
+  fun startCoroutine<Request> @fn13(task: SuspendTask<Request>, completion: Continuation<Request>) -> Unit
+    bb0 suspended
+      return
+    bb1 completed
+      call @fn8 interface Continuation<Request>[0]
+        Type Continuation<Request>
+        Local completion
+        Type Request
+        EnumField v0 f0
+          Type CoroutineStep<Request>
+          Local $step
+      return
+    bb2 failed
+      call @fn9 interface Continuation<Request>[1]
+        Type Continuation<Request>
+        Local completion
+        Type Throwable
+        Local $exception
+      return
+    bb3 body_failure
+      landing_pad cleanup=false
+      begin_catch
+      call $exception: Throwable = @scoop_rt_materialize_exception direct
+        Type Any
+        CaughtException
+      end_catch
+      goto bb2
+    bb4 entry unwind bb3
+      call $step: CoroutineStep<Request> = @fn10 interface SuspendTask<Request>[0]
+        Type SuspendTask<Request>
+        Local task
+        Type Continuation<Request>
+        Local completion
+      branch bb1 bb0
+        Type Boolean
+        Binary MachineEq(EnumTag)
+          Type machine<enum-tag>
+          EnumTag
+            Type CoroutineStep<Request>
+            Local $step
+          Type machine<enum-tag>
+          MachineScalarLiteral EnumTag(0)
+  coroutine_step cs0 CoroutineStep<Request> result=Request
+  coroutine_slot cl0 CoroutineSlot<Request> value=Request
+  coroutine_start ct0 result=Request function=fn13
+  coroutine_fn cf0 @fn10 source_return=Request step=cs0 immediate
+  instance mi0 function=@fn7 <- current
+  instance mi1 function=@fn8 <- Continuation.resume
+  instance mi2 function=@fn9 <- Continuation.resumeWithException
+  instance mi3 function=@fn10 <- SuspendTask.run
+  instance mi4 function=@fn11 <- SuspendRegistration.register
+  str @str0 "missing context direct.request: Request"
+  str @str1 "missing context fromA.request: Request"
+  str @str2 "missing context withDefault.request: Request"
+  str @str3 "missing context $get$active.request: Request"
+  str @str4 "missing context $set$active.request: Request"
+  str @str5 "missing context current.value: Request"
+  output library

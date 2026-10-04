@@ -1,5 +1,6 @@
 //! Source member candidates share the ordinary callable catalog and defaults.
 
+mod context;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 

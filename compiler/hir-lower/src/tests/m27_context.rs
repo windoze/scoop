@@ -3,6 +3,7 @@ use crate::{CurrentConeSources, lower_current_cone};
 use scoop_hir as hir;
 
 mod contracts;
+mod generics;
 
 fn with_source(source: &str, verify: impl FnOnce(&hir::ExportHir)) {
     let core = trusted_core();

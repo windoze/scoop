@@ -160,6 +160,7 @@ pub(crate) fn emit_strong_callable_registrations_v1<'ctx>(
                 *registration,
                 keys,
                 runtime.context_keys().len() as u64,
+                selection,
             )
         })
         .collect::<Result<Vec<_>, _>>()?;
@@ -177,6 +178,7 @@ fn emit_registration<'ctx>(
     plan: StrongCallableRegistrationPlanV1,
     keys: inkwell::values::PointerValue<'ctx>,
     key_count: u64,
+    selection: CallableRegistrationSelection,
 ) -> Result<EmittedStrongCallableRegistrationV1<'ctx>, CodegenError> {
     let descriptor_request = plan.symbol();
     let descriptor_symbol = descriptor_request.symbol();
@@ -192,8 +194,11 @@ fn emit_registration<'ctx>(
             "callable entry `{entry_symbol}` is not declared in the LLVM module"
         ))
     })?;
-    let entry_linkage = if entry.get_first_basic_block().is_some()
-        && entry_request.linkage() == LinkageClass::OdrWeak
+    // Context metadata is colocated with the selected body and emitted before
+    // that body's basic blocks. Its definition linkage already comes from the plan.
+    let entry_linkage = if entry_request.linkage() == LinkageClass::OdrWeak
+        && (matches!(selection, CallableRegistrationSelection::ContextBody(_))
+            || entry.get_first_basic_block().is_some())
     {
         Linkage::WeakODR
     } else {

@@ -17,6 +17,14 @@ pub struct ContextParameter {
     pub span: Span,
 }
 
+/// A dependency member contract expressed in its nominal owner's binder domain.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LoadedContextContract {
+    pub declaration: crate::DefaultCallableDeclarationV1,
+    pub name: String,
+    pub parameters: Vec<TypeId>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ContextRequirementOwner {
     Source(FunctionId),

@@ -37,6 +37,9 @@ impl Concretizer<'_> {
             self.enum_source.insert(id, source);
         }
         self.complete_enum_definition(id, definition, &arguments);
+        if let Some(imported) = self.source.loaded_enum_definitions.get(&origin) {
+            self.check_loaded_contexts(&imported.context_contracts, &arguments);
+        }
         self.type_use_site = previous_site;
         id
     }

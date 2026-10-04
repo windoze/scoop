@@ -1,0 +1,29 @@
+package taskcontexts.program
+
+import taskcontexts.*
+import taskcontexts.middle.*
+
+fun verify(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+fun main() {
+    val request = Request(40)
+    val reader: Reader<Request> = ReaderImpl()
+    context(request) {
+        gcCollect()
+        verify(direct() == 40)
+        verify(current<Request>().value == 40)
+        verify(fromA() == 40)
+        verify(fromB(request) == 80)
+        verify(nested<Request>(request).value == 40)
+        verify(throughB<Request>(request).value == 40)
+        verify(reader.read().value == 40)
+        verify(reader.current.value == 40)
+        active = 41
+        verify(active == 41)
+        verify(withDefault() == 82)
+    }
+    var missing = false
+    try { direct() } catch (error: MissingContextException) { missing = true }
+    verify(missing)
+    println("artifacts-ok")
+}

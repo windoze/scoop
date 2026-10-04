@@ -1,0 +1,62 @@
+class First(val value: Int)
+class Second(val value: Int)
+
+context(first: A, second: B)
+fun <A: ref, B: ref> choose(): A = first
+
+context(values: Array<T>)
+fun <T> firstElement(): T = values[0]
+
+context(function: (T) -> T)
+fun <T> apply(value: T): T = function(value)
+
+context(value: T)
+fun <T: First> classBound(): Int = value.value
+
+interface Reader<A: ref, B: ref> {
+    context(first: A, second: B)
+    fun read(): A
+}
+
+class ReaderImpl<A: ref, B: ref> : Reader<A, B> {
+    context(a: A, b: B)
+    override fun read(): A = a
+}
+
+struct PairBox<A: ref, B: ref>(val value: Int) {
+    context(_: A, _: B)
+    fun read(): Int = value
+}
+
+enum Choice<A: ref, B: ref> {
+    Ready
+    context(first: A, second: B)
+    fun read(): A = first
+}
+
+fun <T: ref> local(value: T): T {
+    context(bound: T)
+    fun read(): T = bound
+    return context(value) { read() }
+}
+
+fun main() {
+    val first = First(17)
+    val reader: Reader<First, Second> = ReaderImpl<First, Second>()
+    val choice: Choice<First, Second> = Choice.Ready
+    context(first) {
+        context(Second(19)) {
+            gcCollect()
+            println(choose<First, Second>().value)
+            println(reader.read().value)
+            println(PairBox<First, Second>(23).read())
+            println(choice.read().value)
+            println(classBound<First>())
+        }
+    }
+    println(local<First>(first).value)
+    context(Array<Int>(1L) { _ -> 29 }) { println(firstElement<Int>()) }
+    val double: (Int) -> Int = { value -> value * 2 }
+    context(double) { gcCollect(); println(apply<Int>(21)) }
+    try { choose<First, Second>() } catch (error: MissingContextException) { println("missing") }
+}
