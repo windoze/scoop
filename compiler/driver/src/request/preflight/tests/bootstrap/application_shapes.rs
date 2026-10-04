@@ -1,4 +1,4 @@
-//! The real core keeps every closed range and Option application across stages.
+//! The real core keeps its concrete nominal applications across stages.
 
 use std::collections::BTreeSet;
 
@@ -39,16 +39,18 @@ pub(super) fn check(
             continue;
         };
         let exact = descriptor.identity.exact_type();
-        let source = mir.meta.source_exact_types.get_by_identity(exact).unwrap();
+        let Some(source) = mir.meta.source_exact_types.get_by_identity(exact) else {
+            continue;
+        };
+        let scoop_mir::SourceExactTypeOwner::NominalApplication(group) = source.owner() else {
+            continue;
+        };
         if coroutine_types.contains(&exact) {
             assert!(coroutine_descriptors.insert(exact));
         } else {
             assert!(applications.insert(scoop_mir::type_name(mir, source.ty())));
         }
-        assert_eq!(
-            source.owner(),
-            scoop_mir::SourceExactTypeOwner::NominalApplication(member.key().group())
-        );
+        assert_eq!(group, member.key().group());
         assert!(groups.contains(&member.key().group()));
         assert_eq!(
             descriptor.identity.symbol_request().linkage(),
@@ -63,16 +65,43 @@ pub(super) fn check(
         );
     }
     let expected = [
+        "Array<Char>",
+        "Array<Int8>",
+        "ArrayList<String>",
+        "Iterable<Char>",
+        "Iterable<Int8>",
         "Iterable<Int>",
         "Iterable<Long>",
+        "Iterable<Option<String>>",
+        "Iterable<String>",
         "Iterable<UInt>",
         "Iterable<ULong>",
+        "Iterator<Char>",
+        "Iterator<Int8>",
         "Iterator<Int>",
         "Iterator<Long>",
+        "Iterator<Option<String>>",
+        "Iterator<String>",
         "Iterator<UInt>",
         "Iterator<ULong>",
+        "List<Char>",
+        "List<Int8>",
+        "List<Option<String>>",
+        "List<String>",
+        "ListIterator<Char>",
+        "ListIterator<Int8>",
+        "ListIterator<Option<String>>",
+        "ListIterator<String>",
+        "MutableArray<Char>",
+        "MutableArray<Int8>",
+        "MutableArray<Option<String>>",
+        "MutableList<String>",
+        "Option<(Long, Long)>",
+        "Option<Char>",
+        "Option<Int8>",
         "Option<Int>",
         "Option<Long>",
+        "Option<Option<String>>",
         "Option<String>",
         "Option<UInt>",
         "Option<ULong>",

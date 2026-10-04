@@ -36,9 +36,9 @@ pub(super) fn check(
         if name.ends_with("standalone") {
             assert_eq!(
                 (metadata.source_initialization_units().len(), units.len()),
-                (3, 3)
+                (4, 4)
             );
-            // The suspend object now has its concrete methods and initialization pair.
+            // String's companion and the suspend object have initialization pairs.
             assert_eq!(
                 metadata
                     .source_initialization_units()
@@ -48,7 +48,7 @@ pub(super) fn check(
                 units.iter().map(|unit| unit.unit()).collect(),
             );
         } else {
-            assert_eq!(units.len(), 5);
+            assert_eq!(units.len(), 6);
         }
     }
     units
