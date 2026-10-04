@@ -53,6 +53,7 @@ mod exceptions;
 mod external_type_descriptors;
 mod image;
 mod initialization;
+mod linux_codegen;
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 mod linux_runtime;
 mod moving_gc;

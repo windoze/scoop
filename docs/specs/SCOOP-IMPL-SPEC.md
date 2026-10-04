@@ -751,6 +751,8 @@ LIR中String与Array的可变长度表示不因源码integer重命名而改变�
 
 ### 2.5 codegen
 
+M28 的对象校验按对象格式和过程架构分层：ELF reader 保留每个函数的实际 section、symbol extent 与 RELA addend，不能把多个 `.text.*` 中相同的相对地址混为同一个 PC。LLVM v3 stackmap 的字段、LIR 站点及 LSDA action 校验共用；架构负责 frame size、SP/FP 寄存器、保存帧区域和调用指令边界。amd64 使用 LLVM 自带的解码器识别实际 call 及其结束地址，不使用固定 `return_pc - 4/-5`；该解码仅在 codegen 对新生成的对象执行，不使 artifact-only linker 依赖 LLVM。ELF `.eh_frame` 的 PC-relative signed-32 FDE/LSDA 引用和 personality 间接引用按真实 relocation 解析；`zR` 的普通 unwind-only FDE 与 `zPLR` 的 Scoop 异常 FDE 分开处理。两种 libc 复用同一 amd64 机器规则，后续 ELF AArch64 只需选择相应架构规则。
+
 M28 的 LSDA reader 与 runtime spec 5.2 一致，接受 LLVM 的省略 TType cleanup-only 表；它不含 type-table offset，所有 action 必须为零。对象读取以实际 function/section 范围校验 call-site 和 landing pad，并允许 section 的零对齐填充；personality 以 call-site 表长取得有效边界。catch-all 仍使用已有 null type entry 和终止 action。该修复不改变已生成 catch-all 对象的 ABI 或 runtime metadata 布局。
 
 codegen的唯一语义IR输入是**本 Cone**的LIR output，并只额外接收producer所需的已验证profile projection：Scoop LLVM producer取`lir_target + backend`，generated-C producer取`lir_target + c_bridge_toolchain`；两者都不接收上游meta或完整`ResolvedTargetProfile`。object verifier/finalizer与packager消费其正式产物。M23共同约束如下：

@@ -1,5 +1,4 @@
 use super::frame::parse_eh_frame;
-use super::lsda::parse_lsda;
 use super::*;
 use crate::artifact::ObservedSafepoint;
 
@@ -8,6 +7,19 @@ const PROFILE: LsdaEncodingProfile = LsdaEncodingProfile {
     type_table: 0x9b,
     call_site: 0x01,
 };
+
+fn parse_lsda(
+    bytes: &[u8],
+    size: u64,
+    profile: LsdaEncodingProfile,
+) -> Result<ObservedLsda, CodegenError> {
+    super::lsda::parse_lsda(
+        bytes,
+        size,
+        profile,
+        crate::target::CodeArchitecture::Aarch64,
+    )
+}
 
 // LLVM 22.1 Darwin/AArch64 output for one function with catch-all invokes
 // and a cleanup invoke inside the active handler.

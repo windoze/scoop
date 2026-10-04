@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::ops::Range;
 
 use crate::CodegenError;
-use crate::target::LsdaEncodingProfile;
+use crate::target::{CodeArchitecture, LsdaEncodingProfile};
 
 use super::cursor::Cursor;
 use super::{EhActionKind, ObservedLsda, ObservedProtectedRange};
@@ -13,7 +13,9 @@ pub(super) fn parse_lsda(
     bytes: &[u8],
     function_size: u64,
     encodings: LsdaEncodingProfile,
+    architecture: CodeArchitecture,
 ) -> Result<ObservedLsda, CodegenError> {
+    let alignment = architecture.instruction_alignment();
     let mut cursor = Cursor::new(bytes, "LSDA");
     let lp_start = cursor.u8("LPStart encoding")?;
     if lp_start != encodings.lp_start {
@@ -86,8 +88,8 @@ pub(super) fn parse_lsda(
             .checked_add(length)
             .ok_or_else(|| CodegenError("LSDA call-site function range overflows".to_string()))?;
         if length == 0
-            || start % 4 != 0
-            || length % 4 != 0
+            || start % alignment != 0
+            || length % alignment != 0
             || start < previous_end
             || end > function_size
         {
@@ -95,7 +97,7 @@ pub(super) fn parse_lsda(
                 "LSDA call-site range {start}..{end} is empty, unaligned, overlapping, or outside function size {function_size}"
             )));
         }
-        if landing_pad != 0 && (landing_pad >= function_size || landing_pad % 4 != 0) {
+        if landing_pad != 0 && (landing_pad >= function_size || landing_pad % alignment != 0) {
             return Err(CodegenError(format!(
                 "LSDA landing-pad offset {landing_pad} is outside/alignment-invalid for function size {function_size}"
             )));
@@ -176,6 +178,7 @@ pub(super) fn parse_lsda(
         protected_ranges.push(ObservedProtectedRange {
             range,
             action: action_kind,
+            landing_pad,
         });
     }
     if action_offsets.len() > 1 {

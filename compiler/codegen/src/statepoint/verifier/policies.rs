@@ -21,6 +21,18 @@ pub(super) fn verify_function_policies(
             "frame-pointer",
             profile.frame_pointer_attribute(),
         )?;
+        if profile.disable_red_zone()
+            && function
+                .get_enum_attribute(
+                    AttributeLoc::Function,
+                    Attribute::get_named_enum_kind_id("noredzone"),
+                )
+                .is_none()
+        {
+            return Err(CodegenError(format!(
+                "function `{symbol}` lacks required `noredzone` attribute"
+            )));
+        }
         match effect {
             GcEffect::Managed => {
                 if gc != GC_STRATEGY {

@@ -1,6 +1,6 @@
 use super::*;
 
-fn stackmap_qualification_module() -> Module {
+pub(in crate::tests) fn stackmap_qualification_module() -> Module {
     fn poll_function(
         symbol: &str,
         safepoint: u64,
