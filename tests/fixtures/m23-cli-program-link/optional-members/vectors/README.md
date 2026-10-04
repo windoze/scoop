@@ -6,7 +6,7 @@
 将对应 payload 插入片段之间。原产物和重组产物均检查完整 SHA-256。
 
 输入为 `dev.programlink:root:0.1.0`、`read-println.scoop` 的当前完整产物，
-原 SHA-256 为 `88071380bdaa5329cf3a780e4827d125be6fabc859e8ce9740492f2c8f96d7d4`。
+原 SHA-256 为 `2141f2b088318b34b7d82e8cef27d455d3e35ffbf2cc460cb89dbb9c8a204441`。
 保留 compatibility、Cone、direct dependencies、原 members、semantic fingerprints
 和 sections，producer 改为 `m23-program-link-repack`。
 
@@ -27,3 +27,6 @@ payload。若 compiler 或格式变化使原 SHA 不同，应通过上述 API �
 M24 迁移对照本次正式构建的 manifest 与 member payload，同步依赖、语义摘要和
 manifest section，保留以上 optional/required 成员及其原有 requirement。重组产物
 继续由正式 linker 验证，optional 的链接计划和运行结果必须与原产物一致。
+
+M26 迁移使用当前正式产物和同一组 writer API 重建 manifest、header 与 padding；
+保留原有附加成员及其用途，并逐项核对片段拼接后的字节与 writer 输出完全一致。

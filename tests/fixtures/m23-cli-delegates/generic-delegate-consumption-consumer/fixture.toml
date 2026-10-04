@@ -245,7 +245,7 @@ files = [
   {"copy" = {"from" = "${fixture}/../../m23-generic-delegate-consumption/downstream.scoop", "to" = "${work}/negative-source/src/main.scoop"}},
 ]
 checks = [
-  {"file" = "${work}/valid-consumer.slib", "sha256" = "573df351421f925ccfb9e74a669c19cc5dc046d9b6425c172ee51d59dcc89af6"},
+  {"file" = "${work}/valid-consumer.slib", "sha256" = "8f19f7df1b7be680694901e958a32e5178ab9b1931276fe373dae03aab0c4c4a"},
 ]
 
 [[steps]]
@@ -259,7 +259,7 @@ files = [
   {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-delegate-storage/0.old.bin"}, "new" = {"file" = "corruptions/missing-delegate-storage/0.new.bin"}}},
 ]
 checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "7f926af916ea9462ffb2d9b8f0eb6e2b8e86c97c509a2594a0f9c495fae8caa1"},
+  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "33f8356425509c34086e1f31f93d7a9673491cb4b4e93357e905a7845d3b6565"},
 ]
 
 [[steps]]
@@ -286,7 +286,7 @@ files = [
   {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-failure-root/0.old.bin"}, "new" = {"file" = "corruptions/missing-failure-root/0.new.bin"}}},
 ]
 checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "6a50fdcc3512bf6105d786adf48b240fd8571ae4af0cdb52152943f05ce60d07"},
+  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "e884129ffe5bb42357b0f01f4afb054d55dd6ae68b46190d4b7280b9b207dc85"},
 ]
 
 [[steps]]
@@ -314,7 +314,7 @@ files = [
   {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-initializer-callable/0.old.bin"}, "new" = {"file" = "corruptions/missing-initializer-callable/0.new.bin"}}},
 ]
 checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "40461670056195c361a3779817ac79e13831f587137f0f50388b2d80ecdc3e1a"},
+  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "c267b8adf16598aa5980c3c27068e2fce66850967270f832e2ba2a1f9a039011"},
 ]
 
 [[steps]]
@@ -340,7 +340,7 @@ files = [
   {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/missing-unit/0.old.bin"}, "new" = {"file" = "corruptions/missing-unit/0.new.bin"}}},
 ]
 checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "2a9e2ca6bac0b5bfc78015691219856b2df7c8b826ee870532b72879fad84b9a"},
+  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "d096a6a58debbd7f1660455e72d30ada453194048a59b98087629883c046be06"},
 ]
 
 [[steps]]
@@ -367,7 +367,7 @@ files = [
   {"replace" = {"path" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "old" = {"file" = "corruptions/swapped-initializer-and-ensure/0.old.bin"}, "new" = {"file" = "corruptions/swapped-initializer-and-ensure/0.new.bin"}}},
 ]
 checks = [
-  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "759329711b2a63f50f15ae06335ef2c539ae9276998afd4fc444fef16bfdf9c2"},
+  {"file" = "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib", "sha256" = "b5d155ec527884b0bd5543a0e9abbb8e2e08b8e30a811b7c4201b1fab26b4726"},
 ]
 
 [[steps]]
