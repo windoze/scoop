@@ -1,6 +1,6 @@
 # M26 设计：List、字符与 parts 字符串构建
 
-状态：全部功能已实现；数组初始化、List、Char、String、StringBuilder 与插值均已完成各自闭环，正在执行第 9 节的正式总验收。
+状态：已完成；数组初始化、List、Char、String、StringBuilder 与插值均已实现，并通过全 workspace 与全部文件 fixture 的正式总验收，记录见第 11 节。
 
 日期：2026-10-04。
 
@@ -293,11 +293,11 @@ Char 新增分支必须覆盖 const/default、pattern、array/aggregate/Option�
 | --- | --- |
 | m26-array-construction | 零/负长度、实参顺序、逐索引一次、异常中止；ZST、过对齐值、含引用 struct/enum、初始化中 moving GC；named/default/alias/跨 Cone |
 | m26-lists | 三层静态类型、数组只读 conformance、全部增删边界、跨多次扩容、Some(None)、清空旧引用、快照独立、实时 iterator 与耗尽；值/引用、generic/ODR |
-| m26-char | ASCII/CJK/补充平面/NUL、surrogate 邻接边界、字面量转义错误；const、默认值、nested pattern witness、Option/array/aggregate/FFI |
+| m26-characters | ASCII/CJK/补充平面/NUL、surrogate 邻接边界、字面量转义错误；const、默认值、nested pattern witness、Option/array/aggregate/FFI |
 | m26-strings | 标量数与字节数差异、组合字符、空/全区间/越界 slice、顺序迭代、safe char 快照、unsafe byte 导入与 safe 导出 |
 | m26-string-builder | 空/单/大量 parts、跨扩容、原对象修改后转换结果稳定、toString 次数/顺序/抛出/重入、重复 build 与继续 add、moving GC |
 | m26-interpolation | 单行/raw/普通 raw、转义美元、嵌套字符串/注释/插值、span 诊断、shadow、ToString bound、默认值、generic 与真实挂起 |
-| m26-cross-cone | core/provider/consumer 独立构建、transitive 产物、同实例双 consumer ODR、artifact-only link/run、旧 schema/cache 拒绝与重建 |
+| 各组跨 Cone 用例及既有产物回归 | core/provider/consumer 独立构建、transitive 产物、同实例双 consumer ODR、artifact-only link/run、旧 schema/cache 拒绝与重建 |
 
 每个新的编译错误规则有 negative fixture，断言位置和诊断；运行期负长度/索引通过可捕获异常 fixture 验证，不能将其改成编译期规则。unsafe UTF-8 的违例不作为可恢复运行期输入测试；其缺失 unsafe context 则是编译错误。GC 检查覆盖清空后不再保活旧元素和构造/拼接中 relocation，不建立新的通用计数框架。
 
@@ -373,3 +373,12 @@ python3 tests/run_fixtures.py --all
 - 29 个正式 CLI fixture 全部通过，包含 20 个完整诊断负例和 38 份 AST/HIR/MIR/LIR golden；覆盖 raw/转义、名称遮蔽、ToString 约束、控制流与聚合求值、generic/default、真实挂起与恢复异常、独立 core/provider/consumer 产物链接以及 moving GC。
 - fixture 的模板输入补齐 `$$` 字面美元转义，以原文断言 `${name}` 诊断；旧 native 符号模板同步转义且保留原输出。执行固定版本 Ruff，32 个公共 runner 测试通过。
 - 执行 cargo fmt 与全 workspace clippy；parser 445 个、HIR lowering 1314 个单元测试通过。
+
+### 正式总验收
+
+- 六项功能分别提交后，执行 `cargo fmt --all` 与 `cargo clippy --workspace --all-targets --release`，均通过；Python runner 已按 AGENTS.md 使用固定版本 Ruff 格式化和检查。
+- `cargo test --workspace --release -j 16` 完整通过：5,252 项测试成功，0 失败、0 忽略。正式 CLI 使用 `cargo build -p scoop -p scoopc -p scoop-linker --bins --release` 生成的配套工具；公共 fixture runner 的 32 项测试全部通过。
+- 最后一轮 `python3 tests/run_fixtures.py --all` 使用全新工作目录、不更新快照，完整运行 2,242 个文件 fixture，全部通过；覆盖 2,332 个运行变体、11,960 次进程执行和 11,210 次 stage/plan golden 校验。
+- M26 六组共新增 84 个 fixture、110 份阶段 golden 声明；正式总验收包含独立功能、组合、完整诊断、源码删除后的产物链接、跨 Cone/ODR、异常、真实协程挂起和 moving GC。
+- 既有 fixture 的 core 源码路径、完整 native 符号、阶段输出和产物指纹按最终 core 重新生成；损坏产物用例保留各自原有的单项截断、删除或交换行为，重新生成有效产物后再施加同一损坏，验证原有格式、引用和布局边界。core 导出测试同步实际类型与初始化单位，不改变生产验证规则。
+- 实现按数组、集合、字符、UTF-8、字符串与词法职责拆分模块。各批次定期使用 `cargo clean` 清理构建目录；总验收期间最后一次开发配置清理释放 44.1 GiB，并清理已结束轮次的 fixture 中间产物，保留验收报告。

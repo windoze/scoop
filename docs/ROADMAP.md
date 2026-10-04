@@ -429,7 +429,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - Darwin/AArch64最终链接删除`-lc++abi`且不添加显式`-lunwind`，由默认`libSystem`解析unwind接口；C ABI/Scoop ABI FFI的异常边界不扩大；
 - 以decoder/runtime/GC/协程组合测试及Mach-O依赖/导入符号检查验收，最终程序不得出现`__cxa_*`、gxx/gcc personality、C++ terminate或`libc++abi.dylib`依赖。
 
-### M26 List、字符与 parts 字符串构建（实现中，[设计](milestone26/DESIGN.md)）
+### M26 List、字符与 parts 字符串构建 ✅（2026-10-04 完成，[设计](milestone26/DESIGN.md)）
 
 - 增加 `Array<T>(size, init)` / `MutableArray<T>(size, init)` 完整初始化构造，保留固定长度、值元素内联与 GC 布局；initializer 的顺序、异常、ZST 与移动 GC 同批落地。
 - 增加普通 public `List<T>` / `MutableList<T>` / final `ArrayList<T>`，全部 invariant。List 是只读访问接口；Array/MutableArray 只实现 List，ArrayList 实现全部增删操作，以 GC 堆 `MutableArray<Option<T>>` 几何扩容。快照转换与按当前索引读取的 iterator 具有明确语义。
@@ -437,6 +437,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - StringBuilder 以普通 core `ArrayList<String>` 保存 parts，add 立即完成 ToString，build checked 求和并集中分配/复制最终 String，保留 builder 供重复 build 与继续追加。runtime 只接收具体 backing/有效前缀，不管理容器。
 - 完成单行/raw 多行 f-string 与普通 raw 字符串；插值在 HIR 按实际 core callable 脱糖，保持表达式与 toString 的交错顺序、异常和挂起语义。经正式 CLI、跨 Cone/ODR、artifact-only link/run、GC stress 与 negative/golden 验收。
 - ByteBuffer、off-heap storage、borrow/view、close 及外部内存压力反馈整体延期；本里程碑不依赖 M24 release hook，也不扩展为通用集合/ownership 框架。旧 M16 字符串设计不作为实现依据。
+- 正式总验收通过：全 workspace 5,252 项测试、公共 fixture runner 32 项测试、全部 2,242 个文件 fixture；M26 新增 84 个 fixture，覆盖源码与产物编译、跨 Cone/ODR、异常、协程和 moving GC，详见设计第 11 节。
 
 ### M27 Task-local Context（设计见 `docs/milestone27/DESIGN.md`）
 

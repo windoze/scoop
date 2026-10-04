@@ -1540,7 +1540,7 @@ HIR `/43`、MIR type bridge `/6`、LIR layout ABI `/5`、manifest production `/2
 
 实际扩展调用的静态接收者参与既有共有声明闭包；导入泛型扩展的 callable 实例化为本地 ODR 目标后仍保留该依赖。这样，私有 List 实现与接口之间的已有继承关系可以由产物中的普通声明消费，不因调用目标从 Imported 变为 Local 而遗漏接收者声明，也不改变该类型的源码可见性。
 
-M26 的完整设计见 [M26 设计](../milestone26/DESIGN.md)，源码行为以 language spec 6、10.6、11.2.1、11.4、11.6、11.10 为准。本节是待实现目标，不把文档更新视作已具备编译器能力。M26 采用普通 GC 集合，不依赖 M24 release hook；ByteBuffer 与外部内存反馈留待后续。
+M26 的完整设计见 [M26 设计](../milestone26/DESIGN.md)，源码行为以 language spec 6、10.6、11.2.1、11.4、11.6、11.10 为准。本节能力已完成实现与正式总验收，实施和验收记录见设计第 11 节。M26 采用普通 GC 集合，不依赖 M24 release hook；ByteBuffer 与外部内存反馈留待后续。
 
 **core 与普通调用。** `List<T> : Iterable<T>`、`MutableList<T> : List<T>` 和 `ArrayList<T> : MutableList<T>` 全部使用已有 nominal/generic/interface 机制。数组只实现 List；Array/MutableArray 的 size 必须由真实的 `public override val size: Long` getter 满足接口。getter 调用 private 数组长度 intrinsic，候选/属性/override 选择完成后才正规化为 ArrayLength；该操作读取 managed receiver，源码 getter/member 不标注 NoGC，不能继续以接收者类型和成员拼写绕过声明检查。两个数组保留既有 get/set/clone 表示级操作。List、MutableList、ArrayList 没有新的 intrinsic type、compiler-known 短名分派或 runtime 容器身份；它们的 generic body、getter、itable 与 ODR 由普通跨 Cone 路径消费。
 
