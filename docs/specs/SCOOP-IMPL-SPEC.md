@@ -908,6 +908,12 @@ M23-9 的独立 Link reader 使用新增 `org.scoop-lang.lir/link-support/1`，�
 
 M28 的 C bridge 工具链按 Darwin/Apple Clang 与 Linux/GCC 区分完整平台合同，不为 Linux 填充伪造 SDK 或 macOS deployment。Linux glibc/musl 分别使用 `linux-x86-64-gnu-gcc/1`、`linux-x86-64-musl-gcc/1` C bridge profile；保留 contract fields 1～8，field 4 为 `{1=Linux tag 2}`，field 5 为 `{1=GCC tag 2, 2=完整数字版本, 3=实际编译输入摘要}`。摘要覆盖已选 driver、实际 GCC、specs 和被探针消费的开发 headers；调用路径是非持久 locator。flags 沿用 C11、object、O0/g0、no-common/no-ident/no-stack-protector/no-unwind-tables/no-asynchronous-unwind-tables/no-builtin，增加 PIC，不传 Apple `-target`、`-isysroot`、deployment flags。显式 native sysroot 及已解析的 PATH/REALGCC 由 invocation 保存并传给 GCC；不能因 `env_clear()` 丢掉 wrapper 所需的执行环境。临时文件使用当前构建目录。实际链接器、CRT 和 unwind archive 仍由 final-link 输入负责，纯 `.slib` 的 C bridge 构建不要求 unwind archive。
 
+Linux runtime 构建从所选 unwind prefix 读取 headers，与 runtime 源文件一样按相对名和内容捕获到私有编译目录；原始 locator 只用于输入位置与本地缓存，不进入产物 identity。默认 prefix 为 `<Scoop sysroot>/native/<canonical triple>/unwind`。仅编译 runtime 对象不要求该 prefix 已有 archive；最终链接才读取 `lib/libunwind.a`。
+
+本地 LLVM 22.1.2 unwind 准备脚本包含已复现的 ELF 索引未命中兼容修复：有效搜索表未命中时，不再触发依赖 `.eh_frame` 零终止的无边界扫描。修复应用于私有构建副本，不写入用户的 LLVM 源码，不改变公开 unwind ABI，也不增加来源证明或版本认证要求；其机器字节作为普通最终链接输入。
+
+最终链接配置以 Darwin 与 Linux 两种完整平台分支保存。Darwin 保持原 Apple ld/TBD 合同；Linux 通过同一已解析 C driver 安排 CRT，显式启用 `-nodefaultlibs`，选择 LLVM unwind archive、libc、数学/线程库和 GCC 算术 builtins，并检查没有引入第二套 GCC EH provider。默认 gnu 为 dynamic PIE、musl 为 static ET_EXEC；musl 显式 dynamic 为 PIE，glibc static 不在 M28 范围。实际 native link probe 的输入 trace 提供 CRT/libc/归档内容摘要，最终配置还包含 GNU ld、collect2、metadata script 与模式 flags。普通编译不执行该链接探针，最终 ELF 检查实际模式、目标 interpreter、EH header、RELRO 和 text relocation。`--cc`/`--native-sysroot` 在本阶段用于 Linux；Darwin 保持系统选定的 Xcode 开发环境。
+
 Linux runtime 的已有 SHA-256 canonical fingerprint 由固定的 Mbed TLS 3.6.6 SHA-256 模块提供，最小配置只启用 SHA-256，不引入 TLS、PSA、证书或新的 digest 协议。所需上游源文件和 headers 连同许可证纳入 `runtime/third_party/mbedtls`，与 runtime 源码一样进入构建输入；普通构建与 artifact-only 链接不联网下载。Darwin 继续使用 CommonCrypto，两者必须通过同一摘要向量。Linux image 收集从加载后的 ELF program headers 与当前 VM permissions 完成；动态和静态的只读 metadata linker script 位于 toolchain，由构建工具打包使用，不能让 artifact-only consumer 为此读取 runtime 源码树。
 
 target resolution 只解析编译所需的 LIR/backend、C bridge 和 runtime-build 源/参数选择；最终 linker、CRT、unwind archive 按 executable 构建或 artifact-only link 的实际需要另行解析。不得要求 library-only `.slib` 构建先具备 executable 工具链。runtime 源集由共有 runtime 与所选 OS/image/architecture 组件拼合，Linux 两种 libc 共用源码选择。runtime 的外部 C header 依赖按编译器实际 depfile 中的绝对文件 locator 与内容摘要保存在本机构建缓存，不再要求它们归属伪造 SDK；该 cache schema 升级不改变 `.slib` 或 runtime ABI。

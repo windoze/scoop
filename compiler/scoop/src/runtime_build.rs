@@ -24,6 +24,7 @@ pub struct RuntimeBuildRequest<'a> {
     pub runtime_root: &'a Path,
     pub cache_root: &'a Path,
     pub optimization: RuntimeOptimization,
+    pub unwind_prefix: Option<&'a Path>,
 }
 
 #[derive(Debug)]
@@ -81,7 +82,7 @@ pub fn build_runtime(
             objects,
             index: entry.join("index.cbor"),
             cache_hit: true,
-            input_paths: input_paths(&request, &inputs, &dependencies),
+            input_paths: input_paths(&inputs, &dependencies),
         });
     }
     let staging = tempfile::Builder::new()
@@ -119,7 +120,7 @@ pub fn build_runtime(
         objects,
         index: entry.join("index.cbor"),
         cache_hit: false,
-        input_paths: input_paths(&request, &inputs, &dependencies),
+        input_paths: input_paths(&inputs, &dependencies),
     })
 }
 
@@ -143,15 +144,11 @@ fn cached_objects(
         .then_some((objects, dependencies))
 }
 
-fn input_paths(
-    request: &RuntimeBuildRequest<'_>,
-    inputs: &inputs::Inputs,
-    dependencies: &dependencies::Dependencies,
-) -> Vec<PathBuf> {
+fn input_paths(inputs: &inputs::Inputs, dependencies: &dependencies::Dependencies) -> Vec<PathBuf> {
     inputs
-        .files
-        .keys()
-        .map(|path| request.runtime_root.join(path))
+        .input_paths
+        .iter()
+        .cloned()
         .chain(dependencies.input_paths())
         .collect()
 }

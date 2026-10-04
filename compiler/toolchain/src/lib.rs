@@ -15,18 +15,22 @@ mod registry;
 mod runtime;
 mod system_provider;
 mod trusted_core;
+mod unwind;
 
-pub use final_link::ValidatedFinalLinkProfile;
+pub use final_link::{
+    FinalLinkOptions, LinkMode, LinuxFinalLinkProfile, ValidatedFinalLinkProfile,
+};
 pub use linux_c::resolve_linux_c_toolchain;
 pub use paths::{configured_sysroot_root, development_runtime_root, development_workspace_root};
-pub use registry::ResolvedTargetProfile;
 pub use registry::host_target_triple;
+pub use registry::{CToolchainOptions, ResolvedTargetProfile};
 pub use runtime::ValidatedRuntimeBuildProfile;
 pub use system_provider::{
     LIBSYSTEM_INSTALL_NAME, NativeExport, SystemExportKind, SystemProvider, SystemStubFile,
     TextStubInterface, read_text_stubs, write_link_stub,
 };
 pub use trusted_core::TrustedCoreSlotLayoutV1;
+pub use unwind::{runtime_unwind_include, selected_unwind_prefix};
 
 #[derive(Debug)]
 pub struct ToolchainError(pub String);

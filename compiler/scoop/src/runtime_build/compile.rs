@@ -36,6 +36,9 @@ pub(super) fn compile(
         for include in request.target.runtime_build().include_directories() {
             command.arg("-I").arg(root.join(include));
         }
+        if let Some(include) = inputs.unwind_include {
+            command.arg("-I").arg(root.join(include));
+        }
         let output = command.scoop_output().map_err(error)?;
         if !output.status.success() {
             return Err(error(format!(

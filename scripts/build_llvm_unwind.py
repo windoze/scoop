@@ -12,6 +12,36 @@ ROOT = Path(__file__).resolve().parent.parent
 TARGETS = ("x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl")
 
 
+def prepare_sources(source: Path, build: Path, environment: dict) -> Path:
+    """Apply the ELF index-miss fix without editing the user's LLVM checkout."""
+    overlay = build / "source"
+    overlay.mkdir(parents=True, exist_ok=True)
+    for name in ("libunwind", "runtimes"):
+        destination = overlay / name
+        if destination.exists():
+            shutil.rmtree(destination)
+        shutil.copytree(source / name, destination)
+    for name in ("cmake", "llvm", "third-party"):
+        destination = overlay / name
+        if destination.is_symlink():
+            destination.unlink()
+        destination.symlink_to(source / name, target_is_directory=True)
+    subprocess.run(
+        [
+            "patch",
+            "--batch",
+            "--forward",
+            "-p1",
+            "-i",
+            str(ROOT / "scripts/patches/llvm-libunwind-eh-index-miss.patch"),
+        ],
+        cwd=overlay,
+        env=environment,
+        check=True,
+    )
+    return overlay
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--target", choices=TARGETS, required=True)
@@ -43,14 +73,15 @@ def main():
     temporary = build / "tmp"
     temporary.mkdir(parents=True, exist_ok=True)
     environment = dict(os.environ, TMPDIR=str(temporary))
+    prepared = prepare_sources(source, build, environment)
     configure = [
         "cmake",
         "-G",
         "Unix Makefiles",
         "-S",
-        str(source / "runtimes"),
+        str(prepared / "runtimes"),
         "-B",
-        str(build),
+        str(build / "objects"),
         "-DLLVM_ENABLE_RUNTIMES=libunwind",
         "-DCMAKE_BUILD_TYPE=Release",
         "-DLLVM_INCLUDE_TESTS=OFF",
@@ -92,7 +123,7 @@ def main():
         [
             "cmake",
             "--build",
-            str(build),
+            str(build / "objects"),
             "--target",
             "install-unwind",
             "--parallel",

@@ -227,6 +227,8 @@ LLVM libunwind 的 Linux x86_64/ARM64 DWARF 支持符合 Scoop 当前范围。�
 
 分别建立 glibc、musl 的独立 build/install prefix，构建 PIC 静态 `libunwind.a`，保留 threads，关闭 cross-unwinding，保持 M25 Scoop personality。独立项目 `../libunwind` 的 `-Dcxx_exceptions=enabled` 选项不适用于 LLVM 项目；LLVM 使用其 `runtimes` CMake 入口，只启用 `libunwind`。
 
+实施时在本机 musl PIE 的完整 backtrace 中复现 LLVM 22.1.2 的 FDE 索引未命中后无边界线性扫描。工具链准备脚本在私有源码副本应用局部补丁：存在搜索表时，其未命中即终止该 image 的查找；不扫描没有零终止的 `.eh_frame` 尾部。此问题与 amd64 的 Scoop 帧合同无关，修复保持公开异常 ABI。原始 LLVM 源码不修改，补丁与复现事实纳入本里程碑构建说明，继续用真实异常与 backtrace 测试验证。
+
 unwind prefix 包含相匹配的 headers 和静态库。runtime 的 `<unwind.h>` 来自该选择；最终链接使用具体归档路径，不能靠无区分的 `-lunwind` 搜索碰巧选到系统另一实现。libunwind 版本是工具链依赖及缓存输入，不与 LLVM backend 的 major/minor 绑定成新的语言 ABI 条件。
 
 避免 C driver 自动引入第二套 unwinder。Linux final-link 的默认库集合显式控制：所选 `libunwind.a` 提供 EH，所选 libc 提供 C/POSIX，确有需要的 `libgcc.a` 或 compiler-rt 只提供编译器算术 builtins；不能把 glibc 的 `libgcc_eh.a`、`libgcc_s.so` 当作 musl EH provider。本机独立 libunwind 的配置已实际遇到 `_dl_find_object` 未定义，表明这种混用不是假想风险。

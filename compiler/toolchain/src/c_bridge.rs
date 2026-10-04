@@ -472,6 +472,10 @@ mod tests {
                     Some(std::ffi::OsStr::new("C"))
                 ),
                 (
+                    std::ffi::OsStr::new("TMPDIR"),
+                    Some(std::ffi::OsStr::new("/temporary"))
+                ),
+                (
                     std::ffi::OsStr::new("TZ"),
                     Some(std::ffi::OsStr::new("UTC"))
                 ),

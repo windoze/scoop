@@ -1,4 +1,5 @@
 use crate::runtime::ValidatedRuntimeBuildProfile;
+use std::path::PathBuf;
 
 use scoop_lir::{
     BackendProfile, LirTargetProfile, TargetProfileId, ValidatedCBridgeToolchainInvocation,
@@ -6,8 +7,15 @@ use scoop_lir::{
 };
 
 use crate::{
-    ToolchainError, ValidatedFinalLinkProfile, c_bridge::resolve_system_c_bridge_toolchain,
+    FinalLinkOptions, ToolchainError, ValidatedFinalLinkProfile,
+    c_bridge::resolve_system_c_bridge_toolchain,
 };
+
+#[derive(Clone, Debug, Default)]
+pub struct CToolchainOptions {
+    pub compiler: Option<PathBuf>,
+    pub native_sysroot: Option<PathBuf>,
+}
 
 /// Complete target selection resolved atomically by the shared registry.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -19,22 +27,35 @@ pub struct ResolvedTargetProfile {
 }
 
 impl ResolvedTargetProfile {
-    fn darwin_aarch64(
-        c_bridge_toolchain: ValidatedCBridgeToolchainInvocation,
-    ) -> Result<Self, ToolchainError> {
-        let lir_target = ValidatedLirTargetSelection::DARWIN_AARCH64_LLVM_22_1;
+    /// Resolves all mutually compatible projections as one value.
+    pub fn resolve(triple: &str) -> Result<Self, ToolchainError> {
+        Self::resolve_with(triple, &CToolchainOptions::default())
+    }
+
+    pub fn resolve_with(triple: &str, options: &CToolchainOptions) -> Result<Self, ToolchainError> {
+        let target = validate_target(triple)?;
+        let c_bridge_toolchain = match target.id() {
+            TargetProfileId::DarwinAarch64 => {
+                if options.compiler.is_some() || options.native_sysroot.is_some() {
+                    return Err(ToolchainError("--cc and --native-sysroot apply to Linux targets; Darwin uses the selected Xcode toolchain".into()));
+                }
+                resolve_system_c_bridge_toolchain()?
+            }
+            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
+                crate::resolve_linux_c_toolchain(
+                    target,
+                    options.compiler.as_deref(),
+                    options.native_sysroot.as_deref(),
+                )?
+            }
+        };
+        let lir_target = ValidatedLirTargetSelection::from_id(target.id());
         Ok(Self {
             lir_target,
             backend: lir_target.backend(),
             c_bridge_toolchain,
-            runtime_build: ValidatedRuntimeBuildProfile::for_target(lir_target.target()),
+            runtime_build: ValidatedRuntimeBuildProfile::for_target(target),
         })
-    }
-
-    /// Resolves all mutually compatible projections as one value.
-    pub fn resolve(triple: &str) -> Result<Self, ToolchainError> {
-        validate_target(triple)?;
-        Self::darwin_aarch64(resolve_system_c_bridge_toolchain()?)
     }
 
     /// Resolves the current host through the same closed registry.
@@ -72,20 +93,38 @@ impl ResolvedTargetProfile {
     }
 
     pub fn final_link(&self) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
-        ValidatedFinalLinkProfile::from_startup(self.c_bridge_toolchain.clone())
+        self.final_link_with(&FinalLinkOptions::default())
+    }
+
+    pub fn final_link_with(
+        &self,
+        options: &FinalLinkOptions,
+    ) -> Result<ValidatedFinalLinkProfile, ToolchainError> {
+        ValidatedFinalLinkProfile::from_startup(self.c_bridge_toolchain.clone(), options)
     }
 }
 
 pub fn host_target_triple() -> Result<&'static str, ToolchainError> {
     match (std::env::consts::ARCH, std::env::consts::OS) {
         ("aarch64", "macos") => Ok("aarch64-apple-darwin"),
+        ("x86_64", "linux") if cfg!(target_env = "musl") => Ok("x86_64-unknown-linux-musl"),
+        ("x86_64", "linux") => Ok("x86_64-unknown-linux-gnu"),
         (arch, os) => Err(ToolchainError(format!(
-            "unsupported host {arch}-{os}; M23 supports only macOS/AArch64"
+            "unsupported host {arch}-{os}; M28 supports macOS/AArch64 and Linux/amd64"
         ))),
     }
 }
 
-pub(crate) fn validate_target(triple: &str) -> Result<(), ToolchainError> {
+pub(crate) fn validate_target(triple: &str) -> Result<LirTargetProfile, ToolchainError> {
+    match triple {
+        "x86_64-unknown-linux-gnu" | "x86_64-linux-gnu" => {
+            return Ok(LirTargetProfile::LINUX_X86_64_GNU);
+        }
+        "x86_64-unknown-linux-musl" | "x86_64-linux-musl" => {
+            return Ok(LirTargetProfile::LINUX_X86_64_MUSL);
+        }
+        _ => {}
+    }
     let mut components = triple.split('-');
     let arch = components.next().unwrap_or_default();
     let vendor = components.next().unwrap_or_default();
@@ -97,10 +136,10 @@ pub(crate) fn validate_target(triple: &str) -> Result<(), ToolchainError> {
         && supported_os
         && !has_extra_identity
     {
-        Ok(())
+        Ok(LirTargetProfile::DARWIN_AARCH64)
     } else {
         Err(ToolchainError(format!(
-            "unsupported target {triple:?}; M23 supports only macOS/AArch64 (`aarch64-apple-darwin`, with `arm64` accepted as an alias)"
+            "unsupported target {triple:?}; M28 supports macOS/AArch64, Linux glibc/amd64 and Linux musl/amd64"
         )))
     }
 }
@@ -120,6 +159,7 @@ fn versioned_component(component: &str, prefix: &str) -> bool {
 mod tests {
     use super::*;
 
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     #[test]
     fn aliases_resolve_to_one_complete_profile() {
         let expected = ResolvedTargetProfile::resolve("aarch64-apple-darwin").unwrap();
@@ -167,6 +207,7 @@ mod tests {
                     .final_link()
                     .unwrap()
                     .system_provider()
+                    .unwrap()
                     .exports()
                     .contains_key("_getpagesize")
             );

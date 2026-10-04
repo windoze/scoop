@@ -152,7 +152,10 @@ impl CompilerPaths {
     }
 }
 
-fn find_program(program: &OsStr, search_path: &OsStr) -> Result<PathBuf, ToolchainError> {
+pub(crate) fn find_program(
+    program: &OsStr,
+    search_path: &OsStr,
+) -> Result<PathBuf, ToolchainError> {
     let path = Path::new(program);
     if path.components().count() > 1 {
         return std::fs::canonicalize(path).map_err(error);

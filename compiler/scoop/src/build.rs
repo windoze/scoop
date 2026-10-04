@@ -150,6 +150,7 @@ fn runtime_input(
                 runtime_root: root,
                 cache_root: cache,
                 optimization: Default::default(),
+                unwind_prefix: None,
             })
             .map_err(|error| failure(error.to_string()))?;
             let index = runtime.index().to_owned();

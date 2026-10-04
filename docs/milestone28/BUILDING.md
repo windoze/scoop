@@ -29,6 +29,8 @@ python3 scripts/check_linux_unwind.py
 
 构建脚本仅消费本地源码，通过 CMake 的 `runtimes` 入口构建并安装 `libunwind`，不下载源码，也不覆盖系统 unwinder。它为两种 libc 使用独立目录；普通 `scoop build` 不负责构建第三方源码。
 
+LLVM 22.1.2 在本机 musl 动态模式的完整 `_Unwind_Backtrace` 中暴露了 ELF 索引未命中后的越界扫描。脚本将 `libunwind` 和 `runtimes` 复制到 build 目录的 `source/`，应用 [最小兼容补丁](../../scripts/patches/llvm-libunwind-eh-index-miss.patch)，再在 `objects/` 构建；用户的 LLVM 源码保持不变。补丁让已存在的 FDE 搜索表未命中直接返回，不再假设 `.eh_frame` 必有零终止记录；没有索引时保留上游原路径。该修复不改公开 `_Unwind_*` ABI，实际 archive 内容继续作为最终链接输入。源码版本变化导致补丁不再适用时，脚本报错，应重新核对上游实现后更新补丁。
+
 验证脚本默认使用 `gcc`、`musl-gcc`（可用 `--gnu-cc`、`--musl-cc` 覆盖），为 glibc PIE、musl 静态、musl PIE 三种配置运行真实 LLVM cleanup/resume/catch 测试，检查 ELF interpreter、静态程序的动态依赖与 link map 中的 EH provider。它覆盖 personality 和 Level I 展开，不代替完整异常对象生命周期、GC 或语言 fixture。
 
 ## 构建目录管理

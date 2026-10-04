@@ -130,6 +130,39 @@ impl ValidatedCBridgeToolchainInvocation {
         self.profile.contract().environment()
     }
 
+    /// Start another native-driver action with the same resolved environment.
+    pub fn driver_command(&self) -> Command {
+        let mut command = Command::new(&self.compiler_driver);
+        command
+            .env_clear()
+            .env("LC_ALL", "C")
+            .env("LANG", "C")
+            .env("TZ", "UTC");
+        match &self.parameters {
+            CBridgeCommandParameters::Darwin {
+                sdk_root,
+                minimum_os,
+            } => {
+                command
+                    .args(["-target", self.profile.contract().canonical_triple()])
+                    .arg("-isysroot")
+                    .arg(sdk_root)
+                    .arg(format!("-mmacosx-version-min={minimum_os}"));
+            }
+            CBridgeCommandParameters::Linux {
+                native_sysroot,
+                real_gcc,
+                search_path,
+            } => {
+                command.env("PATH", search_path).env("REALGCC", real_gcc);
+                if let Some(root) = native_sysroot {
+                    command.arg("--sysroot").arg(root);
+                }
+            }
+        }
+        command
+    }
+
     pub fn validate_target(
         &self,
         target: LirTargetProfile,
@@ -161,22 +194,8 @@ impl ValidatedCBridgeToolchainInvocation {
                 source,
                 object,
             ),
-            CBridgeCommandParameters::Linux {
-                native_sysroot,
-                real_gcc,
-                search_path,
-            } => {
-                let mut command = Command::new(&self.compiler_driver);
-                command
-                    .env_clear()
-                    .env("LC_ALL", "C")
-                    .env("LANG", "C")
-                    .env("TZ", "UTC")
-                    .env("PATH", search_path)
-                    .env("REALGCC", real_gcc);
-                if let Some(sysroot) = native_sysroot {
-                    command.arg("--sysroot").arg(sysroot);
-                }
+            CBridgeCommandParameters::Linux { .. } => {
+                let mut command = self.driver_command();
                 command
                     .arg("-std=c11")
                     .arg("-c")

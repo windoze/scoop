@@ -1,5 +1,8 @@
 use super::*;
 
+#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+mod linux;
+
 fn runtime_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../runtime")
 }
@@ -14,22 +17,22 @@ fn actual_runtime_objects_roundtrip_and_corrupt_cache_rebuilds() {
             runtime_root: &runtime_root(),
             cache_root: cache.path(),
             optimization: RuntimeOptimization::None,
+            unwind_prefix: None,
         })
         .unwrap()
     };
+    let startup = target
+        .lir_target()
+        .contract()
+        .native_symbol_normalization()
+        .compiler_generated_object_symbol("scoop_rt_run_program");
     let first = build();
     assert!(!first.cache_hit());
     assert_eq!(
         first.objects().objects().len(),
         target.runtime_build().runtime_sources().len()
     );
-    assert!(
-        first
-            .objects()
-            .symbols()
-            .definitions
-            .contains_key("_scoop_rt_run_program")
-    );
+    assert!(first.objects().symbols().definitions.contains_key(&startup));
     let second = build();
     assert!(second.cache_hit());
     assert_eq!(
@@ -64,12 +67,7 @@ fn actual_runtime_objects_roundtrip_and_corrupt_cache_rebuilds() {
     let missing_entry = read
         .objects()
         .iter()
-        .filter(|object| {
-            !object
-                .info()
-                .definitions
-                .contains_key("_scoop_rt_run_program")
-        })
+        .filter(|object| !object.info().definitions.contains_key(&startup))
         .map(|object| object.bytes().to_vec())
         .collect();
     assert!(
@@ -136,6 +134,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
         runtime_root: &runtime_root(),
         cache_root: &cache,
         optimization: RuntimeOptimization::None,
+        unwind_prefix: None,
     };
     inputs::Inputs::read(&request)
         .unwrap()
@@ -147,6 +146,7 @@ fn runtime_cache_tracks_sources_headers_candidates_and_flags() {
             runtime_root: &source,
             cache_root: &cache,
             optimization,
+            unwind_prefix: None,
         })
         .unwrap()
     };

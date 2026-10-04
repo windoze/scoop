@@ -78,6 +78,7 @@ fn build_fixture(root_fixture: &str, native: bool) -> Fixture {
         runtime_root: &workspace.join("runtime"),
         cache_root: &path.join("runtime"),
         optimization: RuntimeOptimization::Optimized,
+        unwind_prefix: None,
     })
     .unwrap();
     let profile = ValidatedFinalLinkProfile::resolve("aarch64-apple-darwin").unwrap();

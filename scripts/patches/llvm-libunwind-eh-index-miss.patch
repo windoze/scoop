@@ -1,0 +1,49 @@
+--- a/libunwind/src/EHHeaderParser.hpp
++++ b/libunwind/src/EHHeaderParser.hpp
+@@ -41,7 +41,7 @@
+   static bool findFDE(A &addressSpace, typename R::link_hardened_reg_arg_t pc,
+                       pint_t ehHdrStart, uint32_t sectionLength,
+                       typename CFI_Parser<A>::FDE_Info *fdeInfo,
+-                      typename CFI_Parser<A>::CIE_Info *cieInfo);
++                      typename CFI_Parser<A>::CIE_Info *cieInfo, bool &hasIndex);
+ 
+ private:
+   static bool decodeTableEntry(A &addressSpace, pint_t &tableEntry,
+@@ -118,7 +118,9 @@
+                                 typename R::link_hardened_reg_arg_t pc,
+                                 pint_t ehHdrStart, uint32_t sectionLength,
+                                 typename CFI_Parser<A>::FDE_Info *fdeInfo,
+-                                typename CFI_Parser<A>::CIE_Info *cieInfo) {
++                                typename CFI_Parser<A>::CIE_Info *cieInfo,
++                                bool &hasIndex) {
++  hasIndex = false;
+   pint_t ehHdrEnd = ehHdrStart + sectionLength;
+ 
+   EHHeaderParser<A>::EHHeaderInfo hdrInfo;
+@@ -126,6 +128,7 @@
+                                       hdrInfo))
+     return false;
+ 
++  hasIndex = hdrInfo.table_enc != DW_EH_PE_omit;
+   if (hdrInfo.fde_count == 0) return false;
+ 
+   size_t tableEntrySize = getTableEntrySize(hdrInfo.table_enc);
+--- a/libunwind/src/UnwindCursor.hpp
++++ b/libunwind/src/UnwindCursor.hpp
+@@ -1773,9 +1773,15 @@
+   }
+ #if defined(_LIBUNWIND_SUPPORT_DWARF_INDEX)
+   if (!foundFDE && (sects.dwarf_index_section != 0)) {
++    bool hasIndex = false;
+     foundFDE = EHHeaderParser<A>::template findFDE<R>(
+         _addressSpace, pc, sects.dwarf_index_section,
+-        (uint32_t)sects.dwarf_index_section_length, &fdeInfo, &cieInfo);
++        (uint32_t)sects.dwarf_index_section_length, &fdeInfo, &cieInfo,
++        hasIndex);
++    // A present search table covers this image's FDEs. Its miss must not
++    // trigger an unbounded scan: ELF .eh_frame need not have a terminator.
++    if (!foundFDE && hasIndex)
++      return false;
+   }
+ #endif
+   if (!foundFDE) {
