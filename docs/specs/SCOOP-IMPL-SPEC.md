@@ -1560,7 +1560,9 @@ String 的数组快照由普通 MutableArray(size, init) 生成，Char initializ
 
 **插值。** AST 新增有序 Text/Expression part，嵌套表达式保留原 source span；字符、普通/raw 字符串及 f-string 共用明确的 lexer 状态与转义规则。HIR 绑定实际 core StringBuilder 构造、add overload、build 身份，按源码顺序展开为普通 typed local/call，不按用户作用域重新搜索脱糖名称。表达式与对应 toString 交错执行，保留异常、泛型与挂起控制流；source-only generic body 与 default body 同样在导出前完成该展开。Export HIR、MIR、LIR 不保留待脱糖 f-string 或后端专用 StringBuilder 指令。
 
-**产物。** Char 表示/常量、ArrayGenerate、实际新增 scalar intrinsic 与 AST part 必须进入各自现有 codec、canonical fingerprint、布局/native ABI 分类及 golden dump；新增 wire variant 的所属 section 版本和依赖 fingerprint 在实现批次同步更新，旧产物/缓存按已有版本边界重建。普通 List/ArrayList 方法不新增专用 section，String/Array 对象头与 TD release-hook ABI 不因本里程碑扩展。各边界验证新增字段自身的类型、格式、引用与 ABI，成功读取后复用，不增加来源资格、证明链、通用预算或下游语义重放。
+词法分析使用一个 token 流和嵌套的文本/插值表达式状态，插值中的 callable 与其他表达式共享 parser 的身份序列。定义 core 时直接查询本 Cone 根包的实际 StringBuilder 类型，消费 core 时只使用既有 core prelude 的类型绑定；随后复用普通构造与成员候选，不进入用户扩展层。数组和 tuple 的元素若产生语句展开，HIR 按元素顺序交错放置各自的 setup 与结果临时值，不能先执行所有 setup 再求值前面的元素。
+
+**产物。** Char 表示/常量、ArrayGenerate 与实际新增 scalar intrinsic 必须进入各自现有 codec、canonical fingerprint、布局/native ABI 分类及 golden dump；新增 wire variant 的所属 section 版本和依赖 fingerprint 在实现批次同步更新，旧产物/缓存按已有版本边界重建。AST 插值 part 保留源位置并进入 AST dump；它在 HIR 导出前完全脱糖，不新增持久化格式。普通 List/ArrayList 方法不新增专用 section，String/Array 对象头与 TD release-hook ABI 不因本里程碑扩展。各边界验证新增字段自身的类型、格式、引用与 ABI，成功读取后复用，不增加来源资格、证明链、通用预算或下游语义重放。
 
 ## 3. 待明确事项
 

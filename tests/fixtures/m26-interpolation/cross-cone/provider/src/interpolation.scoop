@@ -1,0 +1,8 @@
+package fixtures.interpolation
+
+public class StringBuilder public constructor() { public fun build(): String = "provider user builder" }
+public class Pretender public constructor() { public fun build(): String = "consumer alias builder" }
+public fun <T : ToString> format(value: T, suffix: Char = '>'): String = f"<${value}${suffix}"
+public fun <T : ToString> defaulted(value: T, text: String = f"[${value}]"): String = text
+public fun <T : ToString> formatter(value: T): () -> String = { f"(${value})" }
+public fun ready(): String = f"${format(42)}:${defaulted(42)}:${formatter(42)()}"

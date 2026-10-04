@@ -29,6 +29,7 @@ impl Parser {
                     span: token.span,
                 })
             }
+            TokenKind::FStringStart => self.parse_interpolated_string(),
             TokenKind::Int(lexeme) => {
                 self.pos += 1;
                 Ok(Expr::IntLiteral(lexeme.with_span(token.span)))

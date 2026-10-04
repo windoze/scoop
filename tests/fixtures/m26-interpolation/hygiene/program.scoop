@@ -1,0 +1,14 @@
+class StringBuilder {
+    fun add(value: Any): StringBuilder { throw IllegalStateException() }
+    fun build(): String = "ordinary user builder"
+}
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    check(StringBuilder().build() == "ordinary user builder")
+    val StringBuilder = 40
+    val add = 1
+    val build = 1
+    val toString = "text"
+    check(f"${StringBuilder + add + build}:${toString}" == "42:text")
+    println(42)
+}

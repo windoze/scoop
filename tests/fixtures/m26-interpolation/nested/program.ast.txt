@@ -1,0 +1,91 @@
+SourceFile
+  RootPackage
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val text
+      InterpolatedString
+        Text "outer:"
+        Expression
+          InterpolatedString
+            Text "inner:"
+            Expression
+              Binary Add
+                IntLiteral 1
+                IntLiteral 2
+        Text ":"
+        Expression
+          IfExpression
+            BoolLiteral true
+            StringLiteral "}"
+            else
+            StringLiteral "{"
+    Call check
+      Binary Eq
+        Var text
+        StringLiteral "outer:inner:3:}"
+    val braces
+      InterpolatedString
+        Expression
+          Invoke
+            AnonymousFunction 0 suspend=false return=String
+              val text
+                StringLiteral "}"
+              return
+                Var text
+    Call check
+      Binary Eq
+        Var braces
+        StringLiteral "}"
+    val value
+      InterpolatedString
+        Expression
+          Invoke
+            Lambda 0 suspend=false
+              param x: Int
+              Binary Add
+                Var x
+                IntLiteral 1
+            IntLiteral 40
+        Text ":"
+        Expression
+          InterpolatedString
+            Expression
+              Invoke
+                Lambda 1 suspend=false
+                  CharLiteral '雪'
+    Call check
+      Binary Eq
+        Var value
+        StringLiteral "41:雪"
+    val comment
+      InterpolatedString
+        Expression
+          IfExpression
+            BoolLiteral true
+            StringLiteral "yes"
+            else
+            StringLiteral "no"
+    Call check
+      Binary Eq
+        Var comment
+        StringLiteral "yes"
+    val pattern
+      InterpolatedString
+        Expression
+          WhenExpression
+            CharLiteral '雪'
+            arm '雪'
+              StringLiteral "snow"
+            else
+              StringLiteral "other"
+    Call check
+      Binary Eq
+        Var pattern
+        StringLiteral "snow"
+    Call println
+      IntLiteral 42

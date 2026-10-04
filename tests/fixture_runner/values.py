@@ -8,6 +8,7 @@ from pathlib import Path
 from .model import ConfigurationError
 
 REFERENCE = re.compile(r"\$\{([A-Za-z_][A-Za-z_0-9.-]*)\}")
+INTERPOLATION = re.compile(r"\$\$|\$\{([A-Za-z_][A-Za-z_0-9.-]*)\}")
 
 
 def lookup(name, context):
@@ -32,7 +33,10 @@ def expand(value, context):
         match = REFERENCE.fullmatch(value)
         if match:
             return lookup(match[1], context)
-        return REFERENCE.sub(lambda match: scalar(lookup(match[1], context)), value)
+        return INTERPOLATION.sub(
+            lambda match: "$" if match[1] is None else scalar(lookup(match[1], context)),
+            value,
+        )
     if isinstance(value, list):
         return [expand(item, context) for item in value]
     if isinstance(value, dict):
@@ -50,7 +54,7 @@ def scalar(value):
 
 def references(value):
     if isinstance(value, str):
-        yield from (match[1] for match in REFERENCE.finditer(value))
+        yield from (match[1] for match in INTERPOLATION.finditer(value) if match[1])
     elif isinstance(value, list):
         for item in value:
             yield from references(item)

@@ -1,0 +1,25 @@
+class Journal(var log: String)
+fun mark(journal: Journal, label: String): String {
+    journal.log = journal.log + label
+    return label
+}
+fun pair(left: String, right: String): String = left + right
+fun main() {
+    val journal = Journal("")
+    val tuple = (mark(journal, "A"), f"${mark(journal, "B")}", mark(journal, "C"))
+    if (journal.log != "ABC" || tuple._1 != "A" || tuple._2 != "B") { println("tuple-order"); return }
+    journal.log = ""
+    val expected: Array<String> = [mark(journal, "A"), f"${mark(journal, "B")}", mark(journal, "C")]
+    if (journal.log != "ABC" || expected[1L] != "B") { println("typed-array-order"); return }
+    journal.log = ""
+    val inferred = [mark(journal, "A"), f"${mark(journal, "B")}", mark(journal, "C")]
+    if (journal.log != "ABC" || inferred[1L] != "B") { println("array-order"); return }
+    journal.log = ""
+    val result = mark(journal, "A") + f"${mark(journal, "B")}"
+    if (journal.log != "AB" || result != "AB") { println("binary-order"); return }
+    journal.log = ""
+    val called = pair(mark(journal, "A"), f"${mark(journal, "B")}")
+    if (journal.log != "AB" || called != "AB") { println("argument-order"); return }
+    gcCollect()
+    println(42)
+}

@@ -8,6 +8,20 @@ pub(super) fn dump_expr(expr: &Expr, indent: usize, out: &mut String) {
         Expr::StringLiteral { value, .. } => {
             out.push_str(&format!("{pad}StringLiteral {value:?}\n"));
         }
+        Expr::InterpolatedString { parts, .. } => {
+            out.push_str(&format!("{pad}InterpolatedString\n"));
+            for part in parts {
+                match part {
+                    StringPart::Text { value, .. } => {
+                        out.push_str(&format!("{pad}  Text {value:?}\n"));
+                    }
+                    StringPart::Expression { value, .. } => {
+                        out.push_str(&format!("{pad}  Expression\n"));
+                        dump_expr(value, indent + 2, out);
+                    }
+                }
+            }
+        }
         Expr::IntLiteral(literal) => out.push_str(&format!("{pad}IntLiteral {literal}\n")),
         Expr::BoolLiteral { value, .. } => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
         Expr::UnitLiteral { .. } => out.push_str(&format!("{pad}UnitLiteral\n")),

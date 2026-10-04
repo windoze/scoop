@@ -104,6 +104,10 @@ class PreflightTests(unittest.TestCase):
             (base / "diagnostics.json").write_text(json.dumps(expected))
             found = discover(base)[0]
             self.assertEqual(found.data["steps"][0]["diagnostics"], expected)
+            expected[0]["message"] = "use `$${unknown}` at ${work}"
+            (base / "diagnostics.json").write_text(json.dumps(expected))
+            found = discover(base)[0]
+            self.assertEqual(found.data["steps"][0]["diagnostics"], expected)
             (base / "diagnostics.json").write_text("{")
             with self.assertRaisesRegex(ConfigurationError, "diagnostics expectation"):
                 discover(base)

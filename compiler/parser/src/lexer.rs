@@ -1,4 +1,4 @@
-//! Hand-written lexer for the M6 source subset.
+//! Hand-written lexer with a shared token stream for nested string interpolation.
 //!
 //! Produces a flat token vector for the parser. Invalid characters and
 //! recoverable literal errors become diagnostic-only error tokens so parser
@@ -8,9 +8,12 @@
 
 use scoop_ast::{Diagnostic, IntegerRadix, IntegerSuffix, Span};
 
+mod integers;
+mod interpolation;
 mod literals;
 mod token;
 
+use interpolation::InterpolationMode;
 pub(crate) use token::{IntegerLiteralLexeme, Token, TokenKind};
 
 pub(crate) fn lex(source: &str) -> (Vec<Token>, Vec<Diagnostic>) {
@@ -21,6 +24,7 @@ struct Lexer<'a> {
     source: &'a str,
     pos: usize,
     newline_before: bool,
+    interpolations: Vec<InterpolationMode>,
 }
 
 impl<'a> Lexer<'a> {
@@ -29,6 +33,7 @@ impl<'a> Lexer<'a> {
             source,
             pos: 0,
             newline_before: false,
+            interpolations: Vec::new(),
         }
     }
 
@@ -36,6 +41,27 @@ impl<'a> Lexer<'a> {
         let mut tokens = Vec::new();
         let mut diagnostics = Vec::new();
         loop {
+            if let Some(InterpolationMode::Text {
+                raw,
+                start: opening,
+            }) = self.interpolations.last().copied()
+            {
+                let start = self.pos;
+                let kind = match self.lex_fstring_text(raw, opening) {
+                    Ok(kind) => kind,
+                    Err(diagnostic) => {
+                        diagnostics.push(diagnostic);
+                        self.skip_fstring_remainder(raw);
+                        TokenKind::Error
+                    }
+                };
+                tokens.push(Token {
+                    kind,
+                    span: self.span_from(start),
+                    newline_before: false,
+                });
+                continue;
+            }
             if let Err(diagnostic) = self.skip_trivia() {
                 diagnostics.push(diagnostic);
                 tokens.push(Token {
@@ -48,6 +74,14 @@ impl<'a> Lexer<'a> {
             let start = self.pos;
             let newline_before = std::mem::take(&mut self.newline_before);
             let Some(c) = self.peek_char() else {
+                if let Some(InterpolationMode::Expression { start, .. }) =
+                    self.interpolations.last()
+                {
+                    diagnostics.push(Diagnostic::at(
+                        self.span_from(*start),
+                        "unterminated string interpolation",
+                    ));
+                }
                 tokens.push(Token {
                     kind: TokenKind::Eof,
                     span: self.span_from(start),
@@ -59,12 +93,6 @@ impl<'a> Lexer<'a> {
                 Ok(kind) => kind,
                 Err(diagnostic) => {
                     diagnostics.push(diagnostic);
-                    // String failures leave the cursor either inside the
-                    // literal or at its opening quote (`f"..."`). Skip the
-                    // remainder to avoid tokenizing its contents as code.
-                    if is_ident_start(c) && self.peek_char() == Some('"') {
-                        self.skip_bad_string();
-                    }
                     TokenKind::Error
                 }
             };
@@ -86,14 +114,8 @@ impl<'a> Lexer<'a> {
                 self.pos += 1;
                 TokenKind::RParen
             }
-            '{' => {
-                self.pos += 1;
-                TokenKind::LBrace
-            }
-            '}' => {
-                self.pos += 1;
-                TokenKind::RBrace
-            }
+            '{' => self.opening_brace(),
+            '}' => self.closing_brace(),
             '[' => {
                 self.pos += 1;
                 TokenKind::LBracket
@@ -269,33 +291,6 @@ impl<'a> Lexer<'a> {
         Ok(kind)
     }
 
-    /// Consume the rest of a malformed string through its closing quote or
-    /// leave the newline for trivia handling. The opening quote may still be
-    /// current for an unsupported interpolation prefix.
-    fn skip_bad_string(&mut self) {
-        if self.peek_char() == Some('"') {
-            self.pos += 1;
-        }
-        while let Some(c) = self.peek_char() {
-            match c {
-                '\n' => return,
-                '"' => {
-                    self.pos += 1;
-                    return;
-                }
-                '\\' => {
-                    self.pos += 1;
-                    if let Some(escaped) = self.peek_char() {
-                        if escaped != '\n' {
-                            self.pos += escaped.len_utf8();
-                        }
-                    }
-                }
-                _ => self.pos += c.len_utf8(),
-            }
-        }
-    }
-
     fn peek_char(&self) -> Option<char> {
         self.source[self.pos..].chars().next()
     }
@@ -365,147 +360,6 @@ impl<'a> Lexer<'a> {
         }
     }
 
-    /// `pos` is at the first digit.
-    fn lex_int(&mut self) -> Result<TokenKind, Diagnostic> {
-        let start = self.pos;
-        let radix = if self.source[self.pos..].starts_with("0b")
-            || self.source[self.pos..].starts_with("0B")
-        {
-            self.pos += 2;
-            IntegerRadix::Binary
-        } else if self.source[self.pos..].starts_with("0x")
-            || self.source[self.pos..].starts_with("0X")
-        {
-            self.pos += 2;
-            IntegerRadix::Hexadecimal
-        } else {
-            IntegerRadix::Decimal
-        };
-        let base = match radix {
-            IntegerRadix::Decimal => 10,
-            IntegerRadix::Binary => 2,
-            IntegerRadix::Hexadecimal => 16,
-        };
-
-        let digits_start = self.pos;
-        let mut magnitude = 0_u64;
-        let mut saw_digit = false;
-        let mut overflowed = false;
-        while let Some(c) = self.peek_char() {
-            if let Some(digit) = c.to_digit(base) {
-                saw_digit = true;
-                self.pos += c.len_utf8();
-                if !overflowed {
-                    match magnitude
-                        .checked_mul(u64::from(base))
-                        .and_then(|value| value.checked_add(u64::from(digit)))
-                    {
-                        Some(value) => magnitude = value,
-                        None => overflowed = true,
-                    }
-                }
-                continue;
-            }
-            if c == '_' {
-                let separator_start = self.pos;
-                self.pos += 1;
-                let valid_next = self
-                    .peek_char()
-                    .and_then(|next| next.to_digit(base))
-                    .is_some();
-                if !saw_digit || !valid_next {
-                    self.skip_integer_tail();
-                    return Err(Diagnostic::at(
-                        Span::new(separator_start as u32, self.pos as u32),
-                        "integer separators must appear between two valid digits",
-                    ));
-                }
-                continue;
-            }
-            break;
-        }
-
-        if !saw_digit {
-            self.skip_integer_tail();
-            let radix_name = match radix {
-                IntegerRadix::Decimal => "decimal",
-                IntegerRadix::Binary => "binary",
-                IntegerRadix::Hexadecimal => "hexadecimal",
-            };
-            return Err(Diagnostic::at(
-                self.span_from(start),
-                format!("{radix_name} integer prefix must be followed by a valid digit"),
-            ));
-        }
-
-        if radix != IntegerRadix::Decimal && self.peek_char().is_some_and(|c| c.is_ascii_digit()) {
-            let invalid_start = self.pos;
-            self.skip_integer_tail();
-            return Err(Diagnostic::at(
-                Span::new(invalid_start as u32, self.pos as u32),
-                format!(
-                    "invalid digit in base-{base} integer literal `{}`",
-                    &self.source[start..self.pos]
-                ),
-            ));
-        }
-
-        let suffix_start = self.pos;
-        let suffix = match self.peek_char() {
-            Some('u' | 'U') => {
-                self.pos += 1;
-                if matches!(self.peek_char(), Some('l' | 'L')) {
-                    self.pos += 1;
-                    IntegerSuffix::UnsignedLong
-                } else {
-                    IntegerSuffix::Unsigned
-                }
-            }
-            Some('l' | 'L') => {
-                self.pos += 1;
-                IntegerSuffix::Long
-            }
-            _ => IntegerSuffix::None,
-        };
-
-        if self.peek_char().is_some_and(is_ident_continue) {
-            self.skip_integer_tail();
-            return Err(Diagnostic::at(
-                Span::new(suffix_start as u32, self.pos as u32),
-                format!(
-                    "invalid integer literal suffix `{}`",
-                    &self.source[suffix_start..self.pos]
-                ),
-            ));
-        }
-
-        if overflowed {
-            return Err(Diagnostic::at(
-                self.span_from(start),
-                format!(
-                    "integer literal magnitude `{}` is out of range for u64",
-                    &self.source[start..self.pos]
-                ),
-            ));
-        }
-
-        debug_assert!(self.pos > digits_start);
-        Ok(TokenKind::Int(IntegerLiteralLexeme {
-            magnitude,
-            radix,
-            suffix,
-        }))
-    }
-
-    fn skip_integer_tail(&mut self) {
-        while let Some(c) = self.peek_char() {
-            if !is_ident_continue(c) {
-                break;
-            }
-            self.pos += c.len_utf8();
-        }
-    }
-
     fn lex_ident(&mut self) -> Result<TokenKind, Diagnostic> {
         let start = self.pos;
         while let Some(c) = self.peek_char() {
@@ -515,13 +369,8 @@ impl<'a> Lexer<'a> {
             self.pos += c.len_utf8();
         }
         let text = &self.source[start..self.pos];
-        // `f"..."` (string interpolation) lexes as `f` + a string literal;
-        // catch it here for a dedicated diagnostic.
         if text == "f" && self.peek_char() == Some('"') {
-            return Err(Diagnostic::at(
-                self.span_from(start),
-                "string interpolation is not supported yet (milestone M3)",
-            ));
+            return Ok(self.start_fstring(start));
         }
         let kind = match text {
             "package" => TokenKind::Package,

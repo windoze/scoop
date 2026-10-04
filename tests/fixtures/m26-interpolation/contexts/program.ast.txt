@@ -1,0 +1,136 @@
+SourceFile
+  RootPackage
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun fail(): Int
+    throw
+      Call IllegalStateException
+  fun render<T : ToString>(value: T, text: String = <expr>): String
+    =
+      Var text
+  class Label(val text: String), ToString
+    public fun toString
+  val eager: String = <expr>
+  class Greeting(val name: String)
+    val text: String =
+      InterpolatedString
+        Text "hello "
+        Expression
+          Var name
+  fun main()
+    Call check
+      Binary And
+        Binary Eq
+          Var eager
+          StringLiteral "init:42"
+        Binary Eq
+          FieldAccess text
+            Call Greeting
+              StringLiteral "雪"
+          StringLiteral "hello 雪"
+    var index
+      IntLiteral 0
+    while
+      Binary Ne
+        InterpolatedString
+          Expression
+            Var index
+        StringLiteral "3"
+      assign index
+        Binary Add
+          Var index
+          IntLiteral 1
+    Call check
+      Binary Eq
+        Var index
+        IntLiteral 3
+    Call check
+      Unary Not
+        Binary And
+          BoolLiteral false
+          Binary Eq
+            InterpolatedString
+              Expression
+                Call fail
+            StringLiteral "0"
+    Call check
+      Binary Or
+        BoolLiteral true
+        Binary Eq
+          InterpolatedString
+            Expression
+              Call fail
+          StringLiteral "0"
+    val selected
+      IfExpression
+        BoolLiteral true
+        InterpolatedString
+          Expression
+            IntLiteral 42
+        else
+        InterpolatedString
+          Expression
+            Call fail
+    Call check
+      Binary Eq
+        Var selected
+        StringLiteral "42"
+    Call check
+      Binary And
+        Binary Eq
+          Call render
+            IntLiteral 42
+          StringLiteral "<42>"
+        Binary Eq
+          Call render
+            Call Label
+              StringLiteral "snow"
+          StringLiteral "<snow>"
+    Call check
+      Binary Eq
+        Call render
+          IntLiteral 42
+          InterpolatedString
+            Expression
+              CharLiteral '雪'
+        StringLiteral "雪"
+    val value: String?
+      Call Some
+        StringLiteral "present"
+    Call check
+      Binary Eq
+        Elvis
+          Var value
+          InterpolatedString
+            Expression
+              Call fail
+        StringLiteral "present"
+    val missing: String?
+      Var None
+    Call check
+      Binary Eq
+        Elvis
+          Var missing
+          InterpolatedString
+            Expression
+              IntLiteral 42
+        StringLiteral "42"
+    val closure
+      Lambda 0 suspend=false
+        param value: Int
+        InterpolatedString
+          Text "["
+          Expression
+            Var value
+          Text "]"
+    Call check
+      Binary Eq
+        Call closure
+          IntLiteral 42
+        StringLiteral "[42]"
+    Call println
+      IntLiteral 42

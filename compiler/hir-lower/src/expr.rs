@@ -85,6 +85,7 @@ mod characters;
 mod constructors;
 mod copy_updates;
 mod fields;
+mod interpolation;
 mod members;
 mod names;
 mod operators;
@@ -245,6 +246,9 @@ impl Lowerer {
             return None;
         }
         let lowered = match expr {
+            ast::Expr::InterpolatedString { parts, span } => {
+                self.lower_interpolated_string(parts, *span, sink)
+            }
             ast::Expr::StringLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::StringLiteral {
                     value: value.clone(),

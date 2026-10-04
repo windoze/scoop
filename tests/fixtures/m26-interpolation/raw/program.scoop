@@ -1,0 +1,17 @@
+const val raw: String = """$name ${ignored}\n
+雪"""
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    check(raw == "$name ${ignored}\\n\n雪")
+    check("ordinary ${unknown} $name" == "ordinary ${unknown} $name")
+    check(f"\${unknown} \u0024{another} \$name" == "${unknown} ${another} $name")
+    check(f"\t\b\n\r\'\"\\\u0041\u{1f680}" == "\t\b\n\r\'\"\\A🚀")
+    val value = f"""line \n ${"雪"}
+${f"${'🚀'}"} end"""
+    check(value == "line \\n 雪\n🚀 end")
+    check("""quoted"""" == "quoted\"")
+    check(f"""quoted${42}""""" == "quoted42\"\"")
+    check(f"""backslash \${1}""" == "backslash \\1")
+    check(f"""$ $9 $$""" == "$ $9 $$")
+    println(42)
+}

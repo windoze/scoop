@@ -1,0 +1,126 @@
+SourceFile
+  RootPackage
+  class Gate(var waiter: Continuation<Int>?)
+    fun complete
+    fun fail
+  class Registration(val gate: Gate), SuspendRegistration<Int>
+    public fun register
+  suspend fun await(gate: Gate): Int
+    =
+      Call suspendCoroutine
+        Call Registration
+          Var gate
+  suspend fun decorate(gate: Gate, text: String, result: String = <expr>): String
+    =
+      Var result
+  class Journal(var log: String)
+  class Mark(val journal: Journal, val text: String), ToString
+    public fun toString
+  class Task(val gate: Gate, val journal: Journal), SuspendTask<String>
+    public suspend fun run
+  class Completion(), Continuation<String>
+    var finished: Boolean =
+      BoolLiteral false
+    var failed: Boolean =
+      BoolLiteral false
+    var value: String =
+      StringLiteral ""
+    public fun resume
+    public fun resumeWithException
+  fun check(value: Boolean)
+    if
+      Unary Not
+        Var value
+      throw
+        Call IllegalStateException
+  fun main()
+    val gate
+      Call Gate
+        Var None
+    val journal
+      Call Journal
+        StringLiteral ""
+    val completion
+      Call Completion
+    Call startCoroutine
+      Call Task
+        Var gate
+        Var journal
+      Var completion
+    Call check
+      Binary And
+        Unary Not
+          FieldAccess finished
+            Var completion
+        Binary Eq
+          FieldAccess log
+            Var journal
+          StringLiteral "A"
+    Call gcCollect
+    MethodCall complete
+      Var gate
+      IntLiteral 1
+    Call check
+      Binary And
+        Unary Not
+          FieldAccess finished
+            Var completion
+        Binary Eq
+          FieldAccess log
+            Var journal
+          StringLiteral "AB"
+    Call gcCollect
+    MethodCall complete
+      Var gate
+      IntLiteral 2
+    Call check
+      Binary And
+        Unary Not
+          FieldAccess finished
+            Var completion
+        Binary Eq
+          FieldAccess log
+            Var journal
+          StringLiteral "ABC"
+    Call gcCollect
+    MethodCall complete
+      Var gate
+      IntLiteral 3
+    Call check
+      Binary And
+        Binary And
+          FieldAccess finished
+            Var completion
+          Unary Not
+            FieldAccess failed
+              Var completion
+        Binary Eq
+          FieldAccess value
+            Var completion
+          StringLiteral "A1B2C:3"
+    val failed
+      Call Completion
+    assign .log
+      Var journal
+      StringLiteral ""
+    Call startCoroutine
+      Call Task
+        Var gate
+        Var journal
+      Var failed
+    Call gcCollect
+    MethodCall fail
+      Var gate
+    Call check
+      Binary And
+        Binary And
+          FieldAccess finished
+            Var failed
+          FieldAccess failed
+            Var failed
+        Binary Eq
+          FieldAccess log
+            Var journal
+          StringLiteral "A"
+    Call println
+      IntLiteral 42

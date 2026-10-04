@@ -1,6 +1,6 @@
 # M26 设计：List、字符与 parts 字符串构建
 
-状态：实现中；数组初始化、List、Char、String 与 StringBuilder 已完成，插值继续按第 9 节实施。
+状态：全部功能已实现；数组初始化、List、Char、String、StringBuilder 与插值均已完成各自闭环，正在执行第 9 节的正式总验收。
 
 日期：2026-10-04。
 
@@ -364,3 +364,12 @@ python3 tests/run_fixtures.py --all
 - 6 个正式 fixture 全部通过，锁定 18 份阶段 golden；覆盖空/单/大量 parts、别名返回、立即转换、重复 build、继续追加、跨扩容重入与抛出、普通泛型/默认值，以及删除源码后的产物链接。正例包含正常和 moving GC 运行。
 - 执行 cargo fmt、全 workspace clippy 与 C 严格告警语法检查；MIR lowering 114 个单元测试通过。
 - 4 个既有 List/String 正式回归 fixture 通过，包含跨 Cone 与 moving GC；13 份阶段 golden 校验通过，更新其中 4 份因 core 新增公开类型而变化的 HIR 依赖指纹。
+
+### f-string 与 raw 字面量
+
+- lexer 以单一 token 流处理嵌套文本与表达式，统一单行转义，保留 raw 换行、反斜杠和原 source span；嵌套 lambda/anonymous function 共用 parser 的 callable 身份序列。
+- HIR 使用实际 core StringBuilder 类型及普通构造、add、build 调用，按每段表达式与 ToString 交错展开；定义 core 与消费 core 均走实际类型绑定，用户同名声明、alias 和扩展不替换隐式目标。generic/default body 在导出前完成脱糖，没有新增持久化 variant 或后端指令。
+- 修复数组和 tuple 在元素产生语句展开时的求值顺序：各元素的 setup 和结果按源码顺序交错物化，避免后面的插值提前执行。lexer 主文件由 565 行降为 414 行，整数、字符串及插值按职责分模块；HIR 插值模块为 168 行。
+- 29 个正式 CLI fixture 全部通过，包含 20 个完整诊断负例和 38 份 AST/HIR/MIR/LIR golden；覆盖 raw/转义、名称遮蔽、ToString 约束、控制流与聚合求值、generic/default、真实挂起与恢复异常、独立 core/provider/consumer 产物链接以及 moving GC。
+- fixture 的模板输入补齐 `$$` 字面美元转义，以原文断言 `${name}` 诊断；旧 native 符号模板同步转义且保留原输出。执行固定版本 Ruff，32 个公共 runner 测试通过。
+- 执行 cargo fmt 与全 workspace clippy；parser 445 个、HIR lowering 1314 个单元测试通过。

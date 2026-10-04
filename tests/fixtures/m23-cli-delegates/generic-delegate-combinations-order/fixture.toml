@@ -120,8 +120,8 @@ files = [
 name = "prepare_metadata"
 files = [
   {"copy" = {"from" = "${fixture}/../support/metadata.c", "to" = "${work}/native/metadata.c"}},
-  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "PROVIDER_IMAGE", "new" = "_scoop$1$im$${provider.result.root.identity}"}},
-  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "CONSUMER_IMAGE", "new" = "_scoop$1$im$${consumer.result.root.identity}"}},
+  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "PROVIDER_IMAGE", "new" = "_scoop$1$im$$${provider.result.root.identity}"}},
+  {"replace" = {"path" = "${work}/native/metadata.c", "old" = "CONSUMER_IMAGE", "new" = "_scoop$1$im$$${consumer.result.root.identity}"}},
 ]
 
 [[steps]]

@@ -4,7 +4,32 @@ use super::*;
 
 impl Lexer<'_> {
     pub(super) fn lex_string(&mut self) -> Result<TokenKind, Diagnostic> {
+        if self.source[self.pos..].starts_with("\"\"\"") {
+            return self.lex_raw_string();
+        }
         self.quoted_text('"', "string").map(TokenKind::Str)
+    }
+
+    fn lex_raw_string(&mut self) -> Result<TokenKind, Diagnostic> {
+        let start = self.pos;
+        self.pos += 3;
+        let content = self.pos;
+        let Some(end) = self.source[content..].find("\"\"\"") else {
+            self.pos = self.source.len();
+            return Err(Diagnostic::at(
+                self.span_from(start),
+                "unterminated raw string literal",
+            ));
+        };
+        self.pos += end;
+        let quotes = self.source[self.pos..]
+            .bytes()
+            .take_while(|byte| *byte == b'"')
+            .count();
+        self.pos += quotes;
+        Ok(TokenKind::Str(
+            self.source[content..self.pos - 3].to_owned(),
+        ))
     }
 
     pub(super) fn lex_character(&mut self) -> Result<TokenKind, Diagnostic> {
@@ -51,7 +76,7 @@ impl Lexer<'_> {
         }
     }
 
-    fn skip_quoted_remainder(&mut self, quote: char) {
+    pub(super) fn skip_quoted_remainder(&mut self, quote: char) {
         while let Some(c) = self.peek_char() {
             if matches!(c, '\n' | '\r') {
                 return;
@@ -69,7 +94,7 @@ impl Lexer<'_> {
         }
     }
 
-    fn escape(&mut self) -> Result<char, Diagnostic> {
+    pub(super) fn escape(&mut self) -> Result<char, Diagnostic> {
         let start = self.pos;
         self.pos += 1;
         let Some(c) = self.peek_char() else {

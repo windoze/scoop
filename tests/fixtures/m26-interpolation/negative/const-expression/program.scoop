@@ -1,0 +1,2 @@
+const val value: String = f"${42}"
+fun main() {}

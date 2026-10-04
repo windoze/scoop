@@ -1,0 +1,165 @@
+SourceFile
+  RootPackage
+  class Journal(var log: String)
+  fun mark(journal: Journal, label: String): String
+    assign .log
+      Var journal
+      Binary Add
+        FieldAccess log
+          Var journal
+        Var label
+    return
+      Var label
+  fun pair(left: String, right: String): String
+    =
+      Binary Add
+        Var left
+        Var right
+  fun main()
+    val journal
+      Call Journal
+        StringLiteral ""
+    val tuple
+      TupleLiteral
+        Call mark
+          Var journal
+          StringLiteral "A"
+        InterpolatedString
+          Expression
+            Call mark
+              Var journal
+              StringLiteral "B"
+        Call mark
+          Var journal
+          StringLiteral "C"
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess log
+              Var journal
+            StringLiteral "ABC"
+          Binary Ne
+            FieldAccess _1
+              Var tuple
+            StringLiteral "A"
+        Binary Ne
+          FieldAccess _2
+            Var tuple
+          StringLiteral "B"
+      Call println
+        StringLiteral "tuple-order"
+      return
+    assign .log
+      Var journal
+      StringLiteral ""
+    val expected: Array<String>
+      ArrayLiteral
+        Call mark
+          Var journal
+          StringLiteral "A"
+        InterpolatedString
+          Expression
+            Call mark
+              Var journal
+              StringLiteral "B"
+        Call mark
+          Var journal
+          StringLiteral "C"
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess log
+            Var journal
+          StringLiteral "ABC"
+        Binary Ne
+          Index
+            Var expected
+            IntLiteral 1L
+          StringLiteral "B"
+      Call println
+        StringLiteral "typed-array-order"
+      return
+    assign .log
+      Var journal
+      StringLiteral ""
+    val inferred
+      ArrayLiteral
+        Call mark
+          Var journal
+          StringLiteral "A"
+        InterpolatedString
+          Expression
+            Call mark
+              Var journal
+              StringLiteral "B"
+        Call mark
+          Var journal
+          StringLiteral "C"
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess log
+            Var journal
+          StringLiteral "ABC"
+        Binary Ne
+          Index
+            Var inferred
+            IntLiteral 1L
+          StringLiteral "B"
+      Call println
+        StringLiteral "array-order"
+      return
+    assign .log
+      Var journal
+      StringLiteral ""
+    val result
+      Binary Add
+        Call mark
+          Var journal
+          StringLiteral "A"
+        InterpolatedString
+          Expression
+            Call mark
+              Var journal
+              StringLiteral "B"
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess log
+            Var journal
+          StringLiteral "AB"
+        Binary Ne
+          Var result
+          StringLiteral "AB"
+      Call println
+        StringLiteral "binary-order"
+      return
+    assign .log
+      Var journal
+      StringLiteral ""
+    val called
+      Call pair
+        Call mark
+          Var journal
+          StringLiteral "A"
+        InterpolatedString
+          Expression
+            Call mark
+              Var journal
+              StringLiteral "B"
+    if
+      Binary Or
+        Binary Ne
+          FieldAccess log
+            Var journal
+          StringLiteral "AB"
+        Binary Ne
+          Var called
+          StringLiteral "AB"
+      Call println
+        StringLiteral "argument-order"
+      return
+    Call gcCollect
+    Call println
+      IntLiteral 42

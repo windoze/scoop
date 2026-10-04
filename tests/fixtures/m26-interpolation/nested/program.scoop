@@ -1,0 +1,16 @@
+fun check(value: Boolean) { if (!value) { throw IllegalStateException() } }
+fun main() {
+    val text = f"outer:${f"inner:${1 + 2}"}:${if (true) { "}" } else { "{" }}"
+    check(text == "outer:inner:3:}")
+    val braces = f"${ /* } \" */ (fun(): String { val text = "}"; return text })() }"
+    check(braces == "}")
+    val value = f"${({ x: Int -> x + 1 })(40)}:${f"${({ -> '雪' })()}"}"
+    check(value == "41:雪")
+    val comment = f"${if (true) { // } \" ${ ignored
+        "yes"
+    } else { "no" }}"
+    check(comment == "yes")
+    val pattern = f"${when ('雪') { '雪' -> "snow"; else -> "other" }}"
+    check(pattern == "snow")
+    println(42)
+}

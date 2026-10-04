@@ -15,6 +15,7 @@ use crate::lexer::TokenKind;
 use crate::parser::Parser;
 
 mod callables;
+mod interpolation;
 mod primary;
 
 /// Precedence tier of the comparison operators — shared by the type
@@ -195,6 +196,7 @@ impl Parser {
                 self.peek().kind,
                 TokenKind::Char(_)
                     | TokenKind::Str(_)
+                    | TokenKind::FStringStart
                     | TokenKind::Int(_)
                     | TokenKind::True
                     | TokenKind::False
