@@ -59,6 +59,7 @@ pub fn walk_expr(expr: &Expr, visitor: &mut impl FnMut(&Expr)) {
         | ExprKind::Unbox(operand)
         | ExprKind::IsInstance { operand, .. }
         | ExprKind::Cast { operand, .. }
+        | ExprKind::ArrayAllocate { count: operand, .. }
         | ExprKind::ArrayLen { operand, .. }
         | ExprKind::ArrayClone { operand, .. }
         | ExprKind::Unary { operand, .. }
@@ -198,6 +199,7 @@ pub fn walk_expr_mut(expr: &mut Expr, visitor: &mut impl FnMut(&mut Expr)) {
         | ExprKind::Unbox(operand)
         | ExprKind::IsInstance { operand, .. }
         | ExprKind::Cast { operand, .. }
+        | ExprKind::ArrayAllocate { count: operand, .. }
         | ExprKind::ArrayLen { operand, .. }
         | ExprKind::ArrayClone { operand, .. }
         | ExprKind::Unary { operand, .. }

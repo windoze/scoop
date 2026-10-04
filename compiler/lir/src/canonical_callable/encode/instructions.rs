@@ -262,6 +262,16 @@ impl Writer<'_, '_> {
             }
             Instruction::EndCatch => record!(self, 44;),
             Instruction::Throw { exception } => record!(self, 45; self.value(*exception)),
+            Instruction::ArrayAllocDynamic {
+                out,
+                count,
+                array_type,
+                overflow_message,
+                safepoint,
+                live,
+            } => {
+                record!(self, 70; self.temp(*out), self.value(*count), self.array_type(*array_type), self.global(*overflow_message), self.safepoint(*safepoint), self.live(live))
+            }
             Instruction::ArrayAlloc {
                 out,
                 elements,

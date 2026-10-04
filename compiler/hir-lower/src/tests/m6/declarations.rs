@@ -18,15 +18,16 @@ fn class_hierarchy_golden() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalArgumentException(message: Option<String>)
   class IllegalStateException(message: Option<String>)
   open class Shape(name: String) : Describable
     field1 property10: String
-    property10 val name: String getter10=storage <stored field1 init=parameter11>
+    property10 val name: String getter10=storage <stored field1 init=parameter12>
   class Point(x: Int, y: Int)
     field2 property11: Int
     field3 property12: Int
-    property11 val x: Int getter11=storage <stored field2 init=parameter12>
-    property12 var y: Int getter12=storage setter0=storage <stored field3 init=parameter13>
+    property11 val x: Int getter11=storage <stored field2 init=parameter13>
+    property12 var y: Int getter12=storage setter0=storage <stored field3 init=parameter14>
   interface ToString
     fun toString(): String
   interface Hash

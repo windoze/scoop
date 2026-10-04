@@ -149,6 +149,14 @@ impl Lowerer {
                     self.collect_no_gc_expr_violations(element, out, requirements);
                 }
             }
+            ExprKind::ArrayGenerate { count, initializer } => {
+                out.push((
+                    expr.span,
+                    "array allocation is not allowed in `@NoGC` code".to_string(),
+                ));
+                self.collect_no_gc_expr_violations(count, out, requirements);
+                self.collect_no_gc_expr_violations(initializer, out, requirements);
+            }
             ExprKind::ArrayAssembly(assembly) => {
                 out.push((
                     expr.span,

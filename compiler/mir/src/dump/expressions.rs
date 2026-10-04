@@ -244,6 +244,13 @@ pub(super) fn dump_expr(
             out.push_str(&format!("{pad}Cast optional={optional}\n"));
             dump_expr(module, locals, operand, indent + 1, out);
         }
+        ExprKind::ArrayAllocate { array_type, count } => {
+            out.push_str(&format!(
+                "{pad}ArrayAllocate {}\n",
+                type_name(module, &Type::Class(*array_type))
+            ));
+            dump_expr(module, locals, count, indent + 1, out);
+        }
         ExprKind::ArrayLiteral {
             array_type,
             elements,

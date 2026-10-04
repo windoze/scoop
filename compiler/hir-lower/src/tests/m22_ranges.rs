@@ -180,31 +180,6 @@ fn for_stmt(pattern: ast::Pattern, iterable: Expr, body: Vec<Statement>) -> Stat
     }
 }
 
-fn illegal_argument_exception() -> Decl {
-    let mut declaration = class_decl(
-        ast::ClassModifier::Final,
-        "IllegalArgumentException",
-        vec![(false, "message", ty_nullable(ty_named("String")))],
-        Some(("Exception", vec![var("message")])),
-        Vec::new(),
-        Vec::new(),
-    );
-    let Decl::Class(class) = &mut declaration else {
-        unreachable!("class declaration builder returns a class")
-    };
-    let ast::ClassConstructorDecl::Declared(constructor) = &mut class.constructor else {
-        unreachable!("class declaration builder declares a primary constructor")
-    };
-    let parameter = &mut constructor.parameters[0];
-    parameter.property = ast::PrimaryParameterProperty::Plain;
-    parameter.member_visibility = None;
-    parameter.syntax = ast::ParameterSyntax::Default {
-        expression: some(str_lit("illegal argument")),
-        equals_span: sp(),
-    };
-    declaration
-}
-
 fn range_test_iterator() -> Decl {
     let mut next = override_method_expr(
         "next",
@@ -346,7 +321,6 @@ fn restrict_range_representation(source: &mut SourceFile) {
 
 fn m22_range_core() -> SourceFile {
     let mut core = core_file();
-    core.declarations.push(illegal_argument_exception());
     core.declarations.push(range_test_iterator());
     core.declarations
         .extend(RANGE_CASES.into_iter().map(range_declaration));
@@ -569,7 +543,7 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
         hir::DeclaredVisibility::Public
     );
     assert!(module.public_surface.classes.contains(&illegal_argument));
-    assert_eq!(illegal_argument_class.constructors.len(), 1);
+    assert_eq!(illegal_argument_class.constructors.len(), 2);
     let illegal_argument_constructor = illegal_argument_class.constructors[0];
     assert_eq!(
         module.class_constructors[illegal_argument_constructor]
@@ -612,8 +586,10 @@ fn m22_range_nominal_surface_owner_matrix_and_exception_boundary_are_exact() {
         arithmetic_exception,
         index_out_of_bounds_exception,
         illegal_state_exception,
+        illegal_argument_exception,
         initialization_cycle_thrower: _,
     } = defined_export_core(&module).exceptions;
+    assert_eq!(illegal_argument, illegal_argument_exception.class());
     for compiler_owned in [
         throwable.class(),
         unwrap_exception.class(),

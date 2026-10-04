@@ -1,0 +1,9 @@
+schema = 1
+[cone]
+group = "test"
+name = "array-generate-consumer"
+version = "0.1.0"
+kind = "executable"
+[dependencies]
+"scoop:scoop.core" = "0.1.0"
+"test:array-generate-provider" = "0.1.0"

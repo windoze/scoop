@@ -143,6 +143,10 @@ enum DecodedDefaultExpressionKindV1 {
         optional: CanonicalBooleanV1,
     },
     ArrayLiteral(Vec<DecodedDefaultExpressionV1>),
+    ArrayGenerate {
+        count: Box<DecodedDefaultExpressionV1>,
+        initializer: Box<DecodedDefaultExpressionV1>,
+    },
     ArrayAssembly(DecodedDefaultArrayAssemblyV1),
     Index {
         access: DefaultArrayAccessKindV1,

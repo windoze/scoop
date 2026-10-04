@@ -50,6 +50,7 @@ fn lowers_hello_world() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalArgumentException(message: Option<String>)
   class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String

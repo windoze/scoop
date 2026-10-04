@@ -48,6 +48,19 @@ impl Lowerer {
         self.prepare_runtime_exception_type(declaration)
     }
 
+    pub(crate) fn prepare_array_size_exception_type(
+        &mut self,
+    ) -> Result<(), ImportedSignatureTypeError> {
+        let CoreLoweringAuthority::Imported(imported) = &self.core else {
+            return Ok(());
+        };
+        let declaration = imported
+            .exceptions()
+            .illegal_argument_exception()
+            .persistent();
+        self.prepare_runtime_exception_type(declaration)
+    }
+
     pub(crate) fn prepare_runtime_exception_type(
         &mut self,
         declaration: PersistentTypeId,
@@ -107,6 +120,17 @@ impl Concretizer<'_> {
         self.lower_runtime_exception_type(declaration);
     }
 
+    pub(super) fn lower_array_size_exception_type(&mut self) {
+        let export::CoreProtocols::Imported(protocols) = self.core else {
+            return;
+        };
+        let declaration = protocols
+            .exceptions()
+            .illegal_argument_exception()
+            .persistent();
+        self.lower_runtime_exception_type(declaration);
+    }
+
     pub(super) fn lower_runtime_exception_type(&mut self, declaration: PersistentTypeId) {
         if let Some((ty, _)) = self.source.types.iter().find(|(_, ty)| {
             matches!(ty, export::Type::Class(class) if self.source.class_applications[*class].template == export::SourceNominalId::Concrete(declaration))
@@ -135,11 +159,18 @@ pub(super) fn check_runtime_layout(module: &concrete::Module) -> Result<(), Vec<
             .index_out_of_bounds_exception()
             .persistent(),
     );
-    if cast_layout && arithmetic_layout && unwrap_layout && bounds_layout {
+    let size_layout = has_layout(
+        protocols
+            .exceptions()
+            .illegal_argument_exception()
+            .persistent(),
+    );
+    if cast_layout && arithmetic_layout && unwrap_layout && bounds_layout && size_layout {
         return Ok(());
     }
     module.visit_executable_expressions(|occurrence| {
         let operation = match occurrence.expression.kind {
+            concrete::ExprKind::ArrayGenerate { .. } if !size_layout => "array size exception constructor",
             concrete::ExprKind::Unwrap { trap_on_none: true, .. } if !unwrap_layout => "Option unwrap exception constructor",
             concrete::ExprKind::Cast { optional: false, .. } if !cast_layout => "runtime cast failure constructor",
             concrete::ExprKind::Index { .. } | concrete::ExprKind::ArraySet { .. }

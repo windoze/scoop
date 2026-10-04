@@ -223,6 +223,10 @@ impl Lowerer {
                 rhs: offset,
                 ..
             }
+            | ExprKind::ArrayGenerate {
+                count: pointer,
+                initializer: offset,
+            }
             | ExprKind::Binary {
                 lhs: pointer,
                 rhs: offset,

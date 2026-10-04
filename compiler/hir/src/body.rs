@@ -368,6 +368,10 @@ pub enum ExprKind {
     },
     /// `[e1, ...]`; the kind (Array vs MutableArray) is in `Expr::ty`.
     ArrayLiteral(Vec<Expr>),
+    ArrayGenerate {
+        count: Box<Expr>,
+        initializer: Box<Expr>,
+    },
     /// Fresh immutable-array assembly used by positional `vararg` calls.
     /// Every part is an already evaluated temporary read; `CopyArray` always
     /// copies, including the single-spread case.

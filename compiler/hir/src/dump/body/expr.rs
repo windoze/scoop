@@ -490,6 +490,11 @@ pub(super) fn dump_expr(
                 dump_expr(module, locals, element, indent + 1, out);
             }
         }
+        ExprKind::ArrayGenerate { count, initializer } => {
+            out.push_str(&format!("{pad}ArrayGenerate : {ty}\n"));
+            dump_expr(module, locals, count, indent + 1, out);
+            dump_expr(module, locals, initializer, indent + 1, out);
+        }
         ExprKind::ArrayAssembly(assembly) => {
             out.push_str(&format!("{pad}ArrayAssembly : {ty}\n"));
             for part in &assembly.parts {

@@ -230,6 +230,10 @@ impl ReferenceCollector<'_> {
                 rhs: offset,
                 ..
             }
+            | hir::ExprKind::ArrayGenerate {
+                count: pointer,
+                initializer: offset,
+            }
             | hir::ExprKind::Binary {
                 lhs: pointer,
                 rhs: offset,

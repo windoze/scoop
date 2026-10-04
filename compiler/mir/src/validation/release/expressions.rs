@@ -87,6 +87,7 @@ pub(in crate::validation) fn validate_expression(
         | ExprKind::Unbox(_)
         | ExprKind::IsInstance { .. }
         | ExprKind::Cast { .. }
+        | ExprKind::ArrayAllocate { .. }
         | ExprKind::ArrayLiteral { .. }
         | ExprKind::ArrayAssembly { .. }
         | ExprKind::ArrayGet { .. }

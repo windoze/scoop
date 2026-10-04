@@ -33,6 +33,7 @@ fn generic_identity_infers_type_arguments() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalArgumentException(message: Option<String>)
   class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
@@ -367,6 +368,7 @@ fn nested_generic_calls_record_param_instantiations() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalArgumentException(message: Option<String>)
   class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String
@@ -511,6 +513,7 @@ fn generic_option_roundtrip() {
   class ClassCastException()
   class ArithmeticException()
   class IndexOutOfBoundsException()
+  class IllegalArgumentException(message: Option<String>)
   class IllegalStateException(message: Option<String>)
   interface ToString
     fun toString(): String

@@ -784,6 +784,12 @@ pub enum ExprKind {
     },
     /// `[e1, ...]`; `array_type` is the exact fully specialized intrinsic
     /// class application selected by HIR.
+    /// Zeroed internal storage, reached only after the managed negative-size guard.
+    /// The generated loop publishes the array after every element is initialized.
+    ArrayAllocate {
+        array_type: ClassId,
+        count: Box<Expr>,
+    },
     ArrayLiteral {
         array_type: ClassId,
         elements: Vec<Expr>,

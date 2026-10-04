@@ -435,6 +435,13 @@ impl Concretizer<'_> {
                     value: Box::new(self.lower_expr(value, substitution, locals)),
                 }
             }
+            export::ExprKind::ArrayGenerate { count, initializer } => {
+                self.lower_array_size_exception_type();
+                concrete::ExprKind::ArrayGenerate {
+                    count: Box::new(self.lower_expr(count, substitution, locals)),
+                    initializer: Box::new(self.lower_expr(initializer, substitution, locals)),
+                }
+            }
             export::ExprKind::ArrayLen(array) => {
                 concrete::ExprKind::ArrayLen(Box::new(self.lower_expr(array, substitution, locals)))
             }

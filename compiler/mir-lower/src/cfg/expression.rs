@@ -223,6 +223,10 @@ impl<'a> CfgLowerer<'a> {
                 operand: Box::new(self.lower_expr(operand, span)),
                 check_ty: check_ty.clone(),
             },
+            smir::ExprKind::ArrayAllocate { array_type, count } => mir::ExprKind::ArrayAllocate {
+                array_type: *array_type,
+                count: Box::new(self.lower_expr(count, span)),
+            },
             smir::ExprKind::ArrayLiteral {
                 array_type,
                 elements,

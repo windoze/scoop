@@ -100,6 +100,7 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
         export.arithmetic_exception,
         export.index_out_of_bounds_exception,
         export.illegal_state_exception,
+        export.illegal_argument_exception,
     ]
     .map(|exception| output.export.classes[exception.class()].name.as_str());
     assert_eq!(
@@ -111,6 +112,7 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
             "ArithmeticException",
             "IndexOutOfBoundsException",
             "IllegalStateException",
+            "IllegalArgumentException",
         ]
     );
 
@@ -122,6 +124,7 @@ fn compiler_exception_core_is_complete_in_export_and_local_hir() {
         local.arithmetic_exception,
         local.index_out_of_bounds_exception,
         local.illegal_state_exception,
+        local.illegal_argument_exception,
     ];
     let local_names =
         local_exceptions.map(|exception| output.local.classes[exception.class()].name.as_str());

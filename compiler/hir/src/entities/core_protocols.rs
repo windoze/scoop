@@ -355,6 +355,7 @@ pub struct CompilerExceptionCore {
     pub class_cast_exception: CompilerException,
     pub arithmetic_exception: CompilerException,
     pub index_out_of_bounds_exception: CompilerException,
+    pub illegal_argument_exception: CompilerException,
     pub illegal_state_exception: CompilerException,
     /// Core-internal `(String) -> Unit` service that constructs and throws
     /// the cycle `IllegalStateException` without exporting `Option<String>`.

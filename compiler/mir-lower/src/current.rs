@@ -244,6 +244,9 @@ fn lower_runtime_constructors(
         protocols.exceptions().class_cast_exception_constructor(),
         protocols.exceptions().arithmetic_exception_constructor(),
         protocols.exceptions().unwrap_exception_constructor(),
+        protocols
+            .exceptions()
+            .illegal_argument_exception_constructor(),
         protocols.exceptions().illegal_state_exception_constructor(),
         protocols
             .exceptions()

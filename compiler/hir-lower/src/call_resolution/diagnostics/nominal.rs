@@ -45,13 +45,15 @@ pub(crate) fn nominal_source_signature(lowerer: &Lowerer, view: &NominalConstruc
                 lowerer.classes[class].name
             )
         }
-        NominalConstructorSource::IntrinsicClass(class) => {
+        NominalConstructorSource::IntrinsicClass(class)
+        | NominalConstructorSource::ArrayGenerate(class) => {
             format!(
                 "class {}{parameters}({fields})",
                 lowerer.classes[class].name
             )
         }
-        NominalConstructorSource::ImportedArray(owner) => {
+        NominalConstructorSource::ImportedArray(owner)
+        | NominalConstructorSource::ImportedArrayGenerate(owner) => {
             let declaration = lowerer
                 .dependencies
                 .as_ref()
@@ -154,6 +156,18 @@ pub(crate) fn render_nominal_constraint_failure(
                 .and_then(Option::as_ref)
                 .map(|argument| lowerer.type_name(argument.ty))
                 .unwrap_or_else(|| render_type_term(lowerer, view, *left));
+            if matches!(
+                lowerer.types[view.signature.value_parameters[parameter_index].ty],
+                hir::Type::Function(_) | hir::Type::FunPtr(_)
+            ) {
+                return format!(
+                    "argument for `{}` has type {found}: {} {} {}",
+                    view.signature.value_parameters[parameter_index].name,
+                    render_type_term(lowerer, view, *left),
+                    relation_failure_phrase(*relation),
+                    render_type_term(lowerer, view, *right),
+                );
+            }
             format!(
                 "argument for `{}` has type {found}, which {} {}",
                 view.signature.value_parameters[parameter_index].name,

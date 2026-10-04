@@ -113,7 +113,7 @@ Runtime 是编译产物的支撑层，职责包括：
 - Scoop ABI FFI 的 runtime functions（第 4 章，本文重点）；
 - 异常抛出与展开；
 - GC-free release hook与unmanaged resource兜底释放；
-- 核心类型（String / Array / StringBuilder 等）的运行时后备实现；
+- 核心类型的表示级后备（String 编码/拼接、Array 分配/复制等）；List、ArrayList 与 StringBuilder 的容器算法由普通 core 源码实现；
 - 进程启动、线程注册与终止。
 
 明确**不在**本文范围：
@@ -186,10 +186,14 @@ scan的canonical typed bytes使用2.8的scalar/count规则且没有pointer：`No
 
 ### 2.4 `String` / `Array` 布局
 
-- `String`：对象头后在offset 16保存独立typed `u64` physical byte count，内联UTF-8字节数据从offset 24开始（spec 11.4）。源码可见length、index与slice boundary均使用`Long`（i64）；实际length限于`0..=INT64_MAX`，index/boundary实参仍可取任意`Long`值并由普通bounds语义拒绝负数或越界值。physical count为allocation/copy/runtime使用的machine scalar，不是源码`ULong`值。
+- `String`：对象头后在 offset 16 保存独立 typed `u64` physical byte count，内联 UTF-8 字节数据从 offset 24 开始（spec 11.4）。M26 的 `byteLength: Long` 读取该 count；`length: Long`、get index 与 slice boundary 按 Unicode 标量值计数，不能把 physical byte count 直接当作字符数。byteLength 与 length 都位于 `0..=INT64_MAX`，边界实参保留完整 Long 输入域。String 数据始终为合法 UTF-8，不要求结尾 NUL，也不新增字符索引表、off-heap 指针或 owner 字段。physical count 为 allocation/copy/runtime 使用的 machine scalar，不是源码 ULong 值。
 - `Array<T>` / `MutableArray<T>`：对象头后在offset 16保存一个独立typed `u64` physical count，offset 24是未考虑元素过对齐时的data boundary，实际元素区起点为`alignUp(24, alignOf<T>())`，object allocation alignment至少为`alignOf<T>()`。源码可见`size`、`get`/`set` index与iterator index均为`Long`（i64）；实际logical size限于`0..=INT64_MAX`，index实参仍可取任意`Long`值并由普通bounds语义拒绝负数或越界值。physical count只是为allocation、copy和runtime scan服务的machine scalar，不是源码`ULong`字段。非ZST值元素不装箱且以nonzero `sizeOf<T>()` stride连续布局；ref元素使用pointer stride。ZST元素使用封闭`ZeroSized { alignment }`分支，任意logical size的exact allocation size都等于元素区起点，不计算`size * 0`、不物化逐元素token，也不调用payload `memcpy`；clone/互转仍分配fresh目标对象并复制logical size。bounds与整数index迭代仍按spec 10章执行。只有元素子扫描非空时TypeDescriptor才使用带length/data offset及nonzero stride的array scan；ZST/GC-free元素直接为`None`。因此collector工作量不随ZST array length增长，也不会反复访问同一地址；tagged enum元素的inactive variant slot同样保持全0。
 
-variable allocation公式固定为：String `alignUp(24 + len, 8)`；Inline array `alignUp(inline_offset + count * inline_stride, instance_alignment)`；ZeroSized array恰为`minimum_size == inline_offset`。M23没有接收任意signed length的public array constructor：literal/assembly/vararg的logical count只能由非负component count经checked加法产生并位于`0..=INT64_MAX`，再以checked zero-extension形成内部typed `u64` count；clone/互转必须先验证source exact array TD、offset 16的physical count与side-metadata allocation一致，且count不超过`INT64_MAX`，再以该count和target refined InlineArray TD分配。内部入口观察到未经证明的signed count、超过`INT64_MAX`的physical count或layout不一致都是fatal compiler/runtime invariant error，不按名称构造`IllegalArgumentException`。全部乘加/alignUp使用checked `u64`，结果还须可转target `size_t`并不超过target profile的`maximum_managed_object_size`；算术溢出、对象过大或资源耗尽沿用fatal allocation failure，不能wrap/截断。未来普通core API若接收signed length，其源码异常由该API自行实现。collector扫描array前从offset 16读取typed `u64` count，并用side metadata exact size验证count、first offset和stride覆盖范围；不一致是fatal invariant error。
+variable allocation 公式固定为：String `alignUp(24 + byte_count, 8)`；Inline array `alignUp(inline_offset + count * inline_stride, instance_alignment)`；ZeroSized array 恰为 `minimum_size == inline_offset`。literal/assembly/vararg 的 logical count 由非负 component count 经 checked 加法得到；M26 的按长度构造先在 managed CFG 拒绝负 Long，再把非负 logical count 转为内部 typed u64；clone/互转先验证 source exact array TD、physical count 与 side metadata 一致且不超过 `INT64_MAX`。内部入口收到非法 count 或布局是不变量错误，不在 native frame 中构造源码异常。乘加/alignUp 均使用 checked u64，结果须可转 target size_t 且不超过 maximum_managed_object_size；溢出、对象过大和资源耗尽沿用 fatal allocation failure。collector 扫描前用 side metadata exact size 检查 count、first offset 与 stride 的动态覆盖范围。
+
+M26 按长度初始化使用现有 array TD 与固定物理 count。分配时完整清零存储，在首次 initializer 调用前建立正确对象头、count 和 managed root；初始化中 collector 可按完整数组长度扫描，因为尚未写入的所有 ref leaf 都为零，已有 tagged enum 的扫描也不依赖未写入的 tag。零字节不是任意 T 的语言值：generated CFG 只写本次 initializer 的完整结果，普通源码不能读取或获得正在初始化的数组，成功退出才发布完整结果。Array ref、initializer closure、捕获与临时返回值按既有精确根/statepoint 规则更新；每次 callback 后从最新 ref 计算目标槽，不能缓存跨 safepoint 的元素地址。initializer 由 managed 调用执行，异常按普通 CFG 展开，native allocator 不调用用户 closure。ZST 仍执行全部 initializer，只省略物理元素 store。
+
+`ArrayList<T>` 和 `StringBuilder` 使用普通 class 布局与字段扫描，不增加 runtime instance-shape kind。ArrayList 的有效 size 属于 owner 字段；其 `MutableArray<Option<T>>` backing 的 physical count 始终是容量，collector 扫描完整容量，并忽略 None 的零 ref leaf。增长前后两份数组按普通根保活；移除/clear 的失效槽写入完整 None，使用既有 typed store/屏障路径。`Char` 的 inline 表示是 4-byte、按 target u32 自然对齐的合法 Unicode scalar，GC-free；Option<Char> 不借用本里程碑未定义的新 niche。
 
 ### 2.5 `Option` 的 niche 表示
 
@@ -510,12 +514,18 @@ M23-7 的实际泛型存储将该 section 升至 `/9`，并沿当前 MIR `cross-
 
 以 Scoop ABI FFI 函数形式实现；spec 14.4 的 `write(String)` 是不跨 safepoint直接借用 ref的最小范例，涉及分配的函数则按 4.2 登记 native roots：
 
-- `String`：创建、拼接、内容比较、内容hash、长度、索引/切片；
+- `String`：创建、拼接、内容比较、内容 hash、UTF-8 字节数、标量计数/定位/迭代、切片与字符/字节数组快照。读取定位的 native leaf 不抛异常：get 返回普通 `Option<Char>`，slice 定位返回普通 `Option<(Long, Long)>` 字节边界，core 对 None 构造并抛 IndexOutOfBoundsException。定位与复制之间 String 内容不变，已验证的边界可以直接复用；按长度分配后只复制完整 UTF-8 区间。
 - `Array` / `MutableArray`：按spec 10.1的元素布局分配、读取`size`，以及`toArray` / `toMutableArray`的浅拷贝转换（spec 10.4）。源码可见bounds check、`IndexOutOfBoundsException`构造与throw都在generated managed CFG中完成，native helper不抛异常；若仅供受检代码使用的helper收到越界index则是fatal compiler/runtime invariant error。转换入口显式接收编译器已选定的目标concrete application TypeDescriptor，以该descriptor分配并保留新对象头，先验证source exact array TD/side metadata与logical size，再复制该size；`Inline`非ZST分支复制目标data offset之后的inline element payload，padding保持分配时的canonical zero；`ZeroSized`分支不调用payload `memcpy`。不得从来源对象、元素布局或类型名推断目标类型，也不得沿用来源descriptor；
-- `StringBuilder`：`add` / `build`（spec 11.6）；
+- `StringBuilder.add/build` 是普通 core body；只有 build 的最终字符串聚合使用本节下述表示级 helper。List/MutableList 接口、ArrayList 扩容/位移/清空及 iterator 不增加容器 runtime ABI；
 - 八种定宽integer的具体`ToString`/`Hash`后备，以及其他基本类型所需的`ToString`/`Hash`/operator equals后备（不提供`Any`或地址fallback）。`Hash.hash()`与所有integer `compareTo`的源码结果都是`Long`（i64），不随operand宽度改成`Int`；窄signed/unsigned值可由core按规则sign/zero extend后复用64位后备。integer equals由typed intrinsic直接生成比较，既有`scoop_rt_int_equals`/`scoop_rt_uint_equals`在M22迁移调用点后退出公开runtime契约。alias在进入runtime前已经展开，runtime不按`Byte`/`Int64`等alias名称分派；
 - `Iterator`/`Iterable`、四个独立nominal type `IntRange`/`UIntRange`/`LongRange`/`ULongRange`、Array iterator、range终止与非法step全部由普通Scoop core与生成代码实现；`LongRange`/`ULongRange`不再是前两者的alias，M22不新增range/iteration runtime ABI；
 - 类型测试与装箱辅助：`is` / `as` 的exact TypeDescriptor比较、普通装箱/拆箱。
+
+M26 的 parts 拼接后备只消费 `MutableArray<Option<String>>` 的有效前缀及 `Long` partCount，返回普通 String；source-level core 边界为 `coreStringJoinParts(storage, partCount): String`。StringBuilder 从自己私有的 ArrayList 取得当前 backing 与 size 作为本次调用实参，期间不执行用户代码；该内部存储访问不成为公开 List 方法或 borrow/view API。runtime 不读取 ArrayList/StringBuilder 字段，也不改变它们的状态。
+
+该 helper 检查本次动态前缀范围，对所有 Some(String) 的 physical byte count checked 求和，经既有 String allocation shape 分配一次最终字节存储，再顺序复制 parts。空/单 part 可以直接复用不可变 String。None 出现在有效前缀属于内部不变量错误；这里不重复验证完整静态 TD、每个 part 的 UTF-8 或用户语言规则。native 入口及分配前按既有 caller-root/managed-anchor 协议保活 backing；allocation 后从被更新的 backing 重新读取 String ref 与 data 地址，不能跨 safepoint 缓存 part 指针。填充结果的循环不分配、不回调、不抛源码异常；如实现添加 poll，必须同时 root 结果并在 poll 后重新取得全部地址。最终 String 发布后不再写入其字节。
+
+Char 编码、String 解码到 `MutableArray<Char>` 与 UTF-8 字节快照都沿同一精确 TD、分配、root 与复制路径。接受 List 的公开 companion 方法先在 managed core 中物化数组快照，不在 native helper 中遍历任意 interface 或调用用户 getter。fromUtf8Unchecked 信任调用方已经满足的 UTF-8 前置条件；toByteArray 是安全的复制，不返回可写 String view。M26 不引入 native buffer 所有权、显式 close、release hook 或外部内存压力记账。
 
 ## 7. 启动、线程与终止
 
@@ -544,6 +554,6 @@ M23-7 的实际泛型存储将该 section 升至 `/9`，并沿当前 MIR `cross-
 仍待后续里程碑补充：
 
 - macOS/AArch64以外target的精确frame/location adapter；分代/晋升、parallel/concurrent collector及相应屏障消费策略仍待后续；
-- off-heap大块分配的external-memory pressure accounting、managed侧主动GC反馈，以及hook路径只扣减且不触发GC的release-safe入口（随M26 ByteBuffer设计）；
+- off-heap ByteBuffer 的增长、borrow/view、close、失败原子性、external-memory pressure accounting、managed 侧 GC 反馈与 hook 路径只扣减的 release-safe 入口，整体留待 M26 之后另行排期；
 - runtime functions 的完整签名表与错误处理矩阵；
 - 异常穿越 Scoop ABI frame 的最终规则。

@@ -167,8 +167,10 @@ impl Lowerer {
                 [self.class_constructors[constructor].owner]
                 .name
                 .clone(),
-            NominalConstructorSource::IntrinsicClass(class) => self.classes[class].name.clone(),
-            NominalConstructorSource::ImportedArray(owner) => self
+            NominalConstructorSource::IntrinsicClass(class)
+            | NominalConstructorSource::ArrayGenerate(class) => self.classes[class].name.clone(),
+            NominalConstructorSource::ImportedArray(owner)
+            | NominalConstructorSource::ImportedArrayGenerate(owner) => self
                 .dependencies
                 .as_ref()
                 .and_then(|dependencies| dependencies.nominal_declaration(owner))

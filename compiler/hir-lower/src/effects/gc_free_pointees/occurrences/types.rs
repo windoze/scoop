@@ -352,7 +352,12 @@ pub(in super::super) fn collect_expr_types(
                 collect_expr_types(lowerer, argument, out);
             }
         }
-        ExprKind::PrimitiveBinary { lhs, rhs, .. } | ExprKind::Binary { lhs, rhs, .. } => {
+        ExprKind::PrimitiveBinary { lhs, rhs, .. }
+        | ExprKind::ArrayGenerate {
+            count: lhs,
+            initializer: rhs,
+        }
+        | ExprKind::Binary { lhs, rhs, .. } => {
             collect_expr_types(lowerer, lhs, out);
             collect_expr_types(lowerer, rhs, out);
         }

@@ -210,7 +210,8 @@ fn expression_requirement(
         mir::ExprKind::IsInstance { check_ty, .. } => {
             unavailable_descriptor(module, roots, dependencies, check_ty)
         }
-        mir::ExprKind::ArrayLiteral { array_type, .. }
+        mir::ExprKind::ArrayAllocate { array_type, .. }
+        | mir::ExprKind::ArrayLiteral { array_type, .. }
         | mir::ExprKind::ArrayAssembly { array_type, .. }
         | mir::ExprKind::ArrayGet { array_type, .. }
         | mir::ExprKind::ArrayLen { array_type, .. } => unavailable_array(roots, *array_type),

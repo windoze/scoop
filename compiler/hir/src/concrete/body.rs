@@ -287,6 +287,10 @@ pub enum ExprKind {
         optional: bool,
     },
     ArrayLiteral(Vec<Expr>),
+    ArrayGenerate {
+        count: Box<Expr>,
+        initializer: Box<Expr>,
+    },
     ArrayAssembly(ArrayAssembly),
     Index {
         access: ArrayAccessKind,

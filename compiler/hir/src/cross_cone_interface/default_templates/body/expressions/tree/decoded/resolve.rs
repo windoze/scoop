@@ -304,6 +304,10 @@ impl DecodedDefaultExpressionKindV1 {
             Self::ArrayLiteral(elements) => DefaultExpressionKindV1::ArrayLiteral(
                 resolve_sequence(elements, resolver, locals, 38, 1)?,
             ),
+            Self::ArrayGenerate { count, initializer } => DefaultExpressionKindV1::ArrayGenerate {
+                count: resolve_child(count, resolver, locals, 62, 1)?,
+                initializer: resolve_child(initializer, resolver, locals, 62, 2)?,
+            },
             Self::ArrayAssembly(assembly) => {
                 DefaultExpressionKindV1::ArrayAssembly(assembly.resolve(resolver, locals)?)
             }

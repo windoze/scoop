@@ -295,6 +295,10 @@ impl LocalFunctionCallPatcher<'_> {
                 self.expression(index);
             }
             hir::ExprKind::PrimitiveBinary { lhs, rhs, .. }
+            | hir::ExprKind::ArrayGenerate {
+                count: lhs,
+                initializer: rhs,
+            }
             | hir::ExprKind::Binary { lhs, rhs, .. } => {
                 self.expression(lhs);
                 self.expression(rhs);

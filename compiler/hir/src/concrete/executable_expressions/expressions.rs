@@ -54,6 +54,10 @@ impl<'a> Traversal<'a> {
                 receiver: operand, ..
             } => self.push(Item::Expression(operand)),
             ExprKind::PrimitiveBinary { lhs, rhs, .. }
+            | ExprKind::ArrayGenerate {
+                count: lhs,
+                initializer: rhs,
+            }
             | ExprKind::Binary { lhs, rhs, .. }
             | ExprKind::PtrOffset {
                 pointer: lhs,

@@ -164,11 +164,21 @@ impl Lowerer {
                         call.span,
                     );
                     return Ok(PreparedNominalPlans::Nominal(
-                        vec![NominalPlan {
-                            view,
-                            expected,
-                            fixed_alias,
-                        }],
+                        vec![
+                            NominalPlan {
+                                view,
+                                expected,
+                                fixed_alias,
+                            },
+                            NominalPlan {
+                                view: self.nominal_constructor_view(
+                                    NominalConstructorSource::ArrayGenerate(id),
+                                    call.span,
+                                ),
+                                expected,
+                                fixed_alias,
+                            },
+                        ],
                         None,
                     ));
                 }
@@ -259,11 +269,21 @@ impl Lowerer {
                 call.span,
             );
             return PreparedNominalPlans::Nominal(
-                vec![NominalPlan {
-                    view,
-                    expected,
-                    fixed_alias,
-                }],
+                vec![
+                    NominalPlan {
+                        view,
+                        expected,
+                        fixed_alias,
+                    },
+                    NominalPlan {
+                        view: self.nominal_constructor_view(
+                            NominalConstructorSource::ImportedArrayGenerate(owner),
+                            call.span,
+                        ),
+                        expected,
+                        fixed_alias,
+                    },
+                ],
                 None,
             );
         }
@@ -297,6 +317,16 @@ impl Lowerer {
                 Some(self.enum_applications[*b].arguments.clone())
             }
             _ => None,
+        }
+    }
+
+    fn array_generate_expression(&mut self, args: Vec<hir::Expr>) -> ExprKind {
+        let [count, initializer]: [hir::Expr; 2] = args
+            .try_into()
+            .expect("the solved array generator has two materialized arguments");
+        ExprKind::ArrayGenerate {
+            count: Box::new(count),
+            initializer: Box::new(initializer),
         }
     }
 
@@ -350,6 +380,16 @@ impl Lowerer {
                     },
                     self.enum_applications[application].canonical_type,
                 )
+            }
+            NominalConstructorSource::ArrayGenerate(class) => {
+                let ty = self.class_application(class, resolved.type_args);
+                (self.array_generate_expression(resolved.args), ty)
+            }
+            NominalConstructorSource::ImportedArrayGenerate(owner) => {
+                let ty = self
+                    .imported_nominal_application(owner, resolved.type_args)
+                    .expect("a solved array generator retains its complete application");
+                (self.array_generate_expression(resolved.args), ty)
             }
             NominalConstructorSource::IntrinsicClass(class) => {
                 let ty = self.class_application(class, resolved.type_args);

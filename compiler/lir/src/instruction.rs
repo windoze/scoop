@@ -344,6 +344,16 @@ pub enum Instruction {
     /// metadata it consumes; no downstream pass recovers it from operand or
     /// result layouts.
     /// Allocate an array object and store the elements in order.
+    /// Allocate zeroed storage using a Long count dominated by MIR's nonnegative
+    /// guard. The allocation instruction converts it to the internal u64 count.
+    ArrayAllocDynamic {
+        out: TempId,
+        count: Value,
+        array_type: ArrayTypeId,
+        overflow_message: GlobalId,
+        safepoint: SafepointSiteRef,
+        live: StatepointLiveSet,
+    },
     ArrayAlloc {
         out: TempId,
         elements: Vec<Value>,
@@ -494,7 +504,8 @@ impl Instruction {
             Self::Invoke {
                 site: InvokeSite::Managed(site),
             } => Some((SafepointSiteRole::ManagedInvoke, site.safepoint)),
-            Self::ArrayAlloc { safepoint, .. }
+            Self::ArrayAllocDynamic { safepoint, .. }
+            | Self::ArrayAlloc { safepoint, .. }
             | Self::ArrayAssembly { safepoint, .. }
             | Self::ArrayClone { safepoint, .. }
             | Self::BoxValue { safepoint, .. } => {

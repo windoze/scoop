@@ -166,6 +166,9 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
                 optional,
             } => encode_three(encoder, 37, operand.as_ref(), checked_type, optional),
             Self::ArrayLiteral(elements) => encode_one(encoder, 38, &WireSequence(elements)),
+            Self::ArrayGenerate { count, initializer } => {
+                encode_two(encoder, 62, count.as_ref(), initializer.as_ref())
+            }
             Self::ArrayAssembly(assembly) => encode_one(encoder, 39, assembly),
             Self::Index {
                 access,
@@ -412,6 +415,13 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
                     operand: decode_boxed_expression_field(decoder, 1)?,
                     checked_type: decoder.field(2, DecodedSignatureTypeKey::decode)?,
                     optional: decoder.field(3, CanonicalBooleanV1::decode)?,
+                })
+            }
+            62 => {
+                expect_sum_length(decoder, fields, 3)?;
+                Ok(Self::ArrayGenerate {
+                    count: decode_boxed_expression_field(decoder, 1)?,
+                    initializer: decode_boxed_expression_field(decoder, 2)?,
                 })
             }
             38 => decode_expression_sequence(decoder, fields).map(Self::ArrayLiteral),

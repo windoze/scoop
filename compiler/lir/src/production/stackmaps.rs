@@ -202,6 +202,7 @@ fn stackmap_semantics(
             site: crate::CallSite::Managed(site),
         } => Some(&site.live),
         Instruction::BoxValue { live, .. }
+        | Instruction::ArrayAllocDynamic { live, .. }
         | Instruction::ArrayAlloc { live, .. }
         | Instruction::ArrayAssembly { live, .. }
         | Instruction::ArrayClone { live, .. } => Some(live),

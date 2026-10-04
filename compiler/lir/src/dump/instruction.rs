@@ -453,6 +453,23 @@ pub(super) fn dump_instruction(
         Instruction::Throw { exception } => {
             buf.push_str(&format!("    throw {}\n", value_name(*exception)))
         }
+        Instruction::ArrayAllocDynamic {
+            out,
+            count,
+            array_type,
+            safepoint,
+            live,
+            overflow_message,
+        } => buf.push_str(&format!(
+            "    t{} = array_alloc_dynamic array{} count {} overflow {} sp{} live {} : {}\n",
+            out.into_raw(),
+            array_type.into_raw(),
+            value_name(*count),
+            value_name(Value::Global(*overflow_message)),
+            safepoint_name(function, *safepoint),
+            live_set_name(live),
+            function.temps[*out].ty.dump()
+        )),
         Instruction::ArrayAlloc {
             out,
             elements,

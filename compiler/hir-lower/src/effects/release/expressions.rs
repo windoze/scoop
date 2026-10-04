@@ -171,6 +171,7 @@ impl Lowerer {
             | E::ReferenceUpcast(_)
             | E::IsInstance { .. }
             | E::Cast { .. }
+            | E::ArrayGenerate { .. }
             | E::ArrayLiteral(_)
             | E::ArrayAssembly(_)
             | E::Index { .. }

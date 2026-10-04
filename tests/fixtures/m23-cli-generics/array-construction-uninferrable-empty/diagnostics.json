@@ -1,14 +1,14 @@
 [
   {
     "code": "SCOOPC_HIR_ERROR",
-    "message": "cannot infer the element type of an empty array literal",
+    "message": "no applicable candidate for `Array` in core prelude layer:\n  - cannot infer the element type of an empty array literal\n  - no applicable candidate for constructor `Array` in nominal constructor candidate layer:\n  - class Array<T>(size: Long, init: (Long) -> T) — expects 2 argument(s), but 1 were supplied",
     "notes": [],
     "origin": {
       "cone": "8294496e2b3ce92a0e6559572da17446a7993c3411b0fe8b122336319dfd5c7f",
-      "end": 52,
+      "end": 53,
       "kind": "source",
       "path": "src/main.scoop",
-      "start": 50
+      "start": 44
     },
     "severity": "error"
   }

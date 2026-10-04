@@ -17,6 +17,7 @@ impl Concretizer<'_> {
             protocols.exceptions.arithmetic_exception,
             protocols.exceptions.index_out_of_bounds_exception,
             protocols.exceptions.illegal_state_exception,
+            protocols.exceptions.illegal_argument_exception,
         ] {
             let application = self.source.classes[exception.class()].self_application;
             let class = self.lower_class_application(application, &[]);
@@ -158,6 +159,9 @@ impl Concretizer<'_> {
                 arithmetic_exception: lower_exception(source_exception_core.arithmetic_exception),
                 index_out_of_bounds_exception: lower_exception(
                     source_exception_core.index_out_of_bounds_exception,
+                ),
+                illegal_argument_exception: lower_exception(
+                    source_exception_core.illegal_argument_exception,
                 ),
                 illegal_state_exception: lower_exception(
                     source_exception_core.illegal_state_exception,

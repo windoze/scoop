@@ -1,0 +1,16 @@
+import fixtures.arrays.*
+
+class Item(val value: Long)
+
+fun main() {
+    val array = generate<Item>(80L) { i -> Item(i) }
+    val mutable = mutable<String>(10L) { i -> i.toString() }
+    mutable[2L] = "changed"
+    if (array[79L].value != 79L || mutable[2L] != "changed") { println("contents"); return }
+    val calls: MutableArray<Long> = [0L]
+    var caught = false
+    try { generate<Long>(-2L) { i -> calls[0L] = calls[0L] + 1L; i } }
+    catch (e: IllegalArgumentException) { caught = true }
+    if (!caught || calls[0L] != 0L) { println("negative"); return }
+    println(defaultCount())
+}

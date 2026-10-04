@@ -174,6 +174,10 @@ pub enum DefaultExpressionKindV1 {
         optional: CanonicalBooleanV1,
     },
     ArrayLiteral(Vec<DefaultExpressionV1>),
+    ArrayGenerate {
+        count: Box<DefaultExpressionV1>,
+        initializer: Box<DefaultExpressionV1>,
+    },
     ArrayAssembly(DefaultArrayAssemblyV1),
     Index {
         access: DefaultArrayAccessKindV1,
@@ -480,6 +484,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::ReferenceUpcast(_)
         | DefaultExpressionKindV1::IsInstance { .. }
         | DefaultExpressionKindV1::Cast { .. }
+        | DefaultExpressionKindV1::ArrayGenerate { .. }
         | DefaultExpressionKindV1::ArrayAssembly(_)
         | DefaultExpressionKindV1::Index { .. }
         | DefaultExpressionKindV1::ArraySet { .. }

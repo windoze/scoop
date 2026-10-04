@@ -1,0 +1,5 @@
+package fixtures.arrays
+
+public fun <T> generate(size: Long, init: (Long) -> T): Array<T> = Array<T>(size, init)
+public fun <T> mutable(size: Long, init: (Long) -> T): MutableArray<T> = MutableArray<T>(init = init, size = size)
+public fun defaultCount(values: Array<Long> = Array<Long>(4L) { i -> i + 39L }): Long = values[3L]

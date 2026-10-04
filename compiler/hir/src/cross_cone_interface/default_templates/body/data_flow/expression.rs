@@ -180,6 +180,10 @@ impl Validator<'_> {
                 rhs: offset,
                 ..
             }
+            | DefaultExpressionKindV1::ArrayGenerate {
+                count: pointer,
+                initializer: offset,
+            }
             | DefaultExpressionKindV1::Binary {
                 lhs: pointer,
                 rhs: offset,

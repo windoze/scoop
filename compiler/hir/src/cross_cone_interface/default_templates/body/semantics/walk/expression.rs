@@ -334,6 +334,10 @@ where
                 self.push_child(pending, BodyNode::Expression(callee))
             }
             DefaultExpressionKindV1::PrimitiveBinary { lhs, rhs, .. }
+            | DefaultExpressionKindV1::ArrayGenerate {
+                count: lhs,
+                initializer: rhs,
+            }
             | DefaultExpressionKindV1::Binary { lhs, rhs, .. } => {
                 self.push_child(pending, BodyNode::Expression(rhs))?;
                 self.push_child(pending, BodyNode::Expression(lhs))

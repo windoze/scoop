@@ -121,6 +121,14 @@ impl ImportedCoreExceptionProtocol {
         callable(&self.0, 11)
     }
 
+    pub fn illegal_argument_exception(&self) -> ImportedHirNominal<PersistentTypeId> {
+        concrete_nominal(&self.0, 13)
+    }
+
+    pub fn illegal_argument_exception_constructor(&self) -> &ImportedCoreProtocolCallable {
+        callable(&self.0, 14)
+    }
+
     pub fn initialization_cycle_thrower(&self) -> &ImportedCoreProtocolCallable {
         callable(&self.0, 12)
     }

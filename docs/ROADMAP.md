@@ -419,7 +419,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 直接 C leaf 保留显式 Unsafe 与正常 native contract，在 release 中不做线程 transition；普通调用协议保持。显式 close/release 先将字段置 inert 再释放资源；hook 不保证及时性、顺序、执行线程、退出时调用或 native release 成功。
 - 完整 generic profile 从已实现的 `/2` 升至 `/3`，三层 outer schema 升至 2，foundation 从 3/1/2 升至 4/2/3；TD 固定部分 144→152 bytes，callable body 统一 v2，runtime record prefix ABI 保持 3。共有 HIR、MIR/LIR type/layout、production/link section 与 runtime contract 的精确迁移见设计第 4.3 节，旧产物与缓存重建。
 - 分批完成共同 ABI、最小 native owner、源码规则与参数自由依赖、泛型与 ODR，并通过总验收；测试使用正式 CLI 和公共 Python fixture schema，覆盖 small/large、构造失败、显式关闭、moving、A→B→C 与双 consumer ODR。各边界只承担必要检查，不增加来源资格、证明包或重复验证。
-- ByteBuffer、外部内存压力记账、公开 arm/disarm、full finalizer、对象复活和异步 cleaner 不进入 M24；M26 继续负责字符串与 off-heap buffer 的具体设计。
+- ByteBuffer、外部内存压力记账、公开 arm/disarm、full finalizer、对象复活和异步 cleaner 不进入 M24。M26 改用 GC 堆上的 List/ArrayList 与 parts 构建字符串；off-heap ByteBuffer 及外部内存反馈另行排期。
 
 ### M25 自有异常 ABI 与 libc++abi 退役 ✅（2026-09-05 完成，设计见 `docs/milestone25/DESIGN.md`）
 
@@ -429,9 +429,14 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - Darwin/AArch64最终链接删除`-lc++abi`且不添加显式`-lunwind`，由默认`libSystem`解析unwind接口；C ABI/Scoop ABI FFI的异常边界不扩大；
 - 以decoder/runtime/GC/协程组合测试及Mach-O依赖/导入符号检查验收，最终程序不得出现`__cxa_*`、gxx/gcc personality、C++ terminate或`libc++abi.dylib`依赖。
 
-### M26 字符、off-heap ByteBuffer 与字符串插值（待设计）
+### M26 List、字符与 parts 字符串构建（实现中，[设计](milestone26/DESIGN.md)）
 
-原M24字符串里程碑整体移至M26，并补齐其实际前置范围：落地`Char`；定义`MutableArray<Char>`与`String`的safe互转、`MutableArray<Byte>`与`String`的unsafe byte互转；设计可增长且以off-heap storage为主的通用ByteBuffer及I/O使用边界；在此基础上以普通core class实现`StringBuilder`，再落地f-string desugar。M26依赖M24 release hook；容量增长、borrow/view、失败原子性、external-memory pressure accounting（含hook路径只扣减、不触发GC的release-safe入口）及字符编码细节仍在M26设计中一次定稿。ByteBuffer仍须提供确定性的显式close，不能依赖hook及时回收。原M16字符串设计已删除，不作为实现依据。
+- 增加 `Array<T>(size, init)` / `MutableArray<T>(size, init)` 完整初始化构造，保留固定长度、值元素内联与 GC 布局；initializer 的顺序、异常、ZST 与移动 GC 同批落地。
+- 增加普通 public `List<T>` / `MutableList<T>` / final `ArrayList<T>`，全部 invariant。List 是只读访问接口；Array/MutableArray 只实现 List，ArrayList 实现全部增删操作，以 GC 堆 `MutableArray<Option<T>>` 几何扩容。快照转换与按当前索引读取的 iterator 具有明确语义。
+- 落地 32-bit Unicode scalar `Char`；String 的 length/get/slice 按标量值计数，byteLength 单独表示 UTF-8 字节数。补齐字符字面量、模式/常量/ABI、Iterable<Char>、safe 字符快照、unsafe UTF-8 字节导入与 safe 字节导出。
+- StringBuilder 以普通 core `ArrayList<String>` 保存 parts，add 立即完成 ToString，build checked 求和并集中分配/复制最终 String，保留 builder 供重复 build 与继续追加。runtime 只接收具体 backing/有效前缀，不管理容器。
+- 完成单行/raw 多行 f-string 与普通 raw 字符串；插值在 HIR 按实际 core callable 脱糖，保持表达式与 toString 的交错顺序、异常和挂起语义。经正式 CLI、跨 Cone/ODR、artifact-only link/run、GC stress 与 negative/golden 验收。
+- ByteBuffer、off-heap storage、borrow/view、close 及外部内存压力反馈整体延期；本里程碑不依赖 M24 release hook，也不扩展为通用集合/ownership 框架。旧 M16 字符串设计不作为实现依据。
 
 ### M27 Task-local Context（设计见 `docs/milestone27/DESIGN.md`）
 
@@ -464,11 +469,16 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 2026-09-07 M23工具/容器边界补充：新增`cargo`式umbrella binary `scoop`负责多Cone图、cache和依赖顺序，`scoopc`收缩为只消费显式上游`.slib`闭包的single-Cone compiler，最终binary由独立artifact-only program-link产生。`.slib`改以typed member directory表达任意多个link object、C/C++ object或其他opaque blob，不再把`code.o`/`bridge.o`、扩展名或object数量写成格式假设；所有可链接object统一走`LinkObject`，全体link object只共同提供一个typed image descriptor，Graph/Compile/Link view与runtime/final-input provenance分别闭合。
 - 2026-09-08 M23拆分与单文件模式：原M23按依赖拆为M23-1…M23-11，依次落实source语法、persistent identity/`.slib` container、single-Cone/core边界、build graph、多Cone名称语义、ZST/ABI、generic/ODR、runtime registry、基础program-link、native闭包/hardening与最终CLI。正式`scoop build/run <file>`把指定文件作为固定reserved identity、唯一source、core-only Cone dependency的synthetic executable Cone；不发现旁边manifest/源码，native FFI只由artifact已有typed requirement经显式library search root解析。历史fixture在M23-11切到该正式路径并删除旧`scoopc`直编直链/core拼接旁路。
 - 2026-09-07 顺序调整：M24改为GC-free release hook，采用“完整构造后ready、逻辑死亡且真正reclaim前同步调用TypeDescriptor hook”的直接模型，不采用payload复制或异步queue；原M24字符串范围整体移至M26，并补入Char、safe字符互转、unsafe byte互转及off-heap growable ByteBuffer。既有已完成M25编号保持不变。
+- 2026-10-04 M26 重新设计：采用 List/MutableList/ArrayList 与 String parts 主线，保留 Char 与字符串能力并明确 Unicode 标量索引。ByteBuffer 及所有 off-heap 配套设计移至后续待排期；三份规范与 M24 后续边界同步修订。
 - 2026-09-07 新增M27“Task-local Context”：保留Kotlin-like的`context(name: T)`/`context(value) { ... }`表面，以canonical exact static type为key，结合结构化动态binding和logical-task传播重写原spec 8.3 context parameters。首版不做子类型兼容解析或静态effect row；ordinary ABI保持不变。实现细节区分架构不变量与参考方案，物理索引布局不作为长期契约。
 
 ## 4. 待补齐清单（backlog）
 
 各里程碑"涵盖但只实现了部分"的事项，按来源里程碑整理。标注→的为目标里程碑（已知时）；未标注的待排期。
+
+### 从 M26 移出的后续事项
+
+- 通用 off-heap ByteBuffer 与 I/O 边界：容量增长、borrow/view、显式 close、失败原子性、M24 hook 兜底释放，以及 external-memory pressure accounting / managed GC 反馈 / hook 只扣减的 release-safe 入口，整体另行设计与排期；不阻塞 M26 的集合与字符串闭环。
 
 ### 来自 M1
 
@@ -514,6 +524,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - ~~`toArray` / `toMutableArray` 方法形式~~（已完成：与构造函数形式共用 `ArrayClone`，保持 memcpy 独立快照语义）；
 - `for` 循环与区间 `IntRange` 等（spec 11.8；含 `..` 区间运算符与 rest 的共存验证）→ M22；
 - `String` 下标/切片 → M26；
+- 数组按长度 initializer 构造与普通 List/MutableList/ArrayList → M26；
 - 数组 `==` 语义（spec 缺口，需先回 spec 第 10 章补充）；
 - ~~数组字面量混合引用类型的 LOB 推导~~（已完成：唯一可表达最小上界；多个互不可比较的最小共同上界退化为 `Any`；数组元素位禁止值类型 auto-box）；
 - ~~数组越界 trap → 异常~~（M8 已完成）。

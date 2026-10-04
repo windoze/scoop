@@ -400,6 +400,10 @@ pub(in super::super) fn collect_expr_type_occurrences(
             rhs: offset,
             ..
         }
+        | ExprKind::ArrayGenerate {
+            count: pointer,
+            initializer: offset,
+        }
         | ExprKind::Binary {
             lhs: pointer,
             rhs: offset,

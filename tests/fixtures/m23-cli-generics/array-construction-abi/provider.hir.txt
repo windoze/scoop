@@ -32,7 +32,7 @@ Module
       Call $local.0.copy<T0> : Array<T0>
         Local source : MutableArray<T0>
     val local3
-      CallableCall function_type1 : Array<T0>
+      CallableCall function_type4 : Array<T0>
         Local action : () -> Array<T0>
     if
       Binary RefNe : Boolean
@@ -410,8 +410,8 @@ LocalConcrete 51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5 L
 CrossCone 51528abb22f645eaa0d4b9a6d183b4a57f0b12c4ab4648367fc94858a56d32b5
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(0) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(0), arguments: Method { owner: Idx::<Type>(13), method_arguments: [] } }
   imported_generic_applications Idx::<ImportedGenericCallableApplication>(1) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(1), arguments: Method { owner: Idx::<Type>(28), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(2) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(8), arguments: Method { owner: Idx::<Type>(122), method_arguments: [] } }
-  imported_generic_applications Idx::<ImportedGenericCallableApplication>(3) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(9), arguments: Method { owner: Idx::<Type>(134), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(2) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(8), arguments: Method { owner: Idx::<Type>(158), method_arguments: [] } }
+  imported_generic_applications Idx::<ImportedGenericCallableApplication>(3) ImportedGenericCallableApplication { template: Idx::<ImportedGenericCallableTemplate>(9), arguments: Method { owner: Idx::<Type>(170), method_arguments: [] } }
   public_bindings count=12
     public_bindings[0] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([3, 179, 198, 138, 90, 2, 59, 75, 123, 114, 142, 1, 172, 193, 234, 90, 168, 57, 178, 231, 13, 163, 157, 51, 97, 215, 201, 206, 45, 135, 128, 220]), source: DeclaredCurrent { declaration: GenericFunction(PersistentGenericFunctionId([155, 106, 247, 249, 132, 216, 75, 25, 198, 244, 41, 164, 71, 53, 36, 14, 47, 174, 181, 35, 238, 185, 172, 50, 148, 0, 82, 5, 160, 91, 37, 99])) } }
     public_bindings[1] PublicExportBindingRecordV1 { binding: PersistentExportBindingId([12, 17, 77, 181, 21, 53, 68, 146, 62, 230, 249, 48, 207, 62, 209, 57, 113, 52, 111, 115, 247, 162, 209, 18, 37, 22, 210, 40, 32, 145, 131, 61]), source: DeclaredCurrent { declaration: TypeAlias(PersistentTypeAliasId([41, 172, 86, 247, 158, 185, 87, 190, 87, 200, 99, 21, 231, 3, 137, 170, 97, 170, 161, 93, 216, 177, 208, 142, 88, 166, 251, 195, 1, 54, 143, 121])) } }

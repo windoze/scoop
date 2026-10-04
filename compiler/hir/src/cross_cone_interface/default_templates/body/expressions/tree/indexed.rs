@@ -132,6 +132,10 @@ enum IndexedDefaultExpressionKindV1<'a> {
         optional: CanonicalBooleanV1,
     },
     ArrayLiteral(Vec<IndexedDefaultExpressionV1<'a>>),
+    ArrayGenerate {
+        count: Box<IndexedDefaultExpressionV1<'a>>,
+        initializer: Box<IndexedDefaultExpressionV1<'a>>,
+    },
     ArrayAssembly(IndexedDefaultArrayAssemblyV1<'a>),
     Index {
         access: DefaultArrayAccessKindV1,
@@ -458,6 +462,12 @@ impl DefaultExpressionV1 {
                 IndexedDefaultExpressionKindV1::ArrayLiteral(index_sequence(
                     elements, resolver, 38, 1,
                 )?)
+            }
+            DefaultExpressionKindV1::ArrayGenerate { count, initializer } => {
+                IndexedDefaultExpressionKindV1::ArrayGenerate {
+                    count: index_child(count, resolver, 62, 1)?,
+                    initializer: index_child(initializer, resolver, 62, 2)?,
+                }
             }
             DefaultExpressionKindV1::ArrayAssembly(assembly) => {
                 IndexedDefaultExpressionKindV1::ArrayAssembly(index_array_assembly(

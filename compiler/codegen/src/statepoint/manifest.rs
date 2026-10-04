@@ -136,6 +136,9 @@ pub(crate) fn expectations(module: &scoop_lir::Module) -> Result<ExpectedSafepoi
                     scoop_lir::Instruction::BoxValue {
                         safepoint, live, ..
                     }
+                    | scoop_lir::Instruction::ArrayAllocDynamic {
+                        safepoint, live, ..
+                    }
                     | scoop_lir::Instruction::ArrayAlloc {
                         safepoint, live, ..
                     }

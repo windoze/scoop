@@ -41,6 +41,7 @@ pub(crate) fn root_storage_sources(function: &Function) -> Vec<scoop_lir::Caller
                     sources.extend(site.live.as_slice().iter().map(|value| value.source));
                 }
                 Instruction::BoxValue { live, .. }
+                | Instruction::ArrayAllocDynamic { live, .. }
                 | Instruction::ArrayAlloc { live, .. }
                 | Instruction::ArrayAssembly { live, .. }
                 | Instruction::ArrayClone { live, .. } => {
@@ -118,6 +119,7 @@ pub(crate) fn instruction_temp_defs(instruction: &Instruction) -> [Option<TempId
         | Instruction::PtrOffset { out, .. }
         | Instruction::LocalAddress { out, .. }
         | Instruction::BeginCatch { out, .. }
+        | Instruction::ArrayAllocDynamic { out, .. }
         | Instruction::ArrayAlloc { out, .. }
         | Instruction::ArrayAssembly { out, .. }
         | Instruction::ArrayLen { out, .. }

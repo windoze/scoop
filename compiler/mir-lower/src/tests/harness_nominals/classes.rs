@@ -266,6 +266,7 @@ impl Harness {
             arithmetic_exception: self.exception_target("ArithmeticException", include),
             index_out_of_bounds_exception: self
                 .exception_target("IndexOutOfBoundsException", include),
+            illegal_argument_exception: self.exception_target("IllegalArgumentException", include),
             illegal_state_exception,
             initialization_cycle_thrower,
         }

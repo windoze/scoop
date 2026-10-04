@@ -79,7 +79,7 @@ Scoop 是一门静态类型、编译到原生代码（LLVM 后端）的编程语
 - Scoop 的核心语法；
 - 支撑核心语法所需的**最小核心库**（见第 11 章）。
 
-标准库的其他部分（集合框架、IO、并发工具、序列库等）不在本规范范围内。
+除 11.10 为字符串构建提供的最小 `List` / `MutableList` / `ArrayList` 外，标准库的其他部分（其他集合、IO、并发工具、序列库等）不在本规范范围内。
 
 ---
 
@@ -464,7 +464,7 @@ M22实现子集把`break`/`continue`与既有`return`/`throw`统一视为jump st
 - enum的有限constructor集合是其全部variant，variant payload继续作为子列检查；出现variant名称本身不代表覆盖其全部payload；
 - tuple与struct各有一个product constructor，字段按位置/声明顺序展开；命名字段与`..`先补全为完整wildcard vector；
 - `Boolean`有`false`/`true`两个有限constructor，`Unit`有一个constructor；
-- binding、`_`、rest补位与`else`均为wildcard；fixed-width integer是有限域，实现以已出现literal singleton与符号化other partition计算覆盖，不实际枚举`2^W`个值。若不同无guard literal确已覆盖全部bit pattern，则无需wildcard；否则missing witness必须是该exact signed/unsigned数学次序中的真实缺失值，unsigned witness始终使用`u`后缀以保证可按subject type重新解析。String是无限开放域，有限literal arm仍必须有覆盖余值的wildcard；Char/Float/Double literal coverage由其进入已实现子集时另行规定；
+- binding、`_`、rest补位与`else`均为wildcard；fixed-width integer是有限域，实现以已出现literal singleton与符号化other partition计算覆盖，不实际枚举`2^W`个值。若不同无guard literal确已覆盖全部bit pattern，则无需wildcard；否则missing witness必须是该exact signed/unsigned数学次序中的真实缺失值，unsigned witness始终使用`u`后缀以保证可按subject type重新解析。M26 的 Char 同样使用 literal singleton 与符号化剩余集合，其有限域只包含 Unicode 标量值，缺失 witness 不得落入 surrogate 区间，使用可重新解析的字符字面量。String是无限开放域，有限literal arm仍必须有覆盖余值的wildcard；Float/Double literal coverage由其进入已实现子集时另行规定；
 - 多个arm可以组合覆盖product，例如`(true, _)`与`(false, _)`共同穷尽；`Some(0)`与`None`不穷尽`Option<Int>`；
 - 运行期始终按源码first-match顺序工作：先匹配结构，成功后才求值guard，guard为false时从下一arm继续。穷尽proof不得改变该副作用顺序。
 
@@ -582,6 +582,11 @@ this is the second line and the number is """).add(n + 1).build()
 规则：
 
 - 脱糖在编译早期完成；`${...}` 中的表达式按普通代码类型检查。
+- M26 按源码顺序交错执行每段表达式与对应 `add`：前一表达式及其 `toString()` 完成后，才开始下一表达式。表达式或 `toString()` 抛出时，后续段和最终 build 不执行；挂起表达式仅在原上下文允许时合法，builder 按普通 managed local 跨挂起保活。
+- 脱糖引用实际 core `StringBuilder` 声明及普通构造、add、build callable，使用 hygienic temporary；用户同名声明、alias 或 import 不替换脱糖目标，普通用户书写的调用仍遵守名称查找。通用 add 使用普通 `T : ToString` bound，不为插值增加 Any 字符串化回退。
+- f-string 不属于 `const val` 的常量表达式，即使只有文本段；普通字符串和 raw 字符串仍可作为 String 常量。实现可以在合法性检查后优化纯文本结果，但不改变其 const 可用性。
+
+M26 同时补齐普通 `"""..."""` 与 `f"""..."""` 的 raw 多行字面量。普通单行字符串、单行 f-string 的文本段与字符字面量共用转义集合：`\t`、`\b`、`\n`、`\r`、`\'`、`\"`、`\\`、`\$`、四位十六进制 `\uXXXX` 和一至六位十六进制 `\u{...}`。每个 Unicode 转义必须是合法标量值；surrogate code point、超过 U+10FFFF、缺失数字/终止符及未知转义都在原 source span 诊断。raw 字面量不解释反斜杠转义。转义解码产生的美元符号始终是文本，不重新识别为插值起点。`${...}` 内按普通表达式词法处理嵌套括号、字符串和注释，不通过字符串替换或独立重解析丢失源位置。
 - `add` 对实现 `ToString` 的类型可用（见 11.6 与 11.11），插入其 `toString()` 结果。
 
 ---
@@ -1137,7 +1142,7 @@ Scoop 内置两个数组类型（引用类型，属于核心库）：
 
 当`T`是ZST时，`Array<T>`/`MutableArray<T>`使用专门的zero-sized element storage：对象仍保存普通ref identity与精确`size: Long`，元素区起点仍按`alignOf<T>()`对齐，但任意长度都不分配element payload bytes。所有literal/assembly/spread输入仍按源码顺序求值并计算逻辑元素数。`get`先按普通调用规则求值receiver与index，再检查`0 <= index < size`并返回该exact ZST值；`set`先按普通调用规则依次求值receiver、index与RHS，随后执行bounds check，成功时不写物理字节。因而即使index越界，RHS的副作用或异常也不能因ZST被跳过。不同index表示不同逻辑元素，但不承诺不同物理地址；现有`addressOf`不能用于array元素。
 
-ZST array的iterator必须保存array ref与`Long` index，以`index < size`终止并按1递增；不得用element pointer是否到达end判断进度。`Array`/`MutableArray`互转和clone仍分配新的array对象并保留size，所以结果ref identity与源不同，但不执行payload `memcpy`。物理分配大小恰为对齐后的元素区起点，与size无关；size仍须位于数学区间`0..=INT64_MAX`，因此不能用“分配字节数很小”绕过长度、assembly求和或迭代index的overflow检查，也不要求core新增整数边界companion常量。M23公开表面没有接受任意signed length的array constructor：literal与spread/vararg assembly只从非负元素/component count经checked求和得到size；clone/互转则先验证source exact array TypeDescriptor、side metadata与`0 <= source.size <= INT64_MAX`一致，再读取该source size作为目标logical count。未来若增加length-based core API须另行规定其源码前置条件与异常。
+ZST array的iterator必须保存array ref与`Long` index，以`index < size`终止并按1递增；不得用element pointer是否到达end判断进度。`Array`/`MutableArray`互转和clone仍分配新的array对象并保留size，所以结果ref identity与源不同，但不执行payload `memcpy`。物理分配大小恰为对齐后的元素区起点，与size无关；size仍须位于数学区间`0..=INT64_MAX`，因此不能用“分配字节数很小”绕过长度、assembly求和或迭代index的overflow检查，也不要求core新增整数边界companion常量。literal与spread/vararg assembly从非负元素/component count经checked求和得到size；clone/互转验证source exact array TypeDescriptor、side metadata与`0 <= source.size <= INT64_MAX`一致，再读取source size。M26 的按长度构造另遵守 10.6；即使 T 是 ZST，也必须实际调用每个索引的 initializer，保留全部副作用与异常。
 
 ### 10.2 数组字面量
 
@@ -1191,7 +1196,24 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 - 下标访问 `a[i]`通过普通成员`operator fun get(index: Long): T`；`MutableArray`通过`operator fun set(index: Long, value: T): Unit`支持下标赋值`m[i] = v`。这些声明可以由intrinsic提供表示级实现，但候选选择、泛型实例化与operator identity遵守9.3，不建立按`Array`类型名放行的第二套解析规则。
 - `vararg T`的spread和普通形参`Array<T>`都要求exact `Array<T>`；需要改变element type时，调用方显式逐元素构造/转换目标array。
-- `size: Long` 属性；实现 `Iterable<T>`，可用于 `for` 循环。
+- `size: Long` 属性；M26 起通过普通 `List<T>` conformance 继承 `Iterable<T>`，可用于 `for` 循环。`Array<T>` 和 `MutableArray<T>` 都只实现 `List<T>`，不实现要求可增删元素的 `MutableList<T>`（11.10）。`MutableArray` 自身仍提供 `set`；定长数组不提供以运行期失败代替实现的 `add` / `removeAt`。
+
+### 10.6 按长度初始化（M26）
+
+M26 增加两个构造形式，均返回固定长度的新数组：
+
+```text
+Array<T>(size: Long, init: (Long) -> T)
+MutableArray<T>(size: Long, init: (Long) -> T)
+```
+
+- `size`、`init` 是公开参数名；显式实参、named argument、尾随 lambda、泛型推导及 alias 沿普通构造与 8.5.3 的求值规则处理，与 10.4 的 `source` 转换候选共同参与重载选择。
+- 先各求值一次全部实参，再检查 `size >= 0`。负数抛 `IllegalArgumentException`，不调用 initializer。长度为零仍求值 `init` 表达式，但不调用它。
+- initializer 是 ordinary 函数值，依次以 `0L` 到 `size - 1L` 调用，每个索引恰好一次；支持分配与抛异常，不支持在 initializer 内挂起。返回值必须可赋给 exact `T`，使用普通函数返回规则。
+- 只有全部元素成功初始化后，完整数组才能成为构造结果；initializer 不接收正在构造的数组。第 i 次调用抛出时传播该异常，不调用后续索引，不返回半初始化数组，也不回滚已经发生的外部副作用。
+- 每个可被普通代码访问的元素都必须是合法的 `T`。未填充的内部存储不是可读的 `T`，不能把清零当作任意 `T` 的默认构造。初始化期间的 GC 规则见 runtime spec 2.4。
+- 对象大小的乘加、对齐与目标地址范围均沿现有 checked allocation 规则；溢出、对象过大或资源耗尽沿现有 fatal allocation failure，不发生整数 wrapping。
+- 此 API 不引入数组原地 resize、公开未初始化数组或原始元素指针；`ArrayList` 通过替换自己持有的数组实现增长。
 
 ---
 
@@ -1199,7 +1221,7 @@ val good: Array<I> = [j, S(10) as I]     // 显式装箱
 
 核心库只包含核心语法运行所必需的类型与函数。命名空间为 **`scoop.core`**（默认导入 `scoop.core.*`，以及 `scoop.core.Option.*`，见 7.2）。
 
-**核心库中的类除单独标明外均为 `final`**，不可继承（包括 `Array` / `MutableArray` / `String` / `StringBuilder` 等）。
+**核心库中的类除单独标明外均为 `final`**，不可继承（包括 `Array` / `MutableArray` / `ArrayList` / `String` / `StringBuilder` 等）。
 
 ### 11.1 类型层级根
 
@@ -1238,15 +1260,43 @@ core整数的二元算术、逐bit运算和比较要求两个已定型operand为
 
 除`div`/`rem`外，上述integer representation intrinsic均不分配、不抛异常，源码声明必须显式带`@NoGC`并登记为NoGc call target；`div`/`rem`因除零可能构造`ArithmeticException`，不得带`@NoGC`且登记为Managed。普通`toString`仍可分配并经普通typed Scoop-ABI core helper工作，不属于integer intrinsic operation集合。
 
+#### 11.2.1 `Char`（M26）
+
+`Char` 是具有独立 nominal identity 的 intrinsic struct，表示一个 Unicode 标量值：U+0000..U+D7FF 或 U+E000..U+10FFFF。它不是 UTF-8 byte、UTF-16 code unit 或用户感知的 grapheme cluster。内存表示为 32 位无符号 scalar，GC-free；没有普通字段或公开 primary constructor，也不与 Int/UInt 隐式互转。
+
+- 单引号字符字面量在转义后必须恰好含一个标量值，例如 `'A'`、`'雪'`、`'😀'`、`'\u{1F600}'`；空、多标量、未闭合或含物理换行的字符字面量非法。转义规则与第 6 章一致，surrogate pair 不作为两次转义合成为一个字符。
+- `Char.code: Int` 返回标量编号；普通 core extension `Int.toChar(): Char` 检查该编号属于上述域，否则抛 `IllegalArgumentException`。其他整数先显式转换为 Int；该转换仍遵守已有整数截断规则。
+- Char 提供同类型 `equals`、`compareTo: Long`，以及 `ToString` 和 `Hash`；相等和次序按标量编号，`toString()` 编码为一个标量的 String，`hash()` 返回编号对应的 Long。没有隐式数字算术或 CharRange。
+- Char 字面量和同类型 const 引用可以用于 `const val`、默认值与递归 literal pattern；Char 普通方法调用不因此扩大既有 const-call 集合。模式覆盖遵守第 5 章的标量值有限域。
+- C ABI 使用 `uint32_t` 承载 Char，外部实现仍须保证入站值是合法标量；其余 by-value、array、aggregate、Option、boxing 与 FFI 布局沿各自既有规则。Char 的源码身份不能以同宽 UInt 代替。
+
 ### 11.3 `Unit`
 
 0 元 tuple 的类型名与值构造器（见 4.3）。
 
 ### 11.4 `String`
 
-- 引用类型，immutable，UTF-8 语义（编码细节由实现定义）。
-- 语言层支持 `+` 拼接、索引/切片、`length`（或 `size`）、比较等核心操作；索引、长度与切片边界固定使用`Long`，保留64位范围。当前实现子集已有拼接与比较；ROADMAP排在M26的索引、切片和length/size首次实现时直接采用上述`Long`签名。
-- 实现内容相等的成员`operator fun equals(other: String): Boolean`与内容相关`Hash`；`toString()`返回自身（`ToString`的恒等实现）。这些能力均是String的具体core contract，不来自`Any`或TypeDescriptor缺省槽。
+String 是 immutable 引用类型，内部持有合法 UTF-8 编码的 Unicode 标量序列，允许 U+0000，不隐含结尾 NUL。M26 将以下表面作为首次实现的字符操作契约；已有 `+`、相等、比较与 hash 保持按内容工作。
+
+| API | 语义 |
+| --- | --- |
+| `length: Long` | Unicode 标量值数量 |
+| `byteLength: Long` | UTF-8 字节数 |
+| `operator get(index: Long): Char` | 第 index 个标量值 |
+| `slice(start: Long, endExclusive: Long): String` | 按标量索引取半开区间 |
+| `iterator(): Iterator<Char>` | 按标量顺序迭代，普通 `Iterable<Char>` conformance |
+| `toCharArray(): MutableArray<Char>` | 独立、可写的字符数组快照 |
+| `String.fromChars(chars: List<Char>): String` | 普通 companion 方法；将字符序列编码为独立 String |
+| `toByteArray(): MutableArray<Byte>` | safe 的 UTF-8 字节快照，Byte 按原始八位 bit pattern 保存 |
+| `String.fromUtf8Unchecked(bytes: List<Byte>): String` | 标注 `@Unsafe` 的 companion 方法；复制调用方保证合法的 UTF-8 字节序列 |
+
+`get` 要求 `0 <= index < length`，`slice` 要求 `0 <= start <= endExclusive <= length`，否则抛 `IndexOutOfBoundsException`。`slice(length, length)` 合法并返回空串。索引不接受隐式数值转换；所有上述计数与边界直接使用 Long。`"A雪😀".length == 3L`，其 byteLength 为 8L。组合字符分别计数，不执行 Unicode normalization，因此 `"e\u0301"` 与 `"\u00E9"` 不相等且长度不同。
+
+现有内联 UTF-8 表示下 byteLength 为 O(1)，length 与索引定位需要扫描，按顺序 iterator 使用 byte cursor，遍历总计 O(byteLength)。String 不缓存逐字符索引表，也不因只读文本序列而增加 `List<Char>` conformance；普通 `Iterable<Char>` 已满足 for。
+
+从 List 构造时先在 managed core 中按 11.10.3 的规则取得完整元素快照，再交给编码/复制后备，用户 getter 的异常不穿越 native frame。所有字符/字节数组互转都复制存储，后续修改源或结果数组不会修改 String。`fromUtf8Unchecked` 的前置条件是本次读取形成的完整序列为严格合法 UTF-8；违反是 unsafe 契约违例，不承诺可捕获异常，也不在每次后续 String 操作时重复验证。输出字节的 `toByteArray` 本身不要求 unsafe。带验证的通用字节解码及 ByteBuffer 留给后续设计。
+
+内容相等的成员 `operator fun equals(other: String): Boolean` 和 Hash 基于 UTF-8 内容；compareTo 按标量字典序（合法 UTF-8 的字节字典序给出相同结果）；`toString()` 返回自身。这些能力不来自 Any 或 TypeDescriptor 缺省槽。结果内容与源容器独立，但不要求空串、完整 slice 或其他相同不可变 String 具有不同引用身份。
 
 ### 11.5 `Option<T>`
 
@@ -1261,17 +1311,21 @@ enum Option<T> {
 
 ### 11.6 `StringBuilder`
 
-字符串插值（第 6 章）的脱糖目标：
+字符串插值（第 6 章）的脱糖目标。M26 以普通 core class 实现，内部使用 11.10 的 `ArrayList<String>` 保存 parts：
 
 ```
-class StringBuilder {
-    fun add(part: String): StringBuilder
-    fun <T : ToString> add(part: T): StringBuilder   // 插入 part.toString()
-    fun build(): String
+public class StringBuilder {
+    public fun add(part: String): StringBuilder
+    public fun <T : ToString> add(part: T): StringBuilder
+    public fun build(): String
 }
 ```
 
-也可由用户代码直接使用。
+公开零参数构造创建空 builder，也可由用户代码直接使用。两种 add 都追加到当前末尾并返回同一 builder；generic add 在本次调用中恰好执行一次 `part.toString()`，完成后才追加结果，不保存原始对象或延迟转换。转换失败不追加该 part，已发生的用户副作用不回滚；转换期间对同一 builder 的重入修改按普通调用顺序生效，不能预先缓存旧 size/backing。
+
+build 返回当前所有 parts 按顺序连接的 String 内容快照，空 builder 返回空串；它不清空、关闭或冻结 builder。重复 build 的内容相同，后续 add 不影响既有结果，不承诺结果引用身份不同。parts 不以固定槽数限制追加次数；增长、总 UTF-8 字节数与最终分配大小只受 10.6 的真实表示/分配边界限制。
+
+parts 与 backing 均为普通 GC 对象。add 只追加 String 引用；build 对有效前缀求和字节数并分配最终 String，再复制每个 part 的字节，复杂度 O(partCount + totalByteLength)。不通过循环 String `+` 反复复制前缀，不需要 ByteBuffer、off-heap owner、release hook 或 close。具体拼接边界见 runtime spec 第 6 章与 M26 设计。
 
 ### 11.7 异常
 
@@ -1347,7 +1401,7 @@ while (true) {
 
 展开实际使用hygienic temporary、typed loop/interface/variant identity，不进行源码名称查找。`iterator()`若为suspend，只能在允许挂起的上下文选择，可在首轮前挂起但仍只调用一次；core `next()`固定ordinary。每轮binding都是新值，closure捕获对应轮次，不共享一个反复覆写的隐藏`var`。Array/MutableArray必须以普通public conformance实现`Iterable<T>`。
 
-integer range有四个canonical nominal type：`public final class IntRange : Iterable<Int>`、`public final class LongRange : Iterable<Long>`、`public final class UIntRange : Iterable<UInt>`与`public final class ULongRange : Iterable<ULong>`。四者是不同的nominal type，`LongRange`/`ULongRange`不再是alias。constructor与表示属性为core-internal，外部代码不能直接构造不满足step/方向不变量的实例；类型、分配、构造与成员本身仍遵守普通class规则，不是intrinsic或runtime opaque type。`CharRange`等到Char进入已实现子集后另行定义。
+integer range有四个canonical nominal type：`public final class IntRange : Iterable<Int>`、`public final class LongRange : Iterable<Long>`、`public final class UIntRange : Iterable<UInt>`与`public final class ULongRange : Iterable<ULong>`。四者是不同的nominal type，`LongRange`/`ULongRange`不再是alias。constructor与表示属性为core-internal，外部代码不能直接构造不满足step/方向不变量的实例；类型、分配、构造与成员本身仍遵守普通class规则，不是intrinsic或runtime opaque type。`CharRange` 不进入 M26，留待后续单独定义。
 
 `Int8`/`Int16`/`Int`的四个range member返回`IntRange`，`Long`的四个成员返回`LongRange`；`UInt8`/`UInt16`/`UInt`返回`UIntRange`，`ULong`返回`ULongRange`。对这八个canonical integer owner分别令`O`为owner自己的exact type、`R`为上述结果type；每个owner必须按以下schema逐一声明四个普通、非generic、非suspend member，参数名`endpoint`属于可被named argument观察的public API：
 
@@ -1413,9 +1467,46 @@ suspend fun <T> suspendCoroutine(
 - `launch`、`async`、dispatcher 等高层 API 可以在这些原语上由标准库提供，但不得改变 8.2 的单次完成与异常语义。
 - core 原语不提供队列、线程切换或事件循环；调度器与取消不属于核心库。
 
-### 11.10 数组
+### 11.10 数组与 List（M26）
 
-`Array<T>` 与 `MutableArray<T>`，见第 10 章。
+`Array<T>` 与 `MutableArray<T>` 仍遵守第 10 章的固定长度与快照转换语义。M26 增加以下普通 core 声明，支持 `StringBuilder` 的 parts 存储，也可由用户代码直接使用；所有类型参数均遵守 3.2 的不变性。
+
+#### 11.10.1 `List<T>` 与 `MutableList<T>`
+
+```scoop
+public interface List<T> : Iterable<T> {
+    public val size: Long
+    public operator fun get(index: Long): T
+}
+
+public interface MutableList<T> : List<T> {
+    public operator fun set(index: Long, value: T): Unit
+    public fun add(value: T): Unit
+    public fun add(index: Long, value: T): Unit
+    public fun removeAt(index: Long): T
+    public fun clear(): Unit
+}
+```
+
+`List` 是只读访问接口，不承诺对象或元素不可变，也不产生快照。`ArrayList<T> <: MutableList<T> <: List<T> <: Iterable<T>`；以同一对象建立的 `List<T>` alias 会观察到其他 alias 的修改。`List<Derived>` 不是 `List<Base>` 的子类型，所有转换仍须满足 exact application 规则。数组字面量继续构造 `Array` 或 `MutableArray`，不会因这组接口改为构造 `ArrayList`。
+
+`get` / `set` / `removeAt` 要求 `0 <= index < size`，按索引插入的 `add(index, value)` 要求 `0 <= index <= size`；失败抛 `IndexOutOfBoundsException`。普通 receiver 与实参先按源码顺序求值，因此越界操作也不能跳过 value 的副作用。追加保持顺序；插入后原后缀右移；`removeAt` 返回被移除的值并使原后缀左移；`clear` 使 size 变为零。`set` 不改变 size。所有操作都支持 `T` 本身是 `Option<U>`，`None` 是合法元素，不表示列表中没有该位置。
+
+这组无 bound 的接口不隐含任意 `T` 的相等、哈希或字符串化能力；M26 不添加依赖这些能力的 `contains`、按值 `remove`、列表结构相等或 `ToString`。按索引的读取、增删及顺序迭代均有完整实现。
+
+#### 11.10.2 `ArrayList<T>`
+
+`public final class ArrayList<T> : MutableList<T>` 是普通可实例化 generic class，具有公开构造形式 `ArrayList<T>(initialCapacity: Long = 0L)`。负 initialCapacity 抛 `IllegalArgumentException`；初始 size 总为零，预留容量不产生列表元素。所有接口成员显式以 public override 实现，size 只读。容量及 backing array 不属于公开表面。
+
+实现使用 GC 堆上的 `MutableArray<Option<T>>` 和 `Long` 有效长度。有效前缀为 `Some(value)`，其余槽为 `None`；`T = Option<U>` 时列表中的 `None` 保存为 `Some(None)`。增长创建更大的数组、复制有效前缀后替换 backing，数组本身保持定长。移除和 clear 必须清空不再使用的槽，避免继续保活被移除的引用。值类型直接内联在 Option payload 中，不因容器或 exact `List<T>` 分派而装箱；Option 的 tag/padding 可能使 stride 大于 `sizeOf<T>()`，不保证与裸 T 数组完全同布局。
+
+索引读写为 O(1)，追加摊还 O(1)，插入/删除为 O(size)，clear 为 O(size)。几何增长比例、初始实际分配时点与空闲容量回收属于实现策略；不得给列表设置任意固定元素数上限。逻辑 size 不超过 `INT64_MAX`，容量求和及实际分配沿 10.6 的溢出/失败规则。操作不对用户实参求值的副作用提供事务回滚，也不提供并发同步。
+
+#### 11.10.3 快照与迭代
+
+core 提供普通 generic extension `fun <T> List<T>.toArray(): Array<T>` 和 `fun <T> List<T>.toMutableArray(): MutableArray<T>`。调用时读取一次 size，按 `0L` 到 `size - 1L` 依次读取元素并创建独立数组；原列表和结果容器的后续修改互不影响，元素本身按值或引用浅复制。10.4 既有数组转换成员仍优先于 extension，保留其复制语义。自定义 List 的 getter 副作用、异常沿普通调用传播，不承诺并发快照。
+
+core 的 Array、MutableArray 和 ArrayList iterator 持有 owner 引用、`Long` 索引与耗尽标志，不缓存 backing array。每次 `next()` 按调用时的 size 判断是否还有元素，成功读取后索引加一；首次返回 `None` 后永久耗尽。多个 iterator 各有独立位置。串行交错修改有明确的按索引行为：set 可被后续读取观察到；在首次 None 前追加的元素可以被遍历；插入/删除引起的位移可能使某元素重复出现或被跳过；clear 后的下一次读取耗尽。M26 不引入修改版本计数或 fail-fast 异常，iterator 也不提供并发同步。
 
 ### 11.11 相等、字符串化与哈希约定
 
@@ -1839,12 +1930,12 @@ internal fun coreLongToString(value: Long): String
 internal fun coreLongHash(value: Long): Long
 ```
 
-- intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、字段访问、解构、copy update或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；任何用户可调用constructor或转换仍须显式声明，唯一例外是13.10封闭规定的`Ptr<T>(raw: ULong)` unsafe construction entry；
-- intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；单个成员也可像上例一样另用function intrinsic提供实现。初始intrinsic type至少覆盖八种canonical integer representation、Boolean、String、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。`core_int`/`int_*`表示32位canonical `Int`，64位signed表示使用独立的`core_long`/`long_*`；unsigned同理区分`UInt`与`ULong`。登记表可按同一契约增加其他compiler-represented value/reference type；
+- intrinsic type不声明字段/primary constructor，也不等价于零字段普通struct/class；不能据此派生零大小布局、全等equals、`Int()`字符串、字段访问、解构、copy update或公开零参数constructor。编译器合成的literal/boxing/allocation entry不进入源码候选集；用户可调用constructor或转换来自显式声明或 registry 封闭规定的入口：10.4 的数组转换、10.6 的数组按长度初始化与 13.10 的 `Ptr<T>(raw: ULong)` unsafe construction entry；
+- intrinsic type的implements列表、普通成员body、override/operator规则与普通类型一致；单个成员也可像上例一样另用function intrinsic提供实现。初始intrinsic type至少覆盖八种canonical integer representation、Boolean、M26 的 Char、String、`Array<T>`/`MutableArray<T>`以及13.10的`Ptr<T>`/`FunPtr<F>` family；integer登记项必须封闭地给出signedness与8/16/32/64位width，alias本身不能再次登记为intrinsic type。`core_int`/`int_*`表示32位canonical `Int`，64位signed表示使用独立的`core_long`/`long_*`；unsigned同理区分`UInt`与`ULong`。登记表可按同一契约增加其他compiler-represented value/reference type；
 - intrinsic type可以是generic，但其登记项必须完整规定declaration kind、type-parameter数量/bound及representation family；所有参数按3.2固定为invariant。`Array<T>`与`MutableArray<T>`各要求一个无bound参数；它们的每个fully specialized application仍是普通generic class application，只是对象布局、元素stride和GC扫描由携带concrete element type的typed intrinsic representation产生。不得同时保留普通class application与独立built-in array type两种identity；
 - 前端识别core源码中的intrinsic annotation，并检查以下name、target、shape、signature与唯一性规则；测试可直接提供相同源码输入。此处理不建立后续stage的来源授权能力。
 
-- 除非有单独说明，`@Intrinsic` 不能与其他任何注解共存。integer registry中除`div`/`rem`外的纯scalar operation与conversion是一个封闭例外：其声明必须同时带`@NoGC`；`div`/`rem`不得带。13.10列出的pointer intrinsic继续按该节例外组合`@NoGC`/`@Unsafe`。
+- 除非有单独说明，`@Intrinsic` 不能与其他任何注解共存。integer registry中除`div`/`rem`外的纯scalar operation与conversion是一个封闭例外：其声明必须同时带`@NoGC`；`div`/`rem`不得带。M26 的 Char code/相等/比较和 core 内部 unchecked code-point 构造均为 NoGC scalar operation，其中 unchecked 构造还必须标注 `@Unsafe`；公开 `Int.toChar` 在普通 core body 中先检查范围再调用。13.10列出的pointer intrinsic继续按该节例外组合`@NoGC`/`@Unsafe`。
 - `name` 必须是编译器内置intrinsic登记表中的已知标识；未知`name`、错误annotation target、与登记shape/signature不符或同一intrinsic kind存在多个provider都是编译错误（用户不能声明自定义intrinsic）。各intrinsic在编译pipeline中的展开阶段由实现大纲规定。
 
 ### 13.2 `@NoGC`

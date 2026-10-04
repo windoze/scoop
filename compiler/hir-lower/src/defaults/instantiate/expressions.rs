@@ -232,6 +232,10 @@ impl Lowerer {
             hir::ExprKind::ArrayLiteral(elements) => {
                 hir::ExprKind::ArrayLiteral(self.instantiate_default_exprs(elements, context))
             }
+            hir::ExprKind::ArrayGenerate { count, initializer } => hir::ExprKind::ArrayGenerate {
+                count: Box::new(self.instantiate_default_expr(count, context)),
+                initializer: Box::new(self.instantiate_default_expr(initializer, context)),
+            },
             hir::ExprKind::ArrayAssembly(assembly) => {
                 hir::ExprKind::ArrayAssembly(hir::ArrayAssembly {
                     element_type: self

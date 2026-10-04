@@ -443,6 +443,12 @@ pub(crate) enum ExprKind {
         operand: Box<Expr>,
         check_ty: Box<mir::Type>,
     },
+    /// Zeroed internal storage, reached only after the managed negative-size guard.
+    /// The generated loop publishes the array after every element is initialized.
+    ArrayAllocate {
+        array_type: mir::ClassId,
+        count: Box<Expr>,
+    },
     ArrayLiteral {
         array_type: mir::ClassId,
         elements: Vec<Expr>,

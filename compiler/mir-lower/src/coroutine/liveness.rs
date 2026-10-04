@@ -400,6 +400,7 @@ fn expr_uses(expr: &mir::Expr, uses: &mut HashSet<mir::LocalId>) {
             check_ty: _,
         }
         | mir::ExprKind::Cast { operand, .. }
+        | mir::ExprKind::ArrayAllocate { count: operand, .. }
         | mir::ExprKind::ArrayLen { operand, .. }
         | mir::ExprKind::ArrayClone { operand, .. }
         | mir::ExprKind::PtrFromNonZeroULong { operand, .. }

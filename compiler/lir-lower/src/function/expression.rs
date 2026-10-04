@@ -70,6 +70,9 @@ impl<'a> FunctionLowerer<'a> {
             } => self.lower_closure_capture(ty, closure, class, index)?,
             // Every operation consumes the exact array application carried by
             // MIR. The LIR value itself is just a managed pointer.
+            mir::ExprKind::ArrayAllocate { array_type, count } => {
+                self.lower_array_allocate(ty, array_type, count)?
+            }
             mir::ExprKind::ArrayLiteral {
                 array_type,
                 elements,

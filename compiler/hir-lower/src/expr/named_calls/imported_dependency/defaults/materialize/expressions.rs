@@ -255,6 +255,19 @@ impl Lowerer {
                 index: Box::new(self.materialize_imported_default_expression(index, context)?),
                 value: Box::new(self.materialize_imported_default_expression(value, context)?),
             },
+            Kind::ArrayGenerate { count, initializer } => {
+                self.prepare_array_size_exception_type().map_err(|error| {
+                    ImportedDefaultMaterializationError::Plan(
+                        error.diagnostic("array size exception type"),
+                    )
+                })?;
+                hir::ExprKind::ArrayGenerate {
+                    count: Box::new(self.materialize_imported_default_expression(count, context)?),
+                    initializer: Box::new(
+                        self.materialize_imported_default_expression(initializer, context)?,
+                    ),
+                }
+            }
             Kind::ArrayLen(array) => hir::ExprKind::ArrayLen(Box::new(
                 self.materialize_imported_default_expression(array, context)?,
             )),

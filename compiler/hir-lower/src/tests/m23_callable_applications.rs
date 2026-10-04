@@ -305,11 +305,13 @@ fn generic_nominal_constructors_have_persistent_applications() {
         })
         .map(|(_, constructor)| constructor.materialization)
         .collect::<Vec<_>>();
-    assert_eq!(adapters.len(), 1);
-    assert!(matches!(
-        adapters[0].context(),
-        hir::concrete::CallableMaterializationContext::NoSubstitution
-    ));
+    assert_eq!(adapters.len(), 2);
+    for adapter in adapters {
+        assert!(matches!(
+            adapter.context(),
+            hir::concrete::CallableMaterializationContext::NoSubstitution
+        ));
+    }
 }
 
 #[test]
