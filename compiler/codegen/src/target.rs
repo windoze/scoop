@@ -38,11 +38,7 @@ impl fmt::Display for LlvmVersion {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ObjectFormat {
-    MachO64,
-    Elf64,
-}
+use scoop_lir::NativeObjectFormat as ObjectFormat;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CodeArchitecture {

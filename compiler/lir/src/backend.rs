@@ -45,7 +45,7 @@ impl WireEncode for BackendProfileContract {
         encode_unsigned_field(encoder, 2, 10)?;
         encode_unsigned_field(encoder, 3, 1)?;
         encoder.field(3)?;
-        encoder.text("generic")?;
+        encoder.text(if linux_x86_64 { "x86-64" } else { "generic" })?;
         encoder.field(4)?;
         encoder.text("")?;
         for field in 5..=10 {

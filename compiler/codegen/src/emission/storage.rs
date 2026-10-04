@@ -111,7 +111,13 @@ impl<'ctx> StorageEmitter<'_, 'ctx> {
                     ))
                 })?;
             if thread_local {
-                tls::boundaries(self.llvm, definition, global.symbol(), size.max(1))?;
+                tls::boundaries(
+                    self.llvm,
+                    definition,
+                    global.symbol(),
+                    size.max(1),
+                    self.module.meta.target_profile,
+                )?;
             } else {
                 atom_boundaries::emit_global_atom_boundaries_v1(
                     self.llvm,

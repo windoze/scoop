@@ -139,6 +139,12 @@ pub struct LirTargetProfile {
     id: TargetProfileId,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum NativeObjectFormat {
+    MachO64,
+    Elf64,
+}
+
 impl LirTargetProfile {
     pub const DARWIN_AARCH64: Self = Self::from_id(TargetProfileId::DarwinAarch64);
     pub const LINUX_X86_64_GNU: Self = Self::from_id(TargetProfileId::LinuxX86_64Gnu);
@@ -150,6 +156,15 @@ impl LirTargetProfile {
 
     pub const fn id(self) -> TargetProfileId {
         self.id
+    }
+
+    pub const fn native_object_format(self) -> NativeObjectFormat {
+        match self.id {
+            TargetProfileId::DarwinAarch64 => NativeObjectFormat::MachO64,
+            TargetProfileId::LinuxX86_64Gnu | TargetProfileId::LinuxX86_64Musl => {
+                NativeObjectFormat::Elf64
+            }
+        }
     }
 
     pub fn wire_id(self) -> scoop_identity::TargetProfileWireId {

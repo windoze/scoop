@@ -5,6 +5,8 @@ use object::{Object, ObjectSection};
 
 use super::*;
 
+mod objects;
+
 fn for_target(mut module: Module, target: scoop_lir::TargetProfileId) -> Module {
     module.meta = string_metadata_for(scoop_lir::LirTargetProfile::from_id(target));
     module
