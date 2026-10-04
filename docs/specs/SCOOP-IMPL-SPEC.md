@@ -121,7 +121,8 @@ M23-6 的实现范围以最新版 AGENTS.md 为准：完成类型布局、canoni
 ## 1. 总体技术路线
 
 - 编译器实现语言为 **Rust**，LLVM 绑定使用 **inkwell**（feature `llvm22-1`）；个别 inkwell 未覆盖的 LLVM 子系统（statepoint / stackmap 等）可降落到 `llvm-sys`。
-- 固定使用 **LLVM 22.1** 作为 Scoop 编译器后端，因为它与项目采用的当前 stable Rust 后端版本一致；M15 及当前路线不包含后端升级。`scoop` 选择的配套 `scoopc` 与 single-Cone codegen 必须确认实际 LLVM major/minor 为 22.1。artifact-only program-link 通过产物中的 backend 合同检查相容性，不加载 LLVM、不调用 `llvm-config`；它使用 final-link profile 明确选择的系统 linker 与 startup C compiler，这些工具不受 Scoop LLVM 版本号限制。
+- 固定使用本机外部 **LLVM 22.1** 作为 Scoop 编译器后端，不要求与 Rust 工具链内置的 LLVM 版本相同；M15 及当前路线不包含后端升级。`scoop` 选择的配套 `scoopc` 与 single-Cone codegen 必须确认实际 LLVM major/minor 为 22.1。artifact-only program-link 通过产物中的 backend 合同检查相容性，不加载 LLVM、不调用 `llvm-config`；它使用 final-link profile 明确选择的系统 linker 与 startup C compiler，这些工具不受 Scoop LLVM 版本号限制。
+- 编译器的 LLVM 绑定优先链接安装环境提供的共享库，无共享库时按 llvm-sys 支持的方式选择静态库；该选择仅影响编译器自身，不决定生成程序的 libc 或链接模式。
 - 使用 **LLVM stackmap** 生成 GC 所需的 metadata。
 - 使用 **LLVM landingpad** 作为 exception 的基础设施；M25起Itanium target由Scoop自有personality与异常记录直接建立在Level I `_Unwind_*`接口上，不依赖C++ ABI（Windows / catchpad 留待后续）。
 - runtime library 使用 **C 语言**，M15基线包含一个单代、STW、单线程collector的moving **Immix GC** 以及其他必须的 runtime 功能；分代及parallel/concurrent collector留待后续。
