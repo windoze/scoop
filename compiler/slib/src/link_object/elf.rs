@@ -3,9 +3,14 @@ use object::read::elf::ElfFile64;
 use object::{Architecture, Object, ObjectKind, SectionIndex, SymbolIndex};
 use scoop_identity::TargetProfileId;
 
+mod envelope;
 mod relocations;
 mod sections;
 mod x86_64;
+pub use envelope::validate_linux_elf_object_envelope_v1;
+pub(super) mod builtin;
+#[cfg(all(test, target_os = "linux", target_arch = "x86_64"))]
+mod tests;
 
 #[derive(Debug)]
 pub struct ValidatedElfObject<'data> {
@@ -54,7 +59,7 @@ impl<'data> ValidatedElfObject<'data> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ElfObjectError(String);
 
 impl std::fmt::Display for ElfObjectError {

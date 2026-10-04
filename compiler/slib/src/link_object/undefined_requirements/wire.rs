@@ -19,7 +19,7 @@ use crate::SlibMemberId;
 use crate::link_object::defined_owners::DecodedStrongDefinitionOwnerV1;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, DecodedFixedBytesV1, RelocationTargetSlotV1,
-    VerifiedDarwinArm64RelocationFormV1,
+    VerifiedObjectRelocationFormV1,
 };
 
 impl WireEncode for FinalUndefinedSymbolRequirementV1 {
@@ -199,7 +199,7 @@ pub(in crate::link_object) struct DecodedCanonicalUndefinedRelocationUseV1 {
     section_role: BuiltinObjectSectionRoleV1,
     offset_within_atom: u64,
     width_bytes: u8,
-    relocation_form: VerifiedDarwinArm64RelocationFormV1,
+    relocation_form: VerifiedObjectRelocationFormV1,
     encoded_value: u64,
     target_slot: RelocationTargetSlotV1,
     symbol: Vec<u8>,
@@ -359,6 +359,7 @@ fn encode_section_role(
         BuiltinObjectSectionRoleV1::ThreadLocalData => 10,
         BuiltinObjectSectionRoleV1::ThreadLocalZeroFill => 11,
         BuiltinObjectSectionRoleV1::ThreadLocalVariables => 12,
+        BuiltinObjectSectionRoleV1::ObjectMetadata => 13,
     })
 }
 
@@ -376,6 +377,7 @@ fn decode_section_role(decoder: &mut Decoder<'_>) -> Result<BuiltinObjectSection
         10 => Ok(BuiltinObjectSectionRoleV1::ThreadLocalData),
         11 => Ok(BuiltinObjectSectionRoleV1::ThreadLocalZeroFill),
         12 => Ok(BuiltinObjectSectionRoleV1::ThreadLocalVariables),
+        13 => Ok(BuiltinObjectSectionRoleV1::ObjectMetadata),
         tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
     }
 }
@@ -402,77 +404,97 @@ fn decode_target_slot(decoder: &mut Decoder<'_>) -> Result<RelocationTargetSlotV
 
 fn encode_relocation_form(
     encoder: &mut Encoder,
-    form: VerifiedDarwinArm64RelocationFormV1,
+    form: VerifiedObjectRelocationFormV1,
 ) -> Result<(), scoop_wire::cbor::EncodeError> {
     match form {
-        VerifiedDarwinArm64RelocationFormV1::Unsigned64 => encode_empty_sum(encoder, 1),
-        VerifiedDarwinArm64RelocationFormV1::Subtractor64 => encode_empty_sum(encoder, 2),
-        VerifiedDarwinArm64RelocationFormV1::Branch26 => encode_empty_sum(encoder, 3),
-        VerifiedDarwinArm64RelocationFormV1::Page21 { explicit_addend } => {
+        VerifiedObjectRelocationFormV1::ElfRela {
+            kind,
+            addend,
+            width,
+        } => {
+            encoder.map(4)?;
+            encode_tag(encoder, 11)?;
+            encoder.field(1)?;
+            encoder.unsigned(u64::from(kind))?;
+            encoder.field(2)?;
+            encoder.unsigned(u64::from(width))?;
+            encoder.field(3)?;
+            encoder.unsigned(addend as u64)
+        }
+        VerifiedObjectRelocationFormV1::Unsigned64 => encode_empty_sum(encoder, 1),
+        VerifiedObjectRelocationFormV1::Subtractor64 => encode_empty_sum(encoder, 2),
+        VerifiedObjectRelocationFormV1::Branch26 => encode_empty_sum(encoder, 3),
+        VerifiedObjectRelocationFormV1::Page21 { explicit_addend } => {
             encode_optional_addend_sum(encoder, 4, explicit_addend)
         }
-        VerifiedDarwinArm64RelocationFormV1::PageOffset12 { explicit_addend } => {
+        VerifiedObjectRelocationFormV1::PageOffset12 { explicit_addend } => {
             encode_optional_addend_sum(encoder, 5, explicit_addend)
         }
-        VerifiedDarwinArm64RelocationFormV1::GotLoadPage21 => encode_empty_sum(encoder, 6),
-        VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12 => encode_empty_sum(encoder, 7),
-        VerifiedDarwinArm64RelocationFormV1::PointerToGot32 => encode_empty_sum(encoder, 8),
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21 => encode_empty_sum(encoder, 9),
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12 => encode_empty_sum(encoder, 10),
+        VerifiedObjectRelocationFormV1::GotLoadPage21 => encode_empty_sum(encoder, 6),
+        VerifiedObjectRelocationFormV1::GotLoadPageOffset12 => encode_empty_sum(encoder, 7),
+        VerifiedObjectRelocationFormV1::PointerToGot32 => encode_empty_sum(encoder, 8),
+        VerifiedObjectRelocationFormV1::TlvpLoadPage21 => encode_empty_sum(encoder, 9),
+        VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12 => encode_empty_sum(encoder, 10),
     }
 }
 
 fn decode_relocation_form(
     decoder: &mut Decoder<'_>,
-) -> Result<VerifiedDarwinArm64RelocationFormV1, WireError> {
+) -> Result<VerifiedObjectRelocationFormV1, WireError> {
     let fields = decoder.map()?;
     let tag = decoder.field(0, Decoder::unsigned)?;
     match tag {
-        1 => closed_relocation_form(
-            decoder,
-            fields,
-            VerifiedDarwinArm64RelocationFormV1::Unsigned64,
-        ),
+        11 => {
+            expect_sum_length(decoder, fields, 4)?;
+            let kind = decoder.field(1, Decoder::u32)?;
+            let width = decoder.field(2, Decoder::u32)?;
+            if !matches!(width, 0 | 1 | 2 | 4 | 8) {
+                return Err(wire_error(decoder, WireErrorKind::IntegerOutOfRange));
+            }
+            let addend = decoder.field(3, Decoder::unsigned)? as i64;
+            Ok(VerifiedObjectRelocationFormV1::ElfRela {
+                kind,
+                addend,
+                width: width as u8,
+            })
+        }
+        1 => closed_relocation_form(decoder, fields, VerifiedObjectRelocationFormV1::Unsigned64),
         2 => closed_relocation_form(
             decoder,
             fields,
-            VerifiedDarwinArm64RelocationFormV1::Subtractor64,
+            VerifiedObjectRelocationFormV1::Subtractor64,
         ),
-        3 => closed_relocation_form(
-            decoder,
-            fields,
-            VerifiedDarwinArm64RelocationFormV1::Branch26,
-        ),
+        3 => closed_relocation_form(decoder, fields, VerifiedObjectRelocationFormV1::Branch26),
         4 => decode_addend_relocation_form(decoder, fields, |explicit_addend| {
-            VerifiedDarwinArm64RelocationFormV1::Page21 { explicit_addend }
+            VerifiedObjectRelocationFormV1::Page21 { explicit_addend }
         }),
         5 => decode_addend_relocation_form(decoder, fields, |explicit_addend| {
-            VerifiedDarwinArm64RelocationFormV1::PageOffset12 { explicit_addend }
+            VerifiedObjectRelocationFormV1::PageOffset12 { explicit_addend }
         }),
         6 => closed_relocation_form(
             decoder,
             fields,
-            VerifiedDarwinArm64RelocationFormV1::GotLoadPage21,
+            VerifiedObjectRelocationFormV1::GotLoadPage21,
         ),
         7 => closed_relocation_form(
             decoder,
             fields,
-            VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12,
+            VerifiedObjectRelocationFormV1::GotLoadPageOffset12,
         ),
         8 => closed_relocation_form(
             decoder,
             fields,
-            VerifiedDarwinArm64RelocationFormV1::PointerToGot32,
+            VerifiedObjectRelocationFormV1::PointerToGot32,
         ),
         9 => closed_relocation_form(
             decoder,
             fields,
-            VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+            VerifiedObjectRelocationFormV1::TlvpLoadPage21,
         ),
         10 => closed_relocation_form(
             decoder,
             fields,
-            VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12,
+            VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12,
         ),
         tag => Err(wire_error(decoder, WireErrorKind::UnknownTag { tag })),
     }
@@ -481,8 +503,8 @@ fn decode_relocation_form(
 fn closed_relocation_form(
     decoder: &Decoder<'_>,
     fields: u64,
-    form: VerifiedDarwinArm64RelocationFormV1,
-) -> Result<VerifiedDarwinArm64RelocationFormV1, WireError> {
+    form: VerifiedObjectRelocationFormV1,
+) -> Result<VerifiedObjectRelocationFormV1, WireError> {
     expect_sum_length(decoder, fields, 1)?;
     Ok(form)
 }
@@ -490,8 +512,8 @@ fn closed_relocation_form(
 fn decode_addend_relocation_form(
     decoder: &mut Decoder<'_>,
     fields: u64,
-    constructor: impl FnOnce(Option<i32>) -> VerifiedDarwinArm64RelocationFormV1,
-) -> Result<VerifiedDarwinArm64RelocationFormV1, WireError> {
+    constructor: impl FnOnce(Option<i32>) -> VerifiedObjectRelocationFormV1,
+) -> Result<VerifiedObjectRelocationFormV1, WireError> {
     expect_sum_length(decoder, fields, 2)?;
     decoder.field(1, decode_optional_addend).map(constructor)
 }
@@ -591,3 +613,6 @@ fn expect_sum_length(decoder: &Decoder<'_>, actual: u64, expected: u64) -> Resul
 fn wire_error(decoder: &Decoder<'_>, kind: WireErrorKind) -> WireError {
     WireError::new(kind, decoder.path().clone(), Some(decoder.position()))
 }
+
+#[cfg(test)]
+mod tests;

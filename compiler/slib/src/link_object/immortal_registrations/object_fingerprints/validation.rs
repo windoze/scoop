@@ -16,8 +16,8 @@ use crate::link_object::{
     CanonicalUndefinedRelocationUseV1, FinalUndefinedSymbolRequirementV1,
     ImmortalObjectRegistrationRelocationFailureV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     StrongDefinitionOwnerV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
-    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectDefinitionRequirementSetV1,
+    VerifiedBuiltinObjectStrongRelocationSetV1, VerifiedMemberObjectRelocationIndexV1,
+    VerifiedObjectDefinitionRequirementSetV1, VerifiedObjectRelocationFormV1,
 };
 
 pub(super) struct ValidatedImmortalObject<'a> {
@@ -198,7 +198,7 @@ fn validate_descriptor_relocation(
     if binding.width_bytes() != 8 {
         return relocation_error(plan, Failure::Width);
     }
-    if binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64 {
+    if binding.relocation_form() != VerifiedObjectRelocationFormV1::Unsigned64 {
         return relocation_error(plan, Failure::Form);
     }
     if binding.encoded_value() != 0 {

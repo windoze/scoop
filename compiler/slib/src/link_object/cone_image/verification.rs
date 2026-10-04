@@ -15,9 +15,9 @@ use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     ScoopLirObjectCandidateV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
-    VerifiedDarwinArm64RelocationFormV1, VerifiedDarwinArm64RelocationShapeV1,
     VerifiedDefinitionAtomRangeV1, VerifiedMaterializedPatchSiteV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectRelocationFormV1,
+    VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
     VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
@@ -722,7 +722,7 @@ fn verify_local_relocation(
         Some(ConeImageRelocationFailureV1::EncodedValue)
     } else {
         match relocation.shape() {
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+            VerifiedObjectRelocationShapeV1::Unsigned64 {
                 target:
                     VerifiedRelocationTargetV1::LocalDefinition {
                         owner_atom,
@@ -750,7 +750,7 @@ fn verify_local_relocation(
                     }
                 }
             }
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { .. } => {
+            VerifiedObjectRelocationShapeV1::Unsigned64 { .. } => {
                 Some(ConeImageRelocationFailureV1::TargetKind)
             }
             _ => Some(ConeImageRelocationFailureV1::Form),

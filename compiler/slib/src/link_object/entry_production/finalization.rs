@@ -5,7 +5,7 @@ use super::{VerifiedEntryProductionBranchV1, VerifiedEntryProductionV1};
 use crate::SlibMemberId;
 use crate::link_object::{
     ScoopLirObjectEnvelopeValidationError, ValidatedScoopLirObjectEnvelopeV1,
-    VerifiedMaterializedPatchSiteV1, VerifiedRuntimeImagePatchSetV1, same_macho_shape,
+    VerifiedMaterializedPatchSiteV1, VerifiedRuntimeImagePatchSetV1, same_object_shape,
     validate_scoop_lir_llvm_22_1_object_envelope_v1,
 };
 
@@ -138,9 +138,12 @@ where
             return Err(EntryPatchError::ObjectOrderMismatch);
         }
         verify_only_entry_slots_changed(member, &bytes, source.bytes(), entry.branch())?;
-        let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(&bytes)
-            .map_err(|source| EntryPatchError::FinalEnvelope { member, source })?;
-        if !same_macho_shape(source.envelope().sections(), envelope.sections()) {
+        let envelope = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+            scoop_lir::LirTargetProfile::from_id(source.envelope().sections().envelope().target()),
+            &bytes,
+        )
+        .map_err(|source| EntryPatchError::FinalEnvelope { member, source })?;
+        if !same_object_shape(source.envelope().sections(), envelope.sections()) {
             return Err(EntryPatchError::MachOShapeChanged(member));
         }
         finalized.push(VerifiedEntryPatchedScoopLirObjectV1 {

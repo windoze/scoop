@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 use std::fmt;
-use std::num::NonZeroU8;
+use std::num::NonZeroU32;
 
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, LinkageClass, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
@@ -11,7 +11,7 @@ use scoop_identity::{
 use scoop_wire::sha256;
 
 use super::{
-    BuiltinObjectSectionRoleV1, DarwinArm64SymbolKindV1, ObservedMachOSymbolV1,
+    BuiltinObjectSectionRoleV1, ObjectSymbolKindV1, ObservedObjectSymbolV1,
     PlannedMemberStrongObjectSymbolsV1, PlannedStrongObjectSymbolRoleV1,
     ValidatedBuiltinObjectSectionInventoryV1,
 };
@@ -23,7 +23,7 @@ pub struct VerifiedStrongDefinitionSymbolV1 {
     definition_owner: ObjectDefinitionPlanOwner,
     macho_name: Vec<u8>,
     table_index: u32,
-    section_ordinal: NonZeroU8,
+    section_ordinal: NonZeroU32,
     value: u64,
     no_dead_strip: bool,
     private_external: bool,
@@ -46,7 +46,7 @@ impl VerifiedStrongDefinitionSymbolV1 {
         self.table_index
     }
 
-    pub const fn section_ordinal(&self) -> NonZeroU8 {
+    pub const fn section_ordinal(&self) -> NonZeroU32 {
         self.section_ordinal
     }
 
@@ -67,7 +67,7 @@ impl VerifiedStrongDefinitionSymbolV1 {
 pub struct VerifiedDefinitionAtomRangeV1 {
     atom: ObjectDefinitionAtomId,
     atom_role: DefinitionAtomRole,
-    section_ordinal: NonZeroU8,
+    section_ordinal: NonZeroU32,
     start: u64,
     end: u64,
     padding_end: u64,
@@ -82,7 +82,7 @@ impl VerifiedDefinitionAtomRangeV1 {
         self.atom_role
     }
 
-    pub const fn section_ordinal(self) -> NonZeroU8 {
+    pub const fn section_ordinal(self) -> NonZeroU32 {
         self.section_ordinal
     }
 
@@ -191,12 +191,12 @@ pub fn verify_member_strong_object_definitions_v1(
         .iter()
         .map(|symbol| (symbol.macho_name().to_vec(), symbol))
         .collect::<BTreeMap<_, _>>();
-    let mut actual = BTreeMap::<Vec<u8>, &ObservedMachOSymbolV1>::new();
+    let mut actual = BTreeMap::<Vec<u8>, &ObservedObjectSymbolV1>::new();
     for symbol in sections.envelope().symbols().iter().filter(|symbol| {
         matches!(
             symbol.kind(),
-            DarwinArm64SymbolKindV1::ExternalStrongDefinition
-                | DarwinArm64SymbolKindV1::ExternalWeakDefinition
+            ObjectSymbolKindV1::ExternalStrongDefinition
+                | ObjectSymbolKindV1::ExternalWeakDefinition
         )
     }) {
         if actual.insert(symbol.name().to_vec(), symbol).is_some() {
@@ -227,7 +227,7 @@ pub fn verify_member_strong_object_definitions_v1(
     for (name, planned) in expected {
         let observed = actual[&name];
         let expected_weak = planned.request().linkage() == LinkageClass::OdrWeak;
-        let actual_weak = observed.kind() == DarwinArm64SymbolKindV1::ExternalWeakDefinition;
+        let actual_weak = observed.kind() == ObjectSymbolKindV1::ExternalWeakDefinition;
         if expected_weak != actual_weak {
             return Err(
                 StrongObjectDefinitionValidationError::DefinitionLinkageMismatch {
@@ -281,7 +281,7 @@ pub fn verify_member_strong_object_definitions_v1(
 #[derive(Clone, Copy)]
 struct SymbolLocation {
     table_index: u32,
-    section_ordinal: NonZeroU8,
+    section_ordinal: NonZeroU32,
     value: u64,
 }
 
@@ -460,7 +460,7 @@ fn validate_and_assign_zero_padding(
     sections: &ValidatedBuiltinObjectSectionInventoryV1,
     definitions: &mut [VerifiedStrongObjectDefinitionV1],
 ) -> Result<(), StrongObjectDefinitionValidationError> {
-    let mut ranges_by_section = BTreeMap::<NonZeroU8, Vec<VerifiedDefinitionAtomRangeV1>>::new();
+    let mut ranges_by_section = BTreeMap::<NonZeroU32, Vec<VerifiedDefinitionAtomRangeV1>>::new();
     for range in definitions
         .iter()
         .flat_map(|definition| definition.atoms.iter().copied())
@@ -472,10 +472,13 @@ fn validate_and_assign_zero_padding(
     }
     let mut padding_ends = BTreeMap::new();
     for (index, section) in sections.envelope().sections().iter().enumerate() {
+        if sections.roles()[index] == BuiltinObjectSectionRoleV1::ObjectMetadata {
+            continue;
+        }
         let ordinal_index = index + 1;
-        let ordinal = u8::try_from(ordinal_index)
+        let ordinal = u32::try_from(ordinal_index)
             .ok()
-            .and_then(NonZeroU8::new)
+            .and_then(NonZeroU32::new)
             .ok_or(
                 StrongObjectDefinitionValidationError::UnsupportedSectionOrdinal {
                     index: u32::try_from(ordinal_index).unwrap_or(u32::MAX),
@@ -520,7 +523,7 @@ fn validate_and_assign_zero_padding(
             let padding_end = ranges
                 .get(range_index + 1)
                 .map_or(section_end, |next| next.start);
-            validate_zero_padding(bytes, *section, range, padding_end)?;
+            validate_zero_padding(bytes, section, range, padding_end)?;
             padding_ends.insert(range.atom, padding_end);
         }
     }
@@ -543,7 +546,7 @@ fn validate_and_assign_zero_padding(
 
 fn validate_zero_padding(
     bytes: &[u8],
-    section: super::ObservedMachOSectionV1,
+    section: &super::ObservedObjectSectionV1,
     range: VerifiedDefinitionAtomRangeV1,
     padding_end: u64,
 ) -> Result<(), StrongObjectDefinitionValidationError> {
@@ -604,7 +607,7 @@ pub enum StrongObjectDefinitionValidationError {
     DefinitionLinkageMismatch {
         name: Vec<u8>,
         expected: LinkageClass,
-        actual: DarwinArm64SymbolKindV1,
+        actual: ObjectSymbolKindV1,
     },
     ObjectBytesMismatch,
     DuplicateExternalStrongDefinition {
@@ -622,8 +625,8 @@ pub enum StrongObjectDefinitionValidationError {
     InvalidPlannedSymbolSet,
     AtomBoundarySectionMismatch {
         atom: ObjectDefinitionAtomId,
-        start: NonZeroU8,
-        end: NonZeroU8,
+        start: NonZeroU32,
+        end: NonZeroU32,
     },
     InvalidAtomRange {
         atom: ObjectDefinitionAtomId,
@@ -642,17 +645,17 @@ pub enum StrongObjectDefinitionValidationError {
         index: u32,
     },
     InvalidSectionByteRange {
-        section: NonZeroU8,
+        section: NonZeroU32,
     },
     UnownedSection {
-        section: NonZeroU8,
+        section: NonZeroU32,
         role: BuiltinObjectSectionRoleV1,
         segment_name: Vec<u8>,
         section_name: Vec<u8>,
         symbols: Vec<(Vec<u8>, u64)>,
     },
     UnownedSectionPrefix {
-        section: NonZeroU8,
+        section: NonZeroU32,
         section_start: u64,
         first_atom_start: u64,
     },

@@ -18,9 +18,9 @@ use super::{
 use crate::SlibMemberId;
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
-    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedDarwinArm64RelocationShapeV1, VerifiedMemberObjectRelocationIndexV1,
-    VerifiedRelocationTargetV1, VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedMemberObjectRelocationIndexV1,
+    VerifiedObjectRelocationFormV1, VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1,
+    VerifiedRelocationUseV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
 const REGISTRATION_DIAGNOSTIC_OFFSET: u64 = 160;
@@ -35,7 +35,7 @@ const REGISTRATION_GATEWAY_OFFSET: u64 = 344;
 struct DiagnosticTargetV1 {
     member: SlibMemberId,
     atom: ObjectDefinitionAtomId,
-    section_ordinal: u8,
+    section_ordinal: u32,
     value: u64,
 }
 
@@ -223,7 +223,7 @@ fn validate_use_shape<D>(
         Some(Failure::MissingOffset)
     } else if relocation.width_bytes() != 8 {
         Some(Failure::Width)
-    } else if relocation.shape().form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64 {
+    } else if relocation.shape().form() != VerifiedObjectRelocationFormV1::Unsigned64 {
         Some(Failure::Form)
     } else if relocation.encoded_value() != 0 {
         Some(Failure::EncodedValue)
@@ -245,7 +245,7 @@ fn validate_diagnostic_target<D>(
     role: InitializationRelocationRoleV1,
 ) -> Result<DiagnosticTargetV1, StrongInitializationRegistrationValidationError> {
     let (section_ordinal, value) = match relocation.shape() {
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+        VerifiedObjectRelocationShapeV1::Unsigned64 {
             target:
                 VerifiedRelocationTargetV1::LocalDefinition {
                     owner_atom: Some(owner_atom),
@@ -254,12 +254,12 @@ fn validate_diagnostic_target<D>(
                     ..
                 },
         } if *owner_atom == expected_target.atom => (*section_ordinal, *value),
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { .. } => {
+        VerifiedObjectRelocationShapeV1::Unsigned64 { .. } => {
             return relocation_error(plan, role, InitializationRelocationFailureV1::TargetKind);
         }
         _ => return relocation_error(plan, role, InitializationRelocationFailureV1::Form),
     };
-    let section_index = usize::from(section_ordinal.get()) - 1;
+    let section_index = (section_ordinal.get() as usize) - 1;
     let sections = member.definitions().sections();
     if sections.roles().get(section_index) != Some(&BuiltinObjectSectionRoleV1::CString) {
         return relocation_error(
@@ -272,7 +272,6 @@ fn validate_diagnostic_target<D>(
         .envelope()
         .sections()
         .get(section_index)
-        .copied()
         .ok_or_else(|| {
             relocation_error_value(
                 plan,
@@ -378,7 +377,7 @@ fn expected_diagnostic_target<D>(
                 atom: plan.diagnostic_atom(),
             },
         )?;
-    let section_index = usize::from(atom.section_ordinal().get()) - 1;
+    let section_index = (atom.section_ordinal().get() as usize) - 1;
     if member.definitions().sections().roles().get(section_index)
         != Some(&BuiltinObjectSectionRoleV1::CString)
     {
@@ -474,7 +473,7 @@ fn validate_binding_shape<D>(
         Some(Failure::MissingOffset)
     } else if binding.width_bytes() != 8 {
         Some(Failure::Width)
-    } else if binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64 {
+    } else if binding.relocation_form() != VerifiedObjectRelocationFormV1::Unsigned64 {
         Some(Failure::Form)
     } else if binding.encoded_value() != 0 {
         Some(Failure::EncodedValue)

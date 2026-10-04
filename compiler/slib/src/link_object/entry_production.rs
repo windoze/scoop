@@ -17,8 +17,8 @@ use super::safepoint_registrations::physical::{
 use super::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     ScoopLirObjectCandidateV1, StrongRelocationBindingV1, StrongRelocationResolutionV1,
-    StrongSafepointRegistrationValidationError, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedMaterializedPatchSiteV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    StrongSafepointRegistrationValidationError, VerifiedMaterializedPatchSiteV1,
+    VerifiedObjectRelocationFormV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 use crate::SlibMemberId;
 
@@ -408,7 +408,7 @@ fn require_relocation(
         || binding.section_role() != BuiltinObjectSectionRoleV1::ReadOnlyData
         || binding.offset_within_atom() != offset
         || binding.width_bytes() != 8
-        || binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64
+        || binding.relocation_form() != VerifiedObjectRelocationFormV1::Unsigned64
         || binding.encoded_value() != 0
         || binding.target_slot() != RelocationTargetSlotV1::Single
     {

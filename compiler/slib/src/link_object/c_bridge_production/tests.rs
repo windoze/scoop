@@ -47,12 +47,16 @@ fn binds_profile_production_plan_members_and_object_envelopes() {
     assert_eq!(verified.production(), &production);
     assert_eq!(verified.members().len(), 1);
     assert_eq!(verified.members()[0].plan().member_id(), bridge_member);
+    let super::super::ObjectEnvelopeFormatV1::DarwinArm64 { deployment, .. } = verified.members()
+        [0]
+    .envelope()
+    .sections()
+    .envelope()
+    .format() else {
+        panic!("Darwin envelope")
+    };
     assert_eq!(
-        verified.members()[0]
-            .envelope()
-            .sections()
-            .envelope()
-            .deployment(),
+        deployment.as_ref(),
         Some(&super::super::DarwinDeploymentCommandV1::BuildVersion {
             minimum_os: MINIMUM_OS,
             sdk: SDK,

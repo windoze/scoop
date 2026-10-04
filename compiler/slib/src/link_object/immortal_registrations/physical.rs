@@ -86,14 +86,13 @@ pub(super) fn atom_file_range(
     atom: VerifiedDefinitionAtomRangeV1,
 ) -> Result<(BuiltinObjectSectionRoleV1, u64, u64), ImmortalObjectRegistrationAtomFileRangeFailureV1>
 {
-    let index = usize::from(atom.section_ordinal().get()) - 1;
+    let index = (atom.section_ordinal().get() as usize) - 1;
     let section = member
         .definitions()
         .sections()
         .envelope()
         .sections()
         .get(index)
-        .copied()
         .ok_or(ImmortalObjectRegistrationAtomFileRangeFailureV1::MissingSection)?;
     let role = *member
         .definitions()

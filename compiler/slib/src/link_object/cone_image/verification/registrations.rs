@@ -46,8 +46,8 @@ pub(super) fn verify_registration_table(
             Some(ConeImageRelocationFailureV1::SectionRole)
         } else if relocation.width_bytes() != 8 || binding.width_bytes() != 8 {
             Some(ConeImageRelocationFailureV1::Width)
-        } else if relocation.shape().form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64
-            || binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64
+        } else if relocation.shape().form() != VerifiedObjectRelocationFormV1::Unsigned64
+            || binding.relocation_form() != VerifiedObjectRelocationFormV1::Unsigned64
         {
             Some(ConeImageRelocationFailureV1::Form)
         } else if relocation.encoded_value() != 0 || binding.encoded_value() != 0 {

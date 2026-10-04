@@ -10,8 +10,8 @@ use scoop_lir::{
 };
 
 use super::{
-    CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1,
-    VerifiedDarwinArm64RelocationFormV1, VerifiedSourceExternalRequirementClosureV1,
+    CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1, VerifiedObjectRelocationFormV1,
+    VerifiedSourceExternalRequirementClosureV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -144,7 +144,7 @@ pub fn verify_runtime_and_eh_requirements_v1(
 
 fn validate_runtime_relocation(
     contract: &RuntimeSymbolContractV1,
-    form: VerifiedDarwinArm64RelocationFormV1,
+    form: VerifiedObjectRelocationFormV1,
 ) -> Result<(), RuntimeAndEhRequirementValidationError> {
     let is_allocation_context = contract.symbol() == RuntimeAbiSymbolV1::AllocationContext;
     if is_tlvp_relocation(form) != is_allocation_context {
@@ -158,11 +158,11 @@ fn validate_runtime_relocation(
     Ok(())
 }
 
-const fn is_tlvp_relocation(form: VerifiedDarwinArm64RelocationFormV1) -> bool {
+const fn is_tlvp_relocation(form: VerifiedObjectRelocationFormV1) -> bool {
     matches!(
         form,
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
-            | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
+        VerifiedObjectRelocationFormV1::TlvpLoadPage21
+            | VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12
     )
 }
 
@@ -178,11 +178,11 @@ pub enum RuntimeAndEhRequirementValidationError {
     },
     RuntimeRelocationFormMismatch {
         symbol: RuntimeAbiSymbolV1,
-        form: VerifiedDarwinArm64RelocationFormV1,
+        form: VerifiedObjectRelocationFormV1,
     },
     TlvpRelocationRequiresTlsContract {
         symbol: Vec<u8>,
-        form: VerifiedDarwinArm64RelocationFormV1,
+        form: VerifiedObjectRelocationFormV1,
     },
 }
 

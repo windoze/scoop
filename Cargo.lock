@@ -474,6 +474,7 @@ dependencies = [
  "scoop-identity",
  "scoop-lir",
  "scoop-process",
+ "scoop-slib",
  "scoop-toolchain",
  "tempfile",
 ]

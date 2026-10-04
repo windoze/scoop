@@ -10,8 +10,8 @@ use scoop_identity::{
 
 use super::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, PlannedStrongObjectSymbolRoleV1,
-    VerifiedDarwinArm64RelocationFormV1, VerifiedDarwinArm64RelocationShapeV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectRelocationFormV1,
+    VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1, VerifiedRelocationUseV1,
 };
 use crate::SlibMemberId;
 
@@ -47,7 +47,7 @@ pub struct StrongRelocationBindingV1 {
     section_role: BuiltinObjectSectionRoleV1,
     offset_within_atom: u64,
     width_bytes: u8,
-    relocation_form: VerifiedDarwinArm64RelocationFormV1,
+    relocation_form: VerifiedObjectRelocationFormV1,
     encoded_value: u64,
     target_slot: RelocationTargetSlotV1,
     symbol: Vec<u8>,
@@ -62,7 +62,7 @@ pub struct CanonicalUndefinedRelocationUseV1 {
     section_role: BuiltinObjectSectionRoleV1,
     offset_within_atom: u64,
     width_bytes: u8,
-    relocation_form: VerifiedDarwinArm64RelocationFormV1,
+    relocation_form: VerifiedObjectRelocationFormV1,
     encoded_value: u64,
     target_slot: RelocationTargetSlotV1,
     symbol: Vec<u8>,
@@ -93,7 +93,7 @@ impl CanonicalUndefinedRelocationUseV1 {
         self.width_bytes
     }
 
-    pub const fn relocation_form(&self) -> VerifiedDarwinArm64RelocationFormV1 {
+    pub const fn relocation_form(&self) -> VerifiedObjectRelocationFormV1 {
         self.relocation_form
     }
 
@@ -152,7 +152,7 @@ impl StrongRelocationBindingV1 {
         self.width_bytes
     }
 
-    pub const fn relocation_form(&self) -> VerifiedDarwinArm64RelocationFormV1 {
+    pub const fn relocation_form(&self) -> VerifiedObjectRelocationFormV1 {
         self.relocation_form
     }
 
@@ -326,15 +326,16 @@ fn collect_relocation_bindings(
     bindings: &mut Vec<StrongRelocationBindingV1>,
 ) -> Result<(), StrongRelocationClosureValidationError> {
     match relocation.shape() {
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::Branch26 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::Page21 { target, .. }
-        | VerifiedDarwinArm64RelocationShapeV1::PageOffset12 { target, .. }
-        | VerifiedDarwinArm64RelocationShapeV1::GotLoadPage21 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::GotLoadPageOffset12 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => {
+        VerifiedObjectRelocationShapeV1::ElfRela { target, .. }
+        | VerifiedObjectRelocationShapeV1::Unsigned64 { target }
+        | VerifiedObjectRelocationShapeV1::Branch26 { target }
+        | VerifiedObjectRelocationShapeV1::Page21 { target, .. }
+        | VerifiedObjectRelocationShapeV1::PageOffset12 { target, .. }
+        | VerifiedObjectRelocationShapeV1::GotLoadPage21 { target }
+        | VerifiedObjectRelocationShapeV1::GotLoadPageOffset12 { target }
+        | VerifiedObjectRelocationShapeV1::PointerToGot32 { target }
+        | VerifiedObjectRelocationShapeV1::TlvpLoadPage21 { target }
+        | VerifiedObjectRelocationShapeV1::TlvpLoadPageOffset12 { target } => {
             collect_target_binding(
                 source_member,
                 relocation,
@@ -345,7 +346,7 @@ fn collect_relocation_bindings(
                 bindings,
             )?;
         }
-        VerifiedDarwinArm64RelocationShapeV1::Subtractor64 {
+        VerifiedObjectRelocationShapeV1::Subtractor64 {
             minuend,
             subtrahend,
         } => {

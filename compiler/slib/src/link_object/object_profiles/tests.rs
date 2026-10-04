@@ -6,17 +6,20 @@ use scoop_lir::{
 
 #[test]
 fn llvm_22_1_scoop_profile_requires_no_deployment_command() {
-    let qualified = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object(None)).unwrap();
+    let qualified = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &object(None),
+    )
+    .unwrap();
     assert_eq!(
         qualified.sections().roles(),
-        &[super::super::BuiltinObjectSectionRoleV1::Text]
+        &[crate::link_object::BuiltinObjectSectionRoleV1::Text]
     );
 
-    let error = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object(Some((
-        0x000d_0000,
-        0x000d_0000,
-        &[],
-    ))))
+    let error = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &object(Some((0x000d_0000, 0x000d_0000, &[]))),
+    )
     .unwrap_err();
     assert_eq!(
         error,
@@ -53,7 +56,7 @@ fn generated_c_profile_requires_the_exact_deployment_contract() {
     let qualified = validate_generated_c_bridge_object_envelope_v1(&bytes, &contract).unwrap();
     assert_eq!(
         qualified.sections().roles(),
-        &[super::super::BuiltinObjectSectionRoleV1::Text]
+        &[crate::link_object::BuiltinObjectSectionRoleV1::Text]
     );
 
     assert_eq!(

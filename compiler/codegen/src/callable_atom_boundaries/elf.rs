@@ -93,7 +93,7 @@ pub(super) fn materialize(path: &Path, plan: &DefinitionSymbolPlanV1) -> Result<
         associated.dedup();
         output.associate_sections(primary_name.as_str(), &associated)?;
     }
-    output.writable_stackmaps()?;
+    output.relocatable_metadata()?;
     std::fs::write(path, output.finish()?).map_err(error)
 }
 

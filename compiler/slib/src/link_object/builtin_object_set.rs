@@ -81,12 +81,13 @@ pub fn verify_builtin_object_strong_relocations_v1(
     let mut members = Vec::with_capacity(scoop_objects.len() + c_bridge_objects.len());
     for object in scoop_objects {
         let symbols = required_symbol_plan(symbol_plan, object.member)?;
-        let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(object.bytes)
-            .map_err(|source| BuiltinObjectSetValidationError::ScoopEnvelope {
-                member: object.member,
-                source,
-            })?
-            .into_sections();
+        let sections =
+            validate_scoop_lir_llvm_22_1_object_envelope_v1(member_plan.target(), object.bytes)
+                .map_err(|source| BuiltinObjectSetValidationError::ScoopEnvelope {
+                    member: object.member,
+                    source,
+                })?
+                .into_sections();
         members.push(verify_member(
             object.member,
             object.bytes,

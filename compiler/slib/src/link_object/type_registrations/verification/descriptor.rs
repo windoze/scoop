@@ -273,7 +273,7 @@ where
                 })?;
             if !matches!(
                 slots.shape(),
-                VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+                VerifiedObjectRelocationShapeV1::Unsigned64 {
                     target: VerifiedRelocationTargetV1::StrongDefinition { definition }
                 } if *definition == expected
             ) {
@@ -293,7 +293,7 @@ fn verify_itable_directory_pointer<D, C>(
     member: &crate::link_object::VerifiedMemberObjectRelocationIndexV1,
     plan: &StrongTypeRegistrationPlan<D, C>,
     directory_atom: scoop_identity::ObjectDefinitionAtomId,
-    directory_section: std::num::NonZeroU8,
+    directory_section: std::num::NonZeroU32,
     directory_value: u64,
 ) -> Result<VerifiedRelocationUseV1, StrongTypeRegistrationValidationError>
 where
@@ -318,7 +318,7 @@ where
         && relocation.encoded_value() == 0
         && matches!(
             relocation.shape(),
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+            VerifiedObjectRelocationShapeV1::Unsigned64 {
                 target: VerifiedRelocationTargetV1::LocalDefinition {
                     owner_atom: Some(owner_atom),
                     section_ordinal,
@@ -350,7 +350,7 @@ where
         || relocation.encoded_value() != 0
         || !matches!(
             relocation.shape(),
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { .. }
+            VerifiedObjectRelocationShapeV1::Unsigned64 { .. }
         )
     {
         return itable_directory_error(plan, Some(entry), Failure::RelocationShape);
@@ -359,7 +359,7 @@ where
 }
 
 fn interface_target_matches<D, C>(
-    shape: &VerifiedDarwinArm64RelocationShapeV1,
+    shape: &VerifiedObjectRelocationShapeV1,
     interface: D,
     plans_by_exact: &BTreeMap<PersistentExactTypeId, &StrongTypeRegistrationPlan<D, C>>,
 ) -> bool
@@ -373,7 +373,7 @@ where
             };
             matches!(
                 shape,
-                VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+                VerifiedObjectRelocationShapeV1::Unsigned64 {
                     target: VerifiedRelocationTargetV1::StrongDefinition { definition }
                 } if *definition == expected.descriptor_definition_plan()
             )
@@ -382,7 +382,7 @@ where
             let expected = expected_type_descriptor_macho_name(exact_type);
             matches!(
                 shape,
-                VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+                VerifiedObjectRelocationShapeV1::Unsigned64 {
                     target: VerifiedRelocationTargetV1::ExternalUndefined { name, .. }
                 } if name == &expected
             )
@@ -448,7 +448,7 @@ fn itable_directory_error<T, D: Copy, C>(
 fn verify_descriptor_diagnostic_relocation<D: Copy, C>(
     member: &crate::link_object::VerifiedMemberObjectRelocationIndexV1,
     plan: &StrongTypeRegistrationPlan<D, C>,
-    diagnostic_section: std::num::NonZeroU8,
+    diagnostic_section: std::num::NonZeroU32,
     diagnostic_value: u64,
 ) -> Result<VerifiedRelocationUseV1, StrongTypeRegistrationValidationError> {
     use TypeDescriptorDiagnosticRelocationFailureV1 as Failure;
@@ -475,7 +475,7 @@ fn verify_descriptor_diagnostic_relocation<D: Copy, C>(
         Some(Failure::EncodedValue)
     } else {
         match relocation.shape() {
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+            VerifiedObjectRelocationShapeV1::Unsigned64 {
                 target:
                     VerifiedRelocationTargetV1::LocalDefinition {
                         owner_atom,
@@ -484,19 +484,19 @@ fn verify_descriptor_diagnostic_relocation<D: Copy, C>(
                         ..
                     },
             } if *owner_atom != Some(plan.diagnostic_atom()) => Some(Failure::TargetAtom),
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+            VerifiedObjectRelocationShapeV1::Unsigned64 {
                 target:
                     VerifiedRelocationTargetV1::LocalDefinition {
                         section_ordinal, ..
                     },
             } if *section_ordinal != diagnostic_section => Some(Failure::TargetSection),
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+            VerifiedObjectRelocationShapeV1::Unsigned64 {
                 target: VerifiedRelocationTargetV1::LocalDefinition { value, .. },
             } if *value != diagnostic_value => Some(Failure::TargetValue),
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
+            VerifiedObjectRelocationShapeV1::Unsigned64 {
                 target: VerifiedRelocationTargetV1::LocalDefinition { .. },
             } => None,
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { .. } => Some(Failure::TargetKind),
+            VerifiedObjectRelocationShapeV1::Unsigned64 { .. } => Some(Failure::TargetKind),
             _ => Some(Failure::Form),
         }
     };

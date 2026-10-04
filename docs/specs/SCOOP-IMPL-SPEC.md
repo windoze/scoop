@@ -759,6 +759,14 @@ generated-C 对象也按格式物化同一 typed bridge plan 的边界。ELF pri
 
 `.slib` builtin member 的 `LinkObject` role 从本次已选择的 LIR target 取得 target-profile 与 object-format；对象生成和 artifact reader 重建 materialization 时均显式传入同一选择，不使用 Darwin 默认值。member logical key 继续只描述实际 producer unit 集合；目标兼容性由已有 manifest/role 字段表达，不给单位身份增加重复的 target 编码。
 
+共有对象消费使用格式无关的 section/symbol 事实：section ordinal 为非零 32-bit 原生 section 索引，Mach-O 的 nlist ordinal 在读取边界扩宽；ELF 的长 section 名称、符号尺寸/TLS 类型、binding/visibility 与 COMDAT 信息保留实际值。文件头和原始 relocation 使用封闭 Mach-O/ELF 分支，不能给 ELF 填入伪造的 Darwin deployment、nlist flags 或 ARM64 relocation。metadata 中的绝对 64-bit 指针共用符号加 addend 的语义；ELF RELA 的 signed addend 与指令字段原始字节分别保存。
+
+atom range 的持久 section ordinal 同样扩宽为非零 u32；CBOR 数值编码保持，Darwin 既有 bytes 不变。section role 新增 tag 13 `ObjectMetadata`，表示符号/字符串/重定位表、COMDAT 表、调试信息与工具链 note，不占用 Scoop definition atom。GCC 的 `.note.gnu.property` 保留给系统链接器处理。LLVM 的 `.data.rel.ro.scoop.*` 与 `.llvm_stackmaps` 在对象物化时设置 `SHF_WRITE`，允许 PIE loader 重定位；最终脚本分别保证动态产物 RELRO 与静态产物只读。
+
+ELF undefined requirements 来自实际 relocation 引用；仅存在于 symbol table 而未被引用的 undefined 条目（例如 GCC TLS 代码附带的 `_GLOBAL_OFFSET_TABLE_`）不产生链接需求。Mach-O 既有 producer profile 的 undefined 集合约束保持。
+
+对象 relocation form 保留 Darwin 既有 tags 1～10；ELF RELA 使用 tag 11，CBOR `{0=11, 1=native kind, 2=write width, 3=addend 的 64-bit 补码}`，runtime canonical encoding 对应 `u32(11), u32(kind), u32(width), u64(addend bits)`。width 由实际架构 relocation decoder 取得，不能按 tag 11 统一按八字节处理；对象 hash 只归零实际 relocation 写入字段，kind、signed addend 与 typed target 保留在 canonical relocation 中。
+
 M28 的 LSDA reader 与 runtime spec 5.2 一致，接受 LLVM 的省略 TType cleanup-only 表；它不含 type-table offset，所有 action 必须为零。对象读取以实际 function/section 范围校验 call-site 和 landing pad，并允许 section 的零对齐填充；personality 以 call-site 表长取得有效边界。catch-all 仍使用已有 null type entry 和终止 action。该修复不改变已生成 catch-all 对象的 ABI 或 runtime metadata 布局。
 
 codegen的唯一语义IR输入是**本 Cone**的LIR output，并只额外接收producer所需的已验证profile projection：Scoop LLVM producer取`lir_target + backend`，generated-C producer取`lir_target + c_bridge_toolchain`；两者都不接收上游meta或完整`ResolvedTargetProfile`。object verifier/finalizer与packager消费其正式产物。M23共同约束如下：

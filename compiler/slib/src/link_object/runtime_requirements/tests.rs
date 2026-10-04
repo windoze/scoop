@@ -34,35 +34,35 @@ fn requires_tlvp_forms_only_for_the_runtime_tls_contract() {
     assert!(matches!(
         classify_with_form(
             b"_scoop_rt_allocation_context",
-            VerifiedDarwinArm64RelocationFormV1::Branch26,
+            VerifiedObjectRelocationFormV1::Branch26,
         ),
         Err(
             RuntimeAndEhRequirementValidationError::RuntimeRelocationFormMismatch {
                 symbol: RuntimeAbiSymbolV1::AllocationContext,
-                form: VerifiedDarwinArm64RelocationFormV1::Branch26,
+                form: VerifiedObjectRelocationFormV1::Branch26,
             }
         )
     ));
     assert!(matches!(
         classify_with_form(
             b"_scoop_runtime_alloc_slow",
-            VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+            VerifiedObjectRelocationFormV1::TlvpLoadPage21,
         ),
         Err(
             RuntimeAndEhRequirementValidationError::RuntimeRelocationFormMismatch {
                 symbol: RuntimeAbiSymbolV1::AllocateSlow,
-                form: VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+                form: VerifiedObjectRelocationFormV1::TlvpLoadPage21,
             }
         )
     ));
     assert!(matches!(
         classify_with_form(
             b"__Unwind_Resume",
-            VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12,
+            VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12,
         ),
         Err(
             RuntimeAndEhRequirementValidationError::TlvpRelocationRequiresTlsContract {
-                form: VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12,
+                form: VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12,
                 ..
             }
         )
@@ -94,16 +94,16 @@ fn classifies_only_the_closed_target_eh_symbols() {
 
 pub(in crate::link_object) fn classify(symbol: &[u8]) -> VerifiedRuntimeAndEhRequirementClosureV1 {
     let form = if symbol == b"_scoop_rt_allocation_context" {
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
+        VerifiedObjectRelocationFormV1::TlvpLoadPage21
     } else {
-        VerifiedDarwinArm64RelocationFormV1::Branch26
+        VerifiedObjectRelocationFormV1::Branch26
     };
     classify_with_form(symbol, form).unwrap()
 }
 
 fn classify_with_form(
     symbol: &[u8],
-    form: VerifiedDarwinArm64RelocationFormV1,
+    form: VerifiedObjectRelocationFormV1,
 ) -> Result<VerifiedRuntimeAndEhRequirementClosureV1, RuntimeAndEhRequirementValidationError> {
     let producer = ConeIdentity::SINGLE_FILE;
     let object = fixture_for_producer(producer, "runtimeRequirementConsumer");

@@ -10,8 +10,7 @@ use crate::link_object::type_registrations::versioned::{
 };
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, VerifiedBuiltinObjectStrongRelocationSetV1,
-    VerifiedDarwinArm64RelocationShapeV1, VerifiedRelocationTargetV1,
-    VerifiedStrongTypeRegistrationV1,
+    VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1, VerifiedStrongTypeRegistrationV1,
 };
 
 pub(super) const TYPE_DESCRIPTOR_SIZE: usize = 152;
@@ -170,7 +169,7 @@ where
             return descriptor_relocation_error(plan.exact_type(), offset);
         }
         let target = match relocation.shape() {
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { target } => target,
+            VerifiedObjectRelocationShapeV1::Unsigned64 { target } => target,
             _ => return descriptor_relocation_error(plan.exact_type(), offset),
         };
         let target_matches = match offset {

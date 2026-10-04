@@ -60,11 +60,11 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
                     VerifiedRelocationTargetV1::SectionBase {
                         section_ordinal, ..
                     } if relocation.shape().form()
-                        == VerifiedDarwinArm64RelocationFormV1::Unsigned64 =>
+                        == VerifiedObjectRelocationFormV1::Unsigned64 =>
                     {
                         let address = relocation.encoded_value();
                         let range = associated_atoms.iter().find(|range| {
-                        u32::from(range.section_ordinal().get()) == section_ordinal.get()
+                        range.section_ordinal().get() == section_ordinal.get()
                             && range.start() <= address && address < range.end()
                     }).ok_or(ObjectDefinitionRelocationFailureV1::UnsupportedLocalOrSectionTarget)?;
                         canonical_value = 0;
@@ -112,8 +112,9 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
         let start = usize::try_from(relocation.offset_within_atom)
             .map_err(|_| ObjectDefinitionRelocationFailureV1::Range)?;
         let width = match relocation.form {
-            VerifiedDarwinArm64RelocationFormV1::Unsigned64
-            | VerifiedDarwinArm64RelocationFormV1::Subtractor64 => 8,
+            VerifiedObjectRelocationFormV1::ElfRela { width, .. } => usize::from(width),
+            VerifiedObjectRelocationFormV1::Unsigned64
+            | VerifiedObjectRelocationFormV1::Subtractor64 => 8,
             _ => 4,
         };
         if bytes.get(start..start + width).is_none() {
@@ -124,21 +125,22 @@ pub(in crate::link_object) fn canonicalize_relocations_with_associated_atoms(
 }
 
 fn relocation_targets(
-    shape: &VerifiedDarwinArm64RelocationShapeV1,
+    shape: &VerifiedObjectRelocationShapeV1,
 ) -> Vec<(RelocationTargetSlotV1, &VerifiedRelocationTargetV1)> {
     match shape {
-        VerifiedDarwinArm64RelocationShapeV1::Unsigned64 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::Branch26 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::Page21 { target, .. }
-        | VerifiedDarwinArm64RelocationShapeV1::PageOffset12 { target, .. }
-        | VerifiedDarwinArm64RelocationShapeV1::GotLoadPage21 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::GotLoadPageOffset12 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 { target }
-        | VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => {
+        VerifiedObjectRelocationShapeV1::ElfRela { target, .. }
+        | VerifiedObjectRelocationShapeV1::Unsigned64 { target }
+        | VerifiedObjectRelocationShapeV1::Branch26 { target }
+        | VerifiedObjectRelocationShapeV1::Page21 { target, .. }
+        | VerifiedObjectRelocationShapeV1::PageOffset12 { target, .. }
+        | VerifiedObjectRelocationShapeV1::GotLoadPage21 { target }
+        | VerifiedObjectRelocationShapeV1::GotLoadPageOffset12 { target }
+        | VerifiedObjectRelocationShapeV1::PointerToGot32 { target }
+        | VerifiedObjectRelocationShapeV1::TlvpLoadPage21 { target }
+        | VerifiedObjectRelocationShapeV1::TlvpLoadPageOffset12 { target } => {
             vec![(RelocationTargetSlotV1::Single, target)]
         }
-        VerifiedDarwinArm64RelocationShapeV1::Subtractor64 {
+        VerifiedObjectRelocationShapeV1::Subtractor64 {
             minuend,
             subtrahend,
         } => vec![

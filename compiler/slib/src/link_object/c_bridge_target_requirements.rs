@@ -246,7 +246,7 @@ pub fn verify_c_bridge_target_support_requirements_v1(
         if binding.section_role() == super::BuiltinObjectSectionRoleV1::ThreadLocalVariables
             && binding.containing_atom_role() == scoop_identity::DefinitionAtomRole::Primary
             && binding.offset_within_atom() == 0
-            && binding.relocation_form() == super::VerifiedDarwinArm64RelocationFormV1::Unsigned64
+            && binding.relocation_form() == super::VerifiedObjectRelocationFormV1::Unsigned64
             && let Some(requirement) = bridge_semantics
                 .target_support()
                 .requirement_for_object_symbol(binding.symbol())

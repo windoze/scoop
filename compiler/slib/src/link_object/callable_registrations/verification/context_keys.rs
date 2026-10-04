@@ -2,8 +2,8 @@ use scoop_identity::DefinitionAtomRole;
 use scoop_lir::{CallableContextKeyCellV1, StrongCallableRegistrationPlanV1};
 
 use crate::link_object::{
-    BuiltinObjectSectionRoleV1 as Section, VerifiedDarwinArm64RelocationShapeV1 as Shape,
-    VerifiedDefinitionAtomRangeV1, VerifiedMemberObjectRelocationIndexV1,
+    BuiltinObjectSectionRoleV1 as Section, VerifiedDefinitionAtomRangeV1,
+    VerifiedMemberObjectRelocationIndexV1, VerifiedObjectRelocationShapeV1 as Shape,
     VerifiedRelocationTargetV1 as Target,
 };
 
@@ -118,10 +118,7 @@ fn points_to(shape: &Shape, encoded: u64, range: VerifiedDefinitionAtomRangeV1) 
             target: Target::SectionBase {
                 section_ordinal, ..
             },
-        } => {
-            section_ordinal.get() == u32::from(range.section_ordinal().get())
-                && encoded == range.start()
-        }
+        } => section_ordinal.get() == range.section_ordinal().get() && encoded == range.start(),
         _ => false,
     }
 }

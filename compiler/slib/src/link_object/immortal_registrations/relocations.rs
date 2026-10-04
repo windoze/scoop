@@ -14,8 +14,8 @@ use super::{
 };
 use crate::link_object::{
     BuiltinObjectSectionRoleV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
-    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedMemberObjectRelocationIndexV1, VerifiedScoopLirDigestPatchSiteSetV1,
+    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedMemberObjectRelocationIndexV1,
+    VerifiedObjectRelocationFormV1, VerifiedScoopLirDigestPatchSiteSetV1,
 };
 
 const OBJECT_POINTER_OFFSET: u64 = 152;
@@ -259,7 +259,7 @@ fn validate_relocation_shape(
         Err(Failure::MissingOffset)
     } else if binding.width_bytes() != 8 {
         Err(Failure::Width)
-    } else if binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64 {
+    } else if binding.relocation_form() != VerifiedObjectRelocationFormV1::Unsigned64 {
         Err(Failure::Form)
     } else if binding.encoded_value() != 0 {
         Err(Failure::EncodedValue)

@@ -13,7 +13,7 @@ use scoop_lir::{
 use super::expected::ExpectedBridgeUnit;
 use super::{GeneratedBridgeRelocationSemanticV1, GeneratedCBridgeSemanticValidationError};
 use crate::{
-    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedDarwinArm64RelocationFormV1,
+    StrongRelocationBindingV1, StrongRelocationResolutionV1, VerifiedObjectRelocationFormV1,
 };
 
 pub(super) fn classify_binding(
@@ -73,12 +73,12 @@ pub(super) fn classify_binding(
             if resolved_definition(binding) == Some(definition)
                 && matches!(
                     binding.relocation_form(),
-                    VerifiedDarwinArm64RelocationFormV1::Unsigned64
-                        | VerifiedDarwinArm64RelocationFormV1::Page21 { .. }
-                        | VerifiedDarwinArm64RelocationFormV1::PageOffset12 { .. }
-                        | VerifiedDarwinArm64RelocationFormV1::GotLoadPage21
-                        | VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
-                        | VerifiedDarwinArm64RelocationFormV1::PointerToGot32
+                    VerifiedObjectRelocationFormV1::Unsigned64
+                        | VerifiedObjectRelocationFormV1::Page21 { .. }
+                        | VerifiedObjectRelocationFormV1::PageOffset12 { .. }
+                        | VerifiedObjectRelocationFormV1::GotLoadPage21
+                        | VerifiedObjectRelocationFormV1::GotLoadPageOffset12
+                        | VerifiedObjectRelocationFormV1::PointerToGot32
                 )
             {
                 return Ok(GeneratedBridgeRelocationSemanticV1::SignatureDescriptor { atom });
@@ -125,7 +125,7 @@ pub(super) fn classify_binding(
                 StrongRelocationResolutionV1::ExternalCandidate { .. }
             ) && binding.symbol() == external_symbol.as_bytes();
             if (resolved_definition(binding) == Some(definition) || external)
-                && binding.relocation_form() == VerifiedDarwinArm64RelocationFormV1::Branch26
+                && binding.relocation_form() == VerifiedObjectRelocationFormV1::Branch26
             {
                 return Ok(
                     GeneratedBridgeRelocationSemanticV1::StaticCallbackStorageBridge { body },
@@ -158,7 +158,7 @@ fn require_external_call(
     if !matches!(
         binding.resolution(),
         StrongRelocationResolutionV1::ExternalCandidate { .. }
-    ) || binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Branch26
+    ) || binding.relocation_form() != VerifiedObjectRelocationFormV1::Branch26
     {
         return Err(unexpected_binding(unit, binding));
     }
@@ -198,11 +198,11 @@ pub(super) fn validate_native_contract_kind(
 pub(super) fn native_relocation_form_matches(
     key: GeneratedBridgeUnitKey,
     contract: &NativeExternalContract,
-    form: VerifiedDarwinArm64RelocationFormV1,
+    form: VerifiedObjectRelocationFormV1,
 ) -> bool {
     match key {
         GeneratedBridgeUnitKey::OutboundFunction(_) => {
-            form == VerifiedDarwinArm64RelocationFormV1::Branch26
+            form == VerifiedObjectRelocationFormV1::Branch26
         }
         GeneratedBridgeUnitKey::GlobalRead(_)
         | GeneratedBridgeUnitKey::GlobalWrite(_)
@@ -210,18 +210,18 @@ pub(super) fn native_relocation_form_matches(
             NativeExternalContract::ReadOnlyTls { .. }
             | NativeExternalContract::MutableTls { .. } => matches!(
                 form,
-                VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
-                    | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
+                VerifiedObjectRelocationFormV1::TlvpLoadPage21
+                    | VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12
             ),
             NativeExternalContract::ReadOnlyData { .. }
             | NativeExternalContract::MutableData { .. } => matches!(
                 form,
-                VerifiedDarwinArm64RelocationFormV1::Unsigned64
-                    | VerifiedDarwinArm64RelocationFormV1::Page21 { .. }
-                    | VerifiedDarwinArm64RelocationFormV1::PageOffset12 { .. }
-                    | VerifiedDarwinArm64RelocationFormV1::GotLoadPage21
-                    | VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
-                    | VerifiedDarwinArm64RelocationFormV1::PointerToGot32
+                VerifiedObjectRelocationFormV1::Unsigned64
+                    | VerifiedObjectRelocationFormV1::Page21 { .. }
+                    | VerifiedObjectRelocationFormV1::PageOffset12 { .. }
+                    | VerifiedObjectRelocationFormV1::GotLoadPage21
+                    | VerifiedObjectRelocationFormV1::GotLoadPageOffset12
+                    | VerifiedObjectRelocationFormV1::PointerToGot32
             ),
             NativeExternalContract::Function { .. } => false,
         },

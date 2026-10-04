@@ -7,10 +7,9 @@ use crate::link_object::{
     CanonicalObjectDefinitionRequirementV1, CanonicalUndefinedRelocationUseV1,
     FinalUndefinedSymbolRequirementV1, LinkDefinitionOwnerV1, RelocationTargetSlotV1,
     StrongDefinitionOwnerV1, StrongRelocationResolutionV1,
-    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedDarwinArm64RelocationShapeV1, VerifiedDefinitionAtomRangeV1,
+    VerifiedCurrentConeStrongRelocationClosureV1, VerifiedDefinitionAtomRangeV1,
     VerifiedMemberObjectRelocationIndexV1, VerifiedObjectDefinitionRequirementSetV1,
-    VerifiedRelocationTargetV1,
+    VerifiedObjectRelocationFormV1, VerifiedObjectRelocationShapeV1, VerifiedRelocationTargetV1,
 };
 
 const PRIMARY_ATOM_ROLE: u32 = 1;
@@ -60,7 +59,7 @@ pub(in crate::link_object) struct CanonicalDigestInputV1 {
 #[derive(Clone)]
 pub(in crate::link_object) struct CanonicalObjectRelocationV1 {
     offset_within_atom: u64,
-    form: VerifiedDarwinArm64RelocationFormV1,
+    form: VerifiedObjectRelocationFormV1,
     encoded_value: u64,
     canonical_value: u64,
     targets: Vec<CanonicalRelocationTargetV1>,
@@ -101,7 +100,7 @@ impl CanonicalObjectRelocationV1 {
     ) -> Self {
         Self {
             offset_within_atom,
-            form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+            form: VerifiedObjectRelocationFormV1::Unsigned64,
             encoded_value: 0,
             canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
@@ -137,7 +136,7 @@ impl CanonicalObjectRelocationV1 {
     ) -> Self {
         Self {
             offset_within_atom,
-            form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+            form: VerifiedObjectRelocationFormV1::Unsigned64,
             encoded_value: 0,
             canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
@@ -155,7 +154,7 @@ impl CanonicalObjectRelocationV1 {
     ) -> Self {
         Self {
             offset_within_atom,
-            form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+            form: VerifiedObjectRelocationFormV1::Unsigned64,
             encoded_value: 0,
             canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
@@ -173,7 +172,7 @@ impl CanonicalObjectRelocationV1 {
     ) -> Self {
         Self {
             offset_within_atom,
-            form: VerifiedDarwinArm64RelocationFormV1::Unsigned64,
+            form: VerifiedObjectRelocationFormV1::Unsigned64,
             encoded_value: 0,
             canonical_value: 0,
             targets: vec![CanonicalRelocationTargetV1 {
@@ -194,8 +193,17 @@ impl CanonicalObjectRelocationV1 {
         let start = usize::try_from(self.offset_within_atom)
             .map_err(|_| ObjectDefinitionRelocationFailureV1::Range)?;
         match self.form {
-            VerifiedDarwinArm64RelocationFormV1::Unsigned64
-            | VerifiedDarwinArm64RelocationFormV1::Subtractor64 => {
+            VerifiedObjectRelocationFormV1::ElfRela { width, .. } => {
+                let slot = bytes
+                    .get_mut(start..start + usize::from(width))
+                    .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;
+                if slot != &self.encoded_value.to_le_bytes()[..usize::from(width)] {
+                    return Err(ObjectDefinitionRelocationFailureV1::EncodedValue);
+                }
+                slot.fill(0);
+            }
+            VerifiedObjectRelocationFormV1::Unsigned64
+            | VerifiedObjectRelocationFormV1::Subtractor64 => {
                 let slot = bytes
                     .get_mut(start..start + 8)
                     .ok_or(ObjectDefinitionRelocationFailureV1::Range)?;
@@ -205,20 +213,20 @@ impl CanonicalObjectRelocationV1 {
                 }
                 slot.fill(0);
             }
-            VerifiedDarwinArm64RelocationFormV1::Branch26 => {
+            VerifiedObjectRelocationFormV1::Branch26 => {
                 normalize_u32(bytes, start, self.encoded_value, 0xfc00_0000)?;
             }
-            VerifiedDarwinArm64RelocationFormV1::Page21 { .. }
-            | VerifiedDarwinArm64RelocationFormV1::GotLoadPage21
-            | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21 => {
+            VerifiedObjectRelocationFormV1::Page21 { .. }
+            | VerifiedObjectRelocationFormV1::GotLoadPage21
+            | VerifiedObjectRelocationFormV1::TlvpLoadPage21 => {
                 normalize_u32(bytes, start, self.encoded_value, 0x9f00_001f)?;
             }
-            VerifiedDarwinArm64RelocationFormV1::PageOffset12 { .. }
-            | VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
-            | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12 => {
+            VerifiedObjectRelocationFormV1::PageOffset12 { .. }
+            | VerifiedObjectRelocationFormV1::GotLoadPageOffset12
+            | VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12 => {
                 normalize_u32(bytes, start, self.encoded_value, 0xffc0_03ff)?;
             }
-            VerifiedDarwinArm64RelocationFormV1::PointerToGot32 => {
+            VerifiedObjectRelocationFormV1::PointerToGot32 => {
                 normalize_u32(bytes, start, self.encoded_value, 0)?;
             }
         }
@@ -233,7 +241,7 @@ impl CanonicalObjectRelocationV1 {
         target_offset_within_atom: u64,
     ) -> bool {
         self.offset_within_atom == offset_within_atom
-            && self.form == VerifiedDarwinArm64RelocationFormV1::Unsigned64
+            && self.form == VerifiedObjectRelocationFormV1::Unsigned64
             && self.canonical_value == 0
             && matches!(
                 self.targets.as_slice(),

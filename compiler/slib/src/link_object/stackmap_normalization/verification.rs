@@ -8,8 +8,8 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::{
     ProvisionalLlvmStackmapRecordHeaderV3, ProvisionalLlvmStackmapRecordV3,
-    VerifiedDarwinArm64StackmapSectionV3, VerifiedNormalizedStackmapRecordV1,
-    normalize_darwin_aarch64_stackmap_record_v1, verify_darwin_arm64_stackmap_section_v3,
+    VerifiedNormalizedStackmapRecordV1, VerifiedObjectStackmapSectionV3,
+    normalize_darwin_aarch64_stackmap_record_v1, verify_object_stackmap_section_v3,
 };
 use crate::SlibMemberId;
 use crate::link_object::{
@@ -92,14 +92,12 @@ pub fn verify_scoop_lir_stackmaps_v1(
     let mut records = Vec::with_capacity(semantic_plan.sites().len());
     for object in scoop_objects {
         let member = verified_member(&builtins, object.member())?;
-        let section = verify_darwin_arm64_stackmap_section_v3(
-            object.bytes(),
-            member.definitions().sections(),
-        )
-        .map_err(|source| ScoopLirStackmapValidationError::PhysicalSection {
-            member: object.member(),
-            source,
-        })?;
+        let section =
+            verify_object_stackmap_section_v3(object.bytes(), member.definitions().sections())
+                .map_err(|source| ScoopLirStackmapValidationError::PhysicalSection {
+                    member: object.member(),
+                    source,
+                })?;
         let expected = expected_by_member
             .get(&object.member())
             .map(Vec::as_slice)
@@ -245,7 +243,7 @@ fn verified_member(
 fn verify_member_records(
     object_bytes: &[u8],
     member: &VerifiedMemberObjectRelocationIndexV1,
-    section: Option<VerifiedDarwinArm64StackmapSectionV3>,
+    section: Option<VerifiedObjectStackmapSectionV3>,
     expected: &[StrongSafepointSemanticPlanV1],
 ) -> Result<Vec<VerifiedScoopLirStackmapRecordV1>, ScoopLirStackmapValidationError> {
     let Some(section) = section else {
@@ -419,14 +417,14 @@ fn verify_member_records(
 
 fn validate_stackmap_atom_roles(
     member: &VerifiedMemberObjectRelocationIndexV1,
-    section: &VerifiedDarwinArm64StackmapSectionV3,
+    section: &VerifiedObjectStackmapSectionV3,
 ) -> Result<(), ScoopLirStackmapValidationError> {
     for atom in member
         .definitions()
         .definitions()
         .iter()
         .flat_map(|definition| definition.atoms())
-        .filter(|atom| u32::from(atom.section_ordinal().get()) == section.section_ordinal().get())
+        .filter(|atom| atom.section_ordinal().get() == section.section_ordinal().get())
     {
         if atom.atom_role() != DefinitionAtomRole::Stackmap {
             return Err(ScoopLirStackmapValidationError::NonStackmapAtomInSection {

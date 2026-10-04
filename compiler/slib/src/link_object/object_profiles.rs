@@ -1,4 +1,4 @@
-//! Producer-specific qualification layered on the shared Mach-O envelope.
+//! Producer profiles over Mach-O and ELF object facts.
 
 use std::fmt;
 
@@ -42,8 +42,18 @@ impl ValidatedScoopLirObjectEnvelopeV1 {
 }
 
 pub fn validate_scoop_lir_llvm_22_1_object_envelope_v1(
+    target: scoop_lir::LirTargetProfile,
     bytes: &[u8],
 ) -> Result<ValidatedScoopLirObjectEnvelopeV1, ScoopLirObjectEnvelopeValidationError> {
+    if target.native_object_format() == scoop_lir::NativeObjectFormat::Elf64 {
+        return crate::link_object::elf::builtin::sections(
+            bytes,
+            target.id(),
+            BuiltinLinkObjectSectionProfileV1::ScoopLir,
+        )
+        .map(|sections| ValidatedScoopLirObjectEnvelopeV1 { sections })
+        .map_err(ScoopLirObjectEnvelopeValidationError::Elf);
+    }
     let envelope = validate_darwin_arm64_object_envelope_v1(bytes)
         .map_err(ScoopLirObjectEnvelopeValidationError::Envelope)?;
     if let Some(actual) = envelope.deployment() {
@@ -96,8 +106,30 @@ pub fn validate_generated_c_bridge_object_envelope_v1(
     Ok(ValidatedGeneratedCBridgeObjectEnvelopeV1 { sections })
 }
 
+pub fn validate_generated_c_object_for_profile_v1(
+    bytes: &[u8],
+    profile: &scoop_lir::CBridgeToolchainProfileV1,
+) -> Result<ValidatedGeneratedCBridgeObjectEnvelopeV1, GeneratedCBridgeObjectEnvelopeValidationError>
+{
+    match profile.contract().platform() {
+        scoop_lir::CBridgePlatformContractV1::Darwin { deployment, .. } => {
+            validate_generated_c_bridge_object_envelope_v1(bytes, deployment)
+        }
+        scoop_lir::CBridgePlatformContractV1::Linux { .. } => {
+            crate::link_object::elf::builtin::sections(
+                bytes,
+                profile.contract().target().id(),
+                BuiltinLinkObjectSectionProfileV1::GeneratedCBridge,
+            )
+            .map(|sections| ValidatedGeneratedCBridgeObjectEnvelopeV1 { sections })
+            .map_err(GeneratedCBridgeObjectEnvelopeValidationError::Elf)
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScoopLirObjectEnvelopeValidationError {
+    Elf(crate::link_object::ElfObjectError),
     Envelope(ObjectEnvelopeValidationError),
     UnexpectedDeployment(DarwinDeploymentCommandV1),
     Sections(BuiltinObjectSectionValidationError),
@@ -116,6 +148,7 @@ impl std::error::Error for ScoopLirObjectEnvelopeValidationError {}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum GeneratedCBridgeObjectEnvelopeValidationError {
+    Elf(crate::link_object::ElfObjectError),
     Envelope(ObjectEnvelopeValidationError),
     MissingDeployment,
     DeploymentMismatch {

@@ -141,12 +141,15 @@ impl<'a> ElfObject<'a> {
         Ok(())
     }
 
-    pub(crate) fn writable_stackmaps(&mut self) -> Result<(), CodegenError> {
+    pub(crate) fn relocatable_metadata(&mut self) -> Result<(), CodegenError> {
         let sections = self
             .file
             .sections()
             .filter_map(|section| {
-                (section.name().ok() == Some(".llvm_stackmaps")).then_some(section.index())
+                section.name().ok().and_then(|name| {
+                    (name == ".llvm_stackmaps" || name.starts_with(".data.rel.ro.scoop."))
+                        .then_some(section.index())
+                })
             })
             .collect::<Vec<_>>();
         for section in sections {

@@ -23,9 +23,12 @@ use crate::{
 fn verifies_exact_external_symbols_and_primary_atom_range() {
     let fixture = fixture();
     let object = object_for_plan(&fixture.symbols, canonical_value);
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &object.bytes,
+    )
+    .unwrap()
+    .into_sections();
 
     let verified =
         verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols)
@@ -57,9 +60,12 @@ fn rejects_duplicate_and_unexpected_external_definitions() {
         duplicate.symbol_offset,
         duplicate.string_indexes[1],
     );
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&duplicate.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &duplicate.bytes,
+    )
+    .unwrap()
+    .into_sections();
     assert!(matches!(
         verify_member_strong_object_definitions_v1(&duplicate.bytes, sections, &fixture.symbols),
         Err(StrongObjectDefinitionValidationError::DuplicateExternalStrongDefinition { .. })
@@ -68,9 +74,12 @@ fn rejects_duplicate_and_unexpected_external_definitions() {
     let mut unexpected = object_for_plan(&fixture.symbols, canonical_value);
     let first_name = unexpected.string_offset + unexpected.string_indexes[0] as usize;
     unexpected.bytes[first_name] = b'X';
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&unexpected.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &unexpected.bytes,
+    )
+    .unwrap()
+    .into_sections();
     assert!(matches!(
         verify_member_strong_object_definitions_v1(&unexpected.bytes, sections, &fixture.symbols),
         Err(StrongObjectDefinitionValidationError::UnexpectedExternalStrongDefinition { .. })
@@ -83,15 +92,18 @@ fn rejects_weak_definition_for_a_planned_strong_symbol() {
     let mut object = object_for_plan(&fixture.symbols, canonical_value);
     object.bytes[object.symbol_offset + 6..object.symbol_offset + 8]
         .copy_from_slice(&macho::N_WEAK_DEF.to_le_bytes());
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&object.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &object.bytes,
+    )
+    .unwrap()
+    .into_sections();
     assert!(matches!(
         verify_member_strong_object_definitions_v1(&object.bytes, sections, &fixture.symbols),
         Err(
             StrongObjectDefinitionValidationError::DefinitionLinkageMismatch {
                 expected: LinkageClass::ConeStrong,
-                actual: DarwinArm64SymbolKindV1::ExternalWeakDefinition,
+                actual: ObjectSymbolKindV1::ExternalWeakDefinition,
                 ..
             }
         )
@@ -106,9 +118,12 @@ fn rejects_empty_ranges_and_displaced_primary_symbols() {
         | PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { .. }
         | PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => 0,
     });
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&empty.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &empty.bytes,
+    )
+    .unwrap()
+    .into_sections();
     assert_eq!(
         verify_member_strong_object_definitions_v1(&empty.bytes, sections, &fixture.symbols),
         Err(StrongObjectDefinitionValidationError::InvalidAtomRange {
@@ -123,9 +138,12 @@ fn rejects_empty_ranges_and_displaced_primary_symbols() {
         PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { .. } => 0,
         PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { .. } => 4,
     });
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&displaced.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &displaced.bytes,
+    )
+    .unwrap()
+    .into_sections();
     assert_eq!(
         verify_member_strong_object_definitions_v1(&displaced.bytes, sections, &fixture.symbols),
         Err(
@@ -159,9 +177,12 @@ fn rejects_overlapping_atom_ranges_across_one_member() {
         }
         _ => unreachable!("fixture has exactly two planned atoms"),
     });
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&overlapping.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &overlapping.bytes,
+    )
+    .unwrap()
+    .into_sections();
     assert_eq!(
         verify_member_strong_object_definitions_v1(&overlapping.bytes, sections, &fixture.symbols),
         Err(
@@ -177,9 +198,12 @@ fn rejects_overlapping_atom_ranges_across_one_member() {
 fn binds_the_validation_to_exact_bytes_and_requires_zero_padding() {
     let fixture = fixture();
     let mut changed = object_for_plan(&fixture.symbols, canonical_value);
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&changed.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &changed.bytes,
+    )
+    .unwrap()
+    .into_sections();
     changed.bytes[changed.section_offset] ^= 1;
     assert_eq!(
         verify_member_strong_object_definitions_v1(&changed.bytes, sections, &fixture.symbols),
@@ -188,9 +212,12 @@ fn binds_the_validation_to_exact_bytes_and_requires_zero_padding() {
 
     let mut nonzero_padding = object_for_plan(&fixture.symbols, canonical_value);
     nonzero_padding.bytes[nonzero_padding.section_offset + 4] = 1;
-    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(&nonzero_padding.bytes)
-        .unwrap()
-        .into_sections();
+    let sections = validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        &nonzero_padding.bytes,
+    )
+    .unwrap()
+    .into_sections();
     assert_eq!(
         verify_member_strong_object_definitions_v1(
             &nonzero_padding.bytes,

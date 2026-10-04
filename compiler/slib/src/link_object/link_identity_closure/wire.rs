@@ -88,7 +88,7 @@ impl WireDecode for DecodedLinkObjectMaterializationV1 {
 struct DecodedDefinitionAtomRangeProjectionV1 {
     atom: DecodedPersistentId<ObjectDefinitionAtomId>,
     atom_role: DefinitionAtomRole,
-    section_ordinal: u8,
+    section_ordinal: u32,
     start: u64,
     end: u64,
     padding_end: u64,
@@ -118,7 +118,7 @@ impl WireDecode for DecodedDefinitionAtomRangeProjectionV1 {
         Ok(Self {
             atom: decoder.field(1, DecodedPersistentId::decode)?,
             atom_role: decoder.field(2, DefinitionAtomRole::decode)?,
-            section_ordinal: decoder.field(3, decode_nonzero_u8)?,
+            section_ordinal: decoder.field(3, decode_nonzero_u32)?,
             start: decoder.field(4, Decoder::unsigned)?,
             end: decoder.field(5, Decoder::unsigned)?,
             padding_end: decoder.field(6, Decoder::unsigned)?,
@@ -580,10 +580,10 @@ fn decode_persistent_id_array<I: PersistentId>(
     decoder.decode_array(|decoder, _| DecodedPersistentId::decode(decoder))
 }
 
-fn decode_nonzero_u8(decoder: &mut Decoder<'_>) -> Result<u8, WireError> {
+fn decode_nonzero_u32(decoder: &mut Decoder<'_>) -> Result<u32, WireError> {
     let value = decoder.unsigned()?;
     let value =
-        u8::try_from(value).map_err(|_| wire_error(decoder, WireErrorKind::IntegerOutOfRange))?;
+        u32::try_from(value).map_err(|_| wire_error(decoder, WireErrorKind::IntegerOutOfRange))?;
     if value == 0 {
         return Err(wire_error(decoder, WireErrorKind::IntegerOutOfRange));
     }

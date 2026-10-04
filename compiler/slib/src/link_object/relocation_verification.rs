@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
-use std::num::{NonZeroU8, NonZeroU32};
+use std::num::NonZeroU32;
 
 use scoop_identity::{
     ConeIdentity, DefinitionAtomRole, ObjectDefinitionAtomId, ObjectDefinitionPlanId,
@@ -10,10 +10,13 @@ use scoop_identity::{
 
 use super::{
     BuiltinObjectSectionRoleV1, DarwinArm64RelocationShapeV1, DarwinArm64RelocationTargetV1,
-    DarwinArm64SymbolKindV1, PlannedStrongObjectSymbolRoleV1,
+    ObjectSymbolKindV1, PlannedStrongObjectSymbolRoleV1,
     VerifiedMemberStrongObjectDefinitionIndexV1,
 };
 use crate::SlibMemberId;
+
+mod resolution;
+use resolution::resolve_shape;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum VerifiedBoundaryRoleV1 {
@@ -30,7 +33,7 @@ pub enum VerifiedRelocationTargetV1 {
         table_index: u32,
         name: Vec<u8>,
         owner_atom: Option<ObjectDefinitionAtomId>,
-        section_ordinal: NonZeroU8,
+        section_ordinal: NonZeroU32,
         value: u64,
     },
     ExternalUndefined {
@@ -44,7 +47,13 @@ pub enum VerifiedRelocationTargetV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum VerifiedDarwinArm64RelocationShapeV1 {
+pub enum VerifiedObjectRelocationShapeV1 {
+    ElfRela {
+        kind: u32,
+        addend: i64,
+        width: u8,
+        target: VerifiedRelocationTargetV1,
+    },
     Unsigned64 {
         target: VerifiedRelocationTargetV1,
     },
@@ -81,7 +90,8 @@ pub enum VerifiedDarwinArm64RelocationShapeV1 {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum VerifiedDarwinArm64RelocationFormV1 {
+pub enum VerifiedObjectRelocationFormV1 {
+    ElfRela { kind: u32, addend: i64, width: u8 },
     Unsigned64,
     Subtractor64,
     Branch26,
@@ -94,30 +104,38 @@ pub enum VerifiedDarwinArm64RelocationFormV1 {
     TlvpLoadPageOffset12,
 }
 
-impl VerifiedDarwinArm64RelocationShapeV1 {
-    pub const fn form(&self) -> VerifiedDarwinArm64RelocationFormV1 {
+impl VerifiedObjectRelocationShapeV1 {
+    pub const fn form(&self) -> VerifiedObjectRelocationFormV1 {
         match self {
-            Self::Unsigned64 { .. } => VerifiedDarwinArm64RelocationFormV1::Unsigned64,
-            Self::Subtractor64 { .. } => VerifiedDarwinArm64RelocationFormV1::Subtractor64,
-            Self::Branch26 { .. } => VerifiedDarwinArm64RelocationFormV1::Branch26,
+            Self::ElfRela {
+                kind,
+                addend,
+                width,
+                ..
+            } => VerifiedObjectRelocationFormV1::ElfRela {
+                kind: *kind,
+                addend: *addend,
+                width: *width,
+            },
+            Self::Unsigned64 { .. } => VerifiedObjectRelocationFormV1::Unsigned64,
+            Self::Subtractor64 { .. } => VerifiedObjectRelocationFormV1::Subtractor64,
+            Self::Branch26 { .. } => VerifiedObjectRelocationFormV1::Branch26,
             Self::Page21 {
                 explicit_addend, ..
-            } => VerifiedDarwinArm64RelocationFormV1::Page21 {
+            } => VerifiedObjectRelocationFormV1::Page21 {
                 explicit_addend: *explicit_addend,
             },
             Self::PageOffset12 {
                 explicit_addend, ..
-            } => VerifiedDarwinArm64RelocationFormV1::PageOffset12 {
+            } => VerifiedObjectRelocationFormV1::PageOffset12 {
                 explicit_addend: *explicit_addend,
             },
-            Self::GotLoadPage21 { .. } => VerifiedDarwinArm64RelocationFormV1::GotLoadPage21,
-            Self::GotLoadPageOffset12 { .. } => {
-                VerifiedDarwinArm64RelocationFormV1::GotLoadPageOffset12
-            }
-            Self::PointerToGot32 { .. } => VerifiedDarwinArm64RelocationFormV1::PointerToGot32,
-            Self::TlvpLoadPage21 { .. } => VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21,
+            Self::GotLoadPage21 { .. } => VerifiedObjectRelocationFormV1::GotLoadPage21,
+            Self::GotLoadPageOffset12 { .. } => VerifiedObjectRelocationFormV1::GotLoadPageOffset12,
+            Self::PointerToGot32 { .. } => VerifiedObjectRelocationFormV1::PointerToGot32,
+            Self::TlvpLoadPage21 { .. } => VerifiedObjectRelocationFormV1::TlvpLoadPage21,
             Self::TlvpLoadPageOffset12 { .. } => {
-                VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
+                VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12
             }
         }
     }
@@ -132,7 +150,7 @@ pub struct VerifiedRelocationUseV1 {
     offset_within_atom: u64,
     width_bytes: u8,
     encoded_value: u64,
-    shape: VerifiedDarwinArm64RelocationShapeV1,
+    shape: VerifiedObjectRelocationShapeV1,
 }
 
 impl VerifiedRelocationUseV1 {
@@ -164,7 +182,7 @@ impl VerifiedRelocationUseV1 {
         self.encoded_value
     }
 
-    pub const fn shape(&self) -> &VerifiedDarwinArm64RelocationShapeV1 {
+    pub const fn shape(&self) -> &VerifiedObjectRelocationShapeV1 {
         &self.shape
     }
 }
@@ -202,19 +220,17 @@ pub fn verify_member_object_relocations_v1(
     let mut used_undefined_symbols = BTreeSet::new();
     let mut relocations = Vec::with_capacity(envelope.relocations().len());
     for relocation in envelope.relocations() {
-        let section_ordinal = u8::try_from(relocation.containing_section_ordinal().get())
-            .ok()
-            .and_then(NonZeroU8::new)
-            .ok_or(
-                ObjectRelocationValidationError::UnsupportedContainingSectionOrdinal {
-                    section: relocation.containing_section_ordinal(),
-                },
-            )?;
-        let section_index = usize::from(section_ordinal.get()) - 1;
-        let section = envelope.sections()[section_index];
+        let section_ordinal = relocation.containing_section_ordinal();
+        let section_index = section_ordinal.get() as usize - 1;
+        if definitions.sections().roles()[section_index]
+            == BuiltinObjectSectionRoleV1::ObjectMetadata
+        {
+            continue;
+        }
+        let section = &envelope.sections()[section_index];
         let site_start = section
             .virtual_address()
-            .checked_add(u64::from(relocation.offset()))
+            .checked_add(relocation.offset())
             .ok_or(ObjectRelocationValidationError::RelocationSiteOverflow)?;
         let width_bytes = relocation.shape().width_bytes();
         let site_end = site_start
@@ -252,8 +268,11 @@ pub fn verify_member_object_relocations_v1(
             shape,
         });
     }
-    if let Some(symbol) = envelope.symbols().iter().find(|symbol| {
-        symbol.kind() == DarwinArm64SymbolKindV1::ExternalUndefined
+    if matches!(
+        envelope.format(),
+        super::ObjectEnvelopeFormatV1::DarwinArm64 { .. }
+    ) && let Some(symbol) = envelope.symbols().iter().find(|symbol| {
+        symbol.kind() == ObjectSymbolKindV1::ExternalUndefined
             && !used_undefined_symbols.contains(&symbol.table_index())
     }) {
         return Err(ObjectRelocationValidationError::UnusedExternalUndefined {
@@ -275,7 +294,7 @@ fn local_symbol_owners(
         .envelope()
         .symbols()
         .iter()
-        .filter(|symbol| symbol.kind() == DarwinArm64SymbolKindV1::LocalSectionDefinition)
+        .filter(|symbol| symbol.kind() == ObjectSymbolKindV1::LocalSectionDefinition)
         .filter_map(|symbol| {
             let section = symbol.section_ordinal()?;
             let owner = definitions
@@ -301,7 +320,7 @@ fn validate_unique_undefined_symbols(
         .envelope()
         .symbols()
         .iter()
-        .filter(|symbol| symbol.kind() == DarwinArm64SymbolKindV1::ExternalUndefined)
+        .filter(|symbol| symbol.kind() == ObjectSymbolKindV1::ExternalUndefined)
     {
         if let Some(first) = names.insert(symbol.name().to_vec(), symbol.table_index()) {
             return Err(
@@ -314,221 +333,6 @@ fn validate_unique_undefined_symbols(
         }
     }
     Ok(())
-}
-
-fn resolve_shape(
-    shape: DarwinArm64RelocationShapeV1,
-    definitions: &VerifiedMemberStrongObjectDefinitionIndexV1,
-    local_symbol_owners: &BTreeMap<u32, ObjectDefinitionAtomId>,
-    used_undefined_symbols: &mut BTreeSet<u32>,
-) -> Result<VerifiedDarwinArm64RelocationShapeV1, ObjectRelocationValidationError> {
-    Ok(match shape {
-        DarwinArm64RelocationShapeV1::Unsigned64 { target } => {
-            VerifiedDarwinArm64RelocationShapeV1::Unsigned64 {
-                target: resolve_target(
-                    target,
-                    definitions,
-                    local_symbol_owners,
-                    used_undefined_symbols,
-                )?,
-            }
-        }
-        DarwinArm64RelocationShapeV1::Subtractor64 {
-            minuend,
-            subtrahend,
-        } => VerifiedDarwinArm64RelocationShapeV1::Subtractor64 {
-            minuend: resolve_target(
-                minuend,
-                definitions,
-                local_symbol_owners,
-                used_undefined_symbols,
-            )?,
-            subtrahend: resolve_target(
-                subtrahend,
-                definitions,
-                local_symbol_owners,
-                used_undefined_symbols,
-            )?,
-        },
-        DarwinArm64RelocationShapeV1::Branch26 { target } => {
-            VerifiedDarwinArm64RelocationShapeV1::Branch26 {
-                target: resolve_target(
-                    target,
-                    definitions,
-                    local_symbol_owners,
-                    used_undefined_symbols,
-                )?,
-            }
-        }
-        DarwinArm64RelocationShapeV1::Page21 {
-            target,
-            explicit_addend,
-        } => VerifiedDarwinArm64RelocationShapeV1::Page21 {
-            target: resolve_target(
-                target,
-                definitions,
-                local_symbol_owners,
-                used_undefined_symbols,
-            )?,
-            explicit_addend,
-        },
-        DarwinArm64RelocationShapeV1::PageOffset12 {
-            target,
-            explicit_addend,
-        } => VerifiedDarwinArm64RelocationShapeV1::PageOffset12 {
-            target: resolve_target(
-                target,
-                definitions,
-                local_symbol_owners,
-                used_undefined_symbols,
-            )?,
-            explicit_addend,
-        },
-        DarwinArm64RelocationShapeV1::GotLoadPage21 { target } => {
-            VerifiedDarwinArm64RelocationShapeV1::GotLoadPage21 {
-                target: resolve_target(
-                    target,
-                    definitions,
-                    local_symbol_owners,
-                    used_undefined_symbols,
-                )?,
-            }
-        }
-        DarwinArm64RelocationShapeV1::GotLoadPageOffset12 { target } => {
-            VerifiedDarwinArm64RelocationShapeV1::GotLoadPageOffset12 {
-                target: resolve_target(
-                    target,
-                    definitions,
-                    local_symbol_owners,
-                    used_undefined_symbols,
-                )?,
-            }
-        }
-        DarwinArm64RelocationShapeV1::PointerToGot32 { target } => {
-            VerifiedDarwinArm64RelocationShapeV1::PointerToGot32 {
-                target: resolve_target(
-                    target,
-                    definitions,
-                    local_symbol_owners,
-                    used_undefined_symbols,
-                )?,
-            }
-        }
-        DarwinArm64RelocationShapeV1::TlvpLoadPage21 { target } => {
-            VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPage21 {
-                target: resolve_target(
-                    target,
-                    definitions,
-                    local_symbol_owners,
-                    used_undefined_symbols,
-                )?,
-            }
-        }
-        DarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 { target } => {
-            VerifiedDarwinArm64RelocationShapeV1::TlvpLoadPageOffset12 {
-                target: resolve_target(
-                    target,
-                    definitions,
-                    local_symbol_owners,
-                    used_undefined_symbols,
-                )?,
-            }
-        }
-    })
-}
-
-fn resolve_target(
-    target: DarwinArm64RelocationTargetV1,
-    definitions: &VerifiedMemberStrongObjectDefinitionIndexV1,
-    local_symbol_owners: &BTreeMap<u32, ObjectDefinitionAtomId>,
-    used_undefined_symbols: &mut BTreeSet<u32>,
-) -> Result<VerifiedRelocationTargetV1, ObjectRelocationValidationError> {
-    match target {
-        DarwinArm64RelocationTargetV1::SectionOrdinal(section_ordinal) => {
-            let index = usize::try_from(section_ordinal.get() - 1).map_err(|_| {
-                ObjectRelocationValidationError::InvalidSectionTarget {
-                    section: section_ordinal,
-                }
-            })?;
-            let section_role = definitions.sections().roles().get(index).copied().ok_or(
-                ObjectRelocationValidationError::InvalidSectionTarget {
-                    section: section_ordinal,
-                },
-            )?;
-            Ok(VerifiedRelocationTargetV1::SectionBase {
-                section_ordinal,
-                section_role,
-            })
-        }
-        DarwinArm64RelocationTargetV1::SymbolTableIndex(table_index) => {
-            if let Some(strong) = definitions.strong_symbol_by_table_index(table_index) {
-                return match strong.role() {
-                    PlannedStrongObjectSymbolRoleV1::PrimaryDefinition { definition, .. } => {
-                        Ok(VerifiedRelocationTargetV1::StrongDefinition { definition })
-                    }
-                    PlannedStrongObjectSymbolRoleV1::AtomBoundaryStart { atom, .. } => {
-                        let symbol = definitions
-                            .sections()
-                            .envelope()
-                            .symbols()
-                            .get(table_index as usize)
-                            .ok_or(ObjectRelocationValidationError::InvalidSymbolTarget {
-                                table_index,
-                            })?;
-                        let section_ordinal = symbol.section_ordinal().ok_or(
-                            ObjectRelocationValidationError::InvalidSymbolTarget { table_index },
-                        )?;
-                        Ok(VerifiedRelocationTargetV1::LocalDefinition {
-                            table_index,
-                            name: symbol.name().to_vec(),
-                            owner_atom: Some(atom),
-                            section_ordinal,
-                            value: symbol.value(),
-                        })
-                    }
-                    PlannedStrongObjectSymbolRoleV1::AtomBoundaryEnd { atom, .. } => {
-                        Err(ObjectRelocationValidationError::BoundaryRelocationTarget {
-                            atom,
-                            boundary: VerifiedBoundaryRoleV1::End,
-                        })
-                    }
-                };
-            }
-            let symbol = definitions
-                .sections()
-                .envelope()
-                .symbols()
-                .get(table_index as usize)
-                .ok_or(ObjectRelocationValidationError::InvalidSymbolTarget { table_index })?;
-            match symbol.kind() {
-                DarwinArm64SymbolKindV1::ExternalStrongDefinition
-                | DarwinArm64SymbolKindV1::ExternalWeakDefinition => Err(
-                    ObjectRelocationValidationError::UnplannedStrongDefinitionTarget {
-                        table_index,
-                    },
-                ),
-                DarwinArm64SymbolKindV1::LocalSectionDefinition => {
-                    let section_ordinal = symbol.section_ordinal().ok_or(
-                        ObjectRelocationValidationError::InvalidSymbolTarget { table_index },
-                    )?;
-                    Ok(VerifiedRelocationTargetV1::LocalDefinition {
-                        table_index,
-                        name: symbol.name().to_vec(),
-                        owner_atom: local_symbol_owners.get(&table_index).copied(),
-                        section_ordinal,
-                        value: symbol.value(),
-                    })
-                }
-                DarwinArm64SymbolKindV1::ExternalUndefined => {
-                    used_undefined_symbols.insert(table_index);
-                    Ok(VerifiedRelocationTargetV1::ExternalUndefined {
-                        table_index,
-                        name: symbol.name().to_vec(),
-                    })
-                }
-            }
-        }
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -544,7 +348,7 @@ pub enum ObjectRelocationValidationError {
     RelocationSiteOverflow,
     OrphanRelocation {
         section: NonZeroU32,
-        offset: u32,
+        offset: u64,
         width_bytes: u8,
     },
     InvalidSectionTarget {

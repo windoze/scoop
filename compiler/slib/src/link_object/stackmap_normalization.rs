@@ -21,8 +21,8 @@ pub use record::*;
 mod parser;
 pub use parser::*;
 
-mod macho;
-pub use macho::*;
+mod section;
+pub use section::*;
 
 pub(crate) mod verification;
 pub use verification::*;

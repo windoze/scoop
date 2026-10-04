@@ -20,6 +20,7 @@ pub(super) fn materialize(
             existing_pair(&mut output, *boundary)?;
         }
     }
+    output.relocatable_metadata()?;
     std::fs::write(path, output.finish()?).map_err(error)
 }
 

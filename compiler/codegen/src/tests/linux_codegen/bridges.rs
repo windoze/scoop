@@ -27,8 +27,50 @@ fn linux_generated_c_functions_tls_and_callback_link_and_run() {
         assert_eq!(emitted.members().len(), 5);
         let surface =
             scoop_lir::ObjectSymbolSurfaceV1::from_foundation(input.foundation()).unwrap();
+        let partition =
+            scoop_lir::ProducerUnitPartitionV1::from_foundation(input.foundation()).unwrap();
+        let members = scoop_slib::PlannedLinkObjectMemberSetV1::new(
+            input.module().meta.target_profile,
+            &partition,
+            vec![
+                scoop_slib::CanonicalScoopLirObjectUnitSetV1::new(
+                    partition.scoop_lir_definition_plans().to_vec(),
+                )
+                .unwrap(),
+            ],
+            emitted
+                .members()
+                .iter()
+                .map(|m| {
+                    scoop_slib::CanonicalGeneratedBridgeObjectUnitSetV1::new(vec![m.unit()])
+                        .unwrap()
+                })
+                .collect(),
+        )
+        .unwrap();
+        let symbols = scoop_slib::PlannedStrongObjectSymbolSetV1::new(
+            input.module().meta.target_profile,
+            &surface,
+            &members,
+        )
+        .unwrap();
         for member in emitted.members() {
             let bytes = std::fs::read(member.object_path()).unwrap();
+            let envelope = scoop_slib::validate_generated_c_object_for_profile_v1(
+                &bytes,
+                invocation.profile(),
+            )
+            .unwrap();
+            let member_id = members
+                .member_for_generated_bridge_unit(member.unit())
+                .unwrap();
+            let definitions = scoop_slib::verify_member_strong_object_definitions_v1(
+                &bytes,
+                envelope.into_sections(),
+                symbols.member(member_id).unwrap(),
+            )
+            .unwrap();
+            scoop_slib::verify_member_object_relocations_v1(definitions).unwrap();
             let file = object::File::parse(bytes.as_slice()).unwrap();
             assert!(file.section_by_name(".eh_frame").is_none());
             for atom in std::iter::once(member.plan().primary_atom_authority())

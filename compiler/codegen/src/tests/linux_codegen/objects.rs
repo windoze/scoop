@@ -56,6 +56,14 @@ fn linux_elf_members_materialize_boundaries_tls_and_odr_groups() {
             let mut odr_member = None;
             for member in emitted.members() {
                 let bytes = std::fs::read(member.path()).unwrap();
+                let envelope = scoop_slib::validate_scoop_lir_llvm_22_1_object_envelope_v1(
+                    input.module().meta.target_profile,
+                    &bytes,
+                )
+                .expect("shared slib ELF envelope");
+                assert_eq!(envelope.sections().envelope().target(), target);
+                scoop_slib::verify_object_stackmap_section_v3(&bytes, envelope.sections())
+                    .expect("shared ELF stackmap section and function relocations");
                 let file = object::File::parse(bytes.as_slice()).unwrap();
                 for symbol in file
                     .symbols()

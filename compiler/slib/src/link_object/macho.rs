@@ -17,9 +17,6 @@ pub use symbols::*;
 mod relocations;
 pub use relocations::*;
 
-mod profiles;
-pub use profiles::*;
-
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DarwinBuildToolVersionV1 {
     tool: u32,

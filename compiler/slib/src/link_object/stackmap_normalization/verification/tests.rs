@@ -1,5 +1,5 @@
 use super::*;
-use crate::link_object::DarwinArm64StackmapSectionError;
+use crate::link_object::ObjectStackmapSectionError;
 
 pub(crate) mod support;
 use support::{Corruption, Fixture};
@@ -144,7 +144,7 @@ fn rejects_object_bytes_changed_after_the_builtin_object_proof() {
         verify_scoop_lir_stackmaps_v1(fixture.builtins, fixture.semantic_plan, &objects),
         Err(ScoopLirStackmapValidationError::PhysicalSection {
             member,
-            source: DarwinArm64StackmapSectionError::ObjectBytesMismatch,
+            source: ObjectStackmapSectionError::ObjectBytesMismatch,
         })
     );
 }

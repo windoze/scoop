@@ -9,7 +9,7 @@ fn qualifies_exact_function_address_relocations() {
         let object = stackmap_object(0, &[RelocationKind::Unsigned], kind);
         let sections = validated_sections(&object.bytes);
 
-        let verified = verify_darwin_arm64_stackmap_section_v3(&object.bytes, &sections)
+        let verified = verify_object_stackmap_section_v3(&object.bytes, &sections)
             .unwrap()
             .unwrap();
 
@@ -38,7 +38,7 @@ fn reports_absent_stackmap_section_without_fabricating_an_empty_proof() {
     let sections = validated_sections(&object.bytes);
 
     assert_eq!(
-        verify_darwin_arm64_stackmap_section_v3(&object.bytes, &sections),
+        verify_object_stackmap_section_v3(&object.bytes, &sections),
         Ok(None)
     );
 
@@ -50,8 +50,8 @@ fn reports_absent_stackmap_section_without_fabricating_an_empty_proof() {
     )
     .unwrap();
     assert_eq!(
-        verify_darwin_arm64_stackmap_section_v3(&object.bytes, &generated),
-        Err(DarwinArm64StackmapSectionError::WrongSectionProfile(
+        verify_object_stackmap_section_v3(&object.bytes, &generated),
+        Err(ObjectStackmapSectionError::WrongSectionProfile(
             BuiltinLinkObjectSectionProfileV1::GeneratedCBridge,
         ))
     );
@@ -62,9 +62,9 @@ fn rejects_missing_wrong_extra_and_non_definition_relocations() {
     let missing = stackmap_object(0, &[], SymbolKind::Definition);
     let sections = validated_sections(&missing.bytes);
     assert_eq!(
-        verify_darwin_arm64_stackmap_section_v3(&missing.bytes, &sections),
+        verify_object_stackmap_section_v3(&missing.bytes, &sections),
         Err(
-            DarwinArm64StackmapSectionError::MissingFunctionAddressRelocation {
+            ObjectStackmapSectionError::MissingFunctionAddressRelocation {
                 index: 0,
                 offset: 16,
             }
@@ -74,8 +74,8 @@ fn rejects_missing_wrong_extra_and_non_definition_relocations() {
     let wrong = stackmap_object(0, &[RelocationKind::Branch], SymbolKind::Definition);
     let sections = validated_sections(&wrong.bytes);
     assert!(matches!(
-        verify_darwin_arm64_stackmap_section_v3(&wrong.bytes, &sections),
-        Err(DarwinArm64StackmapSectionError::InvalidFunctionAddressRelocation { index: 0, .. })
+        verify_object_stackmap_section_v3(&wrong.bytes, &sections),
+        Err(ObjectStackmapSectionError::InvalidFunctionAddressRelocation { index: 0, .. })
     ));
 
     let extra = object_with_section(
@@ -97,20 +97,18 @@ fn rejects_missing_wrong_extra_and_non_definition_relocations() {
     );
     let sections = validated_sections(&extra.bytes);
     assert_eq!(
-        verify_darwin_arm64_stackmap_section_v3(&extra.bytes, &sections),
-        Err(DarwinArm64StackmapSectionError::UnexpectedRelocation { offset: 24 })
+        verify_object_stackmap_section_v3(&extra.bytes, &sections),
+        Err(ObjectStackmapSectionError::UnexpectedRelocation { offset: 24 })
     );
 
     let undefined = stackmap_object(0, &[RelocationKind::Unsigned], SymbolKind::Undefined);
     let sections = validated_sections(&undefined.bytes);
     assert_eq!(
-        verify_darwin_arm64_stackmap_section_v3(&undefined.bytes, &sections),
-        Err(
-            DarwinArm64StackmapSectionError::InvalidFunctionTargetSymbol {
-                index: 0,
-                table_index: 0,
-            }
-        )
+        verify_object_stackmap_section_v3(&undefined.bytes, &sections),
+        Err(ObjectStackmapSectionError::InvalidFunctionTargetSymbol {
+            index: 0,
+            table_index: 0,
+        })
     );
 }
 
@@ -119,16 +117,16 @@ fn binds_parsing_to_exact_object_bytes_and_requires_zero_address_slots() {
     let relocated = stackmap_object(1, &[RelocationKind::Unsigned], SymbolKind::Definition);
     let sections = validated_sections(&relocated.bytes);
     assert_eq!(
-        verify_darwin_arm64_stackmap_section_v3(&relocated.bytes, &sections),
-        Err(DarwinArm64StackmapSectionError::PreRelocatedFunctionAddress { index: 0, value: 1 })
+        verify_object_stackmap_section_v3(&relocated.bytes, &sections),
+        Err(ObjectStackmapSectionError::PreRelocatedFunctionAddress { index: 0, value: 1 })
     );
 
     let mut malformed = stackmap_object(0, &[RelocationKind::Unsigned], SymbolKind::Definition);
     malformed.bytes[malformed.section_offset + 1] = 1;
     let sections = validated_sections(&malformed.bytes);
     assert!(matches!(
-        verify_darwin_arm64_stackmap_section_v3(&malformed.bytes, &sections),
-        Err(DarwinArm64StackmapSectionError::Parse(
+        verify_object_stackmap_section_v3(&malformed.bytes, &sections),
+        Err(ObjectStackmapSectionError::Parse(
             LlvmStackmapSectionParseError::NonZeroReserved { offset: 1, .. }
         ))
     ));
@@ -139,15 +137,18 @@ fn binds_parsing_to_exact_object_bytes_and_requires_zero_address_slots() {
     let last = changed.len() - 1;
     changed[last] ^= 1;
     assert_eq!(
-        verify_darwin_arm64_stackmap_section_v3(&changed, &sections),
-        Err(DarwinArm64StackmapSectionError::ObjectBytesMismatch)
+        verify_object_stackmap_section_v3(&changed, &sections),
+        Err(ObjectStackmapSectionError::ObjectBytesMismatch)
     );
 }
 
 fn validated_sections(bytes: &[u8]) -> ValidatedBuiltinObjectSectionInventoryV1 {
-    validate_scoop_lir_llvm_22_1_object_envelope_v1(bytes)
-        .unwrap()
-        .into_sections()
+    validate_scoop_lir_llvm_22_1_object_envelope_v1(
+        scoop_lir::LirTargetProfile::DARWIN_AARCH64,
+        bytes,
+    )
+    .unwrap()
+    .into_sections()
 }
 
 fn stackmap_object(

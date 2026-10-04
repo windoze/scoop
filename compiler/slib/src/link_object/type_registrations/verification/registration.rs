@@ -106,7 +106,7 @@ pub(super) fn verify_descriptor_relocation<D: Copy, C>(
         Some(Failure::OffsetWithinAtom)
     } else if binding.width_bytes() != 8 {
         Some(Failure::Width)
-    } else if binding.relocation_form() != VerifiedDarwinArm64RelocationFormV1::Unsigned64 {
+    } else if binding.relocation_form() != VerifiedObjectRelocationFormV1::Unsigned64 {
         Some(Failure::Form)
     } else if binding.encoded_value() != 0 {
         Some(Failure::EncodedValue)

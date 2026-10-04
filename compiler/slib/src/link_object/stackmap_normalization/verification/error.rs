@@ -9,7 +9,7 @@ use scoop_identity::{
 
 use super::DarwinAarch64StackmapMachineCodeError;
 use crate::SlibMemberId;
-use crate::link_object::{DarwinArm64StackmapSectionError, StackmapNormalizationError};
+use crate::link_object::{ObjectStackmapSectionError, StackmapNormalizationError};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ScoopLirStackmapValidationError {
@@ -34,7 +34,7 @@ pub enum ScoopLirStackmapValidationError {
     },
     PhysicalSection {
         member: SlibMemberId,
-        source: DarwinArm64StackmapSectionError,
+        source: ObjectStackmapSectionError,
     },
     MissingStackmapSection(SlibMemberId),
     UnexpectedStackmapSection(SlibMemberId),

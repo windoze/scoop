@@ -12,7 +12,7 @@ use scoop_lir::{
 use super::{
     GeneratedCBridgeObjectEnvelopeValidationError, PlannedGeneratedBridgeObjectMemberV1,
     PlannedLinkObjectMemberSetV1, ValidatedGeneratedCBridgeObjectEnvelopeV1,
-    validate_generated_c_bridge_object_envelope_v1,
+    validate_generated_c_object_for_profile_v1,
 };
 use crate::SlibMemberId;
 
@@ -131,14 +131,7 @@ pub fn verify_c_bridge_production_envelopes_v1(
                 CBridgeProductionEnvelopeValidationError::UnexpectedObjectMember(object.member)
             })?;
         let plan = &member_plan.generated_bridge_members()[plan_index];
-        let envelope = validate_generated_c_bridge_object_envelope_v1(
-            object.bytes,
-            profile
-                .contract()
-                .deployment()
-                .map_err(CBridgeProductionEnvelopeValidationError::Platform)?,
-        )
-        .map_err(
+        let envelope = validate_generated_c_object_for_profile_v1(object.bytes, profile).map_err(
             |source| CBridgeProductionEnvelopeValidationError::ObjectEnvelope {
                 member: object.member,
                 source,

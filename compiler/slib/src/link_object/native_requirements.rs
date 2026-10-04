@@ -11,8 +11,8 @@ use scoop_lir::{
 
 use super::{
     CanonicalUndefinedRelocationUseV1, StrongRelocationBindingV1,
-    VerifiedCrossConeStrongRequirementClosureV1, VerifiedDarwinArm64RelocationFormV1,
-    VerifiedExternalShapeRequirementClosureV1,
+    VerifiedCrossConeStrongRequirementClosureV1, VerifiedExternalShapeRequirementClosureV1,
+    VerifiedObjectRelocationFormV1,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -162,11 +162,11 @@ fn verify_source_external_requirements_from_candidates_v1(
     })
 }
 
-const fn is_tlvp_relocation(form: VerifiedDarwinArm64RelocationFormV1) -> bool {
+const fn is_tlvp_relocation(form: VerifiedObjectRelocationFormV1) -> bool {
     matches!(
         form,
-        VerifiedDarwinArm64RelocationFormV1::TlvpLoadPage21
-            | VerifiedDarwinArm64RelocationFormV1::TlvpLoadPageOffset12
+        VerifiedObjectRelocationFormV1::TlvpLoadPage21
+            | VerifiedObjectRelocationFormV1::TlvpLoadPageOffset12
     )
 }
 
@@ -182,7 +182,7 @@ pub enum SourceExternalRequirementValidationError {
     },
     TlvpRelocationRequiresTlsContract {
         contract: scoop_identity::NativeExternalContractFingerprint,
-        form: VerifiedDarwinArm64RelocationFormV1,
+        form: VerifiedObjectRelocationFormV1,
     },
 }
 

@@ -129,8 +129,18 @@ pub use link_identity_closure::*;
 mod macho;
 pub use macho::*;
 
+mod object_sections;
+pub use object_sections::*;
+mod object_profiles;
+pub use object_profiles::*;
+
+mod object_envelope;
+pub use object_envelope::*;
+
 mod elf;
-pub use elf::{ElfObjectError, ElfRelocation, ValidatedElfObject};
+pub use elf::{
+    ElfObjectError, ElfRelocation, ValidatedElfObject, validate_linux_elf_object_envelope_v1,
+};
 
 macro_rules! typed_digest {
     ($name:ident) => {
