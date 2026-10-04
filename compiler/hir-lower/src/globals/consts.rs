@@ -4,6 +4,7 @@ use scoop_hir as hir;
 use super::{PendingConst, PendingOrdinary};
 use crate::Lowerer;
 
+mod binary;
 mod dependencies;
 mod integer_authority;
 mod integer_calls;
@@ -201,6 +202,10 @@ impl Lowerer {
             ast::Expr::IntLiteral(literal) => {
                 self.evaluate_integer_literal(*literal, expected, false, literal.span)
             }
+            ast::Expr::CharLiteral { value, .. } => Some(EvaluatedConst {
+                value: hir::ConstPropertyValue::Char(*value),
+                ty: self.core_character_type().ok()?,
+            }),
             ast::Expr::BoolLiteral { value, .. } => Some(EvaluatedConst {
                 value: hir::ConstPropertyValue::Boolean(*value),
                 ty: self.boolean,
@@ -567,185 +572,6 @@ impl Lowerer {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn evaluate_const_binary(
-        &mut self,
-        operator: ast::BinOp,
-        lhs: &ast::Expr,
-        rhs: &ast::Expr,
-        expected: Option<hir::TypeId>,
-        file: usize,
-        declarations: &[PendingConst<'_>],
-        ordinary: &[PendingOrdinary<'_>],
-        states: &mut [ConstState],
-        stack: &mut Vec<usize>,
-        span: ast::Span,
-    ) -> Option<EvaluatedConst> {
-        if matches!(operator, ast::BinOp::And | ast::BinOp::Or) {
-            let lhs = self.evaluate_const_expression(
-                lhs,
-                Some(self.boolean),
-                file,
-                declarations,
-                ordinary,
-                states,
-                stack,
-            );
-            let rhs = self.evaluate_const_expression(
-                rhs,
-                Some(self.boolean),
-                file,
-                declarations,
-                ordinary,
-                states,
-                stack,
-            );
-            let (Some(lhs), Some(rhs)) = (lhs, rhs) else {
-                return None;
-            };
-            if !self.types_equal(lhs.ty, rhs.ty) {
-                self.error(
-                    span,
-                    format!(
-                        "const operator operands must have the same type, found {} and {}",
-                        self.type_name(lhs.ty),
-                        self.type_name(rhs.ty)
-                    ),
-                );
-                return None;
-            }
-            let (hir::ConstPropertyValue::Boolean(lhs), hir::ConstPropertyValue::Boolean(rhs)) =
-                (lhs.value, rhs.value)
-            else {
-                self.error(
-                    span,
-                    "boolean const operator requires Boolean operands".to_string(),
-                );
-                return None;
-            };
-            let value = match operator {
-                ast::BinOp::And => lhs && rhs,
-                ast::BinOp::Or => lhs || rhs,
-                _ => unreachable!("the outer match selected a boolean short-circuit operator"),
-            };
-            return Some(EvaluatedConst {
-                value: hir::ConstPropertyValue::Boolean(value),
-                ty: self.boolean,
-            });
-        }
-
-        let equality = matches!(operator, ast::BinOp::Eq | ast::BinOp::Ne);
-        let operand_kind = if equality {
-            self.select_const_equality_integer_kind(
-                lhs,
-                rhs,
-                file,
-                declarations,
-                ordinary,
-                states,
-                stack,
-            )
-        } else {
-            self.select_const_binary_literal_kind(operator, lhs, expected, |kind| {
-                self.probe_const_integer_kind(
-                    rhs,
-                    Some(kind),
-                    file,
-                    declarations,
-                    ordinary,
-                    states,
-                    stack,
-                ) == Some(kind)
-            })
-        };
-        let operand_expected = operand_kind.map(|kind| self.integer_type(kind));
-        let lhs = self.evaluate_const_expression(
-            lhs,
-            operand_expected,
-            file,
-            declarations,
-            ordinary,
-            states,
-            stack,
-        )?;
-        let rhs_expected = if equality {
-            operand_expected
-        } else {
-            Some(lhs.ty)
-        };
-        let rhs = self.evaluate_const_expression(
-            rhs,
-            rhs_expected,
-            file,
-            declarations,
-            ordinary,
-            states,
-            stack,
-        )?;
-        if !self.types_equal(lhs.ty, rhs.ty) {
-            self.error(
-                span,
-                format!(
-                    "const operator operands must have the same type, found {} and {}",
-                    self.type_name(lhs.ty),
-                    self.type_name(rhs.ty)
-                ),
-            );
-            return None;
-        }
-
-        let result = match (lhs.value, rhs.value) {
-            (hir::ConstPropertyValue::Integer(left), hir::ConstPropertyValue::Integer(right)) => {
-                let hir::Type::Integer(kind) = self.types[lhs.ty] else {
-                    unreachable!("integer constant values have integer types")
-                };
-                debug_assert_eq!(left.kind(), kind);
-                debug_assert_eq!(right.kind(), kind);
-                match self.evaluate_typed_integer_binary_operator(operator, left, right) {
-                    IntegerBinaryResult::Value(value) => Some(value),
-                    IntegerBinaryResult::DivisionByZero => {
-                        self.error(span, "division by zero in const initializer".to_string());
-                        return None;
-                    }
-                    IntegerBinaryResult::Unsupported => None,
-                }
-            }
-            (hir::ConstPropertyValue::Boolean(left), hir::ConstPropertyValue::Boolean(right)) => {
-                match operator {
-                    ast::BinOp::Eq => Some(hir::ConstPropertyValue::Boolean(left == right)),
-                    ast::BinOp::Ne => Some(hir::ConstPropertyValue::Boolean(left != right)),
-                    _ => None,
-                }
-            }
-            (hir::ConstPropertyValue::String(left), hir::ConstPropertyValue::String(right)) => {
-                match operator {
-                    ast::BinOp::Add => Some(hir::ConstPropertyValue::String(left + &right)),
-                    ast::BinOp::Eq => Some(hir::ConstPropertyValue::Boolean(left == right)),
-                    ast::BinOp::Ne => Some(hir::ConstPropertyValue::Boolean(left != right)),
-                    ast::BinOp::Lt => Some(hir::ConstPropertyValue::Boolean(left < right)),
-                    ast::BinOp::Le => Some(hir::ConstPropertyValue::Boolean(left <= right)),
-                    ast::BinOp::Gt => Some(hir::ConstPropertyValue::Boolean(left > right)),
-                    ast::BinOp::Ge => Some(hir::ConstPropertyValue::Boolean(left >= right)),
-                    _ => None,
-                }
-            }
-            _ => None,
-        };
-        let Some(value) = result else {
-            self.error(
-                span,
-                "invalid binary operator in const initializer".to_string(),
-            );
-            return None;
-        };
-        let ty = match value {
-            hir::ConstPropertyValue::Boolean(_) => self.boolean,
-            hir::ConstPropertyValue::String(_) => self.string,
-            hir::ConstPropertyValue::Integer(_) => lhs.ty,
-        };
-        Some(EvaluatedConst { value, ty })
-    }
-
     fn evaluate_integer_literal(
         &mut self,
         literal: ast::IntegerLiteralSyntax,
@@ -762,4 +588,21 @@ impl Lowerer {
             ty: expression.ty,
         })
     }
+}
+
+pub(super) fn evaluate_character_binary(
+    operator: ast::BinOp,
+    left: char,
+    right: char,
+) -> Option<hir::ConstPropertyValue> {
+    let value = match operator {
+        ast::BinOp::Eq => left == right,
+        ast::BinOp::Ne => left != right,
+        ast::BinOp::Lt => left < right,
+        ast::BinOp::Le => left <= right,
+        ast::BinOp::Gt => left > right,
+        ast::BinOp::Ge => left >= right,
+        _ => return None,
+    };
+    Some(hir::ConstPropertyValue::Boolean(value))
 }

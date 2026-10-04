@@ -19,6 +19,14 @@ pub(super) fn fixture_operation_owner(
     fundamental: &CoreFundamentalTypeProtocolV1,
 ) -> Option<DefinitionOwnerAtom> {
     match kind {
+        IntrinsicFunctionKind::Char(kind) => Some(DefinitionOwnerAtom::Type(concrete_entry_ref(
+            fundamental.entries(),
+            if kind == crate::CharIntrinsic::FromCodeUnchecked {
+                3
+            } else {
+                15
+            },
+        ))),
         IntrinsicFunctionKind::Integer(kind) => {
             let index = crate::IntegerKind::ALL
                 .iter()

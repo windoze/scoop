@@ -25,7 +25,7 @@ pub(super) fn lower(
     else {
         return Err(error());
     };
-    let ty = lir_type(&global.ty);
+    let ty = lir_type(inputs.module, &global.ty);
     let scan = safepoints::root_scan(inputs.context, &ty, inputs.structs, inputs.enums, 0)?;
     if storage_projection.value_layout().layout_key().exact_type()
         != exact_type_record(inputs.module, &global.ty).id()

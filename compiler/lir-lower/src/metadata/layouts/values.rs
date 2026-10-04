@@ -18,6 +18,14 @@ pub(crate) fn struct_layout(
                     lir::IntrinsicTypeRepresentation::Integer(kind),
                 )
             }
+            mir::IntrinsicTypeRepresentation::Char => {
+                let layout = context.scalar_layout(lir::BackendScalarKind::I32);
+                (
+                    layout.size,
+                    layout.align,
+                    lir::IntrinsicTypeRepresentation::Char,
+                )
+            }
             mir::IntrinsicTypeRepresentation::Boolean => {
                 let layout = context.scalar_layout(lir::BackendScalarKind::I1);
                 (
@@ -32,7 +40,7 @@ pub(crate) fn struct_layout(
                     layout.size,
                     layout.align,
                     lir::IntrinsicTypeRepresentation::Ptr {
-                        pointee: compiler_data_pointee(pointee),
+                        pointee: compiler_data_pointee(module, pointee),
                     },
                 )
             }

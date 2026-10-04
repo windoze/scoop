@@ -5,6 +5,10 @@ use crate::{
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
+    CharLiteral {
+        value: char,
+        span: Span,
+    },
     StringLiteral {
         value: String,
         span: Span,
@@ -198,7 +202,8 @@ impl Expr {
     pub fn span(&self) -> Span {
         match self {
             Expr::IntLiteral(literal) => literal.span,
-            Expr::StringLiteral { span, .. }
+            Expr::CharLiteral { span, .. }
+            | Expr::StringLiteral { span, .. }
             | Expr::BoolLiteral { span, .. }
             | Expr::UnitLiteral { span }
             | Expr::TupleLiteral { span, .. }

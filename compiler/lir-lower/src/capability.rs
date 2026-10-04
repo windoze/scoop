@@ -224,6 +224,7 @@ fn expression_requirement(
         mir::ExprKind::StringConst(_)
         | mir::ExprKind::IntegerLiteral(_)
         | mir::ExprKind::MachineScalarLiteral(_)
+        | mir::ExprKind::CharLiteral(_)
         | mir::ExprKind::BoolLiteral(_)
         | mir::ExprKind::UnitLiteral
         | mir::ExprKind::ReleaseFieldLoad { .. }
@@ -236,6 +237,8 @@ fn expression_requirement(
         | mir::ExprKind::GlobalRead(_)
         | mir::ExprKind::InitializationUnitAddress(_)
         | mir::ExprKind::PtrFromNonZeroULong { .. }
+        | mir::ExprKind::CharCode(_)
+        | mir::ExprKind::CharFromCodeUnchecked(_)
         | mir::ExprKind::PtrToULong(_)
         | mir::ExprKind::PtrCast { .. }
         | mir::ExprKind::PtrLoad { .. }

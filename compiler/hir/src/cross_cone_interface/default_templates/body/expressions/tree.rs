@@ -78,6 +78,7 @@ pub enum DefaultExpressionKindV1 {
     },
     IntegerLiteral(CanonicalIntegerConstantV1),
     BooleanLiteral(CanonicalBooleanV1),
+    CharLiteral(crate::CanonicalCharV1),
     UnitLiteral,
     TupleLiteral(Vec<DefaultExpressionV1>),
     StructInit {
@@ -120,6 +121,8 @@ pub enum DefaultExpressionKindV1 {
     },
     PtrFromNonZeroULong(Box<DefaultExpressionV1>),
     PtrToULong(Box<DefaultExpressionV1>),
+    CharCode(Box<DefaultExpressionV1>),
+    CharFromCodeUnchecked(Box<DefaultExpressionV1>),
     PtrCast(Box<DefaultExpressionV1>),
     PtrLoad {
         pointer: Box<DefaultExpressionV1>,
@@ -452,6 +455,7 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         }
         DefaultExpressionKindV1::StringLiteral { .. }
         | DefaultExpressionKindV1::IntegerLiteral(_)
+        | DefaultExpressionKindV1::CharLiteral(_)
         | DefaultExpressionKindV1::BooleanLiteral(_)
         | DefaultExpressionKindV1::UnitLiteral
         | DefaultExpressionKindV1::VariantTest { .. }
@@ -466,6 +470,8 @@ fn validate_kind(kind: &DefaultExpressionKindV1) -> Result<(), DefaultExpression
         | DefaultExpressionKindV1::CallableReference(_)
         | DefaultExpressionKindV1::FunctionCoercion { .. }
         | DefaultExpressionKindV1::PtrFromNonZeroULong(_)
+        | DefaultExpressionKindV1::CharCode(_)
+        | DefaultExpressionKindV1::CharFromCodeUnchecked(_)
         | DefaultExpressionKindV1::PtrToULong(_)
         | DefaultExpressionKindV1::PtrCast(_)
         | DefaultExpressionKindV1::PtrLoad { .. }

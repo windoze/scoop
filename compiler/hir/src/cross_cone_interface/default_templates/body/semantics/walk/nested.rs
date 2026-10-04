@@ -322,7 +322,9 @@ where
         pending: &mut Vec<WorkItem<'body>>,
     ) -> Result<(), M::Error> {
         let target = match equality {
-            DefaultLiteralEqualityV1::Integer { .. } => return Ok(()),
+            DefaultLiteralEqualityV1::Char | DefaultLiteralEqualityV1::Integer { .. } => {
+                return Ok(());
+            }
             DefaultLiteralEqualityV1::Ordinary { target } => target,
         };
         self.push_child(

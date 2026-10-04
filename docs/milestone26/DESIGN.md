@@ -1,6 +1,6 @@
 # M26 设计：List、字符与 parts 字符串构建
 
-状态：实现中；数组初始化已完成，List、字符、字符串与插值继续按第 9 节实施。
+状态：实现中；数组初始化、List 与 Char 已完成，String、StringBuilder 与插值继续按第 9 节实施。
 
 日期：2026-10-04。
 
@@ -336,3 +336,13 @@ python3 tests/run_fixtures.py --all
 - core-bootstrap-interface 升至 6、cross-cone-interface 升至 47、cross-cone-type-semantics 升至 14，相关 profile/fingerprint 与旧产物拒绝测试同步。
 - m26-lists 的 10 个正式 fixture 全部通过，锁定 9 份阶段 golden；覆盖增删边界、跨多次扩容、Some(None)、Unit、值类型/装箱、旧引用回收、修改可见性与永久耗尽、自定义 size/get 顺序和异常，以及跨 Cone 的普通泛型实例与删除源码后链接，包含正常和 moving GC 运行。
 - 执行 cargo fmt、全 workspace clippy；HIR 873、HIR lowering 1314、MIR lowering 114、LIR lowering 146 个单元测试通过，slib 590 个测试通过。7 个数组初始化 fixture 使用新 core 回归通过并同步 9 份阶段 golden。
+
+### Char
+
+- 独立 intrinsic Char 沿普通名义 struct application 保留实际 core 身份，以四字节 GC-free 标量参与布局、装箱、泛型容器、C ABI 和指针读写；内部 code/构造转换在 MIR 显式表示，LIR 使用 i32 值。
+- 实现字符字面量与统一 Unicode 转义、code、checked Int.toChar、比较、ToString/Hash，以及 const、默认参数、递归模式和跨 Cone 导出。覆盖分析只划分已出现的 singleton 和剩余标量，诊断不生成 surrogate 或非法转义。
+- intrinsic struct 计算属性复用普通 accessor，Char 解构与构造得到正常诊断；按词法、常量二元运算和属性解析职责拆分模块。
+- core-bootstrap-interface 升至 7、cross-cone-interface 升至 48、cross-cone-type-semantics 升至 15、cross-cone-type-bridge 升至 8、cross-cone-layout-abi 升至 7，codec、profile/fingerprint 与旧版本拒绝基线同步。
+- 23 个 Char 正式 fixture 通过，包含 18 个负例与 18 份 AST/HIR/MIR/LIR golden；覆盖 scalar 边界、异常、同名声明遮蔽、嵌套值/Option、数组与列表、装箱、C aggregate/指针，以及删除源码后的跨 Cone 链接。正向程序同时在正常和 moving GC 下运行。
+- 执行 cargo fmt 与全 workspace clippy；parser 438、HIR 874、HIR lowering 1314、MIR lowering 114、LIR lowering 146、slib 590 个单元测试通过。
+- 原有数组初始化和 List 的 12 个正式回归 fixture 通过，18 份阶段 golden 随新增实际 core 类型同步。

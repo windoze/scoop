@@ -57,6 +57,7 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
             }
             Self::IntegerLiteral(value) => encode_one(encoder, 2, value),
             Self::BooleanLiteral(value) => encode_one(encoder, 3, value),
+            Self::CharLiteral(value) => encode_one(encoder, 63, value),
             Self::UnitLiteral => encode_empty(encoder, 4),
             Self::TupleLiteral(elements) => encode_one(encoder, 5, &WireSequence(elements)),
             Self::StructInit {
@@ -100,6 +101,8 @@ impl WireEncode for DecodedDefaultExpressionKindV1 {
             ),
             Self::PtrFromNonZeroULong(operand) => encode_one(encoder, 19, operand.as_ref()),
             Self::PtrToULong(operand) => encode_one(encoder, 20, operand.as_ref()),
+            Self::CharCode(operand) => encode_one(encoder, 64, operand.as_ref()),
+            Self::CharFromCodeUnchecked(operand) => encode_one(encoder, 65, operand.as_ref()),
             Self::PtrCast(operand) => encode_one(encoder, 21, operand.as_ref()),
             Self::PtrLoad { pointer, offset } => encode_two(encoder, 22, pointer.as_ref(), offset),
             Self::PtrStore {
@@ -347,6 +350,11 @@ impl WireDecode for DecodedDefaultExpressionKindV1 {
             }
             19 => decode_boxed_expression(decoder, fields).map(Self::PtrFromNonZeroULong),
             20 => decode_boxed_expression(decoder, fields).map(Self::PtrToULong),
+            63 => {
+                decode_one(decoder, fields, crate::CanonicalCharV1::decode).map(Self::CharLiteral)
+            }
+            64 => decode_boxed_expression(decoder, fields).map(Self::CharCode),
+            65 => decode_boxed_expression(decoder, fields).map(Self::CharFromCodeUnchecked),
             21 => decode_boxed_expression(decoder, fields).map(Self::PtrCast),
             22 => {
                 expect_sum_length(decoder, fields, 3)?;

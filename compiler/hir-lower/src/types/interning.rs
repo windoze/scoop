@@ -114,9 +114,10 @@ impl Lowerer {
                 Type::Param(_) => hir::TypeId::from_raw((self.types.len() as u32).into()),
                 _ => unreachable!("a concrete FunPtr argument is a function type"),
             },
-            hir::StructApplicationRepresentation::Declared => {
-                hir::TypeId::from_raw((self.types.len() as u32).into())
-            }
+            hir::StructApplicationRepresentation::Declared
+            | hir::StructApplicationRepresentation::Intrinsic(
+                hir::IntrinsicTypeRepresentation::Char,
+            ) => hir::TypeId::from_raw((self.types.len() as u32).into()),
             hir::StructApplicationRepresentation::Intrinsic(_) => {
                 unreachable!("the intrinsic contract fixes its declaration target")
             }
@@ -131,6 +132,9 @@ impl Lowerer {
             || matches!(
                 self.struct_applications[application].representation,
                 hir::StructApplicationRepresentation::Declared
+                    | hir::StructApplicationRepresentation::Intrinsic(
+                        hir::IntrinsicTypeRepresentation::Char
+                    )
             )
         {
             let allocated_type = self.types.alloc(Type::Struct(application));

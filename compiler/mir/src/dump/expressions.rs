@@ -30,6 +30,15 @@ pub(super) fn dump_expr(
         ExprKind::MachineScalarLiteral(value) => {
             out.push_str(&format!("{pad}MachineScalarLiteral {value:?}\n"));
         }
+        ExprKind::CharLiteral(value) => out.push_str(&format!("{pad}CharLiteral {value:?}\n")),
+        ExprKind::CharCode(operand) => {
+            out.push_str(&format!("{pad}CharCode\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
+        ExprKind::CharFromCodeUnchecked(operand) => {
+            out.push_str(&format!("{pad}CharFromCodeUnchecked\n"));
+            dump_expr(module, locals, operand, indent + 1, out);
+        }
         ExprKind::BoolLiteral(value) => out.push_str(&format!("{pad}BoolLiteral {value}\n")),
         ExprKind::UnitLiteral => out.push_str(&format!("{pad}UnitLiteral\n")),
         ExprKind::InitializationUnitAddress(unit) => out.push_str(&format!(

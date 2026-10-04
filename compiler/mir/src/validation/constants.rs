@@ -74,6 +74,17 @@ fn validate_constant_image(
                 }));
             }
         }
+        MirConstantImage::Char(_) => {
+            if !matches!(expected, Type::Struct(id)
+                if (id.into_raw().into_u32() as usize) < module.structs.len()
+                    && matches!(module.structs[*id].representation,
+                        StructRepresentation::Intrinsic(IntrinsicTypeRepresentation::Char)))
+            {
+                return Err(failure(MirConstantImageError::TypeMismatch {
+                    image: "Char image",
+                }));
+            }
+        }
         MirConstantImage::Boolean(_) => {
             if expected != &Type::Boolean {
                 return Err(failure(MirConstantImageError::TypeMismatch {

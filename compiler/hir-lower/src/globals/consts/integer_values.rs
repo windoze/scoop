@@ -168,6 +168,7 @@ fn evaluate_hir_integer_constant_inner(
                     match evaluate_integer_no_gc_operation(*operation, left, right)? {
                         hir::ConstPropertyValue::Integer(value) => Some(value),
                         hir::ConstPropertyValue::Boolean(_)
+                        | hir::ConstPropertyValue::Char(_)
                         | hir::ConstPropertyValue::String(_) => None,
                     }
                 }

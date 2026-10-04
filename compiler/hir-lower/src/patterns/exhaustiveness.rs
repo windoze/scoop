@@ -17,6 +17,7 @@ use self::{
     integers::{IntegerDomain, first_missing_integer_ordinal, integer_domain, integer_pattern_raw},
 };
 
+mod characters;
 mod constructors;
 mod integers;
 
@@ -89,6 +90,9 @@ impl Lowerer {
         }
 
         let subject_ty = types[0];
+        if self.is_char_type(subject_ty) {
+            return self.missing_character_witness(types, matrix);
+        }
         if let Some(domain) = integer_domain(&self.types[subject_ty]) {
             return self.missing_integer_witness(types, matrix, domain);
         }

@@ -86,6 +86,7 @@ void scoop_rt_println(const ScoopString *s);
 const ScoopString *scoop_rt_long_to_string(int64_t v);
 const ScoopString *scoop_rt_ulong_to_string(uint64_t v);
 const ScoopString *scoop_rt_bool_to_string(bool v);
+const ScoopString *scoop_rt_char_to_string(uint32_t value);
 bool scoop_rt_bool_equals(bool left, bool right);
 int64_t scoop_rt_long_hash(int64_t v);
 int64_t scoop_rt_ulong_hash(uint64_t v);

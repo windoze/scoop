@@ -72,7 +72,7 @@ pub use canonical_ids::{
     CanonicalPersistentIdsV1, DecodedCanonicalPersistentIdsV1,
 };
 pub use const_values::{
-    CanonicalBooleanV1, CanonicalConstValueKindV1, CanonicalConstValueV1,
+    CanonicalBooleanV1, CanonicalCharV1, CanonicalConstValueKindV1, CanonicalConstValueV1,
     CanonicalExportConstValuesV1, CanonicalIntegerConstantV1, ConstPropertyDeclarationSourceV1,
     DecodedCanonicalExportConstValuesV1, DecodedExportConstValueV1,
     ExportConstValueClosureValidationError, ExportConstValueResolutionError,

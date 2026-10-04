@@ -842,6 +842,7 @@ pub enum LayoutKind {
 pub enum IntrinsicTypeRepresentation {
     Integer(IntegerKind),
     Boolean,
+    Char,
     String,
     Ptr { pointee: LirDataPointee },
     FunPtr { signature: LirFunctionType },

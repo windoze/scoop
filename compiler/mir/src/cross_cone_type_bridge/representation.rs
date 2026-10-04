@@ -36,6 +36,7 @@ pub enum MirParamFreeIntrinsicV1 {
     Integer(IntegerKind),
     Boolean,
     String,
+    Char,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

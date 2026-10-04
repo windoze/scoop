@@ -43,6 +43,13 @@ impl BodyLowerer<'_> {
             hir::ExprKind::IntegerLiteral(value) => {
                 smir::ExprKind::IntegerLiteral(lower_integer_constant(*value))
             }
+            hir::ExprKind::CharLiteral(value) => smir::ExprKind::CharLiteral(*value),
+            hir::ExprKind::CharCode(value) => {
+                smir::ExprKind::CharCode(Box::new(self.lower_expr(value)))
+            }
+            hir::ExprKind::CharFromCodeUnchecked(value) => {
+                smir::ExprKind::CharFromCodeUnchecked(Box::new(self.lower_expr(value)))
+            }
             hir::ExprKind::BoolLiteral(value) => smir::ExprKind::BoolLiteral(*value),
             hir::ExprKind::UnitLiteral => smir::ExprKind::UnitLiteral,
             hir::ExprKind::TupleLiteral(elements) => {

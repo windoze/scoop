@@ -1,0 +1,152 @@
+SourceFile
+  RootPackage
+  struct Letter
+    field value: Char
+    field label: String
+  enum Symbol
+    Mark(Char)
+    Empty
+    @Global
+  var stored: Char = <expr>
+  fun identity<T>(value: T): T
+    =
+      Var value
+  fun display<T : ToString>(value: T): String
+    =
+      MethodCall toString
+        Var value
+  fun classify(value: (Char?, Char)): Int
+    =
+      WhenExpression
+        Var value
+        arm (Some('雪'), 'A')
+          IntLiteral 42
+        arm (None, _)
+          IntLiteral 0
+        arm _
+          IntLiteral 1
+  fun unpack(value: Symbol): Char
+    =
+      WhenExpression
+        Var value
+        arm Mark(character)
+          Var character
+        arm Empty
+          CharLiteral '\0'
+  fun main()
+    val array
+      Call MutableArray<Char>
+        IntLiteral 130L
+        Lambda 0 suspend=false
+          param i: _
+          MethodCall toChar
+            Binary Add
+              IntLiteral 65
+              MethodCall toInt32
+                Var i
+    val list
+      Call ArrayList<Char>
+    for value
+      Var array
+      MethodCall add
+        Var list
+        Var value
+    val tuple
+      Call identity
+        TupleLiteral
+          Call Some
+            CharLiteral '雪'
+          CharLiteral 'A'
+    val letter
+      Call identity
+        Call Letter
+          CharLiteral '🚀'
+          StringLiteral "launch"
+    val boxed: ToString
+      FieldAccess value
+        Var letter
+    val any: Any
+      Var stored
+    Call gcCollect
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call classify
+              Var tuple
+            IntLiteral 42
+          Binary Ne
+            Call unpack
+              Call Mark
+                CharLiteral '雪'
+            CharLiteral '雪'
+        Binary Ne
+          Call unpack
+            Var Empty
+          CharLiteral '\0'
+      Call println
+        StringLiteral "pattern"
+      return
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Call display
+              FieldAccess value
+                Var letter
+            StringLiteral "🚀"
+          Binary Ne
+            MethodCall toString
+              Var boxed
+            StringLiteral "🚀"
+        Binary Ne
+          Cast Char optional=false
+            Var any
+          CharLiteral '界'
+      Call println
+        StringLiteral "boxing"
+      return
+    assign []
+      Var list
+      IntLiteral 64L
+      CharLiteral '雪'
+    assign []
+      Var array
+      IntLiteral 0L
+      CharLiteral '🚀'
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            MethodCall removeAt
+              Var list
+              IntLiteral 64L
+            CharLiteral '雪'
+          Binary Ne
+            FieldAccess size
+              Var list
+            IntLiteral 129L
+        Binary Ne
+          Index
+            Var array
+            IntLiteral 0L
+          CharLiteral '🚀'
+      Call println
+        StringLiteral "storage"
+      return
+    assign stored
+      CharLiteral '好'
+    if
+      Binary Or
+        Binary Ne
+          Var stored
+          CharLiteral '好'
+        Binary Ne
+          FieldAccess label
+            Var letter
+          StringLiteral "launch"
+      Call println
+        StringLiteral "global"
+      return
+    Call println
+      IntLiteral 42

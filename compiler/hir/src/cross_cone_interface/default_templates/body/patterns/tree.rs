@@ -83,6 +83,7 @@ impl DefaultPatternV1 {
         if !matches!(
             value.kind(),
             DefaultExpressionKindV1::IntegerLiteral(_)
+                | DefaultExpressionKindV1::CharLiteral(_)
                 | DefaultExpressionKindV1::BooleanLiteral(_)
                 | DefaultExpressionKindV1::StringLiteral { .. }
         ) {

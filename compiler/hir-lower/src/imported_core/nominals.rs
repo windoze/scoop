@@ -84,6 +84,11 @@ impl Lowerer {
             hir::NominalSourceShapeV1::Interface => {
                 self.imported_interface_type(declaration, arguments)
             }
+            hir::NominalSourceShapeV1::Intrinsic(representation)
+                if representation.family() == hir::IntrinsicTypeKind::Char =>
+            {
+                self.imported_struct_type(declaration, arguments)
+            }
             hir::NominalSourceShapeV1::Struct(_) => {
                 self.imported_struct_type(declaration, arguments)
             }

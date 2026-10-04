@@ -44,6 +44,7 @@ pub enum HirStaticInitialState {
 pub enum HirConstantImage {
     Integer(HirIntegerConstant),
     Boolean(bool),
+    Char(char),
     String(String),
     NullPointer(HirPointerNullKind),
     EnumUnit {

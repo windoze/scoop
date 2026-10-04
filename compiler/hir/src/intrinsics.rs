@@ -32,6 +32,7 @@ pub enum IntrinsicFunctionKind {
     PrimitiveBinary(PrimitiveBinaryKind),
     ArrayAccess(ArrayAccessKind),
     Array(ArrayIntrinsic),
+    Char(CharIntrinsic),
     Pointer(PointerIntrinsic),
 }
 
@@ -80,6 +81,7 @@ impl IntrinsicFunctionKind {
             Self::PrimitiveBinary(kind) => kind.name().to_string(),
             Self::ArrayAccess(kind) => kind.name().to_string(),
             Self::Array(kind) => kind.name().to_string(),
+            Self::Char(kind) => kind.name().to_string(),
             Self::Pointer(kind) => kind.name().to_string(),
         }
     }
@@ -95,6 +97,7 @@ impl IntrinsicFunctionKind {
 /// Primitive member operations shared by calls and bound reference invokes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrimitiveMemberIntrinsic {
+    Char(CharIntrinsic),
     Integer(IntegerIntrinsicKind),
     Unary(PrimitiveUnaryKind),
     Binary(PrimitiveBinaryKind),
@@ -307,3 +310,6 @@ impl IntrinsicEffects {
         unsafe_: true,
     };
 }
+
+mod characters;
+pub use characters::CharIntrinsic;

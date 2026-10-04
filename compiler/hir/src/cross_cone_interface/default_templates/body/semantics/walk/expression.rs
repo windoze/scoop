@@ -45,6 +45,7 @@ where
             }
             DefaultExpressionKindV1::StringLiteral { .. }
             | DefaultExpressionKindV1::IntegerLiteral(_)
+            | DefaultExpressionKindV1::CharLiteral(_)
             | DefaultExpressionKindV1::BooleanLiteral(_)
             | DefaultExpressionKindV1::UnitLiteral
             | DefaultExpressionKindV1::Local(_)
@@ -155,6 +156,8 @@ where
                 self.push_child(pending, BodyNode::Expression(source))
             }
             DefaultExpressionKindV1::PtrFromNonZeroULong(operand)
+            | DefaultExpressionKindV1::CharCode(operand)
+            | DefaultExpressionKindV1::CharFromCodeUnchecked(operand)
             | DefaultExpressionKindV1::PtrToULong(operand)
             | DefaultExpressionKindV1::PtrCast(operand)
             | DefaultExpressionKindV1::Box(operand)

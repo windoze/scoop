@@ -31,6 +31,7 @@ impl WireEncode for IntrinsicFunctionKind {
                 encode_unsigned_value_sum(encoder, 18, array_access_tag(*kind))
             }
             Self::Array(kind) => encode_unsigned_value_sum(encoder, 19, array_tag(*kind)),
+            Self::Char(kind) => encode_unsigned_value_sum(encoder, 21, kind.wire_tag()),
             Self::Pointer(kind) => encode_unsigned_value_sum(encoder, 20, pointer_tag(*kind)),
         }
     }
@@ -75,6 +76,13 @@ impl WireDecode for IntrinsicFunctionKind {
                 .map(Self::ArrayAccess),
             19 => decode_unsigned_intrinsic(decoder, fields, decode_array).map(Self::Array),
             20 => decode_unsigned_intrinsic(decoder, fields, decode_pointer).map(Self::Pointer),
+            21 => decode_unsigned_intrinsic(decoder, fields, |decoder, tag| {
+                CharIntrinsic::ALL
+                    .into_iter()
+                    .find(|kind| kind.wire_tag() == tag)
+                    .ok_or_else(|| intrinsic_wire_error(decoder, WireErrorKind::UnknownTag { tag }))
+            })
+            .map(Self::Char),
             tag => Err(intrinsic_wire_error(
                 decoder,
                 WireErrorKind::UnknownTag { tag },

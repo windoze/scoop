@@ -1,0 +1,44 @@
+const val snow: Char = '雪'
+const val ordered: Boolean = '\uD7FF' < '\uE000'
+const val unequal: Boolean = 'A' != 'B'
+
+@NoGC
+fun scalarCode(value: Char): Int = value.code
+
+fun main() {
+    if (scalarCode(snow) != 38634 || !ordered || !unequal) { println("const"); return }
+    if ('A'.code != 65 || '\u{1F680}'.code != 128640 || '\u{10FFFF}'.code != 1114111) {
+        println("literal"); return
+    }
+    if ('\t'.code != 9 || '\b'.code != 8 || '\n'.code != 10 || '\r'.code != 13 ||
+        '\''.code != 39 || '\"'.code != 34 || '\\'.code != 92 || '\$'.code != 36 ||
+        '\u0000'.code != 0) { println("escape"); return }
+    if ('雪' != 38634.toChar() || 'A' >= 'B' || '\u{10FFFF}' <= '雪') {
+        println("comparison"); return
+    }
+    if ('雪'.toString() != "雪" || '\u{1F680}'.toString() != "🚀" ||
+        '\u0000'.toString() != "\u0000" || snow.hash() != 38634L) { println("conversion"); return }
+    val compare: (Char) -> Long = snow::compareTo
+    val equal: (Char) -> Boolean = snow::equals
+    if (compare('A') != 1L || compare(snow) != 0L || !equal(snow) || equal('A')) {
+        println("reference"); return
+    }
+    val boundaries = Array<Int>(6L) { i -> when (i) {
+        0L -> 0
+        1L -> 127
+        2L -> 2047
+        3L -> 55295
+        4L -> 57344
+        else -> 1114111
+    } }
+    for (number in boundaries) {
+        if (number.toChar().code != number) { println("boundary"); return }
+    }
+    var errors = 0
+    try { val unused = (-1).toChar() } catch (e: IllegalArgumentException) { errors = errors + 1 }
+    try { val unused = 55296.toChar() } catch (e: IllegalArgumentException) { errors = errors + 1 }
+    try { val unused = 57343.toChar() } catch (e: IllegalArgumentException) { errors = errors + 1 }
+    try { val unused = 1114112.toChar() } catch (e: IllegalArgumentException) { errors = errors + 1 }
+    if (errors != 4) { println("invalid-code"); return }
+    println(42)
+}

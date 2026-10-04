@@ -38,6 +38,7 @@ impl ResolvedTargetProfile {
                 canonical_triple: "aarch64-apple-darwin",
                 runtime_sources: &[
                     "runtime/src/rt.c",
+                    "runtime/src/characters.c",
                     "runtime/src/startup.c",
                     "runtime/src/startup/failure.c",
                     "runtime/src/startup/gateway.c",

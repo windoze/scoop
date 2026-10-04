@@ -32,7 +32,10 @@ impl Lowerer {
                     hir::StructRepresentation::Declared(Vec::new()),
                 ),
                 hir::NominalSourceShapeV1::Intrinsic(shape)
-                    if shape.family() == hir::IntrinsicTypeKind::FunPtr =>
+                    if matches!(
+                        shape.family(),
+                        hir::IntrinsicTypeKind::FunPtr | hir::IntrinsicTypeKind::Char
+                    ) =>
                 {
                     (
                         None,

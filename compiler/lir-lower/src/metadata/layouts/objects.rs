@@ -144,6 +144,7 @@ pub(crate) fn class_definition_layout(
                     unreachable!("intrinsic arrays use the typed ArrayType metadata arena")
                 }
                 mir::IntrinsicTypeRepresentation::Integer(_)
+                | mir::IntrinsicTypeRepresentation::Char
                 | mir::IntrinsicTypeRepresentation::Boolean => {
                     unreachable!("the registry fixes intrinsic declaration targets")
                 }

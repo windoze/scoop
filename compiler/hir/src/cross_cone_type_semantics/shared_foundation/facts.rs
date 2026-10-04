@@ -139,7 +139,9 @@ impl Replay<'_, '_> {
             | NominalSourceShapeV1::Object(_)
             | NominalSourceShapeV1::Interface => Ok(Shape::Reference),
             NominalSourceShapeV1::Intrinsic(representation) => match representation.family() {
-                IntrinsicTypeKind::Integer(_) | IntrinsicTypeKind::Boolean => Ok(Shape::Scalar),
+                IntrinsicTypeKind::Integer(_)
+                | IntrinsicTypeKind::Char
+                | IntrinsicTypeKind::Boolean => Ok(Shape::Scalar),
                 IntrinsicTypeKind::String
                 | IntrinsicTypeKind::Array
                 | IntrinsicTypeKind::MutableArray => Ok(Shape::Reference),

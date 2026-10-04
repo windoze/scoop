@@ -1,0 +1,67 @@
+SourceFile
+  RootPackage
+    @CLayout
+  struct Packet
+    field prefix: Byte
+    field character: Char
+    field tail: Long
+    @NoGC
+    @Extern(lib = "fixture_native", name = "round_character")
+  fun roundCharacter(value: Char): Char
+    @NoGC
+    @Extern(lib = "fixture_native", name = "round_packet")
+  fun roundPacket(value: Packet): Packet
+    @NoGC
+    @Extern(lib = "fixture_native", name = "replace_character")
+  fun replaceCharacter(value: Ptr<Char>): Unit
+    @Unsafe
+  fun main()
+    val packet
+      Call roundPacket
+        Call Packet
+          IntLiteral 7
+          CharLiteral '雪'
+          IntLiteral 9L
+    var character
+      CharLiteral 'A'
+    @Unsafe block
+      Call replaceCharacter
+        Call addressOf
+          Var character
+    if
+      Binary Or
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Or
+                Binary Or
+                  Binary Ne
+                    Call sizeOf<Char>
+                    IntLiteral 4uL
+                  Binary Ne
+                    Call alignOf<Char>
+                    IntLiteral 4uL
+                Binary Ne
+                  FieldAccess character
+                    Var packet
+                  CharLiteral '雪'
+              Binary Ne
+                FieldAccess tail
+                  Var packet
+                IntLiteral 9L
+            Binary Ne
+              FieldAccess prefix
+                Var packet
+              IntLiteral 7
+          Binary Ne
+            Call roundCharacter
+              CharLiteral '🚀'
+            CharLiteral '🚀'
+        Binary Ne
+          Var character
+          CharLiteral '界'
+      Call println
+        StringLiteral "ffi"
+      return
+    Call println
+      IntLiteral 42

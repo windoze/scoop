@@ -40,6 +40,7 @@ impl Lowerer {
         }
         Some(match evaluated.value {
             hir::ConstPropertyValue::Integer(value) => hir::HirConstantImage::Integer(value),
+            hir::ConstPropertyValue::Char(value) => hir::HirConstantImage::Char(value),
             hir::ConstPropertyValue::Boolean(value) => hir::HirConstantImage::Boolean(value),
             hir::ConstPropertyValue::String(value) => hir::HirConstantImage::String(value),
         })
@@ -62,6 +63,10 @@ impl Lowerer {
                     ty: expression.ty,
                 })
             }
+            ast::Expr::CharLiteral { value, .. } => Some(StaticValue {
+                value: hir::ConstPropertyValue::Char(*value),
+                ty: self.core_character_type().ok()?,
+            }),
             ast::Expr::BoolLiteral { value, .. } => Some(StaticValue {
                 value: hir::ConstPropertyValue::Boolean(*value),
                 ty: self.boolean,
@@ -178,6 +183,9 @@ impl Lowerer {
                             None
                         }
                     },
+                    (hir::ConstPropertyValue::Char(left), hir::ConstPropertyValue::Char(right)) => {
+                        super::consts::evaluate_character_binary(*op, left, right)
+                    }
                     (
                         hir::ConstPropertyValue::Boolean(left),
                         hir::ConstPropertyValue::Boolean(right),
@@ -206,7 +214,9 @@ impl Lowerer {
                 let ty = match value {
                     hir::ConstPropertyValue::Boolean(_) => self.boolean,
                     hir::ConstPropertyValue::String(_) => self.string,
-                    hir::ConstPropertyValue::Integer(_) => lhs.ty,
+                    hir::ConstPropertyValue::Integer(_) | hir::ConstPropertyValue::Char(_) => {
+                        lhs.ty
+                    }
                 };
                 Some(StaticValue { value, ty })
             }

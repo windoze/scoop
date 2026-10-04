@@ -3,6 +3,10 @@
 use super::*;
 
 impl ImportedCoreFundamentalTypeProtocol {
+    pub fn character(&self) -> ImportedHirNominal<PersistentTypeId> {
+        concrete_nominal(&self.0, 15)
+    }
+
     pub fn unit(&self) -> ImportedHirNominal<PersistentTypeId> {
         concrete_nominal(&self.0, 0)
     }

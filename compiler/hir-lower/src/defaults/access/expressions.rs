@@ -111,6 +111,7 @@ impl ReferenceCollector<'_> {
         match &expression.kind {
             hir::ExprKind::StringLiteral { .. }
             | hir::ExprKind::IntegerLiteral(_)
+            | hir::ExprKind::CharLiteral(_)
             | hir::ExprKind::BoolLiteral(_)
             | hir::ExprKind::UnitLiteral
             | hir::ExprKind::ConstructorReceiver
@@ -191,6 +192,8 @@ impl ReferenceCollector<'_> {
                 self.type_reference(target_type, origin);
             }
             hir::ExprKind::PtrFromNonZeroULong(source)
+            | hir::ExprKind::CharCode(source)
+            | hir::ExprKind::CharFromCodeUnchecked(source)
             | hir::ExprKind::PtrToULong(source)
             | hir::ExprKind::PtrCast(source)
             | hir::ExprKind::Box(source)

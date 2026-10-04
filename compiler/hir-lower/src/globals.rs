@@ -148,7 +148,8 @@ impl Lowerer {
                 if !matches!(
                     self.types[ty],
                     hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
-                ) {
+                ) && !self.is_char_type(ty)
+                {
                     self.error(
                         decl.ty.span,
                         format!(
@@ -452,7 +453,8 @@ impl Lowerer {
                 if !matches!(
                     self.types[ty],
                     hir::Type::Integer(_) | hir::Type::Boolean | hir::Type::String
-                ) {
+                ) && !self.is_char_type(ty)
+                {
                     self.error(
                         property.ty.span,
                         format!(

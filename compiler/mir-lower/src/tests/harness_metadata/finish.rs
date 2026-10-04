@@ -110,7 +110,18 @@ impl Harness {
         let intrinsic_array = self.intrinsic_array_class(hir::IntrinsicTypeKind::Array);
         let intrinsic_mutable_array =
             self.intrinsic_array_class(hir::IntrinsicTypeKind::MutableArray);
+        let character_type =
+            self.types
+                .alloc(hir::Type::Struct(hir::StructApplicationId::from_raw(
+                    (self.struct_applications.len() as u32).into(),
+                )));
+        let character = self.declare_fixed_intrinsic_struct(
+            "Char",
+            hir::IntrinsicTypeKind::Char,
+            character_type,
+        );
         let intrinsic_type_core = hir::IntrinsicTypeCore {
+            character,
             integers: intrinsic_integers,
             boolean: intrinsic_boolean,
             string: intrinsic_string,

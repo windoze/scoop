@@ -146,8 +146,8 @@ fn safe_field_access_desugars_to_hidden_locals() {
   struct Point
     field0 x: Int
     field1 y: Int
-    property9 val x: Int getter9=storage <stored struct15-field0>
-    property10 val y: Int getter10=storage <stored struct15-field1>
+    property9 val x: Int getter9=storage <stored struct16-field0>
+    property10 val y: Int getter10=storage <stored struct16-field1>
   enum Option<T>
     Some(_1: T0)
     None()

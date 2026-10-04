@@ -41,6 +41,16 @@ impl Parser {
                     span: token.span,
                 })
             }
+            TokenKind::Char(value) => {
+                self.pos += 1;
+                Ok(Pattern::Literal {
+                    expr: Box::new(Expr::CharLiteral {
+                        value,
+                        span: token.span,
+                    }),
+                    span: token.span,
+                })
+            }
             TokenKind::Str(value) => {
                 self.pos += 1;
                 Ok(Pattern::Literal {

@@ -104,7 +104,7 @@ pub(super) fn lower(
                     root.source(),
                     external,
                     id,
-                    lir_type(boxed.payload()),
+                    lir_type(module, boxed.payload()),
                 )
                 .map_err(Error::DependencyLayout)?;
             result.boxed.push((boxed.payload().clone(), descriptor));

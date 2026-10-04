@@ -183,6 +183,7 @@ impl ShapeProjection<'_> {
                         crate::canonical_type::encode_integer(*kind, e)
                     }
                     IntrinsicTypeRepresentation::Boolean => tagged(e, 2, 1),
+                    IntrinsicTypeRepresentation::Char => tagged(e, 6, 1),
                     IntrinsicTypeRepresentation::String => tagged(e, 3, 1),
                     IntrinsicTypeRepresentation::Ptr { pointee } => {
                         tagged(e, 4, 2)?;

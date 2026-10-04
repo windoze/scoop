@@ -50,7 +50,9 @@ impl Projection<'_> {
                 let payload = self.value_dependency(payload.value)?;
                 lir::ExactInstanceLayoutV1::boxed_payload(identity, &payload, foundation)?
             }
-            Kind::Intrinsic(Intrinsic::Unit | Intrinsic::Integer(_) | Intrinsic::Boolean)
+            Kind::Intrinsic(
+                Intrinsic::Unit | Intrinsic::Integer(_) | Intrinsic::Char | Intrinsic::Boolean,
+            )
             | Kind::Struct { .. }
             | Kind::Enum { .. }
             | Kind::CoroutineStep { .. }

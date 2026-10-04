@@ -229,6 +229,8 @@ pub(in super::super) fn collect_expr_types(
             collect_expr_types(lowerer, source, out);
         }
         ExprKind::PtrFromNonZeroULong(source)
+        | ExprKind::CharCode(source)
+        | ExprKind::CharFromCodeUnchecked(source)
         | ExprKind::PtrToULong(source)
         | ExprKind::PtrCast(source)
         | ExprKind::Box(source)
@@ -408,6 +410,7 @@ pub(in super::super) fn collect_expr_types(
         }
         ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
+        | ExprKind::CharLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
         | ExprKind::ConstructorReceiver

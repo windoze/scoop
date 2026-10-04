@@ -29,6 +29,8 @@ impl<'a> Traversal<'a> {
                 source: operand, ..
             }
             | ExprKind::PtrFromNonZeroULong(operand)
+            | ExprKind::CharCode(operand)
+            | ExprKind::CharFromCodeUnchecked(operand)
             | ExprKind::PtrToULong(operand)
             | ExprKind::PtrCast(operand)
             | ExprKind::Box(operand)
@@ -134,6 +136,7 @@ impl<'a> Traversal<'a> {
             }
             ExprKind::StringLiteral { .. }
             | ExprKind::IntegerLiteral(_)
+            | ExprKind::CharLiteral(_)
             | ExprKind::BoolLiteral(_)
             | ExprKind::UnitLiteral
             | ExprKind::ConstructorReceiver

@@ -278,7 +278,16 @@ impl Lowerer {
             }) => Some(*kind),
             _ => None,
         };
-        let equality = if let Some(kind) = integer_kind {
+        let equality = if matches!(
+            self.functions[function].kind,
+            hir::FunctionKind::Intrinsic(hir::IntrinsicFunction {
+                kind: hir::IntrinsicFunctionKind::Char(hir::CharIntrinsic::Equals),
+                ..
+            })
+        ) {
+            self.check_call_effects(hir::Callable::Function(function), span);
+            hir::LiteralPatternEquality::Char
+        } else if let Some(kind) = integer_kind {
             self.check_call_effects(hir::Callable::Function(function), span);
             hir::LiteralPatternEquality::Integer { kind }
         } else {

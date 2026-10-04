@@ -253,7 +253,7 @@ pub(crate) fn type_descriptors(
             &descriptors,
             descriptor,
             exact_type_record(module, boxed.payload()).id(),
-            lir_type(boxed.payload()),
+            lir_type(module, boxed.payload()),
         )
         .map_err(StorageLoweringError::from)?;
         refs.boxed.push((boxed.payload().clone(), proof));

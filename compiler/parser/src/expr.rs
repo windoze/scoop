@@ -193,7 +193,8 @@ impl Parser {
         !self.peek().newline_before
             && matches!(
                 self.peek().kind,
-                TokenKind::Str(_)
+                TokenKind::Char(_)
+                    | TokenKind::Str(_)
                     | TokenKind::Int(_)
                     | TokenKind::True
                     | TokenKind::False

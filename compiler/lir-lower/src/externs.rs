@@ -60,6 +60,7 @@ pub(super) fn lower_extern_functions(
                     },
                     signature: abi::classify_mir_signature(
                         context,
+                        module,
                         extern_.params.iter(),
                         &extern_.return_type,
                         structs,
@@ -175,6 +176,12 @@ pub(super) fn c_ffi_type(
             storage: lir::CCodePointerStorage::Direct,
         },
         mir::Type::Struct(id) => {
+            if matches!(
+                module.structs[*id].representation,
+                mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+            ) {
+                return lir::CType::Integer(lir::IntegerKind::UNSIGNED_32);
+            }
             if matches!(
                 module.structs[*id].representation,
                 mir::StructRepresentation::Declared {

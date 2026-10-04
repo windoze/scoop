@@ -258,7 +258,7 @@ pub(crate) fn lower_structs(
                     .iter()
                     .zip(field_layouts)
                     .map(|(field, layout)| lir::StructField {
-                        ty: lir_type(&field.ty),
+                        ty: lir_type(module, &field.ty),
                         layout,
                     })
                     .collect(),
@@ -268,11 +268,14 @@ pub(crate) fn lower_structs(
     Ok(structs)
 }
 
-pub(crate) fn compiler_data_pointee(pointee: &mir::Type) -> lir::LirDataPointee {
+pub(crate) fn compiler_data_pointee(
+    module: &mir::Module,
+    pointee: &mir::Type,
+) -> lir::LirDataPointee {
     if pointee == &mir::Type::Unit {
         lir::LirDataPointee::OpaqueVoid
     } else {
-        lir::LirDataPointee::Value(Box::new(lir_type(pointee)))
+        lir::LirDataPointee::Value(Box::new(lir_type(module, pointee)))
     }
 }
 
@@ -282,16 +285,20 @@ pub(crate) fn compiler_function_type(
 ) -> lir::LirFunctionType {
     let signature = &module.function_types[signature];
     lir::LirFunctionType {
-        params: signature.parameter_types.iter().map(lir_type).collect(),
-        return_type: lir_return_type(&signature.return_type),
+        params: signature
+            .parameter_types
+            .iter()
+            .map(|ty| lir_type(module, ty))
+            .collect(),
+        return_type: lir_return_type(module, &signature.return_type),
     }
 }
 
-pub(crate) fn lir_return_type(ty: &mir::Type) -> lir::LirReturnType {
+pub(crate) fn lir_return_type(module: &mir::Module, ty: &mir::Type) -> lir::LirReturnType {
     if ty == &mir::Type::Unit {
         lir::LirReturnType::Void
     } else {
-        lir::LirReturnType::Value(Box::new(lir_type(ty)))
+        lir::LirReturnType::Value(Box::new(lir_type(module, ty)))
     }
 }
 
@@ -303,11 +310,12 @@ pub(crate) fn lower_intrinsic_type_representation(
         mir::IntrinsicTypeRepresentation::Integer(kind) => {
             lir::IntrinsicTypeRepresentation::Integer(integer_kind(*kind))
         }
+        mir::IntrinsicTypeRepresentation::Char => lir::IntrinsicTypeRepresentation::Char,
         mir::IntrinsicTypeRepresentation::Boolean => lir::IntrinsicTypeRepresentation::Boolean,
         mir::IntrinsicTypeRepresentation::String => lir::IntrinsicTypeRepresentation::String,
         mir::IntrinsicTypeRepresentation::Ptr { pointee } => {
             lir::IntrinsicTypeRepresentation::Ptr {
-                pointee: compiler_data_pointee(pointee),
+                pointee: compiler_data_pointee(module, pointee),
             }
         }
         mir::IntrinsicTypeRepresentation::FunPtr { signature } => {
@@ -329,7 +337,7 @@ pub(crate) fn lower_intrinsic_type_representation(
 /// `EnumDef`, so the mapping is the identity on enum ids. Intrinsic arrays are
 /// ordinary classes here and therefore managed pointers; their element layout
 /// lives only in typed `ArrayType` metadata.
-pub(crate) fn lir_type(ty: &mir::Type) -> lir::LirType {
+pub(crate) fn lir_type(module: &mir::Module, ty: &mir::Type) -> lir::LirType {
     match ty {
         mir::Type::Unit => lir::LirType::Aggregate(Vec::new()),
         mir::Type::Integer(kind) => integer_kind(*kind).scalar_type(),
@@ -342,9 +350,18 @@ pub(crate) fn lir_type(ty: &mir::Type) -> lir::LirType {
         | mir::Type::Any => lir::LirType::Ptr(lir::PointerKind::Managed),
         mir::Type::Ptr(_) => lir::LirType::Ptr(lir::PointerKind::Raw),
         mir::Type::FunPtr(_) => lir::LirType::Ptr(lir::PointerKind::Code),
-        mir::Type::Struct(id) => lir::LirType::Struct(struct_def_id(*id)),
+        mir::Type::Struct(id) => {
+            if matches!(
+                module.structs[*id].representation,
+                mir::StructRepresentation::Intrinsic(mir::IntrinsicTypeRepresentation::Char)
+            ) {
+                lir::LirType::I32
+            } else {
+                lir::LirType::Struct(struct_def_id(*id))
+            }
+        }
         mir::Type::Tuple(elements) => {
-            lir::LirType::Aggregate(elements.iter().map(lir_type).collect())
+            lir::LirType::Aggregate(elements.iter().map(|ty| lir_type(module, ty)).collect())
         }
         mir::Type::Enum(id, _) => lir::LirType::Enum(enum_def_id(*id)),
     }

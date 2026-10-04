@@ -41,6 +41,9 @@ impl Lowerer {
                         hir::IntrinsicTypeRepresentation::Integer(kind) => {
                             mir::IntrinsicTypeRepresentation::Integer(lower_integer_kind(*kind))
                         }
+                        hir::IntrinsicTypeRepresentation::Char => {
+                            mir::IntrinsicTypeRepresentation::Char
+                        }
                         hir::IntrinsicTypeRepresentation::Boolean => {
                             mir::IntrinsicTypeRepresentation::Boolean
                         }
@@ -295,6 +298,7 @@ impl Lowerer {
                             }
                         }
                         hir::IntrinsicTypeRepresentation::Integer(_)
+                        | hir::IntrinsicTypeRepresentation::Char
                         | hir::IntrinsicTypeRepresentation::Boolean
                         | hir::IntrinsicTypeRepresentation::Ptr { .. }
                         | hir::IntrinsicTypeRepresentation::FunPtr { .. } => {

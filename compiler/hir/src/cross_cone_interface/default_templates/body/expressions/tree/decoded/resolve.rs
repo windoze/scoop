@@ -65,6 +65,7 @@ impl DecodedDefaultExpressionKindV1 {
             },
             Self::IntegerLiteral(value) => DefaultExpressionKindV1::IntegerLiteral(value),
             Self::BooleanLiteral(value) => DefaultExpressionKindV1::BooleanLiteral(value),
+            Self::CharLiteral(value) => DefaultExpressionKindV1::CharLiteral(value),
             Self::UnitLiteral => DefaultExpressionKindV1::UnitLiteral,
             Self::TupleLiteral(elements) => DefaultExpressionKindV1::TupleLiteral(
                 resolve_sequence(elements, resolver, locals, 5, 1)?,
@@ -180,6 +181,12 @@ impl DecodedDefaultExpressionKindV1 {
             Self::PtrToULong(operand) => DefaultExpressionKindV1::PtrToULong(resolve_child(
                 operand, resolver, locals, 20, 1,
             )?),
+            Self::CharCode(operand) => {
+                DefaultExpressionKindV1::CharCode(resolve_child(operand, resolver, locals, 64, 1)?)
+            }
+            Self::CharFromCodeUnchecked(operand) => DefaultExpressionKindV1::CharFromCodeUnchecked(
+                resolve_child(operand, resolver, locals, 65, 1)?,
+            ),
             Self::PtrCast(operand) => {
                 DefaultExpressionKindV1::PtrCast(resolve_child(operand, resolver, locals, 21, 1)?)
             }

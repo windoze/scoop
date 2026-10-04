@@ -1,0 +1,2 @@
+fun check(value: Char): Int = when (value) { Char {} -> 42 }
+fun main() {}

@@ -648,6 +648,9 @@ pub enum ExprKind {
     IntegerLiteral(MirIntegerConstant),
     MachineScalarLiteral(MachineScalarValue),
     BoolLiteral(bool),
+    CharLiteral(char),
+    CharCode(Box<Expr>),
+    CharFromCodeUnchecked(Box<Expr>),
     UnitLiteral,
     TupleLiteral(Vec<Expr>),
     StructInit {

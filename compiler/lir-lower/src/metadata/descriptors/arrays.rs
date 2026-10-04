@@ -42,7 +42,7 @@ pub(crate) fn array_types(
             .expect("validated array exact type and target must derive layout identities"),
             kind,
             element_exact: exact_type_record(module, element).id(),
-            element: lir_type(element),
+            element: lir_type(module, element),
             layout: lir::ArrayLayoutV1::new(
                 context.target_profile(),
                 lir::ArrayElementStorageV1::from_value(&value_storage(

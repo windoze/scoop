@@ -1,0 +1,17 @@
+import fixtures.characters.*
+
+const val localSnow: Char = snow
+fun matched(value: Char): Int = when (value) {
+    snow -> 42
+    _ -> 0
+}
+fun main() {
+    val pair = mark("value")
+    val symbols = ArrayList<Char>()
+    symbols.add(localSnow)
+    gcCollect()
+    if (pair._2 != '🚀' || !scalarOrder || matched(symbols[0L]) != 42 ||
+        classify((Some(localSnow), "value")) != 42 || defaultPattern() != 42 ||
+        characterText(pair._2) != "🚀") { println("cross-cone"); return }
+    println(42)
+}

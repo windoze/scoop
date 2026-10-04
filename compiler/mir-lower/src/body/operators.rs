@@ -1,5 +1,6 @@
 use super::*;
 
+mod characters;
 mod primitive;
 
 impl BodyLowerer<'_> {

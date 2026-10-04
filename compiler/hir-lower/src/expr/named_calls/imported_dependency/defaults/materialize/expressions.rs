@@ -123,6 +123,8 @@ impl Lowerer {
                 }
             }
             kind @ (Kind::PtrFromNonZeroULong(_)
+            | Kind::CharCode(_)
+            | Kind::CharFromCodeUnchecked(_)
             | Kind::PtrToULong(_)
             | Kind::PtrCast(_)
             | Kind::PtrLoad { .. }
@@ -220,6 +222,7 @@ impl Lowerer {
                 owner: hir::StringConstantOwner::CurrentDefinition,
             },
             Kind::IntegerLiteral(value) => hir::ExprKind::IntegerLiteral((*value).into()),
+            Kind::CharLiteral(value) => hir::ExprKind::CharLiteral((*value).into()),
             Kind::BooleanLiteral(value) => hir::ExprKind::BoolLiteral((*value).into()),
             Kind::UnitLiteral => hir::ExprKind::UnitLiteral,
             Kind::TupleLiteral(elements) => hir::ExprKind::TupleLiteral(

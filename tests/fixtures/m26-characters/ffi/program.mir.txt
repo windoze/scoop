@@ -1,0 +1,377 @@
+Module
+  extern ef0 roundCharacter @round_character(Char) -> Char <abi=c no-gc lib=fixture_native>
+  extern ef1 roundPacket @round_packet(Packet) -> Packet <abi=c no-gc lib=fixture_native>
+  extern ef2 replaceCharacter @replace_character(Ptr<Char>) -> Unit <abi=c no-gc lib=fixture_native>
+  struct Packet (prefix: Int8, character: Char, tail: Long) <c-layout aligned=natural packed=natural>
+  interface ToString
+  interface Hash
+  fun roundCharacter @fn0(arg0: Char) -> Char
+    bb0 entry
+      call $call.1: Char = extern0 @round_character direct
+        Type Char
+        Local arg0
+      return
+        Type Char
+        Local $call.1
+  fun roundPacket @fn1(arg0: Packet) -> Packet
+    bb0 entry
+      call $call.1: Packet = extern1 @round_packet direct
+        Type Packet
+        Local arg0
+      return
+        Type Packet
+        Local $call.1
+  fun replaceCharacter @fn2(arg0: Ptr<Char>) -> Unit
+    bb0 entry
+      call extern2 @replace_character direct
+        Type Ptr<Char>
+        Local arg0
+      return
+  fun main @fn3() -> Unit
+    bb0 entry
+      val $argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=7 bits=0x07
+      val $argument.1: Char
+        Type Char
+        CharLiteral '雪'
+      val $argument.2: Long
+        Type Long
+        IntegerLiteral Long value=9 bits=0x0000000000000009
+      val $parameter.prefix: Int8
+        Type Int8
+        Local $argument.0
+      val $parameter.character: Char
+        Type Char
+        Local $argument.1
+      val $parameter.tail: Long
+        Type Long
+        Local $argument.2
+      call $argument.0: Packet = @fn6 direct
+        Type Int8
+        Local $parameter.prefix
+        Type Char
+        Local $parameter.character
+        Type Long
+        Local $parameter.tail
+      val $parameter.value: Packet
+        Type Packet
+        Local $argument.0
+      call packet: Packet = extern1 @round_packet direct
+        Type Packet
+        Local $parameter.value
+      var character: Char
+        Type Char
+        CharLiteral 'A'
+      val $argument.0: Ptr<Char>
+        Type Ptr<Char>
+        AddressOf character : Ptr<Char>
+      val $parameter.value: Ptr<Char>
+        Type Ptr<Char>
+        Local $argument.0
+      call extern2 @replace_character direct
+        Type Ptr<Char>
+        Local $parameter.value
+      val $dependency.receiver: ULong
+        Type ULong
+        SizeOf Char
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=4 bits=0x0000000000000004
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      branch bb1 bb2
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+    bb1 if.then.1
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb3
+    bb2 if.else.2
+      val $dependency.receiver: ULong
+        Type ULong
+        AlignOf Char
+      val $dependency.argument.0: ULong
+        Type ULong
+        IntegerLiteral ULong value=4 bits=0x0000000000000004
+      val $dependency.parameter.other: ULong
+        Type ULong
+        Local $dependency.argument.0
+      val $shortCircuit.0: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=ULong result=Boolean
+            Type ULong
+            Local $dependency.receiver
+            Type ULong
+            Local $dependency.parameter.other
+      goto bb3
+    bb3 if.merge.3
+      branch bb4 bb5
+        Type Boolean
+        Local $shortCircuit.0
+    bb4 if.then.4
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb6
+    bb5 if.else.5
+      val $dependency.receiver: Char
+        Type Char
+        FieldAccess 1
+          Type Packet
+          Local packet
+      val $dependency.argument.0: Char
+        Type Char
+        CharLiteral '雪'
+      val $dependency.parameter.other: Char
+        Type Char
+        Local $dependency.argument.0
+      val $shortCircuit.1: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.receiver
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.parameter.other
+      goto bb6
+    bb6 if.merge.6
+      branch bb7 bb8
+        Type Boolean
+        Local $shortCircuit.1
+    bb7 if.then.7
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb9
+    bb8 if.else.8
+      val $dependency.receiver: Long
+        Type Long
+        FieldAccess 2
+          Type Packet
+          Local packet
+      val $dependency.argument.0: Long
+        Type Long
+        IntegerLiteral Long value=9 bits=0x0000000000000009
+      val $dependency.parameter.other: Long
+        Type Long
+        Local $dependency.argument.0
+      val $shortCircuit.2: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Long result=Boolean
+            Type Long
+            Local $dependency.receiver
+            Type Long
+            Local $dependency.parameter.other
+      goto bb9
+    bb9 if.merge.9
+      branch bb10 bb11
+        Type Boolean
+        Local $shortCircuit.2
+    bb10 if.then.10
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb12
+    bb11 if.else.11
+      val $dependency.receiver: Int8
+        Type Int8
+        FieldAccess 0
+          Type Packet
+          Local packet
+      val $dependency.argument.0: Int8
+        Type Int8
+        IntegerLiteral Int8 value=7 bits=0x07
+      val $dependency.parameter.other: Int8
+        Type Int8
+        Local $dependency.argument.0
+      val $shortCircuit.3: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int8 result=Boolean
+            Type Int8
+            Local $dependency.receiver
+            Type Int8
+            Local $dependency.parameter.other
+      goto bb12
+    bb12 if.merge.12
+      branch bb13 bb14
+        Type Boolean
+        Local $shortCircuit.3
+    bb13 if.then.13
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb15
+    bb14 if.else.14
+      val $argument.0: Char
+        Type Char
+        CharLiteral '🚀'
+      val $parameter.value: Char
+        Type Char
+        Local $argument.0
+      call $dependency.receiver: Char = extern0 @round_character direct
+        Type Char
+        Local $parameter.value
+      val $dependency.argument.0: Char
+        Type Char
+        CharLiteral '🚀'
+      val $dependency.parameter.other: Char
+        Type Char
+        Local $dependency.argument.0
+      val $shortCircuit.4: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.receiver
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.parameter.other
+      goto bb15
+    bb15 if.merge.15
+      branch bb16 bb17
+        Type Boolean
+        Local $shortCircuit.4
+    bb16 if.then.16
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        BoolLiteral true
+      goto bb18
+    bb17 if.else.17
+      val $dependency.receiver: Char
+        Type Char
+        Local character
+      val $dependency.argument.0: Char
+        Type Char
+        CharLiteral '界'
+      val $dependency.parameter.other: Char
+        Type Char
+        Local $dependency.argument.0
+      val $shortCircuit.5: Boolean
+        Type Boolean
+        Unary BoolNot
+          Type Boolean
+          IntegerCompare equal operands=Int result=Boolean
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.receiver
+            Type Int
+            CharCode
+              Type Char
+              Local $dependency.parameter.other
+      goto bb18
+    bb18 if.merge.18
+      branch bb19 bb20
+        Type Boolean
+        Local $shortCircuit.5
+    bb19 if.then.19
+      val $dependency.argument.0: String
+        Type String
+        StringConst @str0
+      val $dependency.parameter.value: String
+        Type String
+        Local $dependency.argument.0
+      call @fn4 direct
+        Type String
+        Local $dependency.parameter.value
+      return
+    bb20 if.merge.20
+      val $dependency.argument.0: Int
+        Type Int
+        IntegerLiteral Int value=42 bits=0x0000002a
+      val $dependency.parameter.value: Int
+        Type Int
+        Local $dependency.argument.0
+      call @fn5 direct
+        Type Int
+        Local $dependency.parameter.value
+      return
+  fun println @fn4(value: String) -> Unit
+    bb0 entry
+      val $dependency.local.1: String
+        Type String
+        Local value
+      call $dependency.local.2: String = external1 direct
+        Type String
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str1
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun println @fn5(value: Int) -> Unit
+    bb0 entry
+      val $dependency.local.1: Int
+        Type Int
+        Local value
+      call $dependency.local.2: String = external0 direct
+        Type Int
+        Local $dependency.local.1
+      val $dependency.local.3: String
+        Type String
+        Local $dependency.local.2
+      call external2 direct
+        Type String
+        Local $dependency.local.3
+      val $dependency.local.4: String
+        Type String
+        StringConst @str2
+      val $dependency.local.5: String
+        Type String
+        Local $dependency.local.4
+      call external2 direct
+        Type String
+        Local $dependency.local.5
+      return
+  fun ctor.Packet.$c0 @fn6(prefix: Int8, character: Char, tail: Long) -> Packet <no-gc>
+    bb0 entry
+      return
+        Type Packet
+        StructInit Packet
+          Type Int8
+          Local prefix
+          Type Char
+          Local character
+          Type Long
+          Local tail
+  instance mi0 function=@fn4 <- println
+  instance mi1 function=@fn5 <- println
+  str @str0 "ffi"
+  str @str1 "\n"
+  str @str2 "\n"
+  output executable @fn3

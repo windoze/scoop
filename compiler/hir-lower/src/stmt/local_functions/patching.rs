@@ -274,6 +274,8 @@ impl LocalFunctionCallPatcher<'_> {
                 operand: receiver, ..
             }
             | hir::ExprKind::PtrFromNonZeroULong(receiver)
+            | hir::ExprKind::CharCode(receiver)
+            | hir::ExprKind::CharFromCodeUnchecked(receiver)
             | hir::ExprKind::PtrToULong(receiver)
             | hir::ExprKind::PtrCast(receiver) => self.expression(receiver),
             hir::ExprKind::MethodCall { receiver, args, .. }
@@ -350,6 +352,7 @@ impl LocalFunctionCallPatcher<'_> {
             }
             hir::ExprKind::StringLiteral { .. }
             | hir::ExprKind::IntegerLiteral(_)
+            | hir::ExprKind::CharLiteral(_)
             | hir::ExprKind::BoolLiteral(_)
             | hir::ExprKind::UnitLiteral
             | hir::ExprKind::Local(_)

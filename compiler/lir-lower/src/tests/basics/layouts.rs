@@ -141,15 +141,18 @@ fn unit_is_the_empty_aggregate() {
 fn all_eight_integer_kinds_use_their_exact_target_scalar_layout() {
     let mut builder = Builder::new();
     let main = builder.main(Arena::new(), Vec::new());
-    let module = lower(builder.finish(main));
+    let source = builder.finish(main);
+    for kind in mir::IntegerKind::ALL {
+        assert_eq!(
+            lir_type(&source, &mir::Type::Integer(kind)),
+            integer_kind(kind).scalar_type()
+        );
+    }
+    let module = lower(source);
     let context = LoweringContext::new(lir::LirTargetProfile::DARWIN_AARCH64);
 
     for mir_kind in mir::IntegerKind::ALL {
         let lir_kind = integer_kind(mir_kind);
-        assert_eq!(
-            lir_type(&mir::Type::Integer(mir_kind)),
-            lir_kind.scalar_type()
-        );
         let intrinsic = layout_values(&module)
             .find(|layout| {
                 layout.kind

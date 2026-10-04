@@ -633,6 +633,7 @@ pub enum MirPointerNull {
 pub enum MirConstantImage {
     Integer(MirIntegerConstant),
     Boolean(bool),
+    Char(char),
     String(StringConstId),
     PointerNull(MirPointerNull),
     EnumUnit {
@@ -660,6 +661,7 @@ pub enum MirStaticInitialState {
 pub enum MirAnnotationValue {
     Integer(MirIntegerConstant),
     Boolean(bool),
+    Char(char),
     String(String),
 }
 

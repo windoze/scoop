@@ -18,6 +18,21 @@ pub(super) fn expected_operation_signature(
     let binder = SignatureTypeKey::Binder { depth: 0, index: 0 };
 
     let (effect, parameters, result) = match kind {
+        IntrinsicFunctionKind::Char(kind) => {
+            let character = signature_concrete(fundamental, 15);
+            match kind {
+                crate::CharIntrinsic::Code => (
+                    Effect::Ordinary,
+                    Vec::new(),
+                    signature_concrete(fundamental, 3),
+                ),
+                crate::CharIntrinsic::FromCodeUnchecked => {
+                    (Effect::Ordinary, Vec::new(), character)
+                }
+                crate::CharIntrinsic::Equals => (Effect::Ordinary, vec![character], boolean),
+                crate::CharIntrinsic::CompareTo => (Effect::Ordinary, vec![character], long),
+            }
+        }
         IntrinsicFunctionKind::GcPinRaw | IntrinsicFunctionKind::GcGetHandleRaw => {
             (Effect::Ordinary, vec![binder.clone()], ulong.clone())
         }
@@ -237,6 +252,7 @@ pub(super) fn operation_own_type_parameter_count(kind: IntrinsicFunctionKind) ->
         | IntrinsicFunctionKind::GcStats
         | IntrinsicFunctionKind::CurrentSourceLocation
         | IntrinsicFunctionKind::Integer(_)
+        | IntrinsicFunctionKind::Char(_)
         | IntrinsicFunctionKind::PrimitiveUnary(_)
         | IntrinsicFunctionKind::PrimitiveBinary(_)
         | IntrinsicFunctionKind::ArrayAccess(_)

@@ -9,12 +9,16 @@ impl Lowerer {
         use hir::DefaultExpressionKindV1 as Kind;
         Ok(match kind {
             Kind::PtrFromNonZeroULong(operand)
+            | Kind::CharCode(operand)
+            | Kind::CharFromCodeUnchecked(operand)
             | Kind::PtrToULong(operand)
             | Kind::PtrCast(operand) => {
                 let operand =
                     Box::new(self.materialize_imported_default_expression(operand, context)?);
                 match kind {
                     Kind::PtrFromNonZeroULong(_) => hir::ExprKind::PtrFromNonZeroULong(operand),
+                    Kind::CharCode(_) => hir::ExprKind::CharCode(operand),
+                    Kind::CharFromCodeUnchecked(_) => hir::ExprKind::CharFromCodeUnchecked(operand),
                     Kind::PtrToULong(_) => hir::ExprKind::PtrToULong(operand),
                     _ => hir::ExprKind::PtrCast(operand),
                 }

@@ -33,6 +33,7 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             }
             Self::IntegerLiteral(value) => encode_one(encoder, 2, *value),
             Self::BooleanLiteral(value) => encode_one(encoder, 3, value),
+            Self::CharLiteral(value) => encode_one(encoder, 63, value),
             Self::UnitLiteral => encode_empty(encoder, 4),
             Self::TupleLiteral(elements) => encode_sequence_variant(encoder, 5, elements),
             Self::StructInit {
@@ -76,6 +77,8 @@ impl WireEncode for IndexedDefaultExpressionKindV1<'_> {
             ),
             Self::PtrFromNonZeroULong(operand) => encode_one(encoder, 19, operand.as_ref()),
             Self::PtrToULong(operand) => encode_one(encoder, 20, operand.as_ref()),
+            Self::CharCode(operand) => encode_one(encoder, 64, operand.as_ref()),
+            Self::CharFromCodeUnchecked(operand) => encode_one(encoder, 65, operand.as_ref()),
             Self::PtrCast(operand) => encode_one(encoder, 21, operand.as_ref()),
             Self::PtrLoad { pointer, offset } => encode_two(encoder, 22, pointer.as_ref(), offset),
             Self::PtrStore {

@@ -15,6 +15,13 @@ impl Parser {
             TokenKind::Fun => self.parse_anonymous_function(false, None),
             TokenKind::DoubleColon => self.parse_callable_reference(None),
             TokenKind::LBrace => self.parse_lambda(false, None),
+            TokenKind::Char(value) => {
+                self.pos += 1;
+                Ok(Expr::CharLiteral {
+                    value,
+                    span: token.span,
+                })
+            }
             TokenKind::Str(value) => {
                 self.pos += 1;
                 Ok(Expr::StringLiteral {

@@ -81,6 +81,7 @@ pub(crate) use named_calls::imported_dependency::ImportedDependencyCallProbe;
 mod aggregates;
 mod analysis;
 mod captures;
+mod characters;
 mod constructors;
 mod copy_updates;
 mod fields;
@@ -255,6 +256,20 @@ impl Lowerer {
             }),
             ast::Expr::IntLiteral(literal) => {
                 self.lower_integer_literal(*literal, expected, false, literal.span)
+            }
+            ast::Expr::CharLiteral { value, span } => {
+                let ty = self
+                    .core_character_type()
+                    .map_err(|error| {
+                        self.error(*span, error.diagnostic("character literal type"));
+                    })
+                    .ok()?;
+                Some(hir::Expr {
+                    kind: ExprKind::CharLiteral(*value),
+                    ty,
+                    span: *span,
+                    origin: self.expression_origin(*span),
+                })
             }
             ast::Expr::BoolLiteral { value, span } => Some(hir::Expr {
                 kind: ExprKind::BoolLiteral(*value),

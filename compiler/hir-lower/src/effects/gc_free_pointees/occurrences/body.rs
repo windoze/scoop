@@ -222,6 +222,7 @@ pub(in super::super) fn collect_expr_type_occurrences(
         }
         ExprKind::StringLiteral { .. }
         | ExprKind::IntegerLiteral(_)
+        | ExprKind::CharLiteral(_)
         | ExprKind::BoolLiteral(_)
         | ExprKind::UnitLiteral
         | ExprKind::ConstructorReceiver
@@ -343,6 +344,8 @@ pub(in super::super) fn collect_expr_type_occurrences(
         }
         ExprKind::FunctionCoercion { source, .. }
         | ExprKind::PtrFromNonZeroULong(source)
+        | ExprKind::CharCode(source)
+        | ExprKind::CharFromCodeUnchecked(source)
         | ExprKind::PtrToULong(source)
         | ExprKind::PtrCast(source)
         | ExprKind::Box(source)

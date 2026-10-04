@@ -7,6 +7,10 @@ use super::*;
 /// nominal declaration contract emitted as typed HIR.
 pub const INTRINSIC_TYPE_REGISTRY: &[IntrinsicTypeSpec] = &[
     IntrinsicTypeSpec {
+        name: "core_char",
+        kind: IntrinsicTypeKind::Char,
+    },
+    IntrinsicTypeSpec {
         name: "core_int8",
         kind: IntrinsicTypeKind::Integer(IntegerKind::SIGNED_8),
     },
@@ -92,6 +96,34 @@ pub fn intrinsic_type_spec(name: &str) -> Option<&'static IntrinsicTypeSpec> {
 /// live with hir-lower; this table is the single source of truth for
 /// valid names, expansion stage, and backend kind.
 pub const INTRINSIC_REGISTRY: &[IntrinsicSpec] = &[
+    IntrinsicSpec {
+        name: "char_code",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::Char(CharIntrinsic::Code),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC,
+    },
+    IntrinsicSpec {
+        name: "char_from_code_unchecked",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::Char(CharIntrinsic::FromCodeUnchecked),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC_UNSAFE,
+    },
+    IntrinsicSpec {
+        name: "char_equals",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::Char(CharIntrinsic::Equals),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC,
+    },
+    IntrinsicSpec {
+        name: "char_compare_to",
+        stage: IntrinsicStage::Hir,
+        kind: IntrinsicFunctionKind::Char(CharIntrinsic::CompareTo),
+        target: IntrinsicTarget::Member,
+        effects: IntrinsicEffects::NO_GC,
+    },
     IntrinsicSpec {
         name: "gc_pin_raw",
         stage: IntrinsicStage::Mir,

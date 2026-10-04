@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v47_retains_array_length_intrinsics() {
+fn source_interface_v48_retains_character_literals_and_operations() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        47,
+        48,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,40 +14,40 @@ fn source_interface_v47_retains_array_length_intrinsics() {
 }
 
 #[test]
-fn type_semantics_v14_retains_array_length_members() {
+fn type_semantics_v15_retains_character_representation() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        14,
+        15,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn mir_type_bridge_v7_includes_definition_owned_coroutine_starts() {
+fn mir_type_bridge_v8_retains_character_scalars() {
     assert_retired_version(
         mir_cross_cone_type_bridge_capability(),
-        7,
+        8,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn lir_layout_abi_v6_requires_application_callable_definitions() {
+fn lir_layout_abi_v7_retains_character_scalars() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),
-        6,
+        7,
         MemberPurposeSet::COMPILE_AND_LINK,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
 }
 
 #[test]
-fn compiler_protocol_v6_retains_array_length_roles() {
+fn compiler_protocol_v7_retains_character_roles() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        6,
+        7,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

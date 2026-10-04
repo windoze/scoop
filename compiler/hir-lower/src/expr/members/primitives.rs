@@ -13,6 +13,9 @@ impl Lowerer {
             return None;
         };
         let kind = match intrinsic.kind {
+            hir::IntrinsicFunctionKind::Char(kind) => {
+                return Some(self.normalize_char_method_call(kind, receiver, args, ty, span));
+            }
             hir::IntrinsicFunctionKind::Integer(kind) => {
                 return Some(self.normalize_integer_method_call(kind, receiver, args, ty, span));
             }

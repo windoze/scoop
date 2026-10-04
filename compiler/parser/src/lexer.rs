@@ -8,6 +8,7 @@
 
 use scoop_ast::{Diagnostic, IntegerRadix, IntegerSuffix, Span};
 
+mod literals;
 mod token;
 
 pub(crate) use token::{IntegerLiteralLexeme, Token, TokenKind};
@@ -61,7 +62,7 @@ impl<'a> Lexer<'a> {
                     // String failures leave the cursor either inside the
                     // literal or at its opening quote (`f"..."`). Skip the
                     // remainder to avoid tokenizing its contents as code.
-                    if c == '"' || self.peek_char() == Some('"') {
+                    if is_ident_start(c) && self.peek_char() == Some('"') {
                         self.skip_bad_string();
                     }
                     TokenKind::Error
@@ -254,6 +255,7 @@ impl<'a> Lexer<'a> {
                 TokenKind::PipePipe
             }
             '"' => return self.lex_string(),
+            '\'' => return self.lex_character(),
             c if c.is_ascii_digit() => return self.lex_int(),
             c if is_ident_start(c) => return self.lex_ident(),
             c => {
@@ -551,67 +553,6 @@ impl<'a> Lexer<'a> {
             _ => TokenKind::Ident(text.to_string()),
         };
         Ok(kind)
-    }
-
-    /// `pos` is at the opening `"`. The returned string is unescaped; M2
-    /// supports `\n`, `\t`, `\\` and `\"` only.
-    fn lex_string(&mut self) -> Result<TokenKind, Diagnostic> {
-        let start = self.pos;
-        self.pos += 1;
-        let mut value = String::new();
-        loop {
-            match self.peek_char() {
-                None | Some('\n') => {
-                    return Err(Diagnostic::at(
-                        self.span_from(start),
-                        "unterminated string literal",
-                    ));
-                }
-                Some('"') => {
-                    self.pos += 1;
-                    return Ok(TokenKind::Str(value));
-                }
-                Some('\\') => {
-                    let escape_start = self.pos;
-                    self.pos += 1;
-                    match self.peek_char() {
-                        Some('n') => {
-                            self.pos += 1;
-                            value.push('\n');
-                        }
-                        Some('t') => {
-                            self.pos += 1;
-                            value.push('\t');
-                        }
-                        Some('\\') => {
-                            self.pos += 1;
-                            value.push('\\');
-                        }
-                        Some('"') => {
-                            self.pos += 1;
-                            value.push('"');
-                        }
-                        Some(c) => {
-                            self.pos += c.len_utf8();
-                            return Err(Diagnostic::at(
-                                Span::new(escape_start as u32, self.pos as u32),
-                                format!("unsupported escape sequence `\\{c}`"),
-                            ));
-                        }
-                        None => {
-                            return Err(Diagnostic::at(
-                                self.span_from(start),
-                                "unterminated string literal",
-                            ));
-                        }
-                    }
-                }
-                Some(c) => {
-                    self.pos += c.len_utf8();
-                    value.push(c);
-                }
-            }
-        }
     }
 }
 

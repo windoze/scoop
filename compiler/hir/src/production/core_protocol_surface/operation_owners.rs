@@ -8,6 +8,14 @@ pub(super) fn expected_operation_owner(
 ) -> Option<DefinitionOwnerAtom> {
     let fundamental = surface.fundamental_types.entries();
     match kind {
+        IntrinsicFunctionKind::Char(kind) => Some(DefinitionOwnerAtom::Type(concrete_entry(
+            fundamental,
+            if kind == crate::CharIntrinsic::FromCodeUnchecked {
+                3
+            } else {
+                15
+            },
+        ))),
         IntrinsicFunctionKind::Integer(kind) => {
             let source = match kind {
                 crate::IntegerIntrinsicKind::NoGcOperation { kind, .. }

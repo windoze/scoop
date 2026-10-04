@@ -455,6 +455,7 @@ impl ClassDef {
 pub enum IntrinsicTypeRepresentation {
     Integer(IntegerKind),
     Boolean,
+    Char,
     String,
     Array { element: TypeId },
     MutableArray { element: TypeId },
@@ -607,6 +608,7 @@ pub enum HirStaticInitialState {
 pub enum HirConstantImage {
     Integer(HirIntegerConstant),
     Boolean(bool),
+    Char(char),
     String(String),
     NullPointer(HirPointerNullKind),
     EnumUnit {

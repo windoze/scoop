@@ -1,6 +1,7 @@
 use super::*;
 
 mod parameters;
+mod properties;
 
 impl Lowerer {
     /// Resolve the field types of a struct declaration. Fields with
@@ -12,6 +13,13 @@ impl Lowerer {
             self.structs[id].representation,
             hir::StructRepresentation::Intrinsic(_)
         ) {
+            for constructor in decl.secondary_constructors() {
+                self.error(
+                    constructor.span,
+                    "an intrinsic struct cannot declare constructors".into(),
+                );
+            }
+            self.resolve_struct_properties(id, decl, &mut HashSet::new());
             self.type_params_in_scope.clear();
             return;
         }
@@ -89,37 +97,7 @@ impl Lowerer {
             });
             self.structs[id].properties.push(property);
         }
-        for property in decl.members.iter().filter_map(|member| match member {
-            ast::StructMember::Property(property) => Some(property.as_ref()),
-            _ => None,
-        }) {
-            if !seen.insert(property.name.text.clone()) {
-                self.error(
-                    property.name.span,
-                    format!(
-                        "duplicate property `{}` in struct `{}`",
-                        property.name.text, decl.name.text
-                    ),
-                );
-                continue;
-            }
-            let Some(ty) = self.resolve_type_ref(&property.ty) else {
-                continue;
-            };
-            let access = self.member_access(
-                property.visibility,
-                property.name.span,
-                "property",
-                Owner::Struct(id),
-                self.current_file,
-                if property.is_override {
-                    crate::visibility::MemberSlotAccess::Override
-                } else {
-                    crate::visibility::MemberSlotAccess::None
-                },
-            );
-            self.allocate_value_property(Owner::Struct(id), property, ty, access);
-        }
+        self.resolve_struct_properties(id, decl, &mut seen);
         let fields = self.structs[id]
             .semantic_fields()
             .iter()

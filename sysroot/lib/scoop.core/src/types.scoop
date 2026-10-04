@@ -250,6 +250,9 @@ public struct Int16 : ToString, Hash {
 
 @Intrinsic("core_int")
 public struct Int : ToString, Hash {
+    @NoGC @Unsafe @Intrinsic("char_from_code_unchecked")
+    internal fun characterUnchecked(): Char
+
     @NoGC
     @Intrinsic("int_equals")
     public operator fun equals(other: Int): Boolean

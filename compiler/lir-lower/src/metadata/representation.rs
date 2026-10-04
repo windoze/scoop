@@ -238,7 +238,7 @@ fn tagged_repr(
         let mut fields = reserve(source.fields.len())?;
         for (source, field) in source.fields.iter().zip(variant.fields()) {
             fields.push(lir::EnumFieldRepr {
-                ty: lir_type(&source.ty),
+                ty: lir_type(module, &source.ty),
                 offset: field.offset(),
             });
         }

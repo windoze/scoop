@@ -85,6 +85,7 @@ pub(crate) fn classify_signature(
 
 pub(crate) fn classify_mir_signature<'a>(
     context: &LoweringContext,
+    module: &mir::Module,
     parameter_types: impl IntoIterator<Item = &'a mir::Type>,
     result_type: &mir::Type,
     structs: &lir::StructDefs,
@@ -92,8 +93,8 @@ pub(crate) fn classify_mir_signature<'a>(
 ) -> StorageResult<lir::ScoopAbiSignature> {
     classify_signature(
         context,
-        parameter_types.into_iter().map(lir_type),
-        (result_type != &mir::Type::Unit).then(|| lir_type(result_type)),
+        parameter_types.into_iter().map(|ty| lir_type(module, ty)),
+        (result_type != &mir::Type::Unit).then(|| lir_type(module, result_type)),
         structs,
         enums,
     )

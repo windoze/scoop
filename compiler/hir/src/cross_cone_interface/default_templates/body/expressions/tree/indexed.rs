@@ -33,6 +33,7 @@ enum IndexedDefaultExpressionKindV1<'a> {
     },
     IntegerLiteral(&'a CanonicalIntegerConstantV1),
     BooleanLiteral(CanonicalBooleanV1),
+    CharLiteral(crate::CanonicalCharV1),
     UnitLiteral,
     TupleLiteral(Vec<IndexedDefaultExpressionV1<'a>>),
     StructInit {
@@ -74,6 +75,8 @@ enum IndexedDefaultExpressionKindV1<'a> {
     },
     PtrFromNonZeroULong(Box<IndexedDefaultExpressionV1<'a>>),
     PtrToULong(Box<IndexedDefaultExpressionV1<'a>>),
+    CharCode(Box<IndexedDefaultExpressionV1<'a>>),
+    CharFromCodeUnchecked(Box<IndexedDefaultExpressionV1<'a>>),
     PtrCast(Box<IndexedDefaultExpressionV1<'a>>),
     PtrLoad {
         pointer: Box<IndexedDefaultExpressionV1<'a>>,
@@ -248,6 +251,9 @@ impl DefaultExpressionV1 {
             DefaultExpressionKindV1::BooleanLiteral(value) => {
                 IndexedDefaultExpressionKindV1::BooleanLiteral(*value)
             }
+            DefaultExpressionKindV1::CharLiteral(value) => {
+                IndexedDefaultExpressionKindV1::CharLiteral(*value)
+            }
             DefaultExpressionKindV1::UnitLiteral => IndexedDefaultExpressionKindV1::UnitLiteral,
             DefaultExpressionKindV1::TupleLiteral(elements) => {
                 IndexedDefaultExpressionKindV1::TupleLiteral(index_sequence(
@@ -344,6 +350,14 @@ impl DefaultExpressionV1 {
             }
             DefaultExpressionKindV1::PtrToULong(operand) => {
                 IndexedDefaultExpressionKindV1::PtrToULong(index_child(operand, resolver, 20, 1)?)
+            }
+            DefaultExpressionKindV1::CharFromCodeUnchecked(operand) => {
+                IndexedDefaultExpressionKindV1::CharFromCodeUnchecked(index_child(
+                    operand, resolver, 65, 1,
+                )?)
+            }
+            DefaultExpressionKindV1::CharCode(operand) => {
+                IndexedDefaultExpressionKindV1::CharCode(index_child(operand, resolver, 64, 1)?)
             }
             DefaultExpressionKindV1::PtrCast(operand) => {
                 IndexedDefaultExpressionKindV1::PtrCast(index_child(operand, resolver, 21, 1)?)
