@@ -1,0 +1,50 @@
+class CountingList(private val data: MutableArray<Int>) : List<Int> {
+    var sizeReads: Int = 0
+    var getReads: Long = 0L
+    var fail: Boolean = false
+    public override val size: Long get() { sizeReads = sizeReads + 1; return data.size }
+    public override operator fun get(index: Long): Int {
+        getReads = getReads * 10L + index + 1L
+        if (fail && index == 1L) { throw IllegalStateException() }
+        return data[index]
+    }
+    public override operator fun iterator(): Iterator<Int> = data.iterator()
+}
+
+fun main() {
+    val values = ArrayList<Int>(1L)
+    values.add(1)
+    val iterator = values.iterator()
+    if (iterator.next()!! != 1) { println("first"); return }
+    values.add(2)
+    values.add(3)
+    values[1L] = 42
+    if (iterator.next()!! != 42) { println("latest-backing"); return }
+    values.add(0L, 0)
+    if (iterator.next()!! != 42) { println("insert-visible"); return }
+    values.removeAt(0L)
+    if (iterator.next() != None) { println("remove-visible"); return }
+    values.add(4)
+    if (iterator.next() != None) { println("exhausted"); return }
+    val cleared = values.iterator()
+    values.clear()
+    if (cleared.next() != None) { println("cleared"); return }
+    values.add(5)
+    if (cleared.next() != None) { println("clear-exhausted"); return }
+    val data: MutableArray<Int> = [10, 20, 30]
+    val observed = CountingList(data)
+    val snapshot = observed.toArray()
+    if (observed.sizeReads != 1 || observed.getReads != 123L || snapshot[2L] != 30) {
+        println("snapshot-order"); return
+    }
+    observed.fail = true
+    observed.getReads = 0L
+    var caught = false
+    try { observed.toMutableArray() } catch (e: IllegalStateException) { caught = true }
+    if (!caught || observed.getReads != 12L) { println("snapshot-throw"); return }
+    val arrayIterator = data.iterator()
+    if (arrayIterator.next()!! != 10) { println("array-first"); return }
+    data[1L] = 42
+    if (arrayIterator.next()!! != 42) { println("array-alias"); return }
+    println(42)
+}

@@ -1,0 +1,1 @@
+fun main() { val values: List<Int> = ArrayList<Int>(); values.add(1) }

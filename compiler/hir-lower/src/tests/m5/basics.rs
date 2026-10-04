@@ -42,8 +42,8 @@ fn array_basics_golden() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property9: Option<String>
-    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -140,10 +140,10 @@ fn array_basics_golden() {
         Local $receiver : Array<Int>
         Local $parameter.index : Long
     val local7
-      ArrayLen : Long
+      MethodCall Array.$get$size : Long
         Local a : Array<Int>
     val local8
-      ArrayLen : Long
+      MethodCall MutableArray.$get$size : Long
         Local m : MutableArray<Int>
     val local9
       Local m : MutableArray<Int>
@@ -212,8 +212,8 @@ fn generic_function_over_array_elements() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property9: Option<String>
-    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

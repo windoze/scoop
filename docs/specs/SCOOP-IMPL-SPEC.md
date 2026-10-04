@@ -1,6 +1,6 @@
 # Scoop 实现大纲
 
-当前 HIR 格式为 `core-bootstrap-interface/5`、`cross-cone-interface/46` 与 `cross-cone-type-semantics/13`：M26 增加完整 ArrayGenerate 表达式与负长度异常目标；dispatch selection 和继承合同按完整 table role 与原 slot 区分接口应用，旧产物与缓存需重建。runtime ABI 保持不变，详见 §2.13 中的跨 Cone 派发规则。
+当前 HIR 格式为 `core-bootstrap-interface/6`、`cross-cone-interface/47` 与 `cross-cone-type-semantics/14`：M26 增加完整 ArrayGenerate、负长度异常目标与数组长度 intrinsic；dispatch selection 和继承合同按完整 table role 与原 slot 区分接口应用，旧产物与缓存需重建。runtime ABI 保持不变，详见 §2.13 中的跨 Cone 派发规则。
 
 共有名义声明保存 `@NoGC` 值类型契约及在原形参域内推导的 GC-free 指针条件，该字段自 `hir/cross-cone-interface/43` 起启用。仅在签名、别名、父类型或嵌套 application 中使用依赖类型，也须满足同一契约；泛型替换继续传播尚未闭合的条件。旧 `/42` 及更早产物与缓存重建；完整字面量来源、默认值规则、runtime C ABI、对象布局和 GC 契约保持。详见实现规范 §2.2。
 
@@ -1533,6 +1533,10 @@ HIR `/43`、MIR type bridge `/6`、LIR layout ABI `/5`、manifest production `/2
 完成门必须包含至少三个实际 Cone image、全部六类记录、Strong/ODR 重复、独立 member 并集、eager/lazy 与 canonical 顺序、跨 Cone 失败/cycle、首次及连续 gateway 的 epoch 竞争、ordinary/NoGC main、函数值/协程、ZST/大值/引用、静态初值与移动 GC。损坏 fixture 在实际输入边界断言错误及“尚无 managed 副作用”；runtime 单测可构造损坏数据，但不能另建 program descriptor 工厂。HIR/MIR golden 继续回归语言语义；LIR/object golden 锁定 descriptor relocation、gateway 异常物化及 poll。M23-9 接收同一个 C 入口和完整 Link 输出，完成正式启动对象、runtime 构建及 artifact-only 链接。
 
 ### 2.15 M26：List、字符与 parts 字符串构建
+
+数组的真实 size getter 调用私有 `array_length` / `mutable_array_length` member intrinsic。两者只接受对应数组 receiver、无值参数并返回 Long；普通属性与接口解析完成后，getter 正文中的调用正规化为既有 ArrayLen。移除按 `.size` 拼写返回 ArrayLen 的旁路。公开 get 由普通 core 方法实现，并调用私有数组读取 intrinsic；接口槽直接选择该普通方法，读取正文继续正规化为既有 Index。读取 intrinsic 不要求 operator 修饰，若声明为 operator 则仍须满足 get 规则。List、MutableList、ArrayList 与其 iterator/快照均使用普通源码声明和泛型实例。
+
+实际扩展调用的静态接收者参与既有共有声明闭包；导入泛型扩展的 callable 实例化为本地 ODR 目标后仍保留该依赖。这样，私有 List 实现与接口之间的已有继承关系可以由产物中的普通声明消费，不因调用目标从 Imported 变为 Local 而遗漏接收者声明，也不改变该类型的源码可见性。
 
 M26 的完整设计见 [M26 设计](../milestone26/DESIGN.md)，源码行为以 language spec 6、10.6、11.2.1、11.4、11.6、11.10 为准。本节是待实现目标，不把文档更新视作已具备编译器能力。M26 采用普通 GC 集合，不依赖 M24 release hook；ByteBuffer 与外部内存反馈留待后续。
 

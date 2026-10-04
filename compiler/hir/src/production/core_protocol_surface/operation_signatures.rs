@@ -117,10 +117,16 @@ pub(super) fn expected_operation_signature(
             }
             crate::ArrayAccessKind::MutableSet => (Effect::Ordinary, vec![long, binder], unit),
         },
+        IntrinsicFunctionKind::Array(
+            crate::ArrayIntrinsic::ImmutableLength | crate::ArrayIntrinsic::MutableLength,
+        ) => (Effect::Ordinary, Vec::new(), long),
         IntrinsicFunctionKind::Array(kind) => {
             let result = match kind {
                 crate::ArrayIntrinsic::ToImmutable => 11,
                 crate::ArrayIntrinsic::ToMutable => 12,
+                crate::ArrayIntrinsic::ImmutableLength | crate::ArrayIntrinsic::MutableLength => {
+                    unreachable!("length is handled above")
+                }
             };
             (
                 Effect::Ordinary,

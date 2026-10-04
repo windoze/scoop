@@ -105,6 +105,9 @@ void scoop_rt_println_boolean(bool value);
  * UnwrapException throw in M8. */
 _Noreturn void scoop_rt_trap(const char *message);
 
+/* Checked core collection growth cannot represent another Long element. */
+_Noreturn void scoop_rt_allocation_overflow(void);
+
 /* M6 additions (milestone6 DESIGN section 3): dispatch support. */
 
 /* `is` check: walk the object's parent chain, then scan its itable

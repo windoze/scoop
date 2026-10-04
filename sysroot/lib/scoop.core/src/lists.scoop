@@ -1,0 +1,22 @@
+public interface List<T> : Iterable<T> {
+    public val size: Long
+    public operator fun get(index: Long): T
+}
+
+public interface MutableList<T> : List<T> {
+    public operator fun set(index: Long, value: T): Unit
+    public fun add(value: T): Unit
+    public fun add(index: Long, value: T): Unit
+    public fun removeAt(index: Long): T
+    public fun clear(): Unit
+}
+
+public fun <T> List<T>.toArray(): Array<T> {
+    val count = size
+    return Array<T>(count) { index -> this[index] }
+}
+
+public fun <T> List<T>.toMutableArray(): MutableArray<T> {
+    val count = size
+    return MutableArray<T>(count) { index -> this[index] }
+}

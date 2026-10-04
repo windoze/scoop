@@ -1,3 +1,4 @@
+mod arrays;
 mod capabilities;
 mod coroutines;
 mod exceptions;

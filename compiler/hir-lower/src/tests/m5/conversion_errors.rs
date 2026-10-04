@@ -201,6 +201,6 @@ fn array_conversion_intrinsics_are_required_and_shape_checked() {
     assert!(errors.iter().any(|error| {
         error
             .message
-            .contains("malformed core array conversion intrinsic `array_to_immutable`")
+            .contains("malformed core array intrinsic `array_to_immutable`")
     }));
 }

@@ -12,8 +12,8 @@ fn class_hierarchy_golden() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property9: Option<String>
-    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -21,13 +21,13 @@ fn class_hierarchy_golden() {
   class IllegalArgumentException(message: Option<String>)
   class IllegalStateException(message: Option<String>)
   open class Shape(name: String) : Describable
-    field1 property10: String
-    property10 val name: String getter10=storage <stored field1 init=parameter12>
+    field1 property12: String
+    property12 val name: String getter12=storage <stored field1 init=parameter12>
   class Point(x: Int, y: Int)
-    field2 property11: Int
-    field3 property12: Int
-    property11 val x: Int getter11=storage <stored field2 init=parameter13>
-    property12 var y: Int getter12=storage setter0=storage <stored field3 init=parameter14>
+    field2 property13: Int
+    field3 property14: Int
+    property13 val x: Int getter13=storage <stored field2 init=parameter13>
+    property14 var y: Int getter14=storage setter0=storage <stored field3 init=parameter14>
   interface ToString
     fun toString(): String
   interface Hash

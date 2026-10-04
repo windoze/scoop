@@ -416,6 +416,9 @@ pub(super) fn intrinsic_type_declarations() -> Vec<Decl> {
         .map(ast::ClassMember::Function),
     );
 
+    super::arrays::add_length_getter(array_decl, "array_length");
+    super::arrays::add_length_getter(mutable_array_decl, "mutable_array_length");
+
     let mut declarations = hir::IntegerKind::ALL
         .into_iter()
         .map(|kind| {

@@ -1,0 +1,41 @@
+class Cell(val value: Long)
+struct Item(val value: Long, val cell: Cell)
+fun fill(values: MutableList<Cell>) {
+    var index = 0L
+    while (index < 40L) { values.add(Cell(index)); index = index + 1L }
+}
+fun clearReleases(): Boolean {
+    val values = ArrayList<Cell>(40L)
+    fill(values)
+    gcCollect()
+    val before = gcStats()
+    values.clear()
+    gcCollect()
+    return values.size == 0L && before >= gcStats() + 40uL
+}
+fun removeReleases(): Boolean {
+    val values = ArrayList<Cell>(40L)
+    fill(values)
+    gcCollect()
+    val before = gcStats()
+    values.removeAt(39L)
+    gcCollect()
+    return values.size == 39L && before > gcStats()
+}
+fun main() {
+    val values: MutableList<Item> = ArrayList<Item>()
+    var index = 0L
+    while (index < 80L) { values.add(Item(index, Cell(index + 1L))); index = index + 1L }
+    val snapshot = values.toArray()
+    values.removeAt(0L)
+    values.add(2L, Item(41L, Cell(42L)))
+    gcCollect()
+    if (values[2L].cell.value != 42L || snapshot[79L].cell.value != 80L) { println("references"); return }
+    var sum = 0L
+    for (item in snapshot) { sum = sum + item.cell.value - item.value }
+    if (sum != 80L || !clearReleases() || !removeReleases()) { println("roots"); return }
+    val any: MutableList<Any> = ArrayList<Any>()
+    any.add(42)
+    if (any[0L] as Int != 42) { println("boxing"); return }
+    println(42)
+}

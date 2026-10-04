@@ -47,8 +47,8 @@ fn when_over_enum_with_bare_and_qualified_variants() {
     Blue()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property9: Option<String>
-    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -195,8 +195,8 @@ fn when_over_option_with_guard() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property9: Option<String>
-    property9 val message: Option<String> getter9=body(Exception.$get$message) <stored field0 init=parameter9>
+    field0 property11: Option<String>
+    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter9>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()
@@ -388,8 +388,8 @@ fn when_over_tuple_and_struct() {
     None()
   open class Throwable()
   open class Exception(message: Option<String>)
-    field0 property11: Option<String>
-    property11 val message: Option<String> getter11=body(Exception.$get$message) <stored field0 init=parameter11>
+    field0 property13: Option<String>
+    property13 val message: Option<String> getter13=body(Exception.$get$message) <stored field0 init=parameter11>
   class UnwrapException()
   class ClassCastException()
   class ArithmeticException()

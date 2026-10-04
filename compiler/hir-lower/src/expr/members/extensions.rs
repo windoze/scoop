@@ -26,11 +26,20 @@ impl Lowerer {
         span: Span,
     ) -> Option<hir::Expr> {
         let kind = match intrinsic {
+            hir::IntrinsicFunctionKind::Array(
+                hir::ArrayIntrinsic::ImmutableLength | hir::ArrayIntrinsic::MutableLength,
+            ) => {
+                debug_assert!(args.is_empty());
+                ExprKind::ArrayLen(Box::new(receiver))
+            }
             hir::IntrinsicFunctionKind::Array(kind) => {
                 debug_assert!(args.is_empty());
                 let (source_kind, target_kind) = match kind {
                     hir::ArrayIntrinsic::ToImmutable => (ArrayKind::Mutable, ArrayKind::Immutable),
                     hir::ArrayIntrinsic::ToMutable => (ArrayKind::Immutable, ArrayKind::Mutable),
+                    hir::ArrayIntrinsic::ImmutableLength | hir::ArrayIntrinsic::MutableLength => {
+                        unreachable!("length is handled above")
+                    }
                 };
                 let source = self
                     .array_type_info(receiver.ty)

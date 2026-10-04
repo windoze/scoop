@@ -326,3 +326,13 @@ python3 tests/run_fixtures.py --all
 - m26-array-construction 的 7 个正式 CLI fixture 均通过，锁定 9 份 HIR/MIR/LIR golden；覆盖初始化顺序、零/负长度、ZST、过对齐和含引用元素、异常中止、moving GC、泛型/default/alias 及删除源码后的产物链接。
 - 已执行 cargo fmt 与全 workspace clippy；HIR、HIR lowering、MIR lowering、LIR lowering 和 slib 的相关单元测试通过。全 workspace 与全文件 fixture 总验收留到第 9 节最后一批。
 - 原有 21 个数组转换 CLI fixture 回归通过：16 个诊断 fixture 与 5 个源码/多级产物/standalone link/moving GC fixture；同步新增候选诊断与 core 普通构造变化后的符号和阶段基线。
+
+### List 与 ArrayList
+
+- core 提供 invariant List/MutableList、完整 ArrayList 增删与清空、浅快照及共享 ListIterator；数组以真实 size/get override 实现 List，固定长度 MutableArray 不实现 MutableList。
+- 数组长度和私有读取 intrinsic 只承接表示操作，公开 getter/get、接口槽与 iterator 沿普通源码调用。intrinsic class 允许无存储的 computed property；移除旧 `.size` 拼写旁路。
+- ArrayList 使用 MutableArray<Option<T>>，checked 几何增长，移除/清空及时清除尾部引用；Long 容量溢出复用 runtime fatal allocation 路径。intrinsic 注册表按数据定义、注册和 wire 职责拆分。
+- 实例化后的泛型扩展调用保留实际静态接收者的共有声明需求，修复私有 List 实现调用快照扩展时的产物缺失；源码可见性保持原声明。
+- core-bootstrap-interface 升至 6、cross-cone-interface 升至 47、cross-cone-type-semantics 升至 14，相关 profile/fingerprint 与旧产物拒绝测试同步。
+- m26-lists 的 10 个正式 fixture 全部通过，锁定 9 份阶段 golden；覆盖增删边界、跨多次扩容、Some(None)、Unit、值类型/装箱、旧引用回收、修改可见性与永久耗尽、自定义 size/get 顺序和异常，以及跨 Cone 的普通泛型实例与删除源码后链接，包含正常和 moving GC 运行。
+- 执行 cargo fmt、全 workspace clippy；HIR 873、HIR lowering 1314、MIR lowering 114、LIR lowering 146 个单元测试通过，slib 590 个测试通过。7 个数组初始化 fixture 使用新 core 回归通过并同步 9 份阶段 golden。

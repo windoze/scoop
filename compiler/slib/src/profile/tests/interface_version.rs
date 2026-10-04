@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v46_retains_array_initializer_expressions() {
+fn source_interface_v47_retains_array_length_intrinsics() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        46,
+        47,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,10 +14,10 @@ fn source_interface_v46_retains_array_initializer_expressions() {
 }
 
 #[test]
-fn type_semantics_v13_retains_slot_table_roles() {
+fn type_semantics_v14_retains_array_length_members() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        13,
+        14,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );
@@ -44,10 +44,10 @@ fn lir_layout_abi_v6_requires_application_callable_definitions() {
 }
 
 #[test]
-fn compiler_protocol_v5_retains_negative_array_size_exception() {
+fn compiler_protocol_v6_retains_array_length_roles() {
     assert_retired_version(
         hir_core_bootstrap_interface_capability(),
-        5,
+        6,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::SINGLE_CONE_STRONG,

@@ -512,6 +512,8 @@ M23-7 的实际泛型存储将该 section 升至 `/9`，并沿当前 MIR `cross-
 
 ## 6. 核心类型的运行时后备
 
+core 的 checked 容量增长在 Long 计数溢出时调用无参数 NoGC 后备 `scoop_rt_allocation_overflow(): Unit`，沿既有 fatal allocation failure 终止。该入口不分配、不回调用户代码，也不引入新的异常或计数协议。
+
 以 Scoop ABI FFI 函数形式实现；spec 14.4 的 `write(String)` 是不跨 safepoint直接借用 ref的最小范例，涉及分配的函数则按 4.2 登记 native roots：
 
 - `String`：创建、拼接、内容比较、内容 hash、UTF-8 字节数、标量计数/定位/迭代、切片与字符/字节数组快照。读取定位的 native leaf 不抛异常：get 返回普通 `Option<Char>`，slice 定位返回普通 `Option<(Long, Long)>` 字节边界，core 对 None 构造并抛 IndexOutOfBoundsException。定位与复制之间 String 内容不变，已验证的边界可以直接复用；按长度分配后只复制完整 UTF-8 区间。

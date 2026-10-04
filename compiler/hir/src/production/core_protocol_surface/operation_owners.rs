@@ -42,7 +42,10 @@ pub(super) fn expected_operation_owner(
         IntrinsicFunctionKind::Array(kind) => {
             Some(DefinitionOwnerAtom::GenericType(generic_entry(
                 fundamental,
-                if kind == crate::ArrayIntrinsic::ToImmutable {
+                if matches!(
+                    kind,
+                    crate::ArrayIntrinsic::ToImmutable | crate::ArrayIntrinsic::MutableLength
+                ) {
                     12
                 } else {
                     11
