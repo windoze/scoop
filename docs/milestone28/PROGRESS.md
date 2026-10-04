@@ -9,7 +9,8 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - LLVM cleanup-only LSDA 已实现：对象 reader 和 runtime 跳过不存在的 TType offset，拒绝无 type table 的 catch action；runtime 分成 personality、bounded LSDA decoder 和 byte reader，最长文件 475 行。
 - identity/LIR 已加入两个 Linux target、ELF symbol normalization 和独立 amd64 backend 合同；原生符号与 library requirement 的生产和读取保留 libc 目标。闭合 target 以小型枚举保存，完整布局通过已知 profile 查询，避免为每份 IR 复制相同配置。此批尚未开放 Linux 正式 CLI，接下来接入 C 工具链和 ELF/codegen。
 - C bridge 已拆成 Darwin/Apple Clang 与 Linux/GCC 平台合同；Linux discovery 选择实际 GCC、musl wrapper/specs 和 headers，并以真实 ELF64/PIC/TLS 编译验证 libc。invocation 保存显式 PATH/REALGCC/native sysroot，不携带伪造的 macOS SDK/deployment。Darwin 持久合同 bytes/fingerprint 保持；Linux 正式 CLI 与 ELF bridge reader 接入仍在后续批次。
-- 已实现 Linux thread/VM、amd64 精确 frame adapter、18 个 managed entry 汇编入口和 String sret adapter。共有 stackmap decoder 不再硬编码 AArch64 的 frame-size 对齐。线程在 boundary/anchor/native transition 范围 miss 时重新查询当前 OS 栈范围，并沿原有 world/park 协议发布；musl 主线程的深栈不会继续使用 attach 时的过小范围。ELF image 组件、runtime build 接入和完整 moving collector 闭环尚待后续完成。
+- 已实现 Linux thread/VM、amd64 精确 frame adapter、18 个 managed entry 汇编入口和 String sret adapter。共有 stackmap decoder 不再硬编码 AArch64 的 frame-size 对齐。线程在 boundary/anchor/native transition 范围 miss 时重新查询当前 OS 栈范围，并沿原有 world/park 协议发布；musl 主线程的深栈不会继续使用 attach 时的过小范围。runtime build 接入和完整 moving collector 闭环尚待后续完成。
+- Linux platform bundle 已完整组合 ELF image、Linux thread/VM、amd64 frame。ELF adapter 读取加载后的 program headers 和实际 VM permissions，按 hidden linker bounds 取得 stackmaps；已提供动态 RELRO 与静态只读段两套 metadata scripts。共有 callable 范围检查不再硬编码 4-byte 指令。Linux SHA-256 使用最小配置的 Mbed TLS 3.6.6 模块，保留上游文件/许可证并隔离嵌入符号；Darwin 继续 CommonCrypto。
 - 后续按设计完成 target/toolchain、ELF/codegen/runtime、正式 CLI 与多 Cone，再进行三种 Linux 链接配置及 macOS/AArch64 回归。
 
 每项实现记录实际运行的验证及其局限。原生探针通过不等于正式 Scoop CLI 已支持对应目标。
@@ -26,3 +27,5 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - C 工具链变更：全 workspace fmt/clippy 通过；3 项 Linux discovery 测试、15 项 LIR C bridge 测试，以及公共 GCC/Clang depfile 转义测试通过。测试包含 glibc/musl 交叉误选、缺失 driver/sysroot、TLS section/尺寸及原 Darwin 固定向量。`object::ObjectSymbol::is_definition()` 不涵盖 ELF `STT_TLS`，TLS 定义使用类型和实际 section 判定。
 - Linux runtime 组件：`linux_runtime` 的实际 LLVM 22.1 statepoint 测试在 glibc PIE、musl static、musl PIE 各运行 O0/O2，验证 0～3 个显式参数、精确 PC、root slot 回写后 `gc.relocate` 读到新地址、两层帧遍历、String 两种 sret 结果和 main/pthread 栈及 VM 操作。此测试只验证真实机器帧与 root 回写，不冒充完整 collector 验收。
 - 线程栈增长测试在相同 6 种配置下通过，约 4 MiB 深栈依次触发 managed boundary、anchor、native-safe 和 callback 发布；musl 实际确认 4 次栈范围扩展。共有 v3 parser 的现有损坏表测试及 AArch64 frame adapter 数值测试也在 Linux 上通过；完整 Darwin 执行回归仍需真实 macOS。
+- ELF image 测试在 glibc PIE、musl static/PIE 下验证完整 platform bundle、load bias、stackmap relocation、metadata 实际只读、无 `DT_TEXTREL`；移除 ELF section table locator 后仍通过。将 stackmap 页临时改为可写时，adapter 正确拒绝，恢复只读后成功。SHA-256 的空串、短串、多 block、百万 byte 向量在三个配置均通过。
+- 原有 4 项 runtime image/registration 测试已在 Linux 运行，通过 canonical stackmap 的 Rust/C 共用向量及全部损坏 metadata 负例。迁移时发现 Linux piped core handler 会忽略 `RLIMIT_CORE`，现仅在预期 abort 的测试子进程关闭 dumpability；这组测试由约 114 秒恢复为不到 1 秒，生产 runtime 无此设置。Linux runtime 组件共 5 项 Rust 测试通过，全 workspace fmt/clippy 无警告。

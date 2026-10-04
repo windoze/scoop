@@ -8,6 +8,9 @@ use inkwell::targets::{
     CodeModel, FileType, InitializationConfig, RelocMode, Target, TargetTriple,
 };
 
+mod images;
+mod sha256;
+
 fn workspace() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()

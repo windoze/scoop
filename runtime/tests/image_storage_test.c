@@ -1,10 +1,10 @@
+#include "no_core.h"
 #include <assert.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/resource.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
@@ -17,21 +17,26 @@ static void aggregate_value(ScoopStorageFixture *fixture) {
     storage->writable_base = fixture->state->aggregate;
     storage->byte_size = storage->allocation_extent = 32;
     storage->initial_state_kind = SCOOP_STATIC_INITIAL_ENCODED_VALUE_V1;
-    storage->initial_template = (ScoopByteSpanV1){data->templates[EXTRA_STORAGE], 32};
+    storage->initial_template =
+        (ScoopByteSpanV1){data->templates[EXTRA_STORAGE], 32};
     storage->scan_kind = SCOOP_STATIC_SCAN_RECURSIVE_V1;
     storage->scan_program = data->scan_nodes[2];
     data->scan_nodes[0][0] = 1;
     data->scan_nodes[0][1] = 24;
-    uint64_t array[] = {SCOOP_REFS_ARRAY, 0, 8, 8, (uintptr_t)data->reference_scan};
+    uint64_t array[] = {SCOOP_REFS_ARRAY, 0, 8, 8,
+                        (uintptr_t)data->reference_scan};
     memcpy(data->scan_nodes[1], array, sizeof array);
-    uint64_t sequence[] = {SCOOP_REFS_SEQUENCE, 2, (uintptr_t)data->scan_nodes[0],
+    uint64_t sequence[] = {SCOOP_REFS_SEQUENCE, 2,
+                           (uintptr_t)data->scan_nodes[0],
                            (uintptr_t)data->scan_nodes[1]};
     memcpy(data->scan_nodes[2], sequence, sizeof sequence);
     fixture->state->aggregate[0] = 2;
     fixture->state->aggregate[1] = (uintptr_t)&data->string_object;
     fixture->state->aggregate[3] = (uintptr_t)&data->string_object;
-    data->relocations[2] = (ScoopStaticImmortalRelocationV1){8, &data->immortals[0]};
-    data->relocations[3] = (ScoopStaticImmortalRelocationV1){24, &data->immortals[0]};
+    data->relocations[2] =
+        (ScoopStaticImmortalRelocationV1){8, &data->immortals[0]};
+    data->relocations[3] =
+        (ScoopStaticImmortalRelocationV1){24, &data->immortals[0]};
     storage->initial_relocations = &data->relocations[2];
     storage->initial_relocation_count = 2;
 }
@@ -60,16 +65,19 @@ static void positive(bool both_eager) {
     assert(registry->static_root_count == 4);
     for (size_t index = 0; index < registry->static_root_count; index++) {
         assert(registry->static_roots[index]->byte_size == 8);
-        assert(registry->static_roots[index] != &fixture.data->storages[ZST_TOKEN]);
+        assert(registry->static_roots[index] !=
+               &fixture.data->storages[ZST_TOKEN]);
     }
     assert(registry->eager_unit_count == (both_eager ? 2 : 1));
-    assert(registry->eager_units[0] == &fixture.data->units[both_eager ? 1 : 0]);
+    assert(registry->eager_units[0] ==
+           &fixture.data->units[both_eager ? 1 : 0]);
     if (both_eager)
         assert(registry->eager_units[1] == &fixture.data->units[0]);
     assert(scoop_image_immortal(registry, &fixture.data->string_object) ==
            &fixture.data->immortals[0]);
     assert(scoop_image_immortal(
-               registry, (const uint8_t *)&fixture.data->string_object + 8) == NULL);
+               registry, (const uint8_t *)&fixture.data->string_object + 8) ==
+           NULL);
     /* Initial states are not rechecked during indexed lookups. */
     fixture.state->cells[0].state = 2;
     fixture.state->slots[PROPERTY_A] = 7;
@@ -247,8 +255,7 @@ static void negative(unsigned test) {
         close(output[0]);
         assert(dup2(output[1], STDERR_FILENO) >= 0);
         close(output[1]);
-        struct rlimit limit = {0, 0};
-        assert(setrlimit(RLIMIT_CORE, &limit) == 0);
+        scoop_test_disable_core_dumps();
         scoop_image_registry_dispose(check(&fixture));
         _exit(0);
     }
@@ -256,15 +263,16 @@ static void negative(unsigned test) {
     char message[1024] = {0};
     size_t used = 0;
     ssize_t amount;
-    while ((amount = read(output[0], message + used, sizeof message - used - 1)) > 0)
+    while ((amount =
+                read(output[0], message + used, sizeof message - used - 1)) > 0)
         used += (size_t)amount;
     close(output[0]);
     int status;
     assert(waitpid(child, &status, 0) == child);
     if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGABRT ||
         strstr(message, expected) == NULL) {
-        fprintf(stderr, "case %u expected %s, status %d: %s", test, expected, status,
-                message);
+        fprintf(stderr, "case %u expected %s, status %d: %s", test, expected,
+                status, message);
         abort();
     }
     scoop_test_storage_dispose(&fixture);

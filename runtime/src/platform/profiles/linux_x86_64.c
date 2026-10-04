@@ -2,8 +2,8 @@
 
 #include "../platform.h"
 
-#if !defined(__APPLE__) || !defined(__aarch64__)
-#error "the Darwin/AArch64 profile requires macOS on AArch64"
+#if !defined(__linux__) || !defined(__x86_64__) || defined(__ILP32__)
+#error "the Linux/amd64 profile requires LP64 Linux on x86_64"
 #endif
 
 typedef void (*ScoopTargetFunctionPointer)(void);
@@ -19,16 +19,16 @@ _Static_assert(sizeof(ScoopTargetFunctionPointer) == 8,
 _Static_assert(_Alignof(ScoopTargetFunctionPointer) == 8,
                "Scoop function pointer alignment");
 
-extern const ScoopMetadataImageOps scoop_macho_metadata_image_ops;
-extern const ScoopThreadVmOps scoop_darwin_thread_vm_ops;
-extern const ScoopManagedFrameOps scoop_darwin_aarch64_managed_frame_ops;
+extern const ScoopMetadataImageOps scoop_elf_metadata_image_ops;
+extern const ScoopThreadVmOps scoop_linux_thread_vm_ops;
+extern const ScoopManagedFrameOps scoop_amd64_managed_frame_ops;
 
-static const ScoopPlatformBundle darwin_aarch64_bundle = {
-    .metadata_images = &scoop_macho_metadata_image_ops,
-    .thread_vm = &scoop_darwin_thread_vm_ops,
-    .managed_frames = &scoop_darwin_aarch64_managed_frame_ops,
+static const ScoopPlatformBundle linux_amd64_bundle = {
+    .metadata_images = &scoop_elf_metadata_image_ops,
+    .thread_vm = &scoop_linux_thread_vm_ops,
+    .managed_frames = &scoop_amd64_managed_frame_ops,
 };
 
 const ScoopPlatformBundle *scoop_platform_bundle(void) {
-    return &darwin_aarch64_bundle;
+    return &linux_amd64_bundle;
 }

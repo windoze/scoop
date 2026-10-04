@@ -93,6 +93,7 @@ impl ResolvedTargetProfile {
                     "runtime/src/thread/transitions.c",
                     "runtime/src/callback.c",
                     "runtime/src/platform/profiles/darwin_aarch64.c",
+                    "runtime/src/platform/common.c",
                     "runtime/src/platform/image/macho.c",
                     "runtime/src/platform/image/darwin_sha256.c",
                     "runtime/src/platform/arch/aarch64.c",

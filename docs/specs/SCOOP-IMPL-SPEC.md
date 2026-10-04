@@ -906,6 +906,8 @@ M23-9 的独立 Link reader 使用新增 `org.scoop-lang.lir/link-support/1`，�
 
 M28 的 C bridge 工具链按 Darwin/Apple Clang 与 Linux/GCC 区分完整平台合同，不为 Linux 填充伪造 SDK 或 macOS deployment。Linux glibc/musl 分别使用 `linux-x86-64-gnu-gcc/1`、`linux-x86-64-musl-gcc/1` C bridge profile；保留 contract fields 1～8，field 4 为 `{1=Linux tag 2}`，field 5 为 `{1=GCC tag 2, 2=完整数字版本, 3=实际编译输入摘要}`。摘要覆盖已选 driver、实际 GCC、specs 和被探针消费的开发 headers；调用路径是非持久 locator。flags 沿用 C11、object、O0/g0、no-common/no-ident/no-stack-protector/no-unwind-tables/no-asynchronous-unwind-tables/no-builtin，增加 PIC，不传 Apple `-target`、`-isysroot`、deployment flags。显式 native sysroot 及已解析的 PATH/REALGCC 由 invocation 保存并传给 GCC；不能因 `env_clear()` 丢掉 wrapper 所需的执行环境。临时文件使用当前构建目录。实际链接器、CRT 和 unwind archive 仍由 final-link 输入负责，纯 `.slib` 的 C bridge 构建不要求 unwind archive。
 
+Linux runtime 的已有 SHA-256 canonical fingerprint 由固定的 Mbed TLS 3.6.6 SHA-256 模块提供，最小配置只启用 SHA-256，不引入 TLS、PSA、证书或新的 digest 协议。所需上游源文件和 headers 连同许可证纳入 `runtime/third_party/mbedtls`，与 runtime 源码一样进入构建输入；普通构建与 artifact-only 链接不联网下载。Darwin 继续使用 CommonCrypto，两者必须通过同一摘要向量。Linux image 收集从加载后的 ELF program headers 与当前 VM permissions 完成；动态和静态的只读 metadata linker script 位于 toolchain，由构建工具打包使用，不能让 artifact-only consumer 为此读取 runtime 源码树。
+
 本节是M23-3/M23-4/M23-11逐步落地、在M23-11切换为唯一生产入口的最终合同；第2.6节identity与container/member wire基础在M23-2冻结，第2.8节program-link在M23-9/M23-10分两步完成。本规范不为迁移期保留第二套稳定工具契约。
 
 M23-11 的详细设计见 [公开 CLI、单文件模式与总验收](../milestone23/stage11/DESIGN.md)。`scoop` bin 直接连接已有 graph、snapshot、cache、runtime-build 与 program-link 库入口；配套 `scoopc` 默认取当前 `scoop` executable 所在目录中的同名工具，也可显式指定其路径，再检查现有 machine capability 与实际 executable 内容。不得从任意 PATH 命中另一个 compiler，也不增加来源授权。当前开发发行的 sysroot/runtime 默认位置由 toolchain 配置提供，命令行可覆盖；全局缓存由 `scoop` 管理，显示路径和程序参数不进入编译键。
