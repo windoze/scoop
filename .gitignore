@@ -1,4 +1,5 @@
 /target
+/sysroot/native/
 /tmp/
 .env*
 /.venv

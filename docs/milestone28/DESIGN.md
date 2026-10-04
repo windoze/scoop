@@ -8,6 +8,8 @@
 
 本设计的依据包括三份规范、现有 target/toolchain/runtime/linker 实现和本机小型编译运行探针。环境、命令、实测结论及其局限见 [调研记录](INVESTIGATION.md)。这些探针不等同于 Scoop 已完成 Linux 支持。
 
+当前可用的工具链准备命令见 [构建说明](BUILDING.md)。
+
 ## 1. 交付范围
 
 ### 1.1 支持矩阵

@@ -61,7 +61,10 @@ M28 固定使用给定的 22.1.2 源码便于复现；未来可以独立升级 u
 
 ```bash
 M28_SOURCE="$(realpath ../llvm-project-22.1.2.src)"
-M28_BUILD="$(mktemp -d /tmp/scoop-m28-llvm-unwind.XXXXXX)"
+mkdir -p target
+M28_BUILD="$(mktemp -d "$PWD/target/scoop-m28-llvm-unwind.XXXXXX")"
+mkdir -p "$M28_BUILD/tmp"
+export TMPDIR="$M28_BUILD/tmp"
 M28_CC="$(command -v clang)"
 M28_CXX="$(command -v clang++)"
 M28_RESOURCE="$("$M28_CC" -print-resource-dir)"
