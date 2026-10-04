@@ -1548,7 +1548,11 @@ M26 的完整设计见 [M26 设计](../milestone26/DESIGN.md)，源码行为以 
 
 intrinsic struct 的计算属性使用普通 accessor 声明与效果检查，不能因表示由编译器提供而丢弃；它仍不允许存储属性或用户构造器。Char 的名义应用沿普通 Struct 类型通道传递，由 Char intrinsic representation 指定物理标量；不另建平行的名义类型系统。core fundamental protocol 追加实际 Char 声明角色，字面量据此绑定，用户同名声明不替代隐式目标。code 与内部构造在 MIR 保留明确的 Char/Int 转换，LIR 在确认两者均为 i32 后复用相同位值；相等和比较复用既有整数标量运算。
 
+String 的普通计算属性查询将固定 String 类型映射回实际 intrinsic class application，再复用共有 property/accessor 路径；隐式 this 与显式 receiver 使用相同查询，不按 `length`/`byteLength` 拼写生成专用节点。
+
 **字符串与 native 边界。** String 的 byteLength 从既有物理计数取得；length、get、slice 与 iterator 使用 UTF-8 标量定位。native leaf 返回普通 Option 结果，core 负责源码越界异常，slice 在一次定位后把已确定的字节区间交给复制 helper。String iterator 持有 String ref 与 byte cursor，逐次解码，不能以反复 `get(characterIndex)` 产生二次方遍历。List 到 String 的公开 companion 方法在 managed core 中先取得元素快照；native helper 只消费具体数组，不调用可能抛出的 interface getter。根、目标 String/数组 TD 与 native 返回值布局均由既有实际 provider/typed call 关系确定，不能按类型名或宿主 C layout 猜测。
+
+String 的数组快照由普通 MutableArray(size, init) 生成，Char initializer 消费按 byte cursor 前进的 String iterator，字节 initializer 读取受检 byte index。fromChars/fromUtf8Unchecked 先调用普通 List 快照扩展，再进入具体数组的 native helper；无需额外数组分配 intrinsic 或按名字查找数组 TD。平台 shim 只适配已确定的 Scoop aggregate 返回存储，定位结果布局由真实 core Option/tuple/Char 和现有 ABI 规则确定。
 
 **parts。** StringBuilder 以私有 ArrayList<String> 持有 parts。generic add 先执行一次已选 ToString 调用，再普通追加；build 从同一个私有实例取得 backing/有效 size，通过 internal core getter/方法把本次值传给 `coreStringJoinParts`。这一个实际内部使用不产生公开 storage API、独立 buffer wrapper 或借用协议。native helper 只做 runtime spec 第 6 章的前缀范围检查、checked 字节求和、最终分配与复制，不编码 ArrayList/StringBuilder 字段布局。build 无用户 callback、无需额外 parts 快照或 off-heap 临时存储；backing 及其包含的 String 必须经过 moving GC 后重新读取。
 

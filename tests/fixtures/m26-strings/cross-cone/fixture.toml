@@ -1,0 +1,97 @@
+schema = 1
+name = "m26-strings-cross-cone"
+inputs = ["provider", "consumer"]
+tools = ["scoop", "scoopc"]
+targets = ["aarch64-apple-darwin"]
+tags = ["m26", "strings", "generics", "stage-golden"]
+
+[[steps]]
+name = "prepare"
+files = [
+  {copy = {from = "${sysroot}/lib/scoop.core", to = "${work}/core-source"}},
+  {mkdir = {path = "${work}/empty-sysroot"}},
+  {copy = {from = "${fixture}/provider", to = "${work}/provider"}},
+  {copy = {from = "${fixture}/consumer", to = "${work}/consumer"}},
+  {mkdir = {path = "${work}/artifacts/test/strings-provider/0.1.0"}},
+]
+
+[[steps]]
+name = "core"
+argv = ["${scoop}", "build", "${work}/core-source", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-core", "-o", "${work}/artifacts/scoop/scoop.core/0.1.0/cone.slib", "--message-format", "json"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "remove_core_source"
+files = [{remove = {path = "${work}/core-source"}}]
+
+[[steps]]
+name = "provider"
+argv = ["${scoop}", "build", "${work}/provider", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-provider", "--cone-path", "${work}/artifacts", "--emit", "all", "--dump-dir", "${work}/dump/provider", "--message-format", "json", "-o", "${work}/artifacts/test/strings-provider/0.1.0/cone.slib"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/provider/${provider.result.root.identity}/hir.txt", snapshot = "provider.hir.txt"},
+  {file = "${work}/dump/provider/${provider.result.root.identity}/mir.txt", snapshot = "provider.mir.txt"},
+  {file = "${work}/dump/provider/${provider.result.root.identity}/lir.txt", snapshot = "provider.lir.txt"},
+]
+
+[[steps]]
+name = "remove_provider_source"
+files = [{remove = {path = "${work}/provider"}}]
+
+[[steps]]
+name = "consumer"
+argv = ["${scoop}", "build", "${work}/consumer", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-consumer", "--emit", "all", "--dump-dir", "${work}/dump/consumer", "--message-format", "json", "--cone-path", "${work}/artifacts"]
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+checks = [
+  {file = "${work}/dump/consumer/${consumer.result.root.identity}/hir.txt", snapshot = "consumer.hir.txt"},
+  {file = "${work}/dump/consumer/${consumer.result.root.identity}/mir.txt", snapshot = "consumer.mir.txt"},
+  {file = "${work}/dump/consumer/${consumer.result.root.identity}/lir.txt", snapshot = "consumer.lir.txt"},
+]
+
+[[steps]]
+name = "run"
+argv = ["${consumer.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "remove_consumer_source"
+files = [{remove = {path = "${work}/consumer"}}, {mkdir = {path = "${work}/empty-sysroot"}}]
+
+[[steps]]
+name = "link"
+argv = ["${scoop}", "link", "--root-slib", "${consumer.result.root.path}", {each = "${consumer.result.dependencies}", field = "path", prefix = "--dependency-slib"}, "--runtime-objects", "${consumer.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "-o", "${work}/relinked", "--message-format", "json"]
+env = {LLVM_CONFIG_PATH = "/absent/llvm-config", LLVM_SYS_221_PREFIX = "/absent/llvm"}
+exit = 0
+stdout = ""
+stderr = ""
+json = "stderr"
+diagnostics = []
+
+[[steps]]
+name = "relinked"
+argv = ["${link.result.output}"]
+exit = 0
+stdout = "42\n"
+stderr = ""
+
+[[steps]]
+name = "moving"
+argv = ["${link.result.output}"]
+env = {SCOOP_GC_STRESS_MOVE = "1"}
+exit = 0
+stdout = "42\n"
+stderr = ""

@@ -1,0 +1,257 @@
+SourceFile
+  RootPackage
+  fun main()
+    val values: MutableArray<Char>
+      ArrayLiteral
+        CharLiteral 'A'
+        CharLiteral '雪'
+        CharLiteral '🚀'
+        CharLiteral '\0'
+    val text
+      MethodCall fromChars
+        Var String
+        Var values
+    assign []
+      Var values
+      IntLiteral 0L
+      CharLiteral 'Z'
+    val chars
+      MethodCall toCharArray
+        Var text
+    assign []
+      Var chars
+      IntLiteral 1L
+      CharLiteral '好'
+    val list
+      Call ArrayList<Char>
+    for character
+      Var chars
+      MethodCall add
+        Var list
+        Var character
+    val copied
+      MethodCall fromChars
+        Var String
+        Var list
+    MethodCall clear
+      Var list
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            Var text
+            StringLiteral "A雪🚀\0"
+          Binary Ne
+            Var copied
+            StringLiteral "A好🚀\0"
+        Binary Ne
+          FieldAccess size
+            Var chars
+          IntLiteral 4L
+      Call println
+        StringLiteral "characters"
+      return
+    val bytes
+      MethodCall toByteArray
+        Var text
+    val second
+      MethodCall toByteArray
+        Var text
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess size
+              Var bytes
+            IntLiteral 9L
+          Binary Ne
+            Index
+              Var bytes
+              IntLiteral 1L
+            MethodCall toInt8
+              Unary Neg
+                IntLiteral 23
+        Binary Ne
+          Index
+            Var bytes
+            IntLiteral 8L
+          MethodCall toInt8
+            IntLiteral 0
+      Call println
+        StringLiteral "byte-encoding"
+      return
+    @Unsafe block
+      val decoded
+        MethodCall fromUtf8Unchecked
+          Var String
+          Var bytes
+      assign []
+        Var bytes
+        IntLiteral 0L
+        MethodCall toInt8
+          IntLiteral 90
+      Call gcCollect
+      if
+        Binary Or
+          Binary Or
+            Binary Ne
+              Var decoded
+              Var text
+            Binary Ne
+              Index
+                Var second
+                IntLiteral 0L
+              MethodCall toInt8
+                IntLiteral 65
+          Binary Ne
+            MethodCall fromUtf8Unchecked
+              Var String
+              Var bytes
+            StringLiteral "Z雪🚀\0"
+        Call println
+          StringLiteral "byte-snapshot"
+        return
+    val many
+      Call MutableArray<Char>
+        IntLiteral 120L
+        Lambda 0 suspend=false
+          param index: _
+          when
+            Binary Rem
+              Var index
+              IntLiteral 4L
+            arm 0L
+              CharLiteral 'A'
+            arm 1L
+              CharLiteral '雪'
+            arm 2L
+              CharLiteral '🚀'
+            else
+              CharLiteral '\0'
+    val large
+      MethodCall fromChars
+        Var String
+        Var many
+    val roundTrip
+      MethodCall toCharArray
+        Var large
+    Call gcCollect
+    if
+      Binary Or
+        Binary Or
+          Binary Ne
+            FieldAccess length
+              Var large
+            IntLiteral 120L
+          Binary Ne
+            FieldAccess byteLength
+              Var large
+            IntLiteral 270L
+        Binary Ne
+          FieldAccess size
+            Var roundTrip
+          FieldAccess size
+            Var many
+      Call println
+        StringLiteral "many-size"
+      return
+    for index
+      InfixCall until
+        IntLiteral 0L
+        FieldAccess size
+          Var many
+      if
+        Binary Ne
+          Index
+            Var roundTrip
+            Var index
+          Index
+            Var many
+            Var index
+        Call println
+          StringLiteral "many-values"
+        return
+    val boundaries: Array<Int>
+      ArrayLiteral
+        IntLiteral 0
+        IntLiteral 127
+        IntLiteral 128
+        IntLiteral 2047
+        IntLiteral 2048
+        IntLiteral 55295
+        IntLiteral 57344
+        IntLiteral 65535
+        IntLiteral 65536
+        IntLiteral 1114111
+    for code
+      Var boundaries
+      val character
+        MethodCall toChar
+          Var code
+      val one: Array<Char>
+        ArrayLiteral
+          Var character
+      val encoded
+        MethodCall fromChars
+          Var String
+          Var one
+      if
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Ne
+                FieldAccess length
+                  Var encoded
+                IntLiteral 1L
+              Binary Ne
+                Index
+                  Var encoded
+                  IntLiteral 0L
+                Var character
+            Binary Ne
+              Var encoded
+              MethodCall toString
+                Var character
+          Binary Ne
+            Index
+              MethodCall toCharArray
+                Var encoded
+              IntLiteral 0L
+            Var character
+        Call println
+          StringLiteral "unicode-boundary"
+        return
+    val none
+      Call ArrayList<Char>
+    val noBytes
+      Call ArrayList<Byte>
+    @Unsafe block
+      if
+        Binary Or
+          Binary Or
+            Binary Or
+              Binary Ne
+                MethodCall fromChars
+                  Var String
+                  Var none
+                StringLiteral ""
+              Binary Ne
+                MethodCall fromUtf8Unchecked
+                  Var String
+                  Var noBytes
+                StringLiteral ""
+            Binary Ne
+              FieldAccess size
+                MethodCall toCharArray
+                  StringLiteral ""
+              IntLiteral 0L
+          Binary Ne
+            FieldAccess size
+              MethodCall toByteArray
+                StringLiteral ""
+            IntLiteral 0L
+        Call println
+          StringLiteral "empty"
+        return
+    Call println
+      IntLiteral 42

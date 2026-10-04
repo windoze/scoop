@@ -6,6 +6,9 @@ Module
   enum Option<Int>
     Some(_0: Int)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class IllegalArgumentException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
@@ -20,6 +23,8 @@ Module
   interface List<Int> : Iterable<Int>
   interface Iterable<Int>
   interface Iterator<Int>
+  interface Iterable<Char>
+  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type3 invoke=@fn6 captures=0
     bridge function_type1 -> @fn16 id=0d15cd9a99d0a0b9482991a66e6f7bbbcfbf33af55bccffb75d4d8dc91056a7a
   closure cc1 $Closure$reference0 type=function_type0 invoke=@fn12 captures=1

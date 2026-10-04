@@ -11,6 +11,9 @@ Module
   enum Option<Option<Cell>>
     Some(_0: Option<Cell>)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   enum Option<Option<Int>>
     Some(_0: Option<Int>)
     None()
@@ -50,6 +53,8 @@ Module
   interface Iterator<Option<Cell>>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   interface List<Option<Int>> : Iterable<Option<Int>>
   interface Iterable<Option<Int>>
   interface Iterator<Option<Int>>
@@ -71,8 +76,8 @@ Module
   closure cc6 $Closure$lambda6 type=function_type4 invoke=@fn57 captures=0
     bridge function_type1 -> @fn76 id=6dd24f49a0fa4d37b2a6a16f5f7618edc870ac566d0b0064a4d91303999131f5
   generated_exact_type get0 location=closure6 nominal_id=ba5a72523e930e25c12e9c8971675433755a8d170a3eece43194c05c8fb3931e exact_id=07ea8ca2af143d901945f331c4f465c8799bd24db46e9d7c7211fe1860fe3fce
-  generated_exact_type get1 location=enum5 nominal_id=a6abba7579e1ee789e8f658290d7c66e8f019977fb3c8ce2bc4d3530e528a1ac exact_id=0f3d0aed1642337ec8ddf7d49149e9e9ecb65db15231c62bbc474fae280eaea1
-  generated_exact_type get2 location=enum6 nominal_id=52b6dd6488dc0267fdd4c4a5c765f4c0580183b3a973174a975e8d83a2e21380 exact_id=1f068f4f1b445ad1d1d7826ce1e5d2db8d2e4b99413c0158e11b42aa92eadd2f
+  generated_exact_type get1 location=enum6 nominal_id=a6abba7579e1ee789e8f658290d7c66e8f019977fb3c8ce2bc4d3530e528a1ac exact_id=0f3d0aed1642337ec8ddf7d49149e9e9ecb65db15231c62bbc474fae280eaea1
+  generated_exact_type get2 location=enum7 nominal_id=52b6dd6488dc0267fdd4c4a5c765f4c0580183b3a973174a975e8d83a2e21380 exact_id=1f068f4f1b445ad1d1d7826ce1e5d2db8d2e4b99413c0158e11b42aa92eadd2f
   generated_exact_type get3 location=closure1 nominal_id=76bc3e5e31eaa85f3f2c7a65e03d733b80ee03ccd2787b8a2d6d4a37ff75d35d exact_id=35465601d4b138078100a6c66bce9bcec0f883e507a4a8a66a320a6398c04759
   generated_exact_type get4 location=closure2 nominal_id=c252ab0dafde326969cb34a73febf75c9997f4189573a6e464cb37a9c2295117 exact_id=3b00aaa913c5ea1b3cd4371b5f3007db8c8abab47f107bdb8c5538c56da12cc6
   generated_exact_type get5 location=closure3 nominal_id=e9d1dddb99447c27aaae7605d9ab313e46f1adfd230b505020203a2b75d89297 exact_id=58169ec1eccd826fefa7035b11fe04d36af642ba7b135e33b46122038ee0fd86

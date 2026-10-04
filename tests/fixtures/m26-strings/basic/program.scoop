@@ -1,0 +1,33 @@
+fun main() {
+    val text = "A雪🚀\u0000e\u0301"
+    if (text.length != 6L || text.byteLength != 12L || text[1L] != '雪' ||
+        text[2L] != '🚀' || text[3L] != '\u0000' || text[5L] != '\u0301') {
+        println("units"); return
+    }
+    if (text.slice(1L, 3L) != "雪🚀" || text.slice(0L, 6L) != text ||
+        text.slice(6L, 6L) != "" || "".slice(0L, 0L) != "") { println("slice"); return }
+    val empty = ""
+    if (empty.length != 0L || empty.byteLength != 0L) { println("empty"); return }
+    val source: Iterable<Char> = text
+    var count = 0L
+    for (character in source) {
+        if (character != text[count]) { println("iteration"); return }
+        count = count + 1L
+    }
+    val iterator = source.iterator()
+    while (iterator.next() != None) {}
+    if (count != 6L || iterator.next() != None || iterator.next() != None ||
+        empty.iterator().next() != None) { println("exhaustion"); return }
+    var caught = 0
+    try { val value = text[-1L] } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { val value = text[6L] } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { val value = text[9223372036854775807L] } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { val value = text[-9223372036854775808L] } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { text.slice(-1L, 0L) } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { text.slice(2L, 1L) } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { text.slice(0L, 7L) } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { text.slice(7L, 7L) } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    try { text.slice(-9223372036854775808L, 9223372036854775807L) } catch (e: IndexOutOfBoundsException) { caught = caught + 1 }
+    if (caught != 9 || text == "A雪🚀\u0000é") { println("bounds-normalization"); return }
+    println(42)
+}

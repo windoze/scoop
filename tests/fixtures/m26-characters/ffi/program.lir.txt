@@ -4,6 +4,7 @@ Module
   global @scoop$1$io$5b150b9a087b1c8a15caa55cfa092ea3d8ea7a2adeaff2ea753d789ac919417a = "\n"
   global @scoop$1$ss$9b273ab0bbc562dd7f8e8b0487c0e98f4a7d0781b1cb5aa5b6d69c2d8a7f66b1 : ptr<managed> scan=refs[0]
   c-struct struct1 Packet fields=[Int8@0/1,UInt@4/4,Long@8/8]
+  enum Option tagged size=16 align=8 variants=(i32)@8+4 ()@8+0
   extern ef0 roundCharacter @round_character(i32) -> i32 <c exact=(UInt)->UInt bridge=@scoop$1$br$7d41dd8cbc0a344f95905cbd6d660c3d8d9032f66874ad444af83226503a400d gc-leaf nounwind lib=fixture_native>
   extern ef1 roundPacket @round_packet(struct1) -> struct1 <c exact=(c-struct1)->c-struct1 bridge=@scoop$1$br$19ea8c541d8b5fbc350bf0ab0201de1cbea08ff13a53b170dcdb2d62c359a1ea gc-leaf nounwind lib=fixture_native>
   extern ef2 replaceCharacter @replace_character(ptr<raw>) -> void <c exact=(data-ptr<UInt,direct>)->void bridge=@scoop$1$br$c12296990909edafa04a0eaaaa14b6451f9f30ae80776e62d8595bc6ff92f29a gc-leaf nounwind lib=fixture_native>
@@ -267,9 +268,15 @@ Module
     global_store global3, t3
     end_catch
     ret integer<UInt>(0x00000001)
-  td td0 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=Packet) @scoop$1$td$e6a7e8a5dea0892e4a10fa33f299d1142b622838a3d963291865dc64c9a29b7e type-id=2749211340215346956 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td0 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterable);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$ef6b36ca09c9933b3bea840528953a3d291a9603d801f756a28cae62bb923998 type-id=10315282307843172623 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td1 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=I;x=Iterator);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$2ae1daea8950ad158982fc142740cd4330fb486dd7dae7c2229b04b285155cfd type-id=16446202047868660179 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] parents=[]
+  td td2 a(n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=E;x=Option);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Char)]) @scoop$1$td$d7f4366e65835cbfa9730a35af33f51b9ed79c85d1b97de13e951aaa6136a11d type-id=4546798213121979959 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
+  td td3 n(c=scoop%3Asingle-file%3A0.0.0;p=;o=-;k=S;x=Packet) @scoop$1$td$e6a7e8a5dea0892e4a10fa33f299d1142b622838a3d963291865dc64c9a29b7e type-id=2749211340215346956 shape=BoxedValue minimum-size=32 align=8 parent=none vtable=[] itables=[]
   layout Packet size=16 align=8 refs=[]
   layout-meta Packet c-layout(aligned=0,packed=0) fields=[0@1,4@4,8@8] interior-mutable=false
   layout Packet size=16 align=8 refs=[]
   layout-meta Packet c-layout(aligned=0,packed=0) fields=[0@1,4@4,8@8] interior-mutable=false
+  layout Option size=16 align=8 enum-scan=none
+  layout Iterable value size=8 align=8 refs=[0]
+  layout Iterator value size=8 align=8 refs=[0]
   output executable @scoop$1$cb$a59ba8328a87a3c09df1111305261ccbca23796630e0ce6dea24e3ae106f48ca

@@ -1,0 +1,15 @@
+package fixtures.strings
+
+public fun <T : List<Char>> encode(value: T, fallback: String = "empty"): String =
+    if (value.size == 0L) { fallback } else { String.fromChars(value) }
+
+public fun middle(value: String, start: Long = 1L): String = value.slice(start, value.length)
+
+public fun walk(value: Iterable<Char>): Long {
+    var count = 0L
+    for (character in value) { count = count + character.code.toInt64() }
+    return count
+}
+
+@Unsafe
+public fun roundTrip(value: String): String = String.fromUtf8Unchecked(value.toByteArray())

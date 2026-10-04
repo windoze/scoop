@@ -523,6 +523,8 @@ core 的 checked 容量增长在 Long 计数溢出时调用无参数 NoGC 后备
 - `Iterator`/`Iterable`、四个独立nominal type `IntRange`/`UIntRange`/`LongRange`/`ULongRange`、Array iterator、range终止与非法step全部由普通Scoop core与生成代码实现；`LongRange`/`ULongRange`不再是前两者的alias，M22不新增range/iteration runtime ABI；
 - 类型测试与装箱辅助：`is` / `as` 的exact TypeDescriptor比较、普通装箱/拆箱。
 
+String 的两个定位后备遵守当前 core `Option` 的 Scoop ABI：`Option<Char>` 是 16-byte、8-byte 对齐的存储，tag 位于 offset 0、Char payload 位于 offset 8；`Option<(Long, Long)>` 是 24-byte、8-byte 对齐的存储，tag 位于 offset 0、两个 Long 位于 offset 8/16。当前 core 声明的 Some/None tag 分别为 0/1；这些是同一 core/native 实现的普通类型布局约定。Darwin/AArch64 的返回存储由 x8 传入，平台 shim 将该地址转交 C helper，不能使用宿主 C struct-return 分类代替 Scoop ABI。字符/字节输出数组由普通 core 初始化构造创建，分别以只前进的 byte cursor 和 byte index 填充；native 定位入口只借用参数，不分配或进入 GC；含 ref 的源码签名仍按既有 Scoop ABI Managed 边界处理。分配 String 的入口先登记输入快照的 native roots，分配后重取地址。
+
 M26 的 parts 拼接后备只消费 `MutableArray<Option<String>>` 的有效前缀及 `Long` partCount，返回普通 String；source-level core 边界为 `coreStringJoinParts(storage, partCount): String`。StringBuilder 从自己私有的 ArrayList 取得当前 backing 与 size 作为本次调用实参，期间不执行用户代码；该内部存储访问不成为公开 List 方法或 borrow/view API。runtime 不读取 ArrayList/StringBuilder 字段，也不改变它们的状态。
 
 该 helper 检查本次动态前缀范围，对所有 Some(String) 的 physical byte count checked 求和，经既有 String allocation shape 分配一次最终字节存储，再顺序复制 parts。空/单 part 可以直接复用不可变 String。None 出现在有效前缀属于内部不变量错误；这里不重复验证完整静态 TD、每个 part 的 UTF-8 或用户语言规则。native 入口及分配前按既有 caller-root/managed-anchor 协议保活 backing；allocation 后从被更新的 backing 重新读取 String ref 与 data 地址，不能跨 safepoint 缓存 part 指针。填充结果的循环不分配、不回调、不抛源码异常；如实现添加 poll，必须同时 root 结果并在 poll 后重新取得全部地址。最终 String 发布后不再写入其字节。

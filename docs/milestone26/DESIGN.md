@@ -1,6 +1,6 @@
 # M26 设计：List、字符与 parts 字符串构建
 
-状态：实现中；数组初始化、List 与 Char 已完成，String、StringBuilder 与插值继续按第 9 节实施。
+状态：实现中；数组初始化、List、Char 与 String 已完成，StringBuilder 与插值继续按第 9 节实施。
 
 日期：2026-10-04。
 
@@ -346,3 +346,12 @@ python3 tests/run_fixtures.py --all
 - 23 个 Char 正式 fixture 通过，包含 18 个负例与 18 份 AST/HIR/MIR/LIR golden；覆盖 scalar 边界、异常、同名声明遮蔽、嵌套值/Option、数组与列表、装箱、C aggregate/指针，以及删除源码后的跨 Cone 链接。正向程序同时在正常和 moving GC 下运行。
 - 执行 cargo fmt 与全 workspace clippy；parser 438、HIR 874、HIR lowering 1314、MIR lowering 114、LIR lowering 146、slib 590 个单元测试通过。
 - 原有数组初始化和 List 的 12 个正式回归 fixture 通过，18 份阶段 golden 随新增实际 core 类型同步。
+
+### String
+
+- 普通 core String 提供 length/byteLength、按 Unicode scalar 的 get/slice、Iterable<Char>、字符与 UTF-8 字节快照，以及 public companion 的 fromChars/fromUtf8Unchecked；计算属性回到实际 String class application 后复用共有属性查询。
+- StringIterator 持有 String 和只前进的 byte cursor；toCharArray/toByteArray 使用普通完整初始化构造，List 输入先做普通数组快照。UTF-8 编解码与 Char.toString 共用小型 runtime 模块，切片定位结果只计算一次。
+- 两个 Option 结果遵守已有 Scoop aggregate 返回 ABI，以平台 shim 接收 x8 返回存储；分配入口登记实际输入数组/String 的 native roots，并在分配后重取地址。未增加数组 TD 猜测、字符串索引缓存或新的 IR 指令。
+- 原 types.scoop 按职责拆为 53 行的基本协议/alias/Boolean 文件、487 行 signed integers、468 行 unsigned integers，以及独立的 String 与 iterator 文件。
+- 9 个正式 String fixture 全部通过，包含 5 个完整诊断负例与 18 份阶段 golden；覆盖空串、NUL、组合字符、全部 UTF-8 宽度边界、Long 越界、持续耗尽、独立快照、用户 getter 的顺序/异常、泛型 Iterable，以及删除 core/provider/consumer 源码后的独立产物链接和 moving GC。
+- 执行 cargo fmt、全 workspace clippy、C 严格告警语法检查；HIR lowering 1314 和 toolchain 12 个单元测试通过。10 个已有数组/List/Char 正式正例回归通过，36 份阶段 golden 同步。

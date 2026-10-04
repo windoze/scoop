@@ -3,8 +3,13 @@ Module
   extern ef1 roundPacket @round_packet(Packet) -> Packet <abi=c no-gc lib=fixture_native>
   extern ef2 replaceCharacter @replace_character(Ptr<Char>) -> Unit <abi=c no-gc lib=fixture_native>
   struct Packet (prefix: Int8, character: Char, tail: Long) <c-layout aligned=natural packed=natural>
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   fun roundCharacter @fn0(arg0: Char) -> Char
     bb0 entry
       call $call.1: Char = extern0 @round_character direct

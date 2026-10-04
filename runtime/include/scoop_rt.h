@@ -87,6 +87,14 @@ const ScoopString *scoop_rt_long_to_string(int64_t v);
 const ScoopString *scoop_rt_ulong_to_string(uint64_t v);
 const ScoopString *scoop_rt_bool_to_string(bool v);
 const ScoopString *scoop_rt_char_to_string(uint32_t value);
+int64_t scoop_rt_string_byte_length(const ScoopString *value);
+int64_t scoop_rt_string_length(const ScoopString *value);
+uint32_t scoop_rt_string_character_at_byte(const ScoopString *value, int64_t index);
+int8_t scoop_rt_string_byte_at(const ScoopString *value, int64_t index);
+const ScoopString *scoop_rt_string_slice_bytes(const ScoopString *value,
+                                               int64_t start, int64_t end);
+const ScoopString *scoop_rt_string_from_chars(const ScoopArray *value);
+const ScoopString *scoop_rt_string_from_bytes(const ScoopArray *value);
 bool scoop_rt_bool_equals(bool left, bool right);
 int64_t scoop_rt_long_hash(int64_t v);
 int64_t scoop_rt_ulong_hash(uint64_t v);

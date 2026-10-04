@@ -1,0 +1,82 @@
+@Intrinsic("core_string")
+public class String : ToString, Hash, Iterable<Char> {
+    public val byteLength: Long get() = coreStringByteLength(this)
+    public val length: Long get() = coreStringLength(this)
+
+    public operator fun equals(other: String): Boolean = coreStringEquals(this, other)
+
+    @Intrinsic("string_concat")
+    public operator fun plus(other: String): String
+
+    @Intrinsic("string_compare_to")
+    public operator fun compareTo(other: String): Long
+
+    public override fun toString(): String = this
+    public override fun hash(): Long = coreStringHash(this)
+
+    public operator fun get(index: Long): Char {
+        val value = coreStringGet(this, index)
+        if (value == None) { throw IndexOutOfBoundsException() }
+        return value!!
+    }
+
+    public fun slice(start: Long, endExclusive: Long): String {
+        val result = coreStringSliceBounds(this, start, endExclusive)
+        if (result == None) { throw IndexOutOfBoundsException() }
+        val bounds = result!!
+        return coreStringSliceBytes(this, bounds._1, bounds._2)
+    }
+
+    public override operator fun iterator(): Iterator<Char> = StringIterator(this)
+
+    public fun toCharArray(): MutableArray<Char> {
+        val source = iterator()
+        return MutableArray<Char>(length) { _ -> source.next()!! }
+    }
+
+    public fun toByteArray(): MutableArray<Byte> {
+        val source = this
+        return MutableArray<Byte>(byteLength) { index -> coreStringByteAt(source, index) }
+    }
+
+    public companion object {
+        public fun fromChars(chars: List<Char>): String = coreStringFromChars(chars.toArray())
+
+        @Unsafe
+        public fun fromUtf8Unchecked(bytes: List<Byte>): String =
+            coreStringFromBytes(bytes.toArray())
+    }
+}
+
+@Extern(name = "scoop_rt_string_eq", abi = "scoop")
+internal fun coreStringEquals(left: String, right: String): Boolean
+
+@Extern(name = "scoop_rt_string_hash", abi = "scoop")
+internal fun coreStringHash(value: String): Long
+
+@Extern(name = "scoop_rt_string_byte_length", abi = "scoop")
+internal fun coreStringByteLength(value: String): Long
+
+@Extern(name = "scoop_rt_string_length", abi = "scoop")
+internal fun coreStringLength(value: String): Long
+
+@Extern(name = "scoop_rt_string_get", abi = "scoop")
+internal fun coreStringGet(value: String, index: Long): Char?
+
+@Extern(name = "scoop_rt_string_slice_bounds", abi = "scoop")
+internal fun coreStringSliceBounds(value: String, start: Long, endExclusive: Long): (Long, Long)?
+
+@Extern(name = "scoop_rt_string_character_at_byte", abi = "scoop")
+internal fun coreStringCharacterAtByte(value: String, index: Long): Char
+
+@Extern(name = "scoop_rt_string_byte_at", abi = "scoop")
+internal fun coreStringByteAt(value: String, index: Long): Byte
+
+@Extern(name = "scoop_rt_string_slice_bytes", abi = "scoop")
+internal fun coreStringSliceBytes(value: String, start: Long, endExclusive: Long): String
+
+@Extern(name = "scoop_rt_string_from_chars", abi = "scoop")
+internal fun coreStringFromChars(value: Array<Char>): String
+
+@Extern(name = "scoop_rt_string_from_bytes", abi = "scoop")
+internal fun coreStringFromBytes(value: Array<Byte>): String

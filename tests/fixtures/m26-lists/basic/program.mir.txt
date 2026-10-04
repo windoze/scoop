@@ -17,6 +17,9 @@ Module
   enum Option<Option<Unit>>
     Some(_0: Option<Unit>)
     None()
+  enum Option<Char>
+    Some(_0: Char)
+    None()
   class IndexOutOfBoundsException vtable=0 itables=0
   class Exception vtable=0 itables=0
   class Throwable vtable=0 itables=0
@@ -55,6 +58,8 @@ Module
   interface Iterator<Unit>
   interface ToString
   interface Hash
+  interface Iterable<Char>
+  interface Iterator<Char>
   closure cc0 $Closure$lambda0 type=function_type0 invoke=@fn63 captures=1
     bridge function_type1 -> @fn87 id=dba6e3251f20b1ccdeb271c7280dee0e7fbf6e9a124bb3d79c96589eefce3743
   closure cc1 $Closure$lambda1 type=function_type0 invoke=@fn64 captures=1
