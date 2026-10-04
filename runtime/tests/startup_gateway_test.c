@@ -1,3 +1,4 @@
+#include "no_core.h"
 #include <assert.h>
 #include <pthread.h>
 #include <signal.h>
@@ -123,6 +124,7 @@ static void expect_failure(unsigned test, const char *message) {
 }
 
 int main(void) {
+    scoop_test_disable_core_dumps();
     assert(setenv("SCOOP_GC_STRESS_MOVE", "1", 1) == 0);
     const ScoopTypeDescriptor *types[] = {&failure_type};
     const ScoopStaticStorageDescriptorV1 *roots[] = {&failure_storage};

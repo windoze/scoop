@@ -60,6 +60,7 @@ mod moving_gc;
 mod object_partition;
 mod objects;
 mod platform;
+pub(crate) mod platform_support;
 mod pointers;
 mod scoop_abi;
 mod smoke;

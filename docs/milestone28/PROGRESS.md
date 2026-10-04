@@ -21,6 +21,7 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - generated-C 的共有 typed bridge plan 现按 ELF/Mach-O 分派边界物化；ELF 使用实际函数 extent、hidden strong symbols 和只读的一字节 callback signature marker，Darwin 发射形式保持。正式 C invocation 已能编译两 libc 的 outbound、TLS accessor 和 managed callback trampoline；builtin `.slib` ELF 消费接入仍待完成。
 - builtin `.slib` member 规划及 materialization replay 已显式携带实际 target，正确设置两个 Linux target 的 ELF role；driver 两种对象生产入口与 Compile/Link reader 均传递原选择，symbol plan 拒绝与 member plan 混用 target。member 身份及 logical-key bytes 保持既有规则。
 - builtin 对象消费已抽出共有 section/symbol/relocation facts，并按 target 分派 ELF 与 Mach-O producer profile；ELF 保留实际长名称、u32 section 索引、TLS 尺寸、COMDAT、visibility、RELA signed addend 和原始字段字节。generated-C 实际对象已通过 slib 的 definition/relocation 读取，LLVM 对象已通过共有 envelope 与栈图 section 读取；完整 Scoop metadata finalizer 与 amd64 栈图机器合同仍待后续接入。LLVM metadata 在物化时统一设为可重定位的 writable input，最终只读属性由已有链接脚本保证。
+- 共有 C runtime 测试按宿主选择 OS/profile，synthetic AArch64 frame fixture 继续测试相同数值规则；Linux amd64 真机帧仍由已有 Linux 测试负责。实际 Mach-O loaded-image 与 Darwin entry 汇编测试限定在 macOS 执行，最终 Mac 回归仍保留。AArch64 产物测试在 Linux 继续执行，复用正式 object verifier 的帧链/精确 PC 检查，不再额外调用 `otool` 重验同一事实。
 
 每项实现记录实际运行的验证及其局限。原生探针通过不等于正式 Scoop CLI 已支持对应目标。
 
@@ -47,3 +48,4 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - generated-C ELF 新增实际编译/链接/运行测试：通过正式 `emit_c_bridge_object_set` 在 glibc 与 musl 各产生 5 个成员，检查 planned boundaries、符号尺寸/visibility、无 C unwind table；运行 outbound 参数与返回、native TLS 读写/取址，以及 signature/context/argument/result callback 传递。callback 测试使用 C harness 的 runtime gateway stub，只验证 C bridge ABI，不代表完整 managed callback/GC 验收。原有 C layout/bridge 32 项测试与 workspace fmt/clippy 均通过。
 - member target 传递变更通过 slib 全部 593 项单元测试和 driver 的 3 项对象规划测试，新增三 target 的 Scoop/generated-C role 矩阵与 Linux materialization replay 检查；Darwin 原有 canonical logical-key 向量保持。workspace fmt/clippy 通过。
 - 共有对象 facts 变更通过 slib 全部 595 项测试及两 libc 的 5 项真实 codegen 测试。新增实际 GCC 对象覆盖超过 255 的 section ordinal、长名称、TLS、COMDAT、PC-relative 负 addend 与绝对指针正 addend；RELA wire 含固定 bytes 和 signed 边界值。generated-C 的 5 类成员经过共有 definition/relocation reader 后继续链接运行。workspace fmt/clippy 通过。另执行 codegen 全量：308 项通过，15 项失败均涉及尚写死 Darwin 平台源文件、汇编或 `xcrun` 的测试入口，后续需适配宿主工具与平台测试分派；本次未跳过或删去它们。
+- 上述测试入口已适配：`cargo test -p scoop-codegen --lib` 在 Linux 上 321 项全部通过，2 项实际 Darwin 平台测试留待 macOS 执行。共有 C 用例包含真实 moving collector、并发初始化、Context、gateway、release、数组/boxing 与损坏 scan graph；其合成机器帧不等于正式 Scoop CLI 的 amd64 collector 闭环。workspace fmt/clippy 通过。
