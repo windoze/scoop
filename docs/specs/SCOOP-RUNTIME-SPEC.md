@@ -326,6 +326,10 @@ M13 起每个已attach线程持有独立TLAB；slow path在同步的heap元数�
 
 M15的macOS/AArch64 runtime只更新stack-resident managed roots。固定的LLVM 22.1 backend profile通过SelectionDAG默认spill与post-RA statepoint fixup保证每个GC base/derived location都是可写的8-byte `Indirect [SP/FP + offset]`；runtime不保存、unwind或改写register root。stackmap前三个constant location、deopt location与live-out不属于GC root pair；通用parser必须能区分这些区域，DarwinAArch64 profile只在GC root位置拒绝`Register`/`Direct`/constant等非约定形态。
 
+M28 的 Linux/amd64 继续采用上述 stack-only root 规则，DWARF SP/FP 分别为 7/6。入口汇编从尚未修改的 `[RSP]` 读取精确 return PC，以 `RSP+8` 发布 caller 的 callsite SP，以 RBP 发布 FP，追加到 C implementation 参数后 tail-jump；不能把入口自己的 return-address 槽算进 caller SP。LLVM stackmap 的 `stack_size=N` 不含 caller return-address 槽：`FP=SP+N-8`，`[FP]` 是 saved RBP，`[FP+8]` 是 return PC，上一帧的 callsite SP 为 `FP+16`。仅接受位于 `[SP, FP)` 的完整 8-byte root slot，不把 frame record 当 root；base/derived 必须相同。generated 函数固定 frame pointer、禁用 red zone 和 tail call；精确 GC 保持原 return PC，不应用异常 call-site 的 PC 调整。
+
+stackmap 通用 decoder 只检查非零、已知的固定 frame size；对齐属于 frame adapter。Darwin/AArch64 要求 `N % 16 == 0`，Linux/amd64 要求 `N % 16 == 8`，后者与调用点 SP 的 16-byte 对齐一致。不得在共有 v3 decoder 中硬编码 AArch64 的 frame-size 余数。
+
 ### 3.3 根集合
 
 - M27 的线程 Context root：`ScoopThreadState.current_task_context` 是可回写 managed slot，在 native-safe、挂起驱动退出及 gateway 之间仍被扫描。切换时保存的 previous Context、scope 保存的旧 binding root、coroutine frame 和 callback 快照同样使用本章已有的精确 root/RefScan；具体契约见第 9 章。
@@ -354,6 +358,8 @@ M23以后不再引用固定`scoop_image_*`符号；runtime 只遍历 2.8 启动�
 M23的C startup coordinator遵守2.8逐次gateway transition协议。attach本身不构成永久managed段；首次managed指令前的`EntryPending`是已证明为空的新段，允许epoch握手但不允许扫描native frame。gateway首次poll建立自己的精确anchor后才转为活动managed段，返回时先退出该段再继续native-safe coordinator。这个空段优化只用于无managed输入的root/eager gateway。现有callback wrapper进入后需要解析closure handle并发布native roots，仍以活动managed段参与握手，collector等待其真实poll；不能把已携带managed参数的callback准备阶段当成空段跳过。native transition冻结外层段，callback的进入/恢复继续使用同一mode、boundary和深度链。
 
 foreign thread在进入任何 managed代码前必须 attach，建立 TLS thread state、栈边界、TLAB和空 native-root链；离开最后一个 managed callback后由拥有本次 attachment的入口 detach。重复使用的长期 foreign thread可以显式保持 attachment，但不得在 runtime shutdown后重新进入。
+
+Linux OS 组件通过当前线程的 `pthread_getattr_np`/`pthread_attr_getstack` 获取实际栈范围，并通过 `mmap`/`mprotect` 提供同一 VM 操作。glibc 与 musl 复用该组件，寄存器/帧规则属于 architecture/ABI 组件；后续 Linux arm64 不复制 Linux OS 层。musl 主线程栈范围可能随实际调用深度增长，不能永久冻结 attach 时的范围；当当前线程发布的 boundary/anchor/native transition 超出已知范围时重新查询 OS，确认新范围涵盖所需地址及仍活跃的旧段后，在现有 world/park 同步边界发布。collector 只读取线程已发布的快照，不替其他线程查询栈，也不在 parked 期间修改其范围。
 
 M15的platform bundle由object-image、OS thread/VM与architecture/ABI frame三个完备组件组成；GC arena reservation、page protection与线程栈边界都只经OS/VM组件，通用heap/collector不直接调用`mmap`/`mprotect`。通用runtime只经该bundle把top anchor与每一帧return PC/stack-map location转换为可写root slot，不读取Mach-O/x29等平台细节。macOS/AArch64基线强制generated/runtime frame pointer、禁止managed tail call，并要求return PC原值精确命中record；不得使用`PC-4`、最近函数、symbol或地址范围猜测。任何缺失record、越界location、未知DWARF register或当前target不支持的GC-root location kind都是fatal metadata错误；生产编译器应已在object验证阶段把这种情况报告为compiler/toolchain invariant failure，runtime检查只防御错误链接、损坏或非Scoop产物。每个由generated managed code直接调用且可park/collect的managed runtime symbol必须通过薄入口先发布`{ return_pc, callsite_sp, frame_pointer }` opaque anchor，再调用平台无关实现；runtime内部不得重入该入口并把C frame冒充managed frame。Scoop ABI native实现调用的是另一组native-borrowed入口：它验证已发布的caller/native roots并参与握手，但不捕获C caller或伪造managed anchor。
 
@@ -520,6 +526,7 @@ core 的 checked 容量增长在 Long 计数溢出时调用无参数 NoGC 后备
 以 Scoop ABI FFI 函数形式实现；spec 14.4 的 `write(String)` 是不跨 safepoint直接借用 ref的最小范例，涉及分配的函数则按 4.2 登记 native roots：
 
 - `String`：创建、拼接、内容比较、内容 hash、UTF-8 字节数、标量计数/定位/迭代、切片与字符/字节数组快照。读取定位的 native leaf 不抛异常：get 返回普通 `Option<Char>`，slice 定位返回普通 `Option<(Long, Long)>` 字节边界，core 对 None 构造并抛 IndexOutOfBoundsException。定位与复制之间 String 内容不变，已验证的边界可以直接复用；按长度分配后只复制完整 UTF-8 区间。
+  两个 Option 返回入口按目标 `sret` 合同适配到共有 C storage helper：Darwin/AArch64 从 x8 取结果地址；Linux/amd64 从 RDI 取结果地址，普通参数随其后排列，并在 RAX 返回同一地址。不能按 C 编译器的 16-byte aggregate 直接返回规则改变 Scoop 的间接结果 ABI。
 - `Array` / `MutableArray`：按spec 10.1的元素布局分配、读取`size`，以及`toArray` / `toMutableArray`的浅拷贝转换（spec 10.4）。源码可见bounds check、`IndexOutOfBoundsException`构造与throw都在generated managed CFG中完成，native helper不抛异常；若仅供受检代码使用的helper收到越界index则是fatal compiler/runtime invariant error。转换入口显式接收编译器已选定的目标concrete application TypeDescriptor，以该descriptor分配并保留新对象头，先验证source exact array TD/side metadata与logical size，再复制该size；`Inline`非ZST分支复制目标data offset之后的inline element payload，padding保持分配时的canonical zero；`ZeroSized`分支不调用payload `memcpy`。不得从来源对象、元素布局或类型名推断目标类型，也不得沿用来源descriptor；
 - `StringBuilder.add/build` 是普通 core body；只有 build 的最终字符串聚合使用本节下述表示级 helper。List/MutableList 接口、ArrayList 扩容/位移/清空及 iterator 不增加容器 runtime ABI；
 - 八种定宽integer的具体`ToString`/`Hash`后备，以及其他基本类型所需的`ToString`/`Hash`/operator equals后备（不提供`Any`或地址fallback）。`Hash.hash()`与所有integer `compareTo`的源码结果都是`Long`（i64），不随operand宽度改成`Int`；窄signed/unsigned值可由core按规则sign/zero extend后复用64位后备。integer equals由typed intrinsic直接生成比较，既有`scoop_rt_int_equals`/`scoop_rt_uint_equals`在M22迁移调用点后退出公开runtime契约。alias在进入runtime前已经展开，runtime不按`Byte`/`Int64`等alias名称分派；

@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "scoop_rt.h"
 #include "../thread.h"
+#include "scoop_rt.h"
 
 typedef enum ScoopRuntimeLifecycle {
     SCOOP_RUNTIME_UNINITIALIZED,
@@ -42,5 +42,7 @@ void scoop_thread_world_wait(void);
 void scoop_thread_world_broadcast(void);
 void scoop_thread_wait_for_running_world(void);
 void scoop_thread_park_current_locked(ScoopThreadState *state);
+void scoop_thread_ensure_stack_range(ScoopThreadState *state, uintptr_t low,
+                                     uintptr_t high);
 
 #endif /* SCOOP_RT_THREAD_INTERNAL_H */
