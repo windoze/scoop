@@ -116,13 +116,13 @@ Module
     poll managed-void-target7 sp<managed-poll:0> live=[]
     store integer<Long>(0x0000000000000000) -> local0
     store local0 -> local1
-    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td1, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target0 sp<managed-call:0> live=[] t0 = sig=direct0 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td6, machine<byte-size>(ByteSize(24)))
     store t0 -> local51
     call managed-void-target0 sp<managed-call:1> live=[local51:ptr<managed>@0] sig=void0 (ptr<managed>, i64) external-fn5(local51, local1)
     t1 = aggregate () : {}
     store local51 -> local2
     store local2 -> local3
-    call managed-direct-target1 sp<managed-call:2> live=[local3:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(40)))
+    call managed-direct-target1 sp<managed-call:2> live=[local3:ptr<managed>@0] t2 = sig=direct1 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(40)))
     store t2 -> local52
     call managed-void-target1 sp<managed-call:3> live=[local3:ptr<managed>@0, local52:ptr<managed>@0] sig=void1 (ptr<managed>, ptr<managed>) external-fn6(local52, local3)
     t3 = aggregate () : {}
@@ -228,7 +228,7 @@ Module
   block if.merge.12
     store local48 -> local49
     store local49 -> local50
-    call managed-direct-target13 sp<managed-call:19> live=[] t26 = sig=direct13 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td2, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target13 sp<managed-call:19> live=[] t26 = sig=direct13 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td7, machine<byte-size>(ByteSize(24)))
     store t26 -> local54
     call managed-void-target6 sp<managed-call:20> live=[local54:ptr<managed>@0] sig=void6 (ptr<managed>, i64) external-fn9(local54, local50)
     t27 = aggregate () : {}

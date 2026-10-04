@@ -162,7 +162,7 @@ Module
   block if.merge.10
     store integer<Int>(0x00000000) -> local14
     store local14 -> local15
-    call managed-direct-target4 sp<managed-call:7> live=[] t18 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target4 sp<managed-call:7> live=[] t18 = sig=direct4 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
     store t18 -> local80
     call managed-void-target3 sp<managed-call:8> live=[local80:ptr<managed>@0] sig=void3 (ptr<managed>, i32) external-fn4(local80, local15)
     t19 = aggregate () : {}
@@ -262,7 +262,7 @@ Module
   block if.merge.27
     store integer<Int>(0x00000000) -> local40
     store local40 -> local41
-    call managed-direct-target12 sp<managed-call:20> live=[] t49 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target12 sp<managed-call:20> live=[] t49 = sig=direct12 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
     store t49 -> local81
     call managed-void-target8 sp<managed-call:21> live=[local81:ptr<managed>@0] sig=void8 (ptr<managed>, i32) external-fn4(local81, local41)
     t50 = aggregate () : {}
@@ -293,7 +293,7 @@ Module
   block if.merge.31
     store integer<Int>(0x00000000) -> local49
     store local49 -> local50
-    call managed-direct-target16 sp<managed-call:26> live=[local45:ptr<managed>@0] t60 = sig=direct16 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target16 sp<managed-call:26> live=[local45:ptr<managed>@0] t60 = sig=direct16 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
     store t60 -> local82
     call managed-void-target10 sp<managed-call:27> live=[local45:ptr<managed>@0, local82:ptr<managed>@0] sig=void10 (ptr<managed>, i32) external-fn4(local82, local50)
     t61 = aggregate () : {}
@@ -385,7 +385,7 @@ Module
   block if.merge.45
     store integer<Int>(0x00000000) -> local69
     store local69 -> local70
-    call managed-direct-target30 sp<managed-call:44> live=[local45:ptr<managed>@0, local61:ptr<managed>@0] t91 = sig=direct30 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td3, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target30 sp<managed-call:44> live=[local45:ptr<managed>@0, local61:ptr<managed>@0] t91 = sig=direct30 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td8, machine<byte-size>(ByteSize(24)))
     store t91 -> local89
     call managed-void-target14 sp<managed-call:45> live=[local45:ptr<managed>@0, local61:ptr<managed>@0, local89:ptr<managed>@0] sig=void14 (ptr<managed>, i32) external-fn4(local89, local70)
     t92 = aggregate () : {}
@@ -480,6 +480,7 @@ Module
   fun @scoop$1$cb$3f0720d19c1c63164e7282481ddfef75a2dd6396cc382ef3d20932a5a522b64c() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn1() normal @success unwind @failure
     br @success
   block success
@@ -487,7 +488,7 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
     global_store global2, t3
     end_catch
     ret integer<UInt>(0x00000001)

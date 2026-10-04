@@ -12,7 +12,7 @@ Module
     store t0 -> local2
     store param0 -> local1
     t1 = heap_load local1 +0 : ptr<metadata>
-    call no-gc-direct-target0 t2 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, external-td0)
+    call no-gc-direct-target0 t2 = sig=direct1 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t1, external-td5)
     call managed-direct-target1 sp<managed-call:1> live=[local1:ptr<managed>@0] t3 = sig=direct2 (ptr<managed>) -> i32 dispatch[Interface:0] t2(local1)
     store t3 -> local3
     store local3 -> local4

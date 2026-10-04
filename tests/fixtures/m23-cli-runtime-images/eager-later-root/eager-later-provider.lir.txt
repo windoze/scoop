@@ -120,6 +120,7 @@ Module
   fun @scoop$1$cb$8693daf9871e5679b74e8a8c6e7df5c702d93abaa3163ab27b2d4c5d4a26b697() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target0 sp<managed-call:0> live=[] t3 = sig=direct0 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn3() normal @success unwind @failure
     br @success
   block success

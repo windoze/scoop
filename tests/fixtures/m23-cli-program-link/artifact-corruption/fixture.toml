@@ -58,11 +58,11 @@ checks = []
 
 [[steps]]
 name = "original_bytes"
-checks = [{"file" = "${work}/original.slib", "sha256" = "2141f2b088318b34b7d82e8cef27d455d3e35ffbf2cc460cb89dbb9c8a204441"}]
+checks = [{"file" = "${work}/original.slib", "sha256" = "48a543351ecbfb378aec2d6541714306ce98885429adbda3f42b9a2f7ff5ea64"}]
 
 [[steps]]
 name = "damage_member"
-files = [{"chmod" = {"path" = "${work}/artifacts/root.slib", "mode" = "600"}}, {"patch" = {"path" = "${work}/artifacts/root.slib", "offset" = 5928, "hex" = "ce"}}]
+files = [{"chmod" = {"path" = "${work}/artifacts/root.slib", "mode" = "600"}}, {"patch" = {"path" = "${work}/artifacts/root.slib", "offset" = 20734, "hex" = "a2"}}]
 checks = []
 
 [[steps]]
@@ -91,7 +91,7 @@ checks = []
 
 [[steps]]
 name = "truncate"
-files = [{"truncate" = {"path" = "${work}/artifacts/root.slib", "size" = 121377}}]
+files = [{"truncate" = {"path" = "${work}/artifacts/root.slib", "size" = 132797}}]
 checks = []
 
 [[steps]]

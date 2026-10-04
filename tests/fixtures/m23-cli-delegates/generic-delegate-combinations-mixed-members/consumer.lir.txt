@@ -44,7 +44,7 @@ Module
     store t2 -> local4
     store integer<Int>(0x00000000) -> local5
     store local5 -> local6
-    call managed-direct-target2 sp<managed-call:3> live=[local2:ptr<managed>@0] t3 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td0, machine<byte-size>(ByteSize(24)))
+    call managed-direct-target2 sp<managed-call:3> live=[local2:ptr<managed>@0] t3 = sig=direct2 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td5, machine<byte-size>(ByteSize(24)))
     store t3 -> local12
     call managed-void-target1 sp<managed-call:4> live=[local2:ptr<managed>@0, local12:ptr<managed>@0] sig=void1 (ptr<managed>, i32) external-fn1(local12, local6)
     t4 = aggregate () : {}
@@ -285,7 +285,7 @@ Module
   td td0 a(n(c=dev.example%3Adelegate-combinations-provider%3A0.1.0;p=templates.delegateCombinations;o=-;k=C;x=Receiver);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$3be482b8222523be25d9d04153287d8db6670d8df7be87dd9692f4ae84c44407 type-id=7005666206469429026 shape=FixedObject minimum-size=24 align=8 parent=none vtable=[] itables=[]
   td td1 a(n(c=dev.example%3Adelegate-combinations-provider%3A0.1.0;p=templates.delegateCombinations;o=-;k=C;x=SpecificBase);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$ca7b78bfaa228b1c95a254274c05cfded6f79540113b931a614364a042de7476 type-id=17392983075414429911 shape=FixedObject minimum-size=16 align=8 parent=none vtable=[] itables=[]
   td td2 a(n(c=dev.example%3Adelegate-mixed-members%3A0.1.0;p=consumer.delegates;o=-;k=C;x=LocalBroad);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$2727de5d6d96b630eb6d127ae2e5e17f884ce63795d6bfe6be4989f131c62ef8 type-id=5794369826510730721 shape=FixedObject minimum-size=16 align=8 parent=td1 vtable=[] itables=[]
-  td td3 a(n(c=dev.example%3Adelegate-mixed-members%3A0.1.0;p=consumer.delegates;o=-;k=C;x=LocalSpecific);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$c07cf383371f7f7edb365c8afd52f927832087b369382c207a61799ce7c5c56f type-id=10194276422115894803 shape=FixedObject minimum-size=16 align=8 parent=external-td1 vtable=[] itables=[]
+  td td3 a(n(c=dev.example%3Adelegate-mixed-members%3A0.1.0;p=consumer.delegates;o=-;k=C;x=LocalSpecific);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$c07cf383371f7f7edb365c8afd52f927832087b369382c207a61799ce7c5c56f type-id=10194276422115894803 shape=FixedObject minimum-size=16 align=8 parent=external-td6 vtable=[] itables=[]
   layout Receiver value size=8 align=8 refs=[0]
   layout Receiver size=24 align=8 refs=[]
   layout LocalBroad value size=8 align=8 refs=[0]

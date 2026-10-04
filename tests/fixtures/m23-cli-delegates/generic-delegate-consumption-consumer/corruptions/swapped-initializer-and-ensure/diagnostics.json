@@ -5,7 +5,7 @@
     "notes": [],
     "origin": {
       "kind": "artifact",
-      "member": "lir/cone-production/5/initialization/05e469d6e3eebb977651800736fe3880a3bc0d3966a8a9878c636529871a5344/initializer_role",
+      "member": "lir/cone-production/6/initialization/05e469d6e3eebb977651800736fe3880a3bc0d3966a8a9878c636529871a5344/initializer_role",
       "path": "${work}/artifacts/dev.example/generic-delegate-consumer/0.1.0/cone.slib"
     },
     "severity": "error"

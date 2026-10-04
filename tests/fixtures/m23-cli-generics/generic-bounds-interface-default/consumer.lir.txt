@@ -110,10 +110,10 @@ Module
     call managed-direct-target0 sp<managed-call:0> live=[param0:ptr<managed>@0] t0 = sig=direct0 (ptr<managed>) -> i32 dispatch[Closure:2] param0(param0)
     store t0 -> local0
     store local0 -> local1
-    t1 = box_value external-td0, local1 scan=none sp<managed-call:1> live=[]
+    t1 = box_value external-td4, local1 scan=none sp<managed-call:1> live=[]
     ret t1
-  td td0 g(r=00000006;i=d923a54d143503071b368425dd171dd03e4196cf1bf39c3c1ae570b453e40723) @scoop$1$td$585d24442a0b46370ba101432a768fa024ec73fe440d836ac84e737ce1b73d2e type-id=561265313292849572 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[external-td1:[local-fn6], external-td2:[local-fn7]]
-  td td1 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td0
+  td td0 g(r=00000006;i=d923a54d143503071b368425dd171dd03e4196cf1bf39c3c1ae570b453e40723) @scoop$1$td$585d24442a0b46370ba101432a768fa024ec73fe440d836ac84e737ce1b73d2e type-id=561265313292849572 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[external-td6:[local-fn6], external-td7:[local-fn7]]
+  td td1 f(o;[]->n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)) @scoop$1$td$12b88be5eb815a46bc3bd328ffa4199715a900c0a960abd79a0d8b1916bc6a3b type-id=10983983008742581487 shape=AbstractRef minimum-size=0 align=0 parent=none vtable=[] itables=[] function=ordinary()->external-td4
   td td2 g(r=00000001;i=e2f6e9b2261060ca3e2d72fbd41cfb5af8c1d8857f7cbcace9f554e51d52ca43) @scoop$1$td$0468aca903e1bfbb3cafaee84e9ac6aef09de0b424b787b17b2927e35d305148 type-id=10940978476998843717 shape=FixedObject minimum-size=32 align=8 parent=td1 vtable=[local-fn8] itables=[]
   td td3 a(n(c=dev.example%3Ageneric-member-provider%3A0.1.0;p=templates.bounds;o=-;k=S;x=DefaultValue);[n(c=scoop%3Ascoop.core%3A0.1.0;p=;o=-;k=S;x=Int)]) @scoop$1$td$54f3fbbae5a8458122087adf9c97227a2e4bd49d7b4dc671733067ae147343bf type-id=8105892706351466427 shape=BoxedValue minimum-size=24 align=8 parent=none vtable=[] itables=[]
   layout DefaultValue size=4 align=4 refs=[]

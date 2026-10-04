@@ -632,7 +632,7 @@ Module
   block try.dispatch.54
     t80 = begin_catch local250 : ptr<managed>
     store t80 -> local251
-    call no-gc-direct-target7 t81 = sig=direct31 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td2)
+    call no-gc-direct-target7 t81 = sig=direct31 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td7)
     cbr t81 then @try.catch.61 else @try.next.62
   block try.exit_pad.57
     (t84, t85) = cleanup_pad : (exception_record, ptr<raw>)
@@ -676,7 +676,7 @@ Module
   block try.dispatch.66
     t91 = begin_catch local250 : ptr<managed>
     store t91 -> local251
-    call no-gc-direct-target8 t92 = sig=direct34 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td2)
+    call no-gc-direct-target8 t92 = sig=direct34 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td7)
     cbr t92 then @try.catch.73 else @try.next.74
   block try.exit_pad.69
     (t95, t96) = cleanup_pad : (exception_record, ptr<raw>)
@@ -720,7 +720,7 @@ Module
   block try.dispatch.78
     t102 = begin_catch local250 : ptr<managed>
     store t102 -> local251
-    call no-gc-direct-target9 t103 = sig=direct37 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td2)
+    call no-gc-direct-target9 t103 = sig=direct37 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td7)
     cbr t103 then @try.catch.85 else @try.next.86
   block try.exit_pad.81
     (t106, t107) = cleanup_pad : (exception_record, ptr<raw>)
@@ -764,7 +764,7 @@ Module
   block try.dispatch.90
     t113 = begin_catch local250 : ptr<managed>
     store t113 -> local251
-    call no-gc-direct-target10 t114 = sig=direct40 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td2)
+    call no-gc-direct-target10 t114 = sig=direct40 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td7)
     cbr t114 then @try.catch.97 else @try.next.98
   block try.exit_pad.93
     (t117, t118) = cleanup_pad : (exception_record, ptr<raw>)
@@ -808,7 +808,7 @@ Module
   block try.dispatch.102
     t124 = begin_catch local250 : ptr<managed>
     store t124 -> local251
-    call no-gc-direct-target11 t125 = sig=direct43 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td2)
+    call no-gc-direct-target11 t125 = sig=direct43 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td7)
     cbr t125 then @try.catch.109 else @try.next.110
   block try.exit_pad.105
     (t128, t129) = cleanup_pad : (exception_record, ptr<raw>)
@@ -854,7 +854,7 @@ Module
   block try.dispatch.114
     t135 = begin_catch local250 : ptr<managed>
     store t135 -> local251
-    call no-gc-direct-target12 t136 = sig=direct46 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td2)
+    call no-gc-direct-target12 t136 = sig=direct46 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td7)
     cbr t136 then @try.catch.121 else @try.next.122
   block try.exit_pad.117
     (t139, t140) = cleanup_pad : (exception_record, ptr<raw>)
@@ -900,7 +900,7 @@ Module
   block try.dispatch.126
     t146 = begin_catch local250 : ptr<managed>
     store t146 -> local251
-    call no-gc-direct-target13 t147 = sig=direct49 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td2)
+    call no-gc-direct-target13 t147 = sig=direct49 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td7)
     cbr t147 then @try.catch.133 else @try.next.134
   block try.exit_pad.129
     (t150, t151) = cleanup_pad : (exception_record, ptr<raw>)
@@ -946,7 +946,7 @@ Module
   block try.dispatch.138
     t157 = begin_catch local250 : ptr<managed>
     store t157 -> local251
-    call no-gc-direct-target14 t158 = sig=direct52 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td2)
+    call no-gc-direct-target14 t158 = sig=direct52 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td7)
     cbr t158 then @try.catch.145 else @try.next.146
   block try.exit_pad.141
     (t161, t162) = cleanup_pad : (exception_record, ptr<raw>)
@@ -992,7 +992,7 @@ Module
   block try.dispatch.150
     t168 = begin_catch local250 : ptr<managed>
     store t168 -> local251
-    call no-gc-direct-target15 t169 = sig=direct55 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td2)
+    call no-gc-direct-target15 t169 = sig=direct55 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local251, external-td7)
     cbr t169 then @try.catch.157 else @try.next.158
   block try.exit_pad.153
     (t172, t173) = cleanup_pad : (exception_record, ptr<raw>)
@@ -1204,6 +1204,7 @@ Module
   fun @scoop$1$cb$d3bd523ea7c4b775508c06e622f76772db6a21fddb406c6d3fe7d1f20a2a89c1() -> i32
   block entry
     poll managed-void-target1 sp<managed-poll:0> live=[]
+    call managed-direct-target1 sp<managed-call:0> live=[] t4 = sig=direct1 (ptr<metadata>) -> ptr<managed> runtime @scoop_rt_context_ensure_root(external-td3)
     invoke managed-void-target0 sp<managed-invoke:0> roots=[] sig=void0 () local-fn0() normal @success unwind @failure
     br @success
   block success
@@ -1211,7 +1212,7 @@ Module
   block failure
     (t0, t1) = landingpad : (exception_record, ptr<raw>)
     t2 = begin_catch t1 : ptr<managed>
-    call managed-direct-target0 sp<managed-call:0> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
+    call managed-direct-target0 sp<managed-call:1> live=[t2:ptr<managed>@0] t3 = sig=direct0 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(t2)
     global_store global15, t3
     end_catch
     ret integer<UInt>(0x00000001)

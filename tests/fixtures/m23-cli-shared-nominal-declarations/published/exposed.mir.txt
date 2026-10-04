@@ -71,15 +71,20 @@ Module
   generated_exact_type get0 location=enum8 nominal_id=052ec939b3d301b2a13b1df17a61c3349e01d1043ce1ff006a4d7cd157dc83b0 exact_id=034040bc163f8bec26e154609fa09889043aafb16329b5bec7a1014b5bae7446
   generated_exact_type get1 location=enum4 nominal_id=f01124d4a3b1a1686ba4ba94e971d06e96564c27d4b5ff1f95b152482deadc63 exact_id=0b0dd9a24ae9b852442234c27824962a90575842aa1cca26b47d4255df045197
   generated_exact_type get2 location=enum9 nominal_id=8dd1a6ed257422fff154f7a3736e6d0aa34c6e4133ec45dbbed59729a9697667 exact_id=0e26ac17b1ca6359483cc26ed9c6f16e88ad73736cfb7a094e425d6e69aedf4c
-  generated_exact_type get3 location=enum1 nominal_id=f0a0a603925ddd43353bbf0855d045ccc0c15e4a3ea5b2efba074b587b5ba392 exact_id=1482d12839e27d0080aea179b45758abf7c43db7a04b771853bb5f04b315f413
-  generated_exact_type get4 location=enum5 nominal_id=a31cfb19fe8723beacb2a8b9db06c4ed0a20f5991daa6edd9a5f3711d755791d exact_id=315baf84f4581f121e83af4a79e47f3ee1707a371e6d0dd26b56f1ea7dfecc20
-  generated_exact_type get5 location=enum12 nominal_id=6b7cd1902e7bf53985f513bb5306312eae562bf878af0cb7f0f136e794bdc691 exact_id=464cded167a70341bf1f3969e97b12424bebb0626793b2e1d2542198d1b19d42
-  generated_exact_type get6 location=enum7 nominal_id=043b9a46965d0eabe73d76d7bacb39fb0ead4b28d530e833df43c56eac468120 exact_id=49995f50e8d37080e2d259b7e0e98827e7f179753881fcd21bab9b3caf8ab78e
-  generated_exact_type get7 location=enum2 nominal_id=a8e318c6e7f0bc53c630411b0dd0f7710628be77033cdc27422142e78314c420 exact_id=772f574888b36fbf19dbd43c1c8e1ec144e84d4abe59230ea089486b5af7be18
-  generated_exact_type get8 location=enum6 nominal_id=cbb7ebcc7758bed8be9cf08ba94441bf180d62267e30560c48f73f63b648963c exact_id=813e679b42295b746aecad2e1881595e8337b21ba0b7f4b53fb89c0dafd8b99a
-  generated_exact_type get9 location=enum10 nominal_id=d6487cea5e03ad8736b1ad2b76dbe04c63ca6c25f5fc4d34ccc0fc910ed678e1 exact_id=83c99827c396a0da69253a954e5851fbd6384ffe6840084355cbbf4fb373d4ff
-  generated_exact_type get10 location=enum3 nominal_id=b1d7250e5426a3fde7c5bca033685a61023ed2f55b281b96222d10a34d143efe exact_id=afac49d7067432a491713e6ac3ab59772d13518a7cf93310ce03f7cf940c3ad9
-  generated_exact_type get11 location=enum11 nominal_id=9e7c74be8f1804914fcc0f266bf37b417e72878631eddef5eb94fb414f599347 exact_id=ba2c6f74b01e2c1c40fc330e020037af2a5af337ef6b4e0cd513859049e5e423
+  generated_exact_type get3 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get4 location=enum1 nominal_id=f0a0a603925ddd43353bbf0855d045ccc0c15e4a3ea5b2efba074b587b5ba392 exact_id=1482d12839e27d0080aea179b45758abf7c43db7a04b771853bb5f04b315f413
+  generated_exact_type get5 location=enum5 nominal_id=a31cfb19fe8723beacb2a8b9db06c4ed0a20f5991daa6edd9a5f3711d755791d exact_id=315baf84f4581f121e83af4a79e47f3ee1707a371e6d0dd26b56f1ea7dfecc20
+  generated_exact_type get6 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get7 location=enum12 nominal_id=6b7cd1902e7bf53985f513bb5306312eae562bf878af0cb7f0f136e794bdc691 exact_id=464cded167a70341bf1f3969e97b12424bebb0626793b2e1d2542198d1b19d42
+  generated_exact_type get8 location=enum7 nominal_id=043b9a46965d0eabe73d76d7bacb39fb0ead4b28d530e833df43c56eac468120 exact_id=49995f50e8d37080e2d259b7e0e98827e7f179753881fcd21bab9b3caf8ab78e
+  generated_exact_type get9 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get10 location=enum2 nominal_id=a8e318c6e7f0bc53c630411b0dd0f7710628be77033cdc27422142e78314c420 exact_id=772f574888b36fbf19dbd43c1c8e1ec144e84d4abe59230ea089486b5af7be18
+  generated_exact_type get11 location=enum6 nominal_id=cbb7ebcc7758bed8be9cf08ba94441bf180d62267e30560c48f73f63b648963c exact_id=813e679b42295b746aecad2e1881595e8337b21ba0b7f4b53fb89c0dafd8b99a
+  generated_exact_type get12 location=enum10 nominal_id=d6487cea5e03ad8736b1ad2b76dbe04c63ca6c25f5fc4d34ccc0fc910ed678e1 exact_id=83c99827c396a0da69253a954e5851fbd6384ffe6840084355cbbf4fb373d4ff
+  generated_exact_type get13 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get14 location=enum3 nominal_id=b1d7250e5426a3fde7c5bca033685a61023ed2f55b281b96222d10a34d143efe exact_id=afac49d7067432a491713e6ac3ab59772d13518a7cf93310ce03f7cf940c3ad9
+  generated_exact_type get15 location=enum11 nominal_id=9e7c74be8f1804914fcc0f266bf37b417e72878631eddef5eb94fb414f599347 exact_id=ba2c6f74b01e2c1c40fc330e020037af2a5af337ef6b4e0cd513859049e5e423
+  generated_exact_type get16 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_callable gc0 function=@fn37 id=2ef02b95f87d8da399d0b2f6dece2ddec251fa420dcb800a7a0614b94d24bd99
   generated_callable gc1 function=@fn35 id=3ed7cfdb9496af0e2296853a66c4a245ae632f407ad8f3f36129a0f0c84fde78
   generated_callable gc2 function=@fn36 id=5398d59a4d9fb703354f1e95201df898322419ae391dccae7b07615e950fc88a
@@ -335,9 +340,28 @@ Module
         IntegerLiteral Int value=8 bits=0x00000008
       return
   fun startCoroutine<StorageBase> @fn35(task: SuspendTask<StorageBase>, completion: Continuation<StorageBase>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn5 interface Continuation<StorageBase>[0]
         Type Continuation<StorageBase>
         Local completion
@@ -345,29 +369,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<StorageBase>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn6 interface Continuation<StorageBase>[1]
         Type Continuation<StorageBase>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<StorageBase> = @fn7 interface SuspendTask<StorageBase>[0]
         Type SuspendTask<StorageBase>
         Local task
         Type Continuation<StorageBase>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -376,10 +408,41 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun startCoroutine<Envelope.Hidden> @fn36(task: SuspendTask<Envelope.Hidden>, completion: Continuation<Envelope.Hidden>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn17 interface Continuation<Envelope.Hidden>[0]
         Type Continuation<Envelope.Hidden>
         Local completion
@@ -387,29 +450,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<Envelope.Hidden>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn18 interface Continuation<Envelope.Hidden>[1]
         Type Continuation<Envelope.Hidden>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<Envelope.Hidden> = @fn19 interface SuspendTask<Envelope.Hidden>[0]
         Type SuspendTask<Envelope.Hidden>
         Local task
         Type Continuation<Envelope.Hidden>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -418,10 +489,41 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun startCoroutine<Envelope> @fn37(task: SuspendTask<Envelope>, completion: Continuation<Envelope>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn13 interface Continuation<Envelope>[0]
         Type Continuation<Envelope>
         Local completion
@@ -429,29 +531,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<Envelope>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn14 interface Continuation<Envelope>[1]
         Type Continuation<Envelope>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<Envelope> = @fn15 interface SuspendTask<Envelope>[0]
         Type SuspendTask<Envelope>
         Local task
         Type Continuation<Envelope>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -460,10 +570,41 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun startCoroutine<Envelope.Hidden.Nested> @fn38(task: SuspendTask<Envelope.Hidden.Nested>, completion: Continuation<Envelope.Hidden.Nested>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn21 interface Continuation<Envelope.Hidden.Nested>[0]
         Type Continuation<Envelope.Hidden.Nested>
         Local completion
@@ -471,29 +612,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<Envelope.Hidden.Nested>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn22 interface Continuation<Envelope.Hidden.Nested>[1]
         Type Continuation<Envelope.Hidden.Nested>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<Envelope.Hidden.Nested> = @fn23 interface SuspendTask<Envelope.Hidden.Nested>[0]
         Type SuspendTask<Envelope.Hidden.Nested>
         Local task
         Type Continuation<Envelope.Hidden.Nested>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -502,10 +651,41 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun startCoroutine<Envelope.Cache> @fn39(task: SuspendTask<Envelope.Cache>, completion: Continuation<Envelope.Cache>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn25 interface Continuation<Envelope.Cache>[0]
         Type Continuation<Envelope.Cache>
         Local completion
@@ -513,29 +693,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<Envelope.Cache>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn26 interface Continuation<Envelope.Cache>[1]
         Type Continuation<Envelope.Cache>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<Envelope.Cache> = @fn27 interface SuspendTask<Envelope.Cache>[0]
         Type SuspendTask<Envelope.Cache>
         Local task
         Type Continuation<Envelope.Cache>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -544,10 +732,41 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun startCoroutine<SecretStorage> @fn40(task: SuspendTask<SecretStorage>, completion: Continuation<SecretStorage>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn9 interface Continuation<SecretStorage>[0]
         Type Continuation<SecretStorage>
         Local completion
@@ -555,29 +774,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<SecretStorage>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn10 interface Continuation<SecretStorage>[1]
         Type Continuation<SecretStorage>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<SecretStorage> = @fn11 interface SuspendTask<SecretStorage>[0]
         Type SuspendTask<SecretStorage>
         Local task
         Type Continuation<SecretStorage>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -586,6 +813,18 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   coroutine_step cs0 CoroutineStep<StorageBase> result=StorageBase
   coroutine_step cs1 CoroutineStep<Envelope.Hidden> result=Envelope.Hidden
   coroutine_step cs2 CoroutineStep<Envelope> result=Envelope

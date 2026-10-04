@@ -21,7 +21,7 @@ Module
   block try.dispatch.2
     t2 = begin_catch local4 : ptr<managed>
     store t2 -> local5
-    call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local5, external-td0)
+    call no-gc-direct-target0 t3 = sig=direct0 (ptr<managed>, ptr<metadata>) -> i1 runtime @scoop_rt_is_instance(local5, external-td5)
     cbr t3 then @try.catch.9 else @try.next.10
   block try.exit_pad.5
     (t6, t7) = cleanup_pad : (exception_record, ptr<raw>)

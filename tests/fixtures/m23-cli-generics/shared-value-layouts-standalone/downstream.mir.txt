@@ -41,14 +41,19 @@ Module
     bridge function_type1 -> @fn31 id=dc05fd79a702dc6eb11455155747657a39b5cc81e415e022c8cf942f8ed5ce36
   generated_exact_type get0 location=enum3 nominal_id=28a62ec28cc392e5f3329d6b0f8fd0e7d452c8ca63fe51b66d6c19cca54a0eb5 exact_id=0ad45305ceed30c3525c1873665ba0d34fcdcd46c3df14ac9aae2cae8f45a44b
   generated_exact_type get1 location=closure0 nominal_id=4c2c770da7c7bd32b2886b818019ecd88966ab2596c13b37cf25d14723479131 exact_id=0b0369a36612368482a152476ffd7cefe704d1639909d43288a1ac3533a7bbbe
-  generated_exact_type get2 location=class8 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
-  generated_exact_type get3 location=class5 nominal_id=a54d59139fb4be6033864a0a6d0f62217db13fee30811bed969d948639ac82dc exact_id=40d1a1e2b7000fbc4067ae20d490751c9c1c4d7fcb73d47ccc8e24b8913c6824
-  generated_exact_type get4 location=class6 nominal_id=5a86bf309a29ce71728e990b3a97a4cfba7bf8805b44c54053141dd7641fad17 exact_id=42ee63808b80b903e8e0bc2e01ca2df9f153c05998a2278850ab432062c98fb0
-  generated_exact_type get5 location=class7 nominal_id=1847ac424ca3c11c5d3a671c0d854ccf2f2728359a5ed37e481cbc24593e28f6 exact_id=64b0c2de28596618552db342d62dbfc5f7022ebab49bfa12d0fed6f2944693f8
-  generated_exact_type get6 location=closure2 nominal_id=1c64165d669cb54156865720818d866efdfbcef4073fd319669d2fe828d057f7 exact_id=9df360b92f96c109b9fbc05216a5fba6837262ac9610326229bfdbb486214534
-  generated_exact_type get7 location=enum2 nominal_id=5e4773d3d3bdffb9fd1235a72877edc7856d992e038b1c9de3fcff6e9a0e66ea exact_id=ac1139f53abd3a82dac45e0837625934d09ceb8847f6cf96b061776f2ba0f6e7
-  generated_exact_type get8 location=closure1 nominal_id=161bd4b9704befd6f89b63f3b8869ad9996e4b9c8397d5b4fc51e5479d3b0fca exact_id=b8c72d4c4681af5e58063b54caf3f88d344df53e2d1423a86278de75652573ed
-  generated_exact_type get9 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get2 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get3 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get4 location=class8 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get5 location=class5 nominal_id=a54d59139fb4be6033864a0a6d0f62217db13fee30811bed969d948639ac82dc exact_id=40d1a1e2b7000fbc4067ae20d490751c9c1c4d7fcb73d47ccc8e24b8913c6824
+  generated_exact_type get6 location=class6 nominal_id=5a86bf309a29ce71728e990b3a97a4cfba7bf8805b44c54053141dd7641fad17 exact_id=42ee63808b80b903e8e0bc2e01ca2df9f153c05998a2278850ab432062c98fb0
+  generated_exact_type get7 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get8 location=class7 nominal_id=1847ac424ca3c11c5d3a671c0d854ccf2f2728359a5ed37e481cbc24593e28f6 exact_id=64b0c2de28596618552db342d62dbfc5f7022ebab49bfa12d0fed6f2944693f8
+  generated_exact_type get9 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get10 location=closure2 nominal_id=1c64165d669cb54156865720818d866efdfbcef4073fd319669d2fe828d057f7 exact_id=9df360b92f96c109b9fbc05216a5fba6837262ac9610326229bfdbb486214534
+  generated_exact_type get11 location=enum2 nominal_id=5e4773d3d3bdffb9fd1235a72877edc7856d992e038b1c9de3fcff6e9a0e66ea exact_id=ac1139f53abd3a82dac45e0837625934d09ceb8847f6cf96b061776f2ba0f6e7
+  generated_exact_type get12 location=closure1 nominal_id=161bd4b9704befd6f89b63f3b8869ad9996e4b9c8397d5b4fc51e5479d3b0fca exact_id=b8c72d4c4681af5e58063b54caf3f88d344df53e2d1423a86278de75652573ed
+  generated_exact_type get13 location=class9 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get14 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
   generated_callable gc0 function=@fn28 id=1eb2dd741b07f4dd1848b8fb0cbd5d1c8da862cf03c8229cd4ded5cd039445ff
   generated_callable gc1 function=@fn30 id=388a46b738e4c9cadc74761fa63518924792c02fe0cc19c6925059583c614548
   generated_callable gc2 function=@fn27 id=49cd6314eef9cc1c313d8bb9cb9f65989c0e81e3e8cee2032f9cc4cf2c18cfe8
@@ -940,9 +945,28 @@ Module
           Type Unit
           Local value
   fun startCoroutine<Later> @fn25(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn14 interface Continuation<Later>[0]
         Type Continuation<Later>
         Local completion
@@ -950,29 +974,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<Later>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn15 interface Continuation<Later>[1]
         Type Continuation<Later>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<Later> = @fn16 interface SuspendTask<Later>[0]
         Type SuspendTask<Later>
         Local task
         Type Continuation<Later>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -981,6 +1013,18 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun thunk<Wrapper<Later>> Readable.get() @fn26(this: Readable<Later>) -> Later
     bb0 entry
       call $call.1: Later = @fn8 direct

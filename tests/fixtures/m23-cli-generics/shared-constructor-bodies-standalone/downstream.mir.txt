@@ -107,29 +107,34 @@ Module
   closure cc19 $Closure$anonymous7 type=function_type9 invoke=@fn76 captures=1
     bridge function_type6 -> @fn166 id=524d74321dbbfdb124cf8e66a9d674dcf7505a0444adc6b04f40b9af31a827c5
   generated_exact_type get0 location=closure7 nominal_id=5e13f3283bd8c6421f9d66ff4b85d2844af6fb7d165db6470322968800c6aa88 exact_id=060a67a806b89b4b5c96b7206eaaa06901174da8c8fb543e2cf0dcabecaa815b
-  generated_exact_type get1 location=closure9 nominal_id=e6311d590fb45734c97dc25856d40111b0e17a36224b89059fae433a6f131676 exact_id=1e04348b3363dfdbcde01280c04510c79b8626af3b5bcd8f21dd01f6d86207ae
-  generated_exact_type get2 location=closure12 nominal_id=4556c8d8973b18aacee32f581bf599e6ea058c7edea51c82538a857b044db1be exact_id=241e51d632559c5dafc12edc36aebeafaf950fa1edc8b7bcbe86c1e270403352
-  generated_exact_type get3 location=closure8 nominal_id=adf1fb7bcc0dc9b60bc33cf668407334c7642e31a3505bc4d39b97293f47e9b2 exact_id=3b219a5965f24073f15977f9c27535fed6154950e5d8ada6747f25e71842f31a
-  generated_exact_type get4 location=enum2 nominal_id=137b96f50326585e9fd2ced6c8f9dc7b3783ea6b77181f60193fdc17a4ce7dc2 exact_id=3ff7338761e26bf60872b36dbe240511788908137db37ea6af9b20093211197a
-  generated_exact_type get5 location=class38 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
-  generated_exact_type get6 location=closure14 nominal_id=767accdf1b28510508b229b787223c20130431f22568804090f999f3f61d2b16 exact_id=40e624b0dd82587cb817f8b1d4f417d1abe5b49de23ff67ee3a6685a0b75bc8a
-  generated_exact_type get7 location=closure1 nominal_id=1d103153dcfa164ebda877c9ec11ad5090dde18594a3ba08b969dd2536bf752b exact_id=440497b460f338129452028c52aeee5b586b7b90ca2ccce878b5f34785207533
-  generated_exact_type get8 location=closure3 nominal_id=5e0402ce87739eab2fc30b74d69cc312235f632ad755e94b9af97697b4d55d98 exact_id=47b6040d101f2fbaa27368373f24637f777f91d529c4551c0fc3950079604c37
-  generated_exact_type get9 location=closure5 nominal_id=a198a3b883c9a5ade453ed5498e1c90ab759a0975d8e1eee5bd2ecb462f21a8b exact_id=496c51208090b3e293dcb5f982b9d03fefb774c42290982ee9e1296ff9a6eba0
-  generated_exact_type get10 location=closure16 nominal_id=a00cf50b76a504283100573405297f27be414086c53b9b3e631d2a6005fac64c exact_id=4df776bfebd042f38ee2aac66fd466b31d3dacd44070a6b85ea03b7dba6de785
-  generated_exact_type get11 location=closure6 nominal_id=71313cf9292a0317720c7f33d15d97540895fc51e9bbf58a374db5bc8cb5eaae exact_id=7691b965e7db450b3745dcaf3e78ee6acdd795235af556726a54f254c64b9e99
-  generated_exact_type get12 location=closure4 nominal_id=8e5f677592d0226daa2c2df417cd9e59b14c5d26eb82d6dcfd37e9153730fe84 exact_id=7d15c681a2f02718d51d10074f52cb1799255a46b6f3669172b38d74111ae7bf
-  generated_exact_type get13 location=closure17 nominal_id=b9c7c1b4a96fc0f4816669b6864ab16df527aec5d966f10096e3b65a2b38c858 exact_id=8806e4ab192eacaeeaa0474a2345883e9a3195e7b11895215cca5fe0675e5c6e
-  generated_exact_type get14 location=closure2 nominal_id=cc300dccb33b481eba1da5697fd64d7daed382e124ce361f3f2d067d91d46b55 exact_id=947a44673553253f7225220f0492854c6cf9e9cff8a859475a497d516bbf74d3
-  generated_exact_type get15 location=closure15 nominal_id=baf38fcbf4cb4a740969f3159a8cfd2893807caafd38bb9ac4c78e6cf77f3dab exact_id=9a75cbe92faa1a358c7b6c2b0f428440884a5d1414fa5a87e2801999b26b2e61
-  generated_exact_type get16 location=enum1 nominal_id=0663a939389f1f7b26a584f3cce513f21505633f14cd2fd3447644b0b331fa10 exact_id=a8c09ae5e703c267d1783538617b3f57714e1c78700bb1ddedd6788c058f15bd
-  generated_exact_type get17 location=closure18 nominal_id=a3d5bced03413861945ec23f7599b248df5dedc5d84456691f5431864adf501c exact_id=ca9b67ab595f6fe68aa79149510d645529559b1939ef30618ed06fde4720845f
-  generated_exact_type get18 location=closure13 nominal_id=b891b35c4a2352340c8741983a1705ae9724a7c84e63f1fe0b388d40040311e7 exact_id=d6f838104b4cc0e6b4ca4118fcfab59fbb058a775af83fb7213b5139a0f70d43
-  generated_exact_type get19 location=closure19 nominal_id=4b2a63c0b005ff2d3e318599025d4bc2f9c21c585ff7c2897e97f63fa95b4cb9 exact_id=ddf6b463129c7de8bfcdba8f4187f17435cf36655a3381225df942c5ad714a36
-  generated_exact_type get20 location=class37 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
-  generated_exact_type get21 location=closure0 nominal_id=c2fa860fc4f32d1f97e9f8cdecec2c681637a1944cc53d622fbc42e9be2a43ef exact_id=e5ea58d03903568422dbe9aa4a99512d4688b480f765dbab41abce650a9c7e0a
-  generated_exact_type get22 location=closure10 nominal_id=40b1fb760d077861d2b8c82ed20481d7cf0078c46e8dceff854fd07c87c9b248 exact_id=e94a64ed3e75045ab8f3e98f0e81b43d45e1fee5e866596958b2879a1300e188
-  generated_exact_type get23 location=closure11 nominal_id=e3c3f474955ae0e1c0129e4e072239ffe26e46c175f40f1cdaa05864374f791f exact_id=f9ed2009adaf23cc07eaf23b11d3f698270a58003d900ab50866e536b17d8f95
+  generated_exact_type get1 location=context-binding-ref nominal_id=a81fe68d7e277d08bcbf3092fe4ef28dfb2fd1c50ba398fd547aab54ab8e1cb6 exact_id=107e91066ac92ef74bce75f889fdd3063aa5b4e715b33fcdf10ebb6198e4323d
+  generated_exact_type get2 location=closure9 nominal_id=e6311d590fb45734c97dc25856d40111b0e17a36224b89059fae433a6f131676 exact_id=1e04348b3363dfdbcde01280c04510c79b8626af3b5bcd8f21dd01f6d86207ae
+  generated_exact_type get3 location=closure12 nominal_id=4556c8d8973b18aacee32f581bf599e6ea058c7edea51c82538a857b044db1be exact_id=241e51d632559c5dafc12edc36aebeafaf950fa1edc8b7bcbe86c1e270403352
+  generated_exact_type get4 location=context-mark nominal_id=ddc6434caba4f9fb86271352d30674950a710880d042b7788bb6061ecea4ecdc exact_id=386dfe516a03be20e48d1c1795dc5c0d15daab4bf97b7c35044ccccd24c85485
+  generated_exact_type get5 location=closure8 nominal_id=adf1fb7bcc0dc9b60bc33cf668407334c7642e31a3505bc4d39b97293f47e9b2 exact_id=3b219a5965f24073f15977f9c27535fed6154950e5d8ada6747f25e71842f31a
+  generated_exact_type get6 location=enum2 nominal_id=137b96f50326585e9fd2ced6c8f9dc7b3783ea6b77181f60193fdc17a4ce7dc2 exact_id=3ff7338761e26bf60872b36dbe240511788908137db37ea6af9b20093211197a
+  generated_exact_type get7 location=class38 nominal_id=2d46c9bb220fbefe39c9d1e29a6611ec7bc6e5ae56b1648ee5f0f44bea118eda exact_id=3fffd277817e10802b81aa1eaa231983087c84e2f97f68e50ca3b7bfd6209975
+  generated_exact_type get8 location=closure14 nominal_id=767accdf1b28510508b229b787223c20130431f22568804090f999f3f61d2b16 exact_id=40e624b0dd82587cb817f8b1d4f417d1abe5b49de23ff67ee3a6685a0b75bc8a
+  generated_exact_type get9 location=closure1 nominal_id=1d103153dcfa164ebda877c9ec11ad5090dde18594a3ba08b969dd2536bf752b exact_id=440497b460f338129452028c52aeee5b586b7b90ca2ccce878b5f34785207533
+  generated_exact_type get10 location=closure3 nominal_id=5e0402ce87739eab2fc30b74d69cc312235f632ad755e94b9af97697b4d55d98 exact_id=47b6040d101f2fbaa27368373f24637f777f91d529c4551c0fc3950079604c37
+  generated_exact_type get11 location=closure5 nominal_id=a198a3b883c9a5ade453ed5498e1c90ab759a0975d8e1eee5bd2ecb462f21a8b exact_id=496c51208090b3e293dcb5f982b9d03fefb774c42290982ee9e1296ff9a6eba0
+  generated_exact_type get12 location=closure16 nominal_id=a00cf50b76a504283100573405297f27be414086c53b9b3e631d2a6005fac64c exact_id=4df776bfebd042f38ee2aac66fd466b31d3dacd44070a6b85ea03b7dba6de785
+  generated_exact_type get13 location=context-node nominal_id=642709160fb5d22cfa78a474b14fc58c14c006067c03525245d7116f5d706ca9 exact_id=50e18085c53dc3b5089a9b621f35b7799814651834d9fd4472a8ae0e54d590c6
+  generated_exact_type get14 location=closure6 nominal_id=71313cf9292a0317720c7f33d15d97540895fc51e9bbf58a374db5bc8cb5eaae exact_id=7691b965e7db450b3745dcaf3e78ee6acdd795235af556726a54f254c64b9e99
+  generated_exact_type get15 location=closure4 nominal_id=8e5f677592d0226daa2c2df417cd9e59b14c5d26eb82d6dcfd37e9153730fe84 exact_id=7d15c681a2f02718d51d10074f52cb1799255a46b6f3669172b38d74111ae7bf
+  generated_exact_type get16 location=task-context nominal_id=f5dc8919b4417f87ba34ed77eadb187a23cb49b7ca9f6778ca8e1569587d38c2 exact_id=87490392603c1b9907331e3d0317a314f8b46008efab47286c4f62af746c6745
+  generated_exact_type get17 location=closure17 nominal_id=b9c7c1b4a96fc0f4816669b6864ab16df527aec5d966f10096e3b65a2b38c858 exact_id=8806e4ab192eacaeeaa0474a2345883e9a3195e7b11895215cca5fe0675e5c6e
+  generated_exact_type get18 location=closure2 nominal_id=cc300dccb33b481eba1da5697fd64d7daed382e124ce361f3f2d067d91d46b55 exact_id=947a44673553253f7225220f0492854c6cf9e9cff8a859475a497d516bbf74d3
+  generated_exact_type get19 location=closure15 nominal_id=baf38fcbf4cb4a740969f3159a8cfd2893807caafd38bb9ac4c78e6cf77f3dab exact_id=9a75cbe92faa1a358c7b6c2b0f428440884a5d1414fa5a87e2801999b26b2e61
+  generated_exact_type get20 location=enum1 nominal_id=0663a939389f1f7b26a584f3cce513f21505633f14cd2fd3447644b0b331fa10 exact_id=a8c09ae5e703c267d1783538617b3f57714e1c78700bb1ddedd6788c058f15bd
+  generated_exact_type get21 location=closure18 nominal_id=a3d5bced03413861945ec23f7599b248df5dedc5d84456691f5431864adf501c exact_id=ca9b67ab595f6fe68aa79149510d645529559b1939ef30618ed06fde4720845f
+  generated_exact_type get22 location=closure13 nominal_id=b891b35c4a2352340c8741983a1705ae9724a7c84e63f1fe0b388d40040311e7 exact_id=d6f838104b4cc0e6b4ca4118fcfab59fbb058a775af83fb7213b5139a0f70d43
+  generated_exact_type get23 location=closure19 nominal_id=4b2a63c0b005ff2d3e318599025d4bc2f9c21c585ff7c2897e97f63fa95b4cb9 exact_id=ddf6b463129c7de8bfcdba8f4187f17435cf36655a3381225df942c5ad714a36
+  generated_exact_type get24 location=class37 nominal_id=91f55df731cc113b052a544dc63c6ceeb52d0e9ef3084943fb0f956caebc250d exact_id=e5694141f3a8f55ca2af68e32e7be11a472235a05ac0211862e99a810b4d3c61
+  generated_exact_type get25 location=closure0 nominal_id=c2fa860fc4f32d1f97e9f8cdecec2c681637a1944cc53d622fbc42e9be2a43ef exact_id=e5ea58d03903568422dbe9aa4a99512d4688b480f765dbab41abce650a9c7e0a
+  generated_exact_type get26 location=closure10 nominal_id=40b1fb760d077861d2b8c82ed20481d7cf0078c46e8dceff854fd07c87c9b248 exact_id=e94a64ed3e75045ab8f3e98f0e81b43d45e1fee5e866596958b2879a1300e188
+  generated_exact_type get27 location=context-switch-guard nominal_id=b5a5a4531a754ca153c0779d9cc802a958918e18a31b6dac95dd5327e3a590da exact_id=efd6a9962362f556af988a625aa87e3bd72bbc93f90601d906d67acc073798c3
+  generated_exact_type get28 location=closure11 nominal_id=e3c3f474955ae0e1c0129e4e072239ffe26e46c175f40f1cdaa05864374f791f exact_id=f9ed2009adaf23cc07eaf23b11d3f698270a58003d900ab50866e536b17d8f95
   generated_callable gc0 function=@fn152 id=0ac279bd5bef51e36e85307386e5610d40dbbc43e87fed08092facb9df74afd0
   generated_callable gc1 function=@fn157 id=0f9bd867803200912376b4e42d5f4cee396e4c75fd8d639b38f329e1b59137e9
   generated_callable gc2 function=@fn159 id=236b33a76a69552a8f80584aedcc784d12845741fb9eb18bd6a7e010215bfdae
@@ -6304,9 +6309,28 @@ Module
           Type Int
           Local serial
   fun startCoroutine<Later> @fn146(task: SuspendTask<Later>, completion: Continuation<Later>) -> Unit
-    bb0 suspended
+    bb0 context.unwind
+      landing_pad cleanup=true
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb1 context.catch_unwind
+      landing_pad cleanup=true
+      end_catch
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
+      resume
+    bb2 suspended
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb1 completed
+    bb3 completed unwind bb0
       call @fn81 interface Continuation<Later>[0]
         Type Continuation<Later>
         Local completion
@@ -6314,29 +6338,37 @@ Module
         EnumField v0 f0
           Type CoroutineStep<Later>
           Local $step
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb2 failed
+    bb4 failed unwind bb0
       call @fn82 interface Continuation<Later>[1]
         Type Continuation<Later>
         Local completion
         Type Throwable
         Local $exception
+      Type Unit
+      ContextLeave
+        Type internal<context-switch-guard>
+        Local $context_guard
       return
-    bb3 body_failure
+    bb5 body_failure unwind bb1
       landing_pad cleanup=false
       begin_catch
       call $exception: Throwable = @scoop_rt_materialize_exception direct
         Type Any
         CaughtException
       end_catch
-      goto bb2
-    bb4 entry unwind bb3
+      goto bb4
+    bb6 run unwind bb5
       call $step: CoroutineStep<Later> = @fn83 interface SuspendTask<Later>[0]
         Type SuspendTask<Later>
         Local task
         Type Continuation<Later>
         Local completion
-      branch bb1 bb0
+      branch bb3 bb2
         Type Boolean
         Binary MachineEq(EnumTag)
           Type machine<enum-tag>
@@ -6345,6 +6377,18 @@ Module
             Local $step
           Type machine<enum-tag>
           MachineScalarLiteral EnumTag(0)
+    bb7 entry
+      val $child_context: internal<task-context>
+        Type internal<task-context>
+        ContextFork
+          Type internal<context-node>
+          ContextSnapshot
+      val $context_guard: internal<context-switch-guard>
+        Type internal<context-switch-guard>
+        ContextEnter
+          Type internal<task-context>
+          Local $child_context
+      goto bb6
   fun function_bridge.$Closure$lambda0.(Any) -> Any @fn147($source: (Later) -> Int, arg0: Any) -> Any
     bb0 entry
       call $call.1: Int = <closure:function_type0> closure[function_type0]

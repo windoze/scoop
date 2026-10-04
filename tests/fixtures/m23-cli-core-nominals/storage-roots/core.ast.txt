@@ -677,6 +677,7 @@ SourceFile
   public class UnwrapException() : Exception(<1 args>)
   public class ClassCastException() : Exception(<1 args>)
   public class ArithmeticException() : Exception(<1 args>)
+  public class MissingContextException(message: String?) : Exception(<1 args>)
   public class IndexOutOfBoundsException() : Exception(<1 args>)
   public class IllegalArgumentException(message: String? = <expr>) : Exception(<1 args>)
   public class IllegalStateException(message: String? = <expr>) : Exception(<1 args>)
