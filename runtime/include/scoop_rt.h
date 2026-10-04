@@ -192,11 +192,11 @@ uint64_t scoop_rt_get_handle(const void *obj);
 const void *scoop_rt_release_handle(uint64_t handle);
 const void *scoop_rt_resolve_handle(uint64_t handle);
 
-/* M13 managed foreign-callback gateway (runtime spec 8). A generated typed
- * adapter receives the current closure object plus C argument/result storage,
- * catches every Scoop exception, and reports it through exception_out. */
+/* Managed foreign-callback gateway (runtime spec 4.3 and 9.4). The generated
+ * adapter receives the closure and registration snapshot plus C storage,
+ * catches Scoop exceptions, and reports them through exception_out. */
 typedef uint64_t (*ScoopForeignCallbackAdapter)(
-    const void *closure, void *result_storage,
+    const void *closure, const void *snapshot, void *result_storage,
     const void *const *argument_storage, void **exception_out);
 
 enum {

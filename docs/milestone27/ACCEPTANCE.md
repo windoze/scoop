@@ -44,6 +44,18 @@ resumable frame 在发布 continuation 前保存完整 TaskContext，direct susp
 
 本批通过格式化与无警告的全 workspace lint；identity 337、MIR 345、MIR lowering 114、LIR lowering 146 项库测试和 18 项 profile 测试通过。11 份既有 MIR stage snapshot 更新后关闭更新模式复验。完整 M27 CLI 集合以普通验收模式通过 69/69 个用例、98 个进程和 39 份 stage golden。新增生产模块为 125、131、191 行，协程主文件拆分后为 460 行。
 
+## M27-5 Callback 快照与跨 Cone 消费
+
+callback token 在注册时保存不可变 binding-root handle；空快照使用既有空 handle 表示，retain 不重新采样。invocation 的 active lease 保活 closure、snapshot 和 failure，C gateway 同时登记三个 native root。每次 managed adapter 从注册快照 fork 独立 TaskContext，正常、异常和 catch materialization 的退出均恢复调用前的 task。owner/active 归零后一起释放 handles，沿用 OneShot/Reusable 状态协议。
+
+私有 adapter 采用 closure、nullable snapshot、result、argument storage、exception output 五个参数，源 callback 和 closure 签名不变。MIR storage ABI 使用 tag 2、identity-foundation /5，runtime ABI contract /6；旧 storage tag 和旧 section 版本在原格式边界拒绝。runtime、profile、复合 ABI 与相应固定向量同批更新。
+
+共有 HIR 的既有 callback 注册/操作节点现在可在导入泛型正文中直接物化，封闭的 imported definition 保存原 registration identity、source origin 和完整词法实参。泛型替换后沿原 parent 生成 callback application，B/C 重复物化沿已有 ODR group 合并。共享字段与源码 ABI 的类型解析将待替换的 FunPtr<F> 归一化到同一 NativeFunctionPointer exact key，不新增平行名义实例或来源认证机制。
+
+新增 callback-scopes 与 callback-concurrent 两套 fixture，覆盖词法捕获和动态快照并存、空快照缺失、重复/嵌套 invocation、共享 payload mutation、异常恢复、最后 owner 在 active invocation 中释放，以及多个 foreign thread 的独立 binding。coroutine-thread 增加 callback→resume→callback 的 task 恢复与 completion 抛出。A→B→C 用例增加泛型 callback 注册、retain/release/state/failure、重复物化和仅凭 slib、native archive、runtime objects 的独立链接。所有运行覆盖普通和 moving GC。
+
+本批通过格式化及无警告的全 workspace lint；HIR 875、HIR lowering 1327、MIR 345、MIR lowering 114、LIR 477、LIR lowering 146、codegen 312、slib 591 项库测试及针对导入协议的复验通过。全部 M27 fixture 在全新工作目录、关闭快照更新的模式下通过 71/71 个用例、110 个进程和 45 份 stage golden。新增生产模块为 67、96、133、138 行；callback lowering 主文件为 249 行，runtime callback 为 429 行，拆分后的 ABI 主文件为 498 行。
+
 ## 后续批次
 
-M27-5 callback snapshot 和 M27-6 总验收仍在实施计划内。全部完成前不标记路线图 M27 完成。
+M27-6 的 GC 生命周期组合与全仓总验收仍在实施计划内。全部完成前不标记路线图 M27 完成。

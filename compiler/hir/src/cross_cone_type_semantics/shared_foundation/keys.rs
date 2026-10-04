@@ -118,11 +118,7 @@ impl<'a> MetadataTypes<'a, '_> {
         let key = match signature {
             SignatureTypeKey::Nominal(owner) => ExactTypeKey::Nominal(*owner),
             SignatureTypeKey::NominalApplication { origin, arguments } => {
-                ExactTypeKey::NominalApplication {
-                    origin: *origin,
-                    arguments: NonEmptyVec::new(self.exacts(arguments.as_slice(), bindings)?)
-                        .map_err(|error| Error::Key(error.to_string()))?,
-                }
+                self.application_key(*origin, self.exacts(arguments.as_slice(), bindings)?)?
             }
             SignatureTypeKey::Binder { depth, index } => {
                 let exact = bindings
@@ -173,6 +169,51 @@ impl<'a> MetadataTypes<'a, '_> {
             exacts.push(self.exact_with_bindings(signature, bindings)?);
         }
         Ok(exacts)
+    }
+
+    fn application_key(
+        self,
+        origin: scoop_identity::PersistentGenericTypeId,
+        arguments: Vec<PersistentExactTypeId>,
+    ) -> Result<ExactTypeKey, Error> {
+        let owner = crate::SourceNominalId::GenericTemplate(origin);
+        let declaration = std::iter::once(self.current.public)
+            .chain(
+                self.dependencies
+                    .iter()
+                    .map(|source| source.metadata.public),
+            )
+            .find_map(|public| public.nominal_interfaces().declaration(owner));
+        if declaration.is_some_and(|record| {
+            matches!(record.source_shape(),
+            crate::NominalSourceShapeV1::Intrinsic(representation)
+                if representation.family() == crate::IntrinsicTypeKind::FunPtr)
+        }) {
+            let [function] = arguments.as_slice() else {
+                return Err(Error::Key("FunPtr requires one function type".into()));
+            };
+            let function = self.key(*function)?;
+            let ExactTypeKey::Function {
+                effect: scoop_identity::Effect::Ordinary,
+                parameters,
+                result,
+            } = function.as_ref()
+            else {
+                return Err(Error::Key(
+                    "FunPtr requires an ordinary function type".into(),
+                ));
+            };
+            return Ok(ExactTypeKey::NativeFunctionPointer {
+                calling_convention: scoop_identity::CallingConvention::C,
+                parameters: parameters.clone(),
+                result: *result,
+            });
+        }
+        Ok(ExactTypeKey::NominalApplication {
+            origin,
+            arguments: NonEmptyVec::new(arguments)
+                .map_err(|error| Error::Key(error.to_string()))?,
+        })
     }
 
     fn exact_key(self, key: ExactTypeKey) -> Result<PersistentExactTypeId, Error> {

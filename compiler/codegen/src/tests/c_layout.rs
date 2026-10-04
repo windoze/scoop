@@ -18,7 +18,7 @@ fn foreign_callback_adapter(symbol: &str) -> Function {
         safepoints: scoop_lir::SafepointIdentities::default(),
         gc_effect: GcEffect::Managed,
         signature: plain_scoop_signature(
-            vec![MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
+            vec![MANAGED_PTR, MANAGED_PTR, RAW_PTR, RAW_PTR, RAW_PTR],
             LirType::MachineScalar(MachineScalarKind::ForeignCallbackStatus),
         ),
         call_targets: CallTargets::default(),

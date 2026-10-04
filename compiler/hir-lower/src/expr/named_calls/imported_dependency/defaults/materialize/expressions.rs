@@ -38,6 +38,24 @@ impl Lowerer {
                 })?;
         }
         let kind = match expression.kind() {
+            Kind::ForeignCallbackRegister {
+                registration,
+                closure,
+            } => self.materialize_imported_callback_registration(
+                *registration,
+                closure,
+                definition,
+                context,
+            )?,
+            Kind::ForeignCallbackOperation {
+                operation,
+                callback,
+            } => hir::ExprKind::ForeignCallbackOperation {
+                operation: (*operation).into(),
+                callback: Box::new(
+                    self.materialize_imported_default_expression(callback, context)?,
+                ),
+            },
             Kind::ContextLookup {
                 declaration,
                 parameter,
@@ -464,8 +482,6 @@ impl Lowerer {
             | Kind::ClassInit { .. }
             | Kind::VariantTest { .. }
             | Kind::VariantPayloadProject { .. }
-            | Kind::ForeignCallbackRegister { .. }
-            | Kind::ForeignCallbackOperation { .. }
             | Kind::DirectSuperMethodCall { .. } => {
                 return Err(ImportedDefaultMaterializationError::Plan(
                     "preflight admitted an unsupported dependency default operation".to_owned(),

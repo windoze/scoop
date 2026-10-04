@@ -95,6 +95,19 @@ impl super::ImportedDependencySelectionPlan {
             .map(|entry| &entry.definition)
     }
 
+    pub fn callback_registration(
+        &self,
+        id: scoop_identity::PersistentCallbackRegistrationId,
+    ) -> Option<(
+        &crate::HirCallbackRegistrationIdentity,
+        &scoop_identity::DefinitionOrigin,
+    )> {
+        self.catalog
+            .callback_registrations
+            .get(&id)
+            .map(|(identity, origin)| (identity, origin))
+    }
+
     pub fn generated_callable_definition_origin(
         &self,
         id: scoop_identity::PersistentGeneratedCallableId,

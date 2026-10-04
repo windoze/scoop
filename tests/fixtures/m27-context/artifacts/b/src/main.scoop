@@ -18,3 +18,7 @@ public class ReaderImpl public constructor() : Reader<Request> {
 
 context(request: Request)
 public suspend fun throughBWait(registration: SuspendRegistration<Int>): Request = delayed<Request>(registration)
+
+@Unsafe
+public fun throughBCallback(value: Request, read: (Request) -> Int): ForeignCallback<(Ptr<Unit>, Int) -> Unit> =
+    registerCallback<Request>(value, read)

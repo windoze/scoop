@@ -1567,7 +1567,7 @@ fn foreign_callback_bridge_preserves_its_nominal_family() {
                 application,
                 module.foreign_callback_adapters[adapter].signature_subject(),
                 exact_signature,
-                mir::ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+                mir::ForeignCallbackStorageAbi::ClosureContextResultRootsThrowableToStatus,
                 CallbackMode::Reusable,
             ),
             adapter,

@@ -301,16 +301,35 @@ pub struct SourceLocationCore {
 
 #[derive(Debug, Clone)]
 pub struct ForeignCallbackRegistration {
-    /// Typed root whose stable lexical traversal owns this conversion.
-    pub definition_root: LexicalDefinitionRoot,
-    /// Stable definition-site path of this callback conversion. Concrete
-    /// instantiations preserve the path instead of allocating a new site.
-    pub definition_path: scoop_identity::StructuralDefinitionPath,
+    pub definition: ForeignCallbackDefinition,
     pub native_function_type: FunctionTypeId,
     pub managed_function_type: FunctionTypeId,
     pub context_index: u32,
     pub mode: scoop_identity::CallbackMode,
     pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum ForeignCallbackDefinition {
+    Source {
+        root: LexicalDefinitionRoot,
+        path: scoop_identity::StructuralDefinitionPath,
+    },
+    Imported {
+        identity: Box<crate::HirCallbackRegistrationIdentity>,
+        definition_origin: Box<scoop_identity::DefinitionOrigin>,
+        origin: crate::DefinitionOrigin,
+        arguments: Vec<TypeId>,
+    },
+}
+
+impl ForeignCallbackDefinition {
+    pub fn path(&self) -> &scoop_identity::StructuralDefinitionPath {
+        match self {
+            Self::Source { path, .. } => path,
+            Self::Imported { identity, .. } => identity.key().path(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

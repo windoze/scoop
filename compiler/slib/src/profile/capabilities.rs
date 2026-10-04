@@ -10,7 +10,7 @@ pub fn hir_identity_foundation_capability() -> CapabilityId {
 }
 
 pub fn mir_identity_foundation_capability() -> CapabilityId {
-    CapabilityId::new("org.scoop-lang.mir", "identity-foundation", 4)
+    CapabilityId::new("org.scoop-lang.mir", "identity-foundation", 5)
         .expect("built-in capability id is valid")
 }
 

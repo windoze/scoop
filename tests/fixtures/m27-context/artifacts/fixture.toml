@@ -1,9 +1,27 @@
 schema = 1
 name = "m27-context-artifacts"
-inputs = ["a", "b", "c", "bad"]
-tools = ["scoop", "scoopc"]
+inputs = ["a", "b", "c", "bad", "../../m13-callback/native.c"]
+tools = ["scoop", "scoopc", "cc", "ar"]
 targets = ["aarch64-apple-darwin"]
 tags = ["m27", "context", "generics", "artifact-only", "stage-golden"]
+
+[[steps]]
+name = "prepare_native"
+files = [{mkdir = {path = "${work}/native"}}]
+
+[[steps]]
+name = "native"
+argv = ["${cc}", "-target", "${target}", "-isysroot", "${sdk}", "-mmacosx-version-min=${deployment}", "-std=c11", "-O0", "-I", "${runtime}/include", "-c", "${fixture}/../../m13-callback/native.c", "-o", "${work}/native/fixture.o"]
+exit = 0
+stdout = ""
+stderr = ""
+
+[[steps]]
+name = "archive"
+argv = ["${ar}", "rcs", "${work}/native/libfixture_native.a", "${work}/native/fixture.o"]
+exit = 0
+stdout = ""
+stderr = ""
 
 [[steps]]
 name = "prepare_core"
@@ -87,7 +105,7 @@ files = [
 
 [[steps]]
 name = "c"
-argv = ["${scoop}", "build", "${work}/sources/c", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-c", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program-build", "--emit", "all", "--dump-dir", "${work}/dump/c"]
+argv = ["${scoop}", "build", "${work}/sources/c", "--sysroot", "${work}/empty-sysroot", "--scoopc", "${scoopc}", "--cache-dir", "${cache}", "--target-dir", "${work}/target-c", "--library-path", "${work}/native", "--cone-path", "${work}/artifacts", "--message-format", "json", "-o", "${work}/program-build", "--emit", "all", "--dump-dir", "${work}/dump/c"]
 exit = 0
 stdout = ""
 stderr = ""
@@ -115,7 +133,7 @@ files = [
 
 [[steps]]
 name = "link"
-argv = ["${work}/standalone/scoop", "link", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${c.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
+argv = ["${work}/standalone/scoop", "link", "--library-path", "${work}/native", "--root-slib", "${work}/artifacts/root.slib", "--cone-path", "${work}/artifacts", "--runtime-objects", "${c.result.runtime_index}", "--sysroot", "${work}/empty-sysroot", "--message-format", "json", "--dump-plan", "-o", "${work}/program"]
 exit = 0
 stdout = ""
 stderr = ""

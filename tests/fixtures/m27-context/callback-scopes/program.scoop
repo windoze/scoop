@@ -1,0 +1,142 @@
+@Extern(lib = "fixture_native", name = "m13_call_context_first")
+fun callNative(callback: FunPtr<(Ptr<Unit>, Int) -> Unit>, context: Ptr<Unit>, value: Int)
+
+class Request(var id: Int)
+
+context(request: Request)
+fun current(): Int = request.id
+
+context(request: Request)
+fun lexical(): () -> Int = { request.id }
+
+fun expect(value: Boolean) { if (!value) { throw IllegalStateException() } }
+
+@Unsafe
+fun reader(captured: () -> Int): ForeignCallback<(Ptr<Unit>, Int) -> Unit> = context(Request(1)) {
+    foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+        { value: Int ->
+            gcCollect()
+            expect(current() == 1 && captured() == 12)
+            context(Request(value + 10)) {
+                gcCollect()
+                expect(current() == value + 10)
+            }
+            expect(current() == 1)
+        }, 0, ForeignCallbackMode.Reusable
+    )
+}
+
+@Unsafe
+fun mutableReader(request: Request): ForeignCallback<(Ptr<Unit>, Int) -> Unit> = context(request) {
+    foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+        { value: Int -> gcCollect()
+            expect(current() == value) }, 0, ForeignCallbackMode.Reusable
+    )
+}
+
+class Lease {
+    var observer: ForeignCallback<(Ptr<Unit>, Int) -> Unit>? = None
+    var done: Boolean = false
+}
+
+fun main() {
+    val captured = context(Request(12)) { lexical() }
+    @Unsafe {
+        val empty = foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+            { value: Int -> expect(current() == value) }, 0, ForeignCallbackMode.Reusable
+        )
+        val original = reader(captured)
+        gcCollect()
+        context(Request(9)) {
+            val retained = retainForeignCallback(original)
+            releaseForeignCallback(original)
+            gcCollect()
+            callNative(retained.function, retained.context, 1)
+            callNative(retained.function, retained.context, 2)
+            expect(current() == 9)
+
+            val nested = context(Request(3)) {
+                foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+                    { value: Int ->
+                        expect(current() == 3)
+                        context(Request(4)) {
+                            @Unsafe { callNative(retained.function, retained.context, value) }
+                            gcCollect()
+                            expect(current() == 4)
+                        }
+                        expect(current() == 3)
+                    }, 0, ForeignCallbackMode.Reusable
+                )
+            }
+            callNative(nested.function, nested.context, 7)
+            expect(current() == 9)
+            releaseForeignCallback(nested)
+            releaseForeignCallback(retained)
+
+            callNative(empty.function, empty.context, 9)
+            expect(current() == 9)
+            expect(foreignCallbackState(empty) == ForeignCallbackState.Failed)
+            expect(when (foreignCallbackFailure(empty)) {
+                Some(error) -> error is MissingContextException
+                None -> false
+            })
+            releaseForeignCallback(empty)
+        }
+
+        val request = Request(6)
+        val mutable = mutableReader(request)
+        request.id = 41
+        gcCollect()
+        context(Request(9)) {
+            callNative(mutable.function, mutable.context, 41)
+            expect(current() == 9)
+        }
+        expect(foreignCallbackState(mutable) == ForeignCallbackState.Registered)
+        releaseForeignCallback(mutable)
+
+        val failing = context(Request(2)) {
+            foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+                { value: Int ->
+                    try {
+                        context(Request(value)) {
+                            gcCollect()
+                            throw IllegalStateException()
+                        }
+                    } finally {
+                        gcCollect()
+                        expect(current() == 2)
+                    }
+                }, 0, ForeignCallbackMode.Reusable
+            )
+        }
+        context(Request(9)) {
+            callNative(failing.function, failing.context, 3)
+            expect(current() == 9)
+        }
+        expect(foreignCallbackState(failing) == ForeignCallbackState.Failed)
+        expect(when (foreignCallbackFailure(failing)) {
+            Some(error) -> error is IllegalStateException
+            None -> false
+        })
+        releaseForeignCallback(failing)
+
+        val lease = Lease()
+        val oneShot = context(Request(5)) {
+            foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+                { value: Int ->
+                    @Unsafe { releaseForeignCallback(lease.observer!!) }
+                    lease.observer = None
+                    gcCollect()
+                    expect(current() == value)
+                    lease.done = true
+                }, 0, ForeignCallbackMode.OneShot
+            )
+        }
+        lease.observer = Some(retainForeignCallback(oneShot))
+        context(Request(9)) {
+            callNative(oneShot.function, oneShot.context, 5)
+            expect(current() == 9 && lease.done)
+        }
+    }
+    println("callback-scopes-ok")
+}

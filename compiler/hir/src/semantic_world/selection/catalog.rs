@@ -73,6 +73,13 @@ pub(super) struct DependencyCatalog {
     pub(super) bodies: BTreeMap<crate::DefaultCallableDeclarationV1, super::ImportedCallableBody>,
     pub(super) generated_callables:
         BTreeMap<scoop_identity::PersistentGeneratedCallableId, GeneratedCallableCatalogEntry>,
+    pub(super) callback_registrations: BTreeMap<
+        scoop_identity::PersistentCallbackRegistrationId,
+        (
+            crate::HirCallbackRegistrationIdentity,
+            scoop_identity::DefinitionOrigin,
+        ),
+    >,
     pub(super) initializations:
         BTreeMap<scoop_identity::PersistentGenericTypeId, super::ImportedNominalInitialization>,
     pub(super) delegates: BTreeMap<
@@ -94,6 +101,7 @@ impl ImportedSemanticWorld<'_> {
         let mut callables = BTreeMap::new();
         let mut bodies = BTreeMap::new();
         let mut generated_callables = BTreeMap::new();
+        let mut callback_registrations = BTreeMap::new();
         let mut initializations = BTreeMap::new();
         let mut delegates = BTreeMap::new();
         let mut properties = BTreeMap::new();
@@ -103,6 +111,19 @@ impl ImportedSemanticWorld<'_> {
         let mut nominal_visibilities = BTreeMap::new();
         let mut static_namespaces = BTreeMap::new();
         for provider in &self.providers {
+            let foundation = provider.foundation().canonical_for_semantic_authority();
+            for record in foundation.callback_registration_records() {
+                callback_registrations
+                    .entry(record.id())
+                    .or_insert_with(|| {
+                        let origin = foundation
+                            .definition_origin(DefinitionOriginSubject::CallbackRegistration(
+                                record.id(),
+                            ))
+                            .expect("a validated callback registration has its definition origin");
+                        (record.clone(), origin.origin().clone())
+                    });
+            }
             for record in provider
                 .foundation()
                 .canonical_for_semantic_authority()
@@ -401,6 +422,7 @@ impl ImportedSemanticWorld<'_> {
                 callables,
                 bodies,
                 generated_callables,
+                callback_registrations,
                 initializations,
                 delegates,
                 properties,

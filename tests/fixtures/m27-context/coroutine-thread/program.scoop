@@ -20,10 +20,15 @@ class Gate(val fail: Boolean) : SuspendRegistration<Int> {
         @Unsafe {
             val worker = foreignCallback<(Int, Ptr<Unit>) -> Int>(
                 { value: Int ->
+                    expect(current() == 2)
                     gcCollect()
-                    if (fail) { continuation.resumeWithException(IllegalStateException()) }
-                    else { continuation.resume(value) }
-                    gcCollect()
+                    try {
+                        if (fail) { continuation.resumeWithException(IllegalStateException()) }
+                        else { continuation.resume(value) }
+                    } finally {
+                        gcCollect()
+                        expect(current() == 2)
+                    }
                     value
                 },
                 1,
@@ -35,7 +40,9 @@ class Gate(val fail: Boolean) : SuspendRegistration<Int> {
     }
 }
 
-class Completion : Continuation<Int> {
+class CompletionError : Exception(None)
+
+class Completion(val fail: Boolean) : Continuation<Int> {
     var value: Int = 0
     var calls: Int = 0
     public override fun resume(value: Int) {
@@ -43,6 +50,7 @@ class Completion : Continuation<Int> {
         expect(current() == 1)
         this.value = value
         calls = calls + 1
+        if (fail) { throw CompletionError() }
     }
     public override fun resumeWithException(exception: Throwable) { throw exception }
 }
@@ -75,19 +83,30 @@ suspend fun task(gate: Gate): Int {
 fun main() {
     context(Request(1)) {
         var index = 0
-        while (index < 2) {
+        while (index < 3) {
             val gate = Gate(index == 1)
-            val done = Completion()
+            val done = Completion(index == 2)
             startCoroutine(suspend { task(gate) }, done)
             expect(current() == 1 && done.calls == 0)
             gcCollect()
             context(Request(9)) {
                 @Unsafe {
-                    expect(joinOne(gate.job!!) == 40)
+                    val expected = if (index == 2) { 0 } else { 40 }
+                    expect(joinOne(gate.job!!) == expected)
                     val observer = gate.observer!!
-                    expect(foreignCallbackState(observer) == ForeignCallbackState.Completed)
-                    expect(when (foreignCallbackFailure(observer)) { Some(_) -> false
-                        None -> true })
+                    if (index == 2) {
+                        expect(foreignCallbackState(observer) == ForeignCallbackState.Failed)
+                        expect(when (foreignCallbackFailure(observer)) {
+                            Some(error) -> error is CompletionError
+                            None -> false
+                        })
+                    } else {
+                        expect(foreignCallbackState(observer) == ForeignCallbackState.Completed)
+                        expect(when (foreignCallbackFailure(observer)) {
+                            Some(_) -> false
+                            None -> true
+                        })
+                    }
                     releaseForeignCallback(observer)
                 }
                 expect(current() == 9)

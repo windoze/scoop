@@ -83,6 +83,20 @@ pub struct CheckedSharedTypeFoundationV1<'a> {
 }
 
 impl<'a> CheckedSharedTypeFoundationV1<'a> {
+    /// Resolves instantiated fields using the checked dependency declarations.
+    pub fn signature_exact_type_with_bindings(
+        self,
+        signature: &scoop_identity::SignatureTypeKey,
+        bindings: &[Vec<PersistentExactTypeId>],
+        dependencies: &[Self],
+    ) -> Result<PersistentExactTypeId, SharedTypeMetadataError> {
+        MetadataTypes {
+            current: self.metadata,
+            dependencies,
+        }
+        .exact_with_bindings(signature, bindings)
+    }
+
     pub const fn metadata(self) -> SharedTypeMetadataV1<'a> {
         self.metadata
     }

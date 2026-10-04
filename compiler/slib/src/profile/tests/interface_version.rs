@@ -34,6 +34,20 @@ fn mir_type_bridge_v10_retains_task_frames() {
 }
 
 #[test]
+fn mir_foundation_v5_retains_callback_snapshot_abi() {
+    assert_retired_version(
+        mir_identity_foundation_capability(),
+        5,
+        MemberPurposeSet::COMPILE_AND_LINK,
+        &[
+            ArtifactCapabilityProfile::SINGLE_CONE_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
+            ArtifactCapabilityProfile::CROSS_CONE_GENERIC,
+        ],
+    );
+}
+
+#[test]
 fn lir_layout_abi_v7_retains_character_scalars() {
     assert_retired_version(
         lir_cross_cone_layout_abi_capability(),

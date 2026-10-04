@@ -131,7 +131,7 @@ impl CapabilityContractRegistry {
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::HIR,
             ),
-            ("org.scoop-lang.mir", "identity-foundation", 4) => (
+            ("org.scoop-lang.mir", "identity-foundation", 5) => (
                 SectionLocation::Mir,
                 MemberPurposeSet::COMPILE_AND_LINK,
                 FingerprintSinkSet::MIR,

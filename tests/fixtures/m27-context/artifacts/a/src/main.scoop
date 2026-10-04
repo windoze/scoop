@@ -54,3 +54,24 @@ public suspend fun <T: ref> delayed(registration: SuspendRegistration<Int>): T =
     gcCollect()
     current<T>()
 }
+
+@Unsafe
+public fun <T: ref> registerCallback(value: T, read: (T) -> Int): ForeignCallback<(Ptr<Unit>, Int) -> Unit> = context(value) {
+    val callback = foreignCallback<(Ptr<Unit>, Int) -> Unit>(
+        { expected: Int ->
+            gcCollect()
+            if (read(current<T>()) != expected) { throw IllegalStateException() }
+            gcCollect()
+        }, 0, ForeignCallbackMode.Reusable
+    )
+    val retained = retainForeignCallback(callback)
+    releaseForeignCallback(callback)
+    if (foreignCallbackState(retained) != ForeignCallbackState.Registered) {
+        throw IllegalStateException()
+    }
+    if (when (foreignCallbackFailure(retained)) {
+        Some(_) -> true
+        None -> false
+    }) { throw IllegalStateException() }
+    retained
+}

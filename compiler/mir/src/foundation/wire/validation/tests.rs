@@ -100,7 +100,7 @@ fn callback_fixture(include_record: bool, mode: CallbackMode) -> CallbackFixture
                 application,
                 subject,
                 signature,
-                ForeignCallbackStorageAbi::ClosureResultRootsThrowableToU32,
+                ForeignCallbackStorageAbi::ClosureContextResultRootsThrowableToStatus,
                 mode,
             )])
             .unwrap();

@@ -61,23 +61,22 @@ impl HirCallbackRegistrationIdentities {
         }
 
         let mut resolver = CallbackContextResolver::new(&inputs);
-        let contexts = inputs
-            .registrations
-            .iter()
-            .map(|(registration, declaration)| {
-                resolver
-                    .resolve(declaration.definition_root, &declaration.definition_path)
-                    .map_err(|detail| {
-                        HirCallbackRegistrationIdentityError::new(registration, detail)
-                    })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
         let mapper = HirSignatureTypeMapper::new(inputs.type_inputs);
         let mut identities = Vec::with_capacity(inputs.registrations.len());
         let mut sites = BTreeMap::new();
 
-        for ((registration, declaration), context) in inputs.registrations.iter().zip(contexts) {
-            let result = build_identity(&inputs, &mapper, registration, declaration, context)?;
+        for (registration, declaration) in inputs.registrations.iter() {
+            let result = match &declaration.definition {
+                crate::ForeignCallbackDefinition::Source { root, path } => {
+                    let context = resolver.resolve(*root, path).map_err(|detail| {
+                        HirCallbackRegistrationIdentityError::new(registration, detail)
+                    })?;
+                    build_identity(&inputs, &mapper, registration, declaration, context)?
+                }
+                crate::ForeignCallbackDefinition::Imported { identity, .. } => {
+                    identity.as_ref().clone()
+                }
+            };
             let site = (result.key().parent(), result.key().path().clone());
             if let Some(previous) = sites.insert(site, result.key().clone()) {
                 if previous != *result.key() {
@@ -130,7 +129,8 @@ fn build_identity(
     context: context::CallbackSiteContext,
 ) -> Result<HirCallbackRegistrationIdentity, HirCallbackRegistrationIdentityError> {
     if declaration
-        .definition_path
+        .definition
+        .path()
         .segments()
         .last()
         .is_none_or(|segment| {
@@ -204,7 +204,7 @@ fn build_identity(
     );
     CborIdentityRecord::from_key(CallbackRegistrationKey::new(
         context.parent,
-        declaration.definition_path.clone(),
+        declaration.definition.path().clone(),
         source_signature,
         CallbackParameterIndex::new(declaration.context_index),
         managed_signature,

@@ -612,6 +612,8 @@ foreign attach 可以保持空 current Context。callback gateway 按 4.3 进入
 
 callback token 以 `Empty | RootHandle` 保存快照，handle 的空分支不尝试 resolve。非空 root、closure、failure 全部沿既有 handle 表管理；invocation 的 active lease 同时保活这些输入。注册不复制树，retain 不重新采样，final release 在 owner/active 都结束后释放全部 handle。私有 managed adapter 在已有 closure/storage/status 参数中增加 typed nullable snapshot-root 输入；外部 C trampoline 和 `ForeignCallback<F>` ABI 不变。adapter 的 catch/status 路径及正常出口均先 leave Context，再返回 C；快照取得/安装期间的临时 ref 也有完整 root plan。
 
+私有 adapter 的物理参数顺序固定为 closure、nullable snapshot root、result storage、argument storage、exception output，返回既有 machine callback status。C gateway 在进入 managed 段后解析两个输入 handle，并同时登记 closure、snapshot、exception 三个 native root slot。snapshot 使用零 handle 表示空 root；注册本身是无 managed allocation、无 GC 的 leaf，沿原 handle 表保活当前 root。adapter 在 fork 成功后才创建 execution guard；其 catch materialization 若展开，先 EndCatch 再 leave。该私有边界变化进入 runtime ABI contract 6，runtime metadata ABI 4 的记录布局保持。
+
 每个 resumable frame 保存非可选 TaskContext ref，并在发布 continuation 前初始化。start helper 在普通实参求值后 fork/enter child，task 与最终 completion 均在 child 下执行；adapter 只有成功取得实际驱动权才 enter frame Context。每次 driver 的 suspended、completed、failure 与 unwind 出口都 leave；仅 suspended 出口不执行源码 binding restore。跨挂起的 mark/参数沿 exact frame slot 保存；已消费的 mark slot 清空。completion 自身抛出也必须恢复入口，不能再次发送 completion 通知。
 
 缺失 binding 是普通 `MissingContextException`；unresolved cell、错误入口或损坏 root 属于 compiler/runtime invariant failure。没有取消或 GC finalizer：永不恢复的 frame 不运行 cleanup，可达性结束后连同其 task/旧 root 正常回收。

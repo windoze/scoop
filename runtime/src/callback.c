@@ -21,6 +21,7 @@ typedef struct ScoopCallbackToken {
     const void *signature;
     ScoopForeignCallbackAdapter adapter;
     uint64_t closure_handle;
+    uint64_t snapshot_handle;
     uint64_t failure_handle;
     uint64_t owners;
     uint64_t active;
@@ -35,6 +36,7 @@ typedef struct ScoopCallbackToken {
 
 typedef struct ReleasedHandles {
     uint64_t closure;
+    uint64_t snapshot;
     uint64_t failure;
 } ReleasedHandles;
 
@@ -112,11 +114,13 @@ static ReleasedHandles finalize_locked(size_t index,
     }
     ReleasedHandles handles = {
         .closure = token->closure_handle,
+        .snapshot = token->snapshot_handle,
         .failure = token->failure_handle,
     };
     token->signature = NULL;
     token->adapter = NULL;
     token->closure_handle = 0;
+    token->snapshot_handle = 0;
     token->failure_handle = 0;
     token->one_shot_claimed = false;
     token->live = false;
@@ -134,6 +138,9 @@ static ReleasedHandles finalize_locked(size_t index,
 static void release_handles(ReleasedHandles handles) {
     if (handles.closure != 0) {
         (void)scoop_rt_release_handle(handles.closure);
+    }
+    if (handles.snapshot != 0) {
+        (void)scoop_rt_release_handle(handles.snapshot);
     }
     if (handles.failure != 0) {
         (void)scoop_rt_release_handle(handles.failure);
@@ -184,11 +191,14 @@ void *scoop_runtime_callback_register(const void *closure,
          mode != SCOOP_FOREIGN_CALLBACK_ONE_SHOT)) {
         callback_fatal("invalid callback registration");
     }
-    uint64_t closure_handle = scoop_rt_get_handle(closure);
+    ReleasedHandles captured = {
+        .closure = scoop_rt_get_handle(closure),
+        .snapshot = scoop_rt_get_handle(scoop_rt_context_snapshot()),
+    };
     lock_callbacks();
     if (!callback_initialized || callback_shutting_down) {
         unlock_callbacks();
-        (void)scoop_rt_release_handle(closure_handle);
+        release_handles(captured);
         callback_fatal("callback registration after shutdown began");
     }
 
@@ -202,13 +212,13 @@ void *scoop_runtime_callback_register(const void *closure,
         if (token->generation == 0 || token->retired ||
             token->generation > CALLBACK_GENERATION_MAX) {
             unlock_callbacks();
-            (void)scoop_rt_release_handle(closure_handle);
+            release_handles(captured);
             callback_fatal("callback cookie generation exhausted");
         }
     } else {
         if (callback_tokens_len == CALLBACK_SLOT_MASK) {
             unlock_callbacks();
-            (void)scoop_rt_release_handle(closure_handle);
+            release_handles(captured);
             callback_fatal("callback cookie slots exhausted");
         }
         if (callback_tokens_len == callback_tokens_cap) {
@@ -218,7 +228,7 @@ void *scoop_runtime_callback_register(const void *closure,
                 realloc(callback_tokens, new_cap * sizeof *grown);
             if (grown == NULL) {
                 unlock_callbacks();
-                (void)scoop_rt_release_handle(closure_handle);
+                release_handles(captured);
                 callback_fatal("out of memory growing callback registry");
             }
             callback_tokens = grown;
@@ -231,7 +241,8 @@ void *scoop_runtime_callback_register(const void *closure,
     }
     token->signature = signature_descriptor;
     token->adapter = adapter;
-    token->closure_handle = closure_handle;
+    token->closure_handle = captured.closure;
+    token->snapshot_handle = captured.snapshot;
     token->failure_handle = 0;
     token->owners = 1;
     token->active = 0;
@@ -296,6 +307,7 @@ uint32_t scoop_runtime_callback_invoke(
     const void *const *argument_storage) {
     ScoopForeignCallbackAdapter adapter;
     uint64_t closure_handle;
+    uint64_t snapshot_handle;
     uint32_t mode;
 
     lock_callbacks();
@@ -323,6 +335,7 @@ uint32_t scoop_runtime_callback_invoke(
     }
     adapter = token->adapter;
     closure_handle = token->closure_handle;
+    snapshot_handle = token->snapshot_handle;
     unlock_callbacks();
 
     bool attached_here = scoop_rt_attach_foreign_thread();
@@ -332,12 +345,14 @@ uint32_t scoop_runtime_callback_invoke(
     scoop_thread_enter_callback(&entry, __builtin_frame_address(0));
 
     const void *closure = scoop_rt_resolve_handle(closure_handle);
+    const void *snapshot =
+        snapshot_handle == 0 ? NULL : scoop_rt_resolve_handle(snapshot_handle);
     void *exception = NULL;
-    void **root_slots[] = {(void **)&closure, &exception};
+    void **root_slots[] = {(void **)&closure, (void **)&snapshot, &exception};
     ScoopNativeRootFrame roots;
-    scoop_rt_push_native_roots(&roots, root_slots, 2);
+    scoop_rt_push_native_roots(&roots, root_slots, 3);
     uint64_t status =
-        adapter(closure, result_storage, argument_storage, &exception);
+        adapter(closure, snapshot, result_storage, argument_storage, &exception);
     uint64_t failure_handle = 0;
     if (status == SCOOP_FOREIGN_CALLBACK_THREW) {
         if (exception == NULL) {

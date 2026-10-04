@@ -235,7 +235,7 @@ fn callback_intrinsic_reads_named_constants_through_materialized_temporaries() {
         .next()
         .expect("one callback registration");
     assert_eq!(
-        definition_path(&registration.definition_path),
+        definition_path(registration.definition.path()),
         vec![(
             scoop_identity::StructuralDefinitionSiteRole::CallbackConversion,
             0,
