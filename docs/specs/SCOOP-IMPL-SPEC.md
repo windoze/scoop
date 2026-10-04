@@ -1133,7 +1133,7 @@ dynamic reader 复用已有 SDK stub、Mach-O 和 export 读取，保留 provide
 
 一般 provider 的 `@rpath` 在编译时从明确目录解析，必要目录以确定顺序成为输出 `LC_RPATH`；实际 install name/runpath 是 executable 内容和 plan 的组成，不能以“路径只是 locator”为由丢弃。原始 `.slib`、object、SDK 与临时快照路径仍只是 I/O 数据。直接 provider 接受绝对 install name 或 `@rpath/...`；依赖中的 `@loader_path` 相对实际 provider 位置解析。需要输出目录布局才能解释的直接 `@loader_path`、`@executable_path` 及未知装载形式明确拒绝；本阶段不增加 native bundle 部署。系统库沿已选 SDK ABI 消费，不宣称 SDK stub 摘要等于运行机器上的 dylib 或 shared cache。
 
-本阶段计划使用 `scoop-resolved-link-plan-v2`，包含必要 native 内容、库绑定、archive 选择、dynamic 依赖、实际 runpath 与有序命令操作。final-link profile 的实际规则／参数同步进入其内容 fingerprint；不改变 LIR target、backend、native ABI、runtime 对象索引或 metadata ABI 3。现有 `.slib` native requirement 已完整，不为了本机 native 输入增加新的 IR section 或改变三层语义摘要。正常链接不实现 final-link cache；后续若增加缓存，按实际内容、合同、操作和工具失效。
+本阶段计划使用 `scoop-resolved-link-plan-v2`，包含必要 native 内容、库绑定、archive 选择、dynamic 依赖、实际 runpath 与有序命令操作。final-link profile 的实际规则／参数同步进入其内容 fingerprint；不改变 LIR target、backend、native ABI、runtime 对象索引或该阶段的 metadata ABI 3；M27 的 ABI 4 迁移见 2.16。现有 `.slib` native requirement 已完整，不为了本机 native 输入增加新的 IR section 或改变三层语义摘要。正常链接不实现 final-link cache；后续若增加缓存，按实际内容、合同、操作和工具失效。
 
 最终检查只处理链接新事实：原生对象在 map/trace 中恰好出现一次，native 定义与真实引用相符，动态 ordinal/symbol/provider、必要 TLV、load commands 与 runpath 符合计划，同时保持原 Strong/ODR 地址、String alias、完整 stackmap 和 startup 检查。不能把未用 export 当作要求全部绑定，也不能让外部 provider 替代 Scoop/runtime/program 定义。对象语义、语言类型与完整 ODR 内容不再重验；runtime 仍负责加载后的 GC 与 initialization 契约。通过后沿原路径原子发布，失败保留旧输出。
 
@@ -1530,7 +1530,7 @@ profile 的 required inventory 随实际 section 生产分步迁移，具体当�
 
 退役 `PersistentSymbolKind::InitializationDescriptor` tag 10（`id`）、`StrongDefinitionRole::InitializationDescriptor` tag 10 和 `OdrMemberRole::InitializationDescriptor` tag 11，不复用。现有 `InitializationRegistration` symbol/role 与 ODR `RegistrationRecord` 保留；external shape subject tag 10 退役，新 tag 11 为 `InitializationRegistration { unit }`，沿原 provider、symbol、definition 和 relocation 路径消费。初始化 registration plan 退役 fields 15、16、17、26，保留其余字段编号；相关 dependency plan 删除同一 coordinator 分量，不保留空字段或兼容副本。canonical LIR 与对象 relocation 使用目标 unit/registration 的 typed identity，不递归内联目标 definition digest，保持原有 digest DAG 无环。
 
-HIR `/43`、MIR type bridge `/6`、LIR layout ABI `/5`、manifest production `/2`、三层 outer schema 1、既有 unit/application/body identity 和 mangling schema 均保持；真正变化的 production/object/profile/runtime ABI fingerprint 同批更新。core/provider/consumer 及 runtime 全部重建；旧 metadata ABI 在读入或启动的固定 prefix 边界拒绝，不保留运行时旧 descriptor 适配。未来 M24 的完整 generic profile 顺延为 /3，prefixed record 继承 metadata ABI 3；其 TypeDescriptor/release-hook 与 outer schema 2 变更仍由 M24 单独实施。
+HIR `/43`、MIR type bridge `/6`、LIR layout ABI `/5`、manifest production `/2`、三层 outer schema 1、既有 unit/application/body identity 和 mangling schema 均保持；真正变化的 production/object/profile/runtime ABI fingerprint 同批更新。core/provider/consumer 及 runtime 全部重建；旧 metadata ABI 在读入或启动的固定 prefix 边界拒绝，不保留运行时旧 descriptor 适配。M24 的完整 generic profile 顺延为 /3，prefixed record 在该阶段继承 metadata ABI 3；其 TypeDescriptor/release-hook 与 outer schema 2 变更由 M24 实施，M27 按 2.16 将 prefixed record 升为 ABI 4。
 
 **实施和验收：**实际代码落点为 `runtime/src/initialization.c`、`thread/`、`gc/roots.c`、`gc/stackmap.c`、`platform/image/macho.c`，以及已有 LIR production、codegen metadata 和 slib object reader。新启动协调代码按 registry、records、stackmap、startup 的实际职责拆分；无需新编译器 stage crate。现有 runtime `main` 移出通用 runtime 源集，所有链接 runtime 的实际运行 fixture 使用完整产物及只含 image/root 引用和启动调用的 C `main`。历史 fixture 在 M23-8 仍可由既有 test runner 显式编排同一完整 request 和 fixture-native 输入，纯前端/IR golden harness 在该阶段保留。本阶段迁移运行胶合，不提前要求正式 umbrella CLI；M23-11 再迁移到 scoop build/run，文件 fixture 的运行编排和阶段 golden 统一迁入 2.7 规定的 Python infra，删除原 Rust harness 和历史编排入口。不得复制旧 runtime main/coordinator 作为 fallback。
 
@@ -1568,7 +1568,7 @@ String 的数组快照由普通 MutableArray(size, init) 生成，Char initializ
 
 ### 2.16 M27：Task-local Context
 
-行为以 language spec 8.3、11.7、11.9、14.3 为准；runtime 契约见 runtime spec 第 9 章，实施次序与验收见 [M27 设计](../milestone27/DESIGN.md)。本节为待实现设计，承接已完成 M24/M26 的 core、产物及工具链基线。
+行为以 language spec 8.3、11.7、11.9、14.3 为准；runtime 契约见 runtime spec 第 9 章，实施次序与验收见 [M27 设计](../milestone27/DESIGN.md)。本节规定 Context 的实际 pipeline 职责，承接 M24/M26 的 core、产物及工具链基线。
 
 **共有 HIR。** 函数及 property 声明增加有序 `ContextContract`；空 list 明确表示没有 requirement。每项保存 `Named(identifier) | Unnamed(ordinal)`、完整 ref 类型表达式及原 source span。requirement 的引用由原声明 typed identity 与独立 `ContextParameterIndex` 构成，不能借名称或 body local 标识；body local 仅在具体实现的入口绑定中出现。
 
@@ -1590,7 +1590,7 @@ ContextScope 在 coroutine transform 前纳入已有结构化 cleanup：先求�
 
 每个 resumable frame 增加非可选 TaskContext field，source callable 的 initial entry 从 current task 初始化它。start helper fork/enter child，resume adapter 在现有 atomic claim 成功并将实际驱动时 enter frame task，所有 driver 出口 leave。REGISTERING/latched payload 路径不驱动 frame，也不切换 Context。execution guard 不跨一个已退出的 driver 保留；source scope mark 则可以跨挂起。普通 closure conversion 只捕获实际词法 local；callback registration 的固定 snapshot 语义属于该操作，不给所有 closure 增加 Context field。
 
-frame 的固定字段顺序为 state、completion、task，然后是按持久 local identity 排序的 saved slots，最后是 failure slot。task 字段使用 generated field tag 15，拥有独立 typed field identity；读取当前 task 使用无分配 ContextCurrent leaf。跨挂起的 ContextMark 是 MIR 生成的精确值类型，不写入 source-exact 类型表；其 CoroutineSlot 按已有 StructuralType exact specialization group 生成和 ODR 合并。frame 字段和这项生成值支持纳入 MIR identity-foundation /4、type-bridge /10，取代 M27 同步批次的 /3、/9。
+frame 的固定字段顺序为 state、completion、task，然后是按持久 local identity 排序的 saved slots，最后是 failure slot。task 字段使用 generated field tag 15，拥有独立 typed field identity；读取当前 task 使用无分配 ContextCurrent leaf。跨挂起的 ContextMark 是 MIR 生成的精确值类型，不写入 source-exact 类型表；其 CoroutineSlot 按已有 StructuralType exact specialization group 生成和 ODR 合并。frame 字段和这项生成值支持在协程批次纳入 MIR identity-foundation /4、type-bridge /10，取代同步批次的 /3、/9；callback 批次继续将 foundation 升为 /5，type-bridge 保持 /10。
 
 启动 helper 与实际 resume 驱动分别保存完整 ContextSwitchGuard。body 失败先沿原 Throwable materialization 路径通知 completion；completion 自身抛出只执行 leave 后继续 unwind，不再次通知失败。MaterializeException 的 unwind 同时结束已有 catch 并恢复 guard。fork 发生在 enter 之前，尚未进入 child 时的分配失败不读取未初始化的 guard。
 

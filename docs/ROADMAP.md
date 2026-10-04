@@ -439,7 +439,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - ByteBuffer、off-heap storage、borrow/view、close 及外部内存压力反馈整体延期；本里程碑不依赖 M24 release hook，也不扩展为通用集合/ownership 框架。旧 M16 字符串设计不作为实现依据。
 - 正式总验收通过：全 workspace 5,252 项测试、公共 fixture runner 32 项测试、全部 2,242 个文件 fixture；M26 新增 84 个 fixture，覆盖源码与产物编译、跨 Cone/ODR、异常、协程和 moving GC，详见设计第 11 节。
 
-### M27 Task-local Context（实现进行中，[设计](milestone27/DESIGN.md)，[分批验收](milestone27/ACCEPTANCE.md)）
+### M27 Task-local Context（已完成，[设计](milestone27/DESIGN.md)，[验收记录](milestone27/ACCEPTANCE.md)）
 
 - `context(name: T)` 声明命名函数或计算/abstract property 的 requirement；`context(value) { ... }` 是词法 block 表达式，每次绑定一个非空 managed ref。key 为 canonical exact static type，alias 展开后相同；derived binding 不隐式满足 base/interface requirement。
 - 实现入口按源码顺序取得一次参数 local，未使用/匿名项同样要求存在，缺失抛可捕获的 `MissingContextException`。requirement 进入导出与 override contract，不参与重载、MSC、推断、函数类型、mangle 或普通 ABI。
@@ -447,7 +447,8 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 普通 closure 只捕获实际词法 local。`foreignCallback` 注册时保存不可变 binding root，每次 invocation fork 独立 task，覆盖同步重入与并发 Reusable；同步 outbound FFI 保持当前 task。
 - 首版使用 TaskContext 与小型 immutable radix node 两种 GC 对象，scope mark 直接保存旧 root；无需独立 undo 链或 snapshot 堆对象。current/previous、frame、临时节点与 callback handle 全部沿 M15 精确扫描、relocation 和 barrier。首次 task 在现有 gateway poll 后建立，继续使用既有分配入口。
 - `ContextKey` 是既有 `PersistentExactTypeId` 的独立 typed wrapper；每 body/key 的 slot cell 随原 callable registration/associated atoms 与 Strong/ODR 发射。metadata ABI 3→4，保留 image 六类 table；不增加独立 key-use family 或 program/core descriptor，进程 slot 不进入持久 identity/fingerprint。
-- 按同步纵向闭环、完整源码契约、泛型/跨 Cone、协程、callback、总验收六批推进。三份规范已分别同步到 language 8.3、runtime 第 9 章、impl 2.16；完成门包含正式 CLI、artifact-only 链接、negative/golden、跨线程与 moving GC。静态 effect、公开 Context API、scheduler/取消及 allocator 改造不进入本里程碑。
+- 已按同步纵向闭环、完整源码契约、泛型/跨 Cone、协程、callback、总验收六批完成。三份规范已分别同步到 language 8.3、runtime 第 9 章、impl 2.16；完成门包含正式 CLI、artifact-only 链接、negative/golden、跨线程与 moving GC。静态 effect、公开 Context API、scheduler/取消及 allocator 改造不进入本里程碑。
+- 正式总验收通过：全 workspace 5,270 项测试、公共 fixture runner 32 项测试、全部 2,314 个文件 fixture；其中 M27 新增 72 个用例，覆盖独立与组合功能、错误诊断、跨 Cone、跨线程和 moving GC。清理重复 driver 测试与产物修改矩阵，保留独有的引用／ABI 错误覆盖，具体耗时和覆盖依据见验收记录。
 
 ## 3. 备注
 
@@ -470,6 +471,7 @@ M23-6a 的共同 HIR 前置条件已经验收；本阶段的实际机器定义�
 - 2026-09-08 M23拆分与单文件模式：原M23按依赖拆为M23-1…M23-11，依次落实source语法、persistent identity/`.slib` container、single-Cone/core边界、build graph、多Cone名称语义、ZST/ABI、generic/ODR、runtime registry、基础program-link、native闭包/hardening与最终CLI。正式`scoop build/run <file>`把指定文件作为固定reserved identity、唯一source、core-only Cone dependency的synthetic executable Cone；不发现旁边manifest/源码，native FFI只由artifact已有typed requirement经显式library search root解析。历史fixture在M23-11切到该正式路径并删除旧`scoopc`直编直链/core拼接旁路。
 - 2026-09-07 顺序调整：M24改为GC-free release hook，采用“完整构造后ready、逻辑死亡且真正reclaim前同步调用TypeDescriptor hook”的直接模型，不采用payload复制或异步queue；原M24字符串范围整体移至M26，并补入Char、safe字符互转、unsafe byte互转及off-heap growable ByteBuffer。既有已完成M25编号保持不变。
 - 2026-10-04 M26 重新设计：采用 List/MutableList/ArrayList 与 String parts 主线，保留 Char 与字符串能力并明确 Unicode 标量索引。ByteBuffer 及所有 off-heap 配套设计移至后续待排期；三份规范与 M24 后续边界同步修订。
+- 2026-10-05 完成 M27 Task-local Context：六批功能、GC 生命周期回归与总验收全部通过；完整 CLI 以无更新模式通过 2,314 个 fixture，runtime metadata ABI 4 及当前 section/profile 已同步到三份规范。
 - 2026-10-04 M27 设计修订并同步三份规范：替换旧 8.3 的 Kotlin 静态解析，采用 exact-type 动态 Context；以 scope 保存旧 root、callable 内 cell 列表和现有 managed gateway 完成恢复、链接与启动，删除旧草案的独立 undo/key-use/program support 机制。实现与功能验收尚未开始。
 - 2026-09-07 新增M27“Task-local Context”：保留Kotlin-like的`context(name: T)`/`context(value) { ... }`表面，以canonical exact static type为key，结合结构化动态binding和logical-task传播重写原spec 8.3 context parameters。首版不做子类型兼容解析或静态effect row；ordinary ABI保持不变。实现细节区分架构不变量与参考方案，物理索引布局不作为长期契约。
 

@@ -21,7 +21,7 @@ fixture 名称或历史迁移表判断覆盖。正式验收继续运行完整 CL
 以上移除四个 Rust 测试入口和两个重复参数用例，减少七次完整 core producer
 执行，以及三次普通 library producer 执行；不删除源码 fixture 或拒绝断言。
 
-## 必须保留的检查
+## 保留的独有覆盖
 
 - `base` 仍覆盖缺失泛型实化记录、HIR／MIR 不一致、布局／ABI／dispatch／GC
   元数据损坏、依赖形状和物理导入等拒绝路径。普通源码 fixture 无法构造这些
@@ -76,5 +76,12 @@ Strong relocation bindings 已按 member、atom、offset、target slot 排序，
 额外的堆空值字段运行组合及最终全仓验收见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
 三组重复修改矩阵移除后，格式化与全 workspace lint 通过；`scoop-slib` 的
-591 项单元测试全部通过。完整 workspace 初轮的慢测试本身通过，但耗时
-2634.42 秒，不能作为合理速度基线。后续耗时复验见验收记录。
+591 项单元测试全部通过。完整 workspace 初轮的 driver 测试组通过，但耗时
+2634.42 秒，不能作为普通 fixture 核对的合理速度基线。
+
+同一条属性初始化集成测试的 debug 复验，删除矩阵并优化重定位查询后为
+1446.99 秒；再采用 LIR 的现有 ID 查询与单次目标统计后为 1143.56 秒，两次
+均通过。这条用例仍保留内部引用、ABI 和物理产物的错误输入检查，debug 下
+仍然很慢。最终 release 模式的全部 84 项 driver 测试通过，用时 188.17 秒；
+这是不同配置和测试集合的观测结果，不用于声称固定加速比。完整测试与
+正式 CLI 验收见 [ACCEPTANCE.md](ACCEPTANCE.md)。

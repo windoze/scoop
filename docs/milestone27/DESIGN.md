@@ -1,6 +1,6 @@
 # M27 设计：Task-local Context
 
-状态：实现进行中；按第 9 节逐批完成并提交，最终功能验收尚未完成。
+状态：已完成（2026-10-05）；第 9 节六批实现及全仓验收均已通过，结果见 [ACCEPTANCE.md](ACCEPTANCE.md)。
 
 日期：2026-10-04。
 
@@ -26,7 +26,7 @@ fun execute(request: Request): Long =
 
 `context(request: Request)` 声明入口 requirement 并引入正文 local；`context(request) { ... }` 安装一个结构化 binding。两者使用同一 canonical exact static type 作为 key。中间普通调用不需要传隐式参数；缺失时由被调用实现抛可捕获的 MissingContextException。
 
-设计基线尚无 Context 专用 AST、TaskContext 或该异常；M27-1 已接通同步路径。其余批次沿下列已有基础推进：
+实现前基线没有 Context 专用 AST、TaskContext 或该异常；M27-1 至 M27-6 已完成同步作用域、声明契约、泛型与独立产物、协程、callback、GC 生命周期回归及全仓总验收。实现复用下列已有基础：
 
 | 已有实现 | M27 使用方式 |
 | --- | --- |
@@ -364,7 +364,7 @@ mark/guard 以不同的逻辑 variant 保持类型区分，物理存储使用已
 - `compiler/hir/src/entities/core_protocols.rs`、共有声明/正文/codec，以及 `compiler/hir-lower/src/` 的声明、表达式、substitution 与 override 入口。
 - `compiler/mir-lower/src/cfg/`、`coroutine/`、`coroutine_registry/start.rs`；`compiler/mir/src/module.rs` 的 CoroutineFrame 与相关 typed metadata。
 - `compiler/lir-lower/src/callbacks.rs`、production、root lowering；`compiler/codegen/src/` 的操作、frame、callback 和 registration 发射。
-- `runtime/src/thread.h`、`thread/`、`gc/collector.c`、`callback.c`、`image/` 及新建 `runtime/src/context.c` 的实际 Context 操作。
+- `runtime/src/thread.h`、`thread/`、`gc/collector.c`、`callback.c`、`image/` 及 `runtime/src/task_context.c` 的实际 Context 操作。
 - `sysroot/lib/scoop.core/src/throwable.scoop`、core 协议生产、identity/generated nominal、slib profile/object reader 和对应 schema 1 fixture。
 
 大型模块按已有职责拆分。实现前先阅读具体落点；上表指定职责，不要求机械创建与表项一一对应的文件或工厂。
@@ -391,9 +391,9 @@ runtime 检查新增 span/cell 的范围、可写性、零初态、实际 owner 
 
 ### 7.3 当前基线与迁移面
 
-2026-10-04 代码基线如下；这是实施依据，不表示 M27 已升级代码：
+下表对照 2026-10-04 的实现前基线与 M27 已落地的格式迁移；各批次验证证据见 ACCEPTANCE.md：
 
-| 项目 | 当前基线 | M27 迁移 |
+| 项目 | 实现前基线 | M27 迁移 |
 | --- | --- | --- |
 | runtime metadata | ABI 3；image 六类 table，callable record exact-sized | ABI 4，更新 callable cell-list 字段与 size；image table 集合和启动参数保持 |
 | HIR | core-bootstrap-interface /7、cross-cone-interface /48、type-semantics /15 | core-bootstrap-interface /8、cross-cone-interface /50、type-semantics /16（/49 是 M27-1 共享 body 节点的中间版本） |

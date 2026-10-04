@@ -1,6 +1,6 @@
 # M27 实施与验收记录
 
-状态：实现进行中；以下为分批证据，不代表整个 M27 已完成。
+状态：M27 已完成（2026-10-05）。以下记录各批实现、完整 Rust 回归及全量正式 CLI 验收。
 
 ## M27-1 同步作用域
 
@@ -62,6 +62,60 @@ callback token 在注册时保存不可变 binding-root handle；空快照使用
 
 该用例发现跨挂起 ContextMark 被消费后仍留在 frame slot。修复在 coroutine transform 完成挂起点改写后，为原有 ContextRestore cleanup 追加对应 slot 的 Empty 写入，正常与异常退出共用同一路径；未跨挂起的 mark 不增加 frame 存储，挂起不消费 mark。实现增加 31 行，协程主文件与 frame 模块分别为 461、221 行。
 
-修复通过格式化、无警告的全 workspace lint 与 114 项 MIR lowering 测试；72/72 个 M27 fixture 在全新目录、关闭快照更新后复验通过，共 116 个进程、48 份 stage golden。公共 fixture runner 的 32 项测试通过。全仓总验收正在继续，全部完成前不标记路线图 M27 完成。
+修复通过格式化、无警告的全 workspace lint 与 114 项 MIR lowering 测试；72/72 个 M27 fixture 在全新目录、关闭快照更新后复验通过，共 116 个进程、48 份 stage golden。公共 fixture runner 的 32 项测试通过。全仓总验收已完成，完整结果见后文；路线图已同步标记 M27 完成。
 
 按实际断言对照 CLI 覆盖后，删除四个重复 driver 集成测试和两个重复 core 参数用例，减少七次完整 core 构建。独有的 metadata／引用／ABI 拒绝路径仍保留，具体对应与保留理由见 [测试覆盖清理](TEST-COVERAGE.md)。清理通过格式化与无警告的全 workspace lint；八个对应 CLI fixture 在全新目录、关闭更新后通过，共 27 个进程、65 份 stage／link-plan golden。
+
+## 最终 Rust 回归与产物迁移
+
+`cargo test --workspace --release --no-fail-fast` 全部通过：43 组、5270 项测试，
+无失败、忽略或过滤项。其中 codegen 的 312 项测试覆盖实际 C runtime，driver
+的 84 项测试包含保留的源码生产、产物消费、ABI 与引用错误路径。初轮 debug
+全仓测试唯一失败是旧 callable object 指纹向量；更新到当前 M27 产物后，该
+用例专项复验通过，最终 release 全仓也通过。
+
+`cargo build -p scoop -p scoopc -p scoop-linker --bins` 与对应 release 构建通过。
+每批 Rust 变更均先执行格式化和全 workspace、all-targets 的 clippy，最终 lint
+没有警告。公共 fixture runner 的 32 项测试已通过，runner 实现没有改动。
+
+按实际快照与固定产物值声明核对，1347 个历史及 M27 用例完成基线复核。
+迁移保留运行结果、退出状态、诊断位置和普通／moving GC 条件，更新 903 项
+显式 artifact fingerprint、生成符号列表与阶段／link-plan 输出。四份旧诊断
+仅更新消息中的 HIR／MIR／LIR 指纹；五个委托损坏向量保留原删除／交换语义
+和错误条件，同步 section 版本位置。optional member 重组仍由正式 writer
+生成片段，普通损坏仍在外层摘要或容器边界拒绝。三份二进制 fixture 在全新
+目录、关闭更新后通过：3 个变体、39 个进程、24 份阶段／link-plan golden。
+
+删除三组重复修改矩阵，并复用既有 definition ID 查询、digest 目标统计和
+已排序的 relocation binding 区间，降低反复重放的成本。保留的属性初始化
+集成测试在最终 debug 配置下复验通过，用时 1143.56 秒，仍属重型用例；
+具体覆盖取舍与各次观测值见 [测试覆盖清理](TEST-COVERAGE.md)。
+
+## 全量正式 CLI 验收
+
+在全新工作目录中，以同次 release 构建的 `scoop`、`scoopc`、`scoop-link`
+固定副本运行 `python3 tests/run_fixtures.py --all --jobs 24`，没有名称过滤、
+快照更新或期望值更新。报告确认全部发现的用例都被选中，结果如下：
+
+| 范围 | 结果 |
+| --- | --- |
+| 全部文件 fixture | 2314 / 2314 通过，0 失败 |
+| 实际变体 | 2404 |
+| 执行进程 | 12076 |
+| stage／link-plan golden | 11258 |
+| 其中 M27 | 72 / 72 通过，116 个进程、48 份 golden |
+
+全量耗时 1260.97 秒，约 21 分钟；本次 24 并发下，单个完整 fixture 的耗时
+中位数为 7.77 秒。这包括用例声明的编译、链接和运行，区别于单纯比较快照
+文件的耗时。该结果也再次覆盖了迁移后的旧版语言、runtime、native 输入、
+独立产物、缓存和诊断用例。
+
+完整报告已保存为 `/tmp/scoop-m27-fixtures-all-final-report.json`，命令和用时
+保存为 `/tmp/scoop-m27-fixtures-all-final-run.json`；Rust 全仓日志为
+`/tmp/scoop-m27-workspace-release-final.log`。这三份结果在清理 `target` 前另行
+保留。新增的 35 个生产模块最长 221 行，没有 TODO 或未实现分支。
+
+各批之间已清理结束的 fixture 与编译产物。最终确认所有编译／测试进程结束、
+保存报告后执行 `cargo clean`：清理前 `du` 显示约 84 GB；Cargo 报告移除
+74328 个文件、89.8 GiB 产物，`target` 目录已删除。清理日志保存为
+`/tmp/scoop-m27-final-cargo-clean.log`。
