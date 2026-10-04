@@ -1099,7 +1099,7 @@ Module
     store t9 -> local19
     t10 = begin_catch local19 : ptr<managed>
     store t10 -> local20
-    call managed-direct-target2 sp<managed-call:9> live=[local6:{ptr<managed>, ptr<managed>}@0+8, local20:ptr<managed>@0] t11 = sig=direct4 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local20)
+    call managed-direct-target2 sp<managed-call:9> live=[param0:ptr<managed>@0, local6:{ptr<managed>, ptr<managed>}@0+8, local20:ptr<managed>@0] t11 = sig=direct4 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local20)
     store t11 -> local8
     end_catch
     br @try.dispatch.5
@@ -1108,187 +1108,191 @@ Module
     t13 = extract local6, 1 : ptr<managed>
     call no-gc-void-target0 sig=void1 (ptr<managed>, ptr<managed>) runtime @scoop_rt_context_restore(t12, t13)
     t14 = aggregate () : {}
+    t15 = enum_wrap e12 v0 () : enum12
+    heap_store param0 +64 t15
     throw local8
     unreachable
   block try.end.6
-    t15 = enum_wrap e6 v0 (local4) : enum6
-    ret t15
+    t16 = enum_wrap e6 v0 (local4) : enum6
+    ret t16
   block try.body.7
     store local0 -> local2
     store local2 -> local3
-    t16 = enum_wrap e12 v1 (local6) : enum12
-    heap_store param0 +64 t16
+    t17 = enum_wrap e12 v1 (local6) : enum12
+    heap_store param0 +64 t17
     atomic_store release coroutine-frame-state param0 +16 machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1))))
-    call managed-direct-target3 sp<managed-call:5> live=[param0:ptr<managed>@0, local3:ptr<managed>@0, local6:{ptr<managed>, ptr<managed>}@0+8] t17 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(56)))
-    store t17 -> local12
+    call managed-direct-target3 sp<managed-call:5> live=[param0:ptr<managed>@0, local3:ptr<managed>@0, local6:{ptr<managed>, ptr<managed>}@0+8] t18 = sig=direct5 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(td14, machine<byte-size>(ByteSize(56)))
+    store t18 -> local12
     heap_store local12 +16 param0
     machine_heap_store coroutine-adapter-state local12 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Registering))
-    t18 = enum_wrap e11 v0 () : enum11
-    heap_store local12 +32 t18
-    t19 = enum_wrap e10 v0 () : enum10
-    heap_store local12 +48 t19
+    t19 = enum_wrap e11 v0 () : enum11
+    heap_store local12 +32 t19
+    t20 = enum_wrap e10 v0 () : enum10
+    heap_store local12 +48 t20
     br @coroutine.register.1
   block scope.8
-    t20 = extract local6, 0 : ptr<managed>
-    t21 = extract local6, 1 : ptr<managed>
-    call no-gc-void-target1 sig=void2 (ptr<managed>, ptr<managed>) runtime @scoop_rt_context_restore(t20, t21)
-    t22 = aggregate () : {}
+    t21 = extract local6, 0 : ptr<managed>
+    t22 = extract local6, 1 : ptr<managed>
+    call no-gc-void-target1 sig=void2 (ptr<managed>, ptr<managed>) runtime @scoop_rt_context_restore(t21, t22)
+    t23 = aggregate () : {}
+    t24 = enum_wrap e12 v0 () : enum12
+    heap_store param0 +64 t24
     br @try.end.6
   block coroutine.post.1
-    call managed-void-target1 sp<managed-call:8> live=[local6:{ptr<managed>, ptr<managed>}@0+8] sig=void3 () runtime @scoop_rt_gc_collect()
-    t23 = aggregate () : {}
-    invoke managed-direct-target4 sp<managed-invoke:2> roots=[local6:refs[0, 8]:normal+unwind] t24 = sig=direct6 () -> ptr<managed> local-fn5() normal @invoke.normal.1 unwind @try.unwind.4
+    call managed-void-target1 sp<managed-call:8> live=[param0:ptr<managed>@0, local6:{ptr<managed>, ptr<managed>}@0+8] sig=void3 () runtime @scoop_rt_gc_collect()
+    t25 = aggregate () : {}
+    invoke managed-direct-target4 sp<managed-invoke:2> roots=[param0:normal+unwind, local6:refs[0, 8]:normal+unwind] t26 = sig=direct6 () -> ptr<managed> local-fn5() normal @invoke.normal.1 unwind @try.unwind.4
     br @invoke.normal.1
   block coroutine.register.1
-    t25 = heap_load local3 +0 : ptr<metadata>
-    call no-gc-direct-target2 t26 = sig=direct7 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t25, td1)
-    invoke managed-void-target2 sp<managed-invoke:0> roots=[param0:normal+unwind, local3:argument, local6:refs[0, 8]:normal+unwind, local12:normal+unwind] sig=void4 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t26(local3, local12) normal @invoke.normal.2 unwind @coroutine.registration_failure.1
+    t27 = heap_load local3 +0 : ptr<metadata>
+    call no-gc-direct-target2 t28 = sig=direct7 (ptr<metadata>, ptr<metadata>) -> ptr<metadata> runtime @scoop_rt_itable_lookup(t27, td1)
+    invoke managed-void-target2 sp<managed-invoke:0> roots=[param0:normal+unwind, local3:argument, local6:refs[0, 8]:normal+unwind, local12:normal+unwind] sig=void4 (ptr<managed>, ptr<managed>) dispatch[Interface:0] t28(local3, local12) normal @invoke.normal.2 unwind @coroutine.registration_failure.1
     br @invoke.normal.2
   block coroutine.registered_success.1
     atomic_store release coroutine-adapter-state local12 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
-    t28 = heap_load local12 +32 : enum11
-    t29 = enum_field e11 v1 f0 t28 : i32
-    store t29 -> local9
+    t30 = heap_load local12 +32 : enum11
+    t31 = enum_field e11 v1 f0 t30 : i32
+    store t31 -> local9
     br @coroutine.post.1
   block coroutine.registered_failure.1
     atomic_store release coroutine-adapter-state local12 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
-    t30 = heap_load local12 +48 : enum10
-    t31 = enum_field e10 v1 f0 t30 : ptr<managed>
-    store t31 -> local13
+    t32 = heap_load local12 +48 : enum10
+    t33 = enum_field e10 v1 f0 t32 : ptr<managed>
+    store t33 -> local13
     invoke no-gc-void-target2 sig=void5 (ptr<managed>) runtime @scoop_rt_throw(local13) normal @throw.normal.3 unwind @try.unwind.4
     br @throw.normal.3
   block coroutine.registered_suspend.1
-    t32 = enum_wrap e6 v1 () : enum6
-    ret t32
+    t34 = enum_wrap e6 v1 () : enum6
+    ret t34
   block coroutine.protocol_error
-    call managed-direct-target5 sp<managed-call:7> live=[local6:{ptr<managed>, ptr<managed>}@0+8] t33 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td16, machine<byte-size>(ByteSize(24)))
-    store t33 -> local16
-    invoke managed-void-target3 sp<managed-invoke:1> roots=[local6:refs[0, 8]:normal+unwind, local16:normal] sig=void6 (ptr<managed>) external-fn3(local16) normal @invoke.normal.4 unwind @try.unwind.4
+    call managed-direct-target5 sp<managed-call:7> live=[param0:ptr<managed>@0, local6:{ptr<managed>, ptr<managed>}@0+8] t35 = sig=direct8 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td16, machine<byte-size>(ByteSize(24)))
+    store t35 -> local16
+    invoke managed-void-target3 sp<managed-invoke:1> roots=[param0:normal+unwind, local6:refs[0, 8]:normal+unwind, local16:normal] sig=void6 (ptr<managed>) external-fn3(local16) normal @invoke.normal.4 unwind @try.unwind.4
     br @invoke.normal.4
   block coroutine.claim_success_frame.1
-    t35 = atomic_cmpxchg acq_rel/acquire coroutine-frame-state param0 +16 expected=machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) replacement=machine<coroutine-frame-state>(CoroutineFrameState(Running)) : machine<coroutine-frame-state>
-    store t35 -> local15
-    t36 = MachineEq(CoroutineFrameState) local15, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
-    cbr t36 then @coroutine.registered_success.1 else @coroutine.protocol_error
-  block coroutine.claim_failure_frame.1
     t37 = atomic_cmpxchg acq_rel/acquire coroutine-frame-state param0 +16 expected=machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) replacement=machine<coroutine-frame-state>(CoroutineFrameState(Running)) : machine<coroutine-frame-state>
     store t37 -> local15
     t38 = MachineEq(CoroutineFrameState) local15, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
-    cbr t38 then @coroutine.registered_failure.1 else @coroutine.protocol_error
+    cbr t38 then @coroutine.registered_success.1 else @coroutine.protocol_error
+  block coroutine.claim_failure_frame.1
+    t39 = atomic_cmpxchg acq_rel/acquire coroutine-frame-state param0 +16 expected=machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) replacement=machine<coroutine-frame-state>(CoroutineFrameState(Running)) : machine<coroutine-frame-state>
+    store t39 -> local15
+    t40 = MachineEq(CoroutineFrameState) local15, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
+    cbr t40 then @coroutine.registered_failure.1 else @coroutine.protocol_error
   block coroutine.check_latched_failure.1
-    t39 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
-    t40 = MachineEq(CoroutineAdapterState) t39, machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedFailure)) : i1
-    cbr t40 then @coroutine.claim_failure_frame.1 else @coroutine.protocol_error
-  block coroutine.check_latched_success.1
     t41 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
-    t42 = MachineEq(CoroutineAdapterState) t41, machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedSuccess)) : i1
-    cbr t42 then @coroutine.claim_success_frame.1 else @coroutine.check_latched_failure.1
+    t42 = MachineEq(CoroutineAdapterState) t41, machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedFailure)) : i1
+    cbr t42 then @coroutine.claim_failure_frame.1 else @coroutine.protocol_error
+  block coroutine.check_latched_success.1
+    t43 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
+    t44 = MachineEq(CoroutineAdapterState) t43, machine<coroutine-adapter-state>(CoroutineAdapterState(LatchedSuccess)) : i1
+    cbr t44 then @coroutine.claim_success_frame.1 else @coroutine.check_latched_failure.1
   block coroutine.completion_backoff.1
     br @coroutine.completion_wait.1
   block coroutine.check_completing_failure.1
-    t43 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
-    t44 = MachineEq(CoroutineAdapterState) t43, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
-    cbr t44 then @coroutine.completion_backoff.1 else @coroutine.check_latched_success.1
+    t45 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
+    t46 = MachineEq(CoroutineAdapterState) t45, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
+    cbr t46 then @coroutine.completion_backoff.1 else @coroutine.check_latched_success.1
   block coroutine.completion_wait.1
     poll managed-void-target5 sp<managed-poll:2> live=[param0:ptr<managed>@0, local6:{ptr<managed>, ptr<managed>}@0+8, local12:ptr<managed>@0]
-    t45 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
-    t46 = MachineEq(CoroutineAdapterState) t45, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
-    cbr t46 then @coroutine.completion_backoff.1 else @coroutine.check_completing_failure.1
+    t47 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
+    t48 = MachineEq(CoroutineAdapterState) t47, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
+    cbr t48 then @coroutine.completion_backoff.1 else @coroutine.check_completing_failure.1
   block coroutine.register_return.1
-    t47 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state local12 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : machine<coroutine-adapter-state>
-    store t47 -> local14
-    t48 = MachineEq(CoroutineAdapterState) local14, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
-    cbr t48 then @coroutine.registered_suspend.1 else @coroutine.completion_wait.1
+    t49 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state local12 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(Waiting)) : machine<coroutine-adapter-state>
+    store t49 -> local14
+    t50 = MachineEq(CoroutineAdapterState) local14, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
+    cbr t50 then @coroutine.registered_suspend.1 else @coroutine.completion_wait.1
   block coroutine.registration_propagate.1
     invoke no-gc-void-target4 sig=void8 (ptr<managed>) runtime @scoop_rt_throw(local13) normal @throw.normal.6 unwind @try.unwind.4
     br @throw.normal.6
   block coroutine.registration_claim_frame.1
-    t49 = atomic_cmpxchg acq_rel/acquire coroutine-frame-state param0 +16 expected=machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) replacement=machine<coroutine-frame-state>(CoroutineFrameState(Running)) : machine<coroutine-frame-state>
-    store t49 -> local15
-    t50 = MachineEq(CoroutineFrameState) local15, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
-    cbr t50 then @coroutine.registration_propagate.1 else @coroutine.protocol_error
+    t51 = atomic_cmpxchg acq_rel/acquire coroutine-frame-state param0 +16 expected=machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) replacement=machine<coroutine-frame-state>(CoroutineFrameState(Running)) : machine<coroutine-frame-state>
+    store t51 -> local15
+    t52 = MachineEq(CoroutineFrameState) local15, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
+    cbr t52 then @coroutine.registration_propagate.1 else @coroutine.protocol_error
   block coroutine.registration_protocol.1
     atomic_store release coroutine-adapter-state local12 +24 machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed))
     br @coroutine.protocol_error
   block coroutine.registration_protocol_claim_frame.1
-    t51 = atomic_cmpxchg acq_rel/acquire coroutine-frame-state param0 +16 expected=machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) replacement=machine<coroutine-frame-state>(CoroutineFrameState(Running)) : machine<coroutine-frame-state>
-    store t51 -> local15
-    t52 = MachineEq(CoroutineFrameState) local15, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
-    cbr t52 then @coroutine.registration_protocol.1 else @coroutine.protocol_error
+    t53 = atomic_cmpxchg acq_rel/acquire coroutine-frame-state param0 +16 expected=machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) replacement=machine<coroutine-frame-state>(CoroutineFrameState(Running)) : machine<coroutine-frame-state>
+    store t53 -> local15
+    t54 = MachineEq(CoroutineFrameState) local15, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
+    cbr t54 then @coroutine.registration_protocol.1 else @coroutine.protocol_error
   block coroutine.registration_backoff.1
     br @coroutine.registration_wait.1
   block coroutine.registration_check_completing_failure.1
-    t53 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
-    t54 = MachineEq(CoroutineAdapterState) t53, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
-    cbr t54 then @coroutine.registration_backoff.1 else @coroutine.registration_protocol_claim_frame.1
+    t55 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
+    t56 = MachineEq(CoroutineAdapterState) t55, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingFailure)) : i1
+    cbr t56 then @coroutine.registration_backoff.1 else @coroutine.registration_protocol_claim_frame.1
   block coroutine.registration_wait.1
     poll managed-void-target5 sp<managed-poll:1> live=[param0:ptr<managed>@0, local6:{ptr<managed>, ptr<managed>}@0+8, local12:ptr<managed>@0]
-    t55 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
-    t56 = MachineEq(CoroutineAdapterState) t55, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
-    cbr t56 then @coroutine.registration_backoff.1 else @coroutine.registration_check_completing_failure.1
+    t57 = atomic_load acquire coroutine-adapter-state local12 +24 : machine<coroutine-adapter-state>
+    t58 = MachineEq(CoroutineAdapterState) t57, machine<coroutine-adapter-state>(CoroutineAdapterState(CompletingSuccess)) : i1
+    cbr t58 then @coroutine.registration_backoff.1 else @coroutine.registration_check_completing_failure.1
   block coroutine.registration_failure.1
-    (t57, t58) = landingpad : (exception_record, ptr<raw>)
-    store t57 -> local18
-    store t58 -> local19
-    t59 = begin_catch local19 : ptr<managed>
-    store t59 -> local20
-    call managed-direct-target6 sp<managed-call:6> live=[param0:ptr<managed>@0, local6:{ptr<managed>, ptr<managed>}@0+8, local12:ptr<managed>@0, local20:ptr<managed>@0] t60 = sig=direct9 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local20)
-    store t60 -> local13
+    (t59, t60) = landingpad : (exception_record, ptr<raw>)
+    store t59 -> local18
+    store t60 -> local19
+    t61 = begin_catch local19 : ptr<managed>
+    store t61 -> local20
+    call managed-direct-target6 sp<managed-call:6> live=[param0:ptr<managed>@0, local6:{ptr<managed>, ptr<managed>}@0+8, local12:ptr<managed>@0, local20:ptr<managed>@0] t62 = sig=direct9 (ptr<managed>) -> ptr<managed> runtime @scoop_rt_materialize_exception(local20)
+    store t62 -> local13
     end_catch
-    t61 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state local12 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed)) : machine<coroutine-adapter-state>
-    store t61 -> local14
-    t62 = MachineEq(CoroutineAdapterState) local14, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
-    cbr t62 then @coroutine.registration_claim_frame.1 else @coroutine.registration_wait.1
+    t63 = atomic_cmpxchg acq_rel/acquire coroutine-adapter-state local12 +24 expected=machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) replacement=machine<coroutine-adapter-state>(CoroutineAdapterState(Consumed)) : machine<coroutine-adapter-state>
+    store t63 -> local14
+    t64 = MachineEq(CoroutineAdapterState) local14, machine<coroutine-adapter-state>(CoroutineAdapterState(Registering)) : i1
+    cbr t64 then @coroutine.registration_claim_frame.1 else @coroutine.registration_wait.1
   block coroutine.resume.1
-    t63 = heap_load param0 +64 : enum12
-    t64 = enum_field e12 v1 f0 t63 : {ptr<managed>, ptr<managed>}
-    store t64 -> local6
-    t65 = heap_load param0 +40 : enum11
-    t66 = enum_field e11 v1 f0 t65 : i32
-    store t66 -> local9
+    t65 = heap_load param0 +64 : enum12
+    t66 = enum_field e12 v1 f0 t65 : {ptr<managed>, ptr<managed>}
+    store t66 -> local6
+    t67 = heap_load param0 +40 : enum11
+    t68 = enum_field e11 v1 f0 t67 : i32
+    store t68 -> local9
     br @coroutine.post.1
   block coroutine.failure.1
-    t67 = heap_load param0 +64 : enum12
-    t68 = enum_field e12 v1 f0 t67 : {ptr<managed>, ptr<managed>}
-    store t68 -> local6
-    t69 = heap_load param0 +88 : enum10
-    t70 = enum_field e10 v1 f0 t69 : ptr<managed>
-    invoke no-gc-void-target5 sig=void9 (ptr<managed>) runtime @scoop_rt_throw(t70) normal @throw.normal.7 unwind @try.unwind.4
+    t69 = heap_load param0 +64 : enum12
+    t70 = enum_field e12 v1 f0 t69 : {ptr<managed>, ptr<managed>}
+    store t70 -> local6
+    t71 = heap_load param0 +88 : enum10
+    t72 = enum_field e10 v1 f0 t71 : ptr<managed>
+    invoke no-gc-void-target5 sig=void9 (ptr<managed>) runtime @scoop_rt_throw(t72) normal @throw.normal.7 unwind @try.unwind.4
     br @throw.normal.7
   block coroutine.initial
-    t71 = heap_load param0 +56 : enum8
-    t72 = enum_field e8 v1 f0 t71 : ptr<managed>
-    store t72 -> local0
+    t73 = heap_load param0 +56 : enum8
+    t74 = enum_field e8 v1 f0 t73 : ptr<managed>
+    store t74 -> local0
     atomic_store release coroutine-frame-state param0 +16 machine<coroutine-frame-state>(CoroutineFrameState(Running))
     br @entry
   block coroutine.protocol_error
-    call managed-direct-target7 sp<managed-call:0> live=[] t73 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td16, machine<byte-size>(ByteSize(24)))
-    store t73 -> local17
+    call managed-direct-target7 sp<managed-call:0> live=[] t75 = sig=direct10 (ptr<metadata>, machine<byte-size>) -> ptr<managed> runtime @scoop_rt_alloc(external-td16, machine<byte-size>(ByteSize(24)))
+    store t75 -> local17
     call managed-void-target4 sp<managed-call:1> live=[local17:ptr<managed>@0] sig=void10 (ptr<managed>) external-fn3(local17)
-    t74 = aggregate () : {}
+    t76 = aggregate () : {}
     throw local17
     unreachable
   block coroutine.dispatch.suspended.1
-    t75 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
-    cbr t75 then @coroutine.resume.1 else @coroutine.protocol_error
+    t77 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Suspended(CoroutineSuspendStateId(1)))) : i1
+    cbr t77 then @coroutine.resume.1 else @coroutine.protocol_error
   block coroutine.dispatch.resume_failure.1
-    t76 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))) : i1
-    cbr t76 then @coroutine.failure.1 else @coroutine.dispatch.suspended.1
+    t78 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(ResumeFailure(CoroutineSuspendStateId(1)))) : i1
+    cbr t78 then @coroutine.failure.1 else @coroutine.dispatch.suspended.1
   block coroutine.dispatch.initial
     poll managed-void-target5 sp<managed-poll:0> live=[param0:ptr<managed>@0]
-    t77 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Initial)) : i1
-    cbr t77 then @coroutine.initial else @coroutine.dispatch.resume_failure.1
+    t79 = MachineEq(CoroutineFrameState) param1, machine<coroutine-frame-state>(CoroutineFrameState(Initial)) : i1
+    cbr t79 then @coroutine.initial else @coroutine.dispatch.resume_failure.1
   block invoke.normal.1
-    store t24 -> local10
+    store t26 -> local10
     store local10 -> local4
     br @scope.8
   block invoke.normal.2
-    t27 = aggregate () : {}
+    t29 = aggregate () : {}
     br @coroutine.register_return.1
   block throw.normal.3
     unreachable
   block invoke.normal.4
-    t34 = aggregate () : {}
+    t36 = aggregate () : {}
     invoke no-gc-void-target3 sig=void7 (ptr<managed>) runtime @scoop_rt_throw(local16) normal @throw.normal.5 unwind @try.unwind.4
     br @throw.normal.5
   block throw.normal.5

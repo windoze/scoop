@@ -3138,6 +3138,11 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
+      field_set 6
+        Type CoroutineFrame<inner>
+        Local $frame
+        Type CoroutineSlot<internal<context-mark>>
+        VariantConstruct CoroutineSlot<internal<context-mark>> v0
       throw
         Type Throwable
         Local $coroutine_exception.3
@@ -3218,6 +3223,11 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
+      field_set 6
+        Type CoroutineFrame<inner>
+        Local $frame
+        Type CoroutineSlot<internal<context-mark>>
+        VariantConstruct CoroutineSlot<internal<context-mark>> v0
       goto bb6
     bb9 coroutine.post.1 unwind bb4
       call @scoop_rt_gc_collect direct
@@ -4096,6 +4106,11 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
+      field_set 5
+        Type CoroutineFrame<outer>
+        Local $frame
+        Type CoroutineSlot<internal<context-mark>>
+        VariantConstruct CoroutineSlot<internal<context-mark>> v0
       throw
         Type Throwable
         Local $coroutine_exception.3
@@ -4163,6 +4178,11 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
+      field_set 5
+        Type CoroutineFrame<outer>
+        Local $frame
+        Type CoroutineSlot<internal<context-mark>>
+        VariantConstruct CoroutineSlot<internal<context-mark>> v0
       goto bb6
     bb9 coroutine.post.1 unwind bb4
       call @scoop_rt_gc_collect direct

@@ -288,7 +288,7 @@ TaskContext 与 ContextNode 由实际 core provider 以两个封闭 generated no
 - snapshot 只取得 immutable root，O(1)，不分配。
 - fork 只分配新的 TaskContext，O(1)，无需复制 undo 或所有 binding。
 
-mark 通过普通局部/frame root 保活旧树，足以恢复被 shadow 的值。去掉 undo 对象后，task 本身不保留历史 scope；消费 mark 后结束 liveness/清空 frame slot。不要使用 64-ref managed page：当前 allocator 会把约 528-byte page 放入至少一个 32-KiB large block。allocator 优化另行评估。
+mark 通过普通局部/frame root 保活旧树，足以恢复被 shadow 的值。去掉 undo 对象后，task 本身不保留历史 scope；消费 mark 后结束 liveness。coroutine transform 在原有 ContextRestore 后清空对应 frame slot，正常与异常 cleanup 共用此路径，已完成 continuation 仍可达也不保留旧树。不要使用 64-ref managed page：当前 allocator 会把约 528-byte page 放入至少一个 32-KiB large block。allocator 优化另行评估。
 
 fanout、树高、节点字段和 slot 排序属于本版 runtime 实现，不是源码可观察值或长期产物身份；首版固定这一条实现，不同时提供 hash map、COW page 等平行路径。
 

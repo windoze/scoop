@@ -2874,6 +2874,11 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
+      field_set 5
+        Type CoroutineFrame<task>
+        Local $frame
+        Type CoroutineSlot<internal<context-mark>>
+        VariantConstruct CoroutineSlot<internal<context-mark>> v0
       throw
         Type Throwable
         Local $coroutine_exception.3
@@ -2976,6 +2981,11 @@ Module
       ContextRestore
         Type internal<context-mark>
         Local $context_mark.2
+      field_set 5
+        Type CoroutineFrame<task>
+        Local $frame
+        Type CoroutineSlot<internal<context-mark>>
+        VariantConstruct CoroutineSlot<internal<context-mark>> v0
       goto bb6
     bb12 coroutine.post.1 unwind bb4
       call @scoop_rt_gc_collect direct

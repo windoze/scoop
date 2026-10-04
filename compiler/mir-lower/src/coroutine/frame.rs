@@ -12,6 +12,36 @@ pub(super) struct ConstructedFrame {
     pub(super) failure_value: mir::CoroutineFailureValueId,
 }
 
+pub(super) fn clear_consumed_context_marks(
+    body: &mut mir::Body,
+    frame: mir::LocalId,
+    slots: &HashMap<mir::LocalId, FrameSlot>,
+) {
+    let frame = mir::Expr::local(frame, body.locals[frame].ty.clone());
+    for (_, block) in body.blocks.iter_mut() {
+        for statement in std::mem::take(&mut block.statements) {
+            let slot = match &statement.kind {
+                mir::StatementKind::Expr(mir::Expr {
+                    kind: mir::ExprKind::Context(mir::ContextOperation::Restore { mark }),
+                    ..
+                }) => {
+                    let mir::ExprKind::Local(local) = mark.kind else {
+                        unreachable!("context cleanup consumes its generated mark local")
+                    };
+                    slots.get(&local)
+                }
+                _ => None,
+            };
+            block.statements.push(statement);
+            if let Some(slot) = slot {
+                block
+                    .statements
+                    .push(field_set(frame.clone(), slot.field, slot_empty(slot)));
+            }
+        }
+    }
+}
+
 pub(super) fn construct(
     lowerer: &mut Lowerer,
     module: &hir::Module,

@@ -56,6 +56,10 @@ callback token 在注册时保存不可变 binding-root handle；空快照使用
 
 本批通过格式化及无警告的全 workspace lint；HIR 875、HIR lowering 1327、MIR 345、MIR lowering 114、LIR 477、LIR lowering 146、codegen 312、slib 591 项库测试及针对导入协议的复验通过。全部 M27 fixture 在全新工作目录、关闭快照更新的模式下通过 71/71 个用例、110 个进程和 45 份 stage golden。新增生产模块为 67、96、133、138 行；callback lowering 主文件为 249 行，runtime callback 为 429 行，拆分后的 ABI 主文件为 498 行。
 
-## 后续批次
+## M27-6 GC 生命周期与总验收
 
-M27-6 的 GC 生命周期组合与全仓总验收仍在实施计划内。全部完成前不标记路线图 M27 完成。
+新增 GC 生命周期 fixture，使用 M24 release hook 的实际释放计数检查嵌套 shadow、callback snapshot/active handle、两个独立 child task、正常与失败恢复。用例特意保留已完成 continuation，检查退出后的旧 binding root 不再被 frame 保活，并组合 direct suspend 立即完成与 moving GC。
+
+该用例发现跨挂起 ContextMark 被消费后仍留在 frame slot。修复在 coroutine transform 完成挂起点改写后，为原有 ContextRestore cleanup 追加对应 slot 的 Empty 写入，正常与异常退出共用同一路径；未跨挂起的 mark 不增加 frame 存储，挂起不消费 mark。实现增加 31 行，协程主文件与 frame 模块分别为 461、221 行。
+
+修复通过格式化、无警告的全 workspace lint 与 114 项 MIR lowering 测试；72/72 个 M27 fixture 在全新目录、关闭快照更新后复验通过，共 116 个进程、48 份 stage golden。公共 fixture runner 的 32 项测试通过。全仓总验收正在继续，全部完成前不标记路线图 M27 完成。

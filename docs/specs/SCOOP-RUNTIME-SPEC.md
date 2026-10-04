@@ -588,7 +588,7 @@ scope mark 只保存 owner TaskContext 与旧 root，由 compiler-internal typed
 
 两个内部类型的 exact identity、完整 layout/scan 和 TypeDescriptor 由实际 core provider 生成并通过已有类型/布局产物导出；消费者引用原定义。runtime helper 需要的 descriptor 由 typed metadata 参数提供，使用与本版共享 C 布局一致的普通 TD，不手写伪 descriptor 或在启动恢复已退役的 ProgramDescriptor/CoreBindings。所有字段是普通扫描 ref，release hook 为 None。
 
-current Context、previous guard、旧 binding root、push 中间节点与 value、取得的参数 local、frame field、callback snapshot 都必须出现在现有 root/RefScan 中。ThreadState scanner 不依赖当前 thread mode 来省略 current Context；TLS 只定位 ThreadState。所有 ref store 沿已有 checked write-barrier 路径，可能 GC 后重新取得对象地址；restore 不再需要的 mark/frame slot 必须清空，以免保留旧树。
+current Context、previous guard、旧 binding root、push 中间节点与 value、取得的参数 local、frame field、callback snapshot 都必须出现在现有 root/RefScan 中。ThreadState scanner 不依赖当前 thread mode 来省略 current Context；TLS 只定位 ThreadState。所有 ref store 沿已有 checked write-barrier 路径，可能 GC 后重新取得对象地址；生成的 cleanup 在 restore 消费 mark 后立即将对应 frame slot 写回 Empty，以免仍可达的已完成 continuation 保留旧树。仅挂起不消费 mark，仍保留其完整扫描内容。
 
 同一 TaskContext 的 binding 更新由其逻辑任务串行驱动。M13 的 frame/adapter release publication 与 acquire claim 同时发布 TaskContext 及其 binding；真正挂起后原 driver 只恢复本线程入口，不继续修改已交出的 task。同步 registration 的 latched completion 只投递 payload，不能同时启动第二个 driver。child 和 callback invocation 共享 immutable node，但各自持有可变 TaskContext；payload 对象本身仍遵守普通并发规则。M27 不新增 scheduler、task 锁或逐 lookup 全局锁。
 

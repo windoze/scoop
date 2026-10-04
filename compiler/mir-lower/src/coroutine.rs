@@ -221,6 +221,7 @@ fn transform_function(
         );
         resume_points.push(generated.point);
     }
+    frame::clear_consumed_context_marks(&mut body, frame_local, &frame_slots);
     resume_points.sort_by_key(|point| lowerer.coroutines.resume_points[*point].site());
     let mut dispatch_entries = resume_points
         .iter()
