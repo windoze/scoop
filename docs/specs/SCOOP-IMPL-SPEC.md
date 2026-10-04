@@ -765,6 +765,8 @@ atom range 的持久 section ordinal 同样扩宽为非零 u32；CBOR 数值编�
 
 ELF undefined requirements 来自实际 relocation 引用；仅存在于 symbol table 而未被引用的 undefined 条目（例如 GCC TLS 代码附带的 `_GLOBAL_OFFSET_TABLE_`）不产生链接需求。Mach-O 既有 producer profile 的 undefined 集合约束保持。
 
+共有 metadata pointer reader 以绝对 64-bit relocation 的语义读取引用：Mach-O `UNSIGNED` 的 addend 来自原始八字节字段，amd64 ELF `R_X86_64_64` 的 addend 来自 RELA 的 signed 字段；两者都必须先确认实际 write width 为八字节。原始字段字节与 native relocation form 仍独立保留。要求指向 symbol 起点的 registration 检查有效 addend 为零；指向 associated atom 的 pointer 则按 section/symbol base 加 addend 核对实际 atom 地址。不能因 ELF 原始字段为零而忽略非零 RELA addend，也不能把 PC-relative/GOT/TLS relocation 当作 metadata 绝对指针。
+
 独立 `.slib` reader 的 stackmap normalization 按已选择 target 使用架构帧合同，LLVM v3 字段解析、site/owner 匹配和 canonical fingerprint 共用。amd64 要求 `N >= 8`、`N % 16 == 8`，SP/FP 的 DWARF 编号为 7/6，`FP = SP + N - 8`；root 必须是 `[SP, FP)` 内八字节对齐的完整八字节 indirect slot，base/derived 相同。reader 使用不依赖 LLVM 的成熟 amd64 解码库，从实际函数起点解码至最后 safepoint，确认 return PC 是直接或间接 call 的下一条指令边界，并确认首个 call 前已保存 RBP、建立 RBP frame chain。该检查不按 call opcode 的局部字节猜测指令长度，不引入新的产物字段或重复的语言语义检查。
 
 对象 relocation form 保留 Darwin 既有 tags 1～10；ELF RELA 使用 tag 11，CBOR `{0=11, 1=native kind, 2=write width, 3=addend 的 64-bit 补码}`，runtime canonical encoding 对应 `u32(11), u32(kind), u32(width), u64(addend bits)`。width 由实际架构 relocation decoder 取得，不能按 tag 11 统一按八字节处理；对象 hash 只归零实际 relocation 写入字段，kind、signed addend 与 typed target 保留在 canonical relocation 中。

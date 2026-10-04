@@ -109,6 +109,62 @@ fn elf_stackmaps_validate_actual_member_definitions_roots_and_return_pcs() {
         roots.sort();
         assert_eq!(roots, [0, 1, 2]);
 
+        let patches = emitted
+            .members()
+            .iter()
+            .flat_map(|member| {
+                let id = plans
+                    .member_for_definition(member.units().definition_plans()[0])
+                    .unwrap();
+                member.digest_patches().iter().map(move |patch| {
+                    ProvisionalDigestPatchSiteV1::new(
+                        patch.location().intent(),
+                        id,
+                        patch.checked_object_offset(),
+                        patch.location().width_bytes(),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        let verify_callables = |objects: &[(SlibMemberId, Vec<u8>)]| {
+            let stackmaps = verify(objects).unwrap();
+            let candidates = objects
+                .iter()
+                .map(|(member, bytes)| ScoopLirObjectCandidateV1::new(*member, bytes))
+                .collect::<Vec<_>>();
+            let sites = verify_scoop_lir_digest_patch_sites_v1(
+                stackmaps.builtins().clone(),
+                emitted.foundation(),
+                emitted.production().digest_finalization_plan().clone(),
+                &candidates,
+                &patches,
+            )
+            .unwrap();
+            let production = emitted.production().registration_production();
+            verify_strong_safepoint_registrations_v1(
+                stackmaps,
+                sites.clone(),
+                production.safepoints().clone(),
+                &candidates,
+            )
+            .unwrap();
+            verify_strong_callable_registrations_v1(
+                sites,
+                production.callables().clone(),
+                &candidates,
+            )
+        };
+        let registrations =
+            verify_callables(&objects).expect("ELF callable and safepoint registrations");
+        assert_eq!(registrations.registrations().len(), 3);
+        let entry = registrations.registrations()[0].entry_relocation();
+        let mut damaged_addend = objects.clone();
+        corrupt_entry_addend(&mut damaged_addend, verified.builtins(), entry);
+        assert!(
+            verify_callables(&damaged_addend).is_err(),
+            "zero encoded field must not conceal a nonzero RELA addend"
+        );
+
         let (index, start) = objects
             .iter()
             .enumerate()
@@ -132,4 +188,49 @@ fn elf_stackmaps_validate_actual_member_definitions_roots_and_return_pcs() {
             })
         ));
     }
+}
+
+fn corrupt_entry_addend(
+    objects: &mut [(SlibMemberId, Vec<u8>)],
+    builtins: &VerifiedBuiltinObjectStrongRelocationSetV1,
+    entry: &StrongRelocationBindingV1,
+) {
+    use object::read::elf::SectionHeader;
+    let member = builtins
+        .strong_relocations()
+        .members()
+        .iter()
+        .find(|member| member.member() == entry.source_member())
+        .unwrap();
+    let atom = member
+        .definitions()
+        .definitions()
+        .iter()
+        .flat_map(|definition| definition.atoms())
+        .find(|atom| atom.atom() == entry.containing_atom())
+        .unwrap();
+    let (_, bytes) = objects
+        .iter_mut()
+        .find(|(member, _)| *member == entry.source_member())
+        .unwrap();
+    let file = object::read::elf::ElfFile64::<object::Endianness>::parse(bytes.as_slice()).unwrap();
+    let endian = file.endian();
+    let mut field = None;
+    for (_, section) in file.elf_section_table().enumerate() {
+        if section.sh_type(endian) != object::elf::SHT_RELA
+            || section.sh_info(endian) != atom.section_ordinal().get()
+        {
+            continue;
+        }
+        let start = section.sh_offset(endian) as usize;
+        for offset in (start..start + section.sh_size(endian) as usize).step_by(24) {
+            if u64::from_le_bytes(bytes[offset..offset + 8].try_into().unwrap())
+                == atom.start() + entry.offset_within_atom()
+            {
+                field = Some(offset + 16);
+            }
+        }
+    }
+    let field = field.expect("callable entry RELA");
+    bytes[field..field + 8].copy_from_slice(&8i64.to_le_bytes());
 }

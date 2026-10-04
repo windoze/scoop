@@ -100,25 +100,23 @@ pub(super) fn verify(
 }
 
 fn points_to(shape: &Shape, encoded: u64, range: VerifiedDefinitionAtomRangeV1) -> bool {
-    match shape {
-        Shape::Unsigned64 {
-            target:
-                Target::LocalDefinition {
-                    owner_atom: Some(atom),
-                    section_ordinal,
-                    value,
-                    ..
-                },
-        } => {
+    match shape.absolute64_target() {
+        Some(Target::LocalDefinition {
+            owner_atom: Some(atom),
+            section_ordinal,
+            value,
+            ..
+        }) => {
             *atom == range.atom()
                 && *section_ordinal == range.section_ordinal()
-                && value.checked_add(encoded) == Some(range.start())
+                && shape.form().absolute64_address(encoded, *value) == Some(range.start())
         }
-        Shape::Unsigned64 {
-            target: Target::SectionBase {
-                section_ordinal, ..
-            },
-        } => section_ordinal.get() == range.section_ordinal().get() && encoded == range.start(),
+        Some(Target::SectionBase {
+            section_ordinal, ..
+        }) => {
+            section_ordinal.get() == range.section_ordinal().get()
+                && shape.form().absolute64_address(encoded, 0) == Some(range.start())
+        }
         _ => false,
     }
 }

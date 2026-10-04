@@ -23,6 +23,7 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - builtin 对象消费已抽出共有 section/symbol/relocation facts，并按 target 分派 ELF 与 Mach-O producer profile；ELF 保留实际长名称、u32 section 索引、TLS 尺寸、COMDAT、visibility、RELA signed addend 和原始字段字节。generated-C 实际对象已通过 slib 的 definition/relocation 读取，LLVM 对象已通过共有 envelope 与栈图 section 读取；完整 Scoop metadata finalizer 与 amd64 栈图机器合同仍待后续接入。LLVM metadata 在物化时统一设为可重定位的 writable input，最终只读属性由已有链接脚本保证。
 - 共有 C runtime 测试按宿主选择 OS/profile，synthetic AArch64 frame fixture 继续测试相同数值规则；Linux amd64 真机帧仍由已有 Linux 测试负责。实际 Mach-O loaded-image 与 Darwin entry 汇编测试限定在 macOS 执行，最终 Mac 回归仍保留。AArch64 产物测试在 Linux 继续执行，复用正式 object verifier 的帧链/精确 PC 检查，不再额外调用 `otool` 重验同一事实。
 - 独立 slib stackmap reader 已按架构选择 amd64 帧/root 规则与机器码校验，保留共有 LLVM v3 解析、语义匹配和 canonical encoding。仅解码功能的 [yaxpeax-x86 2.2.0](https://docs.rs/crate/yaxpeax-x86/2.2.0) 用于变长指令边界，无 LLVM 依赖；上游该版于 2026-07-05 发布，维护与 API 已核对。实际调用和 RBP 建帧从函数起点解码，root 排除 red zone、saved RBP 和 return address。Darwin canonical 向量保持；完整 ELF registration/digest finalizer 仍待接入。
+- 共有 metadata reader 已提供绝对 64-bit pointer 的 target/addend/address 读取，区分 Mach-O 字段内 addend 与 ELF RELA signed addend；callable entry 和 Context key pointer 使用该语义。实际 Linux callable、safepoint registration 及 digest patch site 读取已接通，其余 metadata 与完整 digest finalizer 仍待后续完成。
 
 每项实现记录实际运行的验证及其局限。原生探针通过不等于正式 Scoop CLI 已支持对应目标。
 
@@ -51,3 +52,4 @@ M28 正在实施，尚未达到总验收条件。目标与分批顺序见 [设�
 - 共有对象 facts 变更通过 slib 全部 595 项测试及两 libc 的 5 项真实 codegen 测试。新增实际 GCC 对象覆盖超过 255 的 section ordinal、长名称、TLS、COMDAT、PC-relative 负 addend 与绝对指针正 addend；RELA wire 含固定 bytes 和 signed 边界值。generated-C 的 5 类成员经过共有 definition/relocation reader 后继续链接运行。workspace fmt/clippy 通过。另执行 codegen 全量：308 项通过，15 项失败均涉及尚写死 Darwin 平台源文件、汇编或 `xcrun` 的测试入口，后续需适配宿主工具与平台测试分派；本次未跳过或删去它们。
 - 上述测试入口已适配：`cargo test -p scoop-codegen --lib` 在 Linux 上 321 项全部通过，2 项实际 Darwin 平台测试留待 macOS 执行。共有 C 用例包含真实 moving collector、并发初始化、Context、gateway、release、数组/boxing 与损坏 scan graph；其合成机器帧不等于正式 Scoop CLI 的 amd64 collector 闭环。workspace fmt/clippy 通过。
 - amd64 slib stackmap 接入通过全部 598 项 slib 测试（其中 stackmap 24 项），workspace fmt/clippy 通过。新增两 libc 的正式 LLVM member → definition/relocation reader → stackmap reader 集成测试，覆盖零/单/双 root 及破坏 RBP 保存的真实对象负例；解码测试检查直接、register-indirect、memory-indirect call，拒绝指令中间 PC、immediate 内的伪 opcode、缺失/反序建帧和越界/未对齐 root。
+- metadata pointer 变更通过全部 599 项 slib 测试、workspace fmt/clippy，以及两 libc 的真实 callable/safepoint registration 集成测试；把实际 entry RELA addend 从零改为八、保持 pointer 字段为零时 reader 正确拒绝。共有数值测试覆盖 signed addend、地址上下溢和 PC-relative/GOT/TLS relocation 拒绝；Context key 的既有 Darwin 测试通过，Linux Context 全流程仍在后续验收范围。

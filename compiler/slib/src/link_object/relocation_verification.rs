@@ -17,6 +17,7 @@ use crate::SlibMemberId;
 
 mod resolution;
 use resolution::resolve_shape;
+mod pointer;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum VerifiedBoundaryRoleV1 {
