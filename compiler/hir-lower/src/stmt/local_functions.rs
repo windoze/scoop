@@ -102,6 +102,7 @@ impl Lowerer {
         self.signatures.insert(
             function,
             FnSig {
+                context_parameters: self.functions[function].context_parameters.clone(),
                 is_suspend: decl.is_suspend,
                 modifiers: hir::CallableModifiers::default(),
                 attributes,
@@ -208,8 +209,9 @@ impl Lowerer {
                     local,
                 });
             }
+            let mut statements = self.lower_context_entry(function);
             let returns_unit = self.types_equal(return_ty, self.unit);
-            let mut statements = match &decl.body {
+            let body_statements = match &decl.body {
                 ast::FunctionBody::Block(block) => {
                     let diagnostics_before = self.diagnostics.len();
                     let statements = self.lower_block(block);
@@ -259,6 +261,7 @@ impl Lowerer {
                     Vec::new()
                 }
             };
+            statements.extend(body_statements);
             let captures = self.finish_current_captures(declaration_origin);
             patch_local_function_calls(self, &mut statements, local, &captures);
             let mut abi_params = Vec::with_capacity(captures.len() + params.len());

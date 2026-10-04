@@ -42,11 +42,13 @@ impl Lowerer {
                 declaration,
                 parameter,
                 diagnostic,
-            } => hir::ExprKind::ContextLookup(hir::ContextRequirementRef {
-                declaration: hir::ContextRequirementOwner::Imported(*declaration),
-                parameter: *parameter,
-                diagnostic: diagnostic.clone(),
-            }),
+            } => self.materialize_context_lookup(
+                *declaration,
+                *parameter,
+                diagnostic,
+                expression.result_type(),
+                context,
+            )?,
             Kind::ReleaseFieldLoad {
                 owner_type,
                 declaration,

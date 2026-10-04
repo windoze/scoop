@@ -1,0 +1,3 @@
+typealias Text = String
+context(a: String, b: Text) fun read() {}
+fun main() {}

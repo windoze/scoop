@@ -116,6 +116,7 @@ impl Lowerer {
         self.signatures.insert(
             function,
             FnSig {
+                context_parameters: Vec::new(),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
                     operator: Some(hir::OperatorKind::Equals),
@@ -196,6 +197,7 @@ impl Lowerer {
         self.signatures.insert(
             function,
             FnSig {
+                context_parameters: Vec::new(),
                 is_suspend: false,
                 modifiers: hir::CallableModifiers {
                     operator: Some(hir::OperatorKind::Equals),

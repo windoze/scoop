@@ -19,14 +19,16 @@ fn callable_signature_requires_receiver_execution_and_dispatch_effects() {
     assert_eq!(
         InheritanceCallableSignatureV1::try_new(
             ExactCallableSignature::new(Effect::Ordinary, None, vec![], exact),
-            ordinary.clone()
+            ordinary.clone(),
+            Vec::new(),
         ),
         Err(InheritanceCallableSignatureBuildError::MissingReceiver)
     );
     assert_eq!(
         InheritanceCallableSignatureV1::try_new(
             ExactCallableSignature::new(Effect::Suspend, Some(exact), vec![], exact),
-            ordinary.clone()
+            ordinary.clone(),
+            Vec::new(),
         ),
         Err(InheritanceCallableSignatureBuildError::Execution)
     );
@@ -37,7 +39,8 @@ fn callable_signature_requires_receiver_execution_and_dispatch_effects() {
     assert_eq!(
         InheritanceCallableSignatureV1::try_new(
             ExactCallableSignature::new(Effect::Ordinary, Some(exact), vec![], exact),
-            external
+            external,
+            Vec::new(),
         ),
         Err(InheritanceCallableSignatureBuildError::SourceExtern)
     );
@@ -56,6 +59,7 @@ fn override_preserves_effect_contract_but_can_change_body_implementation_categor
             GcEffect::Managed,
             CallableImplementationV1::Intrinsic(crate::IntrinsicFunctionKind::GcCollect),
         ),
+        Vec::new(),
     )
     .unwrap();
     fixture.contract(
@@ -69,6 +73,7 @@ fn override_preserves_effect_contract_but_can_change_body_implementation_categor
             GcEffect::NoGc,
             CallableImplementationV1::Intrinsic(crate::IntrinsicFunctionKind::GcCollect),
         ),
+        Vec::new(),
     )
     .unwrap();
     assert!(matches!(

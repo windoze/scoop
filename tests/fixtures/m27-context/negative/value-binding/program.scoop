@@ -1,0 +1,2 @@
+fun read() { context(1) {} }
+fun main() {}

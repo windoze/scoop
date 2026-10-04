@@ -32,6 +32,7 @@ impl Lowerer {
             this.signatures.insert(
                 function,
                 FnSig {
+                    context_parameters: Vec::new(),
                     is_suspend: false,
                     modifiers: hir::CallableModifiers::default(),
                     attributes: hir::FunctionAttributes::default(),

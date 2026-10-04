@@ -1,5 +1,6 @@
 use super::*;
 mod abstract_methods;
+mod context;
 mod imported;
 mod interfaces;
 mod order;
@@ -106,6 +107,11 @@ impl Lowerer {
             self.current_owner = Some(owner);
             self.check_member_access_contract(id, decl, owner);
             self.check_override_rules(id, decl, owner);
+        }
+        for &(owner, file) in &owners {
+            self.current_file = file;
+            self.current_owner = Some(owner);
+            self.check_inherited_context_contracts(owner);
         }
         self.current_owner = None;
         for &(id, decl, file_index) in pending_classes {

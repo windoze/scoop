@@ -396,12 +396,14 @@ runtime 检查新增 span/cell 的范围、可写性、零初态、实际 owner 
 | 项目 | 当前基线 | M27 迁移 |
 | --- | --- | --- |
 | runtime metadata | ABI 3；image 六类 table，callable record exact-sized | ABI 4，更新 callable cell-list 字段与 size；image table 集合和启动参数保持 |
-| HIR | core-bootstrap-interface /7、cross-cone-interface /48、type-semantics /15 | core-bootstrap-interface /8、cross-cone-interface /49；type-semantics 的 contract 字段同批升级 |
+| HIR | core-bootstrap-interface /7、cross-cone-interface /48、type-semantics /15 | core-bootstrap-interface /8、cross-cone-interface /50、type-semantics /16（/49 是 M27-1 共享 body 节点的中间版本） |
 | MIR | identity-foundation /2、type-bridge /8 | identity-foundation /3、type-bridge /9，保留现有表示表 |
 | LIR | foundation /3、layout-abi /7、layout-link-closure /5、cone-production /5、strong-production /17、link-identity-closure /10 | foundation /4、cone-production /6、strong-production /18、link-identity-closure /11；布局字段未改变的 section 保留版本，更新内容 fingerprint |
 | profile | 两个 Strong /4、cross-cone-generic /3 | Strong /5、generic /4，required inventory 同批切换 |
 | outer/container/identity | HIR/MIR/LIR outer schema 2，callable-body-v2，persistent-v1 mangler | 保留既有域与规则，新增封闭 generated nominal/atom variant |
 | runtime 构建缓存 | 当前源集与 ABI/toolchain fingerprint | 包含 Context 源文件、共享 layout、adapter 与 registration ABI 的变化 |
+
+共有 callable 声明在 field 11 保存独立的有序 context 参数数组（label/type），不改声明 identity 和普通 value parameters；portable callable body 的 field 11 同样保留 context 参数，涵盖没有公开声明记录的 local function；inheritance signature 在 field 3 保存替换后的有序 ContextKey。context 类型引用沿原 signature reference/visibility 入口收集，正文 lookup 的声明和 ordinal 沿原 body 验证边界解析。
 
 section 的具体新编号/字段号在对应 codec 变更时登记；只有内容变化、编码不变的 section 使用新的内容 fingerprint，不无差别升级所有 schema。core/provider/consumer/runtime 同步重建；旧 ABI 在 prefix 或 capability 边界拒绝，不为旧 frame/callback/record 保留兼容实现。
 

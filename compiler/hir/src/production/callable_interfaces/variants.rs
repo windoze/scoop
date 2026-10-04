@@ -168,6 +168,7 @@ pub(super) fn project_selected(
                 CallableModalityV1::Final,
                 crate::DeclaredVisibilityV1::Public,
                 crate::CanonicalPersistentIdsV1::empty(),
+                Vec::new(),
             )
             .map_err(|source| {
                 CallableInterfaceBuildError::projection(

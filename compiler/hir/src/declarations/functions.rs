@@ -56,9 +56,10 @@ impl CallableSignature {
         effects: CallableSourceEffectsV1,
         release_callability: ReleaseCallability,
         span: Span,
+        context_parameters: Vec<crate::ContextParameter>,
     ) -> Self {
         Self {
-            context_parameters: Vec::new(),
+            context_parameters,
             name,
             is_suspend: effects.execution() == scoop_identity::Effect::Suspend,
             modifiers: effects.callable_modifiers(),

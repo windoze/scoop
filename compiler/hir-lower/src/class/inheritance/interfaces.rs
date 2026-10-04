@@ -127,6 +127,13 @@ impl Lowerer {
                 } else {
                     None
                 };
+                self.check_conformance_context(
+                    owner,
+                    implemented.as_ref(),
+                    imported_implementation.as_ref(),
+                    &member,
+                    span,
+                );
                 let target = match implemented {
                     Some(candidate) if !self.is_abstract_method(candidate.function) => {
                         let crate::CallableCandidateOwner::Method(owner) = candidate.owner else {

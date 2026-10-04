@@ -28,7 +28,12 @@ impl Graph {
                 {
                     self.block(owner)?;
                 }
-                for parameter in callable.parameters().parameters() {
+                for parameter in callable
+                    .parameters()
+                    .parameters()
+                    .iter()
+                    .chain(callable.context_parameters())
+                {
                     self.require(owner, parameter.value_type())?;
                 }
                 self.require(owner, callable.result())?;

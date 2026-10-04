@@ -451,6 +451,7 @@ impl Lowerer {
         self.signatures.insert(
             id,
             FnSig {
+                context_parameters: self.functions[id].context_parameters.clone(),
                 is_suspend: decl.is_suspend,
                 modifiers,
                 attributes: self.functions[id].attributes,

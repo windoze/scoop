@@ -221,6 +221,7 @@ impl AccessorInput {
             record.modality(),
             visibility,
             record.slot_relations().clone(),
+            Vec::new(),
         )
         .unwrap()
     }
@@ -260,6 +261,7 @@ impl AccessorInput {
                 },
             )
             .unwrap(),
+            Vec::new(),
         )
         .unwrap()
     }

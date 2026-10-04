@@ -16,6 +16,7 @@ mod callable;
 mod capture_bindings;
 mod closures;
 mod constructors;
+mod context;
 mod definition;
 mod errors;
 mod expressions;

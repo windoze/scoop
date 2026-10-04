@@ -25,6 +25,7 @@ pub struct DecodedExportGenericCallableBodyV1 {
     predicates: DecodedGenericTemplatePredicatesV1,
     definition_origin: DecodedExportDefinitionSourceV1,
     capture_types: Vec<DecodedSignatureTypeKey>,
+    context_parameters: Vec<crate::DecodedSourceParameterShapeV1>,
 }
 
 impl DecodedExportGenericCallableBodyV1 {
@@ -96,6 +97,15 @@ impl DecodedExportGenericCallableBodyV1 {
             predicates,
             definition_origin,
             capture_types,
+            self.context_parameters
+                .into_iter()
+                .enumerate()
+                .map(|(index, parameter)| {
+                    parameter
+                        .resolve(resolver)
+                        .map_err(|source| Error::ContextParameter { index, source })
+                })
+                .collect::<Result<_, _>>()?,
         )
         .map_err(Error::Record)
     }
@@ -103,7 +113,7 @@ impl DecodedExportGenericCallableBodyV1 {
 
 impl WireEncode for DecodedExportGenericCallableBodyV1 {
     fn encode(&self, encoder: &mut Encoder) -> Result<(), scoop_wire::cbor::EncodeError> {
-        encoder.map(10)?;
+        encoder.map(11)?;
         encoder.field(1)?;
         self.owner.encode(encoder)?;
         encoder.field(2)?;
@@ -129,13 +139,18 @@ impl WireEncode for DecodedExportGenericCallableBodyV1 {
         for value_type in &self.capture_types {
             value_type.encode(encoder)?;
         }
+        encoder.field(11)?;
+        encoder.array(self.context_parameters.len() as u64)?;
+        for parameter in &self.context_parameters {
+            parameter.encode(encoder)?;
+        }
         Ok(())
     }
 }
 
 impl WireDecode for DecodedExportGenericCallableBodyV1 {
     fn decode(decoder: &mut Decoder<'_>) -> Result<Self, WireError> {
-        decoder.expect_map(10)?;
+        decoder.expect_map(11)?;
         Ok(Self {
             owner: decoder.field(1, DecodedDefaultCallableDeclarationV1::decode)?,
             locals: decoder.field(2, DecodedCanonicalTemplateLocalTableV1::decode)?,
@@ -152,6 +167,11 @@ impl WireDecode for DecodedExportGenericCallableBodyV1 {
             definition_origin: decoder.field(9, DecodedExportDefinitionSourceV1::decode)?,
             capture_types: decoder.field(10, |decoder| {
                 decoder.decode_array(|decoder, _| DecodedSignatureTypeKey::decode(decoder))
+            })?,
+            context_parameters: decoder.field(11, |decoder| {
+                decoder.decode_array(|decoder, _| {
+                    crate::DecodedSourceParameterShapeV1::decode(decoder)
+                })
             })?,
         })
     }
@@ -170,6 +190,10 @@ pub enum GenericCallableBodyResolutionError<E> {
         source: Box<DefaultStatementResolutionError<E, TemplateLocalLookupError>>,
     },
     Result(E),
+    ContextParameter {
+        index: usize,
+        source: crate::SourceParameterShapeResolutionError<E>,
+    },
     Effects(CallableSourceEffectsBuildError),
     TypeParameters(BinderUseListValidationError<E>),
     Predicates(BinderUseListValidationError<E>),
@@ -191,6 +215,9 @@ impl<E: fmt::Display> fmt::Display for GenericCallableBodyResolutionError<E> {
             }
             Self::Statement { index, source } => {
                 write!(formatter, "invalid generic statement {index}: {source}")
+            }
+            Self::ContextParameter { index, source } => {
+                write!(formatter, "invalid context parameter {index}: {source}")
             }
             Self::Result(source) => write!(formatter, "invalid generic result: {source}"),
             Self::Effects(source) => source.fmt(formatter),

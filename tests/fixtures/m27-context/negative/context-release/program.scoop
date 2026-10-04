@@ -1,0 +1,2 @@
+class Value { context(a: String) release {} }
+fun main() {}

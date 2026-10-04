@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn source_interface_v49_retains_context_operations() {
+fn source_interface_v50_retains_context_contracts() {
     assert_retired_version(
         hir_cross_cone_interface_capability(),
-        49,
+        50,
         MemberPurposeSet::COMPILE,
         &[
             ArtifactCapabilityProfile::CROSS_CONE_SEMANTICS_STRONG,
@@ -14,10 +14,10 @@ fn source_interface_v49_retains_context_operations() {
 }
 
 #[test]
-fn type_semantics_v15_retains_character_representation() {
+fn type_semantics_v16_retains_context_slot_contracts() {
     assert_retired_version(
         hir_cross_cone_type_semantics_capability(),
-        15,
+        16,
         MemberPurposeSet::COMPILE,
         &[ArtifactCapabilityProfile::CROSS_CONE_GENERIC],
     );

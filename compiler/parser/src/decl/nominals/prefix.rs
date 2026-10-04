@@ -159,6 +159,12 @@ impl Parser {
             let keyword = self.bump();
             modifiers.start = modifiers.start.or(Some(keyword.span.start));
         }
+        if !modifiers.context_parameters.is_empty() && is_const {
+            return Err(Diagnostic::at(
+                modifiers.context_parameters[0].span,
+                "contextual properties cannot be const",
+            ));
+        }
         if !modifiers.context_parameters.is_empty()
             && !matches!(
                 self.peek().kind,

@@ -19,7 +19,12 @@ impl Graph<'_> {
                     }
                     Requirement::Constructor { callable, .. }
                     | Requirement::Slot { callable, .. } => {
-                        for parameter in callable.parameters().parameters() {
+                        for parameter in callable
+                            .parameters()
+                            .parameters()
+                            .iter()
+                            .chain(callable.context_parameters())
+                        {
                             self.signature(parameter.value_type(), Kind::Signature)?;
                         }
                         self.signature(callable.result(), Kind::Signature)?;

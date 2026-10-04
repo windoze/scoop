@@ -45,6 +45,7 @@ impl Fixture {
             source.modality(),
             source.declared_visibility(),
             source.slot_relations().clone(),
+            Vec::new(),
         )
         .unwrap();
         self.public = crate::CrossConeHirInterfaceSectionV1::new(

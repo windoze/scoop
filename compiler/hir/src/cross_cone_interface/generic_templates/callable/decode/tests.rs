@@ -20,9 +20,13 @@ use crate::{
 #[test]
 fn generic_return_body_round_trips_without_a_default_parameter_owner() {
     let fixture = Fixture::new();
-    let expected = body(&fixture, vec![fixture.local()]).unwrap();
+    let mut expected = body(&fixture, vec![fixture.local()]).unwrap();
+    expected.context_parameters = vec![crate::SourceParameterShapeV1::new(
+        scoop_identity::CanonicalIdentifier::new("service").unwrap(),
+        fixture.value_type(),
+    )];
     let bytes = encode(&expected.index_locals().unwrap()).unwrap();
-    assert_eq!(bytes[0], 0xaa);
+    assert_eq!(bytes[0], 0xab);
 
     let decoded: DecodedExportGenericCallableBodyV1 = decode_canonical(&bytes).unwrap();
     assert_eq!(encode(&decoded).unwrap(), bytes);
@@ -154,12 +158,12 @@ fn body_reader_preserves_a_missing_typed_owner_error() {
 }
 
 #[test]
-fn body_decoder_requires_all_ten_fields() {
+fn body_decoder_requires_all_eleven_fields() {
     let error = decode_canonical::<DecodedExportGenericCallableBodyV1>(&[0xa0]).unwrap_err();
     assert_eq!(
         error.kind(),
         &WireErrorKind::InvalidLength {
-            expected: 10,
+            expected: 11,
             actual: 0
         }
     );
@@ -241,6 +245,7 @@ fn body(
         binders(vec![fixture.value_type()]),
         GenericTemplatePredicatesV1::new(binders(Vec::new()), binders(Vec::new())),
         fixture.origin(),
+        Vec::new(),
         Vec::new(),
     )
 }

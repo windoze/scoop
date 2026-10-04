@@ -18,6 +18,14 @@
 
 本批通过 `cargo fmt --all`、`cargo clippy --workspace --all-targets`，以及 parser 450、HIR 874、HIR lowering 1314、identity 337、MIR 345、MIR lowering 114、LIR 477、LIR lowering 146、codegen 312、slib 590 项库测试。driver 的 88 项库测试中，87 项在批量运行通过；剩余 core 产物闭合测试修正其对 compiler-generated Context 类型的选择条件后，单独复验通过。三个正式 fixture 共执行 9 个进程并核对 9 份 stage golden。
 
+## M27-2 声明与导出契约
+
+context 参数在 callable 声明与 portable callable body 中分别以独立有序字段保存，普通参数、函数类型及声明 identity 保持原有含义。导出类型引用、binder 解析与可见性沿既有签名路径处理；继承签名保存替换后的有序 key。接口继承、override、继承来的 class 实现与 property obligation 均检查 context 数量、顺序和类型。
+
+补齐局部命名函数自己的入口 lookup，导入接口的继承参数随 owner arguments 一同替换。contextual stored/delegated/const property 在 parser 拒绝。源码契约测试覆盖 key 资格、名称/类型重复、默认值作用域、不可变入口 local、可见性、NoGC 和继承一致性。
+
+新增 `declarations`、`types` 两个正式正例，每个均有 HIR/MIR/LIR golden 及普通/moving GC 运行；`negative/` 保存 51 个独立错误用例及完整诊断和 byte span。新增生产模块均低于 130 行。HIR wire 875、HIR lowering 1324 项测试与 profile 固定向量复验通过；完整 M27 CLI 批次以普通验收模式通过 56/56 个用例、66 个进程与 15 份 stage golden。
+
 ## 后续批次
 
-M27-2 完整源码契约、M27-3 泛型与独立产物、M27-4 协程任务传播、M27-5 callback snapshot 和 M27-6 总验收仍在实施计划内。全部完成前不标记路线图 M27 完成。
+M27-3 泛型与独立产物、M27-4 协程任务传播、M27-5 callback snapshot 和 M27-6 总验收仍在实施计划内。全部完成前不标记路线图 M27 完成。

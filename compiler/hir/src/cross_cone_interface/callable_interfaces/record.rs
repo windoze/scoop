@@ -44,6 +44,7 @@ pub struct CallableDeclarationRecordV1 {
     modality: CallableModalityV1,
     visibility: DeclaredVisibilityV1,
     slots: CanonicalPersistentIdsV1<PersistentDispatchSlotId>,
+    context_parameters: Vec<crate::SourceParameterShapeV1>,
 }
 
 impl CallableDeclarationRecordV1 {
@@ -59,6 +60,7 @@ impl CallableDeclarationRecordV1 {
         modality: CallableModalityV1,
         visibility: DeclaredVisibilityV1,
         slots: CanonicalPersistentIdsV1<PersistentDispatchSlotId>,
+        context_parameters: Vec<crate::SourceParameterShapeV1>,
     ) -> Result<Self, CallableInterfaceRecordBuildError> {
         validate_type_parameter_shape(declaration, &type_parameters)?;
         validate_receiver_shape(owner, receiver.is_some())?;
@@ -75,7 +77,12 @@ impl CallableDeclarationRecordV1 {
             modality,
             visibility,
             slots,
+            context_parameters,
         })
+    }
+
+    pub fn context_parameters(&self) -> &[crate::SourceParameterShapeV1] {
+        &self.context_parameters
     }
 
     pub const fn declaration(&self) -> CallableTemplateOrigin {

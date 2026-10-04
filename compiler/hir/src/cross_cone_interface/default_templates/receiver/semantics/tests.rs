@@ -226,6 +226,7 @@ fn callable(receiver: Option<SignatureTypeKey>) -> CallableInterfaceRecordV1 {
         CallableModalityV1::Final,
         PublicLookupAccessV1::DirectOnly,
         crate::CanonicalPersistentIdsV1::empty(),
+        Vec::new(),
     )
     .unwrap()
 }

@@ -21,6 +21,32 @@ pub(super) fn project(
     )
 }
 
+pub(in crate::production) fn context(
+    signatures: &super::HirInterfaceSignatureProjector<'_>,
+    function: &crate::Function,
+    binders: &[HirSignatureBinder],
+) -> Result<Vec<SourceParameterShapeV1>, SourceParameterProjectionError> {
+    function
+        .context_parameters
+        .iter()
+        .enumerate()
+        .map(|(index, parameter)| {
+            let position = index as u32;
+            let label = match &parameter.label {
+                crate::ContextParameterLabel::Named(name) => name.as_str(),
+                crate::ContextParameterLabel::Unnamed => "_",
+            };
+            let name = CanonicalIdentifier::new(label).map_err(|source| {
+                SourceParameterProjectionError::InvalidName { position, source }
+            })?;
+            let ty = signatures
+                .map_type(parameter.ty, binders)
+                .map_err(|source| SourceParameterProjectionError::Signature { position, source })?;
+            Ok(SourceParameterShapeV1::new(name, ty))
+        })
+        .collect()
+}
+
 pub(in crate::production) fn project_source(
     export: &crate::ExportHir,
     signatures: &super::HirInterfaceSignatureProjector<'_>,
